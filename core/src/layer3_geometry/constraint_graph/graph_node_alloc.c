@@ -24,6 +24,7 @@
 #include "lv/memory_pool.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
+#include "lv/geo_utils.h" /* geo_point_on_segment / geo_segments_intersect / GEO_EPSILON */
 
 #include "config.h"
 #include "context.h"
@@ -658,128 +659,499 @@ static bool func_block_serialize(const GeomNode *node, void *buf) {
 }
 
 /* ── 类型特定的 detect_conflict ──
- * 未实现存根：代码库当前没有任何 vtable->detect_conflict 调用方
- * （冲突检测由 graph_conflict.c 的 graph_detect_conflicts 基于约束关系独立实现，不走 vtable），
- * 因此存根不会触发。若未来启用该路径，须先补齐类型特定冲突检测；当前返回 false（无冲突）为保守默认。 ── */
+ * 语义：检测两个几何节点之间类型特定的"对象重叠/重复定义"冲突。
+ * 保守策略：仅当基于节点自身携带的数据（符号坐标 / 几何参数 ID / 结构数组）
+ * 可确定时才报告冲突；数据缺失或关系无法确定一律返回 false（无冲突）。
+ *
+ * 与 graph_conflict.c 的关系：
+ * graph_conflict.c 的 graph_detect_conflicts 基于【约束关系】独立实现（过度约束点 /
+ * 距离矛盾 / 无效 betweenness / 连接环路 / 矛盾关联），直接遍历图结构与约束邻接表，
+ * 不走 vtable（vtable->detect_conflict 当前无任何调用方，属死字段）；本组函数基于
+ * 【节点几何数据】提供类型特定的成对重叠检测（同位置点 / 线段重合或相交 / 圆重合 /
+ * 端口驱动冲突 / 函数块结构重复），语义互补、互不冲突。补全后 vtable->detect_conflict
+ * 成为可供未来调用方（如节点去重、类型特定一致性检查）使用的可用能力。
+ *
+ * 限制：detect_conflict 签名不含 ConstraintGraph 参数，无法解析 circle 的
+ * center/radius_node_id 所指向节点的坐标，故"点是否在圆上 / 两圆相交"等
+ * 几何关系无法确定，按保守策略返回 false（graph_conflict.c 亦无圆几何检测）。 */
+
+/* 读取节点第 idx 个符号坐标（节点 / 数组 / 坐标缺失均返回 NULL） */
+static const SymbolicCoord *node_coord_at(const GeomNode *node, int idx) {
+    if (!node || !node->symbolic_coords || idx < 0 || idx >= node->coord_count)
+        return NULL;
+    return node->symbolic_coords[idx];
+}
+
+/* 两个符号坐标可确定相等（均存在且符号比较相等） */
+static bool coords_equal(const SymbolicCoord *p, const SymbolicCoord *q) {
+    return p && q && symbolic_coord_compare(p, q) == 0;
+}
+
+/* 坐标对相等（线段端点对比较） */
+static bool coord_pair_equal(const SymbolicCoord *p1, const SymbolicCoord *p2, const SymbolicCoord *q1,
+                             const SymbolicCoord *q2) {
+    return coords_equal(p1, q1) && coords_equal(p2, q2);
+}
 
 static bool point_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
+    if (a == b)
+        return false; /* 自身比较：无冲突 */
+    if (b->type == GEOM_POINT) {
+        /* 同位置点：两个点节点的 (x, y) 坐标完全重合 → 对象重叠冲突。
+         * 坐标缺失时无法确定，保守返回 false。 */
+        return coords_equal(node_coord_at(a, 0), node_coord_at(b, 0)) &&
+               coords_equal(node_coord_at(a, 1), node_coord_at(b, 1));
+    }
+    if (b->type == GEOM_CIRCLE) {
+        /* 点为该圆的定义节点（圆心或半径端点）：合法从属关系，非冲突 */
+        if (a->id == b->data.circle.center_node_id || a->id == b->data.circle.radius_node_id)
+            return false;
+        /* 点是否落在圆上需圆心坐标与半径（无图访问无法解析 ID → 坐标），
+         * 无法确定 → 保守返回 false */
+        return false;
+    }
+    /* 与其他类型（线段 / 区域 / 端口 / 函数块）无可基于节点数据确定的冲突 */
     return false;
 }
 
 static bool line_segment_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
-    return false;
+    if (a == b)
+        return false;
+    if (b->type != GEOM_LINE_SEGMENT)
+        return false; /* 线段与点/圆/区域等无法仅凭节点数据确定重叠 */
+
+    /* 标准坐标布局 (Ax, Ay, Bx, By) = symbolic_coords[0..3]
+     * （见 graph_add_line_segment / graph_memory.c），端点缺失则无法确定 */
+    const SymbolicCoord *a1 = node_coord_at(a, 0), *a2 = node_coord_at(a, 1);
+    const SymbolicCoord *b1 = node_coord_at(a, 2), *b2 = node_coord_at(a, 3);
+    const SymbolicCoord *c1 = node_coord_at(b, 0), *c2 = node_coord_at(b, 1);
+    const SymbolicCoord *d1 = node_coord_at(b, 2), *d2 = node_coord_at(b, 3);
+    if (!a1 || !a2 || !b1 || !b2 || !c1 || !c2 || !d1 || !d2)
+        return false;
+
+    /* 完全重合：4 端点同向或反向逐一匹配（符号精确）→ 重复定义冲突 */
+    if ((coord_pair_equal(a1, a2, c1, c2) && coord_pair_equal(b1, b2, d1, d2)) ||
+        (coord_pair_equal(a1, a2, d1, d2) && coord_pair_equal(b1, b2, c1, c2)))
+        return true;
+
+    /* 退化线段（任一端点重合）：非标准数据，其余重叠关系无法可靠确定 → 保守 false */
+    if (coords_equal(a1, b1) && coords_equal(a2, b2))
+        return false;
+    if (coords_equal(c1, d1) && coords_equal(c2, d2))
+        return false;
+
+    /* 端点接触计数（符号精确）：区分"仅端点接触"（合法拓扑，如多边形共顶点）
+     * 与"重叠 / 相交"（几何冲突） */
+    int shared = 0;
+    if (coords_equal(a1, c1) || coords_equal(a1, d1))
+        shared++;
+    if (coords_equal(b1, c1) || coords_equal(b1, d1))
+        shared++;
+
+    /* 数值近似：符号坐标 → double（紧容差 GEO_EPSILON），仅用于确定
+     * "未共享端点是否落在对方线段内部 / 两线段是否无公共端点交叉" */
+    double ax1 = symbolic_coord_to_double(a1), ay1 = symbolic_coord_to_double(a2);
+    double ax2 = symbolic_coord_to_double(b1), ay2 = symbolic_coord_to_double(b2);
+    double bx1 = symbolic_coord_to_double(c1), by1 = symbolic_coord_to_double(c2);
+    double bx2 = symbolic_coord_to_double(d1), by2 = symbolic_coord_to_double(d2);
+
+    if (shared == 1) {
+        /* 共享一个端点：若任一线段的未共享端点严格落在另一线段内部
+         * （端点重合已排除，命中即内部点）→ 部分重叠冲突 */
+        if (!coords_equal(c1, a1) && !coords_equal(c1, b1) &&
+            geo_point_on_segment(bx1, by1, ax1, ay1, ax2, ay2))
+            return true;
+        if (!coords_equal(d1, a1) && !coords_equal(d1, b1) &&
+            geo_point_on_segment(bx2, by2, ax1, ay1, ax2, ay2))
+            return true;
+        if (!coords_equal(a1, c1) && !coords_equal(a1, d1) &&
+            geo_point_on_segment(ax1, ay1, bx1, by1, bx2, by2))
+            return true;
+        if (!coords_equal(b1, c1) && !coords_equal(b1, d1) &&
+            geo_point_on_segment(ax2, ay2, bx1, by1, bx2, by2))
+            return true;
+        return false; /* 仅端点接触 → 合法拓扑，非冲突 */
+    }
+
+    /* 无公共端点：严格交叉（内点相交）→ 冲突 */
+    return geo_segments_intersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2) != 0;
 }
 
 static bool region_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
-    return false;
+    if (a == b)
+        return false;
+    if (b->type != GEOM_REGION)
+        return false;
+    /* 区域冲突：两个区域由完全相同的边界线段序列（相同 id 序列）围成
+     * → 重复定义。边界数组缺失 / 指针未解析（fixup 前）→ 无法确定 → 保守 false。 */
+    if (a->data.region.segment_count != b->data.region.segment_count)
+        return false;
+    if (a->data.region.segment_count == 0)
+        return false; /* 空区域：无可确定的重叠信息 */
+    if (!a->data.region.boundary_segments || !b->data.region.boundary_segments)
+        return false;
+    for (int i = 0; i < a->data.region.segment_count; i++) {
+        const GeomNode *sa = a->data.region.boundary_segments[i];
+        const GeomNode *sb = b->data.region.boundary_segments[i];
+        if (!sa || !sb)
+            return false; /* 指针未解析 → 无法确定 */
+        if (sa->id != sb->id)
+            return false;
+    }
+    return true;
 }
 
 static bool circle_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
-    return false;
+    if (a == b)
+        return false;
+    if (b->type != GEOM_CIRCLE)
+        return false;
+    /* 圆节点仅携带 center/radius_node_id（无符号坐标，见 graph_add_circle）；
+     * detect_conflict 无 ConstraintGraph 参数，无法解析 ID → 坐标，
+     * 故同心 / 相交 / 相切 / 相离等几何关系无法确定 → 保守 false。
+     * 可确定部分：两圆圆心与半径端点 ID 完全一致 → 同一圆重复定义 → 冲突。
+     * ID 未配置（< 0，数据不完整）时保守返回 false。 */
+    if (a->data.circle.center_node_id < 0 || a->data.circle.radius_node_id < 0)
+        return false;
+    return a->data.circle.center_node_id == b->data.circle.center_node_id &&
+           a->data.circle.radius_node_id == b->data.circle.radius_node_id;
 }
 
 static bool port_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
-    return false;
+    if (a == b)
+        return false;
+    if (b->type != GEOM_PORT)
+        return false;
+    /* 语义化检测（基于两端口节点自身数据，无需图访问）：
+     * 两个输出端口连接到同一个输入端口 → 单一输入被多输出驱动（fan-in 冲突）。
+     * （一个输出驱动多个输入为合法 fan-out；双向连接由 CONNECTION 约束成对设置
+     * connected_to，见 graph_add_connection。）
+     * 端口数据缺失 / connected_to 未建立 → 无法确定 → 保守 false。
+     * 注意：不比较 port->id——graph_add_port 路径不设置该字段（恒为 0），
+     * 比较它会误报所有运行时创建的端口。 */
+    if (!a->data.port || !b->data.port)
+        return false;
+    if (a->data.port->type != PORT_OUTPUT || b->data.port->type != PORT_OUTPUT)
+        return false;
+    return a->data.port->connected_to != NULL && a->data.port->connected_to == b->data.port->connected_to;
 }
 
 static bool func_block_detect_conflict(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    /* 未实现：当前无 vtable->detect_conflict 调用方（冲突检测由 graph_conflict.c 独立实现），
-     * 启用前须实现类型特定冲突检测；返回 false（无冲突）为保守默认 */
-    return false;
+    if (a == b)
+        return false;
+    if (b->type != GEOM_FUNCTION_BLOCK)
+        return false;
+    /* 语义化检测：内部结构完全一致（内部节点 / 输入 / 输出端口 ID 序列逐元素相同）
+     * → 重复定义冲突。任一数组缺失或内部节点指针为 NULL（fixup 前）
+     * → 数据不完整，无法确定 → 保守 false。 */
+    if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count ||
+        a->data.func_block.input_count != b->data.func_block.input_count ||
+        a->data.func_block.output_count != b->data.func_block.output_count)
+        return false;
+    int ni = a->data.func_block.internal_node_count;
+    if (ni > 0) {
+        if (!a->data.func_block.internal_nodes || !b->data.func_block.internal_nodes)
+            return false;
+        for (int i = 0; i < ni; i++) {
+            if (!a->data.func_block.internal_nodes[i] || !b->data.func_block.internal_nodes[i])
+                return false;
+            if (a->data.func_block.internal_nodes[i]->id != b->data.func_block.internal_nodes[i]->id)
+                return false;
+        }
+    }
+    int n_in = a->data.func_block.input_count;
+    if (n_in > 0) {
+        if (!a->data.func_block.input_port_ids || !b->data.func_block.input_port_ids)
+            return false;
+        for (int i = 0; i < n_in; i++) {
+            if (a->data.func_block.input_port_ids[i] != b->data.func_block.input_port_ids[i])
+                return false;
+        }
+    }
+    int n_out = a->data.func_block.output_count;
+    if (n_out > 0) {
+        if (!a->data.func_block.output_port_ids || !b->data.func_block.output_port_ids)
+            return false;
+        for (int i = 0; i < n_out; i++) {
+            if (a->data.func_block.output_port_ids[i] != b->data.func_block.output_port_ids[i])
+                return false;
+        }
+    }
+    return true;
+}
+/* ── 类型特定的 hash（计算类型特定数据的确定性哈希，用于去重与比较） ──
+ * vtable->hash 当前无调用方（死字段）；补全为基于节点类型特定数据（符号坐标 /
+ * 几何参数 ID / 结构数组）的确定性哈希（FNV-1a + symbolic_coord_hash），
+ * 与对应 compare 保持一致：compare 判等 → hash 相同。
+ * 线段端点顺序无关（同向/反向线段哈希一致，与 line_segment_compare 的方向
+ * 无关语义对齐）；数据缺失项以固定常量混入，保证确定性。 */
+
+/* 将 64 位 FNV 哈希折叠为 32 位（vtable 签名为 uint32_t） */
+static uint32_t fold_hash_u64(uint64_t h) {
+    return (uint32_t) (h ^ (h >> 32));
 }
 
-/* ── 类型特定的 hash（计算类型特定数据的哈希值） ── */
-
 static uint32_t point_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* GEOM_POINT: 无类型特定数据，哈希值固定为 0 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->coord_count);
+    if (node->symbolic_coords) {
+        for (int i = 0; i < node->coord_count; i++) {
+            const SymbolicCoord *c = node->symbolic_coords[i];
+            h = lv_fnv1a_hash_int(h, c ? symbolic_coord_hash(c) : 0ULL);
+        }
+    }
+    return fold_hash_u64(h);
 }
 
 static uint32_t line_segment_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* 存根 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->coord_count);
+    int half = node->coord_count / 2;
+    if (half < 1 || !node->symbolic_coords)
+        return fold_hash_u64(h); /* 数据不完整：仅坐标数量（与 compare 退化路径对齐） */
+    /* 端点1 = coords[0..half-1]，端点2 = coords[half..2*half-1]
+     * （标准布局 (Ax,Ay,Bx,By) 下 half=2） */
+    uint64_t e1 = lv_FNV64_OFFSET_BASIS;
+    uint64_t e2 = lv_FNV64_OFFSET_BASIS;
+    for (int i = 0; i < half; i++) {
+        const SymbolicCoord *c1 = node->symbolic_coords[i];
+        const SymbolicCoord *c2 = node->symbolic_coords[half + i];
+        e1 = lv_fnv1a_hash_int(e1, c1 ? symbolic_coord_hash(c1) : 0ULL);
+        e2 = lv_fnv1a_hash_int(e2, c2 ? symbolic_coord_hash(c2) : 0ULL);
+    }
+    /* 端点顺序无关：排序后混合（同向/反向线段哈希一致，与 compare 对齐） */
+    if (e1 > e2) {
+        uint64_t t = e1;
+        e1 = e2;
+        e2 = t;
+    }
+    h = lv_fnv1a_hash_int(h, e1);
+    h = lv_fnv1a_hash_int(h, e2);
+    return fold_hash_u64(h);
 }
 
 static uint32_t region_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* 存根 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->data.region.segment_count);
+    if (node->data.region.boundary_segments && node->data.region.segment_count > 0) {
+        /* 边界顺序是闭合多边形的有序语义，按序混入（与 region_compare 对齐） */
+        for (int i = 0; i < node->data.region.segment_count; i++) {
+            const GeomNode *seg = node->data.region.boundary_segments[i];
+            h = lv_fnv1a_hash_int(h, seg ? (uint64_t) seg->id : UINT64_MAX);
+        }
+    }
+    return fold_hash_u64(h);
 }
 
 static uint32_t circle_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* 存根 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->data.circle.center_node_id);
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->data.circle.radius_node_id);
+    return fold_hash_u64(h);
 }
 
 static uint32_t port_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* 存根 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    if (node->data.port) {
+        const Port *p = node->data.port;
+        h = lv_fnv1a_hash_int(h, (uint64_t) p->id);
+        h = lv_fnv1a_hash_int(h, (uint64_t) p->type);
+        h = lv_fnv1a_hash_int(h, (uint64_t) p->namespace_depth);
+        h = lv_fnv1a_hash_int(h, (uint64_t) p->parent_block_id);
+        h = lv_fnv1a_hash_int(h, p->is_formal_param ? 1ULL : 0ULL);
+        h = lv_fnv1a_hash_int(h, p->is_polymorphic ? 1ULL : 0ULL);
+        h = lv_fnv1a_hash_int(h, p->connected_to ? (uint64_t) p->connected_to->id : UINT64_MAX);
+    } else {
+        h = lv_fnv1a_hash_int(h, 0); /* 端口数据缺失 */
+    }
+    return fold_hash_u64(h);
 }
 
 static uint32_t func_block_hash(const GeomNode *node) {
-    (void)node;
-    return 0; /* 存根 */
+    uint64_t h = lv_FNV64_OFFSET_BASIS;
+    int ni = node->data.func_block.internal_node_count;
+    int n_in = node->data.func_block.input_count;
+    int n_out = node->data.func_block.output_count;
+    h = lv_fnv1a_hash_int(h, (uint64_t) ni);
+    h = lv_fnv1a_hash_int(h, (uint64_t) n_in);
+    h = lv_fnv1a_hash_int(h, (uint64_t) n_out);
+    h = lv_fnv1a_hash_int(h, (uint64_t) node->data.func_block.determinism_state);
+    if (node->data.func_block.internal_nodes && ni > 0) {
+        for (int i = 0; i < ni; i++) {
+            const GeomNode *in = node->data.func_block.internal_nodes[i];
+            h = lv_fnv1a_hash_int(h, in ? (uint64_t) in->id : UINT64_MAX);
+        }
+    }
+    if (node->data.func_block.input_port_ids && n_in > 0) {
+        for (int i = 0; i < n_in; i++)
+            h = lv_fnv1a_hash_int(h, (uint64_t) node->data.func_block.input_port_ids[i]);
+    }
+    if (node->data.func_block.output_port_ids && n_out > 0) {
+        for (int i = 0; i < n_out; i++)
+            h = lv_fnv1a_hash_int(h, (uint64_t) node->data.func_block.output_port_ids[i]);
+    }
+    return fold_hash_u64(h);
 }
-
-/* ── 类型特定的 compare ── */
+/* ── 类型特定的 compare（比较两个节点的类型特定数据是否相等） ──
+ * 与对应 hash 字段逐一对齐（compare 判等 → hash 相同）；数据缺失项按
+ * "NULL 模式相等才判等"处理，保证与 hash 的确定性混入一致。 */
 
 static int point_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根：暂不比较类型特定数据 */
+    if (a->coord_count != b->coord_count)
+        return a->coord_count < b->coord_count ? -1 : 1;
+    for (int i = 0; i < a->coord_count; i++) {
+        const SymbolicCoord *ca = a->symbolic_coords ? a->symbolic_coords[i] : NULL;
+        const SymbolicCoord *cb = b->symbolic_coords ? b->symbolic_coords[i] : NULL;
+        if (ca == NULL && cb == NULL)
+            continue;
+        if (ca == NULL)
+            return -1;
+        if (cb == NULL)
+            return 1;
+        int r = symbolic_coord_compare(ca, cb);
+        if (r != 0)
+            return r < 0 ? -1 : 1;
+    }
+    return 0;
 }
 
 static int line_segment_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根 */
+    if (a->coord_count != b->coord_count)
+        return a->coord_count < b->coord_count ? -1 : 1;
+    int n = a->coord_count;
+    int half = n / 2;
+    /* 完整数据：坐标数为偶数（n == 2*half）且所有端点坐标非 NULL */
+    bool complete = n >= 2 && n == 2 * half && a->symbolic_coords && b->symbolic_coords;
+    if (complete) {
+        for (int i = 0; i < half; i++) {
+            if (!a->symbolic_coords[i] || !a->symbolic_coords[half + i] || !b->symbolic_coords[i] ||
+                !b->symbolic_coords[half + i]) {
+                complete = false;
+                break;
+            }
+        }
+    }
+    if (complete) {
+        /* 方向无关：同向（端点1↔端点1、端点2↔端点2）或反向（端点互换）匹配 */
+        bool same_forward = true;
+        bool same_reverse = true;
+        for (int i = 0; i < half; i++) {
+            if (symbolic_coord_compare(a->symbolic_coords[i], b->symbolic_coords[i]) != 0 ||
+                symbolic_coord_compare(a->symbolic_coords[half + i], b->symbolic_coords[half + i]) != 0)
+                same_forward = false;
+            if (symbolic_coord_compare(a->symbolic_coords[i], b->symbolic_coords[half + i]) != 0 ||
+                symbolic_coord_compare(a->symbolic_coords[half + i], b->symbolic_coords[i]) != 0)
+                same_reverse = false;
+        }
+        return same_forward || same_reverse ? 0 : -1;
+    }
+    /* 退化路径：逐位置比较（含 NULL 模式），与 line_segment_hash 对齐 */
+    return point_compare(a, b);
 }
 
 static int region_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根 */
+    if (a->data.region.segment_count != b->data.region.segment_count)
+        return a->data.region.segment_count < b->data.region.segment_count ? -1 : 1;
+    int n = a->data.region.segment_count;
+    if (n > 0 && (!a->data.region.boundary_segments || !b->data.region.boundary_segments))
+        return 1; /* 数据不完整：保守视为不等（与 region_hash 的缺失混入区分） */
+    for (int i = 0; i < n; i++) {
+        const GeomNode *sa = a->data.region.boundary_segments[i];
+        const GeomNode *sb = b->data.region.boundary_segments[i];
+        if (sa == NULL && sb == NULL)
+            continue;
+        if (sa == NULL)
+            return -1;
+        if (sb == NULL)
+            return 1;
+        if (sa->id != sb->id)
+            return sa->id < sb->id ? -1 : 1;
+    }
+    return 0;
 }
 
 static int circle_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根 */
+    if (a->data.circle.center_node_id != b->data.circle.center_node_id)
+        return a->data.circle.center_node_id < b->data.circle.center_node_id ? -1 : 1;
+    if (a->data.circle.radius_node_id != b->data.circle.radius_node_id)
+        return a->data.circle.radius_node_id < b->data.circle.radius_node_id ? -1 : 1;
+    return 0;
 }
 
 static int port_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根 */
+    const Port *pa = a->data.port;
+    const Port *pb = b->data.port;
+    if (pa == NULL && pb == NULL)
+        return 0;
+    if (pa == NULL)
+        return -1;
+    if (pb == NULL)
+        return 1;
+    if (pa->id != pb->id)
+        return pa->id < pb->id ? -1 : 1;
+    if (pa->type != pb->type)
+        return pa->type < pb->type ? -1 : 1;
+    if (pa->namespace_depth != pb->namespace_depth)
+        return pa->namespace_depth < pb->namespace_depth ? -1 : 1;
+    if (pa->parent_block_id != pb->parent_block_id)
+        return pa->parent_block_id < pb->parent_block_id ? -1 : 1;
+    if (pa->is_formal_param != pb->is_formal_param)
+        return pa->is_formal_param ? 1 : -1;
+    if (pa->is_polymorphic != pb->is_polymorphic)
+        return pa->is_polymorphic ? 1 : -1;
+    int cid_a = pa->connected_to ? pa->connected_to->id : -1;
+    int cid_b = pb->connected_to ? pb->connected_to->id : -1;
+    if (cid_a != cid_b)
+        return cid_a < cid_b ? -1 : 1;
+    return 0;
 }
 
 static int func_block_compare(const GeomNode *a, const GeomNode *b) {
-    (void)a;
-    (void)b;
-    return 0; /* 存根 */
+    if (a->data.func_block.internal_node_count != b->data.func_block.internal_node_count)
+        return a->data.func_block.internal_node_count < b->data.func_block.internal_node_count ? -1 : 1;
+    if (a->data.func_block.input_count != b->data.func_block.input_count)
+        return a->data.func_block.input_count < b->data.func_block.input_count ? -1 : 1;
+    if (a->data.func_block.output_count != b->data.func_block.output_count)
+        return a->data.func_block.output_count < b->data.func_block.output_count ? -1 : 1;
+    if (a->data.func_block.determinism_state != b->data.func_block.determinism_state)
+        return a->data.func_block.determinism_state < b->data.func_block.determinism_state ? -1 : 1;
+    int ni = a->data.func_block.internal_node_count;
+    if (ni > 0) {
+        if (!a->data.func_block.internal_nodes || !b->data.func_block.internal_nodes)
+            return 1; /* 数据不完整：保守视为不等 */
+        for (int i = 0; i < ni; i++) {
+            const GeomNode *ia = a->data.func_block.internal_nodes[i];
+            const GeomNode *ib = b->data.func_block.internal_nodes[i];
+            if (ia == NULL && ib == NULL)
+                continue;
+            if (ia == NULL)
+                return -1;
+            if (ib == NULL)
+                return 1;
+            if (ia->id != ib->id)
+                return ia->id < ib->id ? -1 : 1;
+        }
+    }
+    int n_in = a->data.func_block.input_count;
+    if (n_in > 0) {
+        if (!a->data.func_block.input_port_ids || !b->data.func_block.input_port_ids)
+            return 1;
+        for (int i = 0; i < n_in; i++) {
+            if (a->data.func_block.input_port_ids[i] != b->data.func_block.input_port_ids[i])
+                return a->data.func_block.input_port_ids[i] < b->data.func_block.input_port_ids[i] ? -1 : 1;
+        }
+    }
+    int n_out = a->data.func_block.output_count;
+    if (n_out > 0) {
+        if (!a->data.func_block.output_port_ids || !b->data.func_block.output_port_ids)
+            return 1;
+        for (int i = 0; i < n_out; i++) {
+            if (a->data.func_block.output_port_ids[i] != b->data.func_block.output_port_ids[i])
+                return a->data.func_block.output_port_ids[i] < b->data.func_block.output_port_ids[i] ? -1 : 1;
+        }
+    }
+    return 0;
 }
-
 /* ── 类型特定的 deserialize（存根） ── */
 
 static bool point_deserialize(GeomNode *node, const uint8_t *data, size_t size) {

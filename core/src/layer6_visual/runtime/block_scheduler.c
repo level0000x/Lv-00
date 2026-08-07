@@ -11,9 +11,11 @@
 
 /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
 /* 通过端口 ID 匹配确定块间依赖（run 与 run_incremental 共用；in_degree 可为 NULL） */
-static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int ***out_adj, int **out_adj_count) {
+static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int ***out_adj, int **out_adj_count,
+                                 int **out_adj_cap) {
     int **adj = *out_adj;
     int *adj_count = *out_adj_count;
+    int *adj_cap = *out_adj_cap;
 
     for (int i = 0; i < n; i++) {
         FuncBlock *fb = bg->blocks[i];
@@ -36,12 +38,11 @@ static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int 
                     int in_port = other->input_port_ids ? other->input_port_ids[ii] : -1;
                     if (in_port == out_port) {
                         /* 存在连接：i -> j */
-                        /* 线性增长：每次 +1 个元素直接 realloc（adj 无 cap 字段，不引入 lv_ensure_capacity） */
-                        adj_count[i]++;
-                        int *new_adj = lv_realloc(adj[i], adj_count[i] * sizeof(int));
-                        if (new_adj) {
-                            adj[i] = new_adj;
-                            adj[i][adj_count[i] - 1] = j;
+                        /* 倍增扩容：行容量委托 lv_ensure_capacity（初始 8，此后倍增；
+                         * 失败时与原始语义一致：跳过该边写入，in_degree 计数仍照旧递增） */
+                        if (lv_ensure_capacity((void **) &adj[i], adj_count[i], &adj_cap[i], sizeof(int), 1)) {
+                            adj[i][adj_count[i]] = j;
+                            adj_count[i]++;
                         }
                         if (in_degree)
                             in_degree[j]++;
@@ -123,12 +124,13 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     /* 分配工作数组 */
     int *in_degree = lv_calloc(n, sizeof(int));
     int *adj_count = lv_calloc(n, sizeof(int));  /* 每个块的下游邻居数 */
+    int *adj_cap = lv_calloc(n, sizeof(int));    /* 每行邻接表容量 */
     int **adj = lv_calloc(n, sizeof(int *));     /* 邻接表 */
     int *queue_buf = lv_calloc(n, sizeof(int));  /* 拓扑排序队列 */
     int *topo_order = lv_calloc(n, sizeof(int)); /* 拓扑排序结果 */
 
-    if (!in_degree || !adj_count || !adj || !queue_buf || !topo_order) {
-        lv_free_many(&in_degree, &adj_count, &adj, &queue_buf, &topo_order, NULL);
+    if (!in_degree || !adj_count || !adj_cap || !adj || !queue_buf || !topo_order) {
+        lv_free_many(&in_degree, &adj_count, &adj_cap, &adj, &queue_buf, &topo_order, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -136,7 +138,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
 
     /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
     /* 通过端口 ID 匹配确定块间依赖 */
-    build_block_adjacency(bg, n, in_degree, &adj, &adj_count);
+    build_block_adjacency(bg, n, in_degree, &adj, &adj_count, &adj_cap);
 
     /* Kahn 算法：将入度为0的节点入队 */
     int front = 0, back = 0;
@@ -192,7 +194,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     /* 清理 */
     for (int i = 0; i < n; i++)
         lv_free((void **) &adj[i]);
-    lv_free_many(&adj, &adj_count, &in_degree, &queue_buf, &topo_order, NULL);
+    lv_free_many(&adj, &adj_cap, &adj_count, &in_degree, &queue_buf, &topo_order, NULL);
 
     return result;
 }
@@ -230,15 +232,16 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
 
     /* 构建邻接表（同 run 函数） */
     int *adj_count = lv_calloc(n, sizeof(int));
+    int *adj_cap = lv_calloc(n, sizeof(int)); /* 每行邻接表容量 */
     int **adj = lv_calloc(n, sizeof(int *));
-    if (!adj_count || !adj) {
-        lv_free_many(&adj_count, &adj, NULL);
+    if (!adj_count || !adj_cap || !adj) {
+        lv_free_many(&adj_count, &adj_cap, &adj, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
     }
 
-    build_block_adjacency(bg, n, NULL, &adj, &adj_count);
+    build_block_adjacency(bg, n, NULL, &adj, &adj_count, &adj_cap);
 
     /* 计算脏块的传递闭包（包括所有下游依赖） */
     /* need_exec 同时充当 BFS 的 visited（lv_bfs_run 要求 bool*，故用 bool 数组） */
@@ -246,7 +249,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
     if (!need_exec) {
         for (int i = 0; i < n; i++)
             lv_free((void **) &adj[i]);
-        lv_free_many(&adj, &adj_count, NULL);
+        lv_free_many(&adj, &adj_count, &adj_cap, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
@@ -327,6 +330,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
         lv_free((void **) &adj[i]);
     lv_free((void **) &adj);
     lv_free((void **) &adj_count);
+    lv_free((void **) &adj_cap);
 
     return result;
 }

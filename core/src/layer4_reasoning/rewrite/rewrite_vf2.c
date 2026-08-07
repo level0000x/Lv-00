@@ -703,8 +703,13 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
         node->coord_count = 0;
         node->symbolic_coords = NULL;
 
-        pattern_graph->nodes =
-            lv_realloc(pattern_graph->nodes, (size_t) (pattern_graph->node_count + 1) * sizeof(GeomNode *));
+        /* 倍增扩容：复用 ConstraintGraph 既有 node_capacity 字段（与 graph_node_alloc.c 同款模式） */
+        if (!lv_ensure_capacity((void **) &pattern_graph->nodes, pattern_graph->node_count,
+                                &pattern_graph->node_capacity, sizeof(GeomNode *), 1)) {
+            lv_free((void **) &node);
+            graph_destroy(pattern_graph);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: pattern_graph nodes 扩容失败");
+        }
         pattern_graph->nodes[pattern_graph->node_count++] = node;
     }
     pattern_graph->next_node_id = pattern->var_count;

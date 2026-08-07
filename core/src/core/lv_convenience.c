@@ -238,14 +238,14 @@ int lv_preset_load(lvContext *ctx, const char *name) {
      * 方便后续 lv_preset_apply() 使用。
      * module_refs 为动态数组：写入前按需扩容（参照 dsl_compiler_load.c 的做法）。 */
     {
-        void **np = lv_realloc(ctx->module_refs, sizeof(void *) * (size_t) (ctx->module_ref_count + 1));
-        if (!np) {
+        /* 倍增扩容：委托 lv_ensure_capacity（初始 8，此后每次倍增；失败语义与原来一致：返回 -4） */
+        if (!lv_ensure_capacity((void **) &ctx->module_refs, ctx->module_ref_count, &ctx->module_ref_capacity,
+                                sizeof(void *), 1)) {
             preset_release(entry);
             ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
             snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组扩容失败");
             return -4;
         }
-        ctx->module_refs = np;
     }
     ctx->module_refs[ctx->module_ref_count] = (void *) entry;
     ctx->module_ref_count++;

@@ -193,10 +193,10 @@ struct GeomNodeVTable {
     /** 序列化：将类型特定的节点数据追加到 JSON 缓冲区 */
     bool (*serialize)(const GeomNode *node, void *buf);
 
-    /** 冲突检测：检查两个节点之间是否存在类型特定的冲突 */
+    /** 冲突检测：检查两节点间类型特定的成对重叠/重复定义冲突（基于节点几何数据；与 graph_detect_conflicts 基于约束关系的检测互补；无法确定的关系返回 false） */
     bool (*detect_conflict)(const GeomNode *a, const GeomNode *b);
 
-    /** 哈希：计算节点类型特定数据的哈希值（用于去重和比较） */
+    /** 哈希：计算节点类型特定数据的确定性哈希（用于去重和比较；与 compare 一致：compare 判等则 hash 相同） */
     uint32_t (*hash)(const GeomNode *node);
 
     /** 比较：比较两个节点的类型特定数据是否相等 */

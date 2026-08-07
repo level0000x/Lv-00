@@ -377,6 +377,7 @@ ProofSearchTree *proof_search_tree_create(void) {
     tree->current_strategy = NULL;
     tree->available_strategies = NULL;
     tree->strategy_count = 0;
+    tree->strategy_capacity = 0;
 
     return tree;
 }
@@ -592,11 +593,10 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
         }
     }
 
-    /* 扩展策略数组 */
-    char **new_strats = lv_realloc(tree->available_strategies, (tree->strategy_count + 1) * sizeof(char *));
-    if (!new_strats)
+    /* 扩展策略数组（倍增扩容：初始 8，此后每次倍增；失败语义与原来一致：直接返回） */
+    if (!lv_ensure_capacity((void **) &tree->available_strategies, tree->strategy_count, &tree->strategy_capacity,
+                            sizeof(char *), 1))
         return;
-    tree->available_strategies = new_strats;
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     tree->available_strategies[tree->strategy_count] = lv_malloc(strlen(strategy_name) + 1);

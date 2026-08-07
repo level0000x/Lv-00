@@ -10,10 +10,46 @@ lvz 1
 
 presets {
 
+    preset "normal_distribution" {
+        description "构造正态分布 N(μ, σ²) 及其PDF/CDF计算"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "binomial_distribution" {
+        description "构造二项分布 B(n, p) 及概率计算"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "poisson_distribution" {
+        description "构造Poisson分布 P(λ) 及概率计算"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "expectation_variance" {
+        description "计算随机变量的期望 E[X] 和方差 Var(X)"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "z_test" {
         description "单样本Z检验（已知总体方差的均值检验）"
         category "CUSTOM"
-        inputs 4 
+        inputs 4 "ANY" "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +58,7 @@ presets {
     preset "t_test" {
         description "单样本/双样本t检验（未知总体方差的均值检验）"
         category "CUSTOM"
-        inputs 4 
+        inputs 4 "ANY" "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +67,16 @@ presets {
     preset "chi_square_test" {
         description "卡方拟合优度检验（观测频数与期望频数比较）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "bayes_theorem" {
+        description "应用贝叶斯定理 P(A|B) = P(B|A)P(A)/P(B)"
+        category "CUSTOM"
+        inputs 4 "ANY" "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +85,7 @@ presets {
     preset "bayesian_estimation" {
         description "贝叶斯参数估计：后验 ∝ 似然 x 先验"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +94,7 @@ presets {
     preset "least_squares_regression" {
         description "最小二乘法线性回归 y = a + bx"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +103,7 @@ presets {
     preset "confidence_interval" {
         description "计算总体均值的置信区间"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +112,16 @@ presets {
     preset "maximum_likelihood_estimation" {
         description "极大似然估计（MLE）求参数估计值"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "correlation_coefficient" {
+        description "计算Pearson相关系数 r = Cov(X,Y)/(σ_X σ_Y)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +130,7 @@ presets {
     preset "central_limit_theorem" {
         description "中心极限定理应用：样本均值的近似分布"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

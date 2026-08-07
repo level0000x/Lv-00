@@ -163,12 +163,78 @@ static bool lambda_unify_applicability_check(const ProofMultiStrategy *mse,
 }
 
 /**
+ * @brief 顶层自由 λ-变量槽位判定
+ *
+ * 与 lambda_unify_apply_to_graph 的槽位语义一致：PORT_OUTPUT、
+ * parent_block_id == -1、非形式参数、非函数块内部节点。
+ */
+static bool graph_node_is_lambda_slot(const ConstraintGraph *graph, const GeomNode *node) {
+    if (!node || !node->is_active || node->type != GEOM_PORT)
+        return false;
+    Port *port = node->data.port;
+    if (!port || port->type != PORT_OUTPUT || port->is_formal_param)
+        return false;
+    if (node->parent_block_id != -1)
+        return false;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *fb = graph->nodes[i];
+        if (!fb || !fb->is_active || fb->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (!fb->data.func_block.internal_nodes)
+            continue;
+        for (int j = 0; j < fb->data.func_block.internal_node_count; j++) {
+            if (fb->data.func_block.internal_nodes[j] &&
+                fb->data.func_block.internal_nodes[j]->id == node->id)
+                return false;
+        }
+    }
+    return true;
+}
+
+/** @brief 统计 λ-项的前导抽象层数 */
+static int lambda_leading_abs_count(const LvLambdaTerm *term) {
+    int n = 0;
+    while (term && term->type == LV_LAMBDA_ABS) {
+        n++;
+        term = term->data.abs.body;
+    }
+    return n;
+}
+
+/**
+ * @brief 构造目标模式 λx1..λxn. F x1..xn
+ *
+ * F 为元变量（De Bruijn 索引 meta_index，须 >= binder_count 以保持自由），
+ * n 个 binder 由外到内对应 De Bruijn 索引 n-1, n-2, ..., 0。
+ */
+static LvLambdaTerm *lambda_build_target_pattern(int meta_index, int binder_count) {
+    LvLambdaTerm *result = lv_lambda_create_var(meta_index);
+    if (!result)
+        return NULL;
+    for (int k = 0; k < binder_count; k++) {
+        result = lv_lambda_create_app(result, lv_lambda_create_var(binder_count - 1 - k));
+        if (!result)
+            return NULL; /* create_app 失败时已销毁子项 */
+    }
+    for (int i = 0; i < binder_count; i++) {
+        result = lv_lambda_create_abs(0, result);
+        if (!result)
+            return NULL; /* create_abs 失败时已销毁 body */
+    }
+    return result;
+}
+
+/**
  * @brief λ-演算合一策略执行
  *
- * 1. 从约束图中提取 λ-项变量
- * 2. 使用 lambda_pattern_unify 匹配已知模式
- * 3. 成功时通过 lambda_unify_apply_to_graph 实例化变量
- * 4. 记录合一证明步骤
+ * 1. 从约束图收集 FUNCTION_BLOCK 节点（λ-抽象）与顶层自由 λ-变量槽位
+ * 2. 将函数块还原为 λ-项，与目标模式 λx1..λxn.F x1..xn（F 取首个
+ *    槽位索引）做 Miller 模式合一，求解槽位应实例化的 λ-项
+ * 3. 通过 lambda_unify_apply_to_graph 把替换真实应用到约束图
+ * 4. 成功时记录合一证明步骤（PROOF_STEP_UNIFY，绿色）
+ *
+ * 当图中无函数块、无槽位、还原失败或合一不可应用时，策略诚实返回
+ * false（不产生任何图变化）。
  */
 static bool execute_lambda_unify(ProofMultiStrategy *mse, ProofNavigator *nav) {
     (void) mse;
@@ -176,49 +242,85 @@ static bool execute_lambda_unify(ProofMultiStrategy *mse, ProofNavigator *nav) {
         return false;
 
     ConstraintGraph *graph = nav->construction;
-    int unify_count = 0;
 
-    /* 遍历所有节点，寻找函数块 */
+    /* 收集函数块与顶层自由 λ-变量槽位 */
+    int fb_ids[64];
+    int fb_count = 0;
+    int slot_indices[64];
+    int slot_count = 0;
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *node = graph->nodes[i];
-        if (!node || node->type != GEOM_FUNCTION_BLOCK)
+        if (!node || !node->is_active)
+            continue;
+        if (node->type == GEOM_FUNCTION_BLOCK && fb_count < 64) {
+            fb_ids[fb_count++] = node->id;
+        } else if (graph_node_is_lambda_slot(graph, node) && slot_count < 64) {
+            slot_indices[slot_count++] = node->namespace_depth;
+        }
+    }
+    if (fb_count == 0 || slot_count == 0)
+        return false;
+
+    /* 对每个函数块尝试合一：目标模式绑定层数取函数块 λ-项的前导抽象数 */
+    for (int f = 0; f < fb_count; f++) {
+        int fb_id = fb_ids[f];
+        GeomNode *fb_node = graph_get_node(graph, fb_id);
+        if (!fb_node || fb_node->type != GEOM_FUNCTION_BLOCK)
             continue;
 
-        /* 当前简化：对现有函数块执行 λ-合一测试
-           尝试合一自身（恒等合一），验证合一 API 可用 */
-        LvLambdaTerm *dummy_var = lv_lambda_create_var(0);
-        LvLambdaTerm *dummy_abs = lv_lambda_create_abs(0, lv_lambda_create_var(0));
-        if (!dummy_var || !dummy_abs) {
-            lv_lambda_destroy(dummy_var);
-            lv_lambda_destroy(dummy_abs);
+        LvLambdaTerm *term = graph_to_lambda(graph, fb_id);
+        if (!term)
+            continue;
+        int binder_count = lambda_leading_abs_count(term);
+        if (binder_count <= 0) {
+            lv_lambda_destroy(term);
+            continue;
+        }
+
+        /* 元变量 F 取第一个 index >= binder_count 的槽位索引（F 在目标模式中须自由） */
+        int meta_index = -1;
+        for (int s = 0; s < slot_count; s++) {
+            if (slot_indices[s] >= binder_count) {
+                meta_index = slot_indices[s];
+                break;
+            }
+        }
+        if (meta_index < 0) {
+            lv_lambda_destroy(term);
+            continue;
+        }
+
+        LvLambdaTerm *target = lambda_build_target_pattern(meta_index, binder_count);
+        if (!target) {
+            lv_lambda_destroy(term);
             continue;
         }
 
         LambdaSubstitution *subs = NULL;
-        LambdaUnifyStatus status = lambda_pattern_unify(dummy_var, dummy_abs, &subs, 1024);
+        LambdaUnifyStatus status = lambda_pattern_unify(target, term, &subs, 1024);
+        lv_lambda_destroy(target);
 
+        bool applied = false;
         if (status == LAMBDA_UNIFY_OK && subs) {
-            /* 将替换应用到约束图 */
             int rc = lambda_unify_apply_to_graph(graph, subs, 0);
-            if (rc == 0) {
-                ProofStep *step = proof_step_create(PROOF_STEP_FUNCTION_APP);
-                if (step) {
-                    step->color = PROOF_COLOR_GREEN;
-                    proof_navigator_add_step(nav, step);
-                }
-                unify_count++;
-            }
-            lambda_substitution_list_destroy(subs);
+            applied = (rc == 0);
         }
+        lambda_substitution_list_destroy(subs);
+        lv_lambda_destroy(term);
 
-        lv_lambda_destroy(dummy_var);
-        lv_lambda_destroy(dummy_abs);
-
-        if (unify_count > 0)
-            break; /* 当前限制：一次执行最多成功一个合一 */
+        if (applied) {
+            ProofStep *step = proof_step_create(PROOF_STEP_UNIFY);
+            if (step) {
+                step->color = PROOF_COLOR_GREEN;
+                step->func_block_id = fb_id;
+                step->note = lv_strdup_safe("λ-演算合一：匹配函数块端口签名，实例化顶层 λ-变量");
+                proof_navigator_add_step(nav, step);
+            }
+            return true; /* 一次执行最多成功一个合一 */
+        }
     }
 
-    return unify_count > 0;
+    return false;
 }
 
 /* ============== 策略注册表 ============== */

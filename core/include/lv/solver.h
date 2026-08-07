@@ -70,6 +70,7 @@ typedef struct EquationSystem EquationSystem;
 typedef struct GroebnerResult {
     SymbolicCoord **solutions; /**< 解数组 */
     int solution_count;        /**< 解的数量 */
+    int solution_capacity;     /**< 解数组容量（倍增扩容，lv_ensure_capacity 维护） */
     /* [已知限制] solution_count 使用 int 而非 size_t，与 C 标准库惯例不一致。
      * 保留 int 是因为内部求解器接口和调用方均使用 int 计数，
      * 且实际解数量受 SOLVER_MAX_VAR_ID 限制，不会超过 INT_MAX。

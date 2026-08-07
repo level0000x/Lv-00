@@ -284,6 +284,9 @@ void lv_loader_reset(void);
 /** @brief 重置代数模式全局 ID 计数器（algebra_mode.c，恢复 0） */
 void lv_algebra_reset_id_counter(void);
 
+/** @brief 重置溯源节点 ID 计数器（proof_trace_tree.c，恢复初始值 1） */
+void lv_trace_reset_id_counter(void);
+
 #ifdef __cplusplus
 }
 #endif

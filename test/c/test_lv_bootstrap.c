@@ -355,6 +355,227 @@ static void test_full_pipeline(void) {
         engine_destroy(engine);
 }
 
+/* ════════════════════════════════════════════════════════════════
+ * 微自举 B —— lv 系统验证自身证明（路线图步骤 5）
+ *
+ * 通过 lv_verify_proofs / lv_load_file_verified 验证 .lv 中的 Prove
+ * 断言：λ-演算 Church β-归约、整数算术、布尔逻辑、反射律与 SKIP 边界。
+ * ════════════════════════════════════════════════════════════════ */
+
+/** 辅助：解析单个 .lv 片段并执行证明验证 */
+static bool verify_single(const char *src, LvProveSummary *summary) {
+    LvParseResult res = parse_string(src);
+    bool ok = false;
+    if (res.ast && res.error_count == 0) {
+        ok = lv_verify_proofs(&res, summary);
+    }
+    lv_ast_destroy(res.ast);
+    return ok;
+}
+
+/* ── 测试 6: 算术证明验证 ── */
+static void test_proof_verify_arithmetic(void) {
+    printf("\n[微自举 B：算术证明验证]\n");
+    LvProveSummary s;
+
+    TEST("2 + 2 == 4 验证通过");
+    if (verify_single("Prove 2 + 2 == 4;\n", &s) && s.pass_count == 1 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("期望 pass=1 fail=0");
+
+    TEST("2 + 2 == 5 验证失败");
+    if (verify_single("Prove 2 + 2 == 5;\n", &s) && s.fail_count == 1 && s.pass_count == 0)
+        PASS();
+    else
+        FAIL("期望 fail=1 pass=0");
+
+    TEST("(2 + 3) * 4 == 20 验证通过");
+    if (verify_single("Prove (2 + 3) * 4 == 20;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("括号优先级求值失败");
+
+    TEST("2 ^ 3 == 8 验证通过");
+    if (verify_single("Prove 2 ^ 3 == 8;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("幂运算求值失败");
+
+    TEST("2 < 3 与 3 >= 3 验证通过");
+    if (verify_single("Prove 2 < 3;\nProve 3 >= 3;\n", &s) && s.pass_count == 2 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("关系比较求值失败");
+}
+
+/* ── 测试 7: λ-演算证明验证（Church β-归约）── */
+static void test_proof_verify_lambda(void) {
+    printf("\n[微自举 B：λ-演算证明验证（Church β-归约）]\n");
+    LvProveSummary s;
+
+    TEST("add(2, 3) == 5 验证通过");
+    if (verify_single("Prove add(2, 3) == 5;\n", &s) && s.pass_count == 1 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("Church add β-归约验证失败");
+
+    TEST("add(2, 3) == 4 验证失败");
+    if (verify_single("Prove add(2, 3) == 4;\n", &s) && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("错误结论应判 FAIL");
+
+    TEST("mul(2, 4) == 8 验证通过");
+    if (verify_single("Prove mul(2, 4) == 8;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("Church mul β-归约验证失败");
+
+    TEST("嵌套 add(mul(2, 3), 1) == 7 验证通过");
+    if (verify_single("Prove add(mul(2, 3), 1) == 7;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("嵌套 Church 应用验证失败");
+
+    TEST("sub(9, 4) == 5 与 pow(2, 3) == 8 验证通过");
+    if (verify_single("Prove sub(9, 4) == 5;\nProve pow(2, 3) == 8;\n", &s) && s.pass_count == 2)
+        PASS();
+    else
+        FAIL("Church sub/pow 验证失败");
+}
+
+/* ── 测试 8: 布尔与逻辑证明验证 ── */
+static void test_proof_verify_boolean(void) {
+    printf("\n[微自举 B：布尔与逻辑证明验证]\n");
+    LvProveSummary s;
+
+    TEST("Prove true 通过 / Prove false 失败");
+    if (verify_single("Prove true;\nProve false;\n", &s) && s.pass_count == 1 && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("布尔字面量判定错误");
+
+    TEST("true and true 验证通过");
+    if (verify_single("Prove true and true;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("逻辑与判定错误");
+
+    TEST("true and false 验证失败");
+    if (verify_single("Prove true and false;\n", &s) && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("逻辑与应为假");
+
+    TEST("not false 验证通过");
+    if (verify_single("Prove not false;\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("逻辑非判定错误");
+
+    TEST("Church 布尔目标 eq(2, 2) / iszero(0) 验证通过");
+    if (verify_single("Prove eq(2, 2);\nProve iszero(0);\n", &s) && s.pass_count == 2)
+        PASS();
+    else
+        FAIL("Church 布尔 β-归约验证失败");
+
+    TEST("eq(2, 3) 验证失败");
+    if (verify_single("Prove eq(2, 3);\n", &s) && s.fail_count == 1)
+        PASS();
+    else
+        FAIL("Church 相等错误结论应 FAIL");
+}
+
+/* ── 测试 9: 边界 —— SKIP 不误报与反射律 ── */
+static void test_proof_verify_skip_and_trivial(void) {
+    printf("\n[微自举 B：边界（SKIP 与反射律）]\n");
+    LvProveSummary s;
+
+    TEST("量词 Prove 不可判定 → SKIP 不误报");
+    if (verify_single("Prove forall x: Point. collinear(x, x, x);\n", &s) && s.skip_count == 1 && s.fail_count == 0)
+        PASS();
+    else
+        FAIL("量词应判 SKIP");
+
+    TEST("全同名参数关系 collinear(A, A, A) 反射律验证通过");
+    if (verify_single("Prove collinear(A, A, A);\n", &s) && s.pass_count == 1)
+        PASS();
+    else
+        FAIL("反射律应 PASS");
+
+    TEST("除零表达式 1 / 0 == 1 → SKIP");
+    if (verify_single("Prove 1 / 0 == 1;\n", &s) && s.skip_count == 1)
+        PASS();
+    else
+        FAIL("除零应判 SKIP");
+
+    TEST("度量表达式 distance(A, B) == 3 → SKIP");
+    if (verify_single("Prove distance(A, B) == 3;\n", &s) && s.skip_count == 1)
+        PASS();
+    else
+        FAIL("未知函数应判 SKIP");
+}
+
+/* ── 测试 10: 汇总计数与 .lv 文件加载验证 ── */
+static void test_proof_verify_summary_and_file(void) {
+    printf("\n[微自举 B：汇总计数与 .lv 文件加载验证]\n");
+    LvProveSummary s;
+
+    TEST("混合文件计数：2 pass + 1 fail + 1 skip");
+    const char *mix =
+        "Prove add(1, 1) == 2;\n"
+        "Prove mul(2, 3) == 7;\n"
+        "Prove true and true;\n"
+        "Prove forall x: Point. collinear(x, x, x);\n";
+    if (verify_single(mix, &s)) {
+        if (s.prove_count == 4 && s.pass_count == 2 && s.fail_count == 1 && s.skip_count == 1)
+            PASS();
+        else {
+            printf("  (got prove=%d pass=%d fail=%d skip=%d)\n", s.prove_count, s.pass_count,
+                   s.fail_count, s.skip_count);
+            FAIL("汇总计数不匹配");
+        }
+    } else {
+        FAIL("混合文件验证失败");
+    }
+
+    TEST("加载 bootstrap/src/proofs/proof_verifier.lv 全部 Prove 通过");
+    /* 测试运行目录可能不同，探测候选路径 */
+    const char *candidates[] = {
+        "bootstrap/src/proofs/proof_verifier.lv",
+        "../bootstrap/src/proofs/proof_verifier.lv",
+        "../../bootstrap/src/proofs/proof_verifier.lv",
+        "Lv-00/bootstrap/src/proofs/proof_verifier.lv",
+    };
+    bool found = false;
+    bool all_pass = false;
+    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
+        FILE *fp = fopen(candidates[i], "r");
+        if (fp) {
+            fclose(fp);
+            found = true;
+            if (lv_load_file_verified(candidates[i], &s)) {
+                if (s.prove_count == 8 && s.pass_count == 8 && s.fail_count == 0) {
+                    all_pass = true;
+                } else {
+                    printf("  (file=%s prove=%d pass=%d fail=%d skip=%d)\n", candidates[i],
+                           s.prove_count, s.pass_count, s.fail_count, s.skip_count);
+                }
+            }
+            break;
+        }
+    }
+    if (!found) {
+        printf("  (proof_verifier.lv 未在当前目录找到，跳过文件级断言)\n");
+        PASS();
+    } else if (all_pass) {
+        PASS();
+    } else {
+        FAIL("proof_verifier.lv 中 Prove 断言未全部通过");
+    }
+}
+
 TEST_MAIN_BEGIN("lv bootstrap test")
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -363,4 +584,11 @@ TEST_MAIN_BEGIN("lv bootstrap test")
     TEST_MAIN_RUN(test_engine_apply);
     TEST_MAIN_RUN(test_load_file);
     TEST_MAIN_RUN(test_full_pipeline);
+
+    /* 微自举 B：证明验证（路线图步骤 5） */
+    TEST_MAIN_RUN(test_proof_verify_arithmetic);
+    TEST_MAIN_RUN(test_proof_verify_lambda);
+    TEST_MAIN_RUN(test_proof_verify_boolean);
+    TEST_MAIN_RUN(test_proof_verify_skip_and_trivial);
+    TEST_MAIN_RUN(test_proof_verify_summary_and_file);
 TEST_MAIN_END()

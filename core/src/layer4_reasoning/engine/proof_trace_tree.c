@@ -55,6 +55,15 @@ static uint32_t next_trace_node_id(void) {
     return g_trace_node_id_counter++;
 }
 
+/**
+ * @brief 重置溯源节点 ID 计数器（恢复初始值 1）
+ *
+ * 仅供测试在用例间调用以保证 ID 断言可重复；正常路径行为不变。
+ */
+void lv_trace_reset_id_counter(void) {
+    g_trace_node_id_counter = 1;
+}
+
 static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size, uint32_t node_id) {
     uint32_t idx = node_id % map_size;
     while (visited_map[idx] != 0) {

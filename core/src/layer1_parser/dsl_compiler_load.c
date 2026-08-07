@@ -89,11 +89,10 @@ static void dsl_record_ir_result(ConstraintGraph *graph, const char *kind, const
 static bool dsl_ctx_register_axiom_pkg(struct lvContext *ctx, AxiomPackage *pkg) {
     if (!ctx || !pkg)
         return false;
-    /* 线性 +1 扩容（ctx 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-    void **np = lv_realloc(ctx->axiom_pkg_refs, sizeof(void *) * (size_t) (ctx->axiom_pkg_ref_count + 1));
-    if (!np)
+    /* 倍增扩容：委托 lv_ensure_capacity（初始 8，此后每次倍增；失败语义与原来一致：返回 false） */
+    if (!lv_ensure_capacity((void **) &ctx->axiom_pkg_refs, ctx->axiom_pkg_ref_count, &ctx->axiom_pkg_ref_capacity,
+                            sizeof(void *), 1))
         return false;
-    ctx->axiom_pkg_refs = np;
     ctx->axiom_pkg_refs[ctx->axiom_pkg_ref_count] = pkg;
     ctx->axiom_pkg_ref_count++;
     return true;

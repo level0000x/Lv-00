@@ -343,3 +343,392 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
 
     return true;
 }
+
+/* ================================================================
+ * 微自举 B —— 证明验证器（Prove 语句验证语义，C 内实现 verify）
+ *
+ * 语义与规格：bootstrap/src/proofs/proof_verifier.lv 用 lv 语言描述
+ * 验证器（Verdict/ProofTerm/verify），本实现提供其 verify 语义：
+ * 加载 .lv 时对 Prove 断言执行真实验证 ——
+ *   1. λ-演算验证：Church 编码运算（add/sub/mul/pow/succ/pred/eq/leq/
+ *      gt/iszero/and/or/xor/not/if/true/false）按 Church 运算定理对
+ *      闭合表达式求值（与 λ-项 β-归约在这些闭合项上的结果等价，
+ *      参照 test_lambda_eval 的 Church 归约验证能力）；
+ *   2. 算术验证：整数表达式（+ - * / ^ 与括号）求值比较；
+ *   3. 布尔验证：布尔字面量、逻辑运算（and/or/not/->/iff）、纯布尔目标；
+ *   4. 反射律：全同名参数的关系调用（collinear(A,A,A)）恒真；
+ *   其余（量词、未知函数、除零、开放变量等）→ SKIP，不误报。
+ * ================================================================ */
+
+#define LV_PROVE_MAX_REPORTS 64
+#define LV_PROVE_MAX_DEPTH 256
+#define LV_PROVE_MAX_ARGS 8
+
+/* ── 折叠值（验证语义下的归一化值）── */
+
+typedef enum {
+    LV_VAL_NUM,  /**< 整数值 */
+    LV_VAL_BOOL  /**< 布尔值 */
+} LvValKind;
+
+typedef struct {
+    LvValKind kind;
+    long long num;
+    int boolean;
+} LvVal;
+
+/* ── Church 运算语义表（函数名 → 运算）── */
+
+typedef bool (*ChurchOpFn)(const LvVal *args, int argc, LvVal *out);
+
+typedef struct {
+    const char *name;
+    ChurchOpFn fn;
+    int min_args;
+} ChurchFnEntry;
+
+static bool op_succ(const LvVal *a, int n, LvVal *o) {
+    if (n != 1 || a[0].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_NUM; o->num = a[0].num + 1; return true;
+}
+static bool op_pred(const LvVal *a, int n, LvVal *o) {
+    if (n != 1 || a[0].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_NUM; o->num = a[0].num > 0 ? a[0].num - 1 : 0; return true;
+}
+static bool op_add(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_NUM; o->num = a[0].num + a[1].num; return true;
+}
+static bool op_sub(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM) return false;
+    /* Church 减法：m < n 时结果为 0 */
+    o->kind = LV_VAL_NUM; o->num = a[0].num > a[1].num ? a[0].num - a[1].num : 0; return true;
+}
+static bool op_mul(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_NUM; o->num = a[0].num * a[1].num; return true;
+}
+static bool op_pow(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM || a[1].num < 0) return false;
+    long long v = 1;
+    for (long long i = 0; i < a[1].num && v <= 0x3fffffffffffffffLL; i++)
+        v *= a[0].num;
+    o->kind = LV_VAL_NUM; o->num = v; return true;
+}
+static bool op_true(const LvVal *a, int n, LvVal *o) {
+    (void)a; if (n != 0) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = 1; return true;
+}
+static bool op_false(const LvVal *a, int n, LvVal *o) {
+    (void)a; if (n != 0) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = 0; return true;
+}
+static bool op_iszero(const LvVal *a, int n, LvVal *o) {
+    if (n != 1 || a[0].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].num == 0) ? 1 : 0; return true;
+}
+static bool op_eq(const LvVal *a, int n, LvVal *o) {
+    if (n != 2) return false;
+    if (a[0].kind != a[1].kind) return false;
+    if (a[0].kind == LV_VAL_NUM) o->boolean = (a[0].num == a[1].num) ? 1 : 0;
+    else o->boolean = (a[0].boolean == a[1].boolean) ? 1 : 0;
+    o->kind = LV_VAL_BOOL; return true;
+}
+static bool op_leq(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].num <= a[1].num) ? 1 : 0; return true;
+}
+static bool op_gt(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].num > a[1].num) ? 1 : 0; return true;
+}
+static bool op_not(const LvVal *a, int n, LvVal *o) {
+    if (n != 1 || a[0].kind != LV_VAL_BOOL) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = a[0].boolean ? 0 : 1; return true;
+}
+static bool op_and(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_BOOL || a[1].kind != LV_VAL_BOOL) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].boolean && a[1].boolean) ? 1 : 0; return true;
+}
+static bool op_or(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_BOOL || a[1].kind != LV_VAL_BOOL) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].boolean || a[1].boolean) ? 1 : 0; return true;
+}
+static bool op_xor(const LvVal *a, int n, LvVal *o) {
+    if (n != 2 || a[0].kind != LV_VAL_BOOL || a[1].kind != LV_VAL_BOOL) return false;
+    o->kind = LV_VAL_BOOL; o->boolean = (a[0].boolean != a[1].boolean) ? 1 : 0; return true;
+}
+static bool op_if(const LvVal *a, int n, LvVal *o) {
+    if (n != 3 || a[0].kind != LV_VAL_BOOL) return false;
+    *o = a[0].boolean ? a[1] : a[2];
+    return true;
+}
+
+/** @brief Church 运算函数名 → 运算语义（不含 Y 组合子递归，保证终止） */
+static const ChurchFnEntry kChurchFnTable[] = {
+    {"succ", op_succ, 1}, {"pred", op_pred, 1},
+    {"add", op_add, 2},   {"sub", op_sub, 2},
+    {"mul", op_mul, 2},   {"pow", op_pow, 2},
+    {"true", op_true, 0}, {"false", op_false, 0},
+    {"if", op_if, 3},     {"iszero", op_iszero, 1},
+    {"not", op_not, 1},   {"and", op_and, 2},
+    {"or", op_or, 2},     {"xor", op_xor, 2},
+    {"eq", op_eq, 2},     {"leq", op_leq, 2}, {"gt", op_gt, 2},
+};
+
+/* ── 表达式折叠：闭合表达式 → LvVal ── */
+
+static bool fold_expr(LvAstNode *node, LvVal *out, int depth) {
+    if (!node || !out)
+        return false;
+    if (depth > LV_PROVE_MAX_DEPTH)
+        return false;
+    switch (node->type) {
+    case LV_AST_INTEGER_LITERAL:
+        out->kind = LV_VAL_NUM;
+        out->num = node->data.literal.integer_value;
+        return true;
+    case LV_AST_BOOL_LITERAL:
+        out->kind = LV_VAL_BOOL;
+        out->boolean = node->data.literal.bool_value ? 1 : 0;
+        return true;
+    case LV_AST_BINARY_OP: {
+        LvVal l, r;
+        if (!fold_expr(node->data.binary.left, &l, depth + 1))
+            return false;
+        if (!fold_expr(node->data.binary.right, &r, depth + 1))
+            return false;
+        if (l.kind != LV_VAL_NUM || r.kind != LV_VAL_NUM)
+            return false;
+        const char *op = node->data.binary.op;
+        if (strcmp(op, "+") == 0) {
+            out->kind = LV_VAL_NUM; out->num = l.num + r.num; return true;
+        }
+        if (strcmp(op, "-") == 0) {
+            out->kind = LV_VAL_NUM; out->num = l.num - r.num; return true;
+        }
+        if (strcmp(op, "*") == 0) {
+            out->kind = LV_VAL_NUM; out->num = l.num * r.num; return true;
+        }
+        if (strcmp(op, "/") == 0) {
+            if (r.num == 0)
+                return false;
+            out->kind = LV_VAL_NUM; out->num = l.num / r.num; return true;
+        }
+        if (strcmp(op, "^") == 0) {
+            if (r.num < 0)
+                return false;
+            long long v = 1;
+            for (long long i = 0; i < r.num && v <= 0x3fffffffffffffffLL; i++)
+                v *= l.num;
+            out->kind = LV_VAL_NUM; out->num = v; return true;
+        }
+        return false;
+    }
+    case LV_AST_UNARY_OP: {
+        LvVal v;
+        if (!fold_expr(node->data.unary.operand, &v, depth + 1))
+            return false;
+        if (v.kind != LV_VAL_NUM)
+            return false;
+        if (strcmp(node->data.unary.op, "-") == 0) {
+            out->kind = LV_VAL_NUM; out->num = -v.num; return true;
+        }
+        if (strcmp(node->data.unary.op, "+") == 0) {
+            *out = v; return true;
+        }
+        return false;
+    }
+    case LV_AST_FUNCTION_CALL: {
+        const char *fname = node->data.call.func_name;
+        if (!fname)
+            return false;
+        const ChurchFnEntry *entry = NULL;
+        for (size_t i = 0; i < lv_ARRAY_SIZE(kChurchFnTable); i++) {
+            if (strcmp(kChurchFnTable[i].name, fname) == 0) {
+                entry = &kChurchFnTable[i];
+                break;
+            }
+        }
+        if (!entry)
+            return false;
+        LvVal args[LV_PROVE_MAX_ARGS];
+        int argc = 0;
+        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+            if (argc >= LV_PROVE_MAX_ARGS)
+                return false;
+            if (!fold_expr(a, &args[argc], depth + 1))
+                return false;
+            argc++;
+        }
+        if (argc != entry->min_args)
+            return false;
+        return entry->fn(args, argc, out);
+    }
+    default:
+        return false;
+    }
+}
+
+/* ── 命题求值：返回 -1 无法判定，0 假，1 真 ── */
+
+static int eval_proposition(LvAstNode *node, int depth) {
+    if (!node)
+        return -1;
+    if (depth > LV_PROVE_MAX_DEPTH)
+        return -1;
+    switch (node->type) {
+    case LV_AST_BOOL_LITERAL:
+        return node->data.literal.bool_value ? 1 : 0;
+    case LV_AST_COMPARE: {
+        const char *op = node->data.compare.op;
+        LvVal l, r;
+        if (!fold_expr(node->data.compare.left, &l, depth + 1))
+            return -1;
+        if (!fold_expr(node->data.compare.right, &r, depth + 1))
+            return -1;
+        if (l.kind == LV_VAL_NUM && r.kind == LV_VAL_NUM) {
+            if (strcmp(op, "==") == 0) return l.num == r.num ? 1 : 0;
+            if (strcmp(op, "!=") == 0) return l.num != r.num ? 1 : 0;
+            if (strcmp(op, "<") == 0)  return l.num < r.num ? 1 : 0;
+            if (strcmp(op, "<=") == 0) return l.num <= r.num ? 1 : 0;
+            if (strcmp(op, ">") == 0)  return l.num > r.num ? 1 : 0;
+            if (strcmp(op, ">=") == 0) return l.num >= r.num ? 1 : 0;
+            return -1;
+        }
+        if (l.kind == LV_VAL_BOOL && r.kind == LV_VAL_BOOL) {
+            if (strcmp(op, "==") == 0) return l.boolean == r.boolean ? 1 : 0;
+            if (strcmp(op, "!=") == 0) return l.boolean != r.boolean ? 1 : 0;
+            return -1;
+        }
+        return -1;
+    }
+    case LV_AST_LOGIC_AND: {
+        int l = eval_proposition(node->data.binary.left, depth + 1);
+        int r = eval_proposition(node->data.binary.right, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l && r) ? 1 : 0;
+    }
+    case LV_AST_LOGIC_OR: {
+        int l = eval_proposition(node->data.binary.left, depth + 1);
+        int r = eval_proposition(node->data.binary.right, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l || r) ? 1 : 0;
+    }
+    case LV_AST_LOGIC_NOT: {
+        int v = eval_proposition(node->data.unary.operand, depth + 1);
+        return v < 0 ? -1 : (v ? 0 : 1);
+    }
+    case LV_AST_LOGIC_IMPLIES: {
+        int l = eval_proposition(node->data.binary.left, depth + 1);
+        int r = eval_proposition(node->data.binary.right, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l == 1 && r == 0) ? 0 : 1;
+    }
+    case LV_AST_LOGIC_IFF: {
+        int l = eval_proposition(node->data.binary.left, depth + 1);
+        int r = eval_proposition(node->data.binary.right, depth + 1);
+        if (l < 0 || r < 0)
+            return -1;
+        return (l == r) ? 1 : 0;
+    }
+    case LV_AST_RELATION: {
+        /* 反射律：所有参数为同一标识符的关系调用恒真（如 collinear(A,A,A)） */
+        const char *first_name = NULL;
+        for (LvAstNode *a = node->data.call.args; a; a = a->next) {
+            if (a->type != LV_AST_IDENTIFIER_EXPR || !a->data.ident.name)
+                return -1;
+            if (!first_name)
+                first_name = a->data.ident.name;
+            else if (strcmp(first_name, a->data.ident.name) != 0)
+                return -1;
+        }
+        return first_name ? 1 : -1;
+    }
+    default:
+        /* 纯布尔目标：如 Prove eq(2, 2); / Prove iszero(0); */
+        {
+            LvVal v;
+            if (fold_expr(node, &v, depth + 1) && v.kind == LV_VAL_BOOL)
+                return v.boolean ? 1 : 0;
+        }
+        return -1;
+    }
+}
+
+/* ── 逐条验证 Prove 语句 ── */
+
+static void verify_prove_node(LvAstNode *prove, int index, LvProveSummary *summary) {
+    if (!prove || !summary)
+        return;
+    if (summary->prove_count >= LV_PROVE_MAX_REPORTS)
+        return;
+
+    LvProveReport *rep = &summary->reports[summary->prove_count];
+    memset(rep, 0, sizeof(*rep));
+    summary->prove_count++;
+
+    rep->line = prove->loc.line;
+    rep->column = prove->loc.column;
+    lv_snprintf(rep->name, sizeof(rep->name), "prove#%d", index);
+
+    LvAstNode *expr = prove->data.stmt.expr;
+    if (!expr) {
+        rep->verdict = LV_PROVE_SKIP;
+        lv_snprintf(rep->detail, sizeof(rep->detail), "empty Prove statement");
+        summary->skip_count++;
+        return;
+    }
+
+    int r = eval_proposition(expr, 0);
+    if (r < 0) {
+        rep->verdict = LV_PROVE_SKIP;
+        lv_snprintf(rep->detail, sizeof(rep->detail),
+                    "not mechanically decidable (quantifier / unknown function / open term)");
+        summary->skip_count++;
+    } else if (r == 1) {
+        rep->verdict = LV_PROVE_PASS;
+        lv_snprintf(rep->detail, sizeof(rep->detail),
+                    "verified: conclusion holds (church-eval / arith / logic)");
+        summary->pass_count++;
+    } else {
+        rep->verdict = LV_PROVE_FAIL;
+        lv_snprintf(rep->detail, sizeof(rep->detail),
+                    "verification failed: conclusion evaluates to false");
+        summary->fail_count++;
+    }
+}
+
+/* ── 微自举 B 公共 API ── */
+
+bool lv_verify_proofs(const LvParseResult *result, LvProveSummary *summary) {
+    if (!result || !summary)
+        return false;
+    memset(summary, 0, sizeof(*summary));
+    if (!result->ast || result->ast->type != LV_AST_PROGRAM)
+        return false;
+
+    int index = 0;
+    for (LvAstNode *stmt = result->ast->child; stmt; stmt = stmt->next) {
+        if (stmt->type == LV_AST_PROVE_STMT)
+            verify_prove_node(stmt, index++, summary);
+    }
+    return true;
+}
+
+bool lv_load_file_verified(const char *filepath, LvProveSummary *summary) {
+    LvParseResult res = lv_load_file(filepath);
+    if (!res.ast) {
+        if (summary)
+            memset(summary, 0, sizeof(*summary));
+        return false;
+    }
+    bool ok = true;
+    if (summary)
+        ok = lv_verify_proofs(&res, summary);
+    lv_ast_destroy(res.ast);
+    return ok;
+}

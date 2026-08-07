@@ -975,12 +975,10 @@ bool relation_model_add_fact(RelModel *model, RelFormula *formula) {
     lv_CHECK_NULL(model, false);
     lv_CHECK_NULL(formula, false);
 
-    /* 线性 +1 扩容（facts 数量通常很小，保持最小改动；如需倍增可引入 fact_capacity 字段） */
-    RelFormula **new_facts =
-        (RelFormula **) lv_realloc(model->facts, (size_t) (model->fact_count + 1) * sizeof(RelFormula *));
-    if (!new_facts)
+    /* 倍增扩容：委托 lv_ensure_capacity（初始 8，此后每次倍增；失败语义与原来一致：返回 false） */
+    if (!lv_ensure_capacity((void **) &model->facts, model->fact_count, &model->fact_capacity,
+                            sizeof(RelFormula *), 1))
         return false;
-    model->facts = new_facts;
     model->facts[model->fact_count++] = formula;
     return true;
 }
@@ -989,12 +987,10 @@ bool relation_model_add_assertion(RelModel *model, RelFormula *formula) {
     lv_CHECK_NULL(model, false);
     lv_CHECK_NULL(formula, false);
 
-    /* 线性 +1 扩容（assertions 数量通常很小，保持最小改动；如需倍增可引入 assertion_capacity 字段） */
-    RelFormula **new_asserts =
-        (RelFormula **) lv_realloc(model->assertions, (size_t) (model->assertion_count + 1) * sizeof(RelFormula *));
-    if (!new_asserts)
+    /* 倍增扩容：委托 lv_ensure_capacity（初始 8，此后每次倍增；失败语义与原来一致：返回 false） */
+    if (!lv_ensure_capacity((void **) &model->assertions, model->assertion_count, &model->assertion_capacity,
+                            sizeof(RelFormula *), 1))
         return false;
-    model->assertions = new_asserts;
     model->assertions[model->assertion_count++] = formula;
     return true;
 }

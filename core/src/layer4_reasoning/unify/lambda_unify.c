@@ -16,6 +16,9 @@
 
 #include <string.h>
 
+#include "lv/constraint_graph.h"
+#include "lv/lambda_to_graph.h"
+
 /* ── 内部辅助函数 ── */
 
 /**
@@ -454,29 +457,319 @@ void lambda_substitution_snprint(LambdaSubstitution *subs, char *buf, size_t siz
 }
 
 /* ================================================================
- * 合一替换 → 约束图集成
+ * 合一替换 → 约束图集成（真实实例化）
+ *
+ * λ-替换 {index ↦ term} 应用到约束图的语义：
+ *   图中"顶层自由 λ-变量引用端口"（PORT_OUTPUT、parent_block_id == -1、
+ *   非形式参数、非函数块内部节点、namespace_depth == index）代表自由
+ *   变量 index 的一次出现；本实现把替换项编译进图并将这些出现实例化。
+ *
+ * 执行流程（事务式）：
+ *   准备阶段（不改图）：预编译每个替换项（闭项才可编译）、匹配槽位端口、
+ *     收集全部旧连接；不可应用的条目被跳过，全部不可应用返回 NOT_FOUND。
+ *   提交阶段：编译替换子图并将新节点 namespace_depth 整体平移 index
+ *     （保持连接深度规则 |Δdepth|≤1 与端口不变量）、把旧连接的消费者
+ *     重连到替换子图输出端口、停用旧连接与旧槽位端口（保留审计数据）。
+ *   提交阶段仅在追加节点/连接时可能失败（OOM），失败即回滚：恢复被覆盖
+ *     的 connected_to 指针、移除全部新节点（其约束随之移除），保证失败
+ *     时图与调用前完全一致。
+ *
+ * 返回：0 = 至少应用了一个替换；负值 = 失败（lv_ERROR_NOT_FOUND =
+ *   无可用替换或无可实例化槽位；lv_ERROR_NULL_POINTER = 参数为空）。
  * ================================================================ */
+
+/** @brief 连接重连的撤销记录：恢复旧连接目标端口的 connected_to 指针 */
+typedef struct {
+    int dst_id;
+    GeomNode *old_connected_to;
+} LambdaConnUndo;
+
+/** @brief 单个可应用替换条目的提交计划 */
+typedef struct {
+    int index;                 /**< 替换的 De Bruijn 索引 */
+    LvLambdaTerm *replacement; /**< 替换项（不拥有，指向 subs 链表节点） */
+    int *slot_ids;             /**< 匹配的槽位端口 id 数组 */
+    int slot_count;
+    int *old_conn_indices;     /**< 槽位旧 CONNECTION 的约束数组索引（扁平） */
+    int *old_conn_dst_ids;     /**< 与 old_conn_indices 平行：旧连接目标端口 id */
+    int old_conn_count;
+    int repl_out_id;           /**< 提交后：替换子图的输出端口 id */
+} LambdaApplyEntry;
+
+/**
+ * @brief 判定端口节点是否为"顶层自由 λ-变量槽位"
+ *
+ * 槽位 = 自由变量的一次出现：PORT_OUTPUT、非形式参数、parent_block_id
+ * 为 -1（排除函数块输出端口与 app_sink 端口对）、namespace_depth 等于
+ * 替换索引、且不是任何函数块的内部节点（函数块内部的变量引用是受绑定
+ * 出现，λ-替换只作用于自由出现）。
+ */
+static bool port_is_free_lambda_slot(const ConstraintGraph *graph, const GeomNode *node, int index) {
+    if (!node || !node->is_active || node->type != GEOM_PORT)
+        return false;
+    Port *port = node->data.port;
+    if (!port || port->type != PORT_OUTPUT || port->is_formal_param)
+        return false;
+    if (node->parent_block_id != -1)
+        return false;
+    if (node->namespace_depth != index)
+        return false;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *fb = graph->nodes[i];
+        if (!fb || !fb->is_active || fb->type != GEOM_FUNCTION_BLOCK)
+            continue;
+        if (!fb->data.func_block.internal_nodes)
+            continue;
+        for (int j = 0; j < fb->data.func_block.internal_node_count; j++) {
+            if (fb->data.func_block.internal_nodes[j] &&
+                fb->data.func_block.internal_nodes[j]->id == node->id)
+                return false;
+        }
+    }
+    return true;
+}
+
+/** @brief 获取已编译节点的有效输出端口（PORT 节点为自身，函数块为第一个输出端口） */
+static int lambda_compiled_output_port(const ConstraintGraph *graph, int node_id) {
+    GeomNode *node = graph_get_node(graph, node_id);
+    if (!node)
+        return -1;
+    if (node->type == GEOM_PORT)
+        return node_id;
+    if (node->type == GEOM_FUNCTION_BLOCK && node->data.func_block.output_count > 0 &&
+        node->data.func_block.output_port_ids)
+        return node->data.func_block.output_port_ids[0];
+    return -1;
+}
+
+/** @brief 释放提交计划数组（元素可为 NULL，lv_free 安全） */
+static void lambda_apply_entries_destroy(LambdaApplyEntry *entries, int count) {
+    if (!entries)
+        return;
+    for (int i = 0; i < count; i++) {
+        lv_free((void **) &entries[i].slot_ids);
+        lv_free((void **) &entries[i].old_conn_indices);
+        lv_free((void **) &entries[i].old_conn_dst_ids);
+    }
+    lv_free((void **) &entries);
+}
 
 int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
                                  LambdaSubstitution *subs,
                                  int binder_depth) {
     if (!graph || !subs) {
-        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "参数为空: graph或subs");
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lambda_unify_apply_to_graph: 参数为空 (graph/subs)");
     }
-    (void) binder_depth;
 
-    int count = 0;
+    /* ── 收集候选条目：index >= binder_depth 且 replacement 非空 ── */
+    int candidate_count = 0;
     for (LambdaSubstitution *s = subs; s; s = s->next) {
-        if (s->replacement) {
-            LOG_DEBUG("lambda_unify", "合一替换应用到约束图: [%d↦λ-term] 待集成",
-                      s->index);
-            count++;
+        if (s->index >= binder_depth && s->replacement)
+            candidate_count++;
+    }
+    if (candidate_count == 0) {
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lambda_unify_apply_to_graph: 没有可应用的替换项");
+    }
+
+    /* ── 准备阶段（不改图）：预编译替换 + 匹配槽位端口 ── */
+    LambdaApplyEntry *entries = lv_calloc((size_t) candidate_count, sizeof(LambdaApplyEntry));
+    if (!entries) {
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lambda_unify_apply_to_graph: 分配提交计划失败");
+    }
+
+    int entry_count = 0;
+    for (LambdaSubstitution *s = subs; s; s = s->next) {
+        if (s->index < binder_depth || !s->replacement)
+            continue;
+
+        /* 预编译：验证替换项可编译（闭项）。编译失败（如含自由变量）→ 跳过该条目 */
+        ConstraintGraph *probe = graph_create();
+        if (!probe)
+            goto prepare_fail;
+        int probe_root = -1;
+        bool compiles = lambda_to_graph(s->replacement, probe, &probe_root);
+        graph_destroy(probe);
+        if (!compiles) {
+            LOG_WARN("lambda_unify", "合一替换 [%d↦λ-term] 无法编译（含自由变量），跳过", s->index);
+            continue;
+        }
+
+        /* 第一遍：统计匹配槽位数与旧连接数 */
+        int slot_count = 0, conn_count = 0;
+        for (int i = 0; i < graph->node_count; i++) {
+            GeomNode *node = graph->nodes[i];
+            if (!port_is_free_lambda_slot(graph, node, s->index))
+                continue;
+            slot_count++;
+            int con_indices[32];
+            int n = graph_find_constraints_involving(graph, node->id, con_indices, 32);
+            for (int c = 0; c < n; c++) {
+                Constraint *con = graph->constraints[con_indices[c]];
+                if (con && con->is_active && con->type == CONNECTION && con->participant_count == 2 &&
+                    con->participants[0] == node->id)
+                    conn_count++;
+            }
+        }
+        if (slot_count == 0)
+            continue; /* 无匹配槽位 → 该条目不产生任何图变化 */
+
+        LambdaApplyEntry *e = &entries[entry_count];
+        e->index = s->index;
+        e->replacement = s->replacement;
+        e->slot_ids = lv_calloc((size_t) slot_count, sizeof(int));
+        if (!e->slot_ids)
+            goto prepare_fail;
+        if (conn_count > 0) {
+            e->old_conn_indices = lv_calloc((size_t) conn_count, sizeof(int));
+            e->old_conn_dst_ids = lv_calloc((size_t) conn_count, sizeof(int));
+            if (!e->old_conn_indices || !e->old_conn_dst_ids)
+                goto prepare_fail;
+        }
+
+        /* 第二遍：填充槽位与旧连接 */
+        int si = 0, ci = 0;
+        for (int i = 0; i < graph->node_count; i++) {
+            GeomNode *node = graph->nodes[i];
+            if (!port_is_free_lambda_slot(graph, node, s->index))
+                continue;
+            e->slot_ids[si++] = node->id;
+            int con_indices[32];
+            int n = graph_find_constraints_involving(graph, node->id, con_indices, 32);
+            for (int c = 0; c < n; c++) {
+                Constraint *con = graph->constraints[con_indices[c]];
+                if (!con || !con->is_active || con->type != CONNECTION || con->participant_count != 2 ||
+                    con->participants[0] != node->id)
+                    continue;
+                e->old_conn_indices[ci] = con_indices[c];
+                e->old_conn_dst_ids[ci] = con->participants[1];
+                ci++;
+            }
+        }
+        e->slot_count = slot_count;
+        e->old_conn_count = conn_count;
+        entry_count++;
+    }
+
+    if (entry_count == 0) {
+        lambda_apply_entries_destroy(entries, candidate_count);
+        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lambda_unify_apply_to_graph: 没有可实例化的 λ-变量槽位");
+    }
+
+    /* ── 提交阶段 ── */
+    int node_count0 = graph->node_count;
+
+    /* 撤销记录：容量 = 全部条目的旧连接数（阶段 B 追加连接的 dst 指针恢复） */
+    int undo_capacity = 0;
+    for (int i = 0; i < entry_count; i++)
+        undo_capacity += entries[i].old_conn_count;
+    LambdaConnUndo *conn_undo = NULL;
+    if (undo_capacity > 0) {
+        conn_undo = lv_calloc((size_t) undo_capacity, sizeof(LambdaConnUndo));
+        if (!conn_undo) {
+            lambda_apply_entries_destroy(entries, candidate_count);
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lambda_unify_apply_to_graph: 分配撤销记录失败");
         }
     }
-    if (count == 0) {
-        lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "没有可应用的替换项");
+    int undo_count = 0;
+
+    /* 阶段 A：编译替换子图并平移命名空间深度 */
+    for (int i = 0; i < entry_count; i++) {
+        LambdaApplyEntry *e = &entries[i];
+        int before = graph->node_count;
+        int root_id = -1;
+        if (!lambda_to_graph(e->replacement, graph, &root_id))
+            goto commit_fail;
+        int repl_out = lambda_compiled_output_port(graph, root_id);
+        if (repl_out < 0)
+            goto commit_fail;
+        e->repl_out_id = repl_out;
+        /* 平移新节点深度：使替换子图位于槽位（索引 index）所在深度 */
+        for (int nid = before; nid < graph->node_count; nid++) {
+            GeomNode *node = graph->nodes[nid];
+            if (!node)
+                continue;
+            node->namespace_depth += e->index;
+            if (node->type == GEOM_PORT && node->data.port)
+                node->data.port->namespace_depth += e->index;
+        }
     }
+
+    /* 阶段 B：将旧连接的消费者重连到替换子图输出端口（先记录撤销） */
+    for (int i = 0; i < entry_count; i++) {
+        LambdaApplyEntry *e = &entries[i];
+        for (int c = 0; c < e->old_conn_count; c++) {
+            int dst_id = e->old_conn_dst_ids[c];
+            GeomNode *dst = graph_get_node(graph, dst_id);
+            if (!dst || dst->type != GEOM_PORT || !dst->data.port)
+                goto commit_fail; /* 准备阶段已验证，不会发生 */
+            conn_undo[undo_count].dst_id = dst_id;
+            conn_undo[undo_count].old_connected_to = dst->data.port->connected_to;
+            undo_count++;
+            AddConstraintResult cr = graph_add_connection(graph, e->repl_out_id, dst_id);
+            if (cr != ADD_CONSTRAINT_OK && cr != ADD_CONSTRAINT_DUPLICATE)
+                goto commit_fail;
+        }
+    }
+
+    /* 阶段 C：最终化（纯字段写入，不可失败） */
+    for (int i = 0; i < entry_count; i++) {
+        LambdaApplyEntry *e = &entries[i];
+        GeomNode *repl_out_node = graph_get_node(graph, e->repl_out_id);
+
+        /* C1：停用槽位的旧连接（保留约束数据用于审计） */
+        for (int c = 0; c < e->old_conn_count; c++) {
+            Constraint *con = graph->constraints[e->old_conn_indices[c]];
+            if (con && con->is_active)
+                graph_deactivate_constraint(graph, con->id);
+        }
+
+        /* C2：修复仍指向槽位的 connected_to 指针（如 ABS 输出端口以槽位为体根） */
+        for (int s = 0; s < e->slot_count; s++) {
+            GeomNode *slot_node = graph_get_node(graph, e->slot_ids[s]);
+            if (!slot_node)
+                continue;
+            for (int nid = 0; nid < graph->node_count; nid++) {
+                GeomNode *node = graph->nodes[nid];
+                if (!node || node->type != GEOM_PORT || !node->data.port)
+                    continue;
+                if (node == slot_node)
+                    continue;
+                if (node->data.port->connected_to == slot_node)
+                    node->data.port->connected_to = repl_out_node;
+            }
+            /* C3：停用槽位端口（保留节点数据）并断开其残留指针 */
+            slot_node->is_active = false;
+            slot_node->data.port->connected_to = NULL;
+        }
+    }
+
+    graph_mark_dirty(graph);
+    lambda_apply_entries_destroy(entries, candidate_count);
+    lv_free((void **) &conn_undo);
+
+    LOG_DEBUG("lambda_unify", "合一替换已实例化到约束图: %d 个条目", entry_count);
     return 0;
+
+commit_fail:
+    /* 回滚：先恢复被覆盖的 connected_to 指针，再移除全部新节点（其约束随之移除） */
+    for (int i = undo_count - 1; i >= 0; i--) {
+        GeomNode *dst = graph_get_node(graph, conn_undo[i].dst_id);
+        if (dst && dst->type == GEOM_PORT && dst->data.port)
+            dst->data.port->connected_to = conn_undo[i].old_connected_to;
+    }
+    while (graph->node_count > node_count0) {
+        GeomNode *node = graph->nodes[node_count0];
+        if (!node)
+            break;
+        graph_remove_node(graph, node->id);
+    }
+    lambda_apply_entries_destroy(entries, candidate_count);
+    lv_free((void **) &conn_undo);
+    lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lambda_unify_apply_to_graph: 提交失败，已回滚，图保持不变");
+
+prepare_fail:
+    lambda_apply_entries_destroy(entries, candidate_count);
+    lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lambda_unify_apply_to_graph: 准备阶段失败，图保持不变");
 }
 
 /* ================================================================

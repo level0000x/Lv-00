@@ -172,9 +172,11 @@ typedef struct RelModel {
 
     RelFormula **facts; /**< 事实公式数组 */
     int fact_count;     /**< 事实数量 */
+    int fact_capacity;  /**< 事实数组容量（倍增扩容，lv_ensure_capacity 维护） */
 
     RelFormula **assertions; /**< 断言公式数组 */
     int assertion_count;     /**< 断言数量 */
+    int assertion_capacity;  /**< 断言数组容量（倍增扩容，lv_ensure_capacity 维护） */
 
     int max_point_count;      /**< 有限范围：最大点数 */
     int max_line_count;       /**< 有限范围：最大线段数 */

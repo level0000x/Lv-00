@@ -341,6 +341,7 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
     int max_constraints = graph->constraint_count;
     int *affected_target_ids = NULL;
     int affected_count = 0;
+    int affected_cap = 0; /* affected_target_ids 容量（倍增扩容，lv_ensure_capacity 维护） */
 
     /* 标记哪些旧 ID 需要映射 */
     bool *needs_remap = lv_calloc((size_t) graph->next_node_id, sizeof(bool));
@@ -414,12 +415,9 @@ static bool remap_internal_constraints(ConstraintGraph *graph, const int *intern
             LOG_WARN("beta_reduce", "重建约束 %d 失败 (type=%d, result=%d)", con->id, (int) con->type, (int) ar);
         }
 
-        /* 记录受影响的约束 ID，以便后续移除旧约束 */
-        int *tmp = lv_realloc(affected_target_ids, (size_t) (affected_count + 1) * sizeof(int));
-        if (tmp) {
-            affected_target_ids = tmp;
+        /* 记录受影响的约束 ID，以便后续移除旧约束（倍增扩容；失败时与原始语义一致：跳过记录） */
+        if (lv_ensure_capacity((void **) &affected_target_ids, affected_count, &affected_cap, sizeof(int), 1))
             affected_target_ids[affected_count++] = ci;
-        }
     }
 
     lv_free((void **) &needs_remap);

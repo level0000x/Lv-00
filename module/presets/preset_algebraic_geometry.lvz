@@ -10,10 +10,19 @@ lvz 1
 
 presets {
 
+    preset "affine_variety" {
+        description "由多项式零点集定义仿射代数簇 V(I) = {p : f(p)=0, f in I}"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "affine_variety_test" {
         description "判定点是否在仿射代数簇上"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +31,7 @@ presets {
     preset "variety_dimension" {
         description "计算代数簇的维数（Krull维数）"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +40,16 @@ presets {
     preset "irreducible_variety_test" {
         description "判定代数簇是否不可约"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "ideal_construct" {
+        description "由多项式集合生成的理想 I = (f1, f2, ..., fn)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +58,7 @@ presets {
     preset "groebner_basis" {
         description "计算多项式理想的Gröbner基（Buchberger算法）"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +67,7 @@ presets {
     preset "ideal_intersection" {
         description "计算两个理想的交集 I ∩ J"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +76,16 @@ presets {
     preset "ideal_quotient" {
         description "计算理想商 I : J = {f : fJ ⊆ I}"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "projective_space" {
+        description "构造n维射影空间 P^n(k)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +94,7 @@ presets {
     preset "projective_variety" {
         description "由齐次多项式定义射影代数簇"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +103,7 @@ presets {
     preset "rational_map" {
         description "构造代数簇之间的有理映射"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -85,7 +112,7 @@ presets {
     preset "morphism_test" {
         description "判定映射是否为代数簇间的态射"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -94,7 +121,7 @@ presets {
     preset "birational_equivalence" {
         description "判定两个代数簇是否双有理等价"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -103,7 +130,7 @@ presets {
     preset "singularity_detection" {
         description "检测代数簇上的奇异点"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

@@ -10,10 +10,28 @@ lvz 1
 
 presets {
 
+    preset "functional_extremum" {
+        description "求解泛函 J[y] = ∫ L(x, y, y') dx 的极值"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "euler_lagrange_equation" {
+        description "建立并求解Euler-Lagrange方程 ∂L/∂y - d/dx(∂L/∂y') = 0"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "isoperimetric_problem" {
         description "求解带约束的变分问题（等周问题）"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +40,16 @@ presets {
     preset "lagrangian_construct" {
         description "构造Lagrange函数 L = T - V（动能减势能）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "lagrange_equation" {
+        description "建立Lagrange运动方程 d/dt(∂L/∂q') - ∂L/∂q = Q"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +58,7 @@ presets {
     preset "hamiltonian_construct" {
         description "由Lagrange函数通过Legendre变换构造Hamilton函数 H"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +67,16 @@ presets {
     preset "hamilton_equation" {
         description "建立Hamilton正则方程 dq/dt = ∂H/∂p, dp/dt = -∂H/∂q"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "poisson_bracket" {
+        description "计算Poisson括号 {f, g} = Σ(∂f/∂q·∂g/∂p - ∂f/∂p·∂g/∂q)"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +85,7 @@ presets {
     preset "noether_theorem" {
         description "应用Noether定理：连续对称性对应守恒量"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +94,7 @@ presets {
     preset "conserved_quantity" {
         description "计算运动方程的守恒量（能量、动量、角动量等）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +103,7 @@ presets {
     preset "field_equation" {
         description "由场的Lagrangian密度推导场的运动方程"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +112,7 @@ presets {
     preset "action_principle" {
         description "计算作用量 S = ∫ L dt 并应用最小作用量原理"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

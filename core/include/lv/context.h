@@ -411,11 +411,17 @@ typedef struct lvContext {
     /** 模块引用数量 */
     int module_ref_count;
 
+    /** 模块引用数组容量（倍增扩容，lv_ensure_capacity 维护） */
+    int module_ref_capacity;
+
     /** 已加载的公理包引用（不拥有所有权） */
     void **axiom_pkg_refs;
 
     /** 公理包引用数量 */
     int axiom_pkg_ref_count;
+
+    /** 公理包引用数组容量（倍增扩容，lv_ensure_capacity 维护） */
+    int axiom_pkg_ref_capacity;
 
     /** 重写规则引用（不拥有所有权） */
     struct RewriteRule **rewrite_rule_refs;

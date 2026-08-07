@@ -480,13 +480,12 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids) {
 static int append_solution(GroebnerResult *result, SymbolicCoord *sol) {
     if (!result || !sol)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "append_solution: 输入参数 result 或 sol 为 NULL");
-    SymbolicCoord **new_arr =
-        lv_realloc(result->solutions, (size_t) (result->solution_count + 1) * sizeof(SymbolicCoord *));
-    if (!new_arr) {
+    /* 倍增扩容：委托 lv_ensure_capacity（初始 8，此后每次倍增；失败语义与原来一致：销毁 sol 并返回错误） */
+    if (!lv_ensure_capacity((void **) &result->solutions, result->solution_count, &result->solution_capacity,
+                            sizeof(SymbolicCoord *), 1)) {
         symbolic_coord_destroy(sol);
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "append_solution: 扩容失败");
     }
-    result->solutions = new_arr;
     result->solutions[result->solution_count++] = sol;
     return 0;
 }
@@ -1177,4 +1176,5 @@ void cleanup_groebner_result(GroebnerResult *result) {
     lv_free((void **) &result->solutions);
     result->solutions = NULL;
     result->solution_count = 0;
+    result->solution_capacity = 0; /* 保持 容量=0 无分配 的不变量，支持结果复用 */
 }

@@ -13,7 +13,7 @@ presets {
     preset "markov_chain_construct" {
         description "由转移矩阵P构造离散时间Markov链"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +22,7 @@ presets {
     preset "markov_n_step_transition" {
         description "计算n步转移概率矩阵 P^n"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +31,7 @@ presets {
     preset "stationary_distribution" {
         description "计算Markov链的平稳分布 π = πP"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +40,16 @@ presets {
     preset "ergodicity_test" {
         description "判定Markov链是否遍历（不可约且非周期）"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "brownian_motion_simulate" {
+        description "模拟标准Brown运动路径 W(t)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +58,16 @@ presets {
     preset "brownian_properties" {
         description "计算Brown运动的统计性质（均值、方差、协方差）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "reflected_brownian" {
+        description "构造反射Brown运动 |W(t)|"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +76,7 @@ presets {
     preset "martingale_test" {
         description "判定随机过程是否是鞅 E[X_{n+1}|F_n] = X_n"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +85,16 @@ presets {
     preset "optional_stopping" {
         description "应用可选停时定理 E[X_T] = E[X_0]"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "poisson_process_construct" {
+        description "构造强度为λ的Poisson过程 N(t)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +103,16 @@ presets {
     preset "arrival_time_distribution" {
         description "计算Poisson过程第k次到达时间（Erlang分布）"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "ito_integral" {
+        description "计算Itô随机积分 ∫_0^t f(s) dW(s)"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -85,7 +121,16 @@ presets {
     preset "sde_solve" {
         description "求解Itô随机微分方程 dX = μ dt + σ dW"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "geometric_brownian_motion" {
+        description "构造几何Brown运动 S(t) = S(0) exp((μ-σ²/2)t + σW(t))"
+        category "CUSTOM"
+        inputs 4 "ANY" "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

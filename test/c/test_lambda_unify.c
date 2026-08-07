@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/constraint_graph.h"
 #include "lv/lambda_term.h"
+#include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
 #include "lv/lv_utils.h"
 
@@ -444,6 +446,217 @@ static void test_subs_snprint(void) {
 }
 
 /* ================================================================
+ * apply_to_graph 真实图实例化测试
+ * ================================================================ */
+
+/**
+ * 构造测试图：恒等函数块（λx.x）+ 顶层 λ-变量槽位（depth=100）与消费者
+ * - 恒等函数块：输出端口的 connected_to 指向输入端口，保证
+ *   graph_to_lambda 还原为 Abs(0, Var(0))
+ * - 槽位端口（PORT_OUTPUT, depth=100, parent=-1）→ 消费者端口
+ *   （PORT_INPUT, depth=100）的连接
+ */
+static ConstraintGraph *build_apply_test_graph(int *out_slot_id, int *out_cons_id, int *out_fb_id) {
+    ConstraintGraph *graph = graph_create();
+    if (!graph)
+        return NULL;
+
+    AddNodeResult nr = graph_add_port(graph, PORT_INPUT, 0, -1);
+    int in_id = graph_get_last_added_node_id(graph);
+    nr = graph_add_port(graph, PORT_OUTPUT, 0, -1);
+    int out_id = graph_get_last_added_node_id(graph);
+    if (nr != ADD_NODE_OK || in_id < 0 || out_id < 0) {
+        graph_destroy(graph);
+        return NULL;
+    }
+    GeomNode *in_node = graph_get_node(graph, in_id);
+    GeomNode *out_node = graph_get_node(graph, out_id);
+    if (!in_node || !out_node || !in_node->data.port || !out_node->data.port) {
+        graph_destroy(graph);
+        return NULL;
+    }
+    in_node->data.port->is_formal_param = true;
+    out_node->data.port->connected_to = in_node;
+
+    int internal_ids[2] = { in_id, out_id };
+    nr = graph_add_function_block(graph, internal_ids, 2, &in_id, 1, &out_id, 1);
+    int fb_id = graph_get_last_added_node_id(graph);
+    if (nr != ADD_NODE_OK) {
+        graph_destroy(graph);
+        return NULL;
+    }
+    in_node->parent_block_id = fb_id;
+    out_node->parent_block_id = fb_id;
+    in_node->data.port->parent_block_id = fb_id;
+    out_node->data.port->parent_block_id = fb_id;
+
+    /* 顶层 λ-变量槽位 F=100 与消费者端口 */
+    nr = graph_add_port(graph, PORT_OUTPUT, 100, -1);
+    int slot_id = graph_get_last_added_node_id(graph);
+    nr = graph_add_port(graph, PORT_INPUT, 100, -1);
+    int cons_id = graph_get_last_added_node_id(graph);
+    if (nr != ADD_NODE_OK || slot_id < 0 || cons_id < 0) {
+        graph_destroy(graph);
+        return NULL;
+    }
+    AddConstraintResult cr = graph_add_connection(graph, slot_id, cons_id);
+    if (cr != ADD_CONSTRAINT_OK) {
+        graph_destroy(graph);
+        return NULL;
+    }
+
+    if (out_slot_id) *out_slot_id = slot_id;
+    if (out_cons_id) *out_cons_id = cons_id;
+    if (out_fb_id) *out_fb_id = fb_id;
+    return graph;
+}
+
+/** @brief 构造替换 {index ↦ λx.x} */
+static LambdaSubstitution *build_var_abs_subst(int index) {
+    LvLambdaTerm *var = lv_lambda_create_var(index);
+    LvLambdaTerm *abs = lv_lambda_create_abs(0, lv_lambda_create_var(0));
+    if (!var || !abs) {
+        lv_lambda_destroy(var);
+        lv_lambda_destroy(abs);
+        return NULL;
+    }
+    LambdaSubstitution *subs = NULL;
+    LambdaUnifyStatus s = lambda_unify(var, abs, &subs, 1024);
+    lv_lambda_destroy(var);
+    lv_lambda_destroy(abs);
+    if (s != LAMBDA_UNIFY_OK || !subs)
+        return NULL;
+    return subs;
+}
+
+/** @brief 测试 12: apply_to_graph 真实实例化端到端 */
+static void test_apply_to_graph_instantiates(void) {
+    TEST("apply_to_graph_instantiates");
+    int slot_id = -1, cons_id = -1, fb_id = -1;
+    ConstraintGraph *graph = build_apply_test_graph(&slot_id, &cons_id, &fb_id);
+    if (!graph) { FAIL("构建测试图失败"); return; }
+
+    int node_count_before = graph->node_count;
+    GeomNode *slot = graph_get_node(graph, slot_id);
+    if (!slot) { graph_destroy(graph); FAIL("槽位节点缺失"); return; }
+
+    LambdaSubstitution *subs = build_var_abs_subst(100);
+    if (!subs) { graph_destroy(graph); FAIL("构造替换失败"); return; }
+    int rc = lambda_unify_apply_to_graph(graph, subs, 0);
+    lambda_substitution_list_destroy(subs);
+    if (rc != 0) { graph_destroy(graph); FAIL("apply_to_graph 应返回 0"); return; }
+
+    /* 1) 替换子图已并入：λx.x = binder/输出/体引用端口 + 函数块，共 4 个新节点 */
+    if (graph->node_count != node_count_before + 4) {
+        printf("       节点数: before=%d after=%d (期望 +4)\n", node_count_before, graph->node_count);
+        FAIL("替换子图未正确并入图");
+        graph_destroy(graph);
+        return;
+    }
+
+    /* 2) 槽位端口被停用 */
+    GeomNode *slot_after = graph_get_node(graph, slot_id);
+    if (!slot_after || slot_after->is_active) {
+        FAIL("槽位端口应被停用");
+        graph_destroy(graph);
+        return;
+    }
+
+    /* 3) 消费者端口重连到替换子图输出端口（深度 100）；旧连接停用 */
+    GeomNode *cons = graph_get_node(graph, cons_id);
+    if (!cons || !cons->data.port || !cons->data.port->connected_to) {
+        FAIL("消费者端口未重连");
+        graph_destroy(graph);
+        return;
+    }
+    GeomNode *new_src = cons->data.port->connected_to;
+    if (new_src->id == slot_id || new_src->type != GEOM_PORT ||
+        new_src->data.port->namespace_depth != 100) {
+        FAIL("消费者应连接到替换子图输出端口（深度 100）");
+        graph_destroy(graph);
+        return;
+    }
+    int active_conn = 0, inactive_conn = 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *con = graph->constraints[i];
+        if (!con || con->type != CONNECTION)
+            continue;
+        if (con->is_active) active_conn++; else inactive_conn++;
+    }
+    if (active_conn != 1 || inactive_conn != 1) {
+        printf("       连接: active=%d inactive=%d\n", active_conn, inactive_conn);
+        FAIL("旧连接应停用且仅保留一条活跃连接");
+        graph_destroy(graph);
+        return;
+    }
+
+    /* 4) 原函数块结构保持完整 */
+    GeomNode *fb = graph_get_node(graph, fb_id);
+    if (!fb || fb->type != GEOM_FUNCTION_BLOCK) {
+        FAIL("原函数块应保持完整");
+        graph_destroy(graph);
+        return;
+    }
+
+    /* 5) 幂等性：再次应用同一替换 → 无可实例化槽位 → 返回负值 */
+    LambdaSubstitution *subs2 = build_var_abs_subst(100);
+    int rc2 = subs2 ? lambda_unify_apply_to_graph(graph, subs2, 0) : -1;
+    lambda_substitution_list_destroy(subs2);
+    if (rc2 == 0) {
+        FAIL("重复应用应返回负值（槽位已实例化）");
+        graph_destroy(graph);
+        return;
+    }
+
+    PASS();
+    graph_destroy(graph);
+}
+
+/** @brief 测试 13: apply_to_graph 无匹配槽位 / 空替换 → NOT_FOUND，图不变 */
+static void test_apply_to_graph_not_found(void) {
+    TEST("apply_to_graph_not_found");
+    int slot_id = -1, cons_id = -1, fb_id = -1;
+    ConstraintGraph *graph = build_apply_test_graph(&slot_id, &cons_id, &fb_id);
+    if (!graph) { FAIL("构建测试图失败"); return; }
+    (void)fb_id;
+
+    int node_count_before = graph->node_count;
+    int cons_count_before = graph->constraint_count;
+
+    /* 索引不匹配任何槽位 → NOT_FOUND（负值），图不变 */
+    LambdaSubstitution *subs = build_var_abs_subst(999);
+    if (!subs) { graph_destroy(graph); FAIL("构造替换失败"); return; }
+    int rc = lambda_unify_apply_to_graph(graph, subs, 0);
+    lambda_substitution_list_destroy(subs);
+    if (rc == 0) {
+        FAIL("无匹配槽位时应返回负值");
+        graph_destroy(graph);
+        return;
+    }
+    if (graph->node_count != node_count_before || graph->constraint_count != cons_count_before) {
+        FAIL("失败时图应保持不变");
+        graph_destroy(graph);
+        return;
+    }
+    GeomNode *slot = graph_get_node(graph, slot_id);
+    if (!slot || !slot->is_active) {
+        FAIL("失败时槽位应保持活跃");
+        graph_destroy(graph);
+        return;
+    }
+
+    /* 空替换链表 → 返回负值 */
+    int rc2 = lambda_unify_apply_to_graph(graph, NULL, 0);
+    if (rc2 == 0) {
+        FAIL("空替换应返回负值");
+        graph_destroy(graph);
+        return;
+    }
+
+    PASS();
+    graph_destroy(graph);
+}
+/* ================================================================
  * main
  * ================================================================ */
 
@@ -465,6 +678,9 @@ TEST_MAIN_BEGIN("Test Lambda Unify")
     TEST_MAIN_RUN(test_pattern_imitation);
     TEST_MAIN_RUN(test_pattern_projection);
     TEST_MAIN_RUN(test_pattern_constraint);
+    printf("\n--- apply_to_graph 图实例化 ---\n");
+    TEST_MAIN_RUN(test_apply_to_graph_instantiates);
+    TEST_MAIN_RUN(test_apply_to_graph_not_found);
     printf("\n--- 工具函数 ---\n");
     TEST_MAIN_RUN(test_subs_snprint);
 TEST_MAIN_END()

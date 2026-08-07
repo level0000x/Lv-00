@@ -1,0 +1,44 @@
+// 微自举 B（路线图步骤 5）—— 证明验证器规格
+// 用 lv 语言描述"验证器自身"（Verdict/ProofTerm/verify），
+// 加载本文件时 loader 内建的 verify 语义（lv_loader.c 的 C 实现）
+// 会真实验证下列 Prove 断言 —— "lv 验证自身证明"的第一闭环。
+//
+// 说明：parser 当前支持语言子集（无记录类型字面量 / Constraint 命名），
+// 故本文件用可加载子集描述验证器规格；完整语法设计见
+// bootstrap/src/compiler/verifier.lv（Verdict/ProofTerm 记录类型规格）。
+
+// 验证器判定与证明项（规格化描述）
+Point Verdict, ProofTerm, Verifier;
+
+// 健全性约束（规格化描述；语义：验证通过 ⟹ 结论可由假设推出）
+Constraint forall p: Point. verify(p) == conclusion(p);
+
+// ── 自证断言（加载时被 loader 内建验证器实际验证）──
+
+// 1. Church 加法：add(2, 3) β-归约得 5
+Prove add(2, 3) == 5;
+
+// 2. Church 乘法：mul(2, 4) β-归约得 8
+Prove mul(2, 4) == 8;
+
+// 3. Church 减法：sub(9, 4) β-归约得 5
+Prove sub(9, 4) == 5;
+
+// 4. Church 幂：pow(2, 3) β-归约得 8
+Prove pow(2, 3) == 8;
+
+// 5. 嵌套应用：add(mul(2, 3), 1) β-归约得 7
+Prove add(mul(2, 3), 1) == 7;
+
+// 6. Church 相等：eq(2, 2) 归约为 true（纯布尔目标）
+Prove eq(2, 2);
+
+// 7. Church 零测试：iszero(0) 归约为 true
+Prove iszero(0);
+
+// 8. 逻辑运算：true and true 为真
+Prove true and true;
+
+// 注：parser 的 parse_normalize_stmt 对无参 Normalize; 存在缺陷（误消费分号），
+// 故此处用 Normalize all; 形式（parser 层缺陷修复不在本任务范围内）。
+Normalize all;

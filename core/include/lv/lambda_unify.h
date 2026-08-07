@@ -90,17 +90,28 @@ lv_PUBLIC_API void lambda_substitution_list_destroy(LambdaSubstitution *subs);
 lv_PUBLIC_API void lambda_substitution_snprint(LambdaSubstitution *subs, char *buf, size_t size);
 
 /**
- * @brief 将合一替换应用于约束图
+ * @brief 将合一替换应用于约束图（真实实例化）
  *
- * 遍历替换链表，对每个替换的 λ-项：
- * 1. 通过 lambda_to_graph 编译为约束图子图
- * 2. 将编译后的节点和约束合并到目标图
- * 3. 将图中匹配 De Bruijn 索引的 PORT 节点重连到替换子图的输出
+ * 把替换 {De Bruijn 索引 ↦ λ-项} 应用到约束图：图中"顶层自由 λ-变量
+ * 引用端口"（PORT_OUTPUT、parent_block_id == -1、非形式参数、非函数块
+ * 内部节点、namespace_depth == 索引）代表自由变量的一次出现；本函数将
+ * 替换项编译进图并把所有匹配的出现实例化为该子图。
+ *
+ * 语义要点：
+ * - 替换项必须为闭项（可通过 lambda_to_graph 编译）；含自由变量的项
+ *   无法编译，对应条目被跳过
+ * - 新并入子图的 namespace_depth 整体平移"索引值"，保持连接深度规则
+ *   （|Δdepth| ≤ 1）与端口不变量
+ * - 旧引用端口的消费者重连到替换子图输出端口，旧连接与旧端口停用
+ *   （保留数据用于审计）
+ * - 事务式：先验证全部可应用条目再提交；提交失败时回滚，图保持不变
  *
  * @param graph  目标约束图（会被修改）
- * @param subs   合一替换链表
- * @param binder_depth  当前 binder 深度（通常为 0）
- * @return int  成功返回 0，失败返回 -1
+ * @param subs   合一替换链表（NULL 时返回 lv_ERROR_NULL_POINTER）
+ * @param binder_depth  当前 binder 深度：仅 index >= binder_depth 的
+ *                      条目可应用（通常为 0）
+ * @return int  0 = 至少应用了一个替换；负值 = 失败
+ *              （lv_ERROR_NOT_FOUND = 无可用替换或无可实例化槽位）
  */
 lv_PUBLIC_API int lambda_unify_apply_to_graph(struct ConstraintGraph *graph,
                                                LambdaSubstitution *subs,

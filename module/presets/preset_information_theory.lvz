@@ -10,10 +10,82 @@ lvz 1
 
 presets {
 
+    preset "shannon_entropy" {
+        description "计算离散随机变量的Shannon熵 H(X) = -Σ p(x) log p(x)"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "conditional_entropy" {
+        description "计算条件熵 H(Y|X) = -Σ p(x,y) log p(y|x)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "joint_entropy" {
+        description "计算联合熵 H(X,Y) = -Σ p(x,y) log p(x,y)"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "mutual_information" {
+        description "计算互信息 I(X;Y) = H(X) - H(X|Y)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "channel_capacity" {
+        description "计算离散无记忆信道的信道容量 C = max I(X;Y)"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "shannon_source_coding" {
+        description "香农源编码定理：最优码长 l* >= H(X)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "shannon_channel_coding" {
         description "香农信道编码定理：可靠传输率 R <= C"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "rate_distortion" {
+        description "计算率失真函数 R(D) = min I(X;X') subject to E[d(X,X')] <= D"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "kl_divergence" {
+        description "计算Kullback-Leibler散度 D_KL(P||Q) = Σ p(x) log(p(x)/q(x))"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +94,7 @@ presets {
     preset "huffman_coding" {
         description "构造最优Huffman编码（最小冗余编码）"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false

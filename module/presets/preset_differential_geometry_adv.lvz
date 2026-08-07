@@ -13,7 +13,7 @@ presets {
     preset "levi_civita_connection" {
         description "计算Riemann流形上的Levi-Civita联络"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +22,7 @@ presets {
     preset "covariant_derivative" {
         description "计算向量场沿另一向量场的协变导数 ∇_X Y"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +31,7 @@ presets {
     preset "christoffel_symbols" {
         description "由度量张量计算Christoffel符号 Γ^k_{ij}"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +40,7 @@ presets {
     preset "riemann_curvature_tensor" {
         description "计算Riemann曲率张量 R^l_{ijk}"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +49,7 @@ presets {
     preset "ricci_curvature" {
         description "计算Ricci曲率张量 R_{ij} = R^k_{ikj}"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +58,16 @@ presets {
     preset "scalar_curvature" {
         description "计算标量曲率 S = g^{ij} R_{ij}"
         category "CUSTOM"
-        inputs 1 
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "sectional_curvature" {
+        description "计算二维截面的截面曲率 K(σ)"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +76,16 @@ presets {
     preset "geodesic_equation" {
         description "建立测地线方程 d²x^k/dt² + Γ^k_{ij} dx^i/dt dx^j/dt = 0"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "exponential_map" {
+        description "计算Riemann流形上的指数映射 exp_p(v)"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +94,7 @@ presets {
     preset "tensor_contraction" {
         description "计算张量的缩并运算"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -85,7 +103,7 @@ presets {
     preset "lie_derivative" {
         description "计算张量场沿向量场的李导数 L_X T"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -94,7 +112,7 @@ presets {
     preset "geodesic_deviation" {
         description "计算测地线偏离方程（Jacobi方程）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

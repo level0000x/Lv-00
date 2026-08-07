@@ -979,14 +979,22 @@ static LvAstNode *parse_add_expr(LvParser *p) {
     return left;
 }
 
-/** MulExpr ::= UnaryExpr (("*" | "/") UnaryExpr)* */
+/** MulExpr ::= UnaryExpr (("*" | "/" | "^") UnaryExpr)* */
 static LvAstNode *parse_mul_expr(LvParser *p) {
     LvAstNode *left = parse_unary_expr(p);
     if (!left)
         return NULL;
 
-    while (p->current.type == LV_TOKEN_STAR || p->current.type == LV_TOKEN_SLASH) {
-        const char *op = (p->current.type == LV_TOKEN_STAR) ? "*" : "/";
+    while (p->current.type == LV_TOKEN_STAR || p->current.type == LV_TOKEN_SLASH ||
+           p->current.type == LV_TOKEN_CARET) {
+        const char *op;
+        if (p->current.type == LV_TOKEN_STAR) {
+            op = "*";
+        } else if (p->current.type == LV_TOKEN_SLASH) {
+            op = "/";
+        } else {
+            op = "^";
+        }
         LvSourceLoc loc = p->current.loc;
         advance(p);
         LvAstNode *right = parse_unary_expr(p);

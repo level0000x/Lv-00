@@ -1029,6 +1029,7 @@ typedef struct {
     char *current_strategy;      /**< 当前使用的搜索策略名称 */
     char **available_strategies; /**< 可用策略名称列表 */
     int strategy_count;          /**< 策略数量 */
+    int strategy_capacity;       /**< 策略数组容量（倍增扩容，lv_ensure_capacity 维护） */
 } ProofSearchTree;
 
 /* --- API --- */

@@ -10,10 +10,46 @@ lvz 1
 
 presets {
 
+    preset "fixed_point_compute" {
+        description "计算离散动力系统 x_{n+1} = f(x_n) 的不动点"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "fixed_point_stability" {
+        description "判定不动点的稳定性（|f'(x*)| 与1的关系）"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "periodic_point" {
+        description "计算周期为n的周期点 f^n(x) = x"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "bifurcation_detection" {
+        description "检测参数化系统 dx/dt = f(x,μ) 的分岔点"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "bifurcation_diagram" {
         description "构造离散动力系统的分岔图（参数扫描）"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +58,16 @@ presets {
     preset "hopf_bifurcation_test" {
         description "判定连续动力系统是否发生Hopf分岔"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "lyapunov_exponent" {
+        description "计算一维映射的Lyapunov指数 λ = lim (1/n) Σ ln|f'(x_i)|"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +76,7 @@ presets {
     preset "chaos_detection" {
         description "基于Lyapunov指数判定系统是否混沌（λ > 0）"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -40,7 +85,7 @@ presets {
     preset "attractor_compute" {
         description "计算动力系统的吸引子"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -49,7 +94,7 @@ presets {
     preset "strange_attractor_test" {
         description "检测系统是否具有奇异吸引子"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -58,7 +103,7 @@ presets {
     preset "phase_plane_analysis" {
         description "二维自治系统的相平面分析"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -67,7 +112,7 @@ presets {
     preset "limit_cycle_detection" {
         description "检测二维系统是否存在极限环"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -76,7 +121,7 @@ presets {
     preset "poincare_map" {
         description "构造Poincaré截面映射"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -85,7 +130,7 @@ presets {
     preset "sensitivity_analysis" {
         description "分析初始条件的敏感依赖性"
         category "CUSTOM"
-        inputs 3 
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

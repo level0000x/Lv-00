@@ -10,10 +10,82 @@ lvz 1
 
 presets {
 
+    preset "laplace_transform" {
+        description "Laplace 变换：F(s) = int_0^inf f(t) e^{-st} dt"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "inverse_laplace_transform" {
+        description "Laplace 逆变换：f(t) = (1/2*pi*i) int_{c-i*inf}^{c+i*inf} F(s) e^{st} ds"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "bilateral_laplace_transform" {
+        description "双边 Laplace 变换：F(s) = int_{-inf}^{inf} f(t) e^{-st} dt"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "fourier_transform" {
+        description "Fourier 变换：F(w) = int_{-inf}^{inf} f(t) e^{-iwt} dt"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "inverse_fourier_transform" {
+        description "Fourier 逆变换：f(t) = (1/2*pi) int_{-inf}^{inf} F(w) e^{iwt} dw"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
     preset "discrete_fourier_transform" {
         description "离散 Fourier 变换：X[k] = sum_{n=0}^{N-1} x[n] e^{-i*2*pi*k*n/N}"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "z_transform" {
+        description "Z 变换：X(z) = sum_{n=0}^{inf} x[n] z^{-n}"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "inverse_z_transform" {
+        description "Z 逆变换：x[n] = (1/2*pi*i) oint_C X(z) z^{n-1} dz"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "continuous_wavelet_transform" {
+        description "连续小波变换：W(a,b) = (1/sqrt(a)) int f(t) psi*((t-b)/a) dt"
+        category "CUSTOM"
+        inputs 3 "ANY" "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -22,7 +94,7 @@ presets {
     preset "discrete_wavelet_transform" {
         description "离散小波变换：DWT 多分辨率分析，逐层分解信号"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false
@@ -31,7 +103,34 @@ presets {
     preset "wavelet_inverse_transform" {
         description "小波逆变换：从系数重构原始信号"
         category "CUSTOM"
-        inputs 2 
+        inputs 2 "ANY" "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "wavelet_coefficient_energy" {
+        description "小波系数能量：E = sum |W(a,b)|^2，用于信号分析"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "mellin_transform" {
+        description "Mellin 变换：M(s) = int_0^inf f(x) x^{s-1} dx"
+        category "CUSTOM"
+        inputs 1 "ANY"
+        output "ANY"
+        constructive true
+        reversible false
+    }
+
+    preset "inverse_mellin_transform" {
+        description "Mellin 逆变换：f(x) = (1/2*pi*i) int_{c-i*inf}^{c+i*inf} M(s) x^{-s} ds"
+        category "CUSTOM"
+        inputs 2 "ANY" "ANY"
         output "ANY"
         constructive true
         reversible false

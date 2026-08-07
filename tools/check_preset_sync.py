@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""
+check_preset_sync.py — 校验 module/presets/*.lvz 与 preset_xxx.c 注册数据的同步状态
+
+数据流背景：
+  - convert_presets.py 从 core/src/layer4_reasoning/preset/preset_*.c 中提取
+    LV_PRESET_REGISTER / REGISTER_XXX / preset_blocks_register_by_category 等
+    注册调用，生成 module/presets/*.lvz。
+  - 运行时（preset_blocks.c 的 load_presets_from_lvz）以 .lvz 为唯一数据源，
+    preset_xxx.c 不参与构建（历史遗留/死代码）。
+  - 本脚本对每个模块比较（a）C 源中可提取的注册条目集合 与（b）.lvz 中
+    实际条目集合，输出差异报告，支持 --fix 重新生成（先备份 .lvz.bak）。
+
+用法：
+  python tools/check_preset_sync.py            # dry-run：仅报告差异
+  python tools/check_preset_sync.py --fix      # 修复可安全修复的差异（先备份 .lvz.bak）
+  python tools/check_preset_sync.py --json     # 机器可读摘要（json 追加到 stdout 末尾）
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import sys
+
+# 允许 import 根目录下的 convert_presets.py
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+import convert_presets  # noqa: E402
+
+PRESET_C_DIR = os.path.join(BASE_DIR, 'core', 'src', 'layer4_reasoning', 'preset')
+LVZ_DIR = os.path.join(BASE_DIR, 'module', 'presets')
+NAME_DEFS_PATH = os.path.join(BASE_DIR, 'core', 'include', 'lv', 'preset_name_defs.h')
+
+# 状态分类
+SYNC = 'SYNC'                # 两侧条目集合完全一致（含两侧皆空）
+C_EMPTY = 'C_EMPTY'          # C 无条目、.lvz 有条目 → 预期（死 C vs 活数据）
+EXTRA_ONLY = 'EXTRA_ONLY'    # .lvz 有 C 没有的条目 → 预期（活数据扩展）
+MISSING_ONLY = 'MISSING_ONLY'  # C 有 .lvz 没有的条目（纯缺失）→ 可修复候选
+BOTH = 'BOTH'                # 双向都有差异 → 保守不修
+
+
+def read_text_robust(path):
+    """读取文本，按 utf-8 → gbk → latin-1 依次尝试（条目名均为 ASCII，不影响比较）。"""
+    with open(path, 'rb') as f:
+        data = f.read()
+    for enc in ('utf-8', 'gbk', 'latin-1'):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return data.decode('utf-8', errors='replace')
+
+
+def parse_lvz_names(path):
+    """从 .lvz 提取 preset 条目名（按出现顺序）。"""
+    content = read_text_robust(path)
+    return re.findall(r'\bpreset\s+"([^"]+)"\s*\{', content)
+
+
+def extract_c_presets(c_path, name_map):
+    """从 C 文件提取注册条目（复用 convert_presets 解析逻辑，去重 keep-last 与生成器一致）。"""
+    content = convert_presets.load_file_utf8(c_path) if hasattr(convert_presets, 'load_file_utf8') else read_text_robust(c_path)
+    presets = convert_presets.find_register_calls(content, name_map)
+    seen = {}
+    for p in presets:
+        seen[p['name']] = p
+    return list(seen.values())
+
+
+def compare_module(c_file, lvz_file, name_map):
+    """返回 (c_presets, lvz_names, missing, extra, status)。"""
+    c_presets = extract_c_presets(c_file, name_map)
+    lvz_names = parse_lvz_names(lvz_file)
+
+    c_names = [p['name'] for p in c_presets]
+    c_set = set(c_names)
+    lvz_set = set(lvz_names)
+
+    missing = [n for n in c_names if n not in lvz_set]          # C 有、.lvz 无（保持 C 顺序）
+    extra = [n for n in lvz_names if n not in c_set]            # .lvz 有、C 无（保持 .lvz 顺序）
+
+    if not c_names and not lvz_names:
+        status = SYNC
+    elif missing or extra:
+        if not c_names:
+            status = C_EMPTY
+        elif missing and not extra:
+            status = MISSING_ONLY
+        elif extra and not missing:
+            status = EXTRA_ONLY
+        else:
+            status = BOTH
+    else:
+        status = SYNC
+
+    return c_presets, lvz_names, missing, extra, status
+
+
+def regen_lvz(c_file, lvz_file, c_presets, category):
+    """用生成器逻辑重新生成 .lvz 内容。"""
+    module_name = os.path.basename(c_file).replace('.c', '').replace('preset_', '').replace('_', ' ').title()
+    return convert_presets.generate_lvz_content(module_name, category, c_presets)
+
+
+def main():
+    ap = argparse.ArgumentParser(description='校验 .lvz 与 C 预设注册数据的同步状态')
+    ap.add_argument('--fix', action='store_true', help='修复可安全修复的差异（先备份 .lvz.bak）')
+    ap.add_argument('--json', action='store_true', help='输出 JSON 摘要')
+    ap.add_argument('--module', default=None, help='仅检查指定模块（不含前缀，如 information_theory）')
+    args = ap.parse_args()
+
+    name_map = convert_presets.load_name_defs(NAME_DEFS_PATH)
+    if not os.path.isdir(LVZ_DIR):
+        print(f'错误: .lvz 目录不存在: {LVZ_DIR}', file=sys.stderr)
+        sys.exit(2)
+
+    # 以 .lvz 文件为锚（运行时唯一数据源），C 文件一一对应
+    lvz_files = sorted(f for f in os.listdir(LVZ_DIR) if f.endswith('.lvz'))
+    if args.module:
+        lvz_files = [f for f in lvz_files if f.startswith('preset_' + args.module + '.')]
+
+    results = {}
+    for lvz_name in lvz_files:
+        c_name = lvz_name[:-4] + '.c'
+        c_path = os.path.join(PRESET_C_DIR, c_name)
+        lvz_path = os.path.join(LVZ_DIR, lvz_name)
+        if not os.path.isfile(c_path):
+            results[lvz_name] = {'status': 'NO_C_FILE', 'c_count': 0, 'lvz_count': len(parse_lvz_names(lvz_path)),
+                                 'missing': [], 'extra': [], 'note': '.lvz 无对应 C 文件'}
+            continue
+        c_presets, lvz_names, missing, extra, status = compare_module(c_path, lvz_path, name_map)
+        results[lvz_name] = {
+            'status': status, 'c_count': len(c_presets), 'lvz_count': len(lvz_names),
+            'missing': missing, 'extra': extra,
+        }
+
+    # ---- 输出报告 ----
+    summary = {'SYNC': 0, 'MISSING_ONLY': 0, 'EXTRA_ONLY': 0, 'BOTH': 0, 'C_EMPTY': 0, 'NO_C_FILE': 0}
+    for lvz_name in sorted(results):
+        r = results[lvz_name]
+        summary[r['status']] += 1
+        if args.json:
+            continue
+        line = f"[{r['status']:<13}] {lvz_name:42s} C={r['c_count']:3d} lvz={r['lvz_count']:3d}"
+        print(line)
+        if r['missing']:
+            print(f"      - 缺失 (C 有、.lvz 无): {', '.join(r['missing'])}")
+        if r['extra']:
+            print(f"      - 多出 (.lvz 有、C 无): {', '.join(r['extra'])}")
+
+    if not args.json:
+        print()
+        print('状态说明:')
+        print('  SYNC          : 两侧条目集合完全一致（含两侧皆空）')
+        print('  MISSING_ONLY  : C 有 .lvz 没有的条目（纯缺失）→ --fix 可修复')
+        print('  EXTRA_ONLY    : .lvz 有 C 没有的条目 → 预期差异（活数据扩展，不修）')
+        print('  BOTH          : 双向都有差异 → 保守不修')
+        print('  C_EMPTY       : C 无条目、.lvz 有条目 → 预期差异（死 C vs 活数据）')
+        print('  NO_C_FILE     : .lvz 无对应 C 文件')
+        print()
+        print('汇总: ' + ', '.join(f'{k}={v}' for k, v in summary.items()))
+
+    # ---- --fix 处理（仅纯缺失，且 C 侧非空；先备份） ----
+    fixed, skipped = [], []
+    if args.fix:
+        for lvz_name in sorted(results):
+            r = results[lvz_name]
+            if r['status'] not in ('MISSING_ONLY',):
+                skipped.append((lvz_name, r['status']))
+                continue
+            c_path = os.path.join(PRESET_C_DIR, lvz_name[:-4] + '.c')
+            lvz_path = os.path.join(LVZ_DIR, lvz_name)
+            c_presets, _, _, _, _ = compare_module(c_path, lvz_path, name_map)
+            content = read_text_robust(c_path)
+            category = convert_presets.extract_category(content)
+            new_content = regen_lvz(c_path, lvz_path, c_presets, category)
+            bak = lvz_path + '.bak'
+            shutil.copy2(lvz_path, bak)
+            with open(lvz_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(new_content)
+            fixed.append((lvz_name, len(c_presets)))
+            if not args.json:
+                print(f'[FIX ] {lvz_name}: 备份 {os.path.basename(bak)}，重新生成 {len(c_presets)} 条')
+
+        if not args.json:
+            for name, st in skipped:
+                print(f'[SKIP] {name}: 状态 {st}（非纯缺失，不修改）')
+            print(f'\n--fix 完成: 修复 {len(fixed)} 个文件，跳过 {len(skipped)} 个文件')
+
+    if args.json:
+        print(json.dumps({'summary': summary, 'modules': results,
+                          'fixed': [f[0] for f in fixed] if args.fix else None}, ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    main()

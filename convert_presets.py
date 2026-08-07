@@ -362,6 +362,10 @@ def parse_helper_call(call_text, name_map):
 
 def parse_register_by_category(inner):
     """Parse preset_blocks_register_by_category call."""
+    inner = inner.strip()
+    if inner.startswith('(') and inner.endswith(')'):
+        inner = inner[1:-1]
+
     args = split_by_comma(inner)
     if len(args) < 5:
         return None
@@ -372,12 +376,16 @@ def parse_register_by_category(inner):
     input_count = int(args[3].strip())
     output_count = int(args[4].strip())
 
+    # 按 category 注册的调用不携带输入类型，用 ANY 填充以保持 .lvz 格式
+    # 与 loader 兼容（module_lvz.c 的 preset_field_inputs 要求 count 个类型 token）
+    input_types = ['ANY'] * input_count if input_count > 0 else []
+
     return {
         'name': name,
         'description': desc,
         'input_count': input_count,
         'output_count': output_count,
-        'input_types': [],
+        'input_types': input_types,
         'output_type': 'ANY',
         'math_def': '',
         'complexity': '',
@@ -388,6 +396,10 @@ def parse_register_by_category(inner):
 
 def parse_register_simple(inner, name_map):
     """Parse direct preset_blocks_register_simple call."""
+    inner = inner.strip()
+    if inner.startswith('(') and inner.endswith(')'):
+        inner = inner[1:-1]
+
     args = split_by_comma(inner)
     if len(args) < 10:
         return None

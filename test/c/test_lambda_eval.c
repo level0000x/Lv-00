@@ -19,6 +19,7 @@
 #include "lv/lambda_church.h"
 #include "lv/lambda_term.h"
 #include "lv/lambda_to_graph.h"
+#include "lv/proof.h"
 
 #define TEST_PASS_STATEMENT g_pass_count++
 #define TEST_FAIL_STATEMENT g_fail_count++
@@ -359,6 +360,125 @@ static void test_reduction_steps_reasonable(void) {
     PASS();
 }
 
+/**
+ * 测试 9: λ-演算合一策略端到端（函数块签名合一 + 图实例化 + 证明步骤）
+ *
+ * 构造"恒等函数块 + 顶层 λ-变量槽位（depth=100）"图，激活并执行
+ * λ-演算合一策略：策略从函数块还原 λx.x，与目标模式 λx.F x（F=100）
+ * 合一得到 F ↦ λx.x，随后把槽位实例化为 λx.x 并记录合一证明步骤。
+ */
+static void test_lambda_unify_strategy(void) {
+    ConstraintGraph *graph = graph_create();
+    if (!graph) { FAIL("graph create"); return; }
+
+    /* 恒等函数块 λx.x：输出端口 connected_to 指向输入端口（保证还原为 Abs(0,Var(0))） */
+    AddNodeResult nr = graph_add_port(graph, PORT_INPUT, 0, -1);
+    int in_id = graph_get_last_added_node_id(graph);
+    nr = graph_add_port(graph, PORT_OUTPUT, 0, -1);
+    int out_id = graph_get_last_added_node_id(graph);
+    GeomNode *in_node = graph_get_node(graph, in_id);
+    GeomNode *out_node = graph_get_node(graph, out_id);
+    if (nr != ADD_NODE_OK || !in_node || !out_node || !in_node->data.port || !out_node->data.port) {
+        graph_destroy(graph);
+        FAIL("add identity ports");
+        return;
+    }
+    in_node->data.port->is_formal_param = true;
+    out_node->data.port->connected_to = in_node;
+    int internal_ids[2] = { in_id, out_id };
+    nr = graph_add_function_block(graph, internal_ids, 2, &in_id, 1, &out_id, 1);
+    int fb_id = graph_get_last_added_node_id(graph);
+    if (nr != ADD_NODE_OK) {
+        graph_destroy(graph);
+        FAIL("add identity fb");
+        return;
+    }
+    in_node->parent_block_id = fb_id;
+    out_node->parent_block_id = fb_id;
+
+    /* 顶层 λ-变量槽位 F=100 */
+    nr = graph_add_port(graph, PORT_OUTPUT, 100, -1);
+    int slot_id = graph_get_last_added_node_id(graph);
+    if (nr != ADD_NODE_OK) {
+        graph_destroy(graph);
+        FAIL("add slot");
+        return;
+    }
+
+    Proposition *prop = proposition_create(0, PROPOSITION_TYPE_ATOMIC);
+    ProofNavigator *nav = prop ? proof_navigator_create(prop, NULL) : NULL;
+    if (!nav) {
+        if (prop) proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("navigator create");
+        return;
+    }
+    nav->construction = graph;
+
+    ProofMultiStrategy *mse = proof_multi_strategy_create(nav);
+    if (!mse) {
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("mse create");
+        return;
+    }
+
+    if (!proof_multi_strategy_activate(mse, PROOF_STRATEGY_LAMBDA_UNIFY)) {
+        proof_multi_strategy_destroy(mse);
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("activate lambda_unify");
+        return;
+    }
+
+    if (!proof_multi_strategy_execute(mse)) {
+        proof_multi_strategy_destroy(mse);
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("execute lambda_unify");
+        return;
+    }
+
+    if (nav->step_count != 1) {
+        printf("       步骤数: %d (期望 1)\n", nav->step_count);
+        proof_multi_strategy_destroy(mse);
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("应产生一个证明步骤");
+        return;
+    }
+    ProofStep *step = nav->steps[0];
+    if (step->type != PROOF_STEP_UNIFY || step->color != PROOF_COLOR_GREEN) {
+        proof_multi_strategy_destroy(mse);
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("步骤类型/颜色不合理");
+        return;
+    }
+
+    /* 图被实例化：槽位停用，替换子图（λx.x）并入图 */
+    GeomNode *slot = graph_get_node(graph, slot_id);
+    if (!slot || slot->is_active) {
+        proof_multi_strategy_destroy(mse);
+        proof_navigator_destroy(nav);
+        proposition_unref(prop);
+        graph_destroy(graph);
+        FAIL("槽位应被实例化（停用）");
+        return;
+    }
+    (void)fb_id;
+
+    proof_multi_strategy_destroy(mse);
+    proof_navigator_destroy(nav);
+    proposition_unref(prop);
+    graph_destroy(graph);
+    PASS();
+}
 /* ====================================================================
  * main
  * ==================================================================== */
@@ -376,4 +496,6 @@ TEST_MAIN_BEGIN("λ-演算 β-归约结果验证")
     TEST_MAIN_RUN(test_pow_23_reduces);
     printf("\n[归约步数合理性]\n");
     TEST_MAIN_RUN(test_reduction_steps_reasonable);
+    printf("\n[λ-演算合一策略]\n");
+    TEST_MAIN_RUN(test_lambda_unify_strategy);
 TEST_MAIN_END()
