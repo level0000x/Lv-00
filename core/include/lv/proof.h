@@ -1536,11 +1536,12 @@ typedef enum {
     VERIFY_DISCH      /* DISCH:   discharge assumption */
 } VerifyRuleType;
 
-/** @brief 验证结果 */
-#ifndef VERIFY_RESULT_DEFINED
-#define VERIFY_RESULT_DEFINED
-typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
-#endif
+/** @brief 验证结果
+ * @note 本类型 (LvProofVerifyResult: VERIFY_VALID/VERIFY_INVALID/VERIFY_UNDECIDED) 与
+ * prop_verifier.h 的 VerifyResult (VERIFY_INVALID_INPUT/VERIFY_PROVEN/...) 是两套独立枚举体系。
+ * 二者曾共用 VERIFY_RESULT_DEFINED 守卫，导致同一编译单元中语义随 include 顺序漂移
+ * （先包含者生效）。现已拆分：本类型定名 LvProofVerifyResult，prop_verifier.h 侧保留 VerifyResult。 */
+typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } LvProofVerifyResult;
 
 /**
  * @brief 极简验证 — 仅用不超过 10 条基本规则验证一个证明步骤
@@ -1550,8 +1551,8 @@ typedef enum { VERIFY_VALID, VERIFY_INVALID, VERIFY_UNDECIDED } VerifyResult;
  * @param out_trace   输出：验证追溯（可选，成功时给出规则链）
  * @return VERIFY_VALID 如果结论可从前提通过给定规则合法推导
  */
-lv_PUBLIC_API VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion,
-                                                char **out_trace);
+lv_PUBLIC_API LvProofVerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion,
+                                                       char **out_trace);
 
 /* ================================================================
  * 5. F* — 精化类型 + SMT 混合验证

@@ -574,7 +574,7 @@ static void test_hol_light_verify_api(void) {
     const char *premises[] = {"x=y", "y=z", NULL};
     const char *conclusion = "x=z";
     char *trace = NULL;
-    VerifyResult result = proof_minimal_verify(VERIFY_TRANS, premises, conclusion, &trace);
+    LvProofVerifyResult result = proof_minimal_verify(VERIFY_TRANS, premises, conclusion, &trace);
     if (result == VERIFY_VALID) {
         if (trace) lv_free((void **)&trace);
         PASS();

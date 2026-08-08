@@ -349,7 +349,7 @@ static void test_i64_destroy_no_leak(void) {
     printf("Testing i64 destroy (no leak)...\n");
 
     /* lv_init 可能持有少量全局分配：以操作前报告数为基线 */
-    int base = lv_memory_leak_report(NULL);
+    TEST_LEAK_BASELINE();
     for (int round = 0; round < 5; round++) {
         lvHashtable *ht = lv_hashtable_i64_create(4);
         lv_ASSERT_NOT_NULL(ht);
@@ -360,9 +360,8 @@ static void test_i64_destroy_no_leak(void) {
         }
         lv_hashtable_i64_destroy(ht);
     }
-    int after = lv_memory_leak_report(NULL);
-    lv_ASSERT(after <= base);
-    printf("  PASSED (leak baseline=%d after=%d)\n", base, after);
+    TEST_LEAK_NO_DELTA();
+    printf("  PASSED (leak baseline=%d after=%d)\n", _th_leak_base, _th_leak_after);
 }
 
 /* ---------- 主函数 ---------- */

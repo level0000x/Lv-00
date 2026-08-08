@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include "lv.h"
-#include "examples_common.h"
+#include "test_helpers.h"
 
 /**
  * 构造圆与线段的相交

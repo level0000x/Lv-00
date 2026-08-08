@@ -9,6 +9,9 @@
 extern "C" {
 #endif
 
+/** 哈希表句柄（前向声明，定义见 lv_hashtable.h） */
+typedef struct lvHashtable lvHashtable;
+
 /** @brief 通用注册表条目：名称 + 工厂函数/泛型值 */
 typedef struct lvRegistryEntry {
     char *name;                /**< 条目名称（key，注册表内部拷贝并管理生命周期） */
@@ -23,6 +26,7 @@ typedef struct lvRegistry {
     int count;                 /**< 当前条目数 */
     int capacity;              /**< 容量 */
     lvMutex mutex;             /**< 互斥锁 */
+    lvHashtable *index;        /**< name→条目下标+1 哈希副索引（NULL 时回退线性扫描） */
 } lvRegistry;
 
 /**

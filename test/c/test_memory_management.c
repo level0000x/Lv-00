@@ -199,6 +199,9 @@ static void test_leak_tracking(void) {
     /* 重置内存统计 */
     lv_reset_memory_stats();
 
+    /* 以当前追踪分配数为基线（lv_init 可能持有少量全局分配） */
+    TEST_LEAK_BASELINE();
+
     /* 使用追踪分配 */
     void *tracked = lv_TRACKED_MALLOC(256);
     TEST_ASSERT_NOT_NULL(tracked);
@@ -214,9 +217,9 @@ static void test_leak_tracking(void) {
     TEST_ASSERT_NULL(tracked);
 
     /* 验证泄漏报告（此时不应有泄漏） */
-    int leaks = lv_memory_leak_report(NULL);
+    TEST_LEAK_NO_DELTA();
     /* leaks 表示未释放的追踪分配数量，释放后应为 0 或仅包含框架内部分配 */
-    printf("    泄漏报告: %d 个未释放块\n", leaks);
+    printf("    泄漏报告: %d 个未释放块\n", _th_leak_after);
 }
 
 /* ============================================================

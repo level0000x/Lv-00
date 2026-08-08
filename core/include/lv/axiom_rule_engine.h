@@ -41,6 +41,7 @@ typedef struct lvRule lvRule;
 typedef struct lvRuleLibrary lvRuleLibrary;
 typedef struct lvRuleMatch lvRuleMatch;
 typedef struct lvDifficultyAssessment lvDifficultyAssessment;
+typedef struct lvHashtable lvHashtable; /* 哈希表句柄（定义见 lv_hashtable.h） */
 /* ============== 规则类型 ============== */
 /**
  * @brief 规则类型枚举
@@ -213,9 +214,8 @@ struct lvRuleLibrary {
     uint32_t rule_count;    /**< 规则数量 */
     uint32_t rule_capacity; /**< 规则容量 */
     /* 索引 */
-    uint32_t *id_index;   /**< ID 索引 */
-    char **name_index;    /**< 名称索引 */
-    uint32_t *type_index; /**< 类型索引 */
+    lvHashtable *id_index;   /**< 规则 id → 规则指针 哈希索引（NULL 时回退线性扫描） */
+    lvHashtable *name_index; /**< 规则 name → 规则指针 哈希索引（NULL 时回退线性扫描） */
     /* 缓存 */
     void *match_cache; /**< 匹配缓存 */
     /* 配置 */

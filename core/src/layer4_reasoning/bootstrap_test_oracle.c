@@ -69,6 +69,9 @@ void test_oracle_destroy(TestOracle *oracle) {
  *
  * 对约束图执行两次归一化，验证第二次归一化不再产生合并。
  *
+ * @note 与产品权威 normalization_verify_idempotency（normalization.c）同构
+ * （同为"二次规范化无变化"判定），本预言机版收敛为对其的薄包装，保持行为一致。
+ *
  * @param oracle 测试预言机
  * @param graph  约束图
  * @return true 幂等性通过，false 失败或参数无效
@@ -78,28 +81,9 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph
         return false;
     }
 
-    /* 幂等性验证：执行两次归一化并比较结果 */
-    ConstraintGraph *g = (ConstraintGraph *) graph;
-
-    /* 使用现有 API */
-    NormalizationResult *result1 = graph_normalize(g, false);
-    if (!result1) {
-        return false;
-    }
-
-    NormalizationResult *result2 = graph_normalize(g, false);
-    if (!result2) {
-        normalization_result_destroy(result1);
-        return false;
-    }
-
-    /* 比较合并数量 */
-    bool idempotent = (result1->merged_count == 0 && result2->merged_count == 0);
-
-    normalization_result_destroy(result1);
-    normalization_result_destroy(result2);
-
-    return idempotent;
+    /* 幂等性验证：收敛到产品权威实现（normalization.c: normalization_verify_idempotency），
+     * 其内部以完整图哈希 + merged_count 双重判定"二次规范化无变化"。 */
+    return normalization_verify_idempotency((ConstraintGraph *) graph);
 }
 
 /**
@@ -191,9 +175,14 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace) {
 }
 
 /**
- * @brief 验证序列化往返一致性
+ * @brief 验证序列化-反序列化往返一致性
  *
  * 对约束图进行序列化再反序列化，使用图同构比较器验证一致性。
+ *
+ * @note 测试预言机专用：验证外部传入的"序列化字符串 + 已反序列化对象"对，
+ * 比较器为图同构比较器（graph_isomorphism_*）。与权威入口 lv_roundtrip_verify
+ * （lv_storage.c，自行执行完整往返并用 meta_repr_graph_equivalent）行为不同，
+ * 保留独立实现。
  *
  * @param oracle       测试预言机
  * @param graph        原始约束图

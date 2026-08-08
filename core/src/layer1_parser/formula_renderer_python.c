@@ -105,13 +105,13 @@ static int helper_python_unary_sqrt(const FormulaNode *node, char *buffer, size_
 
 static int helper_python_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    static const char *const prefixes[] = {
-        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin(",
-        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos(",
-        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan(",
-    };
-    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), ")", 0, buffer,
-                            size, options, render_python_internal);
+    /* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
+    const char *name = formula_unary_fn_name(node);
+    if (!name)
+        return snprintf(buffer, size, "# <unknown>");
+    char prefix[lv_FORMULA_BUF_SMALL];
+    snprintf(prefix, sizeof(prefix), "%s(", name);
+    return render_unary_via(node, prefix, ")", 0, buffer, size, options, render_python_internal);
 }
 
 static int helper_python_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -342,6 +342,100 @@ static int helper_python_constraint_angle(const FormulaNode *node, char *buffer,
     return written;
 }
 
+/* NODE_GEOM_LINE 直线渲染 */
+static int helper_python_geom_line(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char p2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_line.point1) {
+        render_python_internal(node->data.geom_line.point1, p1_buf, sizeof(p1_buf), options);
+    }
+    if (node->data.geom_line.point2) {
+        render_python_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
+    }
+    written = snprintf(buffer, size, "Line(%s, %s)", p1_buf, p2_buf);
+    return written;
+}
+
+/* NODE_GEOM_VECTOR 向量渲染 */
+static int helper_python_geom_vector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char s_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char e_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_vector.start) {
+        render_python_internal(node->data.geom_vector.start, s_buf, sizeof(s_buf), options);
+    }
+    if (node->data.geom_vector.end) {
+        render_python_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
+    }
+    written = snprintf(buffer, size, "Vector(%s, %s)", s_buf, e_buf);
+    return written;
+}
+
+/* NODE_CONSTRAINT_BISECTOR 角平分线约束渲染 */
+static int helper_python_constraint_bisector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        written = snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_COLLINEAR 共线约束渲染 */
+static int helper_python_constraint_collinear(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        written = snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_TANGENT 相切约束渲染 */
+static int helper_python_constraint_tangent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char l_buf[lv_FORMULA_BUF_SMALL] = {0}, c_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        render_python_internal(node->data.constraint.participants[0], l_buf, sizeof(l_buf), options);
+        render_python_internal(node->data.constraint.participants[1], c_buf, sizeof(c_buf), options);
+        written = snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_CONGRUENT 全等约束渲染 */
+static int helper_python_constraint_congruent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char s1_buf[lv_FORMULA_BUF_SMALL] = {0}, s2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        render_python_internal(node->data.constraint.participants[0], s1_buf, sizeof(s1_buf), options);
+        render_python_internal(node->data.constraint.participants[1], s2_buf, sizeof(s2_buf), options);
+        written = snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
+    }
+    return written;
+}
+
 static int helper_python_compound(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
@@ -390,14 +484,20 @@ static const RenderNodeFunc s_render_python_funcs[] = {
     [NODE_EQUATION] = helper_python_equation,
     [NODE_GEOM_POINT] = helper_python_geom_point,
     [NODE_GEOM_SEGMENT] = helper_python_geom_segment,
+    [NODE_GEOM_LINE] = helper_python_geom_line,
     [NODE_GEOM_CIRCLE] = helper_python_geom_circle,
     [NODE_GEOM_TRIANGLE] = helper_python_geom_triangle,
     [NODE_COORDINATE_LIST] = helper_python_coord_list,
     [NODE_CONSTRAINT_PERPENDICULAR] = helper_python_constraint_perpendicular,
     [NODE_CONSTRAINT_PARALLEL] = helper_python_constraint_parallel,
     [NODE_CONSTRAINT_MIDPOINT] = helper_python_constraint_midpoint,
+    [NODE_CONSTRAINT_BISECTOR] = helper_python_constraint_bisector,
+    [NODE_CONSTRAINT_COLLINEAR] = helper_python_constraint_collinear,
+    [NODE_CONSTRAINT_TANGENT] = helper_python_constraint_tangent,
+    [NODE_CONSTRAINT_CONGRUENT] = helper_python_constraint_congruent,
     [NODE_GEOM_REGION] = helper_python_geom_region,
     [NODE_GEOM_ARC] = helper_python_geom_arc,
+    [NODE_GEOM_VECTOR] = helper_python_geom_vector,
     [NODE_CONSTRAINT_ANGLE] = helper_python_constraint_angle,
     [NODE_COMPOUND] = helper_python_compound,
 };

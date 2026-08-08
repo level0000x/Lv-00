@@ -736,6 +736,11 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder, const GeomNode 
  * @param decoded  解码后的数据指针
  * @param type_name 类型名称（用于选择比较策略）
  * @return true 一致，false 不一致或参数无效
+ *
+ * @note 与 lv_roundtrip_verify（lv_storage.c）的关系：后者是"序列化→反序列化"
+ * 完整往返的权威入口（内部对 ConstraintGraph 复用 meta_repr_graph_equivalent 比较）；
+ * 本函数仅比较两个已存在的对象（不执行序列化），供已解码场景直接使用，
+ * 当前无 C 调用方，保留为 API。
  */
 bool meta_repr_verify_roundtrip(const void *original, const void *decoded, const char *type_name) {
     if (!original || !decoded)

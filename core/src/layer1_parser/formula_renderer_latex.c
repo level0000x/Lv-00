@@ -142,14 +142,14 @@ static int helper_latex_unary_sqrt(const FormulaNode *node, char *buffer, size_t
 
 static int helper_latex_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    static const char *const prefixes[] = {
-        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "\\sin\\left(",
-        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "\\cos\\left(",
-        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "\\tan\\left(",
-    };
-    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), "\\right)",
-                            RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size, options,
-                            render_latex_internal);
+    /* 前缀自共享一元函数名表构造："\sin\left(" 等（与历史输出逐字一致） */
+    const char *name = formula_unary_fn_name(node);
+    if (!name)
+        return snprintf(buffer, size, "\\text{<unknown>}");
+    char prefix[lv_FORMULA_BUF_SMALL];
+    snprintf(prefix, sizeof(prefix), "\\%s\\left(", name);
+    return render_unary_via(node, prefix, "\\right)", RENDER_VIA_CHECK_RET | RENDER_VIA_ERROR_CTX, buffer, size,
+                            options, render_latex_internal);
 }
 
 static int helper_latex_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -447,6 +447,136 @@ static int helper_latex_constraint_angle(const FormulaNode *node, char *buffer, 
     return written;
 }
 
+/* NODE_GEOM_LINE 直线渲染 */
+static int helper_latex_geom_line(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char p2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_line.point1) {
+        int p1_ret = render_latex_internal(node->data.geom_line.point1, p1_buf, sizeof(p1_buf), options);
+        if (p1_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "line point1 sub-render failed");
+    }
+    if (node->data.geom_line.point2) {
+        int p2_ret = render_latex_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
+        if (p2_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "line point2 sub-render failed");
+    }
+    if (node->data.geom_line.name) {
+        char *esc_name = latex_escape_alloc(node->data.geom_line.name);
+        written = snprintf(buffer, size, "\\text{line } %s", esc_name ? esc_name : "");
+        lv_free((void **) &esc_name);
+    } else {
+        written = snprintf(buffer, size, "\\overleftrightarrow{%s%s}", p1_buf, p2_buf);
+    }
+    return written;
+}
+
+/* NODE_GEOM_VECTOR 向量渲染 */
+static int helper_latex_geom_vector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char s_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char e_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_vector.start) {
+        int s_ret = render_latex_internal(node->data.geom_vector.start, s_buf, sizeof(s_buf), options);
+        if (s_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "vector start sub-render failed");
+    }
+    if (node->data.geom_vector.end) {
+        int e_ret = render_latex_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
+        if (e_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "vector end sub-render failed");
+    }
+    if (node->data.geom_vector.name) {
+        char *esc_name = latex_escape_alloc(node->data.geom_vector.name);
+        written = snprintf(buffer, size, "\\vec{%s}", esc_name ? esc_name : "");
+        lv_free((void **) &esc_name);
+    } else {
+        written = snprintf(buffer, size, "\\overrightarrow{%s%s}", s_buf, e_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_BISECTOR 角平分线约束渲染 */
+static int helper_latex_constraint_bisector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        int p1_ret =
+            render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        int p2_ret =
+            render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        int p3_ret =
+            render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "bisector participant render failed");
+        written = snprintf(buffer, size, "\\text{bisector}(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_COLLINEAR 共线约束渲染 */
+static int helper_latex_constraint_collinear(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        int p1_ret =
+            render_latex_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        int p2_ret =
+            render_latex_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        int p3_ret =
+            render_latex_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        if (p1_ret < 0 || p2_ret < 0 || p3_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "collinear participant render failed");
+        written = snprintf(buffer, size, "\\text{collinear}(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_TANGENT 相切约束渲染 */
+static int helper_latex_constraint_tangent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char l_buf[lv_FORMULA_BUF_SMALL] = {0}, c_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        int l_ret = render_latex_internal(node->data.constraint.participants[0], l_buf, sizeof(l_buf), options);
+        int c_ret = render_latex_internal(node->data.constraint.participants[1], c_buf, sizeof(c_buf), options);
+        if (l_ret < 0 || c_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "tangent participant render failed");
+        written = snprintf(buffer, size, "%s \\text{ tangent to } %s", l_buf, c_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_CONGRUENT 全等约束渲染 */
+static int helper_latex_constraint_congruent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char s1_buf[lv_FORMULA_BUF_SMALL] = {0}, s2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        int s1_ret =
+            render_latex_internal(node->data.constraint.participants[0], s1_buf, sizeof(s1_buf), options);
+        int s2_ret =
+            render_latex_internal(node->data.constraint.participants[1], s2_buf, sizeof(s2_buf), options);
+        if (s1_ret < 0 || s2_ret < 0)
+            lv_RETURN_ERROR(lv_ERROR_INTERNAL, "congruent participant render failed");
+        written = snprintf(buffer, size, "%s \\cong %s", s1_buf, s2_buf);
+    }
+    return written;
+}
+
 static int helper_latex_compound(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
@@ -507,14 +637,20 @@ static const RenderNodeFunc s_render_latex_funcs[] = {
     [NODE_EQUATION] = helper_latex_equation,
     [NODE_GEOM_POINT] = helper_latex_geom_point,
     [NODE_GEOM_SEGMENT] = helper_latex_geom_segment,
+    [NODE_GEOM_LINE] = helper_latex_geom_line,
     [NODE_GEOM_CIRCLE] = helper_latex_geom_circle,
     [NODE_GEOM_TRIANGLE] = helper_latex_geom_triangle,
     [NODE_COORDINATE_LIST] = helper_latex_coord_list,
     [NODE_CONSTRAINT_PERPENDICULAR] = helper_latex_constraint_perpendicular,
     [NODE_CONSTRAINT_PARALLEL] = helper_latex_constraint_parallel,
     [NODE_CONSTRAINT_MIDPOINT] = helper_latex_constraint_midpoint,
+    [NODE_CONSTRAINT_BISECTOR] = helper_latex_constraint_bisector,
+    [NODE_CONSTRAINT_COLLINEAR] = helper_latex_constraint_collinear,
+    [NODE_CONSTRAINT_TANGENT] = helper_latex_constraint_tangent,
+    [NODE_CONSTRAINT_CONGRUENT] = helper_latex_constraint_congruent,
     [NODE_GEOM_REGION] = helper_latex_geom_region,
     [NODE_GEOM_ARC] = helper_latex_geom_arc,
+    [NODE_GEOM_VECTOR] = helper_latex_geom_vector,
     [NODE_CONSTRAINT_ANGLE] = helper_latex_constraint_angle,
     [NODE_COMPOUND] = helper_latex_compound,
 };

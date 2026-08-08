@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
+#include "lv/lv_hashtable.h" /* 规则库 id/name 哈希索引 */
 #include "lv/lv_utils.h"
 
 #include "lv_internal.h"
@@ -59,6 +60,10 @@ lvRuleLibrary *lv_rule_library_create(const lvRuleLibraryConfig *config) {
     lib->rule_capacity = cap;
     lib->rule_count = 0;
 
+    /* id→规则指针 / name→规则指针 哈希索引；创建失败（内存不足）时置 NULL，查找回退线性扫描 */
+    lib->id_index = lv_hashtable_int_create((int) cap);
+    lib->name_index = lv_hashtable_str_create((int) cap);
+
     if (config) {
         lib->config = *config;
     } else {
@@ -76,14 +81,12 @@ void lv_rule_library_destroy(lvRuleLibrary *library) {
         lv_rule_destroy(library->rules[i]);
     }
     lv_free((void **) &library->rules);
-    if (library->name_index) {
-        for (uint32_t i = 0; i < library->rule_count; i++) {
-            lv_free((void **) &library->name_index[i]);
-        }
-        lv_free((void **) &library->name_index);
+    if (library->id_index) {
+        lv_hashtable_int_destroy(library->id_index);
     }
-    lv_free((void **) &library->id_index);
-    lv_free((void **) &library->type_index);
+    if (library->name_index) {
+        lv_hashtable_str_destroy(library->name_index);
+    }
     lv_free((void **) &library);
 }
 
@@ -92,7 +95,33 @@ bool lv_rule_library_add(lvRuleLibrary *library, lvRule *rule) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_rule_library_add: NULL library or rule");
     if (library->rule_count >= library->rule_capacity)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_STATE, "lv_rule_library_add: library is full");
-    library->rules[library->rule_count++] = rule;
+    library->rules[library->rule_count] = rule;
+
+    /* 同步哈希索引（值存规则指针，规则对象地址不随数组前移变化）：
+     * 键重复时 insert 不覆盖，保留首条，与原线性"返回第一个匹配"语义一致；
+     * 非键重复的插入失败（内存不足）会留下缺失键：整体销毁索引，查找回退线性扫描 */
+    if (library->id_index &&
+        !lv_hashtable_int_insert(library->id_index, (int) rule->id, rule) &&
+        !lv_hashtable_int_contains(library->id_index, (int) rule->id)) {
+        lv_hashtable_int_destroy(library->id_index);
+        library->id_index = NULL;
+        if (library->name_index) {
+            lv_hashtable_str_destroy(library->name_index);
+            library->name_index = NULL;
+        }
+    }
+    if (library->name_index &&
+        !lv_hashtable_str_insert(library->name_index, rule->name, rule) &&
+        !lv_hashtable_str_contains(library->name_index, rule->name)) {
+        if (library->id_index) {
+            lv_hashtable_int_destroy(library->id_index);
+            library->id_index = NULL;
+        }
+        lv_hashtable_str_destroy(library->name_index);
+        library->name_index = NULL;
+    }
+
+    library->rule_count++;
     return true;
 }
 
@@ -108,6 +137,45 @@ bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id) {
             }
             library->rules[library->rule_count - 1] = NULL;
             library->rule_count--;
+
+            /* 前移只改变数组元素（指针）位置，规则对象地址不变；
+             * 但被删规则的键已失效，且 id/name 可能重复导致索引与线性结果不一致，
+             * 统一重建索引（remove 低频，简单可靠）；创建失败时置 NULL，查找回退线性 */
+            if (library->id_index) {
+                lv_hashtable_int_destroy(library->id_index);
+                library->id_index = NULL;
+            }
+            if (library->name_index) {
+                lv_hashtable_str_destroy(library->name_index);
+                library->name_index = NULL;
+            }
+            library->id_index = lv_hashtable_int_create((int) library->rule_capacity);
+            library->name_index = lv_hashtable_str_create((int) library->rule_capacity);
+            if (!library->id_index || !library->name_index) {
+                if (library->id_index) {
+                    lv_hashtable_int_destroy(library->id_index);
+                    library->id_index = NULL;
+                }
+                if (library->name_index) {
+                    lv_hashtable_str_destroy(library->name_index);
+                    library->name_index = NULL;
+                }
+            } else {
+                bool rebuild_ok = true;
+                for (uint32_t k = 0; k < library->rule_count && rebuild_ok; k++) {
+                    if (!lv_hashtable_int_insert(library->id_index, (int) library->rules[k]->id, library->rules[k]) ||
+                        !lv_hashtable_str_insert(library->name_index, library->rules[k]->name, library->rules[k])) {
+                        rebuild_ok = false;
+                    }
+                }
+                if (!rebuild_ok) {
+                    /* 重建失败（内存不足或键重复）：销毁索引，查找回退线性扫描（语义正确） */
+                    lv_hashtable_int_destroy(library->id_index);
+                    library->id_index = NULL;
+                    lv_hashtable_str_destroy(library->name_index);
+                    library->name_index = NULL;
+                }
+            }
             return true;
         }
     }
@@ -117,6 +185,11 @@ bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id) {
 lvRule *lv_rule_library_get_by_id(const lvRuleLibrary *library, uint32_t rule_id) {
     if (!library)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_library_get_by_id: NULL library");
+    if (library->id_index) {
+        /* 哈希 O(1)：值存规则指针 */
+        return (lvRule *) lv_hashtable_int_get(library->id_index, (int) rule_id);
+    }
+    /* 索引不可用（创建失败）时回退线性扫描，语义与纯线性实现一致 */
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && library->rules[i]->id == rule_id) {
             return library->rules[i];
@@ -128,6 +201,11 @@ lvRule *lv_rule_library_get_by_id(const lvRuleLibrary *library, uint32_t rule_id
 lvRule *lv_rule_library_get_by_name(const lvRuleLibrary *library, const char *name) {
     if (!library || !name)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_library_get_by_name: NULL library or name");
+    if (library->name_index) {
+        /* 哈希 O(1)：值存规则指针 */
+        return (lvRule *) lv_hashtable_str_get(library->name_index, name);
+    }
+    /* 索引不可用（创建失败）时回退线性扫描，语义与纯线性实现一致 */
     for (uint32_t i = 0; i < library->rule_count; i++) {
         if (library->rules[i] && strcmp(library->rules[i]->name, name) == 0) {
             return library->rules[i];

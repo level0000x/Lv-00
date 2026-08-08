@@ -15,8 +15,10 @@
  *   4. 使用 TEST_RUN 运行每个测试函数
  *   5. 使用 TEST_SUMMARY 打印汇总
  *
- * 要使用新的结构化框架，将 test_helpers.h 替换为 test_framework.h，
- * 并使用 lv_TEST / lv_ASSERT_* 宏代替。参见 test_new_modules.c 示例。
+ * 推荐入口：新测试建议直接 #include "test_unified.h"（已统一包含
+ * lv.h / test_framework.h / test_helpers.h，旧宏风格与 lv_TEST /
+ * lv_ASSERT_* 结构化风格均可使用）；仅需旧风格断言宏时可继续
+ * #include "test_helpers.h"。参见 test_new_modules.c 示例。
  */
 
 #ifndef lv_TEST_HELPERS_H
@@ -427,6 +429,31 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
         TEST_SUITE_END();                \
         return g_fail_count > 0 ? 1 : 0; \
     }
+
+/* ============================================================
+ * 内存泄漏检测辅助宏
+ * ============================================================
+ * 包装 lv_memory_leak_report()（返回未释放的追踪分配数量，0 = 无泄漏）。
+ * 同一函数作用域内配对使用：
+ *
+ *     TEST_LEAK_BASELINE();   // 操作前取泄漏基线（声明 int _th_leak_base）
+ *     ... 被测操作 ...
+ *     TEST_LEAK_NO_DELTA();   // 操作后断言无新增泄漏（声明 int _th_leak_after，
+ *                             // 若 > 基线则打印诊断、递增失败计数并 return）
+ *
+ * 宏展开后的 _th_leak_base / _th_leak_after 可在其后继续引用（如打印调试信息）。
+ */
+#define TEST_LEAK_BASELINE() int _th_leak_base = lv_memory_leak_report(NULL)
+
+#define TEST_LEAK_NO_DELTA()                                                                  \
+    int _th_leak_after = lv_memory_leak_report(NULL);                                         \
+    if (_th_leak_after > _th_leak_base) {                                                     \
+        fprintf(stderr, "  FAIL [%s:%d] memory leak: %d tracked blocks (baseline=%d)\n",      \
+                __FILE__, __LINE__, _th_leak_after, _th_leak_base);                           \
+        g_fail_count++;                                                                       \
+        return;                                                                               \
+    }                                                                                         \
+    g_pass_count++
 
 /* ============================================================
  * 传统 TEST/PASS/FAIL 输出宏（旧式测试文件兼容层）

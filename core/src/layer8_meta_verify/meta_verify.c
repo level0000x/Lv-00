@@ -373,6 +373,11 @@ static int check_nontriviality(const lvSession *session, int strict, lvStrBuf *s
  *
  * 验证输出可以重新解析为等价结构。
  * 检查输出阶段是否包含有效的结构化标记。
+ *
+ * @note 本检查与 lv_roundtrip_verify（lv_storage.c，对象"序列化→反序列化"往返，
+ * ConstraintGraph 走 meta_repr_graph_equivalent）语义不同：本函数是对 lvSession
+ * 输出阶段文本的启发式检查（结构化标记/字节数/bracket 平衡），不涉及对象
+ * 序列化往返，故不收敛，保留独立实现。
  */
 static int check_roundtrip(const lvSession *session, int strict, lvStrBuf *sb) {
     if (!session) {

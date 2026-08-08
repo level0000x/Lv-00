@@ -377,10 +377,10 @@ static char *make_trace(const char *fmt, const char *arg1, const char *arg2, con
  * ================================================================ */
 
 /** @brief 验证规则 handler 类型 */
-typedef VerifyResult (*VerifyRuleHandler)(const char **premises, const char *conclusion, char **out_trace);
+typedef LvProofVerifyResult (*VerifyRuleHandler)(const char **premises, const char *conclusion, char **out_trace);
 
 /** @brief VERIFY_REFL handler */
-static VerifyResult verify_refl_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_refl_handler(const char **premises, const char *conclusion, char **out_trace) {
     (void)premises;
     if (is_refl_form(conclusion)) {
         if (out_trace) {
@@ -395,7 +395,7 @@ static VerifyResult verify_refl_handler(const char **premises, const char *concl
 }
 
 /** @brief VERIFY_TRANS handler */
-static VerifyResult verify_trans_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_trans_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0] || !premises[1]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [TRANS]: 需要两个前提 s=t, t=u");
@@ -443,7 +443,7 @@ static VerifyResult verify_trans_handler(const char **premises, const char *conc
 }
 
 /** @brief VERIFY_ASSUME handler */
-static VerifyResult verify_assume_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_assume_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ASSUME]: 无前提");
@@ -464,7 +464,7 @@ static VerifyResult verify_assume_handler(const char **premises, const char *con
 }
 
 /** @brief VERIFY_BETA_CONV handler */
-static VerifyResult verify_beta_conv_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_beta_conv_handler(const char **premises, const char *conclusion, char **out_trace) {
     (void)premises;
     if (!has_equality_pattern(conclusion)) {
         if (out_trace)
@@ -504,7 +504,7 @@ static VerifyResult verify_beta_conv_handler(const char **premises, const char *
 }
 
 /** @brief VERIFY_MK_COMB handler */
-static VerifyResult verify_mk_comb_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_mk_comb_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0] || !premises[1]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [MK_COMB]: 需要两个前提 f1=f2, g1=g2");
@@ -542,7 +542,7 @@ static VerifyResult verify_mk_comb_handler(const char **premises, const char *co
 }
 
 /** @brief VERIFY_ABS handler */
-static VerifyResult verify_abs_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_abs_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [ABS]: 需要前提 s=t");
@@ -578,7 +578,7 @@ static VerifyResult verify_abs_handler(const char **premises, const char *conclu
 }
 
 /** @brief VERIFY_SUBST handler */
-static VerifyResult verify_subst_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_subst_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [SUBST]: 需要替换定理前提");
@@ -613,7 +613,7 @@ static VerifyResult verify_subst_handler(const char **premises, const char *conc
 }
 
 /** @brief VERIFY_INST_TYPE handler */
-static VerifyResult verify_inst_type_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_inst_type_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST_TYPE]: 需要泛型定理前提");
@@ -644,7 +644,7 @@ static VerifyResult verify_inst_type_handler(const char **premises, const char *
 }
 
 /** @brief VERIFY_INST handler */
-static VerifyResult verify_inst_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_inst_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [INST]: 需要泛型定理前提");
@@ -675,7 +675,7 @@ static VerifyResult verify_inst_handler(const char **premises, const char *concl
 }
 
 /** @brief VERIFY_DISCH handler */
-static VerifyResult verify_disch_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_disch_handler(const char **premises, const char *conclusion, char **out_trace) {
     if (!premises || !premises[0]) {
         if (out_trace)
             *out_trace = lv_strdup_safe("VERIFY_UNDECIDED [DISCH]: 需要前提 B");
@@ -727,7 +727,7 @@ static VerifyResult verify_disch_handler(const char **premises, const char *conc
 }
 
 /** @brief 默认 handler：未知规则 */
-static VerifyResult verify_default_handler(const char **premises, const char *conclusion, char **out_trace) {
+static LvProofVerifyResult verify_default_handler(const char **premises, const char *conclusion, char **out_trace) {
     (void)premises;
     (void)conclusion;
     if (out_trace) {
@@ -759,7 +759,7 @@ static const VerifyRuleHandler verify_rule_handlers[] = {
  * - VERIFY_ASSUME: 检查结论是否在前提列表中
  * - 其余规则: 留作扩展点
  */
-VerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion,
+LvProofVerifyResult proof_minimal_verify(VerifyRuleType rule, const char **premises, const char *conclusion,
                                   char **out_trace) {
     if (!conclusion || conclusion[0] == '\0') {
         if (out_trace)

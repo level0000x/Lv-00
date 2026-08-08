@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mini_kernel.h
  * @brief 极简验证内核 —— 借鉴 mm0/Metamath 的超小型可信计算基（TCB）
  *
@@ -34,6 +34,7 @@ typedef struct Substitution Substitution;
 typedef struct MiniProofVerifier MiniProofVerifier;
 typedef struct MiniKernelConfig MiniKernelConfig;
 typedef struct ConstraintGraph ConstraintGraph;
+typedef struct lvHashtable lvHashtable; /* 哈希表句柄（定义见 lv_hashtable.h） */
 /* ============== 语句类型枚举 ============== */
 /**
  * @brief 极简验证内核的语句类型
@@ -141,6 +142,7 @@ struct MiniKernel {
     int *symbol_stmt_ids; /**< 对应的语句 ID */
     int symbol_count;     /**< 符号数量 */
     int symbol_capacity;  /**< 符号表容量 */
+    lvHashtable *symbol_index; /**< name→符号表下标+1 哈希索引（NULL 时回退线性扫描） */
     /* 约束图映射 */
     int *stmt_to_node_map; /**< 语句 ID → 约束图节点 ID 的映射 */
     int map_count;         /**< 映射条目数 */

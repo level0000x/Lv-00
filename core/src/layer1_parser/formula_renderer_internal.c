@@ -395,3 +395,28 @@ const char *formula_render_trig_name(const FormulaNode *node, const char *const 
     return names[idx];
 }
 
+/* ---------- 一元函数名共享表（latex/dsl/python/ascii 后端共用） ----------
+ * 按 NODE_UNARY_OP_* 相对 NODE_UNARY_OP_NEG 的顺序索引，各后端据此构造各自的前缀/后缀格式串：
+ *   - dsl/python/ascii: 前缀 = "<名>("，后缀 = ")"
+ *   - latex: 前缀 = "\\<名>\\left("，后缀 = "\\right)"
+ * 取代此前 4 份重复的 trig 前缀表（sin/cos/tan）。 */
+static const char *const s_unary_fn_names[] = {
+    [NODE_UNARY_OP_NEG - NODE_UNARY_OP_NEG] = "-",
+    [NODE_UNARY_OP_SQRT - NODE_UNARY_OP_NEG] = "sqrt",
+    [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin",
+    [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos",
+    [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan",
+    [NODE_UNARY_OP_ABS - NODE_UNARY_OP_NEG] = "abs",
+    [NODE_UNARY_OP_LN - NODE_UNARY_OP_NEG] = "ln",
+    [NODE_UNARY_OP_LOG - NODE_UNARY_OP_NEG] = "log",
+};
+
+const char *formula_unary_fn_name(const FormulaNode *node) {
+    if (!node)
+        return NULL;
+    int idx = node->type - NODE_UNARY_OP_NEG;
+    if (idx < 0 || (size_t) idx >= lv_ARRAY_SIZE(s_unary_fn_names))
+        return NULL;
+    return s_unary_fn_names[idx];
+}
+

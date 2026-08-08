@@ -19,10 +19,10 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* 前向声明：待测函数 */
-extern int meta_verify_completeness(const ConstraintGraph *graph);
-extern int meta_verify_soundness(const ConstraintGraph *graph);
-extern int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
+/* 前向声明：待测函数（layer4_reasoning/proof/meta_verify.c，lv_graph_ 前缀） */
+extern int lv_graph_meta_verify_completeness(const ConstraintGraph *graph);
+extern int lv_graph_meta_verify_soundness(const ConstraintGraph *graph);
+extern int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
 
 /**
  * @brief 创建包含一个已指定坐标的 POINT 节点的约束图
@@ -78,14 +78,14 @@ static ConstraintGraph *create_unresolved_graph(void) {
  * 所有三个函数在收到 NULL 时应返回 -1
  */
 static void test_null_input(void) {
-    TEST_ASSERT_EQ(meta_verify_completeness(NULL), -1);
-    TEST_ASSERT_EQ(meta_verify_soundness(NULL), -1);
-    TEST_ASSERT_EQ(meta_verify_differential(NULL, NULL), -1);
-    TEST_ASSERT_EQ(meta_verify_differential(NULL, graph_create()), -1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_completeness(NULL), -1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_soundness(NULL), -1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_differential(NULL, NULL), -1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_differential(NULL, graph_create()), -1);
 
     ConstraintGraph *g = graph_create();
     TEST_ASSERT_NOT_NULL(g);
-    TEST_ASSERT_EQ(meta_verify_differential(g, NULL), -1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_differential(g, NULL), -1);
     graph_destroy(g);
 }
 
@@ -98,19 +98,19 @@ static void test_completeness(void) {
     /* 完全指定的图 → 完备 */
     ConstraintGraph *full = create_fully_specified_graph();
     TEST_ASSERT_NOT_NULL(full);
-    TEST_ASSERT_EQ(meta_verify_completeness(full), 1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_completeness(full), 1);
     graph_destroy(full);
 
     /* 未解析点的图 → 不完备 */
     ConstraintGraph *unresolved = create_unresolved_graph();
     TEST_ASSERT_NOT_NULL(unresolved);
-    TEST_ASSERT_EQ(meta_verify_completeness(unresolved), 0);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_completeness(unresolved), 0);
     graph_destroy(unresolved);
 
     /* 空图应视为完备（没有未解析的点） */
     ConstraintGraph *empty = graph_create();
     TEST_ASSERT_NOT_NULL(empty);
-    TEST_ASSERT_EQ(meta_verify_completeness(empty), 1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_completeness(empty), 1);
     graph_destroy(empty);
 }
 
@@ -123,13 +123,13 @@ static void test_soundness(void) {
     /* 一致的空图 → 可靠 */
     ConstraintGraph *empty = graph_create();
     TEST_ASSERT_NOT_NULL(empty);
-    TEST_ASSERT_EQ(meta_verify_soundness(empty), 1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_soundness(empty), 1);
     graph_destroy(empty);
 
     /* 一个点，无约束 → 可靠 */
     ConstraintGraph *graph = create_fully_specified_graph();
     TEST_ASSERT_NOT_NULL(graph);
-    TEST_ASSERT_EQ(meta_verify_soundness(graph), 1);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_soundness(graph), 1);
     graph_destroy(graph);
 }
 
@@ -143,7 +143,7 @@ static void test_differential(void) {
     /* 与自身比较 → 无差异 */
     ConstraintGraph *g1 = create_fully_specified_graph();
     TEST_ASSERT_NOT_NULL(g1);
-    TEST_ASSERT_EQ(meta_verify_differential(g1, g1), 0);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_differential(g1, g1), 0);
     graph_destroy(g1);
 
     /* 不同节点数的图 → 有差异 */
@@ -151,7 +151,7 @@ static void test_differential(void) {
     ConstraintGraph *gb = create_unresolved_graph();
     TEST_ASSERT_NOT_NULL(ga);
     TEST_ASSERT_NOT_NULL(gb);
-    int diff = meta_verify_differential(ga, gb);
+    int diff = lv_graph_meta_verify_differential(ga, gb);
     TEST_ASSERT(diff > 0, "Completeness-nodes graphs should differ");
     graph_destroy(ga);
     graph_destroy(gb);
@@ -161,7 +161,7 @@ static void test_differential(void) {
     ConstraintGraph *empty2 = graph_create();
     TEST_ASSERT_NOT_NULL(empty1);
     TEST_ASSERT_NOT_NULL(empty2);
-    TEST_ASSERT_EQ(meta_verify_differential(empty1, empty2), 0);
+    TEST_ASSERT_EQ(lv_graph_meta_verify_differential(empty1, empty2), 0);
     graph_destroy(empty1);
     graph_destroy(empty2);
 }

@@ -1,4 +1,4 @@
-﻿#ifndef lv_PROP_VERIFIER_H
+#ifndef lv_PROP_VERIFIER_H
 #define lv_PROP_VERIFIER_H
 
 #include <stdbool.h>
@@ -57,8 +57,11 @@ typedef struct PropFormula {
 /* ================================================================
  * 验证结果枚举
  * ================================================================ */
-#ifndef VERIFY_RESULT_DEFINED
-#define VERIFY_RESULT_DEFINED
+/* @note 本类型 (VerifyResult: VERIFY_INVALID_INPUT/VERIFY_PROVEN/...) 与
+ * proof.h 的 LvProofVerifyResult (VERIFY_VALID/VERIFY_INVALID/VERIFY_UNDECIDED) 是两套
+ * 独立枚举体系。二者曾共用 VERIFY_RESULT_DEFINED 守卫，导致同一编译单元中
+ * 语义随 include 顺序漂移（先包含者生效）。现已拆分：本类型保留 VerifyResult 名称，
+ * proof.h 侧定名为 LvProofVerifyResult。 */
 typedef enum {
     VERIFY_INVALID_INPUT = 0,
     VERIFY_PROVEN = 1,
@@ -67,7 +70,6 @@ typedef enum {
     VERIFY_DISPROVEN = 4,
     VERIFY_ERROR = 5
 } VerifyResult;
-#endif
 
 /* ================================================================
  * 验证详情结构体

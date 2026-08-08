@@ -36,7 +36,8 @@
 int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {
     /* options 预留：未来可控制输出精度、样式等 */
     (void) options;
-    if (!node || !buffer || size == 0)
+    /* 与其它后端一致：仅校验 node，buffer 可为 NULL（formula_render_ex 两遍法首遍探测长度） */
+    if (!node)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "invalid params for mathml render");
 
     char *latex_buf = (char *) lv_malloc(lv_MAX_RENDER_BUFFER);
@@ -49,6 +50,12 @@ int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size, c
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "latex sub-render failed");
     }
 
+    /* LaTeX 原文为外部可注入内容：<mi> 与 <annotation> 中出现的 & < > 会破坏 XML 结构，
+     * 统一经 lv_str_escape_xml 转义（lvStrBuf 动态构建，两遍法行为一致） */
+    lvStrBuf esc_sb;
+    lv_strbuf_init(&esc_sb);
+    lv_str_escape_xml(&esc_sb, latex_buf, (size_t) latex_len);
+
     int written = snprintf(buffer, size,
                            "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\">\n"
                            "  <semantics>\n"
@@ -58,8 +65,9 @@ int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size, c
                            "    <annotation encoding=\"application/x-tex\">%s</annotation>\n"
                            "  </semantics>\n"
                            "</math>",
-                           latex_buf, latex_buf);
+                           esc_sb.data ? esc_sb.data : "", esc_sb.data ? esc_sb.data : "");
 
+    lv_strbuf_destroy(&esc_sb);
     lv_free((void **) &latex_buf);
     return written;
 }

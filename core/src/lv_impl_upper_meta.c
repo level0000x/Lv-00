@@ -45,8 +45,9 @@
  * ============================================================ */
 
 /** @cond INTERNAL */
-/* 前向声明: 实现在 core/src/layer4_reasoning/proof/meta_verify.c */
-extern int meta_verify_completeness(const ConstraintGraph *graph);
-extern int meta_verify_soundness(const ConstraintGraph *graph);
-extern int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
+/* 前向声明: 实现在 core/src/layer4_reasoning/proof/meta_verify.c
+ * （与 layer8_meta_verify/meta_verify.c 同名不同模块，此前缀区分） */
+extern int lv_graph_meta_verify_completeness(const ConstraintGraph *graph);
+extern int lv_graph_meta_verify_soundness(const ConstraintGraph *graph);
+extern int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
 /** @endcond */

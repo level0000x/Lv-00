@@ -99,7 +99,7 @@ bool execute_hol_light(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
         /* 执行 HOL Light 验证 */
         char *trace = NULL;
-        VerifyResult result = proof_minimal_verify(rule, premises, step->ext->conclusion, &trace);
+        LvProofVerifyResult result = proof_minimal_verify(rule, premises, step->ext->conclusion, &trace);
 
         if (result != VERIFY_VALID) {
             all_valid = false;

@@ -16,6 +16,7 @@
 
 #include "lv_utils.h"
 #include "lv/lv_arena.h"
+#include "lv/lv_hashtable.h" /* eval_var 的 name→下标 哈希索引 */
 #include "lv/lv_log.h"
 #include "lv/lv_numeric.h"
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
@@ -657,25 +658,39 @@ void expr_destroy(Expr *e) {
 
 /* ---- VTable-based expression evaluation ---- */
 
-/* Forward declaration */
-int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars);
+/* Forward declaration（带哈希索引的内部求值实现） */
+static int expr_eval_impl(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                          lvHashtable *var_index);
 
 /* Function pointer type for expression evaluation handlers */
-typedef int (*ExprEvalFn)(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars);
+typedef int (*ExprEvalFn)(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                          lvHashtable *var_index);
 
 /* --- Handler functions --- */
 
-static int eval_const(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    (void)varnames; (void)values; (void)nvars;
+static int eval_const(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                      lvHashtable *var_index) {
+    (void)varnames; (void)values; (void)nvars; (void)var_index;
     mpq_set(result, e->val);
     return 0;
 }
 
-static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    for (int i = 0; i < nvars; i++) {
-        if (strcmp(e->name, varnames[i]) == 0) {
-            mpq_set(result, values[i]);
+static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
+    if (var_index) {
+        /* 哈希 O(1)：值存下标+1（下标 0 对应 NULL 值，不可直接存储） */
+        void *v = lv_hashtable_str_get(var_index, e->name);
+        if (v) {
+            mpq_set(result, values[(int) (intptr_t) v - 1]);
             return 0;
+        }
+    } else {
+        /* 索引不可用（建表失败）时回退线性扫描，语义与纯线性实现一致 */
+        for (int i = 0; i < nvars; i++) {
+            if (strcmp(e->name, varnames[i]) == 0) {
+                mpq_set(result, values[i]);
+                return 0;
+            }
         }
     }
     mpq_set_si(result, 0, 1);
@@ -685,33 +700,37 @@ static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *v
 /* EVAL 二元算子实现:左右子树求值后做一次 mpq 运算。
  * op 为 mpq_add/mpq_sub/mpq_mul 等二元 GMP 函数指针(签名与 GMP 宏一致)。 */
 static int eval_binop_impl(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
-                           void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr)) {
+                           void (*op)(mpq_ptr, mpq_srcptr, mpq_srcptr), lvHashtable *var_index) {
     mpq_t l, r;
     mpq_inits(l, r, NULL);
-    expr_eval(l, e->left, varnames, values, nvars);
-    expr_eval(r, e->right, varnames, values, nvars);
+    expr_eval_impl(l, e->left, varnames, values, nvars, var_index);
+    expr_eval_impl(r, e->right, varnames, values, nvars, var_index);
     op(result, l, r);
     mpq_clears(l, r, NULL);
     return 0;
 }
 
-static int eval_add(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    return eval_binop_impl(result, e, varnames, values, nvars, mpq_add);
+static int eval_add(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_add, var_index);
 }
 
-static int eval_sub(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    return eval_binop_impl(result, e, varnames, values, nvars, mpq_sub);
+static int eval_sub(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_sub, var_index);
 }
 
-static int eval_mul(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    return eval_binop_impl(result, e, varnames, values, nvars, mpq_mul);
+static int eval_mul(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
+    return eval_binop_impl(result, e, varnames, values, nvars, mpq_mul, var_index);
 }
 
-static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
+static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
     mpq_t l, r;
     mpq_inits(l, r, NULL);
-    expr_eval(l, e->left, varnames, values, nvars);
-    expr_eval(r, e->right, varnames, values, nvars);
+    expr_eval_impl(l, e->left, varnames, values, nvars, var_index);
+    expr_eval_impl(r, e->right, varnames, values, nvars, var_index);
     if (mpq_sgn(r) == 0) {
         mpq_set_si(result, 0, 1);
         mpq_clears(l, r, NULL);
@@ -722,8 +741,9 @@ static int eval_div(mpq_t result, Expr *e, const char **varnames, const mpq_t *v
     return 0;
 }
 
-static int eval_pow(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
-    if (expr_eval(result, e->left, varnames, values, nvars) < 0)
+static int eval_pow(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                    lvHashtable *var_index) {
+    if (expr_eval_impl(result, e->left, varnames, values, nvars, var_index) < 0)
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: pow sub-eval failed");
     {
         mpz_t num, den, base_num, base_den;
@@ -758,8 +778,38 @@ static const ExprEvalFn kExprEvalHandlers[] = {
 int expr_eval(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars) {
     if (!e)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "expr_eval: NULL expr");
+
+    /* 求值入口预建 name→下标+1 哈希索引（一次建表），eval_var 查哈希 O(1)；
+     * 建表失败（内存不足）时销毁并回退线性扫描，求值语义与纯线性实现完全一致 */
+    lvHashtable *var_index = NULL;
+    if (nvars > 0) {
+        var_index = lv_hashtable_str_create(nvars);
+        if (var_index) {
+            bool index_ok = true;
+            for (int i = 0; i < nvars && index_ok; i++) {
+                if (!lv_hashtable_str_insert(var_index, varnames[i], (void *) (intptr_t) (i + 1))) {
+                    index_ok = false; /* 键重复或内存不足：无法区分，统一回退线性扫描 */
+                }
+            }
+            if (!index_ok) {
+                lv_hashtable_str_destroy(var_index);
+                var_index = NULL;
+            }
+        }
+    }
+
+    int rc = expr_eval_impl(result, e, varnames, values, nvars, var_index);
+    lv_hashtable_str_destroy(var_index);
+    return rc;
+}
+
+/* expr_eval 内部递归实现：携带一次建表的 var_index 供 eval_var O(1) 查询 */
+static int expr_eval_impl(mpq_t result, Expr *e, const char **varnames, const mpq_t *values, int nvars,
+                          lvHashtable *var_index) {
+    if (!e)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "expr_eval: NULL expr");
     if ((unsigned)e->kind < sizeof(kExprEvalHandlers)/sizeof(kExprEvalHandlers[0]) && kExprEvalHandlers[e->kind]) {
-        return kExprEvalHandlers[e->kind](result, e, varnames, values, nvars);
+        return kExprEvalHandlers[e->kind](result, e, varnames, values, nvars, var_index);
     }
     mpq_set_si(result, 0, 1);
     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "expr_eval: unknown expr kind %d", e->kind);

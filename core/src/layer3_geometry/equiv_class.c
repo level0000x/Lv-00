@@ -768,6 +768,14 @@ void equiv_get_statistics(const EquivClassManager *mgr, int64_t *out_total, int6
         *out_rejected = mgr->rejected_merges;
 }
 
+/**
+ * @brief 验证等价类合并的幂等性
+ *
+ * @note 与 normalization_verify_idempotency（normalization.c，ConstraintGraph 图
+ * 规范化幂等，产品权威）语义不同：本函数作用于 EquivClassManager（等价类合并），
+ * 检查再次执行 equiv_merge_all 是否产生新合并。两者操作对象与判定方式均不同，
+ * 保留独立实现。
+ */
 bool equiv_verify_idempotency(EquivClassManager *mgr) {
     if (!mgr)
         return false;

@@ -81,6 +81,7 @@ int render_unary_via(const FormulaNode *node, const char *prefix, const char *su
 int dispatch_via(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options,
                  const RenderNodeFunc *table, size_t table_count, RenderNodeFunc fallback);
 const char *formula_render_trig_name(const FormulaNode *node, const char *const *names, size_t count);
+const char *formula_unary_fn_name(const FormulaNode *node);
 
 /* ---------- 各后端内部渲染入口（在对应 *_backend.c 实现） ---------- */
 int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options);

@@ -42,7 +42,7 @@ int render_html_internal(const FormulaNode *node, char *buffer, size_t size, con
         if (options->style)
             use_block = (options->style[0] == 'b' || options->style[0] == 'B');
     }
-    if (!node || !buffer || size == 0)
+    if (!node)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "invalid params for html render");
 
     char *latex_buf = (char *) lv_malloc(lv_MAX_RENDER_BUFFER);

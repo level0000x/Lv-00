@@ -20,11 +20,12 @@ extern "C" {
 
 #include "constraint_graph.h"
 
-/* ---- cross-section internal APIs ---- */
-
-int meta_verify_completeness(const ConstraintGraph *graph);
-int meta_verify_soundness(const ConstraintGraph *graph);
-int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
+/* ---- cross-section internal APIs ----
+ * 实现于 layer4_reasoning/proof/meta_verify.c（与 layer8_meta_verify/meta_verify.c
+ * 同名不同模块，函数以 lv_graph_meta_verify_* 前缀区分） */
+int lv_graph_meta_verify_completeness(const ConstraintGraph *graph);
+int lv_graph_meta_verify_soundness(const ConstraintGraph *graph);
+int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
 
 #ifdef __cplusplus
 }

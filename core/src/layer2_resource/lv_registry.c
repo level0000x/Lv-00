@@ -16,6 +16,7 @@
 #include <stdlib.h>   /* qsort */
 #include <string.h>
 
+#include "lv/lv_hashtable.h" /* lv_hashtable_str_* 哈希副索引 */
 #include "lv/lv_utils.h"   /* lv_malloc, lv_calloc, lv_realloc, lv_free */
 #include "lv/lv_thread.h"  /* lv_once_t, lv_once */
 
@@ -43,6 +44,8 @@ void lv_registry_init(lvRegistry *reg, int capacity) {
     reg->entries = (lvRegistryEntry *) lv_calloc((size_t) capacity, sizeof(lvRegistryEntry));
     reg->count = 0;
     reg->capacity = reg->entries ? capacity : 0;
+    /* name→下标+1 哈希副索引；创建失败（内存不足）时置 NULL，读写路径回退线性扫描 */
+    reg->index = lv_hashtable_str_create(capacity);
     lv_MUTEX_INIT(&reg->mutex);
 }
 
@@ -58,6 +61,10 @@ void lv_registry_destroy(lvRegistry *reg) {
             lv_free((void **) &reg->entries[i].name);
         }
         lv_free((void **) &reg->entries);
+    }
+    if (reg->index) {
+        lv_hashtable_str_destroy(reg->index);
+        reg->index = NULL;
     }
     reg->entries = NULL;
     reg->count = 0;
@@ -79,6 +86,11 @@ void lv_registry_clear(lvRegistry *reg) {
         }
     }
     reg->count = 0;
+    /* 清空后索引一并销毁，后续插入时惰性重建 */
+    if (reg->index) {
+        lv_hashtable_str_destroy(reg->index);
+        reg->index = NULL;
+    }
     lv_MUTEX_UNLOCK(&reg->mutex);
 }
 
@@ -87,18 +99,64 @@ void lv_registry_clear(lvRegistry *reg) {
  * ============================================================ */
 
 /**
+ * @brief 在锁内按名称定位条目下标（哈希 O(1)，索引缺失时回退线性扫描）
+ *
+ * @return 条目下标（0..count-1），未找到返回 -1
+ */
+static int registry_find_index_locked(const lvRegistry *reg, const char *name) {
+    if (reg->index) {
+        void *v = lv_hashtable_str_get(reg->index, name);
+        if (v) {
+            return (int) (intptr_t) v - 1; /* 值存下标+1（下标 0 对应 NULL 值，不可直接存储） */
+        }
+        return -1;
+    }
+    for (int i = 0; i < reg->count; i++) {
+        if (strcmp(reg->entries[i].name, name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief 确保 name→下标+1 哈希索引存在且完整（调用方须持有互斥锁）
+ *
+ * 索引可能因创建失败或 clear/remove 后重建失败而为 NULL；
+ * 此函数尝试（重新）创建并填充全部现有条目。
+ * @return true 索引可用，false 创建/填充失败（index 保持 NULL，调用方回退线性扫描）
+ */
+static bool registry_ensure_index_locked(lvRegistry *reg) {
+    if (reg->index) {
+        return true;
+    }
+    reg->index = lv_hashtable_str_create(reg->capacity > 0 ? reg->capacity : lv_REGISTRY_DEFAULT_CAPACITY);
+    if (!reg->index) {
+        return false;
+    }
+    for (int i = 0; i < reg->count; i++) {
+        if (!lv_hashtable_str_insert(reg->index, reg->entries[i].name, (void *) (intptr_t) (i + 1))) {
+            lv_hashtable_str_destroy(reg->index);
+            reg->index = NULL;
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
  * @brief 插入条目（调用方须持有互斥锁）
  *
  * 支持两种形态：name→factory（create 非 NULL）与 name→value（value 非 NULL）。
  * name 在此处内部拷贝，由注册表统一管理生命周期（remove/destroy 时释放）。
+ * 同步维护 name→下标+1 哈希副索引；索引不可用（创建失败）时跳过同步，
+ * 读路径回退线性扫描，语义与纯线性实现完全一致。
  */
 static bool registry_insert_locked(lvRegistry *reg, const char *name, void *(*create)(void), void *value,
                                    void (*destroy)(void *)) {
-    /* 检查名称是否已存在 */
-    for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
-            return false;
-        }
+    /* 检查名称是否已存在（哈希 O(1)，索引缺失回退线性扫描） */
+    if (registry_find_index_locked(reg, name) >= 0) {
+        return false;
     }
 
     /* 检查容量，必要时扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
@@ -110,6 +168,15 @@ static bool registry_insert_locked(lvRegistry *reg, const char *name, void *(*cr
     char *name_copy = lv_strdup(name);
     if (!name_copy) {
         return false;
+    }
+
+    /* 同步哈希索引（新条目将位于下标 reg->count，值存下标+1）：
+     * 先索引后条目，索引失败时回滚（仅释放 name_copy，不产生半写入状态） */
+    if (reg->index || registry_ensure_index_locked(reg)) {
+        if (!lv_hashtable_str_insert(reg->index, name_copy, (void *) (intptr_t) (reg->count + 1))) {
+            lv_free((void **) &name_copy);
+            return false;
+        }
     }
 
     /* 添加新条目 */
@@ -151,27 +218,21 @@ void *lv_registry_create(const lvRegistry *reg, const char *name) {
     lvRegistry *r = (lvRegistry *) reg;
     lv_MUTEX_LOCK(&r->mutex);
 
-    for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
-            void *result = reg->entries[i].create ? reg->entries[i].create() : NULL;
-            lv_MUTEX_UNLOCK(&r->mutex);
-            return result;
-        }
+    int i = registry_find_index_locked(reg, name);
+    void *result = NULL;
+    if (i >= 0) {
+        result = reg->entries[i].create ? reg->entries[i].create() : NULL;
     }
 
     lv_MUTEX_UNLOCK(&r->mutex);
-    return NULL;
+    return result;
 }
 
 int lv_registry_find(const lvRegistry *reg, const char *name) {
     if (!reg || !name) return -1;
 
-    for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
-            return i;
-        }
-    }
-    return -1;
+    /* 原实现为无锁线性扫描；哈希索引为只读操作，保持无锁语义一致 */
+    return registry_find_index_locked(reg, name);
 }
 
 void *lv_registry_get(const lvRegistry *reg, const char *name) {
@@ -182,11 +243,9 @@ void *lv_registry_get(const lvRegistry *reg, const char *name) {
     lv_MUTEX_LOCK(&r->mutex);
 
     void *result = NULL;
-    for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
-            result = reg->entries[i].value;
-            break;
-        }
+    int i = registry_find_index_locked(reg, name);
+    if (i >= 0) {
+        result = reg->entries[i].value;
     }
 
     lv_MUTEX_UNLOCK(&r->mutex);
@@ -198,22 +257,29 @@ bool lv_registry_remove(lvRegistry *reg, const char *name) {
 
     lv_MUTEX_LOCK(&reg->mutex);
 
-    for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
-            /* 先调用析构回调并释放 name，再前移紧凑（lv_shift_left 先例） */
-            if (reg->entries[i].destroy && reg->entries[i].value) {
-                reg->entries[i].destroy(reg->entries[i].value);
-            }
-            lv_free((void **) &reg->entries[i].name);
-            lv_shift_left(reg->entries, sizeof(lvRegistryEntry), (size_t) i, (size_t) reg->count);
-            reg->count--;
-            lv_MUTEX_UNLOCK(&reg->mutex);
-            return true;
-        }
+    int i = registry_find_index_locked(reg, name);
+    if (i < 0) {
+        lv_MUTEX_UNLOCK(&reg->mutex);
+        return false;
+    }
+
+    /* 先调用析构回调并释放 name，再前移紧凑（lv_shift_left 先例） */
+    if (reg->entries[i].destroy && reg->entries[i].value) {
+        reg->entries[i].destroy(reg->entries[i].value);
+    }
+    lv_free((void **) &reg->entries[i].name);
+    lv_shift_left(reg->entries, sizeof(lvRegistryEntry), (size_t) i, (size_t) reg->count);
+    reg->count--;
+
+    /* 前移紧凑使被删条目之后的所有下标 -1，索引整体失效：重建（remove 低频，简单可靠） */
+    if (reg->index) {
+        lv_hashtable_str_destroy(reg->index);
+        reg->index = NULL;
+        registry_ensure_index_locked(reg); /* 失败保持 NULL，读路径回退线性扫描 */
     }
 
     lv_MUTEX_UNLOCK(&reg->mutex);
-    return false;
+    return true;
 }
 
 int lv_registry_count(const lvRegistry *reg) {

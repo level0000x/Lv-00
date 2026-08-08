@@ -15,7 +15,7 @@
 #include <string.h>
 
 #include "lv.h"
-#include "examples_common.h"
+#include "test_helpers.h"
 
 /**
  * 步骤1: 构造三角形

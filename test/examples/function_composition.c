@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include "lv.h"
-#include "examples_common.h"
+#include "test_helpers.h"
 
 /**
  * 创建一个简单的"中点"函数块

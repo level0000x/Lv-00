@@ -141,7 +141,8 @@ static void build_composite(TestComposite *c) {
  * ============================================================ */
 
 static void test_destroy_fields_order_and_null(void) {
-    int leaks_before = lv_memory_leak_report(NULL);
+    /* 以操作前追踪分配数为基线（lv_init 可能持有少量全局分配） */
+    TEST_LEAK_BASELINE();
     TestComposite c;
     build_composite(&c);
 
@@ -166,7 +167,7 @@ static void test_destroy_fields_order_and_null(void) {
     TEST_ASSERT_EQ(c.custom_calls, 1);
 
     /* tracked 分配全部归还，无泄漏 */
-    TEST_ASSERT_EQ(lv_memory_leak_report(NULL), leaks_before);
+    TEST_LEAK_NO_DELTA();
 
     /* 重复销毁安全（NULL 字段全部跳过，仅 custom 再次执行） */
     g_order_idx = 0;

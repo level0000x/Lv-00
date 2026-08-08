@@ -31,7 +31,7 @@
  * @param graph  Constraint graph to verify (NULL returns -1)
  * @return 1 if complete, 0 if incomplete, -1 on error
  */
-int meta_verify_completeness(const ConstraintGraph *graph) {
+int lv_graph_meta_verify_completeness(const ConstraintGraph *graph) {
     if (!graph)
         return -1;
 
@@ -77,7 +77,7 @@ int meta_verify_completeness(const ConstraintGraph *graph) {
  * @param graph  Constraint graph to verify (NULL returns -1)
  * @return 1 if sound, 0 if contradiction found, -1 on error
  */
-int meta_verify_soundness(const ConstraintGraph *graph) {
+int lv_graph_meta_verify_soundness(const ConstraintGraph *graph) {
     if (!graph)
         return -1;
     if (graph->node_count == 0 && graph->constraint_count == 0)
@@ -134,7 +134,7 @@ int meta_verify_soundness(const ConstraintGraph *graph) {
  * @param graph_b  Second graph (NULL returns -1)
  * @return 0 if identical, positive count of differences, -1 on error
  */
-int meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b) {
+int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b) {
     if (!graph_a || !graph_b)
         return -1;
     if (graph_a == graph_b)

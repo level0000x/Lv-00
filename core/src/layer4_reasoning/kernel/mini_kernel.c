@@ -41,6 +41,7 @@
 #include "mini_kernel.h"
 
 #include "lv/lv_file.h"
+#include "lv/lv_hashtable.h" /* 符号表 name→下标 哈希索引 */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -181,9 +182,15 @@ MiniKernel *mini_kernel_create(const MiniKernelConfig *config) {
     }
     kernel->symbol_count = 0;
 
+    /* name→符号表下标+1 哈希索引；创建失败（内存不足）时置 NULL，读写路径回退线性扫描 */
+    kernel->symbol_index = lv_hashtable_str_create(kernel->symbol_capacity);
+
     /* 语句到约束图节点的映射 */
     kernel->stmt_to_node_map = lv_calloc((size_t) kernel->statement_capacity, sizeof(int));
     if (!kernel->stmt_to_node_map) {
+        if (kernel->symbol_index) {
+            lv_hashtable_str_destroy(kernel->symbol_index);
+        }
         lv_free((void **) &kernel->symbol_names);
         lv_free((void **) &kernel->symbol_stmt_ids);
         lv_free((void **) &kernel->statements);
@@ -228,6 +235,10 @@ void mini_kernel_destroy(MiniKernel *kernel) {
     }
     lv_free((void **) &kernel->symbol_names);
     lv_free((void **) &kernel->symbol_stmt_ids);
+    if (kernel->symbol_index) {
+        lv_hashtable_str_destroy(kernel->symbol_index);
+        kernel->symbol_index = NULL;
+    }
 
     lv_free((void **) &kernel->stmt_to_node_map);
     lv_free((void **) &kernel);
@@ -381,6 +392,16 @@ int mini_kernel_add_theorem(MiniKernel *kernel, const char *label, const char *f
 static int mini_find_symbol(MiniKernel *kernel, const char *name) {
     if (!kernel || !name)
         return -1;
+    if (kernel->symbol_index) {
+        /* 哈希 O(1)：值存下标+1（下标 0 对应 NULL 值，不可直接存储） */
+        void *v = lv_hashtable_str_get(kernel->symbol_index, name);
+        if (v) {
+            int idx = (int) (intptr_t) v - 1;
+            return kernel->symbol_stmt_ids[idx];
+        }
+        return -1;
+    }
+    /* 索引不可用（建表失败）时回退线性扫描，语义与纯线性实现一致 */
     for (int i = 0; i < kernel->symbol_count; i++) {
         if (kernel->symbol_names[i] && strcmp(kernel->symbol_names[i], name) == 0) {
             return kernel->symbol_stmt_ids[i];
@@ -393,14 +414,23 @@ static int mini_register_symbol(MiniKernel *kernel, const char *name, int stmt_i
     if (!kernel || !name)
         return -1;
 
-    /* 已存在则更新 */
-    int existing = mini_find_symbol(kernel, name);
-    if (existing >= 0) {
-        /* 更新映射 */
-        for (int i = 0; i < kernel->symbol_count; i++) {
-            if (kernel->symbol_names[i] && strcmp(kernel->symbol_names[i], name) == 0) {
-                kernel->symbol_stmt_ids[i] = stmt_id;
-                return i;
+    /* 已存在则更新（哈希 O(1) 消除原二次扫描） */
+    if (kernel->symbol_index) {
+        void *v = lv_hashtable_str_get(kernel->symbol_index, name);
+        if (v) {
+            int idx = (int) (intptr_t) v - 1;
+            kernel->symbol_stmt_ids[idx] = stmt_id;
+            return idx;
+        }
+    } else {
+        /* 索引缺失时回退线性路径（原语义） */
+        int existing = mini_find_symbol(kernel, name);
+        if (existing >= 0) {
+            for (int i = 0; i < kernel->symbol_count; i++) {
+                if (kernel->symbol_names[i] && strcmp(kernel->symbol_names[i], name) == 0) {
+                    kernel->symbol_stmt_ids[i] = stmt_id;
+                    return i;
+                }
             }
         }
     }
@@ -415,6 +445,31 @@ static int mini_register_symbol(MiniKernel *kernel, const char *name, int stmt_i
     kernel->symbol_names[idx] = lv_strdup_safe(name);
     kernel->symbol_stmt_ids[idx] = stmt_id;
     kernel->symbol_count++;
+
+    /* 同步哈希索引（新条目位于下标 idx，值存下标+1）：
+     * 索引缺失时惰性创建并回填全部已有符号；同步失败则整体销毁索引，
+     * 读路径回退线性扫描，保证与主数组始终一致 */
+    if (!kernel->symbol_index) {
+        kernel->symbol_index = lv_hashtable_str_create(kernel->symbol_capacity);
+        if (kernel->symbol_index) {
+            bool ok = true;
+            for (int i = 0; i < idx && ok; i++) {
+                ok = lv_hashtable_str_insert(kernel->symbol_index, kernel->symbol_names[i],
+                                             (void *) (intptr_t) (i + 1));
+            }
+            if (!ok) {
+                lv_hashtable_str_destroy(kernel->symbol_index);
+                kernel->symbol_index = NULL;
+            }
+        }
+    }
+    if (kernel->symbol_index) {
+        if (!lv_hashtable_str_insert(kernel->symbol_index, name, (void *) (intptr_t) (idx + 1))) {
+            lv_hashtable_str_destroy(kernel->symbol_index);
+            kernel->symbol_index = NULL;
+        }
+    }
+
     return idx;
 }
 
@@ -1017,6 +1072,12 @@ void mini_kernel_reset(MiniKernel *kernel) {
         }
     }
     kernel->symbol_count = 0;
+
+    /* 索引随符号表整体失效：销毁，下次注册时惰性重建 */
+    if (kernel->symbol_index) {
+        lv_hashtable_str_destroy(kernel->symbol_index);
+        kernel->symbol_index = NULL;
+    }
 
     /* 重置统计 */
     kernel->total_verified = 0;

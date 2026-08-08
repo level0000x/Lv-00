@@ -96,18 +96,28 @@ static int helper_dsl_unary_sqrt(const FormulaNode *node, char *buffer, size_t s
 
 static int helper_dsl_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    static const char *const prefixes[] = {
-        [NODE_UNARY_OP_SIN - NODE_UNARY_OP_NEG] = "sin(",
-        [NODE_UNARY_OP_COS - NODE_UNARY_OP_NEG] = "cos(",
-        [NODE_UNARY_OP_TAN - NODE_UNARY_OP_NEG] = "tan(",
-    };
-    return render_unary_via(node, formula_render_trig_name(node, prefixes, lv_ARRAY_SIZE(prefixes)), ")", 0, buffer,
-                            size, options, render_dsl_internal);
+    /* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
+    const char *name = formula_unary_fn_name(node);
+    if (!name)
+        return snprintf(buffer, size, "<unknown>");
+    char prefix[lv_FORMULA_BUF_SMALL];
+    snprintf(prefix, sizeof(prefix), "%s(", name);
+    return render_unary_via(node, prefix, ")", 0, buffer, size, options, render_dsl_internal);
 }
 
 static int helper_dsl_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     return render_unary_via(node, "abs(", ")", 0, buffer, size, options, render_dsl_internal);
+}
+
+static int helper_dsl_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    return render_unary_via(node, "ln(", ")", 0, buffer, size, options, render_dsl_internal);
+}
+
+static int helper_dsl_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    return render_unary_via(node, "log(", ")", 0, buffer, size, options, render_dsl_internal);
 }
 
 static int helper_dsl_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -323,6 +333,102 @@ static int helper_dsl_constraint_angle(const FormulaNode *node, char *buffer, si
     return written;
 }
 
+/* NODE_GEOM_LINE 直线渲染 */
+static int helper_dsl_geom_line(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char p2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_line.point1) {
+        render_dsl_internal(node->data.geom_line.point1, p1_buf, sizeof(p1_buf), options);
+    }
+    if (node->data.geom_line.point2) {
+        render_dsl_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
+    }
+    written = snprintf(buffer, size, "line %s(%s, %s)",
+                       node->data.geom_line.name ? node->data.geom_line.name : "l", p1_buf, p2_buf);
+    return written;
+}
+
+/* NODE_GEOM_VECTOR 向量渲染 */
+static int helper_dsl_geom_vector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 端点名缓冲区 ≤64 字节 */
+    char s_buf[lv_FORMULA_BUF_SMALL] = {0};
+    char e_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.geom_vector.start) {
+        render_dsl_internal(node->data.geom_vector.start, s_buf, sizeof(s_buf), options);
+    }
+    if (node->data.geom_vector.end) {
+        render_dsl_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
+    }
+    written = snprintf(buffer, size, "vector %s(%s, %s)",
+                       node->data.geom_vector.name ? node->data.geom_vector.name : "v", s_buf, e_buf);
+    return written;
+}
+
+/* NODE_CONSTRAINT_BISECTOR 角平分线约束渲染 */
+static int helper_dsl_constraint_bisector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        written = snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_COLLINEAR 共线约束渲染 */
+static int helper_dsl_constraint_collinear(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char p1_buf[lv_FORMULA_BUF_SMALL] = {0}, p2_buf[lv_FORMULA_BUF_SMALL] = {0},
+         p3_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 3) {
+        render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
+        render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
+        render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
+        written = snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_TANGENT 相切约束渲染 */
+static int helper_dsl_constraint_tangent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char l_buf[lv_FORMULA_BUF_SMALL] = {0}, c_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        render_dsl_internal(node->data.constraint.participants[0], l_buf, sizeof(l_buf), options);
+        render_dsl_internal(node->data.constraint.participants[1], c_buf, sizeof(c_buf), options);
+        written = snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
+    }
+    return written;
+}
+
+/* NODE_CONSTRAINT_CONGRUENT 全等约束渲染 */
+static int helper_dsl_constraint_congruent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+{
+    int written = 0;
+    /* STACK_SAFE: 参与者名缓冲区 ≤64 字节 */
+    char s1_buf[lv_FORMULA_BUF_SMALL] = {0}, s2_buf[lv_FORMULA_BUF_SMALL] = {0};
+    if (node->data.constraint.participant_count >= 2) {
+        render_dsl_internal(node->data.constraint.participants[0], s1_buf, sizeof(s1_buf), options);
+        render_dsl_internal(node->data.constraint.participants[1], s2_buf, sizeof(s2_buf), options);
+        written = snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
+    }
+    return written;
+}
+
 static int helper_dsl_compound(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     /* lvStrBuf 动态构建（自动扩容），消除游标式 snprintf 的静默截断 */
@@ -369,17 +475,25 @@ static const RenderNodeFunc s_render_dsl_funcs[] = {
     [NODE_UNARY_OP_COS] = helper_dsl_unary_sin_cos_tan,
     [NODE_UNARY_OP_TAN] = helper_dsl_unary_sin_cos_tan,
     [NODE_UNARY_OP_ABS] = helper_dsl_unary_abs,
+    [NODE_UNARY_OP_LN] = helper_dsl_unary_ln,
+    [NODE_UNARY_OP_LOG] = helper_dsl_unary_log,
     [NODE_EQUATION] = helper_dsl_equation,
     [NODE_GEOM_POINT] = helper_dsl_geom_point,
     [NODE_GEOM_SEGMENT] = helper_dsl_geom_segment,
+    [NODE_GEOM_LINE] = helper_dsl_geom_line,
     [NODE_GEOM_CIRCLE] = helper_dsl_geom_circle,
     [NODE_GEOM_TRIANGLE] = helper_dsl_geom_triangle,
     [NODE_COORDINATE_LIST] = helper_dsl_coord_list,
     [NODE_CONSTRAINT_PERPENDICULAR] = helper_dsl_constraint_perpendicular,
     [NODE_CONSTRAINT_PARALLEL] = helper_dsl_constraint_parallel,
     [NODE_CONSTRAINT_MIDPOINT] = helper_dsl_constraint_midpoint,
+    [NODE_CONSTRAINT_BISECTOR] = helper_dsl_constraint_bisector,
+    [NODE_CONSTRAINT_COLLINEAR] = helper_dsl_constraint_collinear,
+    [NODE_CONSTRAINT_TANGENT] = helper_dsl_constraint_tangent,
+    [NODE_CONSTRAINT_CONGRUENT] = helper_dsl_constraint_congruent,
     [NODE_GEOM_REGION] = helper_dsl_geom_region,
     [NODE_GEOM_ARC] = helper_dsl_geom_arc,
+    [NODE_GEOM_VECTOR] = helper_dsl_geom_vector,
     [NODE_CONSTRAINT_ANGLE] = helper_dsl_constraint_angle,
     [NODE_COMPOUND] = helper_dsl_compound,
 };
