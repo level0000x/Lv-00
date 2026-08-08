@@ -10,6 +10,7 @@
 
 #include "magic_internal.h"
 #include "magic.h"
+#include "lv/lv_lifecycle.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -120,20 +121,30 @@ MagicArray *magic_array_create(void) {
  *
  * @param array 待销毁的魔法阵指针
  */
+/* ── magic_array_destroy 子资源销毁适配 ── */
+
+static void destroy_magic_array_runes(void *obj) {
+    rune_sequence_destroy((RuneSequence *) obj);
+}
+
+static void destroy_magic_array_graph(void *obj) {
+    graph_destroy((ConstraintGraph *) obj);
+}
+
+/* magic_array_destroy 字段描述表：runes/graph 对象销毁，constraints 纯指针
+ * 释放；name 字符串字段顺带补上（原实现漏释放） */
+static const lvFieldDesc s_magic_array_destroy_fields[] = {
+    lv_FIELD_OBJECT(MagicArray, runes, destroy_magic_array_runes),
+    lv_FIELD_OBJECT(MagicArray, graph, destroy_magic_array_graph),
+    lv_FIELD_PLAIN(MagicArray, constraints),
+    lv_FIELD_PLAIN(MagicArray, name),
+};
+
 void magic_array_destroy(MagicArray *array) {
     if (!array)
         return;
-
-    /* 逆序释放各子组件：符文序列、约束图、约束数组、自身 */
-    if (array->runes) {
-        rune_sequence_destroy(array->runes);
-    }
-    if (array->graph) {
-        graph_destroy(array->graph);
-    }
-    if (array->constraints) {
-        lv_free((void **) &array->constraints);
-    }
+    lv_obj_destroy_fields(array, s_magic_array_destroy_fields,
+                          sizeof(s_magic_array_destroy_fields) / sizeof(s_magic_array_destroy_fields[0]));
     lv_free((void **) &array);
 }
 

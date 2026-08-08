@@ -110,6 +110,28 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     return lv_OK;
 }
 
+/* ── 导出格式语法参数 ops 表（TheoremFormatOps） ──
+ * interop_theorem_export_calls 的 4 格式 if-else 链（COQ/LEAN/ISABELLE/HOL_LIGHT）
+ * 表化：各格式输出逐字节不变，仅把语法参数改为查表赋值。
+ * 新增导出格式只需在此追加一行，无需改动导出主流程。 */
+typedef struct {
+    InteropExportFormat format;  /**< 导出格式枚举值（查找键） */
+    const char *comment_open;    /**< 注释起始符 */
+    const char *comment_close;   /**< 注释结束符 */
+    const char *apply_prefix;    /**< apply 语句前缀 */
+    const char *line_end;        /**< 语句行尾 */
+    bool lean_style_params;      /**< true=Lean 风格（apply name p1 p2），false=Coq 风格（with (A := p1)） */
+} TheoremFormatOps;
+
+static const TheoremFormatOps kTheoremFormatOps[] = {
+    {INTEROP_EXPORT_COQ, "(* ", " *)", "apply ", ".", false},
+    {INTEROP_EXPORT_LEAN, "/- ", " -/", "apply ", "", true},
+    /* Isabelle/HOL 格式：使用 (* ... *) 注释，apply 语法 */
+    {INTEROP_EXPORT_ISABELLE, "(* ", " *)", "apply ", "", false},
+    /* HOL Light 格式：使用 (* ... *) 注释，APPLY 语法 */
+    {INTEROP_EXPORT_HOL_LIGHT, "(* ", " *)", "APPLY_THEN ", ";", false},
+};
+
 /**
  * @brief 导出定理调用序列为指定格式的证明脚本
  * @details 解析定理交换上下文中存储的调用记录（由 interop_theorem_add_call 积累），
@@ -126,43 +148,23 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
     if (!ctx || !output || output_size == 0)
         return lv_ERROR_INVALID_PARAM;
 
-    /* 确定注释语法 */
-    const char *comment_open;
-    const char *comment_close;
-    const char *apply_prefix;
-    const char *line_end;
-    bool lean_style_params;
-
-    if (format == INTEROP_EXPORT_COQ) {
-        comment_open = "(* ";
-        comment_close = " *)";
-        apply_prefix = "apply ";
-        line_end = ".";
-        lean_style_params = false;
-    } else if (format == INTEROP_EXPORT_LEAN) {
-        comment_open = "/- ";
-        comment_close = " -/";
-        apply_prefix = "apply ";
-        line_end = "";
-        lean_style_params = true;
-    } else if (format == INTEROP_EXPORT_ISABELLE) {
-        /* Isabelle/HOL 格式：使用 (* ... *) 注释，apply 语法 */
-        comment_open = "(* ";
-        comment_close = " *)";
-        apply_prefix = "apply ";
-        line_end = "";
-        lean_style_params = false;
-    } else if (format == INTEROP_EXPORT_HOL_LIGHT) {
-        /* HOL Light 格式：使用 (* ... *) 注释，APPLY 语法 */
-        comment_open = "(* ";
-        comment_close = " *)";
-        apply_prefix = "APPLY_THEN ";
-        line_end = ";";
-        lean_style_params = false;
-    } else {
+    /* 按格式查表确定注释语法（原 4 分支 if-else 链表化，参数逐字一致） */
+    const TheoremFormatOps *fmt = NULL;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kTheoremFormatOps); i++) {
+        if (kTheoremFormatOps[i].format == format) {
+            fmt = &kTheoremFormatOps[i];
+            break;
+        }
+    }
+    if (!fmt) {
         lv_RETURN_ERROR_VAL(lv_ERROR_UNSUPPORTED, lv_ERROR_UNSUPPORTED,
                             "定理导出仅支持 Coq、Lean、Isabelle/HOL 和 HOL Light 格式，当前格式=%d", format);
     }
+    const char *comment_open = fmt->comment_open;
+    const char *comment_close = fmt->comment_close;
+    const char *apply_prefix = fmt->apply_prefix;
+    const char *line_end = fmt->line_end;
+    bool lean_style_params = fmt->lean_style_params;
 
     /* 统一用 lvStrBuf 累积输出（自动扩容），完成后一次拷回调用方缓冲 */
     lvStrBuf sb = {0};

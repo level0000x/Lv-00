@@ -646,6 +646,9 @@ void geo_event_detector_destroy(lvEventDetector *detector) {
 
 /**
  * @brief 注册一个几何事件
+ *
+ * @note 已建未用/预留：当前无业务调用者（仅 test/c/test_registry.c 测试使用），
+ *       保留供事件检测系统接入。
  */
 int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type, lvEventFunc func, int direction,
                        bool terminal, lvEventCallback callback) {

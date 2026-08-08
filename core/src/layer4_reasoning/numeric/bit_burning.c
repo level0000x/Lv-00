@@ -17,6 +17,9 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+/* node_destroy：统一节点释放路径（graph_index.c 实现），含内部字段清理与
+ * vtable->free 类型特定 union 数据释放，替代本文件手写的按类型 switch 释放 */
+#include "layer3_geometry/constraint_graph/graph_node_internal.h"
 
 /* ── 线程局部全局熔断状态 ── */
 static lv_THREAD_LOCAL BitBurningState g_bit_burning_state = {0};
@@ -123,40 +126,12 @@ bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state) {
     /* 1. 释放当前图的内部数据 */
     for (int i = 0; i < graph->node_count; i++) {
         if (graph->nodes[i]) {
-            /* 清理 symbolic_coords */
-            for (int j = 0; j < graph->nodes[i]->coord_count; j++) {
-                if (graph->nodes[i]->symbolic_coords[j]) {
-                    symbolic_coord_destroy(graph->nodes[i]->symbolic_coords[j]);
-                }
-            }
-            lv_free((void **) &graph->nodes[i]->symbolic_coords);
-
-            if (graph->nodes[i]->numeric_assumption_declaration) {
-                lv_free((void **) &graph->nodes[i]->numeric_assumption_declaration);
-            }
-
-            /* 根据类型释放 union 数据 */
-            switch (graph->nodes[i]->type) {
-                case GEOM_PORT:
-                    if (graph->nodes[i]->data.port) {
-                        lv_free((void **) &graph->nodes[i]->data.port);
-                    }
-                    break;
-                case GEOM_REGION:
-                    lv_free((void **) &graph->nodes[i]->data.region.boundary_segments);
-                    break;
-                case GEOM_CIRCLE:
-                    /* CIRCLE 节点无额外动态分配数据 */
-                    break;
-                case GEOM_FUNCTION_BLOCK:
-                    lv_free((void **) &graph->nodes[i]->data.func_block.internal_nodes);
-                    lv_free((void **) &graph->nodes[i]->data.func_block.input_port_ids);
-                    lv_free((void **) &graph->nodes[i]->data.func_block.output_port_ids);
-                    break;
-                default:
-                    break;
-            }
-            lv_free((void **) &graph->nodes[i]);
+            /* 经统一节点释放路径 node_destroy 释放：内部字段（symbolic_coords /
+             * numeric_assumption_declaration）+ vtable->free 类型特定 union 数据
+             * （port / region.boundary_segments / circle / func_block 各数组）+ 节点外壳；
+             * 与原先手写的"清理 coords + 释放 decl + 按 type switch 释放 union"语义逐字等价，
+             * 且外壳经 lv_pool_free 对非池分配自动按普通分配释放 */
+            node_destroy(graph->nodes[i]);
         }
     }
     lv_free((void **) &graph->nodes);

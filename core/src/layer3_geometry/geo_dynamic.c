@@ -11,7 +11,7 @@
  */
 
 #include "lv/geo_dynamic.h"
-
+#include "lv/lv_lifecycle.h"
 #include <float.h>
 #include <math.h>
 #include <stdbool.h>
@@ -280,17 +280,22 @@ lvDynGraph *lv_dyn_graph_create(const lvDynGraphConfig *config) {
     return graph;
 }
 
+/* lv_dyn_graph_destroy 字段描述表：6 个纯指针字段，全部置 NULL 安全 */
+static const lvFieldDesc s_dyn_graph_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvDynGraph, nodes),
+    lv_FIELD_PLAIN(lvDynGraph, id_to_index),
+    lv_FIELD_PLAIN(lvDynGraph, parent_adj),
+    lv_FIELD_PLAIN(lvDynGraph, parent_adj_offsets),
+    lv_FIELD_PLAIN(lvDynGraph, child_adj),
+    lv_FIELD_PLAIN(lvDynGraph, child_adj_offsets),
+};
+
 void lv_dyn_graph_destroy(lvDynGraph *graph) {
     if (!graph)
         return;
-
-    lv_free((void **) &(graph->nodes));
-    lv_free((void **) &(graph->id_to_index));
-    lv_free((void **) &(graph->parent_adj));
-    lv_free((void **) &(graph->parent_adj_offsets));
-    lv_free((void **) &(graph->child_adj));
-    lv_free((void **) &(graph->child_adj_offsets));
-    lv_free((void **) &(graph));
+    lv_obj_destroy_fields(graph, s_dyn_graph_destroy_fields,
+                          sizeof(s_dyn_graph_destroy_fields) / sizeof(s_dyn_graph_destroy_fields[0]));
+    lv_free((void **) &graph);
 }
 
 /* ========================================================================

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_storage.c
  * @brief 统一存储抽象层实现 —— 文件系统后端 + 内存缓冲区后端 + 后端注册表
  *
@@ -24,6 +24,8 @@
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
 #include "lv/lv_thread.h"  /* lv_once_t / lv_once */
 #include "lv/lv_registry.h" /* 通用注册表（查重/扩容/删除/析构回调） */
+#include "lv/constraint_graph.h" /* graph_destroy：lv_roundtrip_verify 内置释放 */
+#include "lv/meta_repr.h"        /* meta_repr_graph_equivalent：内置比较分派 */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 内部常量
@@ -763,59 +765,93 @@ static inline void serialize_registry_ensure(void) {
     lv_once(&g_serialize_registry_once, serialize_registry_init_once);
 }
 
+/** @brief 拼接注册表 key：type_name:format（format 为 NULL/空串 视为 "default"）。
+ *  返回堆分配字符串（注册表内部会拷贝 key，临时 key 用完即释放）。 */
+static char *serialize_key_build(const char *type_name, const char *format) {
+    const char *fmt = (format && *format) ? format : "default";
+    size_t len = strlen(type_name) + strlen(fmt) + 2; /* type + ':' + fmt + '\0' */
+    char *key = (char *) lv_malloc(len);
+    if (!key) return NULL;
+    snprintf(key, len, "%s:%s", type_name, fmt);
+    return key;
+}
+
 bool lv_serialize_register(const char *type_name,
                             lvSerializeFunc ser,
                             lvDeserializeFunc deser) {
+    return lv_serialize_register_format(type_name, NULL, ser, deser);
+}
+
+bool lv_serialize_register_format(const char *type_name,
+                                   const char *format,
+                                   lvSerializeFunc ser,
+                                   lvDeserializeFunc deser) {
     if (!type_name) return false;
 
     serialize_registry_ensure();
 
+    char *key = serialize_key_build(type_name, format);
+    if (!key) return false;
+
+    bool ok = true;
     /* 类型已注册：原地覆盖（保持注册顺序，与原实现语义一致） */
-    SerializeEntry *existing = (SerializeEntry *) lv_registry_get(&g_serialize_registry, type_name);
+    SerializeEntry *existing = (SerializeEntry *) lv_registry_get(&g_serialize_registry, key);
     if (existing) {
-        lv_WARN("序列化器已注册，覆盖: %s", type_name);
+        lv_WARN("序列化器已注册，覆盖: %s", key);
         existing->ser   = ser;
         existing->deser = deser;
-        return true;
-    }
-
-    if (lv_registry_count(&g_serialize_registry) >= lv_SERIALIZE_MAX_ENTRIES) {
+    } else if (lv_registry_count(&g_serialize_registry) >= lv_SERIALIZE_MAX_ENTRIES) {
         lv_ERROR("序列化注册表已满 (max=%d)", lv_SERIALIZE_MAX_ENTRIES);
-        return false;
+        ok = false;
+    } else {
+        SerializeEntry *entry = (SerializeEntry *) lv_calloc(1, sizeof(SerializeEntry));
+        if (!entry) {
+            ok = false;
+        } else {
+            entry->ser   = ser;
+            entry->deser = deser;
+            if (!lv_registry_put_ex(&g_serialize_registry, key, entry, serialize_entry_destroy)) {
+                lv_free((void **) &entry);
+                ok = false;
+            }
+        }
     }
 
-    SerializeEntry *entry = (SerializeEntry *) lv_calloc(1, sizeof(SerializeEntry));
-    if (!entry) return false;
-    entry->ser   = ser;
-    entry->deser = deser;
-
-    if (!lv_registry_put_ex(&g_serialize_registry, type_name, entry, serialize_entry_destroy)) {
-        lv_free((void **) &entry);
-        return false;
-    }
-    return true;
+    lv_free((void **) &key);
+    return ok;
 }
 
-/** @brief 根据类型名称查找序列化器（委托注册表 strcmp 查找） */
-static SerializeEntry *find_serialize_entry(const char *type_name) {
+/** @brief 根据类型名称 + 格式查找序列化器（委托注册表 strcmp 查找） */
+static SerializeEntry *find_serialize_entry(const char *type_name, const char *format) {
     if (!type_name) return NULL;
     serialize_registry_ensure();
-    return (SerializeEntry *) lv_registry_get(&g_serialize_registry, type_name);
+    char *key = serialize_key_build(type_name, format);
+    if (!key) return NULL;
+    SerializeEntry *entry = (SerializeEntry *) lv_registry_get(&g_serialize_registry, key);
+    lv_free((void **) &key);
+    return entry;
 }
 
 bool lv_serialize_to_storage(const char *type_name,
                               const void *obj,
                               lvStorage *storage) {
+    return lv_serialize_to_storage_format(type_name, NULL, obj, storage);
+}
+
+bool lv_serialize_to_storage_format(const char *type_name,
+                                     const char *format,
+                                     const void *obj,
+                                     lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    SerializeEntry *entry = find_serialize_entry(type_name);
+    SerializeEntry *entry = find_serialize_entry(type_name, format);
 
     if (!entry) {
-        lv_ERROR("未注册的序列化类型: %s", type_name);
+        lv_ERROR("未注册的序列化类型: %s:%s", type_name, format ? format : "default");
         return false;
     }
     if (!entry->ser) {
-        lv_ERROR("类型不支持序列化: %s", type_name);
+        lv_ERROR("类型不支持序列化: %s:%s", type_name, format ? format : "default");
         return false;
     }
 
@@ -825,16 +861,23 @@ bool lv_serialize_to_storage(const char *type_name,
 bool lv_deserialize_from_storage(const char *type_name,
                                   void *obj,
                                   lvStorage *storage) {
+    return lv_deserialize_from_storage_format(type_name, NULL, obj, storage);
+}
+
+bool lv_deserialize_from_storage_format(const char *type_name,
+                                         const char *format,
+                                         void *obj,
+                                         lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    SerializeEntry *entry = find_serialize_entry(type_name);
+    SerializeEntry *entry = find_serialize_entry(type_name, format);
 
     if (!entry) {
-        lv_ERROR("未注册的反序列化类型: %s", type_name);
+        lv_ERROR("未注册的反序列化类型: %s:%s", type_name, format ? format : "default");
         return false;
     }
     if (!entry->deser) {
-        lv_ERROR("类型不支持反序列化: %s", type_name);
+        lv_ERROR("类型不支持反序列化: %s:%s", type_name, format ? format : "default");
         return false;
     }
 
@@ -844,13 +887,20 @@ bool lv_deserialize_from_storage(const char *type_name,
 bool lv_serialize_to_file(const char *type_name,
                            const void *obj,
                            const char *filepath) {
+    return lv_serialize_to_file_format(type_name, NULL, obj, filepath);
+}
+
+bool lv_serialize_to_file_format(const char *type_name,
+                                  const char *format,
+                                  const void *obj,
+                                  const char *filepath) {
     if (!type_name || !obj || !filepath) return false;
 
     lvStorage *storage = lv_storage_open(filepath,
         lv_STORAGE_WRITE | lv_STORAGE_CREATE | lv_STORAGE_TRUNCATE | lv_STORAGE_BINARY);
     if (!storage) return false;
 
-    bool ok = lv_serialize_to_storage(type_name, obj, storage);
+    bool ok = lv_serialize_to_storage_format(type_name, format, obj, storage);
     lv_storage_close(storage);
     return ok;
 }
@@ -858,12 +908,67 @@ bool lv_serialize_to_file(const char *type_name,
 bool lv_deserialize_from_file(const char *type_name,
                                void *obj,
                                const char *filepath) {
+    return lv_deserialize_from_file_format(type_name, NULL, obj, filepath);
+}
+
+bool lv_deserialize_from_file_format(const char *type_name,
+                                      const char *format,
+                                      void *obj,
+                                      const char *filepath) {
     if (!type_name || !obj || !filepath) return false;
 
     lvStorage *storage = lv_storage_open(filepath, lv_STORAGE_READ | lv_STORAGE_BINARY);
     if (!storage) return false;
 
-    bool ok = lv_deserialize_from_storage(type_name, obj, storage);
+    bool ok = lv_deserialize_from_storage_format(type_name, format, obj, storage);
     lv_storage_close(storage);
+    return ok;
+}
+
+bool lv_roundtrip_verify(const char *type_name,
+                          const char *format,
+                          const void *obj,
+                          lvCompareFn compare) {
+    if (!type_name || !obj) return false;
+
+    /* mem:// 内存缓冲：单句柄写 → 回绕 → 读（不产生临时文件） */
+    lvStorage *storage = lv_storage_open("mem://roundtrip_verify",
+        lv_STORAGE_WRITE | lv_STORAGE_CREATE | lv_STORAGE_TRUNCATE | lv_STORAGE_BINARY);
+    if (!storage) return false;
+
+    if (!lv_serialize_to_storage_format(type_name, format, obj, storage)) {
+        lv_storage_close(storage);
+        return false;
+    }
+
+    /* 回绕到开头，供反序列化读取 */
+    if (lv_storage_seek(storage, 0, lv_STORAGE_SEEK_SET) < 0) {
+        lv_storage_close(storage);
+        return false;
+    }
+
+    /* 反序列化结果槽（deser 契约：obj = T**，成功时 *obj 指向新分配对象） */
+    void *slot = NULL;
+    if (!lv_deserialize_from_storage_format(type_name, format, &slot, storage)) {
+        lv_storage_close(storage);
+        return false;
+    }
+    lv_storage_close(storage);
+
+    bool ok = true;
+    if (compare) {
+        ok = compare(obj, slot);
+    } else if (strcmp(type_name, "ConstraintGraph") == 0) {
+        /* 内置分派：graph 走现有语义等价比较（meta_repr 既有实现） */
+        ok = meta_repr_graph_equivalent((const ConstraintGraph *) obj,
+                                        (const ConstraintGraph *) slot);
+    }
+    /* else：无比较策略，仅验证序列化往返不崩 */
+
+    /* 释放反序列化结果（内置类型专属；其余类型由调用者经 compare 自行管理） */
+    if (strcmp(type_name, "ConstraintGraph") == 0) {
+        graph_destroy((ConstraintGraph *) slot);
+    }
+
     return ok;
 }

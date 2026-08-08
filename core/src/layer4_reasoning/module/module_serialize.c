@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/lv_file.h"
+#include "lv/lv_lifecycle.h"
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
@@ -63,32 +64,56 @@ Module *module_create(const char *name, const char *version) {
     return mod;
 }
 
+/* ── module_destroy 子资源销毁适配 ── */
+
+/* ModuleDependency 元素：释放内部 name/version_constraint 字符串 */
+static void destroy_module_dependency_elem(void *elem) {
+    ModuleDependency *dep = (ModuleDependency *) elem;
+    if (!dep)
+        return;
+    lv_free((void **) &dep->name);
+    lv_free((void **) &dep->version_constraint);
+}
+
+/* ModuleExport 对象：释放两个 id 数组后释放外壳 */
+static void destroy_module_exports(void *obj) {
+    ModuleExport *exp = (ModuleExport *) obj;
+    if (!exp)
+        return;
+    lv_darray_free(&exp->function_block_ids);
+    lv_darray_free(&exp->type_region_ids);
+    lv_free((void **) &exp);
+}
+
+/* axiom_packages 为指针数组：元素槽解引用后调用 axiom_package_destroy */
+static void destroy_module_axiom_pkg_elem(void *elem) {
+    AxiomPackage **slot = (AxiomPackage **) elem;
+    if (slot && *slot)
+        axiom_package_destroy(*slot);
+}
+
+static void destroy_module_graph(void *obj) {
+    graph_destroy((ConstraintGraph *) obj);
+}
+
+/* module_destroy 字段描述表：释放顺序与原实现一致
+ * （name → version → dependencies（逐元素） → exports（内部数组+外壳） →
+ *   axiom_packages（逐元素） → graph → 外壳），全部置 NULL 安全 */
+static const lvFieldDesc s_module_destroy_fields[] = {
+    lv_FIELD_PLAIN(Module, name),
+    lv_FIELD_PLAIN(Module, version),
+    lv_FIELD_DARRAY_ELEMS(Module, dependencies, destroy_module_dependency_elem),
+    lv_FIELD_OBJECT(Module, exports, destroy_module_exports),
+    lv_FIELD_DARRAY_ELEMS(Module, axiom_packages, destroy_module_axiom_pkg_elem),
+    lv_FIELD_OBJECT(Module, graph, destroy_module_graph),
+};
+
 void module_destroy(Module *mod) {
-    if (mod) {
-        lv_free((void **) &mod->name);
-        lv_free((void **) &mod->version);
-        for (int i = 0; i < mod->dependencies.count; i++) {
-            ModuleDependency *dep = (ModuleDependency *) lv_darray_get(&mod->dependencies, i);
-            if (dep) {
-                lv_free((void **) &dep->name);
-                lv_free((void **) &dep->version_constraint);
-            }
-        }
-        lv_darray_free(&mod->dependencies);
-        lv_darray_free(&mod->exports->function_block_ids);
-        lv_darray_free(&mod->exports->type_region_ids);
-        lv_free((void **) &mod->exports);
-        for (int i = 0; i < mod->axiom_packages.count; i++) {
-            AxiomPackage **slot = (AxiomPackage **) lv_darray_get(&mod->axiom_packages, i);
-            if (slot && *slot) {
-                axiom_package_destroy(*slot);
-            }
-        }
-        lv_darray_free(&mod->axiom_packages);
-        if (mod->graph)
-            graph_destroy(mod->graph);
-        lv_free((void **) &mod);
-    }
+    if (!mod)
+        return;
+    lv_obj_destroy_fields(mod, s_module_destroy_fields,
+                          sizeof(s_module_destroy_fields) / sizeof(s_module_destroy_fields[0]));
+    lv_free((void **) &mod);
 }
 
 bool module_add_dependency(Module *mod, const char *dep_name, const char *version_constraint) {

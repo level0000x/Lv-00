@@ -27,6 +27,7 @@
 #include "func_block_registry.h"
 #include "lv_internal.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_serialize_adapters.h"
 
 /* ============================================================
  * 全局状态管理
@@ -220,6 +221,10 @@ bool lv_init(void) {
     lv_module_register("random", lv_module_init_random,     NULL,                   lv_MODULE_PRIO_CORE);
     lv_module_register("config", lv_module_init_config,     lv_module_cleanup_config, lv_MODULE_PRIO_RESOURCE);
     lv_module_register("preset_pools", lv_module_init_preset_pools, lv_module_cleanup_preset_pools,
+                       lv_MODULE_PRIO_RESOURCE);
+    /* 序列化适配器注册（把 graph JSON 等业务序列化对接入统一序列化注册表；
+     * init 仅写入注册表函数指针，幂等可重复调用） */
+    lv_module_register("serialize_adapters", lv_serialize_register_graph_adapters, NULL,
                        lv_MODULE_PRIO_RESOURCE);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);

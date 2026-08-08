@@ -9,7 +9,7 @@
  */
 
 #include "lv/ga_codegen.h"
-
+#include "lv/lv_lifecycle.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -208,15 +208,17 @@ GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOpti
     return res;
 }
 
+/* ga_codegen_result_destroy 字段描述表：code/error_msg 纯指针释放 */
+static const lvFieldDesc s_ga_codegen_result_destroy_fields[] = {
+    lv_FIELD_PLAIN(GACodegenResult, code),
+    lv_FIELD_PLAIN(GACodegenResult, error_msg),
+};
+
 void ga_codegen_result_destroy(GACodegenResult *result) {
     if (result == NULL)
         return;
-    if (result->code != NULL) {
-        lv_free_ptr(result->code);
-    }
-    if (result->error_msg != NULL) {
-        lv_free_ptr(result->error_msg);
-    }
+    lv_obj_destroy_fields(result, s_ga_codegen_result_destroy_fields,
+                          sizeof(s_ga_codegen_result_destroy_fields) / sizeof(s_ga_codegen_result_destroy_fields[0]));
     lv_free((void **) &result);
 }
 

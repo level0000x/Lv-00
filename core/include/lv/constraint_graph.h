@@ -636,6 +636,31 @@ lv_PUBLIC_API AddConstraintResult graph_add_connection(ConstraintGraph *graph, i
 lv_PUBLIC_API AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int line2_id, double angle_degrees);
 
 /**
+ * @brief 约束添加分派 ops 表条目（单一事实来源）
+ *
+ * graph_add_constraint_dispatch（按 type 查表）与 algebra_constrain
+ * （按 name 查表）共用本表，消除手写 switch / strcmp 链的平行分发。
+ * 新增约束类型只需在本表追加一行（graph_index.c 的 kConstraintAddOps），
+ * 若还需通过 algebra_constrain 的按名接口暴露，则同时给出 name。
+ *
+ * @note fn 为无参校验的参数解包适配器（arity 校验由调用方按各自语义执行：
+ *       dispatch 用 arity_ok 精确匹配，algebra_constrain 用 min_participants 宽松匹配）。
+ */
+typedef struct {
+    ConstraintType type;             /**< 约束类型枚举值（dispatch 的查找键） */
+    const char *name;                /**< algebra_constrain 的小写名（NULL 表示不暴露于按名接口，如需要 numeric_value 的 ANGLE 与端口语义的 CONNECTION） */
+    int min_participants;            /**< algebra_constrain 的宽松参与人数下限（count >= min_participants） */
+    bool (*arity_ok)(int);           /**< dispatch 的精确参与人数校验（如 count == 2 / count >= 2） */
+    AddConstraintResult (*fn)(ConstraintGraph *graph, const int *participants, int count, double numeric_value);
+} ConstraintAddOps;
+
+/** @brief 约束添加分派 ops 表（定义于 graph_index.c，供 algebra_mode.c 等按名查表） */
+extern const ConstraintAddOps kConstraintAddOps[];
+/** @brief 表条目数：与 ConstraintType 枚举一一对应（一行一类型，按枚举顺序）；
+ *         表定义处（graph_index.c）以 _Static_assert 与 lv_ARRAY_SIZE 对齐校验 */
+#define LV_CONSTRAINT_ADD_OPS_COUNT ((int) (ANGLE) + 1)
+
+/**
  * @brief 从约束图中移除节点
  *
  * @param[in] graph   约束图

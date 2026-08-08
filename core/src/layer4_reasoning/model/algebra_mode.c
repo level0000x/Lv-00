@@ -594,14 +594,17 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
     if (!geom || !geom->graph || !constraint_type || !entity_ids || count < 1)
         return NULL;
 
-    if (strcmp(constraint_type, "incidence") == 0 && count >= 2) {
-        graph_add_incidence(geom->graph, entity_ids[0], entity_ids[1]);
-    } else if (strcmp(constraint_type, "containment") == 0 && count >= 2) {
-        graph_add_containment(geom->graph, entity_ids[0], entity_ids[1]);
-    } else if (strcmp(constraint_type, "between") == 0 && count >= 3) {
-        graph_add_betweenness(geom->graph, entity_ids[0], entity_ids[1], entity_ids[2]);
-    } else if (strcmp(constraint_type, "intersect") == 0 && count >= 3) {
-        graph_add_intersection(geom->graph, entity_ids[0], entity_ids[1], entity_ids[2]);
+    /* 按 name 查 kConstraintAddOps 表（graph_index.c 定义，与
+     * graph_add_constraint_dispatch 的按 type 分派共用一张表）：
+     * 参与人数按 min_participants 宽松校验（count >= N），匹配到第一个
+     * 即调用 fn 并停止，语义与原先的 strcmp 链逐字一致；
+     * 未匹配（含 name 为 NULL 的 CONNECTION/ANGLE）时保持原行为：不做任何添加。 */
+    for (int i = 0; i < LV_CONSTRAINT_ADD_OPS_COUNT; i++) {
+        const ConstraintAddOps *op = &kConstraintAddOps[i];
+        if (op->name && strcmp(constraint_type, op->name) == 0 && count >= op->min_participants) {
+            op->fn(geom->graph, entity_ids, count, 0.0);
+            break;
+        }
     }
 
     history_push(geom, HISTORY_INCIDENCE);

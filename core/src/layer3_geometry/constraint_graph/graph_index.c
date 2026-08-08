@@ -365,12 +365,84 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
     return ADD_CONSTRAINT_OK;
 }
 
+/* ── 约束添加分派 ops 表（ConstraintAddOps，见 constraint_graph.h） ──
+ * graph_add_constraint_dispatch（按 type 查表）与 algebra_mode.c 的
+ * algebra_constrain（按 name 查表）共用一张表，消除手写 switch / strcmp 链。
+ * fn 为无参校验的参数解包适配器：dispatch 侧先经 arity_ok 精确校验再调用，
+ * algebra_constrain 侧先经 count >= min_participants 宽松校验再调用，
+ * 两处各自的参与人数语义与错误返回码保持不变。 */
+
+static bool constraint_arity_exact_2(int count) {
+    return count == 2;
+}
+static bool constraint_arity_exact_3(int count) {
+    return count == 3;
+}
+static bool constraint_arity_at_least_2(int count) {
+    return count >= 2;
+}
+
+static AddConstraintResult constraint_add_incidence_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                        double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_incidence(graph, participants[0], participants[1]);
+}
+static AddConstraintResult constraint_add_betweenness_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                          double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_betweenness(graph, participants[0], participants[1], participants[2]);
+}
+static AddConstraintResult constraint_add_intersection_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                           double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_intersection(graph, participants[0], participants[1], participants[2]);
+}
+static AddConstraintResult constraint_add_containment_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                          double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_containment(graph, participants[0], participants[1]);
+}
+static AddConstraintResult constraint_add_connection_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                         double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_connection(graph, participants[0], participants[1]);
+}
+static AddConstraintResult constraint_add_angle_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                    double numeric_value) {
+    (void) count;
+    return graph_add_angle(graph, participants[0], participants[1], numeric_value);
+}
+
+/* 约束类型 → 添加函数 注册表（按枚举顺序；新增约束类型在此加一行即可，
+ * 若需经 algebra_constrain 按名接口暴露则补充 name 字段，否则置 NULL） */
+const ConstraintAddOps kConstraintAddOps[] = {
+    {INCIDENCE, "incidence", 2, constraint_arity_exact_2, constraint_add_incidence_ops},
+    {BETWEENNESS, "betweenness", 3, constraint_arity_exact_3, constraint_add_betweenness_ops},
+    {INTERSECTION, "intersection", 3, constraint_arity_exact_3, constraint_add_intersection_ops},
+    {CONTAINMENT, "containment", 2, constraint_arity_exact_2, constraint_add_containment_ops},
+    /* CONNECTION：端口语义约束，不暴露于 algebra_constrain 的按名接口（name=NULL） */
+    {CONNECTION, NULL, 2, constraint_arity_exact_2, constraint_add_connection_ops},
+    /* ANGLE：需要 numeric_value 参数而 algebra_constrain 无此入参，不暴露按名接口（name=NULL） */
+    {ANGLE, NULL, 2, constraint_arity_at_least_2, constraint_add_angle_ops},
+};
+
+/* 编译期校验：表条目数与 ConstraintType 枚举值严格对齐（防止枚举与注册表漂移） */
+_Static_assert(lv_ARRAY_SIZE(kConstraintAddOps) == LV_CONSTRAINT_ADD_OPS_COUNT,
+               "kConstraintAddOps row count must match ConstraintType enum count");
+
 /**
  * @brief 按约束类型分发到对应的 typed graph_add_* 添加函数
  *
  * 收敛 rewrite_binding.c / beta_reduce.c / module_lvz.c 中
  * 平行重复的"类型→graph_add_* 分发"逻辑（switch / vtable / 查表 三套）。
  * 参与者数量与类型不匹配或类型未知时返回 ADD_CONSTRAINT_CONFLICT。
+ * 分发语义与手写 switch 逐字一致：经 kConstraintAddOps 表的 arity_ok 精确校验后
+ * 调用 fn（ANGLE 为 count >= 2，其余为 count == 2 / count == 3）。
  *
  * @param graph          约束图指针
  * @param type           约束类型
@@ -381,34 +453,15 @@ AddConstraintResult graph_add_connection(ConstraintGraph *graph, int src_port_id
  */
 AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,
                                                   const int *participants, int count, double numeric_value) {
-    switch (type) {
-    case INCIDENCE:
-        if (count == 2)
-            return graph_add_incidence(graph, participants[0], participants[1]);
-        return ADD_CONSTRAINT_CONFLICT;
-    case BETWEENNESS:
-        if (count == 3)
-            return graph_add_betweenness(graph, participants[0], participants[1], participants[2]);
-        return ADD_CONSTRAINT_CONFLICT;
-    case INTERSECTION:
-        if (count == 3)
-            return graph_add_intersection(graph, participants[0], participants[1], participants[2]);
-        return ADD_CONSTRAINT_CONFLICT;
-    case CONTAINMENT:
-        if (count == 2)
-            return graph_add_containment(graph, participants[0], participants[1]);
-        return ADD_CONSTRAINT_CONFLICT;
-    case ANGLE:
-        if (count >= 2)
-            return graph_add_angle(graph, participants[0], participants[1], numeric_value);
-        return ADD_CONSTRAINT_CONFLICT;
-    case CONNECTION:
-        if (count == 2)
-            return graph_add_connection(graph, participants[0], participants[1]);
-        return ADD_CONSTRAINT_CONFLICT;
-    default:
-        return ADD_CONSTRAINT_CONFLICT;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kConstraintAddOps); i++) {
+        const ConstraintAddOps *op = &kConstraintAddOps[i];
+        if (op->type == type) {
+            if (op->arity_ok(count))
+                return op->fn(graph, participants, count, numeric_value);
+            return ADD_CONSTRAINT_CONFLICT;
+        }
     }
+    return ADD_CONSTRAINT_CONFLICT;
 }
 
 /**

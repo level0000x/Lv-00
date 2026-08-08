@@ -10,6 +10,7 @@
  */
 
 #include "lv/lv_platform.h"
+#include "lv/lv_lifecycle.h"
 #include "formula_converter.h"
 #include "formula_converter_internal.h"
 
@@ -392,31 +393,31 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
  *
  * @param result 转换结果指针（可为 NULL）
  */
+/* formula_to_graph_result_destroy 字段描述表：2 个纯指针字段 */
+static const lvFieldDesc s_formula_to_graph_destroy_fields[] = {
+    lv_FIELD_PLAIN(FormulaToGraphResult, created_node_ids),
+    lv_FIELD_PLAIN(FormulaToGraphResult, created_constraint_ids),
+};
+
 void formula_to_graph_result_destroy(FormulaToGraphResult *result) {
     if (!result)
         return;
-
-    if (result->created_node_ids) {
-        lv_free((void **) &result->created_node_ids); /* 统一内存释放器 */
-    }
-    if (result->created_constraint_ids) {
-        lv_free((void **) &result->created_constraint_ids); /* 统一内存释放器 */
-    }
-    lv_free((void **) &result); /* 统一内存释放器 */
+    lv_obj_destroy_fields(result, s_formula_to_graph_destroy_fields,
+                          sizeof(s_formula_to_graph_destroy_fields) / sizeof(s_formula_to_graph_destroy_fields[0]));
+    lv_free((void **) &result);
 }
+
+/* graph_to_formula_result_destroy 字段描述表：3 个纯指针字段 */
+static const lvFieldDesc s_graph_to_formula_destroy_fields[] = {
+    lv_FIELD_PLAIN(GraphToFormulaResult, latex_output),
+    lv_FIELD_PLAIN(GraphToFormulaResult, python_output),
+    lv_FIELD_PLAIN(GraphToFormulaResult, dsl_output),
+};
 
 void graph_to_formula_result_destroy(GraphToFormulaResult *result) {
     if (!result)
         return;
-
-    if (result->latex_output) {
-        lv_free((void **) &result->latex_output); /* 统一内存释放器 */
-    }
-    if (result->python_output) {
-        lv_free((void **) &result->python_output); /* 统一内存释放器 */
-    }
-    if (result->dsl_output) {
-        lv_free((void **) &result->dsl_output); /* 统一内存释放器 */
-    }
-    lv_free((void **) &result); /* 统一内存释放器 */
+    lv_obj_destroy_fields(result, s_graph_to_formula_destroy_fields,
+                          sizeof(s_graph_to_formula_destroy_fields) / sizeof(s_graph_to_formula_destroy_fields[0]));
+    lv_free((void **) &result);
 }

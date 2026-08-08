@@ -219,6 +219,9 @@ void ring_destroy(lvRingRegistry *registry, int ring_id) {
 
 /**
  * @brief 注册外部创建的环
+ *
+ * @note 已建未用/预留：当前全项目无业务调用者（仅头文件声明），
+ *       保留供外部后端接入 groebner 引擎使用。
  */
 int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring) {
     if (!registry || !ring) {

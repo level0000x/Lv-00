@@ -10,6 +10,7 @@
 
 #include "magic_internal.h"
 #include "magic.h"
+#include "lv/lv_lifecycle.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -107,17 +108,24 @@ Spell *spell_create(const char *name) {
  *
  * @param spell 待销毁的咒语指针
  */
+/* ── spell_destroy 子资源销毁适配 ── */
+
+static void destroy_spell_molding(void *obj) {
+    rune_sequence_destroy((RuneSequence *) obj);
+}
+
+/* spell_destroy 字段描述表：name/description 纯指针，molding 对象销毁 */
+static const lvFieldDesc s_spell_destroy_fields[] = {
+    lv_FIELD_PLAIN(Spell, name),
+    lv_FIELD_PLAIN(Spell, description),
+    lv_FIELD_OBJECT(Spell, molding, destroy_spell_molding),
+};
+
 void spell_destroy(Spell *spell) {
     if (!spell)
         return;
-
-    /* 释放咒语各子组件：名称、描述、开模符文序列 */
-    if (spell->name)
-        lv_free((void **) &spell->name);
-    if (spell->description)
-        lv_free((void **) &spell->description);
-    if (spell->molding)
-        rune_sequence_destroy(spell->molding);
+    lv_obj_destroy_fields(spell, s_spell_destroy_fields,
+                          sizeof(s_spell_destroy_fields) / sizeof(s_spell_destroy_fields[0]));
     lv_free((void **) &spell);
 }
 

@@ -9,6 +9,7 @@
 #include "lv/lv_platform.h"
 
 #include "lv/lv_file.h"
+#include "lv/lv_lifecycle.h"
 
 #include "test_framework.h"
 
@@ -803,14 +804,20 @@ void lv_benchmark_destroy(lvBenchmark *bench) {
 
 /* ============== 测试报告实现 ============== */
 
+/* lv_test_report_destroy 字段描述表：4 个纯指针字段，全部置 NULL 安全 */
+static const lvFieldDesc s_test_report_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvTestReport, suites),
+    lv_FIELD_PLAIN(lvTestReport, json_output),
+    lv_FIELD_PLAIN(lvTestReport, xml_output),
+    lv_FIELD_PLAIN(lvTestReport, html_output),
+};
+
 void lv_test_report_destroy(lvTestReport *report) {
     if (!report) {
         return;
     }
-    lv_free((void **) &report->suites);
-    lv_free((void **) &report->json_output);
-    lv_free((void **) &report->xml_output);
-    lv_free((void **) &report->html_output);
+    lv_obj_destroy_fields(report, s_test_report_destroy_fields,
+                          sizeof(s_test_report_destroy_fields) / sizeof(s_test_report_destroy_fields[0]));
     lv_free((void **) &report);
 }
 

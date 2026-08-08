@@ -573,6 +573,35 @@ static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id, int
 int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
 int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
 
+/* ── 按次数分派的求解 ops 表（DegreeSolveOps） ──
+ * solve_equations_pass 的 degree 1/2/3 if-else 链表化为 kDegreeSolveOps：
+ * 3-pass 循环（pass 0/1/2 → degree 1/2/3）逐 pass 查表驱动，
+ * 求解函数统一为 (poly, solutions, max) -> 实际解数量 的签名。
+ * 新增次数只需在此追加一行（degree、max_solutions、求解函数）。 */
+
+/** @brief 线性求解适配器：把单解指针语义适配为计数数组语义（NULL -> 0，成功 -> 1） */
+static int solve_linear_exact_ops(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions) {
+    if (max_solutions < 1)
+        return 0;
+    SymbolicCoord *sol = solve_linear_exact(poly);
+    if (!sol)
+        return 0;
+    solutions[0] = sol;
+    return 1;
+}
+
+typedef struct {
+    int degree;  /**< 多项式次数（solve_equations_pass 的查找键） */
+    int max_solutions; /**< 该次数最多可产出的解数量 */
+    int (*solve)(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
+} DegreeSolveOps;
+
+static const DegreeSolveOps kDegreeSolveOps[] = {
+    {1, 1, solve_linear_exact_ops},
+    {2, 2, solve_quadratic_exact},
+    {3, 3, solve_cubic_exact},
+};
+
 /**
  * @brief 执行多遍求解（线性 → 二次 → 三次）
  */
@@ -585,74 +614,39 @@ void solve_equations_pass(EquationSystem *sys, GroebnerResult *result, int *solv
     if (no_solution)
         *no_solution = false;
 
-    /* Pass 0: linear, Pass 1: quadratic, Pass 2: cubic */
+    /* Pass 0: linear, Pass 1: quadratic, Pass 2: cubic（按 kDegreeSolveOps 表驱动） */
     for (int pass = 0; pass < 3; pass++) {
+        const DegreeSolveOps *ops = &kDegreeSolveOps[pass];
         for (int i = 0; i < sys->eqs.count; i++) {
             PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
             mpz_poly_t *p = &pe->poly;
-            if (p->degree < 0)
-                continue;
-            if (pass == 0 && p->degree != 1)
-                continue;
-            if (pass == 1 && p->degree != 2)
-                continue;
-            if (pass == 2 && p->degree != 3)
+            if (p->degree < 0 || p->degree != ops->degree)
                 continue;
 
-            if (p->degree == 1) {
-                SymbolicCoord *sol = solve_linear_exact(p);
-                if (sol) {
-                    if (append_solution(result, sol) == 0) {
-                        if (solved_count)
-                            (*solved_count)++;
-                    }
-                    if (do_substitute && sol) {
-                        substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index, sol);
-                    }
-                } else {
+            SymbolicCoord *solutions[3] = {NULL, NULL, NULL};
+            int solution_count = ops->solve(p, solutions, ops->max_solutions);
+            if (solution_count == 0) {
+                /* degree==1 特判保持原语义：仅在矛盾式（a==0 且 b!=0）时置无解，
+                 * 恒等式（0=0）不算无解；quadratic/cubic 为 count==0 即无解 */
+                if (ops->degree == 1) {
                     if (mpz_cmp_si(p->coeffs[1], 0) == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
                         if (no_solution)
                             *no_solution = true;
                     }
-                }
-            } else if (p->degree == 2) {
-                SymbolicCoord *exact_solutions[2] = {NULL, NULL};
-                int exact_count = solve_quadratic_exact(p, exact_solutions, 2);
-                if (exact_count == 0) {
+                } else {
                     if (no_solution)
                         *no_solution = true;
-                } else {
-                    if (exact_count > 1 && multiple_solutions)
-                        (*multiple_solutions)++;
-                    for (int r = 0; r < exact_count; r++) {
-                        if (exact_solutions[r] && append_solution(result, exact_solutions[r]) == 0) {
-                            if (solved_count)
-                                (*solved_count)++;
-                        }
-                        if (do_substitute && exact_solutions[r]) {
-                            substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index,
-                                                       exact_solutions[r]);
-                        }
+                }
+            } else {
+                if (solution_count > 1 && multiple_solutions)
+                    (*multiple_solutions)++;
+                for (int r = 0; r < solution_count; r++) {
+                    if (solutions[r] && append_solution(result, solutions[r]) == 0) {
+                        if (solved_count)
+                            (*solved_count)++;
                     }
-                }
-            } else if (p->degree == 3) {
-                SymbolicCoord *cubic_solutions[3] = {NULL, NULL, NULL};
-                int cubic_count = solve_cubic_exact(p, cubic_solutions, 3);
-                if (cubic_count == 0) {
-                    if (no_solution)
-                        *no_solution = true;
-                } else {
-                    if (cubic_count > 1 && multiple_solutions)
-                        (*multiple_solutions)++;
-                    for (int r = 0; r < cubic_count; r++) {
-                        if (cubic_solutions[r] && append_solution(result, cubic_solutions[r]) == 0) {
-                            if (solved_count)
-                                (*solved_count)++;
-                        }
-                        if (do_substitute && cubic_solutions[r]) {
-                            substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index,
-                                                       cubic_solutions[r]);
-                        }
+                    if (do_substitute && solutions[r]) {
+                        substitute_solved_symbolic(sys, pe->var_node_id, pe->coord_index, solutions[r]);
                     }
                 }
             }

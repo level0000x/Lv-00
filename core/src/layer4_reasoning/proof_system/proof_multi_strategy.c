@@ -645,6 +645,9 @@ void proof_multi_strategy_destroy(ProofMultiStrategy *mse) {
     lv_free((void **) &mse);
 }
 
+/** @brief 注册一个证明策略描述符到多策略执行器
+ *  @note 已建未用/预留：当前全项目无业务调用者（仅头文件声明），
+ *        保留供策略注册与多策略推理流程接入。 */
 bool proof_multi_strategy_register(ProofMultiStrategy *mse, const ProofStrategyDescriptor *descriptor) {
     if (!mse || !descriptor)
         return false;

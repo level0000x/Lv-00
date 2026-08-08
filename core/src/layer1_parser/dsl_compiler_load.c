@@ -13,6 +13,8 @@
 #include "dsl_compiler.h"
 #include "dsl_compiler_internal.h"
 
+#include "lv/lv_lifecycle.h"
+
 #include <ctype.h>
 #include <float.h>
 #include <stdio.h>
@@ -611,13 +613,42 @@ void dsl_compile_config_default(DslCompileConfig *out_config) {
  *
  * @param ast 要销毁的 AST 节点（允许为 NULL）
  */
+/* ── dsl_ast_destroy / dsl_ir_destroy 子资源销毁适配 ── */
+
+/* AST 子节点元素销毁：递归委托 dsl_ast_destroy */
+static void destroy_dsl_ast_child_elem(void *elem) {
+    dsl_ast_destroy((DslAST *) elem);
+}
+
+/* operations 为 DslIROperation 值数组（非指针数组），不适用
+ * lv_FIELD_ARRAY 的指针数组语义：逐元素释放 operands 后释放数组本身 */
+static void destroy_dsl_ir_operations(void *obj, void *field_ptr) {
+    (void) field_ptr;
+    DslIR *ir = (DslIR *) obj;
+    for (int i = 0; i < ir->op_count; i++)
+        lv_free((void **) &ir->operations[i].operands);
+    lv_free((void **) &ir->operations);
+}
+
+/* 符号表元素销毁：释放单个符号字符串 */
+static void destroy_dsl_ir_symbol_elem(void *elem) {
+    char *sym = (char *) elem;
+    if (sym)
+        lv_free((void **) &sym);
+}
+
+/* dsl_ast_destroy 字段描述表：children 逐元素递归销毁后释放数组，
+ * name 纯指针释放 */
+static const lvFieldDesc s_dsl_ast_destroy_fields[] = {
+    lv_FIELD_ARRAY(DslAST, children, child_count, destroy_dsl_ast_child_elem),
+    lv_FIELD_PLAIN(DslAST, name),
+};
+
 void dsl_ast_destroy(DslAST *ast) {
     if (!ast)
         return;
-    for (int i = 0; i < ast->child_count; i++)
-        dsl_ast_destroy(ast->children[i]);
-    lv_free((void **) &ast->children);
-    lv_free((void **) &ast->name);
+    lv_obj_destroy_fields(ast, s_dsl_ast_destroy_fields,
+                          sizeof(s_dsl_ast_destroy_fields) / sizeof(s_dsl_ast_destroy_fields[0]));
     lv_free((void **) &ast);
 }
 
@@ -628,19 +659,19 @@ void dsl_ast_destroy(DslAST *ast) {
  *
  * @param ir 要销毁的 IR 指针（允许为 NULL）
  */
+/* dsl_ir_destroy 字段描述表：operations 逐元素释放操作数数组后释放数组，
+ * symbols 逐元素释放字符串后释放数组，symbol_to_ir_id 纯指针释放 */
+static const lvFieldDesc s_dsl_ir_destroy_fields[] = {
+    lv_FIELD_CUSTOM(DslIR, operations, destroy_dsl_ir_operations),
+    lv_FIELD_ARRAY(DslIR, symbols, symbol_count, destroy_dsl_ir_symbol_elem),
+    lv_FIELD_PLAIN(DslIR, symbol_to_ir_id),
+};
+
 void dsl_ir_destroy(DslIR *ir) {
     if (!ir)
         return;
-    for (int i = 0; i < ir->op_count; i++)
-        lv_free((void **) &ir->operations[i].operands);
-    lv_free((void **) &ir->operations);
-    /* 释放符号表 */
-    if (ir->symbols) {
-        for (int i = 0; i < ir->symbol_count; i++)
-            lv_free((void **) &ir->symbols[i]);
-    }
-    lv_free((void **) &ir->symbols);
-    lv_free((void **) &ir->symbol_to_ir_id);
+    lv_obj_destroy_fields(ir, s_dsl_ir_destroy_fields,
+                          sizeof(s_dsl_ir_destroy_fields) / sizeof(s_dsl_ir_destroy_fields[0]));
     lv_free((void **) &ir);
 }
 

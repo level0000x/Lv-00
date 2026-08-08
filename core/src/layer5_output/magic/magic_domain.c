@@ -10,6 +10,7 @@
 
 #include "magic_internal.h"
 #include "magic.h"
+#include "lv/lv_lifecycle.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -90,16 +91,17 @@ Domain *domain_create(const char *name, int range) {
  *
  * @param domain 待销毁的领域指针
  */
-void domain_destroy(Domain *domain) {
-    if (!domain)
-        return;
-    /* 释放领域名称 */
-    if (domain->name)
-        lv_free((void **) &domain->name);
-    /* 释放领域中心坐标 */
-    if (domain->center)
-        symbolic_coord_destroy(domain->center);
-    /* 释放所有规则及其模式字符串 */
+/* ── domain_destroy 子资源销毁适配 ── */
+
+static void destroy_domain_center(void *obj) {
+    symbolic_coord_destroy((SymbolicCoord *) obj);
+}
+
+/* DomainRule 元素：释放模式字符串（rules 为值数组，非指针数组，
+ * 不适用 lv_FIELD_ARRAY 的指针数组语义） */
+static void destroy_domain_rules(void *obj, void *field_ptr) {
+    (void) field_ptr;
+    Domain *domain = (Domain *) obj;
     if (domain->rules) {
         for (int i = 0; i < domain->rule_count; i++) {
             if (domain->rules[i].pattern)
@@ -107,6 +109,21 @@ void domain_destroy(Domain *domain) {
         }
         lv_free((void **) &domain->rules);
     }
+}
+
+/* domain_destroy 字段描述表：name 纯指针、center 对象销毁、
+ * rules 逐元素销毁（CUSTOM，值数组语义） */
+static const lvFieldDesc s_domain_destroy_fields[] = {
+    lv_FIELD_PLAIN(Domain, name),
+    lv_FIELD_OBJECT(Domain, center, destroy_domain_center),
+    lv_FIELD_CUSTOM(Domain, rules, destroy_domain_rules),
+};
+
+void domain_destroy(Domain *domain) {
+    if (!domain)
+        return;
+    lv_obj_destroy_fields(domain, s_domain_destroy_fields,
+                          sizeof(s_domain_destroy_fields) / sizeof(s_domain_destroy_fields[0]));
     lv_free((void **) &domain);
 }
 

@@ -7,6 +7,7 @@
 
 #include "proof_compiler.h"
 
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_file.h"
 #include "lv/lv_xmacro.h"
 
@@ -67,27 +68,52 @@ lvProofObject *lv_proof_object_create(void) {
 /**
  * @brief 销毁证明对象
  */
+/* ── proof object / step record / trace 子资源销毁适配 ── */
+
+/* 步骤元素销毁：委托 lv_proof_step_record_destroy */
+static void destroy_proof_step_elem(void *elem) {
+    lv_proof_step_record_destroy((lvProofStepRecord *) elem);
+}
+
+/* 命题字段引用计数递减（proposition_unref） */
+static void destroy_proposition_field(void *obj, void *field_ptr) {
+    (void) obj;
+    Proposition **pp = (Proposition **) field_ptr;
+    if (*pp)
+        proposition_unref(*pp);
+}
+
+/* 跟踪事件元素销毁：委托 lv_trace_event_destroy */
+static void destroy_trace_event_elem(void *elem) {
+    lv_trace_event_destroy((lvTraceEvent *) elem);
+}
+
+/* data 为联合体：仅按事件类型释放对应 union 成员中的字符串
+ * （branch_name / lemma_name 与其它成员的 int 值重叠，须条件释放） */
+static void destroy_trace_event_union_data(void *obj, void *field_ptr) {
+    (void) field_ptr;
+    lvTraceEvent *ev = (lvTraceEvent *) obj;
+    if (ev->type == TRACE_EVENT_BRANCH && ev->data.branch.branch_name)
+        lv_free((void **) &ev->data.branch.branch_name);
+    else if (ev->type == TRACE_EVENT_LEMMA && ev->data.lemma.lemma_name)
+        lv_free((void **) &ev->data.lemma.lemma_name);
+}
+
+/* lv_proof_object_destroy 字段描述表：steps 逐元素销毁后释放数组，
+ * goal 引用计数递减（proposition_unref），其余纯指针字段 */
+static const lvFieldDesc s_proof_object_destroy_fields[] = {
+    lv_FIELD_ARRAY(lvProofObject, steps, step_count, destroy_proof_step_elem),
+    lv_FIELD_PLAIN(lvProofObject, axiom_ids),
+    lv_FIELD_PLAIN(lvProofObject, assumption_ids),
+    lv_FIELD_PLAIN(lvProofObject, theorem_name),
+    lv_FIELD_CUSTOM(lvProofObject, goal, destroy_proposition_field),
+};
+
 void lv_proof_object_destroy(lvProofObject *obj) {
     if (!obj)
         return;
-
-    /* 释放所有步骤 */
-    for (int i = 0; i < obj->step_count; i++) {
-        if (obj->steps[i]) {
-            lv_proof_step_record_destroy(obj->steps[i]);
-        }
-    }
-    if (obj->steps)
-        lv_free((void **) &obj->steps);
-    if (obj->axiom_ids)
-        lv_free((void **) &obj->axiom_ids);
-    if (obj->assumption_ids)
-        lv_free((void **) &obj->assumption_ids);
-    if (obj->theorem_name)
-        lv_free((void **) &obj->theorem_name);
-    if (obj->goal)
-        proposition_unref(obj->goal);
-
+    lv_obj_destroy_fields(obj, s_proof_object_destroy_fields,
+                          sizeof(s_proof_object_destroy_fields) / sizeof(s_proof_object_destroy_fields[0]));
     lv_free((void **) &obj);
 }
 
@@ -214,17 +240,20 @@ lvProofStepRecord *lv_proof_step_record_create(void) {
 /**
  * @brief 销毁步骤记录
  */
+/* lv_proof_step_record_destroy 字段描述表：rule_name/premise_step_ids/
+ * justification 纯指针释放，conclusion 引用计数递减 */
+static const lvFieldDesc s_step_record_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvProofStepRecord, rule_name),
+    lv_FIELD_PLAIN(lvProofStepRecord, premise_step_ids),
+    lv_FIELD_CUSTOM(lvProofStepRecord, conclusion, destroy_proposition_field),
+    lv_FIELD_PLAIN(lvProofStepRecord, justification),
+};
+
 void lv_proof_step_record_destroy(lvProofStepRecord *record) {
     if (!record)
         return;
-    if (record->rule_name)
-        lv_free((void **) &record->rule_name);
-    if (record->premise_step_ids)
-        lv_free((void **) &record->premise_step_ids);
-    if (record->conclusion)
-        proposition_unref(record->conclusion);
-    if (record->justification)
-        lv_free((void **) &record->justification);
+    lv_obj_destroy_fields(record, s_step_record_destroy_fields,
+                          sizeof(s_step_record_destroy_fields) / sizeof(s_step_record_destroy_fields[0]));
     lv_free((void **) &record);
 }
 
@@ -647,15 +676,17 @@ lv_PUBLIC_API lvProofTrace *lv_proof_trace_create(void) {
     return trace;
 }
 
+/* lv_proof_trace_destroy 字段描述表：events 逐元素销毁后释放数组，
+ * snapshot_data 纯指针释放 */
+static const lvFieldDesc s_proof_trace_destroy_fields[] = {
+    lv_FIELD_ARRAY(lvProofTrace, events, event_count, destroy_trace_event_elem),
+    lv_FIELD_PLAIN(lvProofTrace, snapshot_data),
+};
+
 lv_PUBLIC_API void lv_proof_trace_destroy(lvProofTrace *trace) {
     if (!trace) return;
-    for (int i = 0; i < trace->event_count; i++) {
-        if (trace->events[i]) {
-            lv_trace_event_destroy(trace->events[i]);
-        }
-    }
-    lv_free((void **)&trace->events);
-    if (trace->snapshot_data) lv_free((void **)&trace->snapshot_data);
+    lv_obj_destroy_fields(trace, s_proof_trace_destroy_fields,
+                          sizeof(s_proof_trace_destroy_fields) / sizeof(s_proof_trace_destroy_fields[0]));
     lv_free((void **)&trace);
 }
 
@@ -760,15 +791,17 @@ lv_PUBLIC_API lvTraceEvent *lv_trace_event_create(lvTraceEventType type) {
     return ev;
 }
 
+/* lv_trace_event_destroy 字段描述表：description/details 纯指针释放，
+ * data 联合体按事件类型条件释放（见 destroy_trace_event_union_data） */
+static const lvFieldDesc s_trace_event_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvTraceEvent, description),
+    lv_FIELD_PLAIN(lvTraceEvent, details),
+    lv_FIELD_CUSTOM(lvTraceEvent, data, destroy_trace_event_union_data),
+};
+
 lv_PUBLIC_API void lv_trace_event_destroy(lvTraceEvent *event) {
     if (!event) return;
-    if (event->description) lv_free((void **)&event->description);
-    if (event->details) lv_free((void **)&event->details);
-    if (event->type == TRACE_EVENT_BRANCH && event->data.branch.branch_name) {
-        lv_free((void **)&event->data.branch.branch_name);
-    }
-    if (event->type == TRACE_EVENT_LEMMA && event->data.lemma.lemma_name) {
-        lv_free((void **)&event->data.lemma.lemma_name);
-    }
+    lv_obj_destroy_fields(event, s_trace_event_destroy_fields,
+                          sizeof(s_trace_event_destroy_fields) / sizeof(s_trace_event_destroy_fields[0]));
     lv_free((void **)&event);
 }

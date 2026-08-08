@@ -10,6 +10,7 @@
 
 #include "magic_internal.h"
 #include "magic.h"
+#include "lv/lv_lifecycle.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -205,20 +206,24 @@ Rune *rune_copy(const Rune *src) {
  *
  * @param rune 待销毁的符文指针
  */
+/* ── rune_destroy 子资源销毁适配 ── */
+
+static void destroy_rune_coord(void *obj) {
+    symbolic_coord_destroy((SymbolicCoord *) obj);
+}
+
+/* rune_destroy 字段描述表：coord 对象销毁，name/symbol 纯指针 */
+static const lvFieldDesc s_rune_destroy_fields[] = {
+    lv_FIELD_OBJECT(Rune, coord, destroy_rune_coord),
+    lv_FIELD_PLAIN(Rune, name),
+    lv_FIELD_PLAIN(Rune, symbol),
+};
+
 void rune_destroy(Rune *rune) {
     if (!rune)
         return;
-
-    /* 逆序释放：先释放内部子对象，再释放自身 */
-    if (rune->coord) {
-        symbolic_coord_destroy(rune->coord);
-    }
-    if (rune->name) {
-        lv_free((void **) &rune->name);
-    }
-    if (rune->symbol) {
-        lv_free((void **) &rune->symbol);
-    }
+    lv_obj_destroy_fields(rune, s_rune_destroy_fields,
+                          sizeof(s_rune_destroy_fields) / sizeof(s_rune_destroy_fields[0]));
     lv_free((void **) &rune);
 }
 

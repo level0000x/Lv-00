@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_lifecycle.h"
 #include "lv/constraint_graph.h"
 #include "lv/graph_hash.h"
 #include "lv/hash_history.h"
@@ -1236,14 +1237,27 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
     return result;
 }
 
+/* ── normalization_result_destroy 子资源销毁适配 ── */
+
+static void destroy_normalization_log(void *obj) {
+    normalization_log_destroy((NormalizationLog *) obj);
+}
+
+/* normalization_result_destroy 字段描述表：log 对象销毁，
+ * 三个 ID 数组纯指针释放，全部置 NULL 安全 */
+static const lvFieldDesc s_normalization_result_destroy_fields[] = {
+    lv_FIELD_OBJECT(NormalizationResult, log, destroy_normalization_log),
+    lv_FIELD_PLAIN(NormalizationResult, merged_node_ids),
+    lv_FIELD_PLAIN(NormalizationResult, original_ids),
+    lv_FIELD_PLAIN(NormalizationResult, representative_ids),
+};
+
 void normalization_result_destroy(NormalizationResult *result) {
-    if (result) {
-        normalization_log_destroy(result->log);
-        lv_free((void **) &result->merged_node_ids);
-        lv_free((void **) &result->original_ids);
-        lv_free((void **) &result->representative_ids);
-        lv_free((void **) &result);
-    }
+    if (!result)
+        return;
+    lv_obj_destroy_fields(result, s_normalization_result_destroy_fields,
+                          sizeof(s_normalization_result_destroy_fields) / sizeof(s_normalization_result_destroy_fields[0]));
+    lv_free((void **) &result);
 }
 
 /* ------------------------------------------------------------------ */

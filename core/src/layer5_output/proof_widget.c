@@ -103,6 +103,9 @@ void proof_widget_destroy(lvWidgetLayout *layout) {
  * @param label      显示标签（可为 NULL，内部会复制）
  * @param bound_step 绑定的证明步骤 ID
  * @return widget_id（非负），失败返回 -1
+ *
+ * @note 已建未用/预留：当前无业务调用者（仅测试 test_layer5_output /
+ *       test_output_export 使用），保留供证明导出 Widget 布局接入。
  */
 int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step) {
     if (!layout)

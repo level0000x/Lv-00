@@ -643,6 +643,8 @@ set(lv_HEADERS
     # v5.0.0 流水线抽象层
     # v5.0.0 统一存储抽象层
     core/include/lv/lv_storage.h
+    # 内置序列化适配器（业务序列化对 ↔ 统一序列化注册表）
+    core/include/lv/lv_serialize_adapters.h
     # 图/树遍历抽象层
     core/include/lv/lv_graph_traversal.h
     # v1.0.0 竞技场分配器抽象层
@@ -797,6 +799,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_backend_plugin.c
     # v5.0.0 统一存储抽象层
     core/src/layer2_resource/lv_storage.c
+    # 内置序列化适配器（graph JSON 等业务序列化对接入统一序列化注册表）
+    core/src/layer2_resource/lv_serialize_adapters.c
     # v1.0.0 竞技场分配器抽象层
     core/src/layer2_resource/lv_arena.c
     # 字节流编解码基础设施（lvByteWriter/lvByteReader：endian/varint/zigzag，收敛 msgpack/压缩引擎手写位移）
@@ -1637,6 +1641,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_template_test)
     add_lv_test_auto(test_module)
     add_lv_test_auto(test_graph_serialize)
+    add_lv_test_auto(test_serialize_registry)
     add_lv_test_auto(test_recursion)
     add_lv_test_auto(test_implementation)
     add_lv_test_auto(test_minimal_parse)

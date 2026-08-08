@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv_file.h"
+#include "lv/lv_lifecycle.h"
 
 #include "lv/geo_visual.h"
 #include "lv/lv_internal.h"
@@ -1209,31 +1210,51 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
  * 资源释放
  * ======================================================================== */
 
+/* ── lv_visual_object_destroy / lv_visual_scene_destroy 子资源销毁适配 ── */
+
+/* 子对象元素销毁：递归委托 lv_visual_object_destroy */
+static void destroy_visual_object_elem(void *elem) {
+    lv_visual_object_destroy((lvVisualObject *) elem);
+}
+
+/* lv_visual_object_destroy 字段描述表：children 逐元素递归销毁后释放数组，
+ * render_cache 纯指针释放；entity 不拥有（外部所有权），不入表 */
+static const lvFieldDesc s_visual_object_destroy_fields[] = {
+    lv_FIELD_ARRAY(lvVisualObject, children, children_count, destroy_visual_object_elem),
+    lv_FIELD_PLAIN(lvVisualObject, render_cache),
+};
+
 void lv_visual_object_destroy(lvVisualObject *obj) {
     if (obj == NULL)
         return;
-
-    /* 递归销毁子对象 */
-    if (obj->children != NULL) {
-        for (size_t i = 0; i < obj->children_count; i++) {
-            lv_visual_object_destroy(obj->children[i]);
-        }
-        lv_free((void **) &obj->children);
-    }
-
-    lv_free((void **) &obj->render_cache);
+    lv_obj_destroy_fields(obj, s_visual_object_destroy_fields,
+                          sizeof(s_visual_object_destroy_fields) / sizeof(s_visual_object_destroy_fields[0]));
     lv_free((void **) &obj);
 }
+
+/* lv_visual_scene_destroy 字段描述表：objects 逐元素递归销毁后释放数组
+ * （与 lv_visual_scene_clear 行为一致，全部置 NULL 安全） */
+static const lvFieldDesc s_visual_scene_destroy_fields[] = {
+    lv_FIELD_ARRAY(lvVisualScene, objects, object_count, destroy_visual_object_elem),
+};
 
 void lv_visual_scene_destroy(lvVisualScene *scene) {
     if (scene == NULL)
         return;
-    lv_visual_scene_clear(scene);
+    lv_obj_destroy_fields(scene, s_visual_scene_destroy_fields,
+                          sizeof(s_visual_scene_destroy_fields) / sizeof(s_visual_scene_destroy_fields[0]));
     lv_free((void **) &scene);
 }
+
+/* lv_visual_renderer_destroy 字段描述表：backend_ctx 预留指针释放 */
+static const lvFieldDesc s_visual_renderer_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvVisualRenderer, backend_ctx),
+};
 
 void lv_visual_renderer_destroy(lvVisualRenderer *renderer) {
     if (renderer == NULL)
         return;
+    lv_obj_destroy_fields(renderer, s_visual_renderer_destroy_fields,
+                          sizeof(s_visual_renderer_destroy_fields) / sizeof(s_visual_renderer_destroy_fields[0]));
     lv_free((void **) &renderer);
 }

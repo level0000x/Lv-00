@@ -238,7 +238,11 @@ typedef bool (*lvSerializeFunc)(const void *obj, lvStorage *storage);
 typedef bool (*lvDeserializeFunc)(void *obj, lvStorage *storage);
 
 /**
- * @brief 注册类型序列化器
+ * @brief 注册类型序列化器（使用默认格式 "default"）
+ *
+ * 等价于 lv_serialize_register_format(type_name, NULL, ser, deser)。
+ * 保留此 API 以保证向后兼容。
+ *
  * @param type_name 类型名称（如 "ConstraintGraph", "Module"）
  * @param ser       序列化函数（可 NULL，表示不支持序列化）
  * @param deser     反序列化函数（可 NULL，表示不支持反序列化）
@@ -249,7 +253,30 @@ lv_PUBLIC_API bool lv_serialize_register(const char *type_name,
                                           lvDeserializeFunc deser);
 
 /**
- * @brief 通用序列化：将对象序列化到存储
+ * @brief 注册类型序列化器（指定格式）
+ *
+ * 注册表 key 为 "type_name:format"（format 为 NULL 或空串时视为 "default"），
+ * 同一类型的多种格式可共存（如 "ConstraintGraph:json"、"ConstraintGraph:bin"）。
+ *
+ * @param type_name 类型名称（如 "ConstraintGraph"）
+ * @param format    格式名称（如 "json"、"bin"；NULL 视为 "default"）
+ * @param ser       序列化函数（可 NULL，表示不支持序列化）
+ * @param deser     反序列化函数（可 NULL，表示不支持反序列化）
+ * @return true 注册成功，false 失败
+ *
+ * @note deser 契约：obj 为对象指针槽（T**），反序列化成功时
+ *       *obj 指向新分配的对象，对象所有权移交调用者。
+ */
+lv_PUBLIC_API bool lv_serialize_register_format(const char *type_name,
+                                                 const char *format,
+                                                 lvSerializeFunc ser,
+                                                 lvDeserializeFunc deser);
+
+/**
+ * @brief 通用序列化：将对象序列化到存储（默认格式 "default"）
+ *
+ * 等价于 lv_serialize_to_storage_format(type_name, NULL, obj, storage)。
+ *
  * @param type_name 类型名称
  * @param obj       对象指针
  * @param storage   存储句柄
@@ -260,9 +287,25 @@ lv_PUBLIC_API bool lv_serialize_to_storage(const char *type_name,
                                             lvStorage *storage);
 
 /**
- * @brief 通用反序列化：从存储反序列化对象
+ * @brief 通用序列化：将对象序列化到存储（指定格式）
  * @param type_name 类型名称
- * @param obj       对象指针（输出）
+ * @param format    格式名称（NULL 视为 "default"，须与注册时一致）
+ * @param obj       对象指针
+ * @param storage   存储句柄
+ * @return true 成功，false 失败
+ */
+lv_PUBLIC_API bool lv_serialize_to_storage_format(const char *type_name,
+                                                   const char *format,
+                                                   const void *obj,
+                                                   lvStorage *storage);
+
+/**
+ * @brief 通用反序列化：从存储反序列化对象（默认格式 "default"）
+ *
+ * 等价于 lv_deserialize_from_storage_format(type_name, NULL, obj, storage)。
+ *
+ * @param type_name 类型名称
+ * @param obj       对象指针槽（T**）：成功时 *obj 指向新分配的对象
  * @param storage   存储句柄
  * @return true 成功，false 失败
  */
@@ -271,7 +314,23 @@ lv_PUBLIC_API bool lv_deserialize_from_storage(const char *type_name,
                                                 lvStorage *storage);
 
 /**
- * @brief 便利函数：序列化到文件
+ * @brief 通用反序列化：从存储反序列化对象（指定格式）
+ * @param type_name 类型名称
+ * @param format    格式名称（NULL 视为 "default"，须与注册时一致）
+ * @param obj       对象指针槽（T**）：成功时 *obj 指向新分配的对象
+ * @param storage   存储句柄
+ * @return true 成功，false 失败
+ */
+lv_PUBLIC_API bool lv_deserialize_from_storage_format(const char *type_name,
+                                                       const char *format,
+                                                       void *obj,
+                                                       lvStorage *storage);
+
+/**
+ * @brief 便利函数：序列化到文件（默认格式 "default"）
+ *
+ * 等价于 lv_serialize_to_file_format(type_name, NULL, obj, filepath)。
+ *
  * @param type_name 类型名称
  * @param obj       对象指针
  * @param filepath  文件路径
@@ -282,15 +341,69 @@ lv_PUBLIC_API bool lv_serialize_to_file(const char *type_name,
                                          const char *filepath);
 
 /**
- * @brief 便利函数：从文件反序列化
+ * @brief 便利函数：序列化到文件（指定格式）
  * @param type_name 类型名称
- * @param obj       对象指针（输出）
+ * @param format    格式名称（NULL 视为 "default"，须与注册时一致）
+ * @param obj       对象指针
+ * @param filepath  文件路径
+ * @return true 成功，false 失败
+ */
+lv_PUBLIC_API bool lv_serialize_to_file_format(const char *type_name,
+                                                const char *format,
+                                                const void *obj,
+                                                const char *filepath);
+
+/**
+ * @brief 便利函数：从文件反序列化（默认格式 "default"）
+ *
+ * 等价于 lv_deserialize_from_file_format(type_name, NULL, obj, filepath)。
+ *
+ * @param type_name 类型名称
+ * @param obj       对象指针槽（T**）：成功时 *obj 指向新分配的对象
  * @param filepath  文件路径
  * @return true 成功，false 失败
  */
 lv_PUBLIC_API bool lv_deserialize_from_file(const char *type_name,
                                              void *obj,
                                              const char *filepath);
+
+/**
+ * @brief 便利函数：从文件反序列化（指定格式）
+ * @param type_name 类型名称
+ * @param format    格式名称（NULL 视为 "default"，须与注册时一致）
+ * @param obj       对象指针槽（T**）：成功时 *obj 指向新分配的对象
+ * @param filepath  文件路径
+ * @return true 成功，false 失败
+ */
+lv_PUBLIC_API bool lv_deserialize_from_file_format(const char *type_name,
+                                                    const char *format,
+                                                    void *obj,
+                                                    const char *filepath);
+
+/** @brief 对象比较函数类型（用于 round-trip 验证，a/b 均非 NULL） */
+typedef bool (*lvCompareFn)(const void *a, const void *b);
+
+/**
+ * @brief 统一 round-trip 验证：序列化 → 反序列化 → 比较
+ *
+ * 内部使用 mem:// 内存缓冲执行完整往返（写后回绕读取），不产生临时文件。
+ *
+ * 比较策略（按优先级）：
+ * 1. compare 非 NULL：直接调用 compare(原始, 反序列化结果)；
+ * 2. compare 为 NULL 且 type_name == "ConstraintGraph"：使用内置的
+ *    meta_repr_graph_equivalent 语义等价比较；
+ * 3. 其余情况：跳过比较，仅验证序列化往返不崩溃、不失败。
+ *
+ * @param type_name 类型名称（须已注册）
+ * @param format    格式名称（NULL 视为 "default"，须与注册时一致）
+ * @param obj       待验证的对象指针（const，只读）
+ * @param compare   比较回调（可 NULL，使用内置分派策略）
+ * @return true 往返成功且（若执行比较）一致；false 序列化/反序列化失败或比较不一致
+ */
+lv_PUBLIC_API bool lv_roundtrip_verify(const char *type_name,
+                                        const char *format,
+                                        const void *obj,
+                                        lvCompareFn compare);
 
 #ifdef __cplusplus
 }
