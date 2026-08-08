@@ -191,6 +191,7 @@ typedef struct {
     bool has_elem;   /* 当前容器是否已写入元素（决定元素前是否加逗号/换行） */
     bool key_pending; /* append_key 后等待值写入（值为 key 紧邻值时不再加逗号） */
     bool pretty;     /* 是否 pretty 输出（换行 + 2 空格/级缩进） */
+    bool key_space;  /* append_key 冒号后是否输出 1 空格（展示型 `"key": ` 风格） */
 } lvJsonBuf;
 
 /**
@@ -275,6 +276,18 @@ void lv_json_buf_free(lvJsonBuf *buf);
  * @param pretty true 开启 pretty，false 关闭
  */
 void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty);
+
+/**
+ * @brief 设置/关闭 append_key 冒号后空格
+ *
+ * 开启后，lv_json_buf_append_key 输出 `"key": `（冒号后 1 空格），
+ * 与 pretty 模式配合形成展示型 JSON 的 `"key": value` 风格；
+ * 关闭时保持默认 `"key":`（紧凑）。可在写入前或写入中随时切换。
+ *
+ * @param buf lvJsonBuf 指针
+ * @param on  true 冒号后带 1 空格，false 不带
+ */
+void lv_json_buf_set_key_space(lvJsonBuf *buf, bool on);
 
 /**
  * @brief 开始一个 JSON 对象（写 '{'）

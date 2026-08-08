@@ -656,45 +656,36 @@ static const char *backtrack_node_type_to_string(BacktrackNodeType type) {
 /**
  * @brief 递归将节点及其子树写入JSON（lvJsonBuf 版本）
  */
-static void backtrack_node_write_json_buf(lvJsonBuf *buf, const BacktrackNode *node, int indent) {
+static void backtrack_node_write_json_buf(lvJsonBuf *buf, const BacktrackNode *node) {
     if (!buf || !node)
         return;
 
-    /* 缩进辅助 */
-    char pad[128];
-    int pad_len = indent * 2;
-    if (pad_len > 120)
-        pad_len = 120;
-    memset(pad, ' ', pad_len);
-    pad[pad_len] = '\0';
-
-    lv_json_buf_append_fmt(buf, "%s{\n", pad);
-    lv_json_buf_append_fmt(buf, "%s  \"id\": %d,\n", pad, node->id);
-    lv_json_buf_append_fmt(buf, "%s  \"type\": \"%s\",\n", pad, backtrack_node_type_to_string(node->type));
-    lv_json_buf_append_fmt(buf, "%s  \"label\": ", pad);
+    lv_json_buf_begin_object(buf);
+    lv_json_buf_append_key(buf, "id");
+    lv_json_buf_append_int(buf, node->id);
+    lv_json_buf_append_key(buf, "type");
+    lv_json_buf_append_string(buf, backtrack_node_type_to_string(node->type));
+    lv_json_buf_append_key(buf, "label");
     lv_json_buf_append_string(buf, node->label);
-    lv_json_buf_append_raw(buf, ",\n");
-    lv_json_buf_append_fmt(buf, "%s  \"strategy\": ", pad);
+    lv_json_buf_append_key(buf, "strategy");
     lv_json_buf_append_string(buf, node->strategy_name);
-    lv_json_buf_append_raw(buf, ",\n");
-    lv_json_buf_append_fmt(buf, "%s  \"isBacktrackPoint\": %s,\n", pad, node->is_backtrack_point ? "true" : "false");
-    lv_json_buf_append_fmt(buf, "%s  \"explored\": %s,\n", pad, node->explored ? "true" : "false");
-    lv_json_buf_append_fmt(buf, "%s  \"color\": \"%s\",\n", pad, proof_color_to_string(node->color));
-    lv_json_buf_append_fmt(buf, "%s  \"stepIndex\": %d,\n", pad, node->step_index);
+    lv_json_buf_append_key(buf, "isBacktrackPoint");
+    lv_json_buf_append_bool(buf, node->is_backtrack_point);
+    lv_json_buf_append_key(buf, "explored");
+    lv_json_buf_append_bool(buf, node->explored);
+    lv_json_buf_append_key(buf, "color");
+    lv_json_buf_append_string(buf, proof_color_to_string(node->color));
+    lv_json_buf_append_key(buf, "stepIndex");
+    lv_json_buf_append_int(buf, node->step_index);
 
     /* 子节点数组 */
-    lv_json_buf_append_fmt(buf, "%s  \"children\": [\n", pad);
-    for (int i = 0; i < node->child_count; i++) {
-        backtrack_node_write_json_buf(buf, node->children[i], indent + 2);
-        if (i < node->child_count - 1) {
-            lv_json_buf_append_raw(buf, ",\n");
-        } else {
-            lv_json_buf_append_raw(buf, "\n");
-        }
-    }
-    lv_json_buf_append_fmt(buf, "%s  ]\n", pad);
+    lv_json_buf_append_key(buf, "children");
+    lv_json_buf_begin_array(buf);
+    for (int i = 0; i < node->child_count; i++)
+        backtrack_node_write_json_buf(buf, node->children[i]);
+    lv_json_buf_end_array(buf);
 
-    lv_json_buf_append_fmt(buf, "%s}", pad);
+    lv_json_buf_end_object(buf);
 }
 
 /**
@@ -773,25 +764,30 @@ bool proof_search_tree_export_json(const ProofSearchTree *tree, const char *file
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 8192))
         return false;
+    lv_json_buf_set_pretty(&buf, true);
+    lv_json_buf_set_key_space(&buf, true);
 
-    lv_json_buf_append_raw(&buf, "{\n");
-    lv_json_buf_append_fmt(&buf, "  \"strategy\": ");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "strategy");
     lv_json_buf_append_string(&buf, tree->current_strategy);
-    lv_json_buf_append_raw(&buf, ",\n");
-    lv_json_buf_append_fmt(&buf, "  \"successPaths\": %d,\n", tree->success_paths);
-    lv_json_buf_append_fmt(&buf, "  \"failurePaths\": %d,\n", tree->failure_paths);
-    lv_json_buf_append_fmt(&buf, "  \"backtrackCount\": %d,\n", tree->backtrack_count);
-    lv_json_buf_append_fmt(&buf, "  \"prunedBranches\": %d,\n", tree->pruned_branches);
-    lv_json_buf_append_fmt(&buf, "  \"maxDepth\": %d,\n", tree->max_depth);
-    lv_json_buf_append_fmt(&buf, "  \"nodeCount\": %d,\n", tree->node_count);
-    lv_json_buf_append_raw(&buf, "  \"root\": ");
-    if (tree->root) {
-        backtrack_node_write_json_buf(&buf, tree->root, 2);
-        lv_json_buf_append_raw(&buf, "\n");
-    } else {
-        lv_json_buf_append_raw(&buf, "null\n");
-    }
-    lv_json_buf_append_raw(&buf, "}\n");
+    lv_json_buf_append_key(&buf, "successPaths");
+    lv_json_buf_append_int(&buf, tree->success_paths);
+    lv_json_buf_append_key(&buf, "failurePaths");
+    lv_json_buf_append_int(&buf, tree->failure_paths);
+    lv_json_buf_append_key(&buf, "backtrackCount");
+    lv_json_buf_append_int(&buf, tree->backtrack_count);
+    lv_json_buf_append_key(&buf, "prunedBranches");
+    lv_json_buf_append_int(&buf, tree->pruned_branches);
+    lv_json_buf_append_key(&buf, "maxDepth");
+    lv_json_buf_append_int(&buf, tree->max_depth);
+    lv_json_buf_append_key(&buf, "nodeCount");
+    lv_json_buf_append_int(&buf, tree->node_count);
+    lv_json_buf_append_key(&buf, "root");
+    if (tree->root)
+        backtrack_node_write_json_buf(&buf, tree->root);
+    else
+        lv_json_buf_append_null(&buf);
+    lv_json_buf_end_object(&buf);
 
     /* 写入文件 */
     FILE *f = fopen(filepath, "w");

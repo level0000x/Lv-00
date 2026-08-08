@@ -292,6 +292,53 @@ static void test_depth_clamp(void) {
     printf("  PASSED\n");
 }
 
+/* ---------- (g) key_space：append_key 冒号后 1 空格 ---------- */
+
+static void test_key_space(void) {
+    printf("Testing key_space mode...\n");
+
+    lvJsonBuf w;
+    assert(lv_json_buf_init(&w, 64));
+    lv_json_buf_set_key_space(&w, true);
+    assert(lv_json_buf_begin_object(&w));
+    assert(lv_json_buf_append_key(&w, "a"));
+    assert(lv_json_buf_append_int(&w, 1));
+    assert(lv_json_buf_append_key(&w, "b"));
+    lv_json_buf_append_string(&w, "x");
+    assert(lv_json_buf_end_object(&w));
+    /* 紧凑 + key_space：仅冒号后多 1 空格 */
+    assert(strcmp(w.buffer, "{\"a\": 1,\"b\": \"x\"}") == 0);
+    lv_json_buf_free(&w);
+
+    /* pretty + key_space：展示型 `"key": ` 风格（2 空格/级缩进） */
+    assert(lv_json_buf_init(&w, 64));
+    lv_json_buf_set_pretty(&w, true);
+    lv_json_buf_set_key_space(&w, true);
+    assert(lv_json_buf_begin_object(&w));
+    assert(lv_json_buf_append_key(&w, "a"));
+    assert(lv_json_buf_append_int(&w, 1));
+    assert(lv_json_buf_append_key(&w, "b"));
+    assert(lv_json_buf_begin_array(&w));
+    assert(lv_json_buf_append_int(&w, 2));
+    assert(lv_json_buf_append_int(&w, 3));
+    assert(lv_json_buf_end_array(&w));
+    assert(lv_json_buf_end_object(&w));
+    assert(strcmp(w.buffer, "{\n  \"a\": 1,\n  \"b\": [\n    2,\n    3\n  ]\n}") == 0);
+
+    /* 默认关闭：行为与旧版一致（紧凑模式无冒号空格） */
+    lv_json_buf_free(&w);
+    assert(lv_json_buf_init(&w, 64));
+    assert(lv_json_buf_begin_object(&w));
+    assert(lv_json_buf_append_key(&w, "a"));
+    assert(lv_json_buf_append_int(&w, 1));
+    assert(lv_json_buf_end_object(&w));
+    assert(strcmp(w.buffer, "{\"a\":1}") == 0);
+
+    lv_json_buf_free(&w);
+
+    printf("  PASSED\n");
+}
+
 int main(void) {
     printf("=== Lv-00 JSON Buf Object-level API Test Suite ===\n\n");
 
@@ -306,6 +353,7 @@ int main(void) {
     test_key_order();
     test_pretty_mode();
     test_depth_clamp();
+    test_key_space();
 
     printf("\nAll json buf tests passed.\n");
     return 0;

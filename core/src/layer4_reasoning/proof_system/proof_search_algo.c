@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_hashtable.h"
 #include "lv/proof.h"
 #include "lv/solver.h"
 #include "lv_internal.h"
@@ -62,10 +63,22 @@ bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
     int stack_top = 0;
     int total_steps = 0;
 
-/* 已访问状态哈希（使用策略组合的简单编码） */
-#define DFS_VISIT_HASH_SIZE 1024
-    int visited_hashes[DFS_VISIT_HASH_SIZE];
-    memset(visited_hashes, 0, sizeof(visited_hashes));
+    /* 已访问状态集合（键 = 策略序列的唯一整数编码）
+     *
+     * 【lv_hashtable 收敛评估结论（已迁移，2026-08-08）】
+     * 原实现为固定数组 visited_hashes[DFS_VISIT_HASH_SIZE=1024]，插入
+     * "槽存 hash+1"，但查重却是线性扫描整个数组找 hash+1 —— 等价于
+     * "hash % 1024 折叠后的数组集合"：不同策略序列折叠碰撞时互相覆盖/
+     * 误判（丢状态，正确性隐患），且每次检查 O(1024) 扫描。
+     * 迁移到 lv_hashtable_i64（开放寻址 + 自动扩容）：
+     *   - 键 = 策略序列 31 进制编码（strategy+1 保证先导位非零，与序列
+     *     长度一一对应；PROOF_STRATEGY_COUNT=24 < 31，短序列编码无碰撞，
+     *     仅在超出 64 位宽时 wrap，碰撞概率 ~2^-64，可忽略）；
+     *   - 值 = 非 NULL 哨兵（值 NULL 视同键不存在）；
+     *   - 查重 O(1)，消除 1024 固定容量与碰撞覆盖。 */
+    lvHashtable *visited = lv_hashtable_i64_create(0);
+    if (!visited)
+        return false;
 
     /* 初始化栈帧 */
     memset(&stack[0], 0, sizeof(DFSFrame));
@@ -101,29 +114,22 @@ bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
             continue;
         }
 
-        /* 计算访问哈希（当前路径的策略序列编码） */
-        int hash = 0;
+        /* 计算策略序列编码（31 进制；strategy+1 保证先导位非零，
+         * 空前缀 [0] 与 [0,0] 不再折叠碰撞） */
+        uint64_t seq = 0;
         for (int d = 0; d < stack_top; d++) {
-            hash = (hash * 31 + stack[d].strategy_index) % DFS_VISIT_HASH_SIZE;
+            seq = seq * 31u + (uint64_t) (stack[d].strategy_index + 1);
         }
-        hash = (hash * 31 + next_strategy) % DFS_VISIT_HASH_SIZE;
+        seq = seq * 31u + (uint64_t) (next_strategy + 1);
 
-        /* 检查是否已访问 */
-        bool already_visited = false;
-        for (int h = 0; h < DFS_VISIT_HASH_SIZE; h++) {
-            if (visited_hashes[h] == hash + 1) { /* +1 避免 0 值歧义 */
-                already_visited = true;
-                break;
-            }
-        }
-
-        if (already_visited) {
+        /* 检查是否已访问（O(1) 集合查询） */
+        if (lv_hashtable_i64_contains(visited, (int64_t) seq)) {
             /* 已访问此状态，跳过 */
             continue;
         }
 
         /* 标记为已访问 */
-        visited_hashes[hash] = hash + 1;
+        lv_hashtable_i64_insert(visited, (int64_t) seq, (void *) 1);
 
         /* 激活并执行策略 */
         proof_multi_strategy_activate(mse, (ProofStrategyType) next_strategy);
@@ -132,6 +138,7 @@ bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
         total_steps++;
 
         if (success && proof->is_complete) {
+            lv_hashtable_i64_destroy(visited);
             return true; /* 找到证明 */
         }
 
@@ -147,11 +154,11 @@ bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
         /* 如果策略失败，当前帧会自动尝试下一个策略 */
     }
 
+    lv_hashtable_i64_destroy(visited);
     return proof->is_complete;
 
 #undef DFS_MAX_DEPTH
 #undef DFS_STACK_SIZE
-#undef DFS_VISIT_HASH_SIZE
 }
 
 /**

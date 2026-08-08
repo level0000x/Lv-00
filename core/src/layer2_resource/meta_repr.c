@@ -1069,11 +1069,14 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
     lvJsonBuf _jb;
     if (!lv_json_buf_init(&_jb, est_size))
         return NULL;
+    lv_json_buf_set_pretty(&_jb, true);
+    lv_json_buf_set_key_space(&_jb, true);
 
-    lv_json_buf_append_raw(&_jb, "{\n  \"nodes\": [\n");
+    lv_json_buf_begin_object(&_jb);
+    lv_json_buf_append_key(&_jb, "nodes");
+    lv_json_buf_begin_array(&_jb);
 
     /* 序列化节点 */
-    bool first = true;
     for (int i = 0; i < encoded_graph->node_count; i++) {
         GeomNode *node = encoded_graph->nodes[i];
         if (!node || !node->is_active)
@@ -1084,34 +1087,43 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
             tname = type_names[(int) node->type];
         }
 
-        if (!first)
-            lv_json_buf_append_raw(&_jb, ",\n");
-        first = false;
-
-        lv_json_buf_append_fmt(&_jb, "    {\"id\": %d, \"type\": \"%s\", \"coord_count\": %d}", node->id, tname,
-                               node->coord_count);
+        lv_json_buf_begin_object(&_jb);
+        lv_json_buf_append_key(&_jb, "id");
+        lv_json_buf_append_int(&_jb, node->id);
+        lv_json_buf_append_key(&_jb, "type");
+        lv_json_buf_append_string(&_jb, tname);
+        lv_json_buf_append_key(&_jb, "coord_count");
+        lv_json_buf_append_int(&_jb, node->coord_count);
+        lv_json_buf_end_object(&_jb);
     }
-    lv_json_buf_append_raw(&_jb, "\n  ],\n  \"constraints\": [\n");
+    lv_json_buf_end_array(&_jb);
+    lv_json_buf_append_key(&_jb, "constraints");
+    lv_json_buf_begin_array(&_jb);
 
     /* 序列化约束 */
-    first = true;
     for (int i = 0; i < encoded_graph->constraint_count; i++) {
         Constraint *con = encoded_graph->constraints[i];
         if (!con || !con->is_active)
             continue;
 
-        if (!first)
-            lv_json_buf_append_raw(&_jb, ",\n");
-        first = false;
-
-        lv_json_buf_append_fmt(&_jb, "    {\"id\": %d, \"type\": %d, \"participant_count\": %d}", con->id,
-                               (int) con->type, con->participant_count);
+        lv_json_buf_begin_object(&_jb);
+        lv_json_buf_append_key(&_jb, "id");
+        lv_json_buf_append_int(&_jb, con->id);
+        lv_json_buf_append_key(&_jb, "type");
+        lv_json_buf_append_int(&_jb, (int) con->type);
+        lv_json_buf_append_key(&_jb, "participant_count");
+        lv_json_buf_append_int(&_jb, con->participant_count);
+        lv_json_buf_end_object(&_jb);
     }
-
-    lv_json_buf_append_raw(&_jb, "\n  ],\n  \"metadata\": {\n");
-    lv_json_buf_append_fmt(&_jb, "    \"node_count\": %d,\n", encoded_graph->node_count);
-    lv_json_buf_append_fmt(&_jb, "    \"constraint_count\": %d\n", encoded_graph->constraint_count);
-    lv_json_buf_append_raw(&_jb, "  }\n}\n");
+    lv_json_buf_end_array(&_jb);
+    lv_json_buf_append_key(&_jb, "metadata");
+    lv_json_buf_begin_object(&_jb);
+    lv_json_buf_append_key(&_jb, "node_count");
+    lv_json_buf_append_int(&_jb, encoded_graph->node_count);
+    lv_json_buf_append_key(&_jb, "constraint_count");
+    lv_json_buf_append_int(&_jb, encoded_graph->constraint_count);
+    lv_json_buf_end_object(&_jb);
+    lv_json_buf_end_object(&_jb);
 
     return lv_json_buf_finalize(&_jb);
 }

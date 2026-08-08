@@ -91,11 +91,23 @@ int lv_canonical_compare_terms(const int *a, const int *b, int var_count) {
  *      bucket_head + bucket_nodes 两个数组、无逐节点 malloc、用完即释放，
  *      是当前热路径上的最优形态；改用 lv_hashtable 将引入逐节点分配、
  *      扩容重哈希与键折叠，纯性能退化。
- * 二次收敛评估（lv_hashtable 增加 64 位键形态 lv_hashtable_i64 的方案）：
+ * 二次收敛评估（2026-05-24 提议 lv_hashtable_i64 方案）：
  *   即使键升级为 uint64_t，理由 2（分组哈希 + 桶内精确比较，键唯一性由
  *   hash 与指数数组共同决定，lv_hashtable 键比较模型无法承载）与理由 3
  *   （动态摘除）依然成立，且理由 4 的一次性数组形态与逐节点分配模型相悖，
  *   故仍不采用。
+ * 三次收敛评估（2026-08-08 提交 17f402d 起 lv_hashtable_i64 形态已存在，
+ * 键为 int64_t + void* 值、开放寻址 + 自动扩容）：
+ *   i64 形态就绪后重新核实，结论不变，仍不迁移：
+ *     a. 键唯一性语义仍不匹配：term_hash 是分组哈希，同一 hash 下可挂多个
+ *        指数数组不同的项（需 exponents_equal 精确区分）；lv_hashtable_i64
+ *        以 int64 == 判键唯一，同 hash 第二项 insert 返回 false 即丢失合并。
+ *     b. 合并归零动态摘除：i64 形态 remove 后探测链经 tombstone 维护，可删，
+ *        但"合并归零后重新入桶"（相同 hash 重新插入新指数数组）仍需在表外
+ *        区分"该 hash 已存在"，等价于保留桶链表。
+ *     c. 热路径形态：本桶为 lv_expr_canonicalize 单次调用内一次性两个数组，
+ *        无句柄/无扩容（容量 = old_count 取 2 的幂），与 i64 形态的负载因子
+ *        自动扩容、逐槽 calloc 分配模型相悖，迁移为纯性能退化。
  * 故保留原实现，仅与 lv_hashtable 共享 FNV-1a 哈希族（lv_fnv1a_update）。
  */
 typedef struct MergeBucketNode {

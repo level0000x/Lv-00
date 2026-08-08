@@ -8,22 +8,34 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "lv/lv_hashtable.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
-/* ── 符号表 ── */
-#define LV_SEMA_MAX_SYMBOLS 256
+/* ── 符号表 ──
+ *
+ * 【lv_hashtable 收敛评估结论（已迁移，2026-08-08）】
+ * 原实现为固定数组 LvSymbol symbols[LV_SEMA_MAX_SYMBOLS]（上限 256）+ 线性
+ * strcmp 扫描（find_symbol/add_symbol），满时报 "symbol table full"。
+ * 符号表语义为 name → (type, loc) 注册表，键是符号名字符串，与
+ * lv_hashtable_str 形态完全匹配，故迁移：
+ *   - 键 = 符号名（表内部持有副本，不再受 64 字节截断与 256 上限约束）；
+ *   - 值 = LvSymbol*（堆分配，类型/位置信息），所有权归本模块，
+ *     destroy / analyze 重置时释放；
+ *   - 查重从 O(n) strcmp 线性扫描降为 O(1) 哈希查找。
+ * 外部行为不变：重复声明仍报 "duplicate declaration"，仅内存分配失败时
+ * add_symbol 返回 false（不再有 "symbol table full" 错误路径）。
+ */
 #define LV_SEMA_MAX_ERRORS 64
 
 typedef struct {
-    char name[64];
+    char name[64]; /* 冗余保留：表键已存完整名字，此字段仅保持既有结构形态 */
     LvSemanticType type;
     LvSourceLoc loc;
 } LvSymbol;
 
 struct LvSemaContext {
-    LvSymbol symbols[LV_SEMA_MAX_SYMBOLS];
-    int symbol_count;
+    lvHashtable *symbols; /* str 形态：符号名 → LvSymbol* */
     char errors[LV_SEMA_MAX_ERRORS][256];
     int error_count;
 };
@@ -92,29 +104,40 @@ static LvSemanticType type_name_to_type(const char *name) {
     return (LvSemanticType)lv_str_to_enum(sema_type_map, 12, name, LV_TYPE_UNKNOWN);
 }
 
-/** 在符号表中查找标识符 */
+/** 释放单个符号值（lv_hashtable_str foreach 回调） */
+static void free_symbol_value(const char *key, void *value, void *ctx) {
+    (void) key;
+    (void) ctx;
+    lv_free((void **) &value);
+}
+
+/** 在符号表中查找标识符（O(1) 哈希查找） */
 static LvSymbol *find_symbol(LvSemaContext *ctx, const char *name) {
-    for (int i = 0; i < ctx->symbol_count; i++) {
-        if (strcmp(ctx->symbols[i].name, name) == 0)
-            return &ctx->symbols[i];
-    }
-    return NULL;
+    if (!ctx->symbols)
+        return NULL;
+    return (LvSymbol *) lv_hashtable_str_get(ctx->symbols, name);
 }
 
 /** 向符号表添加标识符 */
 static bool add_symbol(LvSemaContext *ctx, const char *name, LvSemanticType type, LvSourceLoc loc) {
-    if (ctx->symbol_count >= LV_SEMA_MAX_SYMBOLS) {
-        sema_error(ctx, loc, "symbol table full");
-        return false;
-    }
+    if (!ctx->symbols)
+        return false; /* 符号表不可用（分配失败） */
     if (find_symbol(ctx, name)) {
         sema_error(ctx, loc, "duplicate declaration: '%s'", name);
         return false;
     }
-    LvSymbol *sym = &ctx->symbols[ctx->symbol_count++];
+    LvSymbol *sym = (LvSymbol *) lv_calloc(1, sizeof(LvSymbol));
+    if (!sym)
+        return false;
     lv_strncpy(sym->name, name, sizeof(sym->name));
     sym->type = type;
     sym->loc = loc;
+    /* 表内部复制键副本（完整名字，不受 name[64] 截断限制）；
+     * insert 失败仅可能是分配失败或并发重复（find 已查，理论不可达） */
+    if (!lv_hashtable_str_insert(ctx->symbols, name, sym)) {
+        lv_free((void **) &sym);
+        return false;
+    }
     return true;
 }
 
@@ -555,12 +578,23 @@ static void check_stmt(LvSemaContext *ctx, LvAstNode *node) {
 
 LvSemaContext *lv_sema_create(void) {
     LvSemaContext *ctx = (LvSemaContext *) lv_calloc(1, sizeof(LvSemaContext));
+    if (!ctx)
+        return NULL;
+    ctx->symbols = lv_hashtable_str_create(0);
+    if (!ctx->symbols) {
+        lv_free((void **) &ctx);
+        return NULL;
+    }
     return ctx;
 }
 
 void lv_sema_destroy(LvSemaContext *ctx) {
     if (!ctx)
         return;
+    if (ctx->symbols) {
+        lv_hashtable_str_foreach(ctx->symbols, free_symbol_value, NULL);
+        lv_hashtable_str_destroy(ctx->symbols);
+    }
     lv_free((void **) &ctx);
 }
 
@@ -569,7 +603,12 @@ bool lv_sema_analyze(LvSemaContext *ctx, LvAstNode *ast) {
         return false;
 
     ctx->error_count = 0;
-    ctx->symbol_count = 0;
+
+    /* 重置符号表：释放旧符号并重建空表（str 形态 foreach 中不可删除节点，
+     * 故先 foreach 释放值，再销毁重建） */
+    lv_hashtable_str_foreach(ctx->symbols, free_symbol_value, NULL);
+    lv_hashtable_str_destroy(ctx->symbols);
+    ctx->symbols = lv_hashtable_str_create(0);
 
     if (ast->type == LV_AST_PROGRAM) {
         for (LvAstNode *s = ast->child; s; s = s->next) {

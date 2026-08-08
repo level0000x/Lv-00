@@ -673,6 +673,7 @@ bool lv_json_buf_init(lvJsonBuf *buf, size_t initial_size) {
     buf->has_elem = false;
     buf->key_pending = false;
     buf->pretty = false;
+    buf->key_space = false;
     return true;
 }
 
@@ -791,6 +792,11 @@ void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty) {
         buf->pretty = pretty;
 }
 
+void lv_json_buf_set_key_space(lvJsonBuf *buf, bool on) {
+    if (buf)
+        buf->key_space = on;
+}
+
 /* 按嵌套深度输出缩进（2 空格/级，超过 64 层按 64 层处理防溢出） */
 static void json_buf_write_indent(lvJsonBuf *buf, unsigned depth) {
     if (depth > 64u)
@@ -877,6 +883,8 @@ bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key) {
     json_buf_begin_value(buf);
     json_buf_append_quoted(buf, key);
     lv_json_buf_append_char(buf, ':');
+    if (buf->key_space)
+        lv_json_buf_append_char(buf, ' ');
     buf->key_pending = true;
     return true;
 }

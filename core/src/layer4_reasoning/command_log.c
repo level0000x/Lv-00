@@ -444,16 +444,13 @@ static void json_buf_elem_uint64(lvJsonBuf *buf, const void *elem) {
     lv_json_buf_append_fmt(buf, "%llu", (unsigned long long) *(const uint64_t *) elem);
 }
 
-/** 泛型 JSON 数组写出器（元素大小 + 元素格式化函数指针），格式与旧三函数逐位一致 */
+/** 泛型 JSON 数组写出器（元素大小 + 元素格式化函数指针），pretty 模式下自动多行缩进 */
 static void json_buf_array(lvJsonBuf *buf, const void *arr, int count, size_t elem_size,
                            JsonArrayElemWriter writer) {
-    lv_json_buf_append_char(buf, '[');
-    for (int i = 0; i < count; i++) {
-        if (i > 0)
-            lv_json_buf_append_raw(buf, ", ");
+    lv_json_buf_begin_array(buf);
+    for (int i = 0; i < count; i++)
         writer(buf, (const char *) arr + (size_t) i * elem_size);
-    }
-    lv_json_buf_append_char(buf, ']');
+    lv_json_buf_end_array(buf);
 }
 
 /* ── json_buf_write_params 查找表 ── */
@@ -461,83 +458,102 @@ typedef void (*JsonWriteHandler)(lvJsonBuf *buf, const CommandEntry *e);
 
 static void json_write_add_node(lvJsonBuf *buf, const CommandEntry *e) {
     const CmdAddNodeParams *p = &e->params.add_node;
-    lv_json_buf_append_fmt(buf, "\"geom_type\": %d,\n", p->geom_type);
-    lv_json_buf_append_fmt(buf, "      \"node_id\": %d,\n", p->node_id);
-    lv_json_buf_append_fmt(buf, "      \"coord_count\": %d,\n", p->coord_count);
-    lv_json_buf_append_fmt(buf, "      \"namespace_depth\": %d,\n", p->namespace_depth);
-    lv_json_buf_append_fmt(buf, "      \"parent_block_id\": %d,\n", p->parent_block_id);
-    lv_json_buf_append_fmt(buf, "      \"is_formal_param\": %s,\n", p->is_formal_param ? "true" : "false");
-    lv_json_buf_append_raw(buf, "      \"coords_num\": ");
+    lv_json_buf_append_key(buf, "geom_type");
+    lv_json_buf_append_int(buf, p->geom_type);
+    lv_json_buf_append_key(buf, "node_id");
+    lv_json_buf_append_int(buf, p->node_id);
+    lv_json_buf_append_key(buf, "coord_count");
+    lv_json_buf_append_int(buf, p->coord_count);
+    lv_json_buf_append_key(buf, "namespace_depth");
+    lv_json_buf_append_int(buf, p->namespace_depth);
+    lv_json_buf_append_key(buf, "parent_block_id");
+    lv_json_buf_append_int(buf, p->parent_block_id);
+    lv_json_buf_append_key(buf, "is_formal_param");
+    lv_json_buf_append_bool(buf, p->is_formal_param);
+    lv_json_buf_append_key(buf, "coords_num");
     if (p->coords_num && p->coord_count > 0)
         json_buf_array(buf, p->coords_num, p->coord_count, sizeof(double), json_buf_elem_double);
     else
-        lv_json_buf_append_raw(buf, "null");
-    lv_json_buf_append_raw(buf, ",\n");
-    lv_json_buf_append_raw(buf, "      \"coords_den\": ");
+        lv_json_buf_append_null(buf);
+    lv_json_buf_append_key(buf, "coords_den");
     if (p->coords_den && p->coord_count > 0)
         json_buf_array(buf, p->coords_den, p->coord_count, sizeof(uint64_t), json_buf_elem_uint64);
     else
-        lv_json_buf_append_raw(buf, "null");
+        lv_json_buf_append_null(buf);
 }
 
 static void json_write_add_constraint(lvJsonBuf *buf, const CommandEntry *e) {
     const CmdAddConstraintParams *p = &e->params.add_constraint;
-    lv_json_buf_append_fmt(buf, "\"constraint_type\": %d,\n", p->constraint_type);
-    lv_json_buf_append_fmt(buf, "      \"constraint_id\": %d,\n", p->constraint_id);
-    lv_json_buf_append_fmt(buf, "      \"participant_count\": %d,\n", p->participant_count);
-    lv_json_buf_append_raw(buf, "      \"participant_ids\": ");
+    lv_json_buf_append_key(buf, "constraint_type");
+    lv_json_buf_append_int(buf, p->constraint_type);
+    lv_json_buf_append_key(buf, "constraint_id");
+    lv_json_buf_append_int(buf, p->constraint_id);
+    lv_json_buf_append_key(buf, "participant_count");
+    lv_json_buf_append_int(buf, p->participant_count);
+    lv_json_buf_append_key(buf, "participant_ids");
     json_buf_array(buf, p->participant_ids, p->participant_count, sizeof(int), json_buf_elem_int);
 }
 
 static void json_write_remove_node(lvJsonBuf *buf, const CommandEntry *e) {
-    lv_json_buf_append_fmt(buf, "\"node_id\": %d", e->params.remove_node.node_id);
+    lv_json_buf_append_key(buf, "node_id");
+    lv_json_buf_append_int(buf, e->params.remove_node.node_id);
 }
 
 static void json_write_remove_constraint(lvJsonBuf *buf, const CommandEntry *e) {
-    lv_json_buf_append_fmt(buf, "\"constraint_index\": %d", e->params.remove_constraint.constraint_index);
+    lv_json_buf_append_key(buf, "constraint_index");
+    lv_json_buf_append_int(buf, e->params.remove_constraint.constraint_index);
 }
 
 static void json_write_pack_function(lvJsonBuf *buf, const CommandEntry *e) {
     const CmdPackFunctionParams *p = &e->params.pack_function;
-    lv_json_buf_append_fmt(buf, "\"internal_count\": %d,\n", p->internal_count);
-    lv_json_buf_append_fmt(buf, "      \"input_count\": %d,\n", p->input_count);
-    lv_json_buf_append_fmt(buf, "      \"output_count\": %d,\n", p->output_count);
-    lv_json_buf_append_fmt(buf, "      \"result_func_id\": %d,\n", p->result_func_id);
-    lv_json_buf_append_raw(buf, "      \"internal_node_ids\": ");
+    lv_json_buf_append_key(buf, "internal_count");
+    lv_json_buf_append_int(buf, p->internal_count);
+    lv_json_buf_append_key(buf, "input_count");
+    lv_json_buf_append_int(buf, p->input_count);
+    lv_json_buf_append_key(buf, "output_count");
+    lv_json_buf_append_int(buf, p->output_count);
+    lv_json_buf_append_key(buf, "result_func_id");
+    lv_json_buf_append_int(buf, p->result_func_id);
+    lv_json_buf_append_key(buf, "internal_node_ids");
     if (p->internal_node_ids && p->internal_count > 0)
         json_buf_array(buf, p->internal_node_ids, p->internal_count, sizeof(int), json_buf_elem_int);
     else
-        lv_json_buf_append_raw(buf, "null");
-    lv_json_buf_append_raw(buf, ",\n");
-    lv_json_buf_append_raw(buf, "      \"input_port_ids\": ");
+        lv_json_buf_append_null(buf);
+    lv_json_buf_append_key(buf, "input_port_ids");
     if (p->input_port_ids && p->input_count > 0)
         json_buf_array(buf, p->input_port_ids, p->input_count, sizeof(int), json_buf_elem_int);
     else
-        lv_json_buf_append_raw(buf, "null");
-    lv_json_buf_append_raw(buf, ",\n");
-    lv_json_buf_append_raw(buf, "      \"output_port_ids\": ");
+        lv_json_buf_append_null(buf);
+    lv_json_buf_append_key(buf, "output_port_ids");
     if (p->output_port_ids && p->output_count > 0)
         json_buf_array(buf, p->output_port_ids, p->output_count, sizeof(int), json_buf_elem_int);
     else
-        lv_json_buf_append_raw(buf, "null");
+        lv_json_buf_append_null(buf);
 }
 
 static void json_write_normalize_graph(lvJsonBuf *buf, const CommandEntry *e) {
-    lv_json_buf_append_fmt(buf, "\"scope_aware\": %s,\n", e->params.normalize_graph.scope_aware ? "true" : "false");
-    lv_json_buf_append_fmt(buf, "      \"max_iterations\": %d", e->params.normalize_graph.max_iterations);
+    lv_json_buf_append_key(buf, "scope_aware");
+    lv_json_buf_append_bool(buf, e->params.normalize_graph.scope_aware);
+    lv_json_buf_append_key(buf, "max_iterations");
+    lv_json_buf_append_int(buf, e->params.normalize_graph.max_iterations);
 }
 
 static void json_write_unify(lvJsonBuf *buf, const CommandEntry *e) {
-    lv_json_buf_append_fmt(buf, "\"construction_graph_id\": %d,\n", e->params.unify.construction_graph_id);
-    lv_json_buf_append_fmt(buf, "      \"proposition_graph_id\": %d,\n", e->params.unify.proposition_graph_id);
-    lv_json_buf_append_fmt(buf, "      \"result\": %s", e->params.unify.result ? "true" : "false");
+    lv_json_buf_append_key(buf, "construction_graph_id");
+    lv_json_buf_append_int(buf, e->params.unify.construction_graph_id);
+    lv_json_buf_append_key(buf, "proposition_graph_id");
+    lv_json_buf_append_int(buf, e->params.unify.proposition_graph_id);
+    lv_json_buf_append_key(buf, "result");
+    lv_json_buf_append_bool(buf, e->params.unify.result);
 }
 
 static void json_write_set_numeric_assumption(lvJsonBuf *buf, const CommandEntry *e) {
     const CmdSetNumericAssumptionParams *p = &e->params.set_numeric_assumption;
-    lv_json_buf_append_fmt(buf, "\"node_id\": %d,\n", p->node_id);
-    lv_json_buf_append_fmt(buf, "      \"precision\": %.17g,\n", p->precision);
-    lv_json_buf_append_raw(buf, "      \"declaration\": ");
+    lv_json_buf_append_key(buf, "node_id");
+    lv_json_buf_append_int(buf, p->node_id);
+    lv_json_buf_append_key(buf, "precision");
+    lv_json_buf_append_fmt(buf, "%.17g", p->precision);
+    lv_json_buf_append_key(buf, "declaration");
     lv_json_buf_append_string(buf, p->declaration);
 }
 
@@ -552,13 +568,15 @@ static const JsonWriteHandler json_write_table[CMD_COUNT] = {
     [CMD_SET_NUMERIC_ASSUMPTION] = json_write_set_numeric_assumption,
 };
 
-/** 输出命令参数的 JSON 对象体（不含外层花括号）（lvJsonBuf 版本） */
+/** 输出命令参数的 JSON 对象体（不含外层花括号）（lvJsonBuf 版本，调用方已 begin_object/end_object） */
 static void json_buf_write_params(lvJsonBuf *buf, const CommandEntry *e) {
     JsonWriteHandler h = json_write_table[e->type];
     if (h)
         h(buf, e);
-    else
-        lv_json_buf_append_raw(buf, "\"type\": \"unknown\"");
+    else {
+        lv_json_buf_append_key(buf, "type");
+        lv_json_buf_append_string(buf, "unknown");
+    }
 }
 
 bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
@@ -568,26 +586,34 @@ bool command_log_serialize_json(const CommandLog *log, const char *filepath) {
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 4096))
         return false;
+    lv_json_buf_set_pretty(&buf, true);
+    lv_json_buf_set_key_space(&buf, true);
 
-    lv_json_buf_append_raw(&buf, "{\n  \"version\": 1,\n  \"entries\": [\n");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "version");
+    lv_json_buf_append_int(&buf, 1);
+    lv_json_buf_append_key(&buf, "entries");
+    lv_json_buf_begin_array(&buf);
 
     CommandEntry **log_entries = (CommandEntry **) log->entries.data;
     for (int i = 0; i < log->entries.count; i++) {
         const CommandEntry *e = log_entries[i];
-        lv_json_buf_append_raw(&buf, "    {\n");
-        lv_json_buf_append_fmt(&buf, "      \"type\": \"%s\",\n", g_command_type_names[e->type]);
-        lv_json_buf_append_fmt(&buf, "      \"seq\": %lld,\n", (long long) e->seq);
-        lv_json_buf_append_fmt(&buf, "      \"timestamp_ms\": %lld,\n", (long long) e->timestamp_ms);
-        lv_json_buf_append_raw(&buf, "      \"params\": {\n        ");
+        lv_json_buf_begin_object(&buf);
+        lv_json_buf_append_key(&buf, "type");
+        lv_json_buf_append_string(&buf, g_command_type_names[e->type]);
+        lv_json_buf_append_key(&buf, "seq");
+        lv_json_buf_append_int(&buf, (long long) e->seq);
+        lv_json_buf_append_key(&buf, "timestamp_ms");
+        lv_json_buf_append_int(&buf, (long long) e->timestamp_ms);
+        lv_json_buf_append_key(&buf, "params");
+        lv_json_buf_begin_object(&buf);
         json_buf_write_params(&buf, e);
-        lv_json_buf_append_raw(&buf, "\n      }\n");
-        lv_json_buf_append_raw(&buf, "    }");
-        if (i < log->entries.count - 1)
-            lv_json_buf_append_char(&buf, ',');
-        lv_json_buf_append_char(&buf, '\n');
+        lv_json_buf_end_object(&buf);
+        lv_json_buf_end_object(&buf);
     }
 
-    lv_json_buf_append_raw(&buf, "  ]\n}\n");
+    lv_json_buf_end_array(&buf);
+    lv_json_buf_end_object(&buf);
 
     /* 写入文件 */
     FILE *fp = lv_file_open(filepath, "w");

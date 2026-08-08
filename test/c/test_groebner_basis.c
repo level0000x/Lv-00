@@ -560,6 +560,319 @@ static void test_finite_field_ring(void) {
 }
 
 /* ================================================================
+ *  Group 9: ideal_intersection / ideal_quotient —— 理想交与理想商
+ * ================================================================
+ *  补充 2026-08-08 守卫宏推广后 ideal_intersection / ideal_quotient
+ *  的代数正确性测试（此前无直接单测覆盖）。代数事实：
+ *    - ⟨x⟩ ∩ ⟨y⟩ = ⟨xy⟩；吸收律 I ∩ (I + J) = I；⟨x⟩ ∩ ⟨x²⟩ = ⟨x²⟩
+ *    - I : J = { q | q·J ⊆ I }；⟨xy⟩ : ⟨x⟩ = ⟨y⟩；I ⊆ I : J（普遍成立）
+ *    - J ⊆ I ⟹ I : J = R；J = ⟨1⟩ ⟹ I : J = I；⟨x²⟩ : ⟨x⟩ = ⟨x⟩
+ */
+
+/* 辅助：设置单项式 c * x_0^{pv[0]} * ... * x_{n-1}^{pv[n-1]}（pv 长度 = var_count） */
+static void poly_fill_monomial_vars(lvPolynomial *p, const int *pv, double coeff) {
+    int vc = p->var_count;
+    int deg = 0;
+    for (int v = 0; v < vc; v++) {
+        p->powers[v] = pv[v];
+        deg += pv[v];
+    }
+    ((double *)p->coeffs)[0] = coeff;
+    p->term_count = 1;
+    p->total_degree = deg;
+}
+
+/* ⟨x⟩ ∩ ⟨y⟩ = ⟨xy⟩：交的生成元、成员判定、原始理想归属、理想封闭性 */
+static void test_ideal_intersection_basic(void) {
+    printf("  Running: test_ideal_intersection_basic ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    int iid = ideal_create(reg, rid, "I=<x>");
+    int jid = ideal_create(reg, rid, "J=<y>");
+    TEST_ASSERT(iid >= 0 && jid >= 0, "ideal_create");
+
+    int px = poly_create(reg, rid, 4, "x");
+    int py = poly_create(reg, rid, 4, "y");
+    TEST_ASSERT(px >= 0 && py >= 0, "poly_create");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px), 0, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, py), 1, 1, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid, py), 0);
+
+    /* K = I ∩ J */
+    int K = ideal_intersection(reg, iid, jid);
+    TEST_ASSERT(K >= 0, "ideal_intersection(I,J) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_BUCHBERGER), 0);
+    TEST_ASSERT_EQ(groebner_compute(reg, jid, GROEBNER_BUCHBERGER), 0);
+    TEST_ASSERT_EQ(groebner_compute(reg, K, GROEBNER_BUCHBERGER), 0);
+
+    int pxy = poly_create(reg, rid, 4, "xy");
+    int xypv[2] = {1, 1};
+    poly_fill_monomial_vars((lvPolynomial *)poly_get(reg, pxy), xypv, 1.0);
+    TEST_ASSERT(ideal_membership(reg, K, pxy), "xy should be in I∩J");
+
+    /* 交的结果属于两个原始理想：xy ∈ I 且 xy ∈ J */
+    TEST_ASSERT(ideal_membership(reg, iid, pxy), "xy should be in I=<x>");
+    TEST_ASSERT(ideal_membership(reg, jid, pxy), "xy should be in J=<y>");
+
+    /* 严格性：x ∉ ⟨y⟩ 且 y ∉ ⟨x⟩，故 x, y 均不在交中 */
+    TEST_ASSERT(!ideal_membership(reg, K, px), "x should NOT be in I∩J");
+    TEST_ASSERT(!ideal_membership(reg, K, py), "y should NOT be in I∩J");
+
+    /* 交是理想（封闭性）：x²y = x·(xy) ∈ K */
+    int px2y = poly_create(reg, rid, 4, "x^2 y");
+    int x2ypv[2] = {2, 1};
+    poly_fill_monomial_vars((lvPolynomial *)poly_get(reg, px2y), x2ypv, 1.0);
+    TEST_ASSERT(ideal_membership(reg, K, px2y), "x^2 y should be in I∩J");
+
+    ideal_destroy(reg, K);
+    ideal_destroy(reg, iid);
+    ideal_destroy(reg, jid);
+    poly_destroy(reg, px);
+    poly_destroy(reg, py);
+    poly_destroy(reg, pxy);
+    poly_destroy(reg, px2y);
+    ring_registry_destroy(reg);
+}
+
+/* ⟨x⟩ ∩ ⟨x²⟩ = ⟨x²⟩：非互素生成元的幂次情形 */
+static void test_ideal_intersection_power(void) {
+    printf("  Running: test_ideal_intersection_power ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    int iid = ideal_create(reg, rid, "I=<x>");
+    int jid = ideal_create(reg, rid, "J=<x^2>");
+    TEST_ASSERT(iid >= 0 && jid >= 0, "ideal_create");
+
+    int px = poly_create(reg, rid, 4, "x");
+    int px2 = poly_create(reg, rid, 4, "x^2");
+    int px3 = poly_create(reg, rid, 4, "x^3");
+    TEST_ASSERT(px >= 0 && px2 >= 0 && px3 >= 0, "poly_create");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px), 0, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px2), 0, 2, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px3), 0, 3, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid, px2), 0);
+
+    int K = ideal_intersection(reg, iid, jid);
+    TEST_ASSERT(K >= 0, "ideal_intersection(I,J) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K, GROEBNER_BUCHBERGER), 0);
+
+    /* ⟨x⟩ ∩ ⟨x²⟩ = ⟨x²⟩：x² ∈ K，x ∉ K，x³ ∈ K（封闭性） */
+    TEST_ASSERT(ideal_membership(reg, K, px2), "x^2 should be in I∩J");
+    TEST_ASSERT(!ideal_membership(reg, K, px), "x should NOT be in I∩J");
+    TEST_ASSERT(ideal_membership(reg, K, px3), "x^3 should be in I∩J");
+
+    ideal_destroy(reg, K);
+    ideal_destroy(reg, iid);
+    ideal_destroy(reg, jid);
+    poly_destroy(reg, px);
+    poly_destroy(reg, px2);
+    poly_destroy(reg, px3);
+    ring_registry_destroy(reg);
+}
+
+/* 吸收律：I ∩ (I + J) = I（I = ⟨x⟩, J = ⟨y⟩, I + J = ⟨x, y⟩） */
+static void test_ideal_intersection_absorb(void) {
+    printf("  Running: test_ideal_intersection_absorb ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    int iid = ideal_create(reg, rid, "I=<x>");
+    int jid = ideal_create(reg, rid, "J=<y>");
+    int ijs = ideal_create(reg, rid, "I+J=<x,y>");
+    TEST_ASSERT(iid >= 0 && jid >= 0 && ijs >= 0, "ideal_create");
+
+    int px = poly_create(reg, rid, 4, "x");
+    int py = poly_create(reg, rid, 4, "y");
+    TEST_ASSERT(px >= 0 && py >= 0, "poly_create");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px), 0, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, py), 1, 1, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid, py), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, ijs, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, ijs, py), 0);
+
+    int K = ideal_intersection(reg, iid, ijs);
+    TEST_ASSERT(K >= 0, "ideal_intersection(I, I+J) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K, GROEBNER_BUCHBERGER), 0);
+
+    /* I ⊆ I ∩ (I+J)：x ∈ K；y ∉ I，故 y ∉ I ∩ (I+J)；xy ∈ I ∩ (I+J) */
+    TEST_ASSERT(ideal_membership(reg, K, px), "x (= I's generator) should be in I∩(I+J)");
+    TEST_ASSERT(!ideal_membership(reg, K, py), "y should NOT be in I∩(I+J)");
+    int pxy = poly_create(reg, rid, 4, "xy");
+    int xypv[2] = {1, 1};
+    poly_fill_monomial_vars((lvPolynomial *)poly_get(reg, pxy), xypv, 1.0);
+    TEST_ASSERT(ideal_membership(reg, K, pxy), "xy should be in I∩(I+J)");
+
+    ideal_destroy(reg, K);
+    ideal_destroy(reg, iid);
+    ideal_destroy(reg, jid);
+    ideal_destroy(reg, ijs);
+    poly_destroy(reg, px);
+    poly_destroy(reg, py);
+    poly_destroy(reg, pxy);
+    ring_registry_destroy(reg);
+}
+
+/* ⟨xy⟩ : ⟨x⟩ = ⟨y⟩：单元素商 + 商的定义性质 q·J ⊆ I */
+static void test_ideal_quotient_single(void) {
+    printf("  Running: test_ideal_quotient_single ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    int iid = ideal_create(reg, rid, "I=<xy>");
+    int jid = ideal_create(reg, rid, "J=<x>");
+    TEST_ASSERT(iid >= 0 && jid >= 0, "ideal_create");
+
+    int pxy = poly_create(reg, rid, 4, "xy");
+    int px = poly_create(reg, rid, 4, "x");
+    int py = poly_create(reg, rid, 4, "y");
+    int pone = poly_create(reg, rid, 4, "1");
+    TEST_ASSERT(pxy >= 0 && px >= 0 && py >= 0 && pone >= 0, "poly_create");
+    int xypv[2] = {1, 1};
+    poly_fill_monomial_vars((lvPolynomial *)poly_get(reg, pxy), xypv, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px), 0, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, py), 1, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, pone), -1, 0, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, pxy), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid, px), 0);
+
+    int K = ideal_quotient(reg, iid, jid, "I:J");
+    TEST_ASSERT(K >= 0, "ideal_quotient(I,J) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K, GROEBNER_BUCHBERGER), 0);
+
+    /* y ∈ ⟨xy⟩ : ⟨x⟩（商的定义：y·x = xy ∈ I） */
+    TEST_ASSERT(ideal_membership(reg, K, py), "y should be in I:J");
+    TEST_ASSERT(ideal_membership(reg, iid, pxy), "q·g = y·x = xy should be in I");
+
+    /* I ⊆ I : J：xy ∈ I:J（xy·x = x²y ∈ I） */
+    TEST_ASSERT(ideal_membership(reg, K, pxy), "xy should be in I:J (I ⊆ I:J)");
+
+    /* 严格性：x ∉ ⟨xy⟩:⟨x⟩（x² ∉ ⟨xy⟩），1 ∉ 商（商为真理想 ⟨y⟩） */
+    TEST_ASSERT(!ideal_membership(reg, K, px), "x should NOT be in I:J");
+    TEST_ASSERT(!ideal_membership(reg, K, pone), "1 should NOT be in I:J");
+
+    ideal_destroy(reg, K);
+    ideal_destroy(reg, iid);
+    ideal_destroy(reg, jid);
+    poly_destroy(reg, pxy);
+    poly_destroy(reg, px);
+    poly_destroy(reg, py);
+    poly_destroy(reg, pone);
+    ring_registry_destroy(reg);
+}
+
+/* I : J 的环性质：
+ *  (a) J ⊆ I ⟹ 1 ∈ I : J，商为整个环 R = ⟨1⟩
+ *  (b) J = ⟨1⟩（含单位元）⟹ I : J = I（此时商恰等于 I，而非全环）
+ *  (c) I = ⟨x²⟩, J = ⟨x⟩ ⟹ I : J = ⟨x⟩（商严格大于 I，验证 I ⊆ I : J） */
+static void test_ideal_quotient_properties(void) {
+    printf("  Running: test_ideal_quotient_properties ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_RATIONAL, MONOMIAL_GREVLEX, "Q[x,y]");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    /* --- (a) J ⊆ I ⟹ I : J = R = ⟨1⟩ --- */
+    int iid = ideal_create(reg, rid, "I=<x,y>");
+    int jid = ideal_create(reg, rid, "J=<x>");
+    TEST_ASSERT(iid >= 0 && jid >= 0, "ideal_create");
+    int px = poly_create(reg, rid, 4, "x");
+    int py = poly_create(reg, rid, 4, "y");
+    int pone = poly_create(reg, rid, 4, "1");
+    TEST_ASSERT(px >= 0 && py >= 0 && pone >= 0, "poly_create");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px), 0, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, py), 1, 1, 1.0);
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, pone), -1, 0, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, py), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid, px), 0);
+
+    int K = ideal_quotient(reg, iid, jid, "I:J");
+    TEST_ASSERT(K >= 0, "ideal_quotient(I,J) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K, GROEBNER_BUCHBERGER), 0);
+    /* J ⊆ I ⟹ 1·x = x ∈ I，故 1 ∈ I : J，商为全环 */
+    TEST_ASSERT(ideal_membership(reg, K, pone), "1 should be in I:J (J ⊆ I)");
+    TEST_ASSERT(ideal_membership(reg, K, px), "x should be in I:J (whole ring)");
+    TEST_ASSERT(ideal_membership(reg, K, py), "y should be in I:J (whole ring)");
+
+    ideal_destroy(reg, K);
+    ideal_destroy(reg, iid);
+    ideal_destroy(reg, jid);
+
+    /* --- (b) J = ⟨1⟩ ⟹ I : J = I（1 ∈ J 时 q·1 = q ∈ I 迫使 q ∈ I） --- */
+    int iid2 = ideal_create(reg, rid, "I=<x,y>");
+    int jid2 = ideal_create(reg, rid, "J=<1>");
+    TEST_ASSERT(iid2 >= 0 && jid2 >= 0, "ideal_create");
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid2, px), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid2, py), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid2, pone), 0);
+
+    int K2 = ideal_quotient(reg, iid2, jid2, "I:<1>");
+    TEST_ASSERT(K2 >= 0, "ideal_quotient(I,<1>) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K2, GROEBNER_BUCHBERGER), 0);
+    TEST_ASSERT(ideal_membership(reg, K2, px), "x should be in I:<1> (= I)");
+    TEST_ASSERT(ideal_membership(reg, K2, py), "y should be in I:<1> (= I)");
+    TEST_ASSERT(!ideal_membership(reg, K2, pone), "1 should NOT be in I:<1> (= I, not whole ring)");
+
+    ideal_destroy(reg, K2);
+    ideal_destroy(reg, iid2);
+    ideal_destroy(reg, jid2);
+
+    /* --- (c) I = ⟨x²⟩, J = ⟨x⟩ ⟹ I : J = ⟨x⟩（商严格大于 I） --- */
+    int iid3 = ideal_create(reg, rid, "I=<x^2>");
+    int jid3 = ideal_create(reg, rid, "J=<x>");
+    int px2 = poly_create(reg, rid, 4, "x^2");
+    TEST_ASSERT(iid3 >= 0 && jid3 >= 0 && px2 >= 0, "create");
+    poly_fill_single_term((lvPolynomial *)poly_get(reg, px2), 0, 2, 1.0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid3, px2), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, jid3, px), 0);
+
+    int K3 = ideal_quotient(reg, iid3, jid3, "<x^2>:<x>");
+    TEST_ASSERT(K3 >= 0, "ideal_quotient(<x^2>,<x>) should succeed");
+    TEST_ASSERT_EQ(groebner_compute(reg, K3, GROEBNER_BUCHBERGER), 0);
+    TEST_ASSERT(ideal_membership(reg, K3, px), "x should be in <x^2>:<x> (= <x>)");
+    TEST_ASSERT(ideal_membership(reg, K3, px2), "x^2 should be in <x^2>:<x> (I ⊆ I:J)");
+    TEST_ASSERT(!ideal_membership(reg, K3, pone), "1 should NOT be in <x^2>:<x> (proper ideal)");
+
+    ideal_destroy(reg, K3);
+    ideal_destroy(reg, iid3);
+    ideal_destroy(reg, jid3);
+
+    poly_destroy(reg, px);
+    poly_destroy(reg, py);
+    poly_destroy(reg, pone);
+    poly_destroy(reg, px2);
+    ring_registry_destroy(reg);
+}
+
+/* ================================================================
  *  Main
  * ================================================================ */
 
@@ -580,6 +893,11 @@ TEST_MAIN_BEGIN("Groebner Basis")
     TEST_MAIN_RUN(test_symbolic_constant_basis);
     TEST_MAIN_RUN(test_graph_collinear_end_to_end);
     TEST_MAIN_RUN(test_finite_field_ring);
+    TEST_MAIN_RUN(test_ideal_intersection_basic);
+    TEST_MAIN_RUN(test_ideal_intersection_power);
+    TEST_MAIN_RUN(test_ideal_intersection_absorb);
+    TEST_MAIN_RUN(test_ideal_quotient_single);
+    TEST_MAIN_RUN(test_ideal_quotient_properties);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);

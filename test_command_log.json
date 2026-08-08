@@ -4,27 +4,27 @@
     {
       "type": "ADD_NODE",
       "seq": 0,
-      "timestamp_ms": 1786151913470,
+      "timestamp_ms": 1786155854375,
       "params": {
         "geom_type": 0,
-      "node_id": -1,
-      "coord_count": 2,
-      "namespace_depth": 0,
-      "parent_block_id": -1,
-      "is_formal_param": false,
-      "coords_num": [1, 2],
-      "coords_den": [1, 1]
+        "node_id": -1,
+        "coord_count": 2,
+        "namespace_depth": 0,
+        "parent_block_id": -1,
+        "is_formal_param": false,
+        "coords_num": [12],
+        "coords_den": [11]
       }
     },
     {
       "type": "ADD_CONSTRAINT",
       "seq": 1,
-      "timestamp_ms": 1786151913470,
+      "timestamp_ms": 1786155854375,
       "params": {
         "constraint_type": 0,
-      "constraint_id": -1,
-      "participant_count": 2,
-      "participant_ids": [0, 1]
+        "constraint_id": -1,
+        "participant_count": 2,
+        "participant_ids": [01]
       }
     }
   ]

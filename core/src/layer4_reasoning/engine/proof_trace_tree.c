@@ -16,12 +16,16 @@
  *        不是"遍历回调"语义；lv_tree_traverse 虽为通用树遍历（void* +
  *        get_children 回调），但仅有访问回调模式、无"查找两节点间路径并
  *        填充输出数组"的 API，为其新增路径查找接口等于新增功能而非收敛。
- *     3. find_path 内的 visited_map（uint32 开放寻址集合）是函数内一次性
- *        临时结构，仅存键不存值，且生命周期极短；lv_hashtable 是键值对
- *        （值为 NULL 视同键不存在），形态与用途均不匹配，强行迁移纯退化。
  *   结论：语义确实不同（指针树路径回溯 vs 整数 id 图遍历回调），无法通过
  *   给 lv_graph_traversal 增加"父指针回传/后向遍历"接口收敛（类型空间根本
  *   不同），保持本实现。
+ *   【lv_hashtable 收敛评估结论（visited 集合已迁移，2026-08-08）】
+ *   find_path 内的 visited_map（uint32 开放寻址集合，仅存键不存值）原评估
+ *   "lv_hashtable 是键值对、形态不匹配"——该结论基于 int/str 两形态。
+ *   2026-08-08 起 lv_hashtable_i64 形态已存在：节点 id 为 uint32 正整数，
+ *   键 = (int64_t) node_id、值 = 非 NULL 哨兵即可无损承载纯集合语义，故
+ *   visited 集合迁移到 lv_hashtable_i64（消除手写线性探测，其余 DFS 栈/
+ *   路径回溯逻辑与错误路径保持不变）。
  */
 
 #include "proof_engine_enhanced_internal.h"
@@ -32,6 +36,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_hashtable.h"
 #include "lv/proof.h"
 
 #include "error_codes.h"
@@ -80,16 +85,6 @@ static uint32_t next_trace_node_id(void) {
  */
 void lv_trace_reset_id_counter(void) {
     g_trace_node_id_counter = 1;
-}
-
-static inline bool _visit_check(uint32_t *visited_map, uint32_t map_size, uint32_t node_id) {
-    uint32_t idx = node_id % map_size;
-    while (visited_map[idx] != 0) {
-        if (visited_map[idx] == node_id)
-            return true;
-        idx = (idx + 1) % map_size;
-    }
-    return false;
 }
 
 int64_t get_time_ns(void) {
@@ -450,40 +445,28 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
     if (!stack)
         lv_RETURN_ERROR_VAL(lv_ERROR_ALLOCATION_FAILED, 0, "lv_trace_tree_find_path: stack calloc failed");
 
-    /* 访问标记：使用 ID 到索引的映射避免哈希碰撞 */
-    /* visited_map[id % map_size] 存储已访问节点的 id，0 表示空槽 */
-    uint32_t map_size = (uint32_t)(ncount * 2); /* 负载因子 <= 0.5 减少碰撞 */
-    if (map_size < 8)
-        map_size = 8;
-    uint32_t *visited_map = (uint32_t *) lv_calloc(map_size, sizeof(uint32_t));
-    if (!visited_map) {
+    /* 已访问节点集合：lv_hashtable_i64（键 = 节点 id，值 = 非 NULL 哨兵）。
+     * 替代原 uint32 开放寻址 visited_map（map_size = ncount*2 手写线性探测），
+     * 语义一致：仅记录"已访问"标记，供 DFS 去重；节点 id 由全局计数器递增
+     * 生成（uint32 正整数），映射为 int64_t 键无损。 */
+    lvHashtable *visited = lv_hashtable_i64_create(0);
+    if (!visited) {
         lv_free((void **) &stack);
-        lv_RETURN_ERROR_VAL(lv_ERROR_ALLOCATION_FAILED, 0, "lv_trace_tree_find_path: visited_map calloc failed");
+        lv_RETURN_ERROR_VAL(lv_ERROR_ALLOCATION_FAILED, 0,
+                            "lv_trace_tree_find_path: visited set create failed");
     }
 
     /* 记录路径 */
     lvProofTraceNode **path = (lvProofTraceNode **) lv_malloc((size_t)ncount * sizeof(lvProofTraceNode *));
     if (!path) {
-        lv_free((void **) &visited_map);
+        lv_hashtable_i64_destroy(visited);
         lv_free((void **) &stack);
         lv_RETURN_ERROR_VAL(lv_ERROR_ALLOCATION_FAILED, 0, "lv_trace_tree_find_path: path malloc failed");
     }
 
-/* 辅助函数：检查/标记节点是否已访问（线性探测） */
-#define VISIT_MARK(node_id)                             \
-    do {                                                \
-        uint32_t idx = (uint32_t) (node_id) % map_size; \
-        while (visited_map[idx] != 0) {                 \
-            idx = (idx + 1) % map_size;                 \
-        }                                               \
-        visited_map[idx] = (uint32_t) (node_id);        \
-    } while (0)
-
-    /* 内联函数：检查节点是否已访问（避免 GNU statement-expression 扩展） */
-    uint32_t *__vm = visited_map;
-    uint32_t __ms = map_size;
-
-#define VISIT_CHECK(node_id) _visit_check(__vm, __ms, (uint32_t) (node_id))
+    /* 辅助宏：检查/标记节点是否已访问（i64 集合 O(1)） */
+#define VISIT_MARK(node_id) lv_hashtable_i64_insert(visited, (int64_t) (uint32_t) (node_id), (void *) 1)
+#define VISIT_CHECK(node_id) lv_hashtable_i64_contains(visited, (int64_t) (uint32_t) (node_id))
 
     uint32_t top = 0;
     stack[top].node = start;
@@ -532,7 +515,7 @@ cleanup:
 #undef VISIT_MARK
 #undef VISIT_CHECK
     lv_free((void **) &path);
-    lv_free((void **) &visited_map);
+    lv_hashtable_i64_destroy(visited);
     lv_free((void **) &stack);
     return result;
 }
