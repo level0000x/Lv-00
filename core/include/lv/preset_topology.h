@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define TOPOLOGY_PRESET_COUNT 49
-bool preset_topology_register(void);
 
 #ifdef __cplusplus
 }

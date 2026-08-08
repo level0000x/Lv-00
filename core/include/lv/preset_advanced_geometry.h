@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define ADVANCED_GEOMETRY_PRESET_COUNT 55
-bool preset_advanced_geometry_register(void);
 
 #ifdef __cplusplus
 }

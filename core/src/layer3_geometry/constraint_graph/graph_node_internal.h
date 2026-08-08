@@ -11,9 +11,18 @@
 
 #include "lv/constraint_graph.h"
 
+#include <stdarg.h>
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* graph_index.c 实现：graph 模块内部统一错误格式化工具。
+ * dst 非空时写入 dst（容量 cap，截断语义同 vsnprintf）；dst 为 NULL 时
+ * fallback 到全局错误 API lv_set_error。args 为已初始化的 va_list，
+ * 调用方在返回后仍需自行 va_end。 */
+void graph_fmt_error_to(char *dst, size_t cap, const char *fmt, va_list args);
 
 /* graph_node_alloc.c 实现，供 conflict/stub 模块共享 */
 GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type);

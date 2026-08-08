@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define NUMERICAL_ANALYSIS_PRESET_COUNT 25
-bool preset_numerical_analysis_register(void);
 
 #ifdef __cplusplus
 }

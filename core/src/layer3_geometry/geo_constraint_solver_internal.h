@@ -16,6 +16,7 @@ extern "C" {
 #include "lv/geo_constraint_solver.h"
 #include "lv/config.h"
 #include "lv_utils.h"
+#include "lv/lv_hashtable.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -31,18 +32,10 @@ extern "C" {
 #define NUMERICAL_DIFF_EPSILON lv_NUMERICAL_DIFF_EPSILON
 #define MAX_PARAMS 64
 #define ID_HASH_TABLE_SIZE 512
-#define HASH_LOAD_FACTOR_MAX 0.75
 
 /* ---- shared types ---- */
 typedef struct {
-    int id;        /**< 实体/约束 ID */
-    int index;     /**< 在数组中的索引 */
-    bool occupied; /**< 是否被占用 */
-} HashEntry;
-
-typedef struct {
-    HashEntry entries[ID_HASH_TABLE_SIZE]; /**< 哈希表条目数组 */
-    int count;                             /**< 当前条目数量 */
+    lvHashtable *ht; /**< 内部自动扩容哈希表（lv_hashtable_int：ID → 下标+1，自动扩容） */
 } IdHashTable;
 
 typedef struct lvSolverSystemEx {
@@ -53,6 +46,7 @@ typedef struct lvSolverSystemEx {
 
 /* ---- hash.c ---- */
 void id_hash_init(IdHashTable *table);
+void id_hash_destroy(IdHashTable *table);
 bool id_hash_insert(IdHashTable *table, int id, int index);
 bool id_hash_remove(IdHashTable *table, int id);
 int find_entity_index_fast(const lvSolverSystemEx *sys_ex, int id);

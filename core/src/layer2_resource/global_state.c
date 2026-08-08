@@ -128,42 +128,6 @@ static int find_or_create_param(const char *key, lvGsParamType type) {
 /* ── 公共 API ──────────────────────────────────────────────────────── */
 
 /**
- * @brief 初始化全局状态系统
- *
- * 幂等操作，多次调用安全。首次调用时清零状态并设置版本号。
- *
- * @return 0 成功
- */
-int lv_global_state_init(void) {
-    GS_LOCK();
-    if (g_state.initialized) {
-        GS_UNLOCK();
-        return 0;
-    }
-    memset(&g_state, 0, sizeof(lvGlobalState));
-    g_state.param_count = 0;
-    g_state.initialized = true;
-    strncpy(g_state.version, "3.3.0", sizeof(g_state.version) - 1);
-    g_state.version[sizeof(g_state.version) - 1] = '\0'; /* 确保 null-terminate */
-    GS_UNLOCK();
-    return 0;
-}
-
-/**
- * @brief 清理全局状态系统
- *
- * 清零状态并销毁互斥锁。若未初始化则直接返回。
- */
-void lv_global_state_cleanup(void) {
-    if (!g_state.initialized)
-        return;
-    GS_LOCK();
-    memset(&g_state, 0, sizeof(lvGlobalState));
-    GS_UNLOCK();
-    GS_DESTROY_LOCK();
-}
-
-/**
  * @brief 检查全局状态是否已初始化
  *
  * @return true 已初始化，false 未初始化

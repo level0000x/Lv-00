@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define LIE_THEORY_ADVANCED_PRESET_COUNT 8
-bool preset_lie_theory_advanced_register(void);
 
 #ifdef __cplusplus
 }

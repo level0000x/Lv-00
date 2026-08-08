@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define PROBABILITY_PRESET_COUNT 25
-bool preset_probability_register(void);
 
 #ifdef __cplusplus
 }

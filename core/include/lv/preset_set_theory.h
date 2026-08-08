@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define SET_THEORY_PRESET_COUNT 35
-bool preset_set_theory_register(void);
 
 #ifdef __cplusplus
 }

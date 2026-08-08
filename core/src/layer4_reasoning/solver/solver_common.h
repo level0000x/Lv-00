@@ -36,6 +36,7 @@
 #include "lv/solver.h"
 #include "lv/solver_types.h"
 #include "lv/stream.h"
+#include "lv/lv_hashtable.h"
 
 /* ===== 模块内部工具头文件 ===== */
 

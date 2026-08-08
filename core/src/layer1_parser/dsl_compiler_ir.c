@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_hashtable.h"
 
 #include "lv_internal.h"
 
@@ -45,6 +46,8 @@ static int ir_add_symbol(DslIR *ir, const char *name, int result_id) {
     ir->symbol_to_ir_id[ir->symbol_count] = result_id;
     int idx = ir->symbol_count;
     ir->symbol_count++;
+    if (ir->symbol_index)
+        lv_hashtable_str_insert(ir->symbol_index, name, (void *) (intptr_t) (idx + 1));
     return idx;
 }
 
@@ -54,6 +57,14 @@ static int ir_add_symbol(DslIR *ir, const char *name, int result_id) {
 static int ir_find_symbol(const DslIR *ir, const char *name) {
     if (!ir || !name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "IR or name is NULL");
+    if (ir->symbol_index) {
+        void *v = lv_hashtable_str_get(ir->symbol_index, name);
+        if (v) {
+            int idx = (int) (intptr_t) v - 1;
+            if (idx >= 0 && idx < ir->symbol_count)
+                return ir->symbol_to_ir_id[idx];
+        }
+    }
     for (int i = 0; i < ir->symbol_count; i++) {
         if (ir->symbols[i] && strcmp(ir->symbols[i], name) == 0)
             return ir->symbol_to_ir_id[i];
@@ -475,6 +486,7 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
         return false;
     }
 
+    ir->symbol_index = lv_hashtable_str_create(ir->symbol_capacity);
     ir->next_id = 0;
 
     /* 遍历 AST 子节点生成 IR 操作 */

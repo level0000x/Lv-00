@@ -14,6 +14,7 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_hashtable.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
@@ -33,22 +34,19 @@
 /* ============== 命题实例化 ============== */
 
 /**
- * @brief 查找映射表中类型变量节点ID对应的替换节点ID
+ * @brief 在映射哈希表中查找类型变量节点ID对应的替换节点ID
  *
- * @param type_var_to_concrete  映射数组，交替存放 [type_var_node_id, concrete_node_id, ...]
- * @param mapping_count         映射条目数量（非数组长度；数组长度 = mapping_count * 2）
- * @param type_var_node_id      要查找的类型变量节点ID
+ * @param repl_map          映射哈希表（type_var_node_id → concrete_node_id+1）
+ * @param type_var_node_id  要查找的类型变量节点ID
  * @return 对应的具体节点ID，未找到返回 -1
  */
-static int find_concrete_replacement(const int *type_var_to_concrete, int mapping_count, int type_var_node_id) {
-    if (!type_var_to_concrete || mapping_count <= 0)
+static int find_concrete_replacement(const lvHashtable *repl_map, int type_var_node_id) {
+    if (!repl_map)
         return -1;
-    for (int i = 0; i < mapping_count; i++) {
-        if (type_var_to_concrete[i * 2] == type_var_node_id) {
-            return type_var_to_concrete[i * 2 + 1];
-        }
-    }
-    return -1;
+    void *v = lv_hashtable_int_get(repl_map, type_var_node_id);
+    if (!v)
+        return -1;
+    return (int) (intptr_t) v - 1;
 }
 
 /**
@@ -245,6 +243,15 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
     /* ---- 4. 在副本上执行类型变量替换 ---- */
     if (type_var_to_concrete && mapping_count > 0 && inst->pattern) {
+        /* 一次性构建哈希索引（type_var_node_id → concrete_node_id+1），之后 O(1) 查询 */
+        lvHashtable *repl_map = lv_hashtable_int_create((size_t) mapping_count);
+        if (!repl_map) {
+            proposition_destroy(inst);
+            return NULL;
+        }
+        for (int i = 0; i < mapping_count; i++)
+            lv_hashtable_int_insert(repl_map, type_var_to_concrete[i * 2],
+                                    (void *) (intptr_t) (type_var_to_concrete[i * 2 + 1] + 1));
         /* 4a. 替换端口节点的 type_region */
         for (int i = 0; i < inst->pattern->node_count; i++) {
             GeomNode *node = inst->pattern->nodes[i];
@@ -254,8 +261,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
             if (node->type == GEOM_PORT && node->data.port) {
                 TypeRegion *tr = node->data.port->type_region;
                 if (tr && tr->kind == TYPE_KIND_VARIABLE) {
-                    int replacement_id =
-                        find_concrete_replacement(type_var_to_concrete, mapping_count, tr->variable_id);
+                    int replacement_id = find_concrete_replacement(repl_map, tr->variable_id);
                     if (replacement_id >= 0) {
                         /* 通过 variable_id 查找具体类型区域：
                          * replacement_id 是映射表中的 concrete_node_id，
@@ -278,7 +284,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
                 continue;
 
             for (int j = 0; j < c->participant_count; j++) {
-                int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count, c->participants[j]);
+                int replacement = find_concrete_replacement(repl_map, c->participants[j]);
                 if (replacement >= 0) {
                     c->participants[j] = replacement;
                 }
@@ -287,13 +293,13 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
         /* 4c. 替换输入/输出端口ID */
         for (int i = 0; i < inst->input_count; i++) {
-            int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count, inst->input_port_ids[i]);
+            int replacement = find_concrete_replacement(repl_map, inst->input_port_ids[i]);
             if (replacement >= 0) {
                 inst->input_port_ids[i] = replacement;
             }
         }
         for (int i = 0; i < inst->output_count; i++) {
-            int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count, inst->output_port_ids[i]);
+            int replacement = find_concrete_replacement(repl_map, inst->output_port_ids[i]);
             if (replacement >= 0) {
                 inst->output_port_ids[i] = replacement;
             }
@@ -301,8 +307,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
         /* 4d. 替换前置条件区域ID */
         for (int i = 0; i < inst->precondition_count; i++) {
-            int replacement =
-                find_concrete_replacement(type_var_to_concrete, mapping_count, inst->precondition_region_ids[i]);
+            int replacement = find_concrete_replacement(repl_map, inst->precondition_region_ids[i]);
             if (replacement >= 0) {
                 inst->precondition_region_ids[i] = replacement;
             }
@@ -310,8 +315,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
         /* 4e. 替换后置条件约束ID */
         for (int i = 0; i < inst->postcondition_count; i++) {
-            int replacement =
-                find_concrete_replacement(type_var_to_concrete, mapping_count, inst->postcondition_constraint_ids[i]);
+            int replacement = find_concrete_replacement(repl_map, inst->postcondition_constraint_ids[i]);
             if (replacement >= 0) {
                 inst->postcondition_constraint_ids[i] = replacement;
             }
@@ -326,7 +330,7 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
             /* 替换内部节点引用 */
             for (int j = 0; j < node->data.func_block.internal_node_count; j++) {
                 int old_id = node->data.func_block.internal_nodes[j] ? node->data.func_block.internal_nodes[j]->id : -1;
-                int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count, old_id);
+                int replacement = find_concrete_replacement(repl_map, old_id);
                 if (replacement >= 0) {
                     GeomNode *new_node = graph_get_node(inst->pattern, replacement);
                     if (new_node) {
@@ -337,8 +341,8 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
             /* 替换输入端口ID */
             for (int j = 0; j < node->data.func_block.input_count; j++) {
-                int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count,
-                                                            node->data.func_block.input_port_ids[j]);
+                int replacement =
+                    find_concrete_replacement(repl_map, node->data.func_block.input_port_ids[j]);
                 if (replacement >= 0) {
                     node->data.func_block.input_port_ids[j] = replacement;
                 }
@@ -346,13 +350,15 @@ Proposition *proof_instantiate_proposition(const Proposition *prop, const int *t
 
             /* 替换输出端口ID */
             for (int j = 0; j < node->data.func_block.output_count; j++) {
-                int replacement = find_concrete_replacement(type_var_to_concrete, mapping_count,
-                                                            node->data.func_block.output_port_ids[j]);
+                int replacement =
+                    find_concrete_replacement(repl_map, node->data.func_block.output_port_ids[j]);
                 if (replacement >= 0) {
                     node->data.func_block.output_port_ids[j] = replacement;
                 }
             }
         }
+
+        lv_hashtable_int_destroy(repl_map);
     }
 
     /* ---- 5. 清除缓存状态 ---- */

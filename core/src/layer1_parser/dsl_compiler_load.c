@@ -26,6 +26,7 @@
 #include "lv/lv_xmacro.h"
 #include "lv/context.h"
 #include "lv/axiom_pkg.h"
+#include "lv/lv_hashtable.h"
 
 #include "lv_internal.h"
 #include "lv/lv_log.h"
@@ -670,6 +671,7 @@ static const lvFieldDesc s_dsl_ir_destroy_fields[] = {
 void dsl_ir_destroy(DslIR *ir) {
     if (!ir)
         return;
+    lv_hashtable_str_destroy(ir->symbol_index);
     lv_obj_destroy_fields(ir, s_dsl_ir_destroy_fields,
                           sizeof(s_dsl_ir_destroy_fields) / sizeof(s_dsl_ir_destroy_fields[0]));
     lv_free((void **) &ir);

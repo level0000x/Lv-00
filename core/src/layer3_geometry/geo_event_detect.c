@@ -64,20 +64,7 @@
 #define GEODET_REGKEY_MAX 96
 
 /** @brief 事件注册表（文件级单例） */
-static lvRegistry g_geo_event_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_geo_event_registry_once = lv_ONCE_INIT;
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void geo_event_registry_init_once(void) {
-    lv_registry_init(&g_geo_event_registry, GEO_EVENT_MAX_EVENTS);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void geo_event_registry_ensure(void) {
-    lv_once(&g_geo_event_registry_once, geo_event_registry_init_once);
-}
+lv_REGISTRY_STATIC(geo_event_registry, GEO_EVENT_MAX_EVENTS);
 
 /** @brief 构造事件注册表 key（栈缓冲区，调用方提供） */
 static void geodet_build_key(const lvEventDetector *detector, int event_id, char *buf, size_t bufsz) {

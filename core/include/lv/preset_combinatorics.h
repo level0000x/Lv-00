@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define COMBINATORICS_PRESET_COUNT 20
-bool preset_combinatorics_register(void);
 
 #ifdef __cplusplus
 }

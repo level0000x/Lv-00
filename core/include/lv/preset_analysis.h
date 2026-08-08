@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define ANALYSIS_PRESET_COUNT 49
-bool preset_analysis_register(void);
 
 #ifdef __cplusplus
 }

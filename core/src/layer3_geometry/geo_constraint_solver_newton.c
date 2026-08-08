@@ -5,6 +5,8 @@
 
 #include "geo_constraint_solver_internal.h"
 
+#include "lv/lv_lifecycle.h"
+
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
@@ -291,9 +293,9 @@ lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys) {
             /* J^T * J (ncols x ncols) */
             double *JtJ = (double *) lv_calloc(ncols * ncols, sizeof(double));
             double *JtF = (double *) lv_calloc(ncols, sizeof(double));
+            lv_DEFER_FREE(JtJ);
+            lv_DEFER_FREE(JtF);
             if (!JtJ || !JtF) {
-                lv_free((void **) &(JtJ));
-                lv_free((void **) &(JtF));
                 result = lv_SOLVE_FAILED;
                 break;
             }
@@ -317,8 +319,6 @@ lv_PUBLIC_API lvSolveResult lv_geo_solver_solve(lvSolverSystem *sys) {
             memcpy(delta, JtF, ncols * sizeof(double));
 
             int ret = gauss_eliminate(J_copy, delta, ncols);
-            lv_free((void **) &(JtJ));
-            lv_free((void **) &(JtF));
 
             if (ret != 0) {
                 result = lv_SOLVE_INCONSISTENT;

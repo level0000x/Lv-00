@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define NUMERICAL_PRESET_COUNT 24
-bool preset_numerical_register(void);
 
 #ifdef __cplusplus
 }

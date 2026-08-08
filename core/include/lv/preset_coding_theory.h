@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 #define CODING_THEORY_PRESET_COUNT 10
-bool preset_coding_theory_register(void);
 
 #ifdef __cplusplus
 }

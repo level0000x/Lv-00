@@ -20,10 +20,18 @@
 #include <string.h>
 #include <time.h>
 
+#include "lv/adaptive_threshold.h"
 #include "lv/bit_burning.h"
+#include "lv/ecosystem.h"
 #include "lv/formula_converter.h"
+#include "lv/lv_error.h"
 #include "lv/lv_registry.h"
 #include "lv/memory_pool.h"
+#include "lv/module_internal.h"
+#include "lv/runtime_monitor.h"
+
+#define lv_THREAD_POOL_IMPL
+#include "lv/thread_pool.h"
 
 #include "func_block_registry.h"
 #include "lv_internal.h"
@@ -275,6 +283,14 @@ void lv_cleanup(void) {
     /* 清理函数块注册表 */
     lv_func_block_registry_cleanup();
 
+    /* 清理运行时子系统：性能监控 / 健康检查 / 自适应阈值 / 错误上下文 / 自动保存 / 插件生态 */
+    lv_perf_shutdown();
+    lv_health_shutdown();
+    lv_adaptive_threshold_cleanup();
+    lv_error_context_cleanup(lv_error_context_current());
+    module_autosave_cleanup();
+    lv_ecosystem_shutdown();
+
     /* 输出内存统计 */
     MemoryStats stats;
     lv_get_memory_stats(&stats);
@@ -296,6 +312,12 @@ void lv_cleanup(void) {
     lv_unify_equivalence_storage_cleanup();
     formula_converter_util_cleanup();
     lv_scratch_buf_cleanup();
+
+    /* 销毁全局线程池（内部 NULL/重复销毁安全） */
+    lv_global_thread_pool_destroy();
+
+    /* 释放 Delta 基线表（strdup 的模块名/版本等字符串） */
+    module_delta_cleanup();
 
     s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);

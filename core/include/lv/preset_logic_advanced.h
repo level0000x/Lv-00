@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 #define LOGIC_ADVANCED_PRESET_COUNT 14
-bool preset_logic_advanced_register(void);
 
 #ifdef __cplusplus
 }

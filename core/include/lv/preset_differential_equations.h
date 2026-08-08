@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define DIFFERENTIAL_EQUATIONS_PRESET_COUNT 20
-bool preset_differential_equations_register(void);
 
 #ifdef __cplusplus
 }

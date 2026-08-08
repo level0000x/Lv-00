@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define NUMBER_THEORY_PRESET_COUNT 28
-bool preset_number_theory_register(void);
 
 #ifdef __cplusplus
 }

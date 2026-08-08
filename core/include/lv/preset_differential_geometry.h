@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define DIFFERENTIAL_GEOMETRY_PRESET_COUNT 25
-bool preset_differential_geometry_register(void);
 
 #ifdef __cplusplus
 }

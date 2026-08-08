@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define MATH_LOGIC_PRESET_COUNT 16
-bool preset_math_logic_register(void);
 
 #ifdef __cplusplus
 }

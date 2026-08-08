@@ -53,20 +53,7 @@
  * ============================================================ */
 
 /** @brief 配置项注册表（文件级单例） */
-static lvRegistry g_config_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_config_registry_once = lv_ONCE_INIT;
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void config_registry_init_once(void) {
-    lv_registry_init(&g_config_registry, 64);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void config_registry_ensure(void) {
-    lv_once(&g_config_registry_once, config_registry_init_once);
-}
+lv_REGISTRY_STATIC(config_registry, 64);
 
 /** @brief 构造复合注册表 key（栈缓冲区，调用方提供） */
 static void config_build_key(const lvPluginConfig *config, const char *key, char *buf, size_t bufsz) {

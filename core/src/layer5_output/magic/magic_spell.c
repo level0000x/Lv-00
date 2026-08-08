@@ -574,10 +574,13 @@ EnergyThreshold energy_to_threshold(int energy) {
 
 /** 咒语书结构体：管理多个咒语的集合 */
 struct SpellBook {
-    Spell **spells;  /* 咒语指针数组 */
-    int spell_count; /* 当前咒语数量 */
-    int capacity;    /* 数组容量 */
+    lvDArray spells; /* 咒语指针数组，元素为 Spell*（析构回调逐元素 spell_destroy） */
 };
+
+/** 咒语书元素析构回调：lv_darray_free 时逐个销毁咒语 */
+static void spellbook_elem_destroy(void *elem) {
+    spell_destroy(*(Spell **) elem);
+}
 
 /**
  * @brief 创建空的咒语书
@@ -592,14 +595,11 @@ SpellBook *spellbook_create(void) {
     if (!book)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_create: book calloc failed");
 
-    /* 初始化动态咒语数组，预分配初始容量 */
-    book->capacity = MAGIC_SPELLBOOK_INIT_CAP;
-    book->spell_count = 0;
-    book->spells = (Spell **) lv_malloc(book->capacity * sizeof(Spell *));
-
-    if (!book->spells) {
+    /* 初始化带元素析构的 lvDArray，预分配初始容量 */
+    lv_darray_init_with_dtor(&book->spells, sizeof(Spell *), spellbook_elem_destroy);
+    if (!lv_darray_reserve(&book->spells, MAGIC_SPELLBOOK_INIT_CAP)) {
         lv_free((void **) &book);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_create: spells malloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "spellbook_create: spells reserve failed");
     }
 
     return book;
@@ -617,12 +617,8 @@ void spellbook_destroy(SpellBook *book) {
     if (!book)
         return;
 
-    /* 销毁书中的所有咒语（咒语书拥有所有权） */
-    for (int i = 0; i < book->spell_count; i++) {
-        spell_destroy(book->spells[i]);
-    }
-    /* 释放动态数组和结构体本身 */
-    lv_free((void **) &book->spells);
+    /* 逐元素调用 spell_destroy（析构回调）后释放动态数组 */
+    lv_darray_free(&book->spells);
     lv_free((void **) &book);
 }
 
@@ -642,13 +638,8 @@ bool spellbook_add_spell(SpellBook *book, Spell *spell) {
     if (!spell)
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "spellbook_add_spell: spell is NULL");
 
-    /* 容量不足时自动扩容（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
-    if (!lv_ensure_capacity((void **) &book->spells, book->spell_count, &book->capacity, sizeof(Spell *), 0))
-        return false;
-
-    /* 将咒语追加到书尾（咒语书获得所有权） */
-    book->spells[book->spell_count++] = spell;
-    return true;
+    /* 追加咒语（自动扩容；咒语书获得所有权） */
+    return lv_darray_push(&book->spells, &spell) >= 0;
 }
 
 /**
@@ -665,12 +656,13 @@ bool spellbook_remove_spell(SpellBook *book, const char *spell_name) {
         return false;
 
     /* 按名称查找并移除咒语 */
-    for (int i = 0; i < book->spell_count; i++) {
-        if (strcmp(book->spells[i]->name, spell_name) == 0) {
-            spell_destroy(book->spells[i]);
+    for (int i = 0; i < book->spells.count; i++) {
+        Spell *spell = *(Spell **) lv_darray_get(&book->spells, i);
+        if (spell && strcmp(spell->name, spell_name) == 0) {
+            spell_destroy(spell);
             /* 后续元素前移填补空缺（统一走 lv_shift_left 的 memmove 路径） */
-            lv_shift_left(book->spells, sizeof(book->spells[0]), (size_t) i, (size_t) book->spell_count);
-            book->spell_count--;
+            lv_shift_left(book->spells.data, sizeof(Spell *), (size_t) i, (size_t) book->spells.count);
+            book->spells.count--;
             return true;
         }
     }
@@ -689,9 +681,10 @@ Spell *spellbook_get_spell(const SpellBook *book, const char *spell_name) {
     if (!book || !spell_name)
         return NULL;
 
-    for (int i = 0; i < book->spell_count; i++) {
-        if (strcmp(book->spells[i]->name, spell_name) == 0) {
-            return book->spells[i];
+    for (int i = 0; i < book->spells.count; i++) {
+        Spell *spell = *(Spell **) lv_darray_get(&book->spells, i);
+        if (spell && strcmp(spell->name, spell_name) == 0) {
+            return spell;
         }
     }
 
@@ -705,7 +698,7 @@ Spell *spellbook_get_spell(const SpellBook *book, const char *spell_name) {
  * @return 咒语数量，book 为 NULL 时返回 0
  */
 int spellbook_get_count(const SpellBook *book) {
-    return book ? book->spell_count : 0;
+    return book ? book->spells.count : 0;
 }
 
 /**
@@ -722,9 +715,9 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
     if (!book || !count)
         return NULL;
 
-    *count = book->spell_count;
+    *count = book->spells.count;
     /* 分配咒语名称指针数组 */
-    char **names = (char **) lv_malloc(book->spell_count * sizeof(char *));
+    char **names = (char **) lv_malloc(book->spells.count * sizeof(char *));
 
     if (!names) {
         *count = 0;
@@ -732,8 +725,9 @@ char **spellbook_list_spells(const SpellBook *book, int *count) {
     }
 
     /* 逐个复制咒语名称到数组 */
-    for (int i = 0; i < book->spell_count; i++) {
-        names[i] = lv_strdup_safe(book->spells[i]->name);
+    for (int i = 0; i < book->spells.count; i++) {
+        Spell *spell = *(Spell **) lv_darray_get(&book->spells, i);
+        names[i] = lv_strdup_safe(spell->name);
         /* 如果某个名称复制失败，释放已分配的内存并返回 NULL */
         if (!names[i]) {
             for (int j = 0; j < i; j++) {

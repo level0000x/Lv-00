@@ -1162,9 +1162,9 @@ int lv_conflict_detect_for_constraint(const ConstraintGraph *graph, int constrai
 
     /* 与所有其他活跃约束两两检查 */
     for (int i = 0; i < graph->constraint_count; i++) {
-        if (i == constraint_id)
-            continue;
         Constraint *other = graph->constraints[i];
+        if (other == target)
+            continue;
         if (!other || !other->is_active)
             continue;
         check_constraint_pair_conflict(graph, target, other, &g_default_config, report);

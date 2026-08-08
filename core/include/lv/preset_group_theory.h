@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define GROUP_THEORY_PRESET_COUNT 38
-bool preset_group_theory_register(void);
 
 #ifdef __cplusplus
 }

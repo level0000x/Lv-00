@@ -476,6 +476,27 @@ void rune_set_power(Rune *rune, int power) {
  * 符文序列实现
  * ============================================================ */
 
+/** 符文序列元素析构回调：lv_darray_free 时逐个销毁符文 */
+static void rune_ptr_destroy(void *elem) {
+    rune_destroy(*(Rune **) elem);
+}
+
+/** 将公共 RuneSequence 布局映射为 lvDArray 借用视图（外部结构保持不变） */
+static void rune_seq_to_darray(const RuneSequence *seq, lvDArray *arr) {
+    arr->data = (unsigned char *) seq->runes;
+    arr->count = seq->rune_count;
+    arr->capacity = seq->capacity;
+    arr->elem_size = sizeof(Rune *);
+    arr->elem_destroy = rune_ptr_destroy;
+}
+
+/** 将 lvDArray 状态同步回公共 RuneSequence 布局 */
+static void rune_seq_from_darray(RuneSequence *seq, const lvDArray *arr) {
+    seq->runes = (Rune **) arr->data;
+    seq->rune_count = (int) arr->count;
+    seq->capacity = (int) arr->capacity;
+}
+
 /**
  * @brief 创建空的符文序列
  *
@@ -489,15 +510,14 @@ RuneSequence *rune_sequence_create(void) {
     if (!seq)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_sequence_create: lv_malloc failed");
 
-    /* 初始化动态数组，预分配初始容量 */
-    seq->capacity = MAGIC_RUNE_SEQUENCE_INIT_CAP;
-    seq->rune_count = 0;
-    seq->runes = (Rune **) lv_malloc(seq->capacity * sizeof(Rune *));
-
-    if (!seq->runes) {
+    /* 以借用视图初始化 lvDArray 并预分配初始容量 */
+    lvDArray arr;
+    lv_darray_init_with_dtor(&arr, sizeof(Rune *), rune_ptr_destroy);
+    if (!lv_darray_reserve(&arr, MAGIC_RUNE_SEQUENCE_INIT_CAP)) {
         lv_free((void **) &seq);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_sequence_create: runes malloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "rune_sequence_create: runes reserve failed");
     }
+    rune_seq_from_darray(seq, &arr);
 
     return seq;
 }
@@ -516,12 +536,12 @@ bool rune_sequence_add(RuneSequence *seq, Rune *rune) {
     if (!seq || !rune)
         return false;
 
-    /* 容量不足时自动扩容 */
-    if (!lv_ensure_capacity((void **)&seq->runes, seq->rune_count, &seq->capacity, sizeof(Rune *), 1))
+    /* 以借用视图追加符文（自动扩容；序列获得所有权） */
+    lvDArray arr;
+    rune_seq_to_darray(seq, &arr);
+    if (lv_darray_push(&arr, &rune) < 0)
         return false;
-
-    /* 追加符文到序列尾部 */
-    seq->runes[seq->rune_count++] = rune;
+    rune_seq_from_darray(seq, &arr);
     return true;
 }
 
@@ -562,12 +582,10 @@ void rune_sequence_destroy(RuneSequence *seq) {
     if (!seq)
         return;
 
-    /* 销毁序列中的每个符文（序列拥有所有权） */
-    for (int i = 0; i < seq->rune_count; i++) {
-        rune_destroy(seq->runes[i]);
-    }
-    /* 释放动态数组和结构体本身 */
-    lv_free((void **) &seq->runes);
+    /* 以借用视图逐元素 rune_destroy（析构回调）后释放动态数组 */
+    lvDArray arr;
+    rune_seq_to_darray(seq, &arr);
+    lv_darray_free(&arr);
     lv_free((void **) &seq);
 }
 

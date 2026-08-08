@@ -28,6 +28,7 @@
 #include "lv/lv_xmacro.h"
 #include "lv/symbolic_coord.h"
 
+#include "graph_node_internal.h"
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -61,14 +62,13 @@ const char *graph_get_serialize_error(const ConstraintGraph *graph) {
 static void set_serialize_error(ConstraintGraph *graph, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
+    char *dst = NULL;
+    size_t cap = 0;
     if (graph && graph->serialize_buffer) {
-        vsnprintf(graph->serialize_buffer, 256, fmt, args);
-    } else {
-        /* 无 graph 时的回退：格式化后写入全局错误 API */
-        char fallback[256];
-        vsnprintf(fallback, sizeof(fallback), fmt, args);
-        lv_set_error(lv_ERROR_UNKNOWN, "%s", fallback);
+        dst = graph->serialize_buffer;
+        cap = 256;
     }
+    graph_fmt_error_to(dst, cap, fmt, args);
     va_end(args);
 }
 

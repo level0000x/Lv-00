@@ -11,6 +11,7 @@
 #define lv_STR_UTILS_H
 
 #include "lv_strbuf.h"
+#include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -249,6 +250,18 @@ size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t d
 size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
+ * @brief 对字符串执行 HTML 实体转义并分配新缓冲区（两遍法封装）
+ *
+ * 内部先经 lv_str_html_escape 计算所需长度，再分配 need+1 字节写入完整
+ * 转义结果（含结尾 NUL），避免各调用点重复"先算长度再 malloc"的手写两遍法。
+ *
+ * @param src 源字符串（可为 NULL，按空串处理，返回分配的空串）
+ * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
+ *         分配失败返回 NULL
+ */
+char *lv_str_html_escape_alloc(const char *src);
+
+/**
  * @brief 对字符串执行 LaTeX 特殊字符转义（snprintf 语义）
  *
  * 转义 \\ → \textbackslash{}、{ → \{、} → \}、_ → \_、& → \&、# → \#、
@@ -262,6 +275,33 @@ size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst
  * @return 转义后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
  */
 size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+
+/**
+ * @brief 对字符串执行 LaTeX 特殊字符转义并分配新缓冲区（两遍法封装）
+ *
+ * 内部先经 lv_str_latex_escape 计算所需长度，再分配 need+1 字节写入完整
+ * 转义结果（含结尾 NUL），避免各调用点重复"先算长度再 malloc"的手写两遍法。
+ *
+ * @param src 源字符串（可为 NULL，按空串处理，返回分配的空串）
+ * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
+ *         分配失败返回 NULL
+ */
+char *lv_str_latex_escape_alloc(const char *src);
+
+/* ===== 有理数格式化 ===== */
+
+/**
+ * @brief 将 GMP 有理数格式化为十进制字符串（统一 rational→string 入口）
+ *
+ * 内部以两遍法将 mpq_get_str / mpz_get_str 的 GMP 内存拷贝为 lv_malloc 堆串，
+ * 调用者需用 lv_free 释放；den=1 且 omit_unit_denominator=true 时输出整数形式，
+ * 否则输出恒定的 "num/den"。
+ *
+ * @param q                     GMP 有理数（可为 NULL，按失败处理）
+ * @param omit_unit_denominator 为 true 时分母为 1 输出整数形式；为 false 时恒定 "num/den"
+ * @return 堆分配的十进制字符串（含 NUL），分配失败返回 NULL
+ */
+char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator);
 
 /* ===== 报告表格辅助 ===== */
 

@@ -148,7 +148,7 @@ static int lv_sb_append_json_string(lvStrBuf *d, const char *str) {
 }
 
 /**
- * @brief 将字符串 HTML 实体转义后写入 lvStrBuf（lv_str_html_escape 两遍法）
+ * @brief 将字符串 HTML 实体转义后写入 lvStrBuf（lv_str_html_escape_alloc 两遍法封装）
  * @param d   字符串构建器指针
  * @param str 要转义的字符串（可为 NULL，空操作）
  * @return 0 成功，-1 失败
@@ -156,19 +156,16 @@ static int lv_sb_append_json_string(lvStrBuf *d, const char *str) {
 static int lv_sb_append_html_escaped(lvStrBuf *d, const char *str) {
     if (!str)
         return 0;
-    size_t len = strlen(str);
-    size_t need = lv_str_html_escape(str, len, NULL, 0);
-    char *buf = (char *) lv_malloc(need + 1);
+    char *buf = lv_str_html_escape_alloc(str);
     if (!buf)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_sb_append_html_escaped: escape buffer alloc failed");
-    lv_str_html_escape(str, len, buf, need + 1);
-    lv_strbuf_append_raw(d, buf, need);
+    lv_strbuf_append_raw(d, buf, strlen(buf));
     lv_free((void **) &buf);
     return 0;
 }
 
 /**
- * @brief 将字符串 LaTeX 特殊字符转义后写入 lvStrBuf（lv_str_latex_escape 两遍法）
+ * @brief 将字符串 LaTeX 特殊字符转义后写入 lvStrBuf（lv_str_latex_escape_alloc 两遍法封装）
  * @param d   字符串构建器指针
  * @param str 要转义的字符串（可为 NULL，空操作）
  * @return 0 成功，-1 失败
@@ -176,13 +173,10 @@ static int lv_sb_append_html_escaped(lvStrBuf *d, const char *str) {
 static int lv_sb_append_latex_escaped(lvStrBuf *d, const char *str) {
     if (!str)
         return 0;
-    size_t len = strlen(str);
-    size_t need = lv_str_latex_escape(str, len, NULL, 0);
-    char *buf = (char *) lv_malloc(need + 1);
+    char *buf = lv_str_latex_escape_alloc(str);
     if (!buf)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_sb_append_latex_escaped: escape buffer alloc failed");
-    lv_str_latex_escape(str, len, buf, need + 1);
-    lv_strbuf_append_raw(d, buf, need);
+    lv_strbuf_append_raw(d, buf, strlen(buf));
     lv_free((void **) &buf);
     return 0;
 }

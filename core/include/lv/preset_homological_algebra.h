@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define HOMOLOGICAL_ALGEBRA_PRESET_COUNT 10
-bool preset_homological_algebra_register(void);
 
 #ifdef __cplusplus
 }

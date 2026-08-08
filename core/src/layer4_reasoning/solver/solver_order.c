@@ -22,21 +22,12 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
     if (!graph || var_count == 0)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "order_variables_by_dependency: NULL graph or empty var_count");
 
-    int *id_to_idx = lv_calloc((size_t) var_count, sizeof(int));
+    lvHashtable *id_to_idx = lv_hashtable_int_create((size_t) var_count);
     if (!id_to_idx)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_calloc for id_to_idx failed (count=%d)", var_count);
-    for (int i = 0; i < var_count; i++)
-        id_to_idx[i] = -1;
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_hashtable_int_create failed (count=%d)", var_count);
     for (int i = 0; i < var_count; i++) {
-        bool dup = false;
-        for (int j = 0; j < i; j++) {
-            if (var_ids[j] == var_ids[i]) {
-                dup = true;
-                break;
-            }
-        }
-        if (!dup)
-            id_to_idx[i] = i;
+        if (!lv_hashtable_int_contains(id_to_idx, var_ids[i]))
+            lv_hashtable_int_insert(id_to_idx, var_ids[i], (void *) (intptr_t) (i + 1));
     }
 
     bool **adj = lv_calloc((size_t) var_count, sizeof(bool *));
@@ -48,13 +39,9 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         const Constraint *c = graph->constraints[ci];
         for (int p = 0; p < c->participant_count; p++) {
-            int pid = c->participants[p];
-            for (int j = 0; j < var_count; j++) {
-                if (var_ids[j] == pid && id_to_idx[j] >= 0) {
-                    participation[j]++;
-                    break;
-                }
-            }
+            void *v = lv_hashtable_int_get(id_to_idx, c->participants[p]);
+            if (v)
+                participation[(int) (intptr_t) v - 1]++;
         }
     }
 
@@ -63,13 +50,9 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
         int p_indices[32];
         int p_count = 0;
         for (int p = 0; p < c->participant_count && p < 32; p++) {
-            int pid = c->participants[p];
-            for (int j = 0; j < var_count; j++) {
-                if (var_ids[j] == pid && id_to_idx[j] >= 0) {
-                    p_indices[p_count++] = j;
-                    break;
-                }
-            }
+            void *v = lv_hashtable_int_get(id_to_idx, c->participants[p]);
+            if (v)
+                p_indices[p_count++] = (int) (intptr_t) v - 1;
         }
         for (int a = 0; a < p_count; a++) {
             for (int b = a + 1; b < p_count; b++) {
@@ -95,12 +78,9 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
     bool use_subset = (dirty_var_ids != NULL && dirty_count > 0);
     if (use_subset) {
         for (int i = 0; i < dirty_count; i++) {
-            for (int j = 0; j < var_count; j++) {
-                if (var_ids[j] == dirty_var_ids[i]) {
-                    in_subset[j] = true;
-                    break;
-                }
-            }
+            void *v = lv_hashtable_int_get(id_to_idx, dirty_var_ids[i]);
+            if (v)
+                in_subset[(int) (intptr_t) v - 1] = true;
         }
     } else {
         for (int i = 0; i < var_count; i++)
@@ -115,7 +95,7 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
         lv_free((void **) &participation);
         lv_free((void **) &in_degree);
         lv_free((void **) &in_subset);
-        lv_free((void **) &id_to_idx);
+        lv_hashtable_int_destroy(id_to_idx);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_calloc for order failed (count=%d)", var_count);
     }
     int order_count = 0;
@@ -177,7 +157,7 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
     lv_free((void **) &in_degree);
     lv_free((void **) &visited);
     lv_free((void **) &in_subset);
-    lv_free((void **) &id_to_idx);
+    lv_hashtable_int_destroy(id_to_idx);
 
     *out_count = order_count;
     return order;

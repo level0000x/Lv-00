@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define GEOMETRY_3D_PRESET_COUNT 65
-bool preset_geometry_3d_register(void);
 
 #ifdef __cplusplus
 }

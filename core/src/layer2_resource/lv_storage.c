@@ -449,10 +449,7 @@ typedef struct {
 /** @brief 后端注册表（通用注册表设施：key = URI scheme，value = BackendEntry*）。
  *  文件级单例（lv_once 惰性初始化，线程安全）；strcmp 查重、尾部追加、
  *  动态扩容与删除前移紧凑均由 lv_registry 承担。 */
-static lvRegistry g_backend_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_backend_registry_once = lv_ONCE_INIT;
+lv_REGISTRY_STATIC_DECL(backend_registry);
 
 /** @brief BackendEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
 static void backend_entry_destroy(void *value) {
@@ -745,24 +742,11 @@ typedef struct {
 
 /** @brief 序列化注册表（通用注册表设施：key = type_name，value = SerializeEntry*）。
  *  文件级单例（lv_once 惰性初始化，线程安全）。 */
-static lvRegistry g_serialize_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_serialize_registry_once = lv_ONCE_INIT;
+lv_REGISTRY_STATIC(serialize_registry, 16);
 
 /** @brief SerializeEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
 static void serialize_entry_destroy(void *value) {
     lv_free((void **) &value);
-}
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void serialize_registry_init_once(void) {
-    lv_registry_init(&g_serialize_registry, 16);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void serialize_registry_ensure(void) {
-    lv_once(&g_serialize_registry_once, serialize_registry_init_once);
 }
 
 /** @brief 拼接注册表 key：type_name:format（format 为 NULL/空串 视为 "default"）。

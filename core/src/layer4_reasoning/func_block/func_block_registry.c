@@ -42,23 +42,10 @@
  * 由 preset_entry_destroy 回调接管释放）。注册表统一承担 strcmp 查重、
  * 尾部追加、lv_ensure_capacity 扩容与删除前移（保持注册顺序）。
  */
-static lvRegistry g_func_block_registry;
-
-/** 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_func_block_registry_once = lv_ONCE_INIT;
+lv_REGISTRY_STATIC(func_block_registry, REGISTRY_INITIAL_CAPACITY);
 
 /** 是否已完成内置预设注册（cleanup 后置 false，允许重新 init） */
 static bool g_initialized = false;
-
-/** 注册表初始化回调（仅由 lv_once 调用一次） */
-static void func_block_registry_init_once(void) {
-    lv_registry_init(&g_func_block_registry, REGISTRY_INITIAL_CAPACITY);
-}
-
-/** 确保注册表已初始化（互斥锁就绪，可安全多次调用） */
-static inline void func_block_registry_ensure(void) {
-    lv_once(&g_func_block_registry_once, func_block_registry_init_once);
-}
 
 /* ==================== 内部辅助函数 ==================== */
 

@@ -1076,6 +1076,28 @@ lvErrorCode lv_remove_node_result_to_error(RemoveNodeResult result) {
  * ============================================================ */
 
 /**
+ * @brief 统一错误信息格式化工具（graph 模块内部共享）
+ *
+ * dst 非空时直接写入（截断语义同 vsnprintf）；dst 为 NULL 时 fallback
+ * 到全局错误 API lv_set_error。供 graph_set_error 与 set_serialize_error
+ * 复用"固定 256 缓冲 + 全局错误回退"的格式化逻辑。
+ *
+ * @param dst  目标缓冲区（可为 NULL，此时记录到全局错误 API）
+ * @param cap  dst 容量（字节）
+ * @param fmt  printf 风格格式字符串
+ * @param args 已初始化的 va_list（本函数内部消费 args，调用方仍需 va_end）
+ */
+void graph_fmt_error_to(char *dst, size_t cap, const char *fmt, va_list args) {
+    if (dst) {
+        vsnprintf(dst, cap, fmt, args);
+        return;
+    }
+    char fallback[256];
+    vsnprintf(fallback, sizeof(fallback), fmt, args);
+    lv_set_error(lv_ERROR_UNKNOWN, "%s", fallback);
+}
+
+/**
  * @brief 设置约束图的错误信息 (v3.4.0: 支持 lvContext)
  *
  * 优先将错误信息存储到 graph->context->error_message 中
@@ -1090,18 +1112,18 @@ void graph_set_error(ConstraintGraph *graph, const char *fmt, ...) {
     va_start(args, fmt);
 
     if (graph) {
+        char *dst = NULL;
+        size_t cap = 0;
         /* 优先使用 context 错误存储 */
         if (graph->context) {
-            vsnprintf(graph->context->error_message, sizeof(graph->context->error_message), fmt, args);
+            dst = graph->context->error_message;
+            cap = sizeof(graph->context->error_message);
         } else if (graph->error_buffer) {
             /* Fallback 到 error_buffer */
-            vsnprintf(graph->error_buffer, 256, fmt, args);
-        } else {
-            /* 两者都不可用，记录到全局错误 API */
-            char fallback[256];
-            vsnprintf(fallback, sizeof(fallback), fmt, args);
-            lv_set_error(lv_ERROR_UNKNOWN, "%s", fallback);
+            dst = graph->error_buffer;
+            cap = 256;
         }
+        graph_fmt_error_to(dst, cap, fmt, args);
     }
 
     va_end(args);

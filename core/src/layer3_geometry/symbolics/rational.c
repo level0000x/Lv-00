@@ -41,6 +41,7 @@
 
 #include "debug.h"
 #include "lv/lv_log.h"
+#include "lv/lv_str_utils.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
@@ -121,35 +122,9 @@ Rational *rational_negate(const Rational *a) {
  * @return  新分配的字符串，调用者需负责释放；失败时返回 NULL
  */
 char *rational_serialize(const Rational *r) {
-    /* 保留原实现：恒定输出 "分子/分母" 格式（整数时带 /1），
-     * 与 lv_rational_to_string 的"整数无斜杠"格式语义不同，
-     * 按被调用最多侧（R1）的语义统一，保证序列化输出不变。 */
     if (!r)
         return NULL;
-
-    /* 获取分子和分母的十进制位数。
-     * mpz_sizeinbase 返回的是 size_t，两个大值相加可能溢出。
-     * 此处先计算各自位数，再安全累加。 */
-    size_t num_digits = mpz_sizeinbase(mpq_numref(r->value), 10);
-    size_t den_digits = mpz_sizeinbase(mpq_denref(r->value), 10);
-
-    /* 溢出检查：防止 num_digits + den_digits + 8 超过 SIZE_MAX */
-    if (num_digits > SIZE_MAX - den_digits || num_digits + den_digits > SIZE_MAX - 8) {
-        return NULL; /* 数值过大，无法安全分配缓冲区 */
-    }
-
-    /* 多分配 4 字节安全余量（'/' + 符号位），加 4 字节 '\0' 终止符，
-     * 防止边界情况下的缓冲区溢出 */
-    size_t buf_size = num_digits + den_digits + 4 + 4;
-    char *buf = lv_malloc(buf_size);
-    if (!buf)
-        return NULL;
-    char *num_str = mpz_get_str(NULL, 10, mpq_numref(r->value));
-    char *den_str = mpz_get_str(NULL, 10, mpq_denref(r->value));
-    snprintf(buf, buf_size, "%s/%s", num_str, den_str);
-    lv_free_external((void **) &num_str);
-    lv_free_external((void **) &den_str);
-    return buf;
+    return lv_mpq_to_string(r->value, false);
 }
 
 Rational *rational_parse(const char *str) {

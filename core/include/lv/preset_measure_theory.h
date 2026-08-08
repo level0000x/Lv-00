@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define MEASURE_THEORY_PRESET_COUNT 20
-bool preset_measure_theory_register(void);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_loader.c
  * @brief .lv 文件加载与引擎集成实现
  *
@@ -46,23 +46,10 @@
  * 语义保持：重复添加同名实体时首次映射生效（原线性查找"首个匹配优先"），
  * 容量上限 LV_MAX_NAMED_ENTITIES 与原实现一致（满时静默忽略）。
  */
-static lvRegistry s_loader_names;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t s_loader_names_once = lv_ONCE_INIT;
+lv_REGISTRY_STATIC(loader_names, 32);
 
 /** @brief 名称映射表最大容量 */
 #define LV_MAX_NAMED_ENTITIES 256
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void loader_names_init_once(void) {
-    lv_registry_init(&s_loader_names, 32);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void loader_names_ensure(void) {
-    lv_once(&s_loader_names_once, loader_names_init_once);
-}
 
 /** @brief 装箱引擎节点 ID（注册表 value） */
 static void *loader_box_id(int node_id) {
@@ -85,13 +72,13 @@ static void loader_box_destroy(void *value) {
  */
 static void loader_names_clear(void) {
     loader_names_ensure();
-    lv_registry_clear(&s_loader_names);
+    lv_registry_clear(&g_loader_names);
 }
 
 /**
  * @brief 重置加载器名称映射表（测试进程内隔离用）
  *
- * 清空 static 全局名称映射表 s_loader_names（名称 → 引擎节点 ID）。
+ * 清空 static 全局名称映射表 g_loader_names（名称 → 引擎节点 ID）。
  * lv_loader.c 无独立 ID 计数器（引擎节点 ID 由引擎生成，loader 仅记录），
  * 本函数为名称表这一 static 全局状态提供显式重置能力，供测试进程内
  * 隔离使用。正常加载路径（lv_apply_parse_result 每次调用已内部清空）
@@ -109,13 +96,13 @@ void lv_loader_reset(void) {
  */
 static void loader_names_add(const char *name, int node_id) {
     loader_names_ensure();
-    if (lv_registry_count(&s_loader_names) >= LV_MAX_NAMED_ENTITIES)
+    if (lv_registry_count(&g_loader_names) >= LV_MAX_NAMED_ENTITIES)
         return;
 
     void *boxed = loader_box_id(node_id);
     if (!boxed)
         return;
-    if (!lv_registry_put_ex(&s_loader_names, name, boxed, loader_box_destroy)) {
+    if (!lv_registry_put_ex(&g_loader_names, name, boxed, loader_box_destroy)) {
         /* 名称重复：保留首次映射（与原线性查找"首个匹配优先"语义一致） */
         lv_free((void **) &boxed);
     }
@@ -133,7 +120,7 @@ static int loader_names_lookup(const char *name) {
     if (!name)
         return -1;
     loader_names_ensure();
-    void *boxed = lv_registry_get(&s_loader_names, name);
+    void *boxed = lv_registry_get(&g_loader_names, name);
     return boxed ? *(int *) boxed : -1;
 }
 

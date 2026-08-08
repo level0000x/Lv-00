@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define INTEGRAL_TRANSFORMS_PRESET_COUNT 14
-bool preset_integral_transforms_register(void);
 
 #ifdef __cplusplus
 }

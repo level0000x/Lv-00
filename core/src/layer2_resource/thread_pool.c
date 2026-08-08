@@ -303,6 +303,18 @@ lvThreadPool *lv_get_global_thread_pool(void) {
     return g_global_pool;
 }
 
+/**
+ * @brief 销毁全局单例线程池（供系统清理流程调用）
+ *
+ * 先将全局指针置空再销毁，保证 NULL 安全与重复销毁安全
+ * （从未创建线程池时为空操作，重复调用亦为空操作）。
+ */
+void lv_global_thread_pool_destroy(void) {
+    lvThreadPool *pool = g_global_pool;
+    g_global_pool = NULL;
+    lv_thread_pool_destroy(pool);
+}
+
 /* ========================================================================
  * lv_parallel_for —— 并行 for 抽象
  * ======================================================================== */

@@ -72,6 +72,7 @@ static inline void lv_parallel_for(lvThreadPool *pool, int n_iters, int chunk_si
 lv_PUBLIC_API lvThreadPool *lv_thread_pool_create(int num_threads);
 lv_PUBLIC_API void lv_thread_pool_destroy(lvThreadPool *pool);
 lv_PUBLIC_API lvThreadPool *lv_get_global_thread_pool(void);
+lv_PUBLIC_API void lv_global_thread_pool_destroy(void);
 lv_PUBLIC_API lvWaitGroup *lv_thread_pool_submit(lvThreadPool *pool, lvThreadTask *task);
 lv_PUBLIC_API void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeout_ms);
 

@@ -46,24 +46,14 @@
  * 供 plugin_system_load.c 卸载流程遍历注销与释放，以及 version.c 统计输出。
  * ============================================================ */
 
-/** @brief 插件级接口注册表（文件级单例） */
-static lvRegistry g_plugin_iface_registry;
+lv_REGISTRY_STATIC(plugin_iface_registry, 16);
 
-/** @brief 系统级接口注册表（文件级单例） */
-static lvRegistry g_system_iface_registry;
+lv_REGISTRY_STATIC(system_iface_registry, lv_MAX_INTERFACES);
 
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_iface_registry_once = lv_ONCE_INIT;
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void iface_registry_init_once(void) {
-    lv_registry_init(&g_plugin_iface_registry, 16);
-    lv_registry_init(&g_system_iface_registry, lv_MAX_INTERFACES);
-}
-
-/** @brief 确保注册表已初始化 */
+/** @brief 同时确保插件级与系统级接口注册表已初始化 */
 static inline void iface_registry_ensure(void) {
-    lv_once(&g_iface_registry_once, iface_registry_init_once);
+    plugin_iface_registry_ensure();
+    system_iface_registry_ensure();
 }
 
 /**

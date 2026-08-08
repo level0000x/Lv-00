@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define GRAPH_THEORY_PRESET_COUNT 31
-bool preset_graph_theory_register(void);
 
 #ifdef __cplusplus
 }

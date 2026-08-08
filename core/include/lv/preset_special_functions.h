@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define SPECIAL_FUNCTIONS_PRESET_COUNT 16
-bool preset_special_functions_register(void);
 
 #ifdef __cplusplus
 }

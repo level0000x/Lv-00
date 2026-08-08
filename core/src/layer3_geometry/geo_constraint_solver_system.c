@@ -92,6 +92,9 @@ lv_PUBLIC_API lvSolverSystem *lv_geo_solver_create(const lvSolverConfig *config)
 lv_PUBLIC_API void lv_geo_solver_destroy(lvSolverSystem *sys) {
     if (!sys)
         return;
+    lvSolverSystemEx *sys_ex = (lvSolverSystemEx *) sys;
+    id_hash_destroy(&sys_ex->entity_hash);
+    id_hash_destroy(&sys_ex->constraint_hash);
     lv_free((void **) &(sys->entities));
     lv_free((void **) &(sys->constraints));
     /* sys 实际指向 lvSolverSystemEx.base，直接 free 即可释放整个 Ex 结构体 */
@@ -126,7 +129,7 @@ lv_PUBLIC_API int lv_solver_add_entity(lvSolverSystem *sys, const lvEntity *enti
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_solver_add_entity: NULL sys or entity");
 
     /* 检查 ID 是否已存在 */
-    if (find_entity_index(sys, entity->id) >= 0)
+    if (find_entity_index_fast((const lvSolverSystemEx *) sys, entity->id) >= 0)
         lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_solver_add_entity: entity ID already exists");
 
     /* 扩容 */
@@ -203,7 +206,7 @@ lv_PUBLIC_API int lv_geo_solver_add_constraint(lvSolverSystem *sys, const lvCons
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_geo_solver_add_constraint: NULL sys or constraint");
 
     /* 检查 ID 是否已存在 */
-    if (find_constraint_index(sys, c->id) >= 0)
+    if (find_constraint_index_fast((const lvSolverSystemEx *) sys, c->id) >= 0)
         lv_RETURN_ERROR(lv_ERROR_NODE_CONFLICT, "lv_geo_solver_add_constraint: constraint ID already exists");
 
     /* 扩容 */
@@ -269,7 +272,7 @@ lv_PUBLIC_API lvConstraint *lv_solver_get_constraint(lvSolverSystem *sys, int id
 lv_PUBLIC_API bool lv_geo_solver_remove_constraint(lvSolverSystem *sys, int id) {
     if (!sys)
         return false;
-    int idx = find_constraint_index(sys, id);
+    int idx = find_constraint_index_fast((const lvSolverSystemEx *) sys, id);
     if (idx < 0)
         return false;
 

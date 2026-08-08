@@ -45,15 +45,7 @@ int render_latex_internal(const FormulaNode *node, char *buffer, size_t size, co
  * @return 转义后的堆字符串；失败（含 NULL 入参）返回 NULL
  */
 static char *latex_escape_alloc(const char *name) {
-    if (!name)
-        return NULL;
-    size_t len = strlen(name);
-    size_t need = lv_str_latex_escape(name, len, NULL, 0);
-    char *esc = (char *) lv_malloc(need + 1);
-    if (!esc)
-        return NULL;
-    lv_str_latex_escape(name, len, esc, need + 1);
-    return esc;
+    return name ? lv_str_latex_escape_alloc(name) : NULL;
 }
 
 static int helper_latex_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)

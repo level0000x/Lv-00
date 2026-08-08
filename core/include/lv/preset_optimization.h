@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define OPTIMIZATION_PRESET_COUNT 22
-bool preset_optimization_register(void);
 
 #ifdef __cplusplus
 }

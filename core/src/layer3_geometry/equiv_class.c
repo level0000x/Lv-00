@@ -348,7 +348,7 @@ int equiv_merge_by_coord(EquivClassManager *mgr) {
 
     /* 收集所有 GEOM_POINT 节点 */
     for (int i = 0; i < mgr->graph->node_count; i++) {
-        GeomNode *ni = graph_get_node(mgr->graph, i);
+        GeomNode *ni = mgr->graph->nodes[i];
         if (!ni || !ni->is_active || ni->type != GEOM_POINT)
             continue;
         if (ni->coord_count < 2 || !ni->symbolic_coords)
@@ -357,7 +357,7 @@ int equiv_merge_by_coord(EquivClassManager *mgr) {
             continue;
 
         for (int j = i + 1; j < mgr->graph->node_count; j++) {
-            GeomNode *nj = graph_get_node(mgr->graph, j);
+            GeomNode *nj = mgr->graph->nodes[j];
             if (!nj || !nj->is_active || nj->type != GEOM_POINT)
                 continue;
             if (nj->coord_count < 2 || !nj->symbolic_coords)
@@ -374,7 +374,7 @@ int equiv_merge_by_coord(EquivClassManager *mgr) {
                 continue;
 
             /* 坐标相等 → 合并 */
-            EquivMergeResult result = equiv_merge_classes(mgr, i, j, EQUIV_SOURCE_COORD_EQUAL, -1, TRUST_GREEN);
+            EquivMergeResult result = equiv_merge_classes(mgr, ni->id, nj->id, EQUIV_SOURCE_COORD_EQUAL, -1, TRUST_GREEN);
             if (result == EQUIV_MERGE_OK) {
                 merge_count++;
                 mgr->coord_merges++;
@@ -449,7 +449,7 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
      * 组内精确比较极小多项式系数。
      */
     for (int i = 0; i < mgr->graph->node_count; i++) {
-        GeomNode *ni = graph_get_node(mgr->graph, i);
+        GeomNode *ni = mgr->graph->nodes[i];
         if (!ni || !ni->is_active || ni->type != GEOM_POINT)
             continue;
         if (ni->coord_count < 2 || !ni->symbolic_coords)
@@ -461,7 +461,7 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                 continue;
 
             for (int j = i + 1; j < mgr->graph->node_count; j++) {
-                GeomNode *nj = graph_get_node(mgr->graph, j);
+                GeomNode *nj = mgr->graph->nodes[j];
                 if (!nj || !nj->is_active || nj->type != GEOM_POINT)
                     continue;
                 if (nj->coord_count < 2 || !nj->symbolic_coords)
@@ -513,7 +513,7 @@ int equiv_merge_algebraic_conjugates(EquivClassManager *mgr) {
                 if (is_conjugate) {
                     /* 同一极小多项式的不同根 → 代数共轭 */
                     EquivMergeResult r =
-                        equiv_merge_classes(mgr, i, j, EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
+                        equiv_merge_classes(mgr, ni->id, nj->id, EQUIV_SOURCE_ALGEBRAIC_CONJUGATE, -1, TRUST_YELLOW);
                     if (r == EQUIV_MERGE_OK)
                         conj_count++;
                 }
@@ -542,7 +542,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
      * 3. 如果排序后的距离向量相同，则 i 和 j 在某个等距变换下等价
      */
     for (int i = 0; i < mgr->graph->node_count; i++) {
-        GeomNode *ni = graph_get_node(mgr->graph, i);
+        GeomNode *ni = mgr->graph->nodes[i];
         if (!ni || !ni->is_active || ni->type != GEOM_POINT)
             continue;
         if (ni->coord_count < 2 || !ni->symbolic_coords)
@@ -551,15 +551,15 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             continue;
 
         for (int j = i + 1; j < mgr->graph->node_count; j++) {
-            if (equiv_are_equivalent(mgr, i, j))
-                continue;
-
-            GeomNode *nj = graph_get_node(mgr->graph, j);
+            GeomNode *nj = mgr->graph->nodes[j];
             if (!nj || !nj->is_active || nj->type != GEOM_POINT)
                 continue;
             if (nj->coord_count < 2 || !nj->symbolic_coords)
                 continue;
             if (!nj->symbolic_coords[0] || !nj->symbolic_coords[1])
+                continue;
+
+            if (equiv_are_equivalent(mgr, ni->id, nj->id))
                 continue;
 
             double ax = symbolic_coord_to_double(ni->symbolic_coords[0]);
@@ -570,7 +570,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             /* 收集所有活跃点节点，计算距离矩阵行 */
             int point_count = 0;
             for (int k = 0; k < mgr->graph->node_count; k++) {
-                GeomNode *nk = graph_get_node(mgr->graph, k);
+                GeomNode *nk = mgr->graph->nodes[k];
                 if (nk && nk->is_active && nk->type == GEOM_POINT && nk->coord_count >= 2 && nk->symbolic_coords &&
                     nk->symbolic_coords[0] && nk->symbolic_coords[1]) {
                     point_count++;
@@ -591,7 +591,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
 
             int idx = 0;
             for (int k = 0; k < mgr->graph->node_count; k++) {
-                GeomNode *nk = graph_get_node(mgr->graph, k);
+                GeomNode *nk = mgr->graph->nodes[k];
                 if (!nk || !nk->is_active || nk->type != GEOM_POINT)
                     continue;
                 if (nk->coord_count < 2 || !nk->symbolic_coords)
@@ -639,7 +639,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             lv_free((void **) &dists_j);
 
             if (distance_match) {
-                EquivMergeResult r = equiv_merge_classes(mgr, i, j, EQUIV_SOURCE_TRANSFORM, -1, TRUST_YELLOW);
+                EquivMergeResult r = equiv_merge_classes(mgr, ni->id, nj->id, EQUIV_SOURCE_TRANSFORM, -1, TRUST_YELLOW);
                 if (r == EQUIV_MERGE_OK)
                     transform_count++;
             }

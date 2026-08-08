@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define POLYNOMIAL_PRESET_COUNT 18
-bool preset_polynomial_register(void);
 
 #ifdef __cplusplus
 }

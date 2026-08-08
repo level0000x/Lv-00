@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_framework.c
  * @brief 增强单元测试框架实现
  *
@@ -48,12 +48,12 @@ static int64_t get_time_ns(void) {
 
 /** @brief 套件注册表（通用注册表设施：key = 套件名，value = lvTestSuite*）。
  *  保持注册顺序（get_at 遍历顺序 = 注册顺序）；strcmp 查重由 lv_registry 承担。 */
-static lvRegistry g_suite_registry;
+lv_REGISTRY_STATIC(suite_registry, TEST_SUITE_INIT_CAPACITY);
 
 /** @brief 用例注册表（通用注册表设施：key = "<suite>\x1f<case>"，value = boxed int 用例索引）。
  *  用例数据仍存储于 suite->cases 数组（报告/遍历按索引访问），注册表仅承担
  *  name→索引 查重与查找；索引在数组扩容 realloc 后保持有效。 */
-static lvRegistry g_case_registry;
+lv_REGISTRY_STATIC(case_registry, TEST_CASE_INIT_CAPACITY);
 
 static struct {
     lv_mutex_t mutex;
@@ -140,8 +140,8 @@ static void init_test_system(void) {
 
     memset(&g_test_system, 0, sizeof(g_test_system));
     lv_mutex_init(&g_test_system.mutex);
-    lv_registry_init(&g_suite_registry, TEST_SUITE_INIT_CAPACITY);
-    lv_registry_init(&g_case_registry, TEST_CASE_INIT_CAPACITY);
+    suite_registry_ensure();
+    case_registry_ensure();
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
     lv_lazy_lock_unlock(&g_test_init_lock);

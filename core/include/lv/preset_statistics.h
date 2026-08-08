@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define STATISTICS_PRESET_COUNT 22
-bool preset_statistics_register(void);
 
 #ifdef __cplusplus
 }

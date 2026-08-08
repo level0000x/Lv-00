@@ -289,20 +289,15 @@ typedef struct {
     char *name;
     char *version;
     /* 依赖快照 */
-    char **dep_names;
-    char **dep_versions;
-    int dep_count;
+    lvDArray dep_names;      /* 元素: char*，带字符串析构回调 */
+    lvDArray dep_versions;   /* 元素: char*，带字符串析构回调 */
     /* 导出快照 */
-    int *func_block_ids;
-    int func_count;
-    int *type_region_ids;
-    int type_count;
+    lvDArray func_block_ids; /* 元素: int */
+    lvDArray type_region_ids;/* 元素: int */
     /* 图快照 */
-    int graph_node_count;
-    int graph_constraint_count;
-    int *graph_node_ids;
-    int *graph_constraint_ids;
-    uint64_t *graph_node_coord_hashes; /* 每个节点的坐标哈希，用于检测修改 */
+    lvDArray graph_node_ids;          /* 元素: int */
+    lvDArray graph_constraint_ids;    /* 元素: int */
+    lvDArray graph_node_coord_hashes; /* 元素: uint64_t，每个节点的坐标哈希用于检测修改 */
 } DeltaBaseline;
 
 /** @brief Delta 基线表单例状态 */
@@ -338,23 +333,125 @@ static void free_delta_baseline(DeltaBaseline *bl) {
     lv_free((void **) &bl->module_name);
     lv_free((void **) &bl->name);
     lv_free((void **) &bl->version);
-    for (int i = 0; i < bl->dep_count; i++) {
-        lv_free((void **) &bl->dep_names[i]);
-        lv_free((void **) &bl->dep_versions[i]);
-    }
-    lv_free((void **) &bl->dep_names);
-    lv_free((void **) &bl->dep_versions);
-    lv_free((void **) &bl->func_block_ids);
-    lv_free((void **) &bl->type_region_ids);
-    lv_free((void **) &bl->graph_node_ids);
-    lv_free((void **) &bl->graph_constraint_ids);
-    lv_free((void **) &bl->graph_node_coord_hashes);
+    lv_darray_free(&bl->dep_names);
+    lv_darray_free(&bl->dep_versions);
+    lv_darray_free(&bl->func_block_ids);
+    lv_darray_free(&bl->type_region_ids);
+    lv_darray_free(&bl->graph_node_ids);
+    lv_darray_free(&bl->graph_constraint_ids);
+    lv_darray_free(&bl->graph_node_coord_hashes);
     memset(bl, 0, sizeof(DeltaBaseline));
 }
 
-static void store_baseline(const Module *mod, uint64_t hash) {
+static bool fill_delta_baseline(DeltaBaseline *bl, const Module *mod, uint64_t hash) {
+    bl->module_name = lv_strdup_safe(mod->name);
+    bl->base_hash = hash;
+    bl->name = lv_strdup_safe(mod->name);
+    bl->version = lv_strdup_safe(mod->version);
+
+    lv_darray_init_with_dtor(&bl->dep_names, sizeof(char *), lv_defer_free_ptr);
+    lv_darray_init_with_dtor(&bl->dep_versions, sizeof(char *), lv_defer_free_ptr);
+    lv_darray_init(&bl->func_block_ids, sizeof(int));
+    lv_darray_init(&bl->type_region_ids, sizeof(int));
+    lv_darray_init(&bl->graph_node_ids, sizeof(int));
+    lv_darray_init(&bl->graph_constraint_ids, sizeof(int));
+    lv_darray_init(&bl->graph_node_coord_hashes, sizeof(uint64_t));
+
+    if (!bl->module_name || !bl->name || !bl->version)
+        goto fail;
+
+    /* 复制依赖 */
+    if (mod->dependencies.count > 0) {
+        int dc = mod->dependencies.count;
+        if (!lv_darray_reserve(&bl->dep_names, dc) || !lv_darray_reserve(&bl->dep_versions, dc))
+            goto fail;
+        for (int i = 0; i < dc; i++) {
+            char *dn = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].name);
+            char *dv = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
+            if (!dn || !dv) {
+                lv_free((void **) &dn);
+                lv_free((void **) &dv);
+                goto fail;
+            }
+            lv_darray_push(&bl->dep_names, &dn);
+            lv_darray_push(&bl->dep_versions, &dv);
+        }
+    }
+
+    /* 复制导出 */
+    if (mod->exports && mod->exports->function_block_ids.count > 0) {
+        int fc = mod->exports->function_block_ids.count;
+        if (!lv_darray_reserve(&bl->func_block_ids, fc))
+            goto fail;
+        for (int i = 0; i < fc; i++) {
+            int id = ((int *) mod->exports->function_block_ids.data)[i];
+            lv_darray_push(&bl->func_block_ids, &id);
+        }
+    }
+
+    if (mod->exports && mod->exports->type_region_ids.count > 0) {
+        int tc = mod->exports->type_region_ids.count;
+        if (!lv_darray_reserve(&bl->type_region_ids, tc))
+            goto fail;
+        for (int i = 0; i < tc; i++) {
+            int id = ((int *) mod->exports->type_region_ids.data)[i];
+            lv_darray_push(&bl->type_region_ids, &id);
+        }
+    }
+
+    /* 复制图快照 */
+    if (mod->graph) {
+        if (mod->graph->node_count > 0) {
+            int nc = mod->graph->node_count;
+            if (!lv_darray_reserve(&bl->graph_node_ids, nc) || !lv_darray_reserve(&bl->graph_node_coord_hashes, nc))
+                goto fail;
+            for (int i = 0; i < nc; i++) {
+                GeomNode *n = mod->graph->nodes[i];
+                int nid = n ? n->id : -1;
+                /* 计算节点坐标哈希：组合所有坐标的哈希 */
+                uint64_t ch = 0;
+                if (n && n->symbolic_coords) {
+                    for (int c = 0; c < n->coord_count; c++) {
+                        if (n->symbolic_coords[c]) {
+                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
+                        }
+                    }
+                }
+                /* 将节点类型混入哈希 */
+                if (n) {
+                    ch ^= (uint64_t) n->type * 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
+                }
+                lv_darray_push(&bl->graph_node_ids, &nid);
+                lv_darray_push(&bl->graph_node_coord_hashes, &ch);
+            }
+        }
+
+        if (mod->graph->constraint_count > 0) {
+            int cc = mod->graph->constraint_count;
+            if (!lv_darray_reserve(&bl->graph_constraint_ids, cc))
+                goto fail;
+            for (int i = 0; i < cc; i++) {
+                Constraint *c = mod->graph->constraints[i];
+                int cid = c ? c->id : -1;
+                lv_darray_push(&bl->graph_constraint_ids, &cid);
+            }
+        }
+    }
+    return true;
+
+fail:
+    free_delta_baseline(bl);
+    return false;
+}
+
+static bool store_baseline(const Module *mod, uint64_t hash) {
     if (!mod)
-        return;
+        return false;
+
+    DeltaBaseline tmp;
+    memset(&tmp, 0, sizeof(tmp));
+    if (!fill_delta_baseline(&tmp, mod, hash))
+        return false;
 
     /* 查找或创建基线条目 */
     DeltaBaseline *bl = find_delta_baseline(mod->name);
@@ -371,71 +468,8 @@ static void store_baseline(const Module *mod, uint64_t hash) {
         free_delta_baseline(bl);
     }
 
-    bl->module_name = lv_strdup_safe(mod->name);
-    bl->base_hash = hash;
-    bl->name = lv_strdup_safe(mod->name);
-    bl->version = lv_strdup_safe(mod->version);
-
-    /* 复制依赖 */
-    bl->dep_count = mod->dependencies.count;
-    if (bl->dep_count > 0) {
-        bl->dep_names = (char **) lv_malloc(sizeof(char *) * bl->dep_count);
-        bl->dep_versions = (char **) lv_malloc(sizeof(char *) * bl->dep_count);
-        for (int i = 0; i < bl->dep_count; i++) {
-            bl->dep_names[i] = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].name);
-            bl->dep_versions[i] = lv_strdup_safe(((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
-        }
-    }
-
-    /* 复制导出 */
-    bl->func_count = mod->exports ? mod->exports->function_block_ids.count : 0;
-    if (bl->func_count > 0) {
-        bl->func_block_ids = (int *) lv_malloc(sizeof(int) * bl->func_count);
-        memcpy(bl->func_block_ids, (int *) mod->exports->function_block_ids.data, sizeof(int) * bl->func_count);
-    }
-
-    bl->type_count = mod->exports ? mod->exports->type_region_ids.count : 0;
-    if (bl->type_count > 0) {
-        bl->type_region_ids = (int *) lv_malloc(sizeof(int) * bl->type_count);
-        memcpy(bl->type_region_ids, (int *) mod->exports->type_region_ids.data, sizeof(int) * bl->type_count);
-    }
-
-    /* 复制图快照 */
-    if (mod->graph) {
-        bl->graph_node_count = mod->graph->node_count;
-        bl->graph_constraint_count = mod->graph->constraint_count;
-
-        if (bl->graph_node_count > 0) {
-            bl->graph_node_ids = (int *) lv_malloc(sizeof(int) * bl->graph_node_count);
-            bl->graph_node_coord_hashes = (uint64_t *) lv_malloc(sizeof(uint64_t) * bl->graph_node_count);
-            for (int i = 0; i < bl->graph_node_count; i++) {
-                GeomNode *n = mod->graph->nodes[i];
-                bl->graph_node_ids[i] = n ? n->id : -1;
-                /* 计算节点坐标哈希：组合所有坐标的哈希 */
-                uint64_t ch = 0;
-                if (n && n->symbolic_coords) {
-                    for (int c = 0; c < n->coord_count; c++) {
-                        if (n->symbolic_coords[c]) {
-                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
-                        }
-                    }
-                }
-                /* 将节点类型和 id 混入哈希 */
-                if (n) {
-                    ch ^= (uint64_t) n->type * 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
-                }
-                bl->graph_node_coord_hashes[i] = ch;
-            }
-        }
-
-        if (bl->graph_constraint_count > 0) {
-            bl->graph_constraint_ids = (int *) lv_malloc(sizeof(int) * bl->graph_constraint_count);
-            for (int i = 0; i < bl->graph_constraint_count; i++) {
-                Constraint *c = mod->graph->constraints[i];
-                bl->graph_constraint_ids[i] = c ? c->id : -1;
-            }
-        }
-    }
+    *bl = tmp;
+    return true;
 }
 
 static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base_hash) {
@@ -519,10 +553,11 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_append_key(&w, "dependencies_removed");
         lv_json_buf_begin_array(&w);
         bool first = true;
-        for (int i = 0; i < bl->dep_count; i++) {
+        for (int i = 0; i < bl->dep_names.count; i++) {
+            char *dep_name = *(char **) lv_darray_get(&bl->dep_names, i);
             bool found = false;
             for (int j = 0; j < mod->dependencies.count; j++) {
-                if (strcmp(bl->dep_names[i], ((ModuleDependency *) mod->dependencies.data)[j].name) == 0) {
+                if (strcmp(dep_name, ((ModuleDependency *) mod->dependencies.data)[j].name) == 0) {
                     found = true;
                     break;
                 }
@@ -530,7 +565,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
             if (!found) {
                 if (!first)
                     lv_json_buf_append_char(&w, ',');
-                lv_json_buf_append_string(&w, bl->dep_names[i]);
+                lv_json_buf_append_string(&w, dep_name);
                 first = false;
             }
         }
@@ -541,8 +576,8 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < mod->dependencies.count; i++) {
             bool found = false;
-            for (int j = 0; j < bl->dep_count; j++) {
-                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, bl->dep_names[j]) == 0) {
+            for (int j = 0; j < bl->dep_names.count; j++) {
+                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j)) == 0) {
                     found = true;
                     break;
                 }
@@ -562,14 +597,14 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_append_key(&w, "dependencies_modified");
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < mod->dependencies.count; i++) {
-            for (int j = 0; j < bl->dep_count; j++) {
-                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, bl->dep_names[j]) == 0 &&
-                    strcmp(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, bl->dep_versions[j]) != 0) {
+            for (int j = 0; j < bl->dep_names.count; j++) {
+                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j)) == 0 &&
+                    strcmp(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, *(char **) lv_darray_get(&bl->dep_versions, j)) != 0) {
                     lv_json_buf_begin_object(&w);
                     lv_json_buf_append_key(&w, "name");
                     lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
                     lv_json_buf_append_key(&w, "old_version_constraint");
-                    lv_json_buf_append_string(&w, bl->dep_versions[j]);
+                    lv_json_buf_append_string(&w, *(char **) lv_darray_get(&bl->dep_versions, j));
                     lv_json_buf_append_key(&w, "new_version_constraint");
                     lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                     lv_json_buf_end_object(&w);
@@ -626,8 +661,8 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < cur_node_count; i++) {
             bool found = false;
-            for (int j = 0; j < bl->graph_node_count; j++) {
-                if (cur_node_ids[i] == bl->graph_node_ids[j]) {
+            for (int j = 0; j < bl->graph_node_ids.count; j++) {
+                if (cur_node_ids[i] == *(int *) lv_darray_get(&bl->graph_node_ids, j)) {
                     found = true;
                     break;
                 }
@@ -642,16 +677,17 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         /* nodes_removed: 在基线中但不在当前图中 */
         lv_json_buf_append_key(&w, "nodes_removed");
         lv_json_buf_begin_array(&w);
-        for (int i = 0; i < bl->graph_node_count; i++) {
+        for (int i = 0; i < bl->graph_node_ids.count; i++) {
+            int bid = *(int *) lv_darray_get(&bl->graph_node_ids, i);
             bool found = false;
             for (int j = 0; j < cur_node_count; j++) {
-                if (bl->graph_node_ids[i] == cur_node_ids[j]) {
+                if (bid == cur_node_ids[j]) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                lv_json_buf_append_int(&w, bl->graph_node_ids[i]);
+                lv_json_buf_append_int(&w, bid);
                 graph_changed = true;
             }
         }
@@ -661,9 +697,9 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_append_key(&w, "nodes_modified");
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < cur_node_count; i++) {
-            for (int j = 0; j < bl->graph_node_count; j++) {
-                if (cur_node_ids[i] == bl->graph_node_ids[j] &&
-                    cur_node_hashes[i] != bl->graph_node_coord_hashes[j]) {
+            for (int j = 0; j < bl->graph_node_ids.count; j++) {
+                if (cur_node_ids[i] == *(int *) lv_darray_get(&bl->graph_node_ids, j) &&
+                    cur_node_hashes[i] != *(uint64_t *) lv_darray_get(&bl->graph_node_coord_hashes, j)) {
                     lv_json_buf_append_int(&w, cur_node_ids[i]);
                     graph_changed = true;
                     break;
@@ -677,8 +713,8 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < cur_constraint_count; i++) {
             bool found = false;
-            for (int j = 0; j < bl->graph_constraint_count; j++) {
-                if (cur_constraint_ids[i] == bl->graph_constraint_ids[j]) {
+            for (int j = 0; j < bl->graph_constraint_ids.count; j++) {
+                if (cur_constraint_ids[i] == *(int *) lv_darray_get(&bl->graph_constraint_ids, j)) {
                     found = true;
                     break;
                 }
@@ -693,16 +729,17 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         /* constraints_removed: 在基线中但不在当前图中 */
         lv_json_buf_append_key(&w, "constraints_removed");
         lv_json_buf_begin_array(&w);
-        for (int i = 0; i < bl->graph_constraint_count; i++) {
+        for (int i = 0; i < bl->graph_constraint_ids.count; i++) {
+            int bid = *(int *) lv_darray_get(&bl->graph_constraint_ids, i);
             bool found = false;
             for (int j = 0; j < cur_constraint_count; j++) {
-                if (bl->graph_constraint_ids[i] == cur_constraint_ids[j]) {
+                if (bid == cur_constraint_ids[j]) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                lv_json_buf_append_int(&w, bl->graph_constraint_ids[i]);
+                lv_json_buf_append_int(&w, bid);
                 graph_changed = true;
             }
         }
@@ -729,7 +766,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
     delta->delta_size = w.pos;
 
     /* 更新基线 */
-    store_baseline(mod, base_hash);
+    (void) store_baseline(mod, base_hash);
 
     return delta;
 }

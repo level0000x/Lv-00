@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define FUNCTIONAL_ANALYSIS_ADV_PRESET_COUNT 8
-bool preset_functional_analysis_adv_register(void);
 
 #ifdef __cplusplus
 }

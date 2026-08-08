@@ -7,7 +7,9 @@
 #include "lv/lv_utils.h"
 
 #include <ctype.h>
+#include <gmp.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifndef _WIN32
 #include <strings.h> /* strcasecmp（lv_str_icmp） */
@@ -116,13 +118,10 @@ char *lv_str_trim(char *str) {
 
 static bool split_append(lvStrSplitResult *result, const char *seg, size_t seg_len, size_t *capacity) {
     if (result->count >= *capacity) {
-        size_t new_cap = *capacity * 2;
-        char **new_items = (char **)lv_malloc(sizeof(char *) * new_cap);
-        if (!new_items) return false;
-        memcpy(new_items, result->items, sizeof(char *) * result->count);
-        lv_free((void **)&result->items);
-        result->items = new_items;
-        *capacity = new_cap;
+        int cap_i = (int)*capacity;
+        if (!lv_ensure_capacity((void **)&result->items, (int)result->count, &cap_i, sizeof(char *), 0))
+            return false;
+        *capacity = (size_t)cap_i;
     }
     lvStrBuf sb = {0};
     lv_strbuf_printf(&sb, "%.*s", (int)seg_len, seg);
@@ -533,6 +532,16 @@ size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst
     return need;
 }
 
+char *lv_str_html_escape_alloc(const char *src) {
+    size_t len = src ? strlen(src) : 0;
+    size_t need = lv_str_html_escape(src, len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        return NULL;
+    lv_str_html_escape(src, len, buf, need + 1);
+    return buf;
+}
+
 /** @brief LaTeX 特殊字符 → 转义字符串 查找表（按 ASCII 下标，NULL 表示原样输出）
  *  % → \%：LaTeX 中 \% 才是百分号转义（\\%% 会让裸 % 起注释吞行） */
 static const char *const s_latex_escape_entities[256] = {
@@ -567,6 +576,51 @@ size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t ds
     if (dst && dst_cap > 0)
         dst[written] = '\0';
     return need;
+}
+
+char *lv_str_latex_escape_alloc(const char *src) {
+    size_t len = src ? strlen(src) : 0;
+    size_t need = lv_str_latex_escape(src, len, NULL, 0);
+    char *buf = (char *) lv_malloc(need + 1);
+    if (!buf)
+        return NULL;
+    lv_str_latex_escape(src, len, buf, need + 1);
+    return buf;
+}
+
+char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator) {
+    if (!q)
+        return NULL;
+    char *num_str = mpz_get_str(NULL, 10, mpq_numref(q));
+    if (!num_str)
+        return NULL;
+    if (omit_unit_denominator && mpz_cmp_ui(mpq_denref(q), 1) == 0) {
+        size_t num_len = strlen(num_str);
+        char *buf = (char *) lv_malloc(num_len + 1);
+        if (!buf) {
+            free(num_str);
+            return NULL;
+        }
+        memcpy(buf, num_str, num_len + 1);
+        free(num_str);
+        return buf;
+    }
+    char *den_str = mpz_get_str(NULL, 10, mpq_denref(q));
+    if (!den_str) {
+        free(num_str);
+        return NULL;
+    }
+    size_t need = strlen(num_str) + strlen(den_str) + 2;
+    char *buf = (char *) lv_malloc(need);
+    if (!buf) {
+        free(num_str);
+        free(den_str);
+        return NULL;
+    }
+    snprintf(buf, need, "%s/%s", num_str, den_str);
+    free(num_str);
+    free(den_str);
+    return buf;
 }
 
 size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap) {

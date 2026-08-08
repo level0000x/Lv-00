@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define ALGEBRAIC_TOPOLOGY_PRESET_COUNT 12
-bool preset_algebraic_topology_register(void);
 
 #ifdef __cplusplus
 }

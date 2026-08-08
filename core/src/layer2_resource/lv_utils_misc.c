@@ -889,9 +889,20 @@ void lv_darray_init(lvDArray *arr, size_t elem_size) {
     arr->count = 0;
     arr->capacity = 0;
     arr->elem_size = elem_size;
+    arr->elem_destroy = NULL;
+}
+
+void lv_darray_init_with_dtor(lvDArray *arr, size_t elem_size, void (*dtor)(void *)) {
+    lv_darray_init(arr, elem_size);
+    arr->elem_destroy = dtor;
 }
 
 void lv_darray_free(lvDArray *arr) {
+    if (arr->elem_destroy && arr->data) {
+        for (int i = 0; i < arr->count; i++) {
+            arr->elem_destroy((char *) arr->data + (size_t) i * arr->elem_size);
+        }
+    }
     if (arr->data) {
         lv_free((void **) &(arr->data));
         arr->data = NULL;
@@ -899,6 +910,7 @@ void lv_darray_free(lvDArray *arr) {
     arr->count = 0;
     arr->capacity = 0;
     arr->elem_size = 0;
+    arr->elem_destroy = NULL;
 }
 
 bool lv_darray_reserve(lvDArray *arr, int count) {

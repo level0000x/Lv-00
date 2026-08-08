@@ -1,4 +1,4 @@
-﻿/*
+/*
  * @file axiom_pkg_core.c
  * @brief Axiom package system - create/destroy, unconstructible mgmt, template mgmt
  * @details Split from axiom_pkg.c
@@ -42,23 +42,10 @@
  * name→索引 的 strcmp 查重与查找；重复注册时首次映射生效（与原线性查找
  * "首个匹配优先"语义一致）。文件级单例（lv_once 惰性初始化，线程安全）。
  */
-static lvRegistry g_axiom_name_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_axiom_name_registry_once = lv_ONCE_INIT;
+lv_REGISTRY_STATIC(axiom_name_registry, 32);
 
 /** @brief 注册表 key 缓冲区大小（pkg 指针 + kind + 名称） */
 #define AXIOM_REGKEY_MAX 512
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void axiom_name_registry_init_once(void) {
-    lv_registry_init(&g_axiom_name_registry, 32);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void axiom_name_registry_ensure(void) {
-    lv_once(&g_axiom_name_registry_once, axiom_name_registry_init_once);
-}
 
 /** @brief 装箱元素索引（注册表 value） */
 static void *axiom_box_index(int idx) {

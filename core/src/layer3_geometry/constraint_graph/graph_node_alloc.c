@@ -549,46 +549,28 @@ static bool point_serialize(const GeomNode *node, void *buf) {
 
 static bool line_segment_serialize(const GeomNode *node, void *buf) {
     lvJsonBuf *jb = (lvJsonBuf *)buf;
-    char id_str[32];
     int half = node->coord_count / 2;
     if (half < 2) half = 2;
-    lv_json_buf_append_raw(jb, "\"endpoint1_start\":0,");
-    lv_json_buf_append_raw(jb, "\"endpoint2_start\":");
-    snprintf(id_str, sizeof(id_str), "%d", half);
-    lv_json_buf_append_raw(jb, id_str);
-    lv_json_buf_append_raw(jb, ",");
-    lv_json_buf_append_raw(jb, "\"coord_count\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->coord_count);
-    lv_json_buf_append_raw(jb, id_str);
+    lv_json_buf_append_fmt(jb, "\"endpoint1_start\":0,\"endpoint2_start\":%d,\"coord_count\":%d", half,
+                           node->coord_count);
     return true;
 }
 
 static bool region_serialize(const GeomNode *node, void *buf) {
     lvJsonBuf *jb = (lvJsonBuf *)buf;
-    char id_str[32];
     lv_json_buf_append_raw(jb, "\"boundary_segments\":[");
     for (int i = 0; i < node->data.region.segment_count; i++) {
         if (i > 0) lv_json_buf_append_char(jb, ',');
-        snprintf(id_str, sizeof(id_str), "%d", node->data.region.boundary_segments[i]->id);
-        lv_json_buf_append_raw(jb, id_str);
+        lv_json_buf_append_fmt(jb, "%d", node->data.region.boundary_segments[i]->id);
     }
-    lv_json_buf_append_raw(jb, "],");
-    lv_json_buf_append_raw(jb, "\"segment_count\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->data.region.segment_count);
-    lv_json_buf_append_raw(jb, id_str);
+    lv_json_buf_append_fmt(jb, "],\"segment_count\":%d", node->data.region.segment_count);
     return true;
 }
 
 static bool circle_serialize(const GeomNode *node, void *buf) {
     lvJsonBuf *jb = (lvJsonBuf *)buf;
-    char id_str[32];
-    lv_json_buf_append_raw(jb, "\"center_node_id\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->data.circle.center_node_id);
-    lv_json_buf_append_raw(jb, id_str);
-    lv_json_buf_append_raw(jb, ",");
-    lv_json_buf_append_raw(jb, "\"radius_node_id\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->data.circle.radius_node_id);
-    lv_json_buf_append_raw(jb, id_str);
+    lv_json_buf_append_fmt(jb, "\"center_node_id\":%d,\"radius_node_id\":%d", node->data.circle.center_node_id,
+                           node->data.circle.radius_node_id);
     return true;
 }
 
@@ -609,29 +591,25 @@ static bool port_serialize(const GeomNode *node, void *buf) {
 
 static bool func_block_serialize(const GeomNode *node, void *buf) {
     lvJsonBuf *jb = (lvJsonBuf *)buf;
-    char id_str[32];
 
     lv_json_buf_append_raw(jb, "\"internal_nodes\":[");
     for (int i = 0; i < node->data.func_block.internal_node_count; i++) {
         if (i > 0) lv_json_buf_append_char(jb, ',');
-        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.internal_nodes[i]->id);
-        lv_json_buf_append_raw(jb, id_str);
+        lv_json_buf_append_fmt(jb, "%d", node->data.func_block.internal_nodes[i]->id);
     }
     lv_json_buf_append_raw(jb, "],");
 
     lv_json_buf_append_raw(jb, "\"input_port_ids\":[");
     for (int i = 0; i < node->data.func_block.input_count; i++) {
         if (i > 0) lv_json_buf_append_char(jb, ',');
-        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.input_port_ids[i]);
-        lv_json_buf_append_raw(jb, id_str);
+        lv_json_buf_append_fmt(jb, "%d", node->data.func_block.input_port_ids[i]);
     }
     lv_json_buf_append_raw(jb, "],");
 
     lv_json_buf_append_raw(jb, "\"output_port_ids\":[");
     for (int i = 0; i < node->data.func_block.output_count; i++) {
         if (i > 0) lv_json_buf_append_char(jb, ',');
-        snprintf(id_str, sizeof(id_str), "%d", node->data.func_block.output_port_ids[i]);
-        lv_json_buf_append_raw(jb, id_str);
+        lv_json_buf_append_fmt(jb, "%d", node->data.func_block.output_port_ids[i]);
     }
     lv_json_buf_append_raw(jb, "],");
 

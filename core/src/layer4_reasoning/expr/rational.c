@@ -563,27 +563,15 @@ bool lv_rational_den_is_safe(const mpz_t den) {
 /**
  * @brief 将有理数转换为字符串
  *
- * mpq_get_str 在分母为 1 时输出整数形式（如 "3"），否则输出 "num/den"
- * （如 "-5/4"），与原实现的 "整数无 /1" 行为一致。
+ * 分母为 1 时输出整数形式（如 "3"），否则输出 "num/den"（如 "-5/4"），
+ * 与原实现的"整数无 /1"行为一致。
  *
  * @return 新分配的字符串，失败返回 NULL
  */
 char *lv_rational_to_string(const lvRational *r) {
     if (!r)
         return NULL;
-
-    char *gmp_str = mpq_get_str(NULL, 10, r->value);
-    if (!gmp_str)
-        return NULL;
-    size_t slen = strlen(gmp_str);
-    char *result = (char *) lv_malloc(slen + 1);
-    if (!result) {
-        free(gmp_str); /* GMP 分配，用标准 free 释放 */
-        return NULL;
-    }
-    memcpy(result, gmp_str, slen + 1);
-    free(gmp_str); /* GMP 分配，用标准 free 释放 */
-    return result;
+    return lv_mpq_to_string(r->value, true);
 }
 
 /**

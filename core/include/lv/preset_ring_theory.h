@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define RING_THEORY_PRESET_COUNT 31
-bool preset_ring_theory_register(void);
 
 #ifdef __cplusplus
 }

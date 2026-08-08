@@ -1455,6 +1455,7 @@ typedef struct {
     int count;        /**< 当前元素数量 */
     int capacity;     /**< 当前缓冲区容量（元素个数） */
     size_t elem_size; /**< 每个元素的字节大小 */
+    void (*elem_destroy)(void *); /**< 元素析构回调（可为 NULL） */
 } lvDArray;
 
 /**
@@ -1465,7 +1466,17 @@ typedef struct {
 lv_PUBLIC_API void lv_darray_init(lvDArray *arr, size_t elem_size);
 
 /**
+ * @brief 以元素析构回调初始化动态数组
+ * @param arr       数组指针
+ * @param elem_size 每个元素的字节大小
+ * @param dtor      元素析构回调（可为 NULL，lv_darray_free 时逐元素调用）
+ */
+lv_PUBLIC_API void lv_darray_init_with_dtor(lvDArray *arr, size_t elem_size, void (*dtor)(void *));
+
+/**
  * @brief 释放动态数组内部缓冲区，重置为零
+ * @note 若通过 lv_darray_init_with_dtor 设置了 elem_destroy，
+ *       释放前会逐元素调用析构回调（无 dtor 时行为与旧版一致）
  */
 lv_PUBLIC_API void lv_darray_free(lvDArray *arr);
 

@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define REPRESENTATION_THEORY_PRESET_COUNT 10
-bool preset_representation_theory_register(void);
 
 #ifdef __cplusplus
 }

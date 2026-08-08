@@ -683,13 +683,20 @@ int bdd_reorder_sift(BDDManager *mgr) {
     return improved;
 }
 
-/* ── 辅助：根据节点 ID 查找 node_base_var 数组索引 ── */
+/* ── 辅助：根据节点 ID 查找 node_base_var 数组索引（graph_get_node 哈希 → O(1)） ── */
 static int lookup_node_base_var(int node_id, int n, const int *node_base_var, const ConstraintGraph *graph) {
-    for (int j = 0; j < n; j++) {
-        if (graph->nodes[j] && graph->nodes[j]->id == node_id)
-            return node_base_var[j];
-    }
-    return -1;
+    if (!graph || node_id < 0 || graph->node_count <= 0 || !graph->nodes[0])
+        return -1;
+    GeomNode *node = graph_get_node(graph, node_id);
+    if (!node)
+        return -1;
+    intptr_t byte_off = (intptr_t) node - (intptr_t) graph->nodes[0];
+    if (byte_off < 0 || byte_off % (intptr_t) sizeof(GeomNode *) != 0)
+        return -1;
+    intptr_t j = byte_off / (intptr_t) sizeof(GeomNode *);
+    if (j < 0 || j >= n)
+        return -1;
+    return node_base_var[j];
 }
 
 /* ── BDD 编码辅助函数（文件作用域，用于查找表） ── */

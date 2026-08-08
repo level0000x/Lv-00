@@ -46,6 +46,7 @@ extern "C" {
 
 typedef struct ConstraintGraph ConstraintGraph;
 typedef struct FuncBlock FuncBlock;
+typedef struct lvHashtable lvHashtable;
 
 /* ================================================================
  *  第一部分：DSL 词法分析（Tokenizer）
@@ -263,6 +264,7 @@ typedef struct DslIR {
     int op_capacity;            /**< 操作数组容量 */
     char **symbols;             /**< 符号表（ID -> 名称映射） */
     int *symbol_to_ir_id;       /**< 符号到结果 IR ID 的映射 */
+    lvHashtable *symbol_index;  /**< 符号名 → 符号下标+1 的哈希索引（O(1) 查找，可为 NULL 回退线性） */
     int symbol_count;           /**< 符号数量 */
     int symbol_capacity;        /**< 符号表容量 */
     int next_id;                /**< 下一个可用的结果实体 ID */

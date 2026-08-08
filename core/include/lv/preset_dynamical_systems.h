@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define DYNAMICAL_SYSTEMS_PRESET_COUNT 14
-bool preset_dynamical_systems_register(void);
 
 #ifdef __cplusplus
 }

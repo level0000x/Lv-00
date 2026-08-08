@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 #define ARITHMETIC_GEOMETRY_PRESET_COUNT 12
-bool preset_arithmetic_geometry_register(void);
 
 #ifdef __cplusplus
 }

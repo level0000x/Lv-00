@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file gappa_propagate.c
  * @brief Gappa 浮点误差传播引擎
  *
@@ -316,20 +316,7 @@ static int forward_propagate(const char *expr, const PropInterval *vars, double 
 #define GAPPA_REGKEY_MAX 512
 
 /** @brief 谓词集名称索引注册表（文件级单例） */
-static lvRegistry g_gappa_pred_registry;
-
-/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
-static lv_once_t g_gappa_pred_registry_once = lv_ONCE_INIT;
-
-/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
-static void gappa_pred_registry_init_once(void) {
-    lv_registry_init(&g_gappa_pred_registry, 64);
-}
-
-/** @brief 确保注册表已初始化 */
-static inline void gappa_pred_registry_ensure(void) {
-    lv_once(&g_gappa_pred_registry_once, gappa_pred_registry_init_once);
-}
+lv_REGISTRY_STATIC(gappa_pred_registry, 64);
 
 /** @brief 装箱谓词索引（注册表 value） */
 static void *gappa_box_index(int idx) {

@@ -227,12 +227,16 @@ lvProofStepRecord *lv_proof_step_record_create(void) {
     lvProofStepRecord *record = (lvProofStepRecord *) lv_calloc(1, sizeof(lvProofStepRecord));
     if (!record)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: calloc failed");
-    record->premise_step_ids = (int *) lv_malloc(8 * sizeof(int));
-    if (!record->premise_step_ids) {
+
+    /* 以借用视图预分配前提数组容量 8（公共结构体布局保持不变） */
+    lvDArray arr;
+    lv_darray_init(&arr, sizeof(int));
+    if (!lv_darray_reserve(&arr, 8)) {
         lv_free((void **) &record);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: premise_step_ids malloc failed");
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: premise_step_ids reserve failed");
     }
-    record->premise_capacity = 8;
+    record->premise_step_ids = (int *) arr.data;
+    record->premise_capacity = (int) arr.capacity;
 
     return record;
 }

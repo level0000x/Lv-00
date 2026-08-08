@@ -349,27 +349,20 @@ static bool starts_with(const char *s, const char *prefix) {
         return false;
     while (*s == ' ')
         s++;
-    return strncmp(s, prefix, strlen(prefix)) == 0;
+    return lv_str_startswith(s, prefix);
 }
 
 /**
  * @brief 辅助：生成验证 trace 字符串
  */
 static char *make_trace(const char *fmt, const char *arg1, const char *arg2, const char *arg3) {
-    size_t len = (fmt ? strlen(fmt) : 0) + (arg1 ? strlen(arg1) : 0) + (arg2 ? strlen(arg2) : 0) +
-                 (arg3 ? strlen(arg3) : 0) + 64;
-    char *buf = (char *) lv_malloc(len);
-    if (buf) {
-        if (arg3)
-            snprintf(buf, len, fmt, arg1, arg2, arg3);
-        else if (arg2)
-            snprintf(buf, len, fmt, arg1, arg2);
-        else if (arg1)
-            snprintf(buf, len, fmt, arg1);
-        else
-            snprintf(buf, len, "%s", fmt);
-    }
-    return buf;
+    if (arg3)
+        return lv_asprintf(fmt, arg1, arg2, arg3);
+    if (arg2)
+        return lv_asprintf(fmt, arg1, arg2);
+    if (arg1)
+        return lv_asprintf(fmt, arg1);
+    return lv_asprintf("%s", fmt);
 }
 
 /* ================================================================

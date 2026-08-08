@@ -63,6 +63,14 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
         }
         coords[0] = symbolic_coord_create_rational(0, 1);
         coords[1] = symbolic_coord_create_rational(0, 1);
+        if (!coords[0] || !coords[1]) {
+            if (coords[0])
+                symbolic_coord_destroy(coords[0]);
+            if (coords[1])
+                symbolic_coord_destroy(coords[1]);
+            lv_free((void **) &coords);
+            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
+        }
         coord_count = 2;
     }
 

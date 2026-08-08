@@ -75,6 +75,11 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name);
  */
 void module_autosave_cleanup(void);
 
+/**
+ * @brief 释放 Delta 基线表全部条目（供 lv_cleanup 末尾调用）
+ */
+void module_delta_cleanup(void);
+
 #ifdef __cplusplus
 }
 #endif

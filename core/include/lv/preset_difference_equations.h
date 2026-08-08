@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 #define DIFFERENCE_EQUATIONS_PRESET_COUNT 12
-bool preset_difference_equations_register(void);
 
 #ifdef __cplusplus
 }

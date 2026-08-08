@@ -10,9 +10,11 @@
  */
 
 #include "lv/algebraic_number.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 
+#include <gmp.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -268,12 +270,20 @@ double lv_alg_rational_to_double(const AlgRational *r) {
 }
 
 int lv_alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
-    int len;
-    if (r->den == 1) {
-        len = snprintf(buf, size, "%lld", (long long) r->num);
-    } else {
-        len = snprintf(buf, size, "%lld/%lld", (long long) r->num, (long long) r->den);
-    }
+    mpq_t q;
+    char nb[24], db[24];
+    mpq_init(q);
+    snprintf(nb, sizeof(nb), "%lld", (long long) r->num);
+    snprintf(db, sizeof(db), "%lld", (long long) r->den);
+    mpq_set_str(q, nb, 10);
+    mpz_set_str(mpq_denref(q), db, 10);
+    mpq_canonicalize(q);
+    char *s = lv_mpq_to_string(q, true);
+    mpq_clear(q);
+    if (!s)
+        return -1;
+    int len = snprintf(buf, size, "%s", s);
+    lv_free((void **) &s);
     return len;
 }
 

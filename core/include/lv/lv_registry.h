@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "lv_platform.h"  /* for lvMutex, lv_MUTEX_* */
+#include "lv/lv_thread.h" /* for lv_once_t, lv_ONCE_INIT, lv_once */
 
 #ifdef __cplusplus
 extern "C" {
@@ -140,6 +141,35 @@ int lv_registry_count(const lvRegistry *reg);
  * @return true 成功，false 索引越界
  */
 bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value);
+
+/* ============================================================
+ * 静态注册表声明宏（Static Registry Declaration Macros）
+ *
+ * 收敛文件级单例注册表的四处重复样板：
+ *   static lvRegistry g_x;
+ *   static lv_once_t g_x_once = lv_ONCE_INIT;
+ *   static void x_init_once(void) { lv_registry_init(&g_x, cap); }
+ *   static inline void x_ensure(void) { lv_once(&g_x_once, x_init_once); }
+ *
+ * 用法：
+ *   lv_REGISTRY_STATIC(my_registry, 32);
+ *   ... my_registry_ensure(); lv_registry_put(&g_my_registry, ...); ...
+ *
+ * 若 init_once 需要额外的初始化逻辑（注册默认条目等），
+ * 用 lv_REGISTRY_STATIC_DECL(name) 只声明变量与守卫，
+ * 再自行定义 name##_init_once 与 name##_ensure。
+ * ============================================================ */
+
+/** @brief 仅声明静态注册表变量与一次性初始化守卫（供自定义 init_once 体的场合） */
+#define lv_REGISTRY_STATIC_DECL(name) \
+    static lvRegistry g_##name; \
+    static lv_once_t g_##name##_once = lv_ONCE_INIT;
+
+/** @brief 完整四件套声明（变量 + once 守卫 + init_once + ensure） */
+#define lv_REGISTRY_STATIC(name, capacity) \
+    lv_REGISTRY_STATIC_DECL(name) \
+    static void name##_init_once(void) { lv_registry_init(&g_##name, capacity); } \
+    static inline void name##_ensure(void) { lv_once(&g_##name##_once, name##_init_once); }
 
 /* ============================================================
  * 模块生命周期管理（Module Lifecycle）

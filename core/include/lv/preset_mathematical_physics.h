@@ -8,7 +8,6 @@ extern "C" {
 #endif
 
 #define MATHEMATICAL_PHYSICS_PRESET_COUNT 12
-bool preset_mathematical_physics_register(void);
 
 #ifdef __cplusplus
 }

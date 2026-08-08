@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define MATRIX_PRESET_COUNT 28
-bool preset_matrix_register(void);
 
 #ifdef __cplusplus
 }

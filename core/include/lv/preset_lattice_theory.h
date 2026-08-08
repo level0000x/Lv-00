@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define LATTICE_THEORY_PRESET_COUNT 10
-bool preset_lattice_theory_register(void);
 
 #ifdef __cplusplus
 }

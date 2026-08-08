@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define CATEGORY_THEORY_ADV_PRESET_COUNT 8
-bool preset_category_theory_adv_register(void);
 
 #ifdef __cplusplus
 }

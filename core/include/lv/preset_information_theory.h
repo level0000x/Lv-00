@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define INFORMATION_THEORY_PRESET_COUNT 10
-bool preset_information_theory_register(void);
 
 #ifdef __cplusplus
 }

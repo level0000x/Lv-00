@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define GAME_THEORY_PRESET_COUNT 10
-bool preset_game_theory_register(void);
 
 #ifdef __cplusplus
 }

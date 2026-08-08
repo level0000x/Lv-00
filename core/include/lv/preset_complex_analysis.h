@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define COMPLEX_ANALYSIS_PRESET_COUNT 35
-bool preset_complex_analysis_register(void);
 
 #ifdef __cplusplus
 }

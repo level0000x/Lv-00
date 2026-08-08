@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 #define STOCHASTIC_PROCESSES_PRESET_COUNT 14
-bool preset_stochastic_processes_register(void);
 
 #ifdef __cplusplus
 }
