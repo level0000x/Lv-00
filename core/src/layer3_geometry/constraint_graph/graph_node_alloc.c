@@ -247,15 +247,16 @@ GeomNode *graph_add_node_with_id(ConstraintGraph *graph, int node_id, GeomType t
         return NULL;
 
     /* 更新 next_node_id 以确保新节点ID不会冲突（使用原子 CAS 循环保证线程安全） */
-    if (node_id >= graph->next_node_id) {
-        int expected = graph->next_node_id;
+    if (node_id >= lv_ATOMIC_LOAD(&graph->next_node_id)) {
+        int expected = lv_ATOMIC_LOAD(&graph->next_node_id);
         int desired = node_id + 1;
         while (expected < desired) {
             desired = node_id + 1;
-            if (atomic_compare_exchange_weak((atomic_int *) &graph->next_node_id, &expected, desired)) {
+            if (lv_ATOMIC_CAS_BOOL(&graph->next_node_id, desired, &expected)) {
                 break;
             }
-            /* expected 已被更新为当前值，循环重试直到成功或当前值已 >= desired */
+            /* 失败后重读当前值（Windows 端 lv_ATOMIC_CAS_BOOL 不更新 expected） */
+            expected = lv_ATOMIC_LOAD(&graph->next_node_id);
         }
     }
 

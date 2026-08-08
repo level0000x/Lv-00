@@ -239,29 +239,11 @@ static void json_config_double(const char *json, const char *key, double *out) {
 int lv_config_load_json(const char *json_path) {
     if (!json_path)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_path is NULL");
-    FILE *f = lv_file_open(json_path, "rb");
-    if (!f)
-        lv_RETURN_ERROR(lv_ERROR_IO, "failed to open config file");
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (sz <= 0 || sz > (1024 * 1024)) {
-        lv_file_close(f);
-        lv_RETURN_ERROR(lv_ERROR_PARSE, "invalid config file size");
-    }
-    char *buf = (char *) lv_malloc((size_t) sz + 1);
-    if (!buf) {
-        lv_file_close(f);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate JSON buffer");
-    }
-    size_t n = fread(buf, 1, (size_t) sz, f);
-    lv_file_close(f);
-    /* 短读校验：实际读取字节数必须与文件大小一致，否则缓冲区未完整填充 */
-    if (n != (size_t) sz) {
-        lv_free((void **) &buf);
-        lv_RETURN_ERROR(lv_ERROR_IO, "failed to read config file (short read)");
-    }
-    buf[n] = '\0';
+    size_t len = 0;
+    char *buf = (char *) lv_file_read_all_limited(json_path, &len, (size_t) 1024 * 1024);
+    if (!buf)
+        lv_RETURN_ERROR(lv_ERROR_IO, "failed to read config file (open/size/alloc/read error)");
+    /* buf 已由 lv_file_read_all_limited 保证以 '\0' 结尾 */
 
     lvConfig cfg = *lv_config_default();
     const char *json_data = buf;

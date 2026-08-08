@@ -22,8 +22,8 @@
  *          实现选择与代码库既有风格一致：
  *          - 复用 lv_utils.h 已有的 lvDeferSlot / lv_defer_slot_cleanup /
  *            lv_defer_free_ptr（GCC cleanup 属性 + 槽位记录）；
- *          - lv_DEFER 变量名用 __COUNTER__ 唯一化，突破 lv_utils.h 中
- *            LV_DEFER 宏"同一作用域仅可注册一个"的限制；
+ *          - lv_DEFER 变量名用 __COUNTER__ 唯一化，同一作用域可注册多个
+ *            （lv_utils.h 中的 LV_DEFER 现已改为 lv_DEFER 的兼容别名）；
  *          - MSVC 等不支持 cleanup 属性的编译器下展开为空操作
  *            （与 lv_utils.h 的 LV_DEFER 行为一致），需回退 goto cleanup 模式。
  *

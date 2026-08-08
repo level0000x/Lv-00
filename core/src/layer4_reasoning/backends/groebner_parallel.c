@@ -933,7 +933,11 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
 
     /* C11 原子计数器：当前为单线程顺序执行框架；多线程扩展后由多个
      * worker_process 并发访问，volatile 不足以保证原子性与可见性，
-     * 故使用 stdatomic（原子类型保持与原 volatile int 相同布局）。 */
+     * 故使用 stdatomic（原子类型保持与原 volatile int 相同布局）。
+     * 注（P1-3 标注）：保持 C11 atomic 而非迁移 lv_ATOMIC_* —— 此处为
+     * atomic_int 指针成员贯穿并行算法核心状态，含大量 load/fetch_add/store
+     * 混合操作与指针传递，迁移需改动类型系统与全部操作点；且 lv_ATOMIC_*
+     * LOAD/STORE 为 32 位原语，语义与 C11 默认 seq_cst 不完全一致。 */
     atomic_int shutdown_flag = 0;
     atomic_int global_completed = 0;
     atomic_int global_total = engine->state.total_pairs;

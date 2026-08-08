@@ -65,17 +65,19 @@ static bool create_repo_dirs(const char *repo_path) {
     char repo_dir[lv_PATH_BUF_SIZE];
     char path[lv_PATH_BUF_SIZE];
 
+    /* 统一走 lv_path_mkdirs（递归逐级创建，内部容忍 EEXIST），
+     * 收敛对 repo_dir/commits/objects/branches 的四次 lv_mkdir */
     repo_dir_path(repo_path, repo_dir, sizeof(repo_dir));
-    lv_mkdir(repo_dir);
+    lv_path_mkdirs(repo_dir);
 
     lv_path_join(repo_dir, "commits", path, sizeof(path));
-    lv_mkdir(path);
+    lv_path_mkdirs(path);
 
     lv_path_join(repo_dir, "objects", path, sizeof(path));
-    lv_mkdir(path);
+    lv_path_mkdirs(path);
 
     lv_path_join(repo_dir, "branches", path, sizeof(path));
-    lv_mkdir(path);
+    lv_path_mkdirs(path);
 
     return true;
 }

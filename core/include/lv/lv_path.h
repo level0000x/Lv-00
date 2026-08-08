@@ -63,6 +63,45 @@ char *lv_path_strip_ext(char *path);
  */
 int lv_path_mkdirs(const char *path);
 
+/**
+ * @brief 删除文件或目录（目录递归删除）
+ * @param path 要删除的文件/目录路径
+ * @return 0 成功（含路径不存在，视为成功）；-1 参数无效或删除失败
+ * @note 收敛 test_proof_version.c 等处 #ifdef _WIN32 system("rmdir /s /q")
+ *       / #else system("rm -rf") 双平台镜像样板；目录先递归删除子项再
+ *       移除自身，行为与 rm -rf / rmdir /s /q 一致。
+ */
+int lv_path_remove(const char *path);
+
+/**
+ * @brief 目录遍历回调
+ * @param ctx  透传上下文
+ * @param name 目录项名称（不含路径，已跳过 "." 与 ".."）
+ * @return true 继续遍历；false 中止遍历
+ */
+typedef bool (*lv_dir_entry_fn)(void *ctx, const char *name);
+
+/**
+ * @brief 遍历目录条目（自动跳过 "." 与 ".."）
+ * @param dir 目录路径
+ * @param fn  回调（不可为 NULL）
+ * @param ctx 透传上下文
+ * @return 0 成功（含目录不存在或为空，与历史手写遍历语义一致）；-1 参数无效
+ * @note 收敛 plugin_system_autoload.c 中 FindFirstFileA / opendir 双平台
+ *       手写镜像样板；条目过滤（如按扩展名）由调用方在回调中完成。
+ */
+int lv_dir_foreach(const char *dir, lv_dir_entry_fn fn, void *ctx);
+
+/**
+ * @brief 生成唯一的临时文件路径（替换 tmpnam；不创建文件）
+ * @param out      输出缓冲区
+ * @param out_size 缓冲区大小（字节）
+ * @return true 成功；false 参数无效或缓冲区不足
+ * @note 目录取系统临时目录（Windows: GetTempPath；POSIX: TMPDIR 或 /tmp），
+ *       文件名由 PID + 时间戳 + 计数器保证进程内唯一。
+ */
+bool lv_temp_path(char *out, size_t out_size);
+
 #ifdef __cplusplus
 }
 #endif

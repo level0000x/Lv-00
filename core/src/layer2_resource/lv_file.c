@@ -6,12 +6,6 @@
 #include <string.h>
 #include <errno.h>
 
-/* lv_platform.h 定义了 lv_file_exists(path) 宏（基于 lv_access），
- * 与本文件实现的 lv_file_exists 函数重名；此处取消宏定义以保留函数实现。 */
-#ifdef lv_file_exists
-#undef lv_file_exists
-#endif
-
 FILE *lv_file_open(const char *path, const char *mode) {
     if (!path || !mode) return NULL;
     FILE *fp = fopen(path, mode);

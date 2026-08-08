@@ -164,6 +164,34 @@ static inline void lv_lock_guard_scope_cleanup(void *p) {
 #define LV_SCOPE_LOCK(mutex) lvLockGuard _lv_scope_guard_; lv_lock_guard_init(&_lv_scope_guard_, (mutex))
 #endif
 
+/**
+ * @brief 条件作用域锁守卫：cond 为真时加锁，离开作用域自动解锁；cond 为假时无操作
+ *
+ * 用于互斥锁可能不启用（如 pool->thread_safe 为假）的场景，替代
+ *   lvLockGuard _guard __attribute__((cleanup(...))) = {NULL};
+ *   if (cond) lv_lock_guard_init(&_guard, &mutex);
+ * 的裸写 cleanup 模式（MSVC 不支持该属性，属硬错）。
+ *
+ * 用法：
+ *   LV_SCOPE_LOCK_MAYBE(&pool->mutex, pool->thread_safe);
+ *   if (error)
+ *       return NULL;   // 已加锁时自动解锁；未加锁时 no-op
+ *
+ * @param mutex 指向互斥锁的指针（允许被 cond 为假时跳过）
+ * @param cond  运行时条件：为真则加锁，为假则保持未锁定状态
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define LV_SCOPE_LOCK_MAYBE(mutex, cond)                                                     \
+    lvLockGuard _lv_scope_maybe_guard_ __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL}; \
+    do { if (cond) lv_lock_guard_init(&_lv_scope_maybe_guard_, (mutex)); } while (0)
+#else
+/* MSVC 不支持 cleanup 属性：退化为手动配对，cond 为真时加锁，
+ * 离开作用域不自动解锁，需配合 goto cleanup 手动解锁 */
+#define LV_SCOPE_LOCK_MAYBE(mutex, cond)                                                     \
+    lvLockGuard _lv_scope_maybe_guard_ = {NULL};                                              \
+    do { if (cond) lv_lock_guard_init(&_lv_scope_maybe_guard_, (mutex)); } while (0)
+#endif
+
 /* ═══════════════════════════════════════════════════════════════════
  * 第 3 节：条件变量（Condition Variable）
  * ═══════════════════════════════════════════════════════════════════ */

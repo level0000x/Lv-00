@@ -205,24 +205,35 @@ extern "C" {
  *   lv_ATOMIC_FENCE_SEQ_CST()  —— 全序内存屏障
  * ═══════════════════════════════════════════════════════════════════ */
 
+/* 全项目唯一权威定义：指针语义（参数为指向目标变量的指针）。
+ * 兼容历史左值语义宏：若使用点需按左值调用，可在调用处取址（&var）。 */
+#ifndef lv_ATOMIC_INC
 #ifdef _WIN32
   #include <windows.h>
-  /* int 原子操作 */
-  #define lv_ATOMIC_INC(ptr)           InterlockedIncrement((ptr))
-  #define lv_ATOMIC_DEC(ptr)           InterlockedDecrement((ptr))
-  #define lv_ATOMIC_ADD(ptr, val)      InterlockedExchangeAdd((ptr), (val))
-  #define lv_ATOMIC_SUB(ptr, val)      InterlockedExchangeAdd((ptr), -(val))
+  /* int 原子操作
+   * 注：与 POSIX 分支的 __atomic_* 内建（接受任意指针类型）对齐，
+   * 32 位宏统一将 (ptr) cast 为 volatile LONG *，调用点（int * 与
+   * _Atomic int * 等）无需关心类型，保证全平台调用约定一致。 */
+  #define lv_ATOMIC_INC(ptr)           InterlockedIncrement((volatile LONG *)(ptr))
+  #define lv_ATOMIC_DEC(ptr)           InterlockedDecrement((volatile LONG *)(ptr))
+  #define lv_ATOMIC_ADD(ptr, val)      InterlockedExchangeAdd((volatile LONG *)(ptr), (LONG)(val))
+  #define lv_ATOMIC_SUB(ptr, val)      InterlockedExchangeAdd((volatile LONG *)(ptr), -(LONG)(val))
   /* 64 位原子操作 */
   #define lv_ATOMIC_INC64(ptr)         InterlockedIncrement64((volatile LONG64 *)(ptr))
   #define lv_ATOMIC_DEC64(ptr)         InterlockedDecrement64((volatile LONG64 *)(ptr))
   #define lv_ATOMIC_ADD64(ptr, val)    InterlockedExchangeAdd64((volatile LONG64 *)(ptr), (LONG64)(val))
   /* 通用原子操作 */
-   #define lv_ATOMIC_EXCHANGE(ptr, v)   InterlockedExchange((ptr), (v))
-   #define lv_ATOMIC_STORE(ptr, val)    InterlockedExchange((ptr), (val))
+   #define lv_ATOMIC_EXCHANGE(ptr, v)   InterlockedExchange((volatile LONG *)(ptr), (LONG)(v))
+   #define lv_ATOMIC_STORE(ptr, val)    InterlockedExchange((volatile LONG *)(ptr), (LONG)(val))
+   #define lv_ATOMIC_LOAD(ptr)          InterlockedCompareExchange((volatile LONG *)(ptr), 0, 0)
+   #define lv_ATOMIC_CAS(ptr, exp, des) (InterlockedCompareExchange((volatile LONG *)(ptr), (LONG)(des), *(exp)) == *(exp))
    /* lv_ATOMIC_CAS_BOOL: 比较并交换，返回是否成功
     * (e) 为期望值的左值指针（如 &expected），会被写入实际值
-    * (d) 为 desired 新值 */
-   #define lv_ATOMIC_CAS_BOOL(ptr,d,e)  (InterlockedCompareExchange((ptr), (d), *(e)) == *(e))
+    * (d) 为 desired 新值
+    * 注：Windows 分支 InterlockedCompareExchange 不更新 (e) 指向的期望值，
+    *      POSIX 分支 __atomic_compare_exchange_n 失败时会更新 (e)；
+    *      调用点若依赖失败后重试，须自行重新读取实际值（如 lv_ATOMIC_LOAD）。 */
+   #define lv_ATOMIC_CAS_BOOL(ptr,d,e)  (InterlockedCompareExchange((volatile LONG *)(ptr), (LONG)(d), *(e)) == *(e))
   /* 内存屏障 */
   #define lv_ATOMIC_FENCE_ACQUIRE()    MemoryBarrier()
   #define lv_ATOMIC_FENCE_RELEASE()    MemoryBarrier()
@@ -240,6 +251,8 @@ extern "C" {
   /* 通用原子操作 */
    #define lv_ATOMIC_EXCHANGE(ptr, v)   __atomic_exchange_n((ptr), (v), __ATOMIC_SEQ_CST)
    #define lv_ATOMIC_STORE(ptr, val)    __atomic_store_n((ptr), (val), __ATOMIC_RELAXED)
+   #define lv_ATOMIC_LOAD(ptr)          __atomic_load_n((ptr), __ATOMIC_RELAXED)
+   #define lv_ATOMIC_CAS(ptr, exp, des) __atomic_compare_exchange_n((ptr), (exp), (des), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
    /* lv_ATOMIC_CAS_BOOL: 比较并交换，返回是否成功
     * (e) 为期望值的左值指针（如 &expected），会被写入实际值
     * (d) 为 desired 新值 */
@@ -249,6 +262,7 @@ extern "C" {
   #define lv_ATOMIC_FENCE_RELEASE()    __atomic_thread_fence(__ATOMIC_RELEASE)
   #define lv_ATOMIC_FENCE_SEQ_CST()    __atomic_thread_fence(__ATOMIC_SEQ_CST)
 #endif
+#endif /* lv_ATOMIC_INC */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 第 8 节：互斥锁抽象（Mutex Abstraction）—— 兼容别名层

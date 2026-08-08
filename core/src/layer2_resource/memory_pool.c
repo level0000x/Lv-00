@@ -201,11 +201,8 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         return NULL;
     }
 
-    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁，杜绝漏解锁 */
-    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
-    if (pool->thread_safe) {
-        lv_lock_guard_init(&_pool_guard, &pool->mutex);
-    }
+    /* 作用域锁守卫：thread_safe 为真时加锁，离开函数（含所有 return 分支）自动解锁，杜绝漏解锁 */
+    LV_SCOPE_LOCK_MAYBE(&pool->mutex, pool->thread_safe);
 
     /* 空闲链表为空，需要扩展 */
     if (!pool->free_list) {
@@ -298,11 +295,8 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
         return true;
     }
 
-    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁 */
-    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
-    if (pool->thread_safe) {
-        lv_lock_guard_init(&_pool_guard, &pool->mutex);
-    }
+    /* 作用域锁守卫：thread_safe 为真时加锁，离开函数（含所有 return 分支）自动解锁 */
+    LV_SCOPE_LOCK_MAYBE(&pool->mutex, pool->thread_safe);
 
     /* [归属校验] 校验 obj 是否落在池的内存块内且位于对象边界上。
      * 池外指针（如 lv_pool_alloc 失败后回退 lv_calloc 分配的对象）严禁
@@ -339,11 +333,8 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
         return;
     }
 
-    /* 作用域锁守卫：离开函数自动解锁 */
-    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
-    if (pool->thread_safe) {
-        lv_lock_guard_init(&_pool_guard, &pool->mutex);
-    }
+    /* 作用域锁守卫：thread_safe 为真时加锁，离开函数自动解锁 */
+    LV_SCOPE_LOCK_MAYBE(&pool->mutex, pool->thread_safe);
 
     if (out_total_allocs)
         *out_total_allocs = pool->total_allocs;
@@ -358,11 +349,8 @@ void lv_pool_clear(lvObjectPool *pool) {
         return;
     }
 
-    /* 作用域锁守卫：离开函数自动解锁 */
-    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
-    if (pool->thread_safe) {
-        lv_lock_guard_init(&_pool_guard, &pool->mutex);
-    }
+    /* 作用域锁守卫：thread_safe 为真时加锁，离开函数自动解锁 */
+    LV_SCOPE_LOCK_MAYBE(&pool->mutex, pool->thread_safe);
 
     /* [Bug修复] 使用 block_capacities 记录的实际容量重建空闲链表，
      * 替代原来基于 lv_POOL_DEFAULT_CAPACITY 的错误计算 */

@@ -33,11 +33,4 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <dirent.h>
-#include "lv/lv_strbuf.h"
-#endif
-
 #include "plugin_system_internal.h"

@@ -11,7 +11,6 @@
 #include "lv/algebra_mode.h"
 
 #include <math.h>
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,7 +43,7 @@ enum {
 };
 
 /** 全局 ID 计数器 */
-static _Atomic int g_algebra_id_counter = 0;
+static int g_algebra_id_counter = 0;
 
 /**
  * @brief 重置代数模式全局 ID 计数器（测试进程内隔离用）
@@ -54,7 +53,7 @@ static _Atomic int g_algebra_id_counter = 0;
  * 正常路径（atomic_fetch_add 单调递增）行为完全不变。
  */
 void lv_algebra_reset_id_counter(void) {
-    atomic_store(&g_algebra_id_counter, 0);
+    lv_ATOMIC_STORE(&g_algebra_id_counter, 0);
 }
 
 /** 向历史中追加步骤 */
@@ -86,7 +85,7 @@ AlgebraicGeom *algebra_create(lvPlane plane, const char *name) {
 
     geom->plane = (int) plane;
     geom->current_entity = -1;
-    geom->id = atomic_fetch_add(&g_algebra_id_counter, 1) + 1;
+    geom->id = lv_ATOMIC_INC(&g_algebra_id_counter);
 
     lv_mat4_identity(geom->transform);
     geom->has_transform = false;

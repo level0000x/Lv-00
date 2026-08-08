@@ -14,7 +14,6 @@
 
 #include "lv/proof_contradiction.h"
 
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,8 +24,8 @@
 
 /* Process-wide ID allocators: atomic increment, safe for concurrent
  * creation (same pattern as s_next_context_id in context.c). */
-static _Atomic int g_next_closure_id = 0;
-static _Atomic int g_next_bp_id = 0;
+static int g_next_closure_id = 0;
+static int g_next_bp_id = 0;
 
 /* ============================================================
  * 假设栈实现
@@ -156,7 +155,7 @@ lvContradictionClosure *lv_contradiction_closure_create(lvProofScopeId scope_id,
     if (!closure)
         return NULL;
 
-    closure->closure_id = atomic_fetch_add(&g_next_closure_id, 1);
+    closure->closure_id = lv_ATOMIC_ADD(&g_next_closure_id, 1);
     closure->scope_id = scope_id;
     closure->type = type;
     closure->contradiction_prop = prop;
@@ -218,7 +217,7 @@ lvContradictionBreakpoint *lv_contradiction_breakpoint_create(lvBreakpointType t
     if (!bp)
         return NULL;
 
-    bp->breakpoint_id = atomic_fetch_add(&g_next_bp_id, 1);
+    bp->breakpoint_id = lv_ATOMIC_ADD(&g_next_bp_id, 1);
     bp->type = type;
     bp->scope_id = scope_id;
     bp->step_id = step_id;

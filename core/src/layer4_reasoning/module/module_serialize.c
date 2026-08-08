@@ -16,6 +16,7 @@
 
 #include "lv/lv_file.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/lv_path.h"
 
 #include "lv/module.h"
 #include "lv/module_internal.h"
@@ -197,43 +198,15 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
     loaded[*count] = mod;
     (*count)++;
 
-    /* 读取文件内容 */
-    FILE *f = lv_file_open(filepath, "r");
-    if (!f) {
-        lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
-        *status = MODULE_LOAD_FILE_NOT_FOUND;
-        return false;
-    }
-
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (len <= 0) {
-        lv_file_close(f);
-        lv_set_error(lv_ERROR_IO, "文件为空: %s", filepath);
-        *status = MODULE_LOAD_PARSE_ERROR;
-        return false;
-    }
-
-    char *buf = lv_calloc(len + 1, 1);
+    /* 读取文件内容（统一走 lv_file_read_all；buf 已保证以 '\0' 结尾） */
+    size_t len = 0;
+    char *buf = (char *) lv_file_read_all(filepath, &len);
     if (!buf) {
-        lv_file_close(f);
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
-        *status = MODULE_LOAD_PARSE_ERROR;
+        lv_set_error(lv_ERROR_IO, "无法读取文件: %s", filepath);
+        /* 与原实现一致：打开失败 → FILE_NOT_FOUND，空文件/读取异常 → PARSE_ERROR */
+        *status = lv_file_exists(filepath) ? MODULE_LOAD_PARSE_ERROR : MODULE_LOAD_FILE_NOT_FOUND;
         return false;
     }
-
-    size_t read_len = fread(buf, 1, len, f);
-    lv_file_close(f);
-    /* 检查 fread 是否完整读取了文件内容 */
-    if (read_len != (size_t) len) {
-        lv_free((void **) &buf);
-        lv_set_error(lv_ERROR_IO, "文件读取不完整: 期望 %ld 字节, 实际读取 %zu 字节 (%s)", len, read_len, filepath);
-        *status = MODULE_LOAD_PARSE_ERROR;
-        return false;
-    }
-    buf[read_len] = '\0';
 
     /* 初始化解析器并解析文件 */
     LvzParser parser;
@@ -264,19 +237,20 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
         }
 
         if (!dep_loaded) {
-            /* 构建依赖文件路径 */
-            /* 假设依赖文件在相同目录下，名称为 <dep_name>.lvz */
+            /* 构建依赖文件路径：假设依赖文件在相同目录下，名称为 <dep_name>.lvz
+             * 统一走 lv_path_dirname + lv_path_join（替换手写 strrchr/memcpy 样板） */
             char dep_path[1024];
-            const char *last_slash = strrchr(filepath, '/');
-            const char *last_backslash = strrchr(filepath, '\\');
-            const char *dir_end = (last_slash > last_backslash) ? last_slash : last_backslash;
+            char dep_name_buf[520];
+            snprintf(dep_name_buf, sizeof(dep_name_buf), "%s.lvz", dep->name);
 
-            if (dir_end) {
-                /* 使用 memcpy 进行精确长度复制（已分配 dir_len+1，手动零终止更安全） */
-                size_t dir_len = dir_end - filepath + 1;
-                memcpy(dep_path, filepath, dir_len);
-                dep_path[dir_len] = '\0';
-                snprintf(dep_path + dir_len, sizeof(dep_path) - dir_len, "%s.lvz", dep->name);
+            size_t dir_len = 0;
+            const char *dir_start = lv_path_dirname(filepath, &dir_len);
+            if (dir_start) {
+                char dir_buf[1024];
+                size_t dlen = (dir_len < sizeof(dir_buf)) ? dir_len : (sizeof(dir_buf) - 1);
+                memcpy(dir_buf, dir_start, dlen);
+                dir_buf[dlen] = '\0';
+                lv_path_join(dir_buf, dep_name_buf, dep_path, sizeof(dep_path));
             } else {
                 snprintf(dep_path, sizeof(dep_path), "%s.lvz", dep->name);
             }

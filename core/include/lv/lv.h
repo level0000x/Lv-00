@@ -153,14 +153,7 @@ extern "C" {
 #define lv_strdup lv_strdup_safe
 #endif /* lv_STRDUP_AS_FUNCTION */
 
-/* localtime 线程安全包装 */
-#ifndef lv_LOCALTIME
-#if defined(_WIN32)
-#define lv_LOCALTIME(time_ptr, tm_buf) localtime_s(tm_buf, time_ptr)
-#else
-#define lv_LOCALTIME(time_ptr, tm_buf) localtime_r(time_ptr, tm_buf)
-#endif
-#endif
+/* localtime 线程安全包装（权威定义位于 config.h:988-995，本文件下方 include config.h 保证可见） */
 
 /* 函数废弃标记（跨编译器统一）
  * 权威定义位于 lv_api_spec.h（支持 __clang__），此处 include 保证
@@ -176,12 +169,9 @@ extern "C" {
 #define lv_PATH_SEPARATOR_STR "/"
 #endif
 /* 向后兼容：旧宏名 lv_PATH_SEPARATOR 保留
- * （权威定义在 config.h，此处 include 以保证单一定义来源；若 config.h
- *   已先定义则下方 #ifndef 兜底不生效） */
+ * （权威定义在 config.h:1046-1052，此处 include 以保证单一定义来源；
+ *   lv_PATH_SEPARATOR_CHAR/STR 为本文件独有，config.h 无） */
 #include "config.h"
-#ifndef lv_PATH_SEPARATOR
-#define lv_PATH_SEPARATOR lv_PATH_SEPARATOR_CHAR
-#endif
 
 /* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
 #define lv_VERSION_MAJOR 1

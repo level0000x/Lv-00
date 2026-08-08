@@ -55,6 +55,14 @@ void lv_event_bus_cleanup(lvEventBus *bus);
 
 /**
  * @brief 注册事件回调
+ *
+ * @note 内部保留接口（当前无调用者接入）：事件总线 emit 侧已由
+ *       runtime_monitor（lv_event_trace_record/begin/end → lv_event_emit）
+ *       接入，订阅侧暂缓接入。插件系统的 lv_plugin_broadcast_event 仍为
+ *       手写遍历广播——事件需逐插件设置 source 且跳过无 context 的插件，
+ *       与事件总线「所有订阅者共享同一 event_data 指针」的分发语义不匹配，
+ *       故未迁移。如需订阅运行时事件，请使用本 API（配套 unsubscribe）。
+ *
  * @param bus        事件总线
  * @param event_type 监听的事件类型（-1 = 监听所有事件）
  * @param callback   回调函数（非 NULL）

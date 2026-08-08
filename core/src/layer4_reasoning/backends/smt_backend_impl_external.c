@@ -48,7 +48,6 @@
  */
 SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable, const char *smt2_input, int smt2_len,
                                        char *result_buf, int result_size) {
-    (void) solver;
     if (!smt2_input || smt2_len <= 0) {
         return SMT_RESULT_UNKNOWN;
     }
@@ -68,17 +67,18 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     }
     exec_argv[argc] = NULL;
 
-    /* 原实现无超时：求解器挂起会导致调用方永久阻塞。
-     * 统一后使用默认 30s 超时，与 ATP 后端默认超时（ATP_DEFAULT_TIMEOUT=30s）一致；
+    /* 超时优先使用 solver->config.timeout_ms（求解器配置，默认 5000ms），
+     * 若未配置（<=0）则回退默认 30s，与 ATP 后端默认超时（ATP_DEFAULT_TIMEOUT=30s）一致；
      * 超时强杀时 lv_external_process_run 返回 lv_OK 且 exit_code == -1，
      * 与"退出码非 0 → UNKNOWN"的降级路径衔接。 */
     const int k_default_timeout_ms = 30000;
+    int timeout_ms = (solver && solver->config.timeout_ms > 0) ? solver->config.timeout_ms : k_default_timeout_ms;
 
     char *output = NULL;
     size_t out_len = 0;
     int exit_code = -1;
-    int rc = lv_external_process_run(executable, exec_argv, smt2_input, (size_t) smt2_len, k_default_timeout_ms,
-                                     &output, &out_len, &exit_code);
+    int rc = lv_external_process_run(executable, exec_argv, smt2_input, (size_t) smt2_len, timeout_ms, &output, &out_len,
+                                     &exit_code);
 
     if (rc != (int) lv_OK) {
         lv_LOG_WARNING("外部求解器 %s: 子进程执行失败 (error=%d)，回退到 UNKNOWN", executable, rc);

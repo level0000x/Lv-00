@@ -14,6 +14,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
 
 #include "debug.h"
@@ -62,7 +63,7 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
     if (!graph || !output_path)
         return lv_ERROR_INVALID_PARAM;
 
-    FILE *fp = fopen(output_path, "w");
+    FILE *fp = lv_file_open(output_path, "w");
     if (!fp)
         return lv_ERROR_IO;
 
@@ -173,7 +174,7 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
         }
     }
 
-    fclose(fp);
+    lv_file_close(fp);
 
     return lv_OK;
 }

@@ -1007,7 +1007,7 @@ void lv_event_trace_shutdown(void) {
     s_runtime_state.event.initialized = false;
 }
 
-void lv_event_trace_record(lvEventType type, const char *name, const char *data) {
+void lv_event_trace_record(RM_EventType type, const char *name, const char *data) {
     if (!s_runtime_state.event.initialized || s_runtime_state.event.event_count >= s_runtime_state.event.max_events) {
         return;
     }
@@ -1035,7 +1035,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
     lv_event_emit(&s_runtime_state.event_bus, (int)type, (void*)(intptr_t)event->duration_ns);
 }
 
-int lv_event_trace_begin(lvEventType type, const char *name) {
+int lv_event_trace_begin(RM_EventType type, const char *name) {
     if (!s_runtime_state.event.initialized || s_runtime_state.event.event_count >= s_runtime_state.event.max_events) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_event_trace_begin: event system not initialized or full");
     }
@@ -1114,7 +1114,7 @@ void lv_event_trace_clear(void) {
     s_runtime_state.event.event_count = 0;
 }
 
-/** @brief 事件类型 -> Chrome trace 元信息 查找表（指定初始化器，编译器校验 lvEventType 对齐）
+/** @brief 事件类型 -> Chrome trace 元信息 查找表（指定初始化器，编译器校验 RM_EventType 对齐）
  *  ph  - Chrome trace phase 字符（B=开始, E=结束；未列入的事件保持默认 X）
  *  cat - 事件分类（proof 事件归 "proof"，其余归 "other"） */
 typedef struct {

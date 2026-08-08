@@ -141,6 +141,12 @@ const char *lv_simd_capability_name(lvSimdCapability cap) {
 /*
  * 内部原子统计结构：字段与公共 lvSimdStats 一一对应（保持 simd_ops.h 公开布局不变），
  * 仅将字段类型原子化，消除热路径统计计数器的非原子自增竞态。
+ *
+ * 注（P1-3 标注）：保持 C11 atomic 而非迁移 lv_ATOMIC_* —— 统计字段为
+ * _Atomic uint64_t，而 lv_ATOMIC_* 宏族仅有 32 位 LOAD/STORE（64 位仅
+ * INC64/DEC64/ADD64），无 64 位 LOAD/STORE 原语可表达本处的 load/store；
+ * 且一次性初始化依赖 compare_exchange_strong 的失败更新 expected 语义。
+ * 此处 relaxed 累加/读取语义与宏族不完全等价，故保留 C11 原子类型。
  */
 typedef struct {
     _Atomic uint64_t vec4_ops;

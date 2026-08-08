@@ -503,46 +503,15 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
     /* 清除之前的错误 */
     lv_clear_error();
 
-    /* 读取文件 */
-    FILE *f = lv_file_open(filepath, "r");
-    if (!f) {
-        lv_set_error(lv_ERROR_IO, "无法打开文件: %s", filepath);
-        return AXIOM_LOAD_FILE_NOT_FOUND;
-    }
-
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (len <= 0) {
-        lv_file_close(f);
-        lv_set_error(lv_ERROR_PARSE, "文件为空: %s", filepath);
-        return AXIOM_LOAD_PARSE_ERROR;
-    }
-
-    /* 限制最大文件大小为64MB，防止内存耗尽 */
-    if (len > AXIOM_MAX_FILE_SIZE) {
-        lv_file_close(f);
-        lv_set_error(lv_ERROR_INVALID_PARAM, "文件过大（超过64MB限制）: %s", filepath);
-        return AXIOM_LOAD_PARSE_ERROR;
-    }
-
-    char *buf = lv_malloc((size_t) len + 1);
+    /* 读取文件（统一走 lv_file_read_all_limited；buf 已保证以 '\0' 结尾，
+     * 且已内置 64MB 大小上限即 AXIOM_MAX_FILE_SIZE 检查） */
+    size_t len = 0;
+    char *buf = (char *) lv_file_read_all_limited(filepath, &len, AXIOM_MAX_FILE_SIZE);
     if (!buf) {
-        lv_file_close(f);
-        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "内存分配失败");
-        return AXIOM_LOAD_PARSE_ERROR;
+        /* 与原实现一致：打开失败 → FILE_NOT_FOUND，空文件/超限/读取异常 → PARSE_ERROR */
+        lv_set_error(lv_ERROR_IO, "无法读取文件: %s", filepath);
+        return lv_file_exists(filepath) ? AXIOM_LOAD_PARSE_ERROR : AXIOM_LOAD_FILE_NOT_FOUND;
     }
-
-    size_t read_len = fread(buf, 1, (size_t) len, f);
-    int read_error = ferror(f);
-    lv_file_close(f);
-    if (read_len != (size_t) len && read_error) {
-        lv_free((void **) &buf);
-        lv_set_error(lv_ERROR_IO, "文件读取失败: %s", filepath);
-        return AXIOM_LOAD_PARSE_ERROR;
-    }
-    buf[read_len] = '\0';
 
     /* 初始化解析器 */
     Parser parser;

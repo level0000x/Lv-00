@@ -69,7 +69,7 @@ static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDD
         }
         if (existing->var_id == var_id && existing->low == low && existing->high == high) {
             /* 找到已存在节点，增加引用计数并返回 */
-            __sync_fetch_and_add(&existing->ref_count, 1);
+            lv_ATOMIC_ADD64(&existing->ref_count, 1);
             return existing;
         }
     }
@@ -358,7 +358,7 @@ BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
  */
 void bdd_ref(BDDNode *node) {
     if (node) {
-        __sync_fetch_and_add(&node->ref_count, 1);
+        lv_ATOMIC_ADD64(&node->ref_count, 1);
     }
 }
 
@@ -370,7 +370,7 @@ void bdd_ref(BDDNode *node) {
 void bdd_deref(BDDManager *mgr, BDDNode *node) {
     if (!node || node->ref_count == 0)
         return;
-    uint64_t old_ref = __sync_fetch_and_sub(&node->ref_count, 1);
+    uint64_t old_ref = lv_ATOMIC_ADD64(&node->ref_count, -1);
     /* 终端节点（var_id == -1）不回收 */
     if (node->var_id < 0)
         return;

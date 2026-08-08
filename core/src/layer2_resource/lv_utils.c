@@ -553,3 +553,80 @@ int lv_memory_leak_report(FILE *output) {
     return leak_count;
 }
 
+/* ===== INI 文件解析（统一公共子集） ===== */
+
+int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx) {
+    if (!path || !visit) {
+        return -1;
+    }
+
+    FILE *f = lv_file_open(path, "r");
+    if (!f) {
+        lv_set_error(lv_ERROR_IO, "lv_ini_parse: 打开文件失败: %s", path);
+        return -1;
+    }
+
+    char current_section[256];
+    current_section[0] = '\0';
+    char line[2048];
+
+    while (fgets(line, sizeof(line), f)) {
+        size_t len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+            line[--len] = '\0';
+        }
+
+        const char *trimmed = line;
+        while (*trimmed == ' ' || *trimmed == '\t') {
+            trimmed++;
+        }
+
+        /* 跳过空行与注释行（'#' 或 '//' 开头） */
+        if (*trimmed == '\0') {
+            continue;
+        }
+        if (*trimmed == '#' || (*trimmed == '/' && trimmed[1] == '/')) {
+            continue;
+        }
+
+        /* 解析节头 [section]（节名保持原始内容，调用方可按需修剪） */
+        if (*trimmed == '[') {
+            const char *close_bracket = strchr(trimmed, ']');
+            if (close_bracket) {
+                size_t slen = (size_t) (close_bracket - (trimmed + 1));
+                if (slen >= sizeof(current_section)) {
+                    slen = sizeof(current_section) - 1;
+                }
+                memcpy(current_section, trimmed + 1, slen);
+                current_section[slen] = '\0';
+            }
+            continue;
+        }
+
+        /* 拆分 key=value */
+        const char *eq = strchr(trimmed, '=');
+        if (!eq) {
+            continue;
+        }
+
+        /* key 去除首尾空白 */
+        char key_buf[512];
+        size_t key_len = (size_t) (eq - trimmed);
+        while (key_len > 0 && (trimmed[key_len - 1] == ' ' || trimmed[key_len - 1] == '\t')) {
+            key_len--;
+        }
+        if (key_len >= sizeof(key_buf)) {
+            key_len = sizeof(key_buf) - 1;
+        }
+        memcpy(key_buf, trimmed, key_len);
+        key_buf[key_len] = '\0';
+
+        if (!visit(ctx, current_section[0] != '\0' ? current_section : NULL, key_buf, eq + 1)) {
+            break;
+        }
+    }
+
+    lv_file_close(f);
+    return 0;
+}
+

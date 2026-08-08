@@ -332,83 +332,14 @@ lv_PUBLIC_API void lv_guard_reset_stats(lvGuardContext *guard);
 /* ============================================================
  * 原子操作宏 —— 用于关键计数器的无锁递增/递减
  *
- * 适用场景：
- *   - 节点/约束创建计数
- *   - 错误计数
- *   - 推理步骤计数
- *   - 缓存命中/未命中计数
+ * 权威定义位于 lv_platform.h 第 7 节（指针语义，全项目唯一一套）：
+ *   lv_ATOMIC_INC/DEC/ADD/SUB/INC64/DEC64/ADD64/LOAD/STORE/
+ *   EXCHANGE/CAS/CAS_BOOL/FENCE_ACQUIRE/FENCE_RELEASE/FENCE_SEQ_CST
  *
+ * 调用约定：参数为指向目标变量的指针（如 lv_ATOMIC_INC(&counter)）。
+ * 本头文件不再重复定义，避免与 lv_platform.h 的双套宏语义冲突。
  * 注意：这些宏要求目标变量类型与 int 或 int64_t 兼容。
  * ============================================================ */
-
-/**
- * @brief 原子递增（返回新值）
- * @param var 要递增的变量（左值，int 兼容类型）
- * @return 递增后的值
- */
-#ifndef lv_ATOMIC_INC
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#define lv_ATOMIC_INC(var) atomic_fetch_add((_Atomic int *) &(var), 1) + 1
-#define lv_ATOMIC_DEC(var) atomic_fetch_sub((_Atomic int *) &(var), 1) - 1
-#define lv_ATOMIC_ADD(var, n) atomic_fetch_add((_Atomic int *) &(var), (n))
-#define lv_ATOMIC_LOAD(var) atomic_load((_Atomic int *) &(var))
-#define lv_ATOMIC_STORE(var, n) atomic_store((_Atomic int *) &(var), (n))
-#define lv_ATOMIC_CAS(var, expected, desired) \
-    atomic_compare_exchange_strong((_Atomic int *) &(var), &(expected), (desired))
-
-#elif defined(__GNUC__) || defined(__clang__)
-/* GCC/Clang 内建原子操作 */
-#define lv_ATOMIC_INC(var) __sync_add_and_fetch(&(var), 1)
-#define lv_ATOMIC_DEC(var) __sync_sub_and_fetch(&(var), 1)
-#define lv_ATOMIC_ADD(var, n) __sync_add_and_fetch(&(var), (n))
-#define lv_ATOMIC_LOAD(var) __sync_fetch_and_add(&(var), 0)
-#define lv_ATOMIC_STORE(var, n) (void) __sync_lock_test_and_set(&(var), (n))
-#define lv_ATOMIC_CAS(var, expected, desired) __sync_bool_compare_and_swap(&(var), (expected), (desired))
-
-#elif defined(_MSC_VER)
-/* MSVC 内建原子操作 */
-#include <windows.h>
-#define lv_ATOMIC_INC(var) InterlockedIncrement((LONG volatile *) &(var))
-#define lv_ATOMIC_DEC(var) InterlockedDecrement((LONG volatile *) &(var))
-#define lv_ATOMIC_ADD(var, n) InterlockedExchangeAdd((LONG volatile *) &(var), (n))
-#define lv_ATOMIC_LOAD(var) InterlockedCompareExchange((LONG volatile *) &(var), 0, 0)
-#define lv_ATOMIC_STORE(var, n) InterlockedExchange((LONG volatile *) &(var), (n))
-#define lv_ATOMIC_CAS(var, expected, desired) \
-    (InterlockedCompareExchange((LONG volatile *) &(var), (desired), (expected)) == (expected))
-
-#else
-/* 无原子操作支持时的回退方案：使用 volatile 读/写（非线程安全）
- * 注意：仅在缺少 __sync / __atomic / Interlocked 内置函数的编译器上触发。
- * 回退使用 volatile 变量操作，适用于单线程或已外部同步的场景。 */
-#define lv_ATOMIC_INC(var) (++(var))
-#define lv_ATOMIC_DEC(var) (--(var))
-#define lv_ATOMIC_ADD(var, n) ((var) += (n))
-#define lv_ATOMIC_LOAD(var) (var)
-#define lv_ATOMIC_STORE(var, n) ((var) = (n))
-#define lv_ATOMIC_CAS(var, expected, desired) \
-    (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
-#endif
-#endif /* lv_ATOMIC_INC */
-
-#ifndef lv_ATOMIC_INC64
-/**
- * @brief 原子递增 64 位计数器
- * @param var int64_t 兼容变量
- */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#define lv_ATOMIC_INC64(var) (atomic_fetch_add((_Atomic int64_t *) &(var), 1) + 1)
-#define lv_ATOMIC_ADD64(var, n) atomic_fetch_add((_Atomic int64_t *) &(var), (n))
-#elif defined(__GNUC__) || defined(__clang__)
-#define lv_ATOMIC_INC64(var) __sync_add_and_fetch(&(var), 1LL)
-#define lv_ATOMIC_ADD64(var, n) __sync_add_and_fetch(&(var), (int64_t) (n))
-#elif defined(_MSC_VER)
-#define lv_ATOMIC_INC64(var) InterlockedIncrement64((LONG64 volatile *) &(var))
-#define lv_ATOMIC_ADD64(var, n) InterlockedExchangeAdd64((LONG64 volatile *) &(var), (n))
-#else
-#define lv_ATOMIC_INC64(var) (++(var))
-#define lv_ATOMIC_ADD64(var, n) ((var) += (n))
-#endif
-#endif /* lv_ATOMIC_INC64 */
 
 /* ============================================================
  * 数据完整性校验
@@ -445,21 +376,8 @@ lv_PUBLIC_API bool lv_verify_data_integrity(struct lvContext *ctx);
 #define lv_WRITE_GUARD(ctx) ((void) 0)
 #define lv_WRITE_UNGUARD(ctx) ((void) 0)
 
-#ifndef lv_ATOMIC_INC
-/* 回退到普通操作（非原子的，但已是全局/线程局部即可） */
-#define lv_ATOMIC_INC(var) (++(var))
-#define lv_ATOMIC_DEC(var) (--(var))
-#define lv_ATOMIC_ADD(var, n) ((var) += (n))
-#define lv_ATOMIC_LOAD(var) (var)
-#define lv_ATOMIC_STORE(var, n) ((var) = (n))
-#define lv_ATOMIC_CAS(var, expected, desired) \
-    (((var) == (expected)) ? ((var) = (desired), true) : ((expected) = (var), false))
-#endif
-
-#ifndef lv_ATOMIC_INC64
-#define lv_ATOMIC_INC64(var) (++(var))
-#define lv_ATOMIC_ADD64(var, n) ((var) += (n))
-#endif
+/* 原子操作宏（lv_ATOMIC_*）与运行时保护开关无关：
+ * 权威定义位于 lv_platform.h 第 7 节（指针语义），本头文件不重复定义。 */
 
 /**
  * @brief 运行时保护禁用时的数据完整性校验 —— 始终返回 true

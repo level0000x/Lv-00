@@ -29,7 +29,10 @@
 #include "preset_manager_internal.h"
 #include "preset_core.h"
 
+#ifdef _WIN32
+/* 仅 Windows DLL 入口点（DllMain）需要；非 Windows 平台不引入 */
 #include <windows.h>
+#endif
 
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wjump-misses-init"

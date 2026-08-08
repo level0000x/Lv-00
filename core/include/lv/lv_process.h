@@ -8,6 +8,15 @@
  *          统一提供：stdin 管道输入、stdout 动态缓冲捕获、超时强杀、
  *          退出码跨平台归一、失败路径完整清理。
  *
+ *          【后续收敛定位】调用方 atp_backend.c（atp_run_subprocess）与
+ *          smt_backend_impl_external.c（smt_external_solver_check）仍各自实现
+ *          "argv 构造（按可执行名硬编码 / 按 extra_args 空格切分）→ 超时来源
+ *          （秒转毫秒 / solver->config.timeout_ms）→ 输出解析（SZS 状态 /
+ *          sat-unsat 前缀）→ 失败降级（返回 rc / 降级 UNKNOWN）"骨架，
+ *          与本执行器是调用关系而非统一入口。若未来抽象 lvExternalRunner
+ *          （封装"构造 argv → 执行 → 捕获输出 → 超时 → 退出码降级"骨架），
+ *          应以此为底座；收敛前保持各调用方现状。
+ *
  *          实现位于 core/src/layer2_resource/lv_process.c。
  *
  * @author Lv-00 Project

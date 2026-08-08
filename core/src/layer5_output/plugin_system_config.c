@@ -17,17 +17,11 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_file.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <dirent.h>
-#include "lv/lv_strbuf.h"
-#endif
 
 #include "plugin_system_internal.h"
 
@@ -111,6 +105,32 @@ void lv_plugin_config_destroy(lvPluginConfig *config) {
 }
 
 /**
+ * @brief lv_ini_parse 回调：将 "section.key" / "key" 键值对写入配置
+ * @param ctx     lvPluginConfig 指针
+ * @param section 当前节名（全局节为 NULL）
+ * @param key     键名（已去除首尾空白）
+ * @param value   值（'=' 之后原始内容，与原实现一致保持不去空白）
+ * @return true 继续解析
+ */
+static bool plugin_config_ini_visit(void *ctx, const char *section, const char *key, const char *value) {
+    lvPluginConfig *config = (lvPluginConfig *) ctx;
+
+    /* 如果有节名，添加节前缀: "section.key" */
+    if (section && section[0] != '\0') {
+        lvStrBuf sb = {0};
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+        lv_strbuf_printf(&sb, "%s.%s", section, key);
+#pragma GCC diagnostic pop
+        lv_plugin_config_set(config, sb.data, value, 0);
+        lv_strbuf_destroy(&sb);
+    } else {
+        lv_plugin_config_set(config, key, value, 0);
+    }
+    return true;
+}
+
+/**
  * @brief 从 INI 格式文件加载配置
  * @param config 插件配置指针
  * @param filepath 配置文件路径
@@ -120,83 +140,10 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
     lv_CHECK_NOT_NULL(config);
     lv_CHECK_NOT_NULL(filepath);
 
-    FILE *fp = fopen(filepath, "r");
-    if (!fp)
-        lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_load: fopen failed");
+    /* 统一走公共 lv_ini_parse（收敛手写 fopen/fgets 行解析样板） */
+    if (lv_ini_parse(filepath, plugin_config_ini_visit, config) != 0)
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_load: 解析失败");
 
-    /* 当前节名称，NULL 表示全局节 */
-    char current_section[256] = {0};
-    char line[2048];
-
-    while (fgets(line, sizeof(line), fp)) {
-        /* 去除行尾换行符 */
-        size_t len = strlen(line);
-        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
-            line[--len] = '\0';
-        }
-
-        /* 跳过空行 */
-        if (len == 0)
-            continue;
-
-        /* 跳过注释行（# 或 // 开头） */
-        if (line[0] == '#' || (line[0] == '/' && line[1] == '/'))
-            continue;
-
-        /* 跳过行首空白后的注释 */
-        {
-            const char *trimmed = line;
-            while (*trimmed == ' ' || *trimmed == '\t')
-                trimmed++;
-            if (*trimmed == '#' || (*trimmed == '/' && *(trimmed + 1) == '/'))
-                continue;
-            if (*trimmed == '\0')
-                continue; /* 全空白行 */
-        }
-
-        /* 检查节标题 [section] */
-        if (line[0] == '[') {
-            char *end = strchr(line, ']');
-            if (end) {
-                size_t slen = (size_t) (end - line - 1);
-                if (slen < sizeof(current_section)) {
-                    memcpy(current_section, line + 1, slen);
-                    current_section[slen] = '\0';
-                }
-            }
-            continue;
-        }
-
-        /* 解析 key=value */
-        char *eq = strchr(line, '=');
-        if (eq) {
-            *eq = '\0';
-            const char *key = line;
-            const char *value = eq + 1;
-
-            /* 去除 key 首尾空白 */
-            while (*key == ' ' || *key == '\t')
-                key++;
-            char *key_end = (char *) (key + strlen(key) - 1);
-            while (key_end > key && (*key_end == ' ' || *key_end == '\t'))
-                *key_end-- = '\0';
-
-            /* 如果有节名，添加节前缀: "section.key" */
-            if (current_section[0] != '\0') {
-                lvStrBuf sb = {0};
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-                lv_strbuf_printf(&sb, "%s.%s", current_section, key);
-#pragma GCC diagnostic pop
-                lv_plugin_config_set(config, sb.data, value, 0);
-                lv_strbuf_destroy(&sb);
-            } else {
-                lv_plugin_config_set(config, key, value, 0);
-            }
-        }
-    }
-
-    fclose(fp);
     strncpy(config->config_file, filepath, sizeof(config->config_file) - 1);
     return 0;
 }
@@ -211,9 +158,9 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
     lv_CHECK_NOT_NULL(config);
     lv_CHECK_NOT_NULL(filepath);
 
-    FILE *fp = fopen(filepath, "w");
+    FILE *fp = lv_file_open(filepath, "w");
     if (!fp)
-        lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_save: fopen failed");
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_save: open failed");
 
     config_registry_ensure();
 
@@ -236,7 +183,7 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
         fprintf(fp, "%s=%s\n", entry->key, entry->value);
     }
 
-    fclose(fp);
+    lv_file_close(fp);
     return 0;
 }
 

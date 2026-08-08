@@ -975,6 +975,11 @@ static int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, 
     return lv_OK;
 }
 
+/* StreamStart 命令注册的流式回调 ID（-1 = 未注册）。
+ * 与 interop_server.c 的 server->stream_callback_id 字段同语义：
+ * StreamStop 按此 ID 注销，保证「注册/注销」配对，防止回调列表无限增长。 */
+static int s_stream_callback_id = -1;
+
 static int handle_cmd_stream_start(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     StreamContext *sctx = engine_get_stream_context(engine);
     if (!sctx) {
@@ -987,8 +992,15 @@ static int handle_cmd_stream_start(lvEngine *engine, const InteropCommand *cmd, 
         filter = stream_parse_filter_mask(cmd->params[0]);
     }
     {
+        /* 若已有活动回调先注销（与 interop_attach_stream_callback 的
+         * 「先注销再注册」配对模式一致），避免重复注册导致回调列表增长 */
+        if (s_stream_callback_id >= 0) {
+            stream_unregister_callback_by_id(sctx, s_stream_callback_id);
+            s_stream_callback_id = -1;
+        }
         int cb_id = stream_register_callback_ex(sctx, interop_stream_callback, NULL, filter);
         if (cb_id >= 0) {
+            s_stream_callback_id = cb_id;
             snprintf(resp->data, sizeof(resp->data),
                      "{\"result\": \"ok\", \"callback_id\": %d, "
                      "\"filter\": \"0x%08X\"}",
@@ -1005,6 +1017,12 @@ static int handle_cmd_stream_stop(lvEngine *engine, const InteropCommand *cmd, I
     (void)cmd;
     StreamContext *sctx = engine_get_stream_context(engine);
     if (sctx) {
+        /* 按注册时记录的 cb_id 注销回调（参照 interop_detach_stream_callback
+         * 模式），与 handle_cmd_stream_start 配对，防止回调列表无限增长 */
+        if (s_stream_callback_id >= 0) {
+            stream_unregister_callback_by_id(sctx, s_stream_callback_id);
+            s_stream_callback_id = -1;
+        }
         stream_flush(sctx);
     }
     lvJsonBuf _jb;

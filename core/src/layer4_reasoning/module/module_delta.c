@@ -58,13 +58,14 @@ void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
     }
 }
 
-/* 生成备份文件路径：目录已以分隔符结尾时直接拼接（保持旧行为），
- * 否则经 lv_path_join 统一拼接（POSIX 下与旧行为逐字节一致；
- * Windows 下 lv_PATH_SEPARATOR 为 '\\'，与旧硬编码 '/' 文件系统语义等价） */
-static void make_backup_filepath(char *buf, size_t buf_size, const char *backup_dir, const char *module_name,
-                                 int index) {
+/* 生成备份文件路径（.lvz / .bin 通用实现，收敛两个镜像 helper）：
+ * 目录已以分隔符结尾时直接拼接（保持旧行为），否则经 lv_path_join 统一拼接
+ * （POSIX 下与旧行为逐字节一致；Windows 下 lv_PATH_SEPARATOR 为 '\\'，
+ * 与旧硬编码 '/' 文件系统语义等价） */
+static void make_backup_path(char *buf, size_t buf_size, const char *backup_dir, const char *module_name,
+                             int index, const char *ext) {
     char fname[64];
-    snprintf(fname, sizeof(fname), "%s_autosave_%d.lvz", module_name, index);
+    snprintf(fname, sizeof(fname), "%s_autosave_%d.%s", module_name, index, ext);
     if (backup_dir && backup_dir[0]) {
         size_t dir_len = strlen(backup_dir);
         if (dir_len > 0 && (backup_dir[dir_len - 1] == '/' || backup_dir[dir_len - 1] == '\\')) {
@@ -77,21 +78,16 @@ static void make_backup_filepath(char *buf, size_t buf_size, const char *backup_
     }
 }
 
-/* 生成备份文件路径（二进制格式） */
+/* 生成备份文件路径（文本格式 .lvz） */
+static void make_backup_filepath(char *buf, size_t buf_size, const char *backup_dir, const char *module_name,
+                                 int index) {
+    make_backup_path(buf, buf_size, backup_dir, module_name, index, "lvz");
+}
+
+/* 生成备份文件路径（二进制格式 .bin） */
 static void make_backup_binpath(char *buf, size_t buf_size, const char *backup_dir, const char *module_name,
                                 int index) {
-    char fname[64];
-    snprintf(fname, sizeof(fname), "%s_autosave_%d.bin", module_name, index);
-    if (backup_dir && backup_dir[0]) {
-        size_t dir_len = strlen(backup_dir);
-        if (dir_len > 0 && (backup_dir[dir_len - 1] == '/' || backup_dir[dir_len - 1] == '\\')) {
-            snprintf(buf, buf_size, "%s%s", backup_dir, fname);
-        } else {
-            lv_path_join(backup_dir, fname, buf, buf_size);
-        }
-    } else {
-        snprintf(buf, buf_size, "%s", fname);
-    }
+    make_backup_path(buf, buf_size, backup_dir, module_name, index, "bin");
 }
 
 ModuleSaveStatus module_autosave(const Module *mod) {

@@ -6,7 +6,8 @@
  *          将其 setter 函数注册进来，引擎则通过 stream_context_dispatch_all()
  *          一次性同步流式上下文到所有已注册模块。
  *
- *          注册表使用静态数组实现，在初始化期一次性填充，无需线程安全保护。
+ *          注册表基于公共 lv_callback_list 回调列表设施实现（lv_once 惰性
+ *          初始化），在初始化期一次性填充，无需线程安全保护。
  *          内置模块的注册通过 stream_context_register_builtins() 集中完成，
  *          该函数在引擎初始化时被调用一次。
  *
@@ -20,6 +21,7 @@
 
 #include <stdarg.h>
 
+#include "lv/lv_callback_list.h" /* 公共回调列表设施（setter 注册表委托实现） */
 #include "lv/lv_thread.h"
 
 #include "lv/lv_strbuf.h"
@@ -46,20 +48,28 @@
 #include "unify.h"         /* unify_set_stream_context      */
 
 /* ================================================================
- * 全局注册表（编译期初始化，运行期只读追加）
+ * 全局注册表（委托公共 lv_callback_list 回调列表设施）
  * ================================================================ */
 
-/** @brief 注册表最大容量，预留足够空间供未来扩展 */
+/** @brief 注册表初始容量与硬上限，预留足够空间供未来扩展 */
 #define MAX_REGISTERED_SETTERS 32
 
-/** @brief setter 注册表单例状态 */
-typedef struct {
-    StreamContextSetter setters[MAX_REGISTERED_SETTERS]; /**< 已注册的 setter 回调数组 */
-    int count;                                           /**< 当前已注册的 setter 数量 */
-} SetterRegistryState;
+/** @brief setter 注册表全局单例（lv_once 惰性初始化，运行期只读追加） */
+static lvCallbackList s_setter_registry;
 
-/** @brief setter 注册表全局单例 */
-static SetterRegistryState s_setter_registry = {0};
+/** @brief 注册表单次初始化标记 */
+static lv_once_t s_setter_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表惰性初始化（首次 register/dispatch/clear 时完成） */
+static void setter_registry_init_once(void) {
+    lv_callback_list_init(&s_setter_registry, MAX_REGISTERED_SETTERS, MAX_REGISTERED_SETTERS);
+}
+
+/** @brief 分发调用：将条目中泛型回调转回 StreamContextSetter 签名后调用 */
+static void setter_registry_invoke(const lvCallbackEntry *entry, const void *dispatch_arg) {
+    StreamContextSetter setter = (StreamContextSetter) entry->callback;
+    setter((StreamContext *) dispatch_arg);
+}
 
 /* ================================================================
  * 公开 API 实现
@@ -70,29 +80,23 @@ void stream_context_register_setter(StreamContextSetter setter) {
     if (!setter)
         return;
 
+    lv_once(&s_setter_registry_once, setter_registry_init_once);
+
     /* 去重检查：避免重复注册同一个 setter */
-    for (int i = 0; i < s_setter_registry.count; i++) {
-        if (s_setter_registry.setters[i] == setter) {
+    for (int i = 0; i < lv_callback_list_count(&s_setter_registry); i++) {
+        if (s_setter_registry.entries[i].callback == (lvCallbackFn) setter) {
             return; /* 已注册，跳过 */
         }
     }
 
-    /* 容量检查：防止越界 */
-    if (s_setter_registry.count >= MAX_REGISTERED_SETTERS) {
-        return; /* 注册表已满，静默丢弃（实际场景不会达到上限） */
-    }
-
-    /* 追加到注册表末尾 */
-    s_setter_registry.setters[s_setter_registry.count++] = setter;
+    /* 追加到注册表末尾；满时 lv_callback_list_add 返回 -1，静默丢弃（与原行为一致） */
+    lv_callback_list_add(&s_setter_registry, (lvCallbackFn) setter, NULL, 0);
 }
 
 void stream_context_dispatch_all(StreamContext *ctx) {
-    /* 遍历已注册的 setter 数组，依次调用 */
-    for (int i = 0; i < s_setter_registry.count; i++) {
-        if (s_setter_registry.setters[i]) {
-            s_setter_registry.setters[i](ctx);
-        }
-    }
+    /* 遍历已注册的 setter 回调列表，依次调用（迭代安全，与 stream_dispatch 行为一致） */
+    lv_once(&s_setter_registry_once, setter_registry_init_once);
+    lv_callback_list_dispatch(&s_setter_registry, ctx, NULL, setter_registry_invoke);
 }
 
 /**
@@ -104,11 +108,9 @@ void stream_context_dispatch_all(StreamContext *ctx) {
  * 已释放的内存，后续使用会导致堆损坏或访问违例。
  */
 void stream_context_clear_all(void) {
-    for (int i = 0; i < s_setter_registry.count; i++) {
-        if (s_setter_registry.setters[i]) {
-            s_setter_registry.setters[i](NULL);
-        }
-    }
+    /* 以 NULL 参数调用所有已注册 setter（遍历/调用阶段与 dispatch_all 共用分发路径） */
+    lv_once(&s_setter_registry_once, setter_registry_init_once);
+    lv_callback_list_dispatch(&s_setter_registry, NULL, NULL, setter_registry_invoke);
 }
 
 /**

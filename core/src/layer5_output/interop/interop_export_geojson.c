@@ -22,19 +22,20 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_file.h"
 
 
 int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config) {
     if (!graph || !config)
         return lv_ERROR_INVALID_PARAM;
 
-    FILE *fp = fopen(config->output_path, "w");
+    FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp)
         return lv_ERROR_IO;
 
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 4096)) {
-        fclose(fp);
+        lv_file_close(fp);
         return lv_ERROR_OUT_OF_MEMORY;
     }
 
@@ -141,7 +142,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
         fputs(json, fp);
         lv_free(json);
     }
-    fclose(fp);
+    lv_file_close(fp);
     return lv_OK;
 }
 

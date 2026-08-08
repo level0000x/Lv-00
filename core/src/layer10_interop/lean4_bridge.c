@@ -56,62 +56,32 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
     lv_CHECK_NOT_NULL(output);
     lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
 
-    lvBridgeProof *p = (lvBridgeProof *) proof;
-
     /* 步骤类型到 Lean 4 tactic 的映射表 */
-    static const struct {
-        int step_type;
-        const char *tactic;
-    } tactic_map[] = {{lv_STEP_ADD_NODE, "intro"}, {lv_STEP_ADD_CONSTRAINT, "constructor"},
-                      {lv_STEP_REWRITE, "rw"},     {lv_STEP_FUNCTION_APP, "apply"},
-                      {lv_STEP_EXACT, "exact"},    {lv_STEP_HAVE, "have"},
-                      {lv_STEP_CALC, "calc"},      {lv_STEP_NORMALIZATION, "simp"},
-                      {lv_STEP_ORACLE, "sorry"}};
-    int tactic_count = LEAN4_TACTIC_MAP_COUNT;
+    static const lvBridgeTacticMap tactic_map[] = {
+        {lv_STEP_ADD_NODE, "intro"},
+        {lv_STEP_ADD_CONSTRAINT, "constructor"},
+        {lv_STEP_REWRITE, "rw"},
+        {lv_STEP_FUNCTION_APP, "apply"},
+        {lv_STEP_EXACT, "exact"},
+        {lv_STEP_HAVE, "have"},
+        {lv_STEP_CALC, "calc"},
+        {lv_STEP_NORMALIZATION, "simp"},
+        {lv_STEP_ORACLE, "sorry"}};
 
-    /* 使用 lvStrBuf 动态构建脚本，替代手写 pos 游标 + snprintf 偏移 */
-    lvStrBuf sb = {0};
-
-    /* 输出头 */
-    const char *header =
+    /* 输出头/尾：Lean 4 .lean 语法框架（header/footer 语义与原实现逐字一致） */
+    const lvBridgeExportSpec spec = {
         "import lv.HilbertAxioms\n\n"
-        "theorem ";
-    const char *footer = "\n";
+        "theorem ",
+        " : Prop := by\n",
+        "\n",
+        "  ",
+        "\n",
+        "sorry",
+        tactic_map,
+        (int) (sizeof(tactic_map) / sizeof(tactic_map[0])),
+    };
 
-    lv_strbuf_printf(&sb, "%s", header);
-
-    /* 写入定理名称 */
-    lv_strbuf_printf(&sb, "%s", p->theorem_name);
-
-    /* 写入 ": Prop := by" */
-    lv_strbuf_printf(&sb, " : Prop := by\n");
-
-    /* 遍历证明树中每个步骤，生成对应的 tactic */
-    for (int i = 0; i < p->steps_da.count; i++) {
-        lvProofStep *step = (lvProofStep *)lv_darray_get(&p->steps_da, i);
-        const char *tac = "sorry"; /* 默认 tactic（未知类型） */
-
-        /* 在映射表中查找对应的 tactic */
-        for (int j = 0; j < tactic_count; j++) {
-            if (step->type == tactic_map[j].step_type) {
-                tac = tactic_map[j].tactic;
-                break;
-            }
-        }
-
-        /* 写入 tactic（缩进两格） */
-        lv_strbuf_printf(&sb, "  %s\n", tac);
-    }
-
-    /* 写入尾部 */
-    lv_strbuf_printf(&sb, "%s", footer);
-
-    /* 拷贝到调用方缓冲区（lvStrBuf 保证 NUL 结尾），并清理 */
-    if (sb.len >= (size_t) output_size)
-        lv_RETURN_ERROR(lv_ERROR_IO, "output buffer too small for export");
-    memcpy(output, lv_strbuf_cstr(&sb), sb.len + 1);
-    lv_strbuf_destroy(&sb);
-    return 0;
+    return bridge_export_proof(proof, output, output_size, &spec);
 }
 
 /* Lean 4 proof import: 解析 Lean 4 tactic 脚本并转换为 Lv-00 证明树 */
@@ -433,13 +403,9 @@ static int lean4_import_proof(const char *input, void **proof) {
         lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'theorem' keyword");
 
     /* 提取定理名（theorem 后的第一个标识符） */
-    const char *name_start = theorem_kw + 7; /* 跳过 "theorem" */
-    name_start = lv_str_ltrim((char *) name_start); /* lv_str_ltrim 不修改原串 */
-    const char *name_end = name_start;
-    while (*name_end && !isspace((unsigned char) *name_end) && *name_end != ':')
-        name_end++;
-
-    if (name_end == name_start)
+    const char *name_start = NULL;
+    size_t name_len = 0;
+    if (bridge_extract_theorem_name(theorem_kw + 7, &name_start, &name_len) != 0)
         lv_RETURN_ERROR(lv_ERROR_PARSE, "empty theorem name");
 
     /* 提取 tactic 脚本（":= by" 之后的内容） */
@@ -456,7 +422,7 @@ static int lean4_import_proof(const char *input, void **proof) {
 
     /* 保存定理名 */
     {
-        size_t nlen = (size_t) (name_end - name_start);
+        size_t nlen = name_len;
         if (nlen >= sizeof(p->theorem_name))
             nlen = sizeof(p->theorem_name) - 1;
         memcpy(p->theorem_name, name_start, nlen);
@@ -528,14 +494,7 @@ static int lean4_validate(const char *input) {
 
 /* 注册 Lean 4 插件 */
 int lv_register_lean4_plugin(lvInteropManager *mgr) {
-    lv_CHECK_NOT_NULL(mgr);
-    lvPlugin plugin;
-    memset(&plugin, 0, sizeof(plugin));
-    strncpy(plugin.name, "lean4", sizeof(plugin.name) - 1);
-    strncpy(plugin.version, "4.14.0", sizeof(plugin.version) - 1);
-    plugin.system = lv_EXT_LEAN4;
-    plugin.export_proof = lean4_export_proof;
-    plugin.import_proof = lean4_import_proof;
-    plugin.validate = lean4_validate;
-    return lv_interop_register_plugin(mgr, &plugin);
+    /* 插件注册骨架收敛于公共 helper bridge_register */
+    return bridge_register(mgr, "lean4", "4.14.0", lv_EXT_LEAN4, lean4_export_proof, lean4_import_proof,
+                           lean4_validate);
 }

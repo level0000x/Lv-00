@@ -13,7 +13,6 @@
 
 #include "func_block_preset_ops.h"
 
-#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,9 +49,9 @@
  *   - 确保所有计数器在程序启动时即完成零初始化
  *   - 让所有调用点共享同一计数器，避免命名冲突
  * ================================================================ */
-static _Atomic int g_bind_counter = 0;      /**< partial_bind 操作计数器 */
-static _Atomic int g_compose_counter = 0;   /**< compose 操作计数器 */
-static _Atomic int g_recursive_counter = 0; /**< 递归预设计数器 */
+static int g_bind_counter = 0;      /**< partial_bind 操作计数器 */
+static int g_compose_counter = 0;   /**< compose 操作计数器 */
+static int g_recursive_counter = 0; /**< 递归预设计数器 */
 
 /* ================================================================
  * 预设链式调用实现
@@ -696,7 +695,7 @@ bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bind
 
     /* 生成新预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, atomic_fetch_add(&g_bind_counter, 1));
+    snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, lv_ATOMIC_ADD(&g_bind_counter, 1));
 
     /* 创建新函数块 */
     FuncBlock *new_fb = func_block_create(fb->id + 10000);
@@ -976,7 +975,7 @@ static bool preset_compose(const char *preset_a, const char *preset_b, PresetCom
         func_block_destroy(fb_b);
         return false;
     }
-    snprintf(new_name, sizeof(new_name), "%s%d", compose_prefix, atomic_fetch_add(&g_compose_counter, 1));
+    snprintf(new_name, sizeof(new_name), "%s%d", compose_prefix, lv_ATOMIC_ADD(&g_compose_counter, 1));
 
     /* 使用现有的组合函数 */
     FuncBlock *composed = NULL;
@@ -1060,7 +1059,7 @@ bool preset_make_recursive(const char *base_preset, int max_iterations, char **o
 
     /* 生成递归预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, atomic_fetch_add(&g_recursive_counter, 1));
+    snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, lv_ATOMIC_ADD(&g_recursive_counter, 1));
 
     /* 创建递归预设（简化实现：复制原预设并添加递归标记） */
     FuncBlock *recursive_fb = func_block_copy(fb);

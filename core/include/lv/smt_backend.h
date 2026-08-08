@@ -147,8 +147,8 @@ const char *smtsolver_logic_name(SMTLogic logic);
 const char *smtsolver_sat_result_name(SMTSatResult result);
 const char *smtsolver_error_string(SMTErrorCode code);
 
-SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *smtlib2, const char *solver_cmd, int timeout_ms,
-                                       char *out_output, int out_output_len);
+SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable, const char *smt2_input, int smt2_len,
+                                       char *result_buf, int result_size);
 
 SMTBackendRegistry *smtsolver_get_registry(void);
 int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry);

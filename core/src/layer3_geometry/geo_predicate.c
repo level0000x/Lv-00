@@ -66,6 +66,11 @@ static lvPredicateMode g_predicate_mode = lv_PREDICATE_ADAPTIVE;
  *
  * 字段类型与头文件 lvPredicateStats 一致（3 × size_t），
  * 声明为 _Atomic 供多线程原子自增/读取/清零。
+ *
+ * 注（P1-3 标注）：保持 C11 atomic 而非迁移 lv_ATOMIC_* —— size_t 在
+ * 64 位平台为 64 位宽，而 lv_ATOMIC_* 宏族仅有 32 位 LOAD/STORE 原语；
+ * 此处为热路径 relaxed 统计（允许乱序累加），与宏族 SEQCST 语义不完全
+ * 等价，故保留 C11 原子类型。
  */
 typedef struct {
     _Atomic size_t approx_count;      /**< 近似模式调用次数 */

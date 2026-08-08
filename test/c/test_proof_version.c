@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_version.c
  * @brief Tests for the proof version control system.
  *
@@ -32,6 +32,7 @@
 #endif
 
 #include "lv.h"
+#include "lv/lv_path.h"
 #include "proof_version.h"
 #include "test_helpers.h"
 
@@ -62,11 +63,7 @@ static void test_repo_init(void) {
     proof_repo_destroy(repo);
 
     /* Cleanup test directory */
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_init 2>nul");
-#else
-    system("rm -rf test_repo_init 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_init");
 }
 
 /* ============================================================
@@ -90,11 +87,7 @@ static void test_repo_open(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_open 2>nul");
-#else
-    system("rm -rf test_repo_open 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_open");
 }
 
 /* ============================================================
@@ -121,11 +114,7 @@ static void test_repo_commit(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_commit 2>nul");
-#else
-    system("rm -rf test_repo_commit 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_commit");
 }
 
 /* ============================================================
@@ -161,11 +150,7 @@ static void test_repo_log(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_log 2>nul");
-#else
-    system("rm -rf test_repo_log 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_log");
 }
 
 /* ============================================================
@@ -206,11 +191,7 @@ static void test_repo_diff(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_diff 2>nul");
-#else
-    system("rm -rf test_repo_diff 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_diff");
 }
 
 /* ============================================================
@@ -236,11 +217,7 @@ static void test_repo_branch(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_branch 2>nul");
-#else
-    system("rm -rf test_repo_branch 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_branch");
 }
 
 /* ============================================================
@@ -279,11 +256,7 @@ static void test_repo_checkout(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_repo_checkout 2>nul");
-#else
-    system("rm -rf test_repo_checkout 2>/dev/null");
-#endif
+    lv_path_remove("test_repo_checkout");
 }
 
 /* ============================================================
@@ -352,11 +325,7 @@ static void test_multiple_commits(void) {
 
     proof_repo_destroy(repo);
 
-#ifdef _WIN32
-    system("rmdir /s /q test_multi_commit 2>nul");
-#else
-    system("rm -rf test_multi_commit 2>/dev/null");
-#endif
+    lv_path_remove("test_multi_commit");
 }
 
 /* ============================================================

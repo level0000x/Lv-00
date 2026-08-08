@@ -799,19 +799,14 @@ static inline void lv_defer_slot_cleanup(void *p) {
  * @endcode
  *
  * 清理注册顺序与执行顺序相反（后注册的先执行）。
- * 注意：同一作用域内只能注册一个 LV_DEFER。
  *
- * @note 基于 GCC/Clang 的 __attribute__((cleanup)) 实现，
- *       槽位变量离开作用域（含任何 return）时自动执行 fn(arg)。
+ * @note LV_DEFER 为 lv_DEFER 的兼容别名（权威定义位于 lv_lifecycle.h:72）。
+ *       与旧版固定槽位变量不同，lv_DEFER 基于 __COUNTER__ 唯一化变量名，
+ *       同一作用域可注册多个，不再受"只能注册一个"限制。
  * @warning MSVC 不支持 cleanup 属性：在 MSVC 下该宏展开为空操作
  *          （不执行任何清理），需手动清理或使用 goto cleanup 模式。
  */
-#if defined(__GNUC__) || defined(__clang__)
-#define LV_DEFER(fn, arg) \
-    lvDeferSlot _lv_defer_slot_ __attribute__((cleanup(lv_defer_slot_cleanup))) = {(fn), (arg)}
-#else
-#define LV_DEFER(fn, arg) ((void) (fn), (void) (arg))
-#endif
+#define LV_DEFER lv_DEFER
 
 /** @brief 常用清理回调：释放一个指针变量（配合 LV_DEFER(lv_defer_free_ptr, &ptr) 使用） */
 static inline void lv_defer_free_ptr(void *arg) {
@@ -1591,6 +1586,38 @@ static inline int lv_dirty_set_at(const lv_dirty_set *ds, int index) {
     const int *p = (const int *) lv_darray_get(&ds->ids, index);
     return p ? *p : 0;
 }
+
+/* ============================================================
+ * INI 文件解析（统一收敛散落各模块的手写行解析样板）
+ * ============================================================ */
+
+/**
+ * @brief INI 键值对解析回调
+ * @param ctx     透传上下文
+ * @param section 当前节名（全局节为 NULL；视图仅在本次回调内有效）
+ * @param key     键名（已去除首尾空白）
+ * @param value   值（'=' 之后原始内容，未去除空白，由调用方按需处理）
+ * @return true 继续解析；false 中止解析（lv_ini_parse 提前返回 -1）
+ */
+typedef bool (*lv_ini_visit_fn)(void *ctx, const char *section, const char *key, const char *value);
+
+/**
+ * @brief 解析 INI 格式配置文件（注释/空行/节头/key=value 公共子集）
+ *
+ * 收敛两处手写 INI 行解析样板（lv_utils_config.c 的 config_load、
+ * plugin_system_config.c 的 lv_plugin_config_load），公共处理：
+ * - 逐行读取并去除行尾 \r\n
+ * - 跳过空行与注释行（'#' 或 '//' 开头）
+ * - 解析节头 [section]，后续键值对以 section 参数传给回调
+ * - 拆分 key=value，key 去除首尾空白，value 保持原始内容
+ * 各调用方的差异逻辑（值修剪、类型推断、数组解析等）留在回调中完成。
+ *
+ * @param path  文件路径
+ * @param visit 回调（不可为 NULL）
+ * @param ctx   透传上下文
+ * @return 0 成功；-1 参数无效、文件无法打开或回调中止
+ */
+lv_PUBLIC_API int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx);
 
 #ifdef __cplusplus
 }

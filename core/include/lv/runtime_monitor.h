@@ -518,13 +518,13 @@ typedef enum {
     EVENT_TYPE_ERROR,          /**< 错误 */
     EVENT_TYPE_WARNING,        /**< 警告 */
     EVENT_TYPE_CUSTOM          /**< 自定义 */
-} lvEventType;
+} RM_EventType;
 
 /**
  * @brief 事件记录
  */
 typedef struct {
-    lvEventType type;     /**< 事件类型 */
+    RM_EventType type;    /**< 事件类型 */
     char name[64];        /**< 事件名称 */
     int64_t timestamp_ns; /**< 时间戳（纳秒） */
     int64_t duration_ns;  /**< 持续时间（纳秒） */
@@ -565,7 +565,7 @@ void lv_event_trace_set_stream_context(struct StreamContext *ctx);
  * @param name 事件名称
  * @param data 事件数据
  */
-void lv_event_trace_record(lvEventType type, const char *name, const char *data);
+void lv_event_trace_record(RM_EventType type, const char *name, const char *data);
 
 /**
  * @brief 开始事件（用于计时）
@@ -573,7 +573,7 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
  * @param name 事件名称
  * @return 事件 ID
  */
-int lv_event_trace_begin(lvEventType type, const char *name);
+int lv_event_trace_begin(RM_EventType type, const char *name);
 
 /**
  * @brief 结束事件

@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_file.h"
 #include "lv/normalization.h"
 #include "lv/rewrite.h"
 
@@ -163,27 +164,11 @@ static const char *read_token(const char *p, char *buf, int buf_size) {
  * @return 解析后的规则数组，失败返回 NULL
  */
 static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
-    FILE *f = fopen(filepath, "r");
-    if (!f)
+    /* 读取整个文件（统一走 lv_file_read_all；buf 已保证以 '\0' 结尾） */
+    size_t fsize = 0;
+    char *content = (char *) lv_file_read_all(filepath, &fsize);
+    if (!content)
         return NULL;
-
-    /* 读取整个文件 */
-    fseek(f, 0, SEEK_END);
-    long fsize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (fsize <= 0) {
-        fclose(f);
-        return NULL;
-    }
-
-    char *content = lv_malloc((size_t) fsize + 1);
-    if (!content) {
-        fclose(f);
-        return NULL;
-    }
-    size_t nread = fread(content, 1, (size_t) fsize, f);
-    content[nread] = '\0';
-    fclose(f);
 
     /* 第一遍：计算规则数量 */
     int rule_count = 0;

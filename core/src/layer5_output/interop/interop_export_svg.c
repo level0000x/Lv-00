@@ -23,6 +23,7 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_export_common.h"
+#include "lv/lv_file.h"
 
 /* ---- 约束类型 → SVG 属性窄适配（颜色/线宽取自公共核心表 kConstraintVisuals） ---- */
 typedef struct {
@@ -220,7 +221,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     if (!graph || !config)
         return lv_ERROR_INVALID_PARAM;
 
-    FILE *fp = fopen(config->output_path, "w");
+    FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp)
         return lv_ERROR_IO;
 
@@ -523,7 +524,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
     fprintf(fp, "\n</svg>\n");
 
-    fclose(fp);
+    lv_file_close(fp);
 
     return lv_OK;
 }

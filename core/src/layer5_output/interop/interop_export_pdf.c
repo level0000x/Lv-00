@@ -25,6 +25,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_file.h"
 
 /* ---- 约束类型 → PDF 图形状态窄适配（颜色/线宽取自公共核心表 kConstraintVisuals） ---- */
 typedef struct {
@@ -100,7 +101,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "开始 PDF 导出", 0);
     }
 
-    FILE *fp = fopen(config->output_path, "wb");
+    FILE *fp = lv_file_open(config->output_path, "wb");
     if (!fp)
         return lv_ERROR_IO;
 
@@ -518,7 +519,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
     fprintf(fp, "%ld\n", xref_start);
     fprintf(fp, "%%%%EOF\n");
 
-    fclose(fp);
+    lv_file_close(fp);
     lv_strbuf_destroy(&content);
 
     /*

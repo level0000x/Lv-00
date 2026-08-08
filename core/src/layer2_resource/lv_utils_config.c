@@ -30,9 +30,6 @@
  * 配置管理
  * ============================================================ */
 
-/* 消除魔术数字，用宏定义替代字面量 */
-#define CONFIG_LINE_BUFFER_SIZE 1024 /**< 配置文件每行读取缓冲区大小 */
-
 static ConfigItem *config_item_create(const char *key, ConfigType type) {
     ConfigItem *item = lv_calloc(1, sizeof(ConfigItem));
     if (!item)
@@ -264,154 +261,145 @@ bool config_remove(ConfigManager *mgr, const char *key) {
  *   - 空行：忽略
  * 支持通过 dotted notation (如 "section.key") 查找配置项。
  */
-bool config_load(ConfigManager *mgr) {
-    if (!mgr || !mgr->config_file)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_load 参数无效");
+/**
+ * @brief lv_ini_parse 回调：解析单个键值对并写入 ConfigManager
+ * @param ctx     ConfigManager 指针
+ * @param section 当前节名（全局节为 NULL）
+ * @param key     键名（已去除首尾空白）
+ * @param value   值（'=' 之后原始内容，此处按原实现去除首尾空白）
+ * @return true 继续解析；false 中止解析（分配失败等错误路径）
+ */
+static bool config_ini_visit(void *ctx, const char *section, const char *key, const char *value) {
+    ConfigManager *mgr = (ConfigManager *) ctx;
 
-    FILE *f = lv_file_open(mgr->config_file, "r");
-    if (!f)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_load 打开文件失败");
-
-    char current_section[256];
-    current_section[0] = '\0';
-
-    char line[CONFIG_LINE_BUFFER_SIZE];
-    while (fgets(line, sizeof(line), f)) {
-        char *trimmed = lv_str_trim(line);
-        if (*trimmed == '\0' || *trimmed == '#')
-            continue;
-
-        /* 解析节头 [section_name] */
-        if (*trimmed == '[') {
-            char *close_bracket = strchr(trimmed, ']');
-            if (close_bracket) {
-                *close_bracket = '\0';
-                char *section_name = lv_str_trim(trimmed + 1);
-                snprintf(current_section, sizeof(current_section), "%s", section_name);
-            }
-            continue;
-        }
-
-        char *eq = strchr(trimmed, '=');
-        if (!eq)
-            continue;
-
-        *eq = '\0';
-        char *raw_key = lv_str_trim(trimmed);
-        char *value = lv_str_trim(eq + 1);
-
-        /* 构建带节前缀的完整键名：section.key 或直接 key */
-        char full_key[512];
-        if (current_section[0] != '\0') {
-            snprintf(full_key, sizeof(full_key), "%s.%s", current_section, raw_key);
+    /* 构建带节前缀的完整键名：section.key 或直接 key（节名按原实现去除空白） */
+    char full_key[512];
+    if (section && section[0] != '\0') {
+        char sec_buf[256];
+        lv_strlcpy(sec_buf, section, sizeof(sec_buf));
+        char *sec_trim = lv_str_trim(sec_buf);
+        if (sec_trim[0] != '\0') {
+            snprintf(full_key, sizeof(full_key), "%s.%s", sec_trim, key);
         } else {
-            snprintf(full_key, sizeof(full_key), "%s", raw_key);
+            snprintf(full_key, sizeof(full_key), "%s", key);
+        }
+    } else {
+        snprintf(full_key, sizeof(full_key), "%s", key);
+    }
+
+    /* 值去除首尾空白（与原实现一致） */
+    char val_buf[2048];
+    lv_strlcpy(val_buf, value, sizeof(val_buf));
+    char *trimmed_val = lv_str_trim(val_buf);
+
+    /* 解析字符串数组：key = ["a", "b", ...]（与 config_serialize_array 对称） */
+    if (*trimmed_val == '[') {
+        ConfigItem *item = config_item_create(full_key, CONFIG_TYPE_ARRAY);
+        if (!item)
+            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 创建数组项失败");
+
+        size_t cap = 4;
+        size_t cnt = 0;
+        ConfigItem **arr = lv_calloc(cap, sizeof(ConfigItem *));
+        if (!arr) {
+            config_item_destroy(item);
+            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 分配数组失败");
         }
 
-        /* 解析字符串数组：key = ["a", "b", ...]（与 config_serialize_array 对称） */
-        if (*value == '[') {
-            ConfigItem *item = config_item_create(full_key, CONFIG_TYPE_ARRAY);
-            if (!item) {
-                lv_file_close(f);
-                lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 创建数组项失败");
+        const char *p = trimmed_val + 1;
+        while (*p) {
+            p = lv_str_skip_ws(p);
+            if (*p == '\0' || *p == ']')
+                break;
+            if (*p == ',') {
+                p++;
+                continue;
             }
+            if (*p == '"') {
+                /* 引号提取统一走公共原语 lv_str_read_quoted（替代手写
+                 * "跳引号 → 扫到闭引号 → 复制" 三行循环） */
+                char *elem_str = NULL;
+                if (!lv_str_read_quoted(&p, &elem_str))
+                    break; /* 不可能走到（*p=='"' 保证），防御性 break */
 
-            size_t cap = 4;
-            size_t cnt = 0;
-            ConfigItem **arr = lv_calloc(cap, sizeof(ConfigItem *));
-            if (!arr) {
-                config_item_destroy(item);
-                lv_file_close(f);
-                lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 分配数组失败");
-            }
-
-            const char *p = value + 1;
-            while (*p) {
-                p = lv_str_skip_ws(p);
-                if (*p == '\0' || *p == ']')
-                    break;
-                if (*p == ',') {
-                    p++;
-                    continue;
-                }
-                if (*p == '"') {
-                    /* 引号提取统一走公共原语 lv_str_read_quoted（替代手写
-                     * "跳引号 → 扫到闭引号 → 复制" 三行循环） */
-                    char *elem_str = NULL;
-                    if (!lv_str_read_quoted(&p, &elem_str))
-                        break; /* 不可能走到（*p=='"' 保证），防御性 break */
-
-                    if (cnt >= cap) {
-                        cap *= 2;
-                        ConfigItem **na = (ConfigItem **) lv_realloc(arr, cap * sizeof(ConfigItem *));
-                        if (!na) {
-                            for (size_t i = 0; i < cnt; i++)
-                                config_item_destroy(arr[i]);
-                            lv_free((void **) &arr);
-                            config_item_destroy(item);
-                            lv_file_close(f);
-                            lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组扩容失败");
-                        }
-                        arr = na;
-                    }
-                    ConfigItem *elem = lv_calloc(1, sizeof(ConfigItem));
-                    if (!elem) {
+                if (cnt >= cap) {
+                    cap *= 2;
+                    ConfigItem **na = (ConfigItem **) lv_realloc(arr, cap * sizeof(ConfigItem *));
+                    if (!na) {
                         for (size_t i = 0; i < cnt; i++)
                             config_item_destroy(arr[i]);
                         lv_free((void **) &arr);
                         config_item_destroy(item);
-                        lv_file_close(f);
-                        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组元素分配失败");
+                        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组扩容失败");
                     }
-                    /* 元素值存于 key（与 config_serialize_array 写出形态对称）；
-                     * elem_str 为 lv_str_read_quoted 堆分配结果，所有权直接转移 */
-                    elem->type = CONFIG_TYPE_STRING;
-                    elem->key = elem_str ? elem_str : lv_strdup_safe("");
-                    arr[cnt++] = elem;
-                } else {
-                    /* 非字符串元素：跳过到下一个逗号或结束 */
-                    while (*p && *p != ',' && *p != ']')
-                        p++;
+                    arr = na;
                 }
+                ConfigItem *elem = lv_calloc(1, sizeof(ConfigItem));
+                if (!elem) {
+                    for (size_t i = 0; i < cnt; i++)
+                        config_item_destroy(arr[i]);
+                    lv_free((void **) &arr);
+                    config_item_destroy(item);
+                    lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组元素分配失败");
+                }
+                /* 元素值存于 key（与 config_serialize_array 写出形态对称）；
+                 * elem_str 为 lv_str_read_quoted 堆分配结果，所有权直接转移 */
+                elem->type = CONFIG_TYPE_STRING;
+                elem->key = elem_str ? elem_str : lv_strdup_safe("");
+                arr[cnt++] = elem;
+            } else {
+                /* 非字符串元素：跳过到下一个逗号或结束 */
+                while (*p && *p != ',' && *p != ']')
+                    p++;
             }
-
-            item->value.array_val = arr;
-            item->array_count = cnt;
-            item->next = mgr->items;
-            mgr->items = item;
-            continue;
         }
 
-        /* 尝试解析为整数 */
-        char *endptr;
-        long int_val = strtol(value, &endptr, 10);
-        if (*endptr == '\0') {
-            config_set_int(mgr, full_key, (int) int_val);
-            continue;
-        }
-
-        /* 尝试解析为布尔值 */
-        if (strcmp(value, "true") == 0 || strcmp(value, "yes") == 0) {
-            config_set_bool(mgr, full_key, true);
-            continue;
-        }
-        if (strcmp(value, "false") == 0 || strcmp(value, "no") == 0) {
-            config_set_bool(mgr, full_key, false);
-            continue;
-        }
-
-        /* 尝试解析为浮点数 */
-        double double_val = strtod(value, &endptr);
-        if (*endptr == '\0') {
-            config_set_double(mgr, full_key, double_val);
-            continue;
-        }
-
-        /* 否则作为字符串 */
-        config_set_string(mgr, full_key, value);
+        item->value.array_val = arr;
+        item->array_count = cnt;
+        item->next = mgr->items;
+        mgr->items = item;
+        return true;
     }
 
-    lv_file_close(f);
+    /* 尝试解析为整数 */
+    char *endptr;
+    long int_val = strtol(trimmed_val, &endptr, 10);
+    if (*endptr == '\0') {
+        config_set_int(mgr, full_key, (int) int_val);
+        return true;
+    }
+
+    /* 尝试解析为布尔值 */
+    if (strcmp(trimmed_val, "true") == 0 || strcmp(trimmed_val, "yes") == 0) {
+        config_set_bool(mgr, full_key, true);
+        return true;
+    }
+    if (strcmp(trimmed_val, "false") == 0 || strcmp(trimmed_val, "no") == 0) {
+        config_set_bool(mgr, full_key, false);
+        return true;
+    }
+
+    /* 尝试解析为浮点数 */
+    double double_val = strtod(trimmed_val, &endptr);
+    if (*endptr == '\0') {
+        config_set_double(mgr, full_key, double_val);
+        return true;
+    }
+
+    /* 否则作为字符串 */
+    config_set_string(mgr, full_key, trimmed_val);
+    return true;
+}
+
+bool config_load(ConfigManager *mgr) {
+    if (!mgr || !mgr->config_file)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_load 参数无效");
+
+    /* 统一走公共 lv_ini_parse（收敛手写 fopen/fgets 行解析样板） */
+    if (lv_ini_parse(mgr->config_file, config_ini_visit, mgr) != 0) {
+        /* 打开失败或回调中止：具体错误码已由 lv_ini_parse / config_ini_visit 记录 */
+        return false;
+    }
     return true;
 }
 

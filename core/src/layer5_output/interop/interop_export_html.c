@@ -14,7 +14,9 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
 #include "lv/interop.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
+#include "lv/lv_path.h"
 
 #include "debug.h"
 #include "interop_export_internal.h"
@@ -34,13 +36,11 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
     if (!graph)
         return lv_ERROR_INVALID_PARAM;
 
-    /* ---- 1. 生成 SVG 到临时文件 ---- */
+    /* ---- 1. 生成 SVG 到临时文件（lv_temp_path 生成唯一临时路径，替换 tmpnam） ---- */
     char svg_temp_path[INTEROP_MAX_PATH_LEN];
     {
-        const char *tmp_name = tmpnam(NULL);
-        if (!tmp_name)
+        if (!lv_temp_path(svg_temp_path, sizeof(svg_temp_path)))
             return lv_ERROR_IO;
-        lv_strlcpy(svg_temp_path, tmp_name, sizeof(svg_temp_path));
     }
 
     InteropExportConfig svg_cfg;
@@ -53,31 +53,21 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
         return svg_ret;
     }
 
-    /* ---- 2. 读取临时 SVG 文件内容 ---- */
+    /* ---- 2. 读取临时 SVG 文件内容（统一走 lv_file_read_all；buf 已保证以 '\0' 结尾） ---- */
     char *svg_content = NULL;
-    long svg_size = 0;
+    size_t svg_size = 0;
     {
-        FILE *svg_fp = fopen(svg_temp_path, "rb");
-        if (!svg_fp) {
+        svg_content = (char *) lv_file_read_all(svg_temp_path, &svg_size);
+        if (!svg_content && !lv_file_exists(svg_temp_path)) {
+            /* 与原实现一致：临时文件无法读取（打开失败）视为 IO 错误 */
             remove(svg_temp_path);
             return lv_ERROR_IO;
         }
-        fseek(svg_fp, 0, SEEK_END);
-        svg_size = ftell(svg_fp);
-        fseek(svg_fp, 0, SEEK_SET);
-        if (svg_size > 0) {
-            svg_content = (char *) lv_malloc((size_t) svg_size + 1);
-            if (svg_content) {
-                size_t read_bytes = fread(svg_content, 1, (size_t) svg_size, svg_fp);
-                svg_content[read_bytes] = '\0';
-            }
-        }
-        fclose(svg_fp);
         remove(svg_temp_path);
     }
 
     /* ---- 3. 构建 HTML ---- */
-    FILE *fp = fopen(config->output_path, "w");
+    FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp) {
         lv_free(svg_content);
         return lv_ERROR_IO;
@@ -170,7 +160,7 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
             "</html>\n",
             lv_VERSION_STRING);
 
-    fclose(fp);
+    lv_file_close(fp);
 
     if (interop_stream_ctx) {
         stream_emit_simple(interop_stream_ctx, STREAM_EVENT_INFO, "HTML 导出完成", 0);

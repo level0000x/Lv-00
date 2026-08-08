@@ -65,13 +65,15 @@ typedef struct StreamContext StreamContext;
 /** @brief graph 模块全局流式上下文（由 constraint_graph.c 集中定义） */
 extern lv_THREAD_LOCAL StreamContext *graph_stream_ctx;
 
-/** @brief 原子递增节点ID并返回新值（线程安全） */
+/** @brief 原子递增节点ID并返回旧值（线程安全）
+ *  统一走 lv_ATOMIC_ADD（指针语义、返回旧值），与 lv_platform.h 宏族一致；
+ *  字段保持 _Atomic int（全项目 99 处普通读写点不受影响）。 */
 #define GRAPH_ATOMIC_NODE_ID_INCREMENT(graph) \
-    atomic_fetch_add_explicit(&((graph)->next_node_id), 1, memory_order_relaxed)
+    lv_ATOMIC_ADD(&((graph)->next_node_id), 1)
 
-/** @brief 原子递增约束ID并返回新值（线程安全） */
+/** @brief 原子递增约束ID并返回旧值（线程安全） */
 #define GRAPH_ATOMIC_CONSTRAINT_ID_INCREMENT(graph) \
-    atomic_fetch_add_explicit(&((graph)->next_constraint_id), 1, memory_order_relaxed)
+    lv_ATOMIC_ADD(&((graph)->next_constraint_id), 1)
 
 /* lv_DEPRECATED 宏统一由 lv.h 定义，此处不再重复声明。 */
 
