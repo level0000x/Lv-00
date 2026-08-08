@@ -76,13 +76,46 @@ static const AxiomTestUcExpectation k_unconstructibles[] = {
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 2 模板校验与 Test 6/7/8 为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "domain_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "domain_theory",
+        .save_path = SAVE_TEST_PATH,
 
+        /* Test 2: 模板校验（test_templates 为混合 wrapper，下方保留） */
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+
+        /* Test 3: 不可构造项（A 形态） */
+        .uc_style = AXIOM_TEST_UC_A,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .uc_count_msg = "should have 7 unconstructible problems",
+        .uc_expectations = k_unconstructibles, .uc_n = K_UNCONSTRUCTIBLES_COUNT,
+
+        /* Test 4: 逻辑框架（S 形态） */
+        .lf_style = AXIOM_TEST_LF_S,
+        .lf_bottom_geometry = "pointed_dcpo_least_element",
+        .lf_negation_encoding = "classical_complement_in_information_order",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
+
+        /* Test 5: 内容哈希（单次形态） */
+        .hash_style = AXIOM_TEST_HASH_SINGLE,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE_PTR,
+
+        /* Test 6/7/8: 文件特有手写，下方保留 */
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
+
+/* Test 2：约束模板（文件特有：names_only 共享调用 + 具体参数个数校验，保留原体） */
 static void test_templates(void) {
     axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 69 constraint templates",
                                     k_template_names, K_TEMPLATE_NAMES_COUNT);
@@ -353,11 +386,8 @@ static void test_domain_hierarchy(void) {
 /*  Main                                                              */
 /* ------------------------------------------------------------------ */
 TEST_MAIN_BEGIN("Domain Theory Axiom Package Tests")
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("DomainTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
     TEST_MAIN_RUN(test_round_trip);
     TEST_MAIN_RUN(test_dependency_validation);
     TEST_MAIN_RUN(test_negative_lookups);

@@ -175,10 +175,10 @@ void test_high_dim_coordinate_projection() {
     int result = high_dim_register_block(manager, 1, 4);
     lv_ASSERT(result == lv_OK);
 
-    SymbolicCoord *coord0 = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *coord1 = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *coord2 = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *coord3 = symbolic_coord_create_rational(4, 1);
+    SymbolicCoord *coord0 = mk_rat(1, 1);
+    SymbolicCoord *coord1 = mk_rat(2, 1);
+    SymbolicCoord *coord2 = mk_rat(3, 1);
+    SymbolicCoord *coord3 = mk_rat(4, 1);
     const SymbolicCoord *coords[] = {coord0, coord1, coord2, coord3};
 
     HighDimProjectedCoord projected;

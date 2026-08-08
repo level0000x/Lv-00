@@ -94,46 +94,55 @@ static const AxiomTestUcExpectation k_unconstructibles[] = {
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 9 外部引用为本文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "robin_arithmetic");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "robin_arithmetic",
+        .save_path = SAVE_TEST_PATH,
 
-static void test_templates(void) {
-    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 39 constraint templates",
-                                     k_templates, K_TEMPLATES_COUNT);
-}
+        /* Test 2: 模板校验（with_params 形态） */
+        .tmpl_style = AXIOM_TEST_TMPL_WITH_PARAMS,
+        .tmpl_count = EXPECTED_TEMPLATE_COUNT,
+        .tmpl_count_msg = "should have 39 constraint templates",
+        .tmpl_expectations = k_templates, .tmpl_n = K_TEMPLATES_COUNT,
 
-static void test_unconstructible_problems(void) {
-    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                                        "should have 12 unconstructible problems", k_unconstructibles,
-                                        K_UNCONSTRUCTIBLES_COUNT);
-}
+        /* Test 3: 不可构造项（A 形态） */
+        .uc_style = AXIOM_TEST_UC_A,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .uc_count_msg = "should have 12 unconstructible problems",
+        .uc_expectations = k_unconstructibles, .uc_n = K_UNCONSTRUCTIBLES_COUNT,
 
-static void test_logical_framework(void) {
-    axiom_test_logical_framework(AXIOM_PKG_PATH, "natural_number_zero_without_predecessor",
-                                 "classical_falsum_in_first_order_logic", PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                                 "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
+        /* Test 4: 逻辑框架（S 形态） */
+        .lf_style = AXIOM_TEST_LF_S,
+        .lf_bottom_geometry = "natural_number_zero_without_predecessor",
+        .lf_negation_encoding = "classical_falsum_in_first_order_logic",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
 
-static void test_content_hash(void) {
-    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
+        /* Test 5: 内容哈希（单次形态） */
+        .hash_style = AXIOM_TEST_HASH_SINGLE,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE,
 
-static void test_round_trip(void) {
-    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
+        /* Test 6: 往返保存/加载（basic 形态） */
+        .rt_style = AXIOM_TEST_RT_BASIC,
 
-static void test_dependency_validation(void) {
-    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
-                                     " (expected: may fail for cross-reference reduces_to)");
-}
+        /* Test 7: 依赖验证（V1 形态） */
+        .dep_style = AXIOM_TEST_DEP_V1,
+        .dep_fail_msg = "FAIL (acceptable)",
+        .dep_suffix = " (expected: may fail for cross-reference reduces_to)",
 
-static void test_negative_lookups(void) {
-    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
-}
+        /* Test 8: 负向查找 */
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+
+        /* Test 9: 外部引用（文件特有手写，见下方 test_external_refs） */
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 9：外部引用（文件特有：strstr 匹配 + 不同输出格式，保留原体） */
 static void test_external_refs(void) {
@@ -204,16 +213,8 @@ static void test_key_axioms_present(void) {
 }
 
 TEST_MAIN_BEGIN("Robinson Arithmetic (Q) Axiom Package")
-    TEST_MAIN_RUN(test_load_from_file);
-    TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
-    TEST_MAIN_RUN(test_round_trip);
-    TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
+    LV_REGISTER_AXIOM_CASES("RobinArithmetic", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_external_refs);
     TEST_MAIN_RUN(test_key_axioms_present);
-
 TEST_MAIN_END()
 

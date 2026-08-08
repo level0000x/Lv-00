@@ -84,17 +84,46 @@ static const AxiomTestTemplateExpectation k_templates[] = {
 #define K_TEMPLATES_COUNT (int) (sizeof(k_templates) / sizeof(k_templates[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 3/4 为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "elliptic_geometry");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "elliptic_geometry",
+        .save_path = SAVE_TEST_PATH,
 
-static void test_templates(void) {
-    axiom_test_templates_with_params_min(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT,
-                                         "should have 30 constraint templates", k_templates, K_TEMPLATES_COUNT);
-}
+        /* Test 2: 模板校验（with_params_min 形态） */
+        .tmpl_style = AXIOM_TEST_TMPL_WITH_PARAMS_MIN,
+        .tmpl_count = EXPECTED_TEMPLATE_COUNT,
+        .tmpl_count_msg = "should have 30 constraint templates",
+        .tmpl_expectations = k_templates, .tmpl_n = K_TEMPLATES_COUNT,
+
+        /* Test 3/4: 文件特有手写，下方保留 */
+        .uc_style = AXIOM_TEST_UC_NONE,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .lf_style = AXIOM_TEST_LF_NONE,
+
+        /* Test 5: 内容哈希（确定性形态） */
+        .hash_style = AXIOM_TEST_HASH_DETERMINISTIC,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE,
+
+        /* Test 6: 往返保存/加载（save_load 形态） */
+        .rt_style = AXIOM_TEST_RT_SAVE_LOAD,
+
+        /* Test 7: 依赖验证（note 形态） */
+        .dep_style = AXIOM_TEST_DEP_V2,
+        .dep_extra = NULL,
+
+        /* Test 8: 负向查找 */
+        .neg_style = AXIOM_TEST_NEG_XYZ,
+
+        /* Test 9: 外部引用（遍历全部形态） */
+        .ext_style = AXIOM_TEST_EXT_ALL,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 3：不可构造项（文件特有：仅名称数组 + green_verified 检查，保留原体） */
 static void test_unconstructibles(void) {
@@ -158,26 +187,7 @@ static void test_logical_framework(void) {
     axiom_package_destroy(pkg);
 }
 
-static void test_content_hash(void) {
-    axiom_test_content_hash_deterministic(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
-
-static void test_save_load_roundtrip(void) {
-    axiom_test_round_trip_save_load(AXIOM_PKG_PATH, SAVE_TEST_PATH, "elliptic_geometry", EXPECTED_TEMPLATE_COUNT,
-                                    EXPECTED_UNCONSTRUCTIBLE_COUNT, AXIOM_TEST_FREE_LV_FREE);
-}
-
-static void test_dependency_validation(void) {
-    axiom_test_dependency_validation_note(AXIOM_PKG_PATH, NULL);
-}
-
-static void test_negative_lookups(void) {
-    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_XYZ);
-}
-
-static void test_external_references(void) {
-    axiom_test_external_refs_all(AXIOM_PKG_PATH);
-}
+/* Test 5/6/7/8/9 已收敛至 kCases 数据驱动用例（见上） */
 
 /* ============================================================
  * 文件特有测试（原样保留）
@@ -244,14 +254,8 @@ static void test_key_templates(void) {
 }
 
 TEST_MAIN_BEGIN("Elliptic Geometry Axiom Package Tests")
-    TEST_MAIN_RUN(test_load_from_file);
-    TEST_MAIN_RUN(test_templates);
+    LV_REGISTER_AXIOM_CASES("EllipticGeometry", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_unconstructibles);
     TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
-    TEST_MAIN_RUN(test_save_load_roundtrip);
-    TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
-    TEST_MAIN_RUN(test_external_references);
     TEST_MAIN_RUN(test_key_templates);
 TEST_MAIN_END()

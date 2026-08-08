@@ -153,8 +153,8 @@ static bool has_event_with_description(const char *desc) {
  * @brief 添加有理数坐标点
  */
 static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
-    SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
-    SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
+    SymbolicCoord *cx = mk_rat(xn, xd);
+    SymbolicCoord *cy = mk_rat(yn, yd);
     if (!cx || !cy)
         return -1;
     SymbolicCoord *coords[] = {cx, cy};
@@ -356,7 +356,7 @@ static void test_engine_solve_stream_integration(void) {
 
     Rational *qa = rational_create(0, 1);
     Rational *qb = rational_create(1, 1);
-    SymbolicCoord *cx = symbolic_coord_create_rational(1, 1);
+    SymbolicCoord *cx = mk_rat(1, 1);
     SymbolicCoord *cy = symbolic_coord_create_quadratic(qa, qb, 3);
     SymbolicCoord *c_coords[] = {cx, cy};
     graph_add_point(g, c_coords, 2);

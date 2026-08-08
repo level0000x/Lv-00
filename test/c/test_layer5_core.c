@@ -376,7 +376,7 @@ static void test_spell_cast_paths(void) {
     symbolic_coord_destroy(outputs[0]);
 
     /* 场景2: 1 输入 */
-    SymbolicCoord *in1 = symbolic_coord_create_rational(5, 1);
+    SymbolicCoord *in1 = mk_rat(5, 1);
     SymbolicCoord *inputs[1] = {in1};
     st = spell_cast(spell, arr, inputs, 1, outputs, 1);
     TEST_ASSERT_EQ(st, SPELL_STATUS_SUCCESS);
@@ -385,8 +385,8 @@ static void test_spell_cast_paths(void) {
     symbolic_coord_destroy(in1);
 
     /* 场景3: 2 输入（求和） */
-    SymbolicCoord *in_a = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *in_b = symbolic_coord_create_rational(4, 1);
+    SymbolicCoord *in_a = mk_rat(3, 1);
+    SymbolicCoord *in_b = mk_rat(4, 1);
     SymbolicCoord *in_multi[2] = {in_a, in_b};
     st = spell_cast(spell, arr, in_multi, 2, outputs, 1);
     TEST_ASSERT_EQ(st, SPELL_STATUS_SUCCESS);
@@ -521,14 +521,14 @@ static void test_domain_deep(void) {
     TEST_ASSERT(domain_add_rule(d, "no_earth", 1.5), "domain add rule should succeed");
 
     /* 用坐标激活 */
-    SymbolicCoord *center = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *center = mk_rat(0, 1);
     TEST_ASSERT(domain_activate(d, center), "domain activate should succeed");
     TEST_ASSERT(domain_is_active(d), "domain is active should succeed");
     TEST_ASSERT(domain_get_strength(d) > 0.0, "domain get strength should succeed");
     TEST_ASSERT_NOT_NULL(domain_get_center(d));
 
     /* 再次激活 — 替换中心 */
-    SymbolicCoord *c2 = symbolic_coord_create_rational(10, 1);
+    SymbolicCoord *c2 = mk_rat(10, 1);
     TEST_ASSERT(domain_activate(d, c2), "domain activate should succeed");
 
     /* 停用 */

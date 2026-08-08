@@ -952,7 +952,7 @@ static void test_determinism_check_dynamic_enhanced(void) {
         lv_ASSERT(pr == PACK_RESULT_OK);
 
         /* 鎻愪緵鍏蜂綋杈撳叆鍊?*/
-        SymbolicCoord *input_val = symbolic_coord_create_rational(5, 1);
+        SymbolicCoord *input_val = mk_rat(5, 1);
         const SymbolicCoord *inputs[] = {input_val};
 
         DeterminismStatus status = func_block_determinism_check_dynamic(fb, g, inputs, 1);

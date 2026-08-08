@@ -59,10 +59,8 @@ void test_equiv_merge_by_coord(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 两个坐标相同的点 (1, 2) */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 1, 1, 2, 1);
+    add_point(graph, 1, 1, 2, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     int merges = equiv_merge_by_coord(mgr);
@@ -73,10 +71,6 @@ void test_equiv_merge_by_coord(void) {
     TEST_ASSERT(equiv_are_equivalent(mgr, 0, 1), "same-coord nodes 0 and 1 are equivalent");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -94,10 +88,8 @@ void test_equiv_find(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 5, 1, 5, 1);
+    add_point(graph, 5, 1, 5, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -114,10 +106,6 @@ void test_equiv_find(void) {
     TEST_ASSERT(r_invalid == -1, "equiv_find on invalid node returns -1");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -136,12 +124,9 @@ void test_equiv_are_equivalent(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 点 0,1 同坐标 → 等价；点 2 不同坐标 → 不等价 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(7, 1), symbolic_coord_create_rational(7, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
-    graph_add_point(graph, c2, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 7, 1, 7, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -156,12 +141,6 @@ void test_equiv_are_equivalent(void) {
     TEST_ASSERT(equiv_are_equivalent(mgr, 0, 0), "node 0 is equivalent to itself");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
-    symbolic_coord_destroy(c2[0]);
-    symbolic_coord_destroy(c2[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -179,14 +158,10 @@ void test_equiv_class_count(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 4 个点：3 个同坐标 (0,0), 1 个不同坐标 (1,1) */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c3[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
-    graph_add_point(graph, c2, 2);
-    graph_add_point(graph, c3, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 1, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
 
@@ -209,14 +184,6 @@ void test_equiv_class_count(void) {
     TEST_ASSERT(!equiv_are_equivalent(mgr, 0, 3), "nodes 0 and 3 not equivalent");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
-    symbolic_coord_destroy(c2[0]);
-    symbolic_coord_destroy(c2[1]);
-    symbolic_coord_destroy(c3[0]);
-    symbolic_coord_destroy(c3[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -234,10 +201,8 @@ void test_equiv_get_class(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(3, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(3, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 3, 1, 3, 1);
+    add_point(graph, 3, 1, 3, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -257,10 +222,6 @@ void test_equiv_get_class(void) {
     TEST_ASSERT(ec_neg == NULL, "equiv_get_class for negative node returns NULL");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -279,14 +240,10 @@ void test_equiv_merge_all(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 4 个点：0,1 同坐标；2,3 不同坐标 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(2, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(2, 1)};
-    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(4, 1), symbolic_coord_create_rational(4, 1)};
-    SymbolicCoord *c3[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(5, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
-    graph_add_point(graph, c2, 2);
-    graph_add_point(graph, c3, 2);
+    add_point(graph, 2, 1, 2, 1);
+    add_point(graph, 2, 1, 2, 1);
+    add_point(graph, 4, 1, 4, 1);
+    add_point(graph, 5, 1, 5, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     int total = equiv_merge_all(mgr);
@@ -306,14 +263,6 @@ void test_equiv_merge_all(void) {
     TEST_ASSERT(total_s == total, "statistics total matches merge_all return value");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
-    symbolic_coord_destroy(c2[0]);
-    symbolic_coord_destroy(c2[1]);
-    symbolic_coord_destroy(c3[0]);
-    symbolic_coord_destroy(c3[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -332,13 +281,10 @@ void test_equiv_prove_merge_valid(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 两个同坐标点 → 它们会在同一类中 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
     /* 一个不同坐标点 → 单独一类 */
-    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(9, 1), symbolic_coord_create_rational(9, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
-    graph_add_point(graph, c2, 2);
+    add_point(graph, 9, 1, 9, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -365,12 +311,6 @@ void test_equiv_prove_merge_valid(void) {
     TEST_ASSERT(!invalid_b, "prove_merge_valid with OOB index returns false");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
-    symbolic_coord_destroy(c2[0]);
-    symbolic_coord_destroy(c2[1]);
     graph_destroy(graph);
 
     /* NULL input */

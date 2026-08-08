@@ -162,27 +162,27 @@ void test_geo_coord_transform(void) {
     /* world(0,0) -> screen(400, 300) */
     double sx, sy;
     interactive_geo_world_to_screen(geo, 0.0, 0.0, &sx, &sy);
-    TEST_ASSERT(fabs(sx - 400.0) < 1e-9, "world_to_screen(0,0).x == 400");
-    TEST_ASSERT(fabs(sy - 300.0) < 1e-9, "world_to_screen(0,0).y == 300");
+    TEST_ASSERT_DOUBLE(sx, 400.0, 1e-9);
+    TEST_ASSERT_DOUBLE(sy, 300.0, 1e-9);
 
     /* screen(400, 300) -> world(0, 0) */
     double wx, wy;
     interactive_geo_screen_to_world(geo, 400.0, 300.0, &wx, &wy);
-    TEST_ASSERT(fabs(wx - 0.0) < 1e-9, "screen_to_world(400,300).x == 0");
-    TEST_ASSERT(fabs(wy - 0.0) < 1e-9, "screen_to_world(400,300).y == 0");
+    TEST_ASSERT_DOUBLE(wx, 0.0, 1e-9);
+    TEST_ASSERT_DOUBLE(wy, 0.0, 1e-9);
 
     /* 测试 world(100, 50) -> screen */
     interactive_geo_world_to_screen(geo, 100.0, 50.0, &sx, &sy);
-    TEST_ASSERT(fabs(sx - 500.0) < 1e-9, "world_to_screen(100,0).x == 500");
-    TEST_ASSERT(fabs(sy - 350.0) < 1e-9, "world_to_screen(0,50).y == 350");
+    TEST_ASSERT_DOUBLE(sx, 500.0, 1e-9);
+    TEST_ASSERT_DOUBLE(sy, 350.0, 1e-9);
 
     /* 设置自定义画布尺寸后再次测试 */
     interactive_geo_reset_viewport(geo);
     interactive_geo_set_canvas_size(geo, 1920.0, 1080.0);
 
     interactive_geo_world_to_screen(geo, 0.0, 0.0, &sx, &sy);
-    TEST_ASSERT(fabs(sx - 960.0) < 1e-9, "updated canvas: world_to_screen(0,0).x == 960");
-    TEST_ASSERT(fabs(sy - 540.0) < 1e-9, "updated canvas: world_to_screen(0,0).y == 540");
+    TEST_ASSERT_DOUBLE(sx, 960.0, 1e-9);
+    TEST_ASSERT_DOUBLE(sy, 540.0, 1e-9);
 
     /* NULL pointer safety in output arguments */
     interactive_geo_world_to_screen(geo, 1.0, 2.0, NULL, NULL);

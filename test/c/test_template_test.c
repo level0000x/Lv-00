@@ -30,8 +30,8 @@ static void expand_basic(SymbolicCoord **params, ConstraintGraph *target) {
     if (!target)
         return;
     /* 使用 graph 创建节点和约束以保证 graph 结构一致性 */
-    SymbolicCoord *origin = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *point = symbolic_coord_create_rational(1, 1);
+    SymbolicCoord *origin = mk_rat(0, 1);
+    SymbolicCoord *point = mk_rat(1, 1);
     SymbolicCoord *coords[] = {origin, point};
     int ids[2];
     for (int i = 0; i < 2; i++) {

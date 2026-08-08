@@ -279,10 +279,10 @@ static void test_graph_destroy_roundtrip(void) {
         ConstraintGraph *g = graph_create();
         TEST_ASSERT_NOT_NULL(g);
 
-        SymbolicCoord *x1 = symbolic_coord_create_rational(0, 1);
-        SymbolicCoord *y1 = symbolic_coord_create_rational(0, 1);
-        SymbolicCoord *x2 = symbolic_coord_create_rational(1, 1);
-        SymbolicCoord *y2 = symbolic_coord_create_rational(0, 1);
+        SymbolicCoord *x1 = mk_rat(0, 1);
+        SymbolicCoord *y1 = mk_rat(0, 1);
+        SymbolicCoord *x2 = mk_rat(1, 1);
+        SymbolicCoord *y2 = mk_rat(0, 1);
         SymbolicCoord *coords1[2] = {x1, y1};
         SymbolicCoord *coords2[2] = {x2, y2};
 

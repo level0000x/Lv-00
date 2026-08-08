@@ -31,8 +31,8 @@ static ConstraintGraph *create_graph_with_ids(int id1, int id2) {
         return NULL;
 
     /* 第一个点 (0,0) */
-    SymbolicCoord *c0 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *c1 = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c0 = mk_rat(0, 1);
+    SymbolicCoord *c1 = mk_rat(0, 1);
     if (!c0 || !c1) {
         if (c0)
             symbolic_coord_destroy(c0);
@@ -49,8 +49,8 @@ static ConstraintGraph *create_graph_with_ids(int id1, int id2) {
     }
 
     /* 第二个点 (1,0) */
-    SymbolicCoord *c2 = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *c3 = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c2 = mk_rat(1, 1);
+    SymbolicCoord *c3 = mk_rat(0, 1);
     if (!c2 || !c3) {
         if (c2)
             symbolic_coord_destroy(c2);

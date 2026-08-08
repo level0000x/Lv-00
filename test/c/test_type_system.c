@@ -308,11 +308,7 @@ static void test_type_inference(void) {
     lv_ASSERT(ts != NULL && g != NULL);
 
     /* 创建点 */
-    SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
-    int point_id = g->next_node_id - 1;
+    int point_id = add_point(g, 0, 1, 0, 1);
 
     /* 推断节点类型 */
     TypeRegion *inferred_type = NULL;

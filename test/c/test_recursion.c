@@ -150,8 +150,8 @@ static void test_measure_comparison(void) {
     printf("  测度比较结果: %s\n", measure_compare_result_to_string(result));
 
     /* 比较符号坐标 */
-    SymbolicCoord *c1 = symbolic_coord_create_rational(1, 2);
-    SymbolicCoord *c2 = symbolic_coord_create_rational(3, 4);
+    SymbolicCoord *c1 = mk_rat(1, 2);
+    SymbolicCoord *c2 = mk_rat(3, 4);
 
     MeasureCompareResult result2 = measure_compare(measure, c1, c2);
     printf("  坐标比较结果: %s\n", measure_compare_result_to_string(result2));
@@ -275,8 +275,8 @@ static void test_measure_decreasing(void) {
     recursion_context_set_measure(ctx, measure);
 
     /* 创建两个测度值 */
-    SymbolicCoord *value1 = symbolic_coord_create_rational(10, 1);
-    SymbolicCoord *value2 = symbolic_coord_create_rational(5, 1);
+    SymbolicCoord *value1 = mk_rat(10, 1);
+    SymbolicCoord *value2 = mk_rat(5, 1);
 
     /* 检查递减性 */
     RecursionCheckResult result = recursion_context_check_decreasing(ctx, value1);

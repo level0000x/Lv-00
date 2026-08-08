@@ -35,17 +35,9 @@ static ConstraintGraph *create_triangle_graph(void) {
     if (!graph)
         return NULL;
 
-    SymbolicCoord *coords0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, (SymbolicCoord *const *) coords0, 2);
-    int a = graph_get_last_added_node_id(graph);
-
-    SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, (SymbolicCoord *const *) coords1, 2);
-    int b = graph_get_last_added_node_id(graph);
-
-    SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
-    graph_add_point(graph, (SymbolicCoord *const *) coords2, 2);
-    int c = graph_get_last_added_node_id(graph);
+    int a = add_point(graph, 0, 1, 0, 1);
+    int b = add_point(graph, 1, 1, 0, 1);
+    int c = add_point(graph, 0, 1, 1, 1);
 
     /* 创建三条线段并添加 incidence 约束 */
     graph_add_line_segment(graph, a, b);

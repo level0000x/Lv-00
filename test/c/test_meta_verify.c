@@ -33,8 +33,8 @@ static ConstraintGraph *create_fully_specified_graph(void) {
     if (!g)
         return NULL;
 
-    SymbolicCoord *cx = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
+    SymbolicCoord *cx = mk_rat(1, 1);
+    SymbolicCoord *cy = mk_rat(2, 1);
     if (!cx || !cy) {
         if (cx)
             symbolic_coord_destroy(cx);

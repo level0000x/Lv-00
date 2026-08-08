@@ -98,32 +98,45 @@ static const AxiomTestUcMinDepsExpectation k_unconstructibles[] = {
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 6/7/8/9 为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "descriptive_set_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "descriptive_set_theory",
+        .save_path = SAVE_TEST_PATH,
 
-static void test_templates(void) {
-    axiom_test_templates_with_params_min(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT,
-                                         "should have 39 constraint templates", k_templates, K_TEMPLATES_COUNT);
-}
+        /* Test 2: 模板校验（with_params_min 形态） */
+        .tmpl_style = AXIOM_TEST_TMPL_WITH_PARAMS_MIN,
+        .tmpl_count = EXPECTED_TEMPLATE_COUNT,
+        .tmpl_count_msg = "should have 39 constraint templates",
+        .tmpl_expectations = k_templates, .tmpl_n = K_TEMPLATES_COUNT,
 
-static void test_unconstructibles(void) {
-    axiom_test_unconstructibles_min_deps(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                                         "should have 7 unconstructible problems", k_unconstructibles,
-                                         K_UNCONSTRUCTIBLES_COUNT);
-}
+        /* Test 3: 不可构造项（min_deps 形态） */
+        .uc_style = AXIOM_TEST_UC_MIN_DEPS,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .uc_count_msg = "should have 7 unconstructible problems",
+        .uc_min_deps = k_unconstructibles, .uc_n = K_UNCONSTRUCTIBLES_COUNT,
 
-static void test_logical_framework(void) {
-    axiom_test_logical_framework_presence(AXIOM_PKG_PATH, PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                                          "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
+        /* Test 4: 逻辑框架（presence 形态） */
+        .lf_style = AXIOM_TEST_LF_P,
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
 
-static void test_content_hash(void) {
-    axiom_test_content_hash_deterministic(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
+        /* Test 5: 内容哈希（确定性形态） */
+        .hash_style = AXIOM_TEST_HASH_DETERMINISTIC,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE,
+
+        /* Test 6/7/8/9: 文件特有手写，下方保留 */
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 6：往返保存/加载（文件特有：无 remove 清理，保留原体） */
 static void test_save_load_roundtrip(void) {
@@ -244,11 +257,7 @@ static void test_key_templates_present(void) {
 }
 
 TEST_MAIN_BEGIN("Descriptive Set Theory Axiom Package Tests")
-    TEST_MAIN_RUN(test_load_from_file);
-    TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructibles);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
+    LV_REGISTER_AXIOM_CASES("DescriptiveSetTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_save_load_roundtrip);
     TEST_MAIN_RUN(test_dependency_validation);
     TEST_MAIN_RUN(test_negative_lookups);

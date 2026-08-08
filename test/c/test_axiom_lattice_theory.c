@@ -123,50 +123,55 @@ static const AxiomTestExtRefExpectation k_external_refs[] = {
 #define K_EXTERNAL_REFS_COUNT (int) (sizeof(k_external_refs) / sizeof(k_external_refs[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "lattice_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "lattice_theory",
+        .save_path = SAVE_TEST_PATH,
 
-static void test_templates(void) {
-    axiom_test_templates_with_params(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 53 constraint templates",
-                                     k_templates, K_TEMPLATES_COUNT);
-}
+        /* Test 2: 模板校验（with_params 形态） */
+        .tmpl_style = AXIOM_TEST_TMPL_WITH_PARAMS,
+        .tmpl_count = EXPECTED_TEMPLATE_COUNT,
+        .tmpl_count_msg = "should have 53 constraint templates",
+        .tmpl_expectations = k_templates, .tmpl_n = K_TEMPLATES_COUNT,
 
-static void test_unconstructible_problems(void) {
-    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                                        "should have 7 unconstructible problems", k_unconstructibles,
-                                        K_UNCONSTRUCTIBLES_COUNT);
-}
+        /* Test 3: 不可构造项（A 形态） */
+        .uc_style = AXIOM_TEST_UC_A,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .uc_count_msg = "should have 7 unconstructible problems",
+        .uc_expectations = k_unconstructibles, .uc_n = K_UNCONSTRUCTIBLES_COUNT,
 
-static void test_logical_framework(void) {
-    axiom_test_logical_framework(AXIOM_PKG_PATH, "lattice_partial_order",
-                                 "complement_in_complemented_lattice", PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
-                                 "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
+        /* Test 4: 逻辑框架（S 形态） */
+        .lf_style = AXIOM_TEST_LF_S,
+        .lf_bottom_geometry = "lattice_partial_order",
+        .lf_negation_encoding = "complement_in_complemented_lattice",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
 
-static void test_content_hash(void) {
-    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
+        /* Test 5: 内容哈希（单次形态） */
+        .hash_style = AXIOM_TEST_HASH_SINGLE,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE,
 
-static void test_round_trip(void) {
-    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE);
-}
+        /* Test 6: 往返保存/加载（basic 形态） */
+        .rt_style = AXIOM_TEST_RT_BASIC,
 
-static void test_dependency_validation(void) {
-    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
-                                     " (expected: may fail for cross-reference reduces_to)");
-}
+        /* Test 7: 依赖验证（V1 形态） */
+        .dep_style = AXIOM_TEST_DEP_V1,
+        .dep_fail_msg = "FAIL (acceptable)",
+        .dep_suffix = " (expected: may fail for cross-reference reduces_to)",
 
-static void test_negative_lookups(void) {
-    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
-}
+        /* Test 8: 负向查找 */
+        .neg_style = AXIOM_TEST_NEG_BASIC,
 
-static void test_external_refs(void) {
-    axiom_test_external_refs(AXIOM_PKG_PATH, k_external_refs, K_EXTERNAL_REFS_COUNT);
-}
+        /* Test 9: 外部引用（表驱动形态） */
+        .ext_style = AXIOM_TEST_EXT_E1,
+        .ext_refs = k_external_refs, .ext_refs_n = K_EXTERNAL_REFS_COUNT,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* ============================================================
  * 文件特有测试（原样保留）
@@ -218,17 +223,7 @@ static void test_lattice_axiom_coherence(void) {
 }
 
 TEST_MAIN_BEGIN("Lattice Theory")
-
-    TEST_MAIN_RUN(test_load_from_file);
-    TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
-    TEST_MAIN_RUN(test_round_trip);
-    TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
-    TEST_MAIN_RUN(test_external_refs);
+    LV_REGISTER_AXIOM_CASES("LatticeTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_lattice_axiom_coherence);
-
 TEST_MAIN_END()
 

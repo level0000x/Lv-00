@@ -42,8 +42,7 @@ static void test_json_roundtrip(void) {
 
     /* graph：一个点 */
     ConstraintGraph *g = graph_create();
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(6, 1)};
-    graph_add_point(g, coords, 2);
+    add_point(g, 5, 1, 6, 1);
     module_set_graph(mod, g);
     lv_ASSERT(graph_get_node_count(module_get_graph(mod)) == 1);
 

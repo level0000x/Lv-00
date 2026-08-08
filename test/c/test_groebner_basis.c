@@ -28,8 +28,8 @@ int g_fail_count = 0;
 /* ==================== 辅助函数 ==================== */
 
 static int add_rat_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
-    SymbolicCoord *cx = symbolic_coord_create_rational(xn, xd);
-    SymbolicCoord *cy = symbolic_coord_create_rational(yn, yd);
+    SymbolicCoord *cx = mk_rat(xn, xd);
+    SymbolicCoord *cy = mk_rat(yn, yd);
     if (!cx || !cy) {
         if (cx)
             symbolic_coord_destroy(cx);

@@ -686,4 +686,277 @@ static inline void axiom_test_external_refs_all(const char *pkg_path) {
     axiom_package_destroy(pkg);
 }
 
+/* ============================================================
+ * 数据驱动框架接入（v3.5.1）
+ *
+ * 各 test_axiom_*.c 的 9 个共享测试 wrapper 收敛为一张 AxiomTestCase
+ * 数据表 + 一次 LV_REGISTER_AXIOM_CASES() 注册调用：
+ *
+ *     static const AxiomTestCase kCases[] = {
+ *         {
+ *             .pkg_path = "module/axiom_packages/xxx.lvz",
+ *             .pkg_name = "xxx",
+ *             .save_path = "module/axiom_packages/xxx_test_save.lvz",
+ *             .tmpl_style = AXIOM_TEST_TMPL_WITH_PARAMS_MIN,
+ *             .tmpl_count = 90,
+ *             .tmpl_count_msg = "should have 90 constraint templates",
+ *             .tmpl_expectations = k_templates, .tmpl_n = K_TEMPLATES_COUNT,
+ *             ...
+ *         },
+ *     };
+ *
+ *     TEST_MAIN_BEGIN("XXX")
+ *         LV_REGISTER_AXIOM_CASES("XXX", kCases);
+ *         TEST_MAIN_RUN(test_key_templates);   // 文件特有测试（可选）
+ *     TEST_MAIN_END()
+ *
+ * 注册宏内部调用 lv_test_register_data_driven()（test_framework.h，
+ * 全项目此前 0 使用），每个 AxiomCase 作为一个数据点注册到结构化测试
+ * 框架；运行后由 lv_test_report_print() 输出结构化报告。用例执行函数
+ * axiom_test_run_case() 从 lv_test_get_data() 取回当前 AxiomCase，
+ * 按风格枚举逐个调用上面的共享函数 —— 断言、计数、释放逻辑与
+ * 改造前的 9 个 wrapper 完全一致（TEST_ASSERT 失败仅返回当前共享函数，
+ * 用例函数继续执行后续测试，与原 TEST_MAIN_RUN 逐个运行等价）。
+ *
+ * 各测试的风格枚举值取 AXIOM_TEST_*_NONE 时跳过该测试（对应文件中
+ * 无此测试或该测试为文件特有手写体的场景）。
+ * ============================================================ */
+
+/* Test 2：模板校验风格 */
+typedef enum {
+    AXIOM_TEST_TMPL_NONE = 0,
+    AXIOM_TEST_TMPL_WITH_PARAMS,     /**< axiom_test_templates_with_params */
+    AXIOM_TEST_TMPL_WITH_PARAMS_MIN, /**< axiom_test_templates_with_params_min */
+    AXIOM_TEST_TMPL_NAMES_ONLY       /**< axiom_test_templates_names_only */
+} AxiomTestTmplStyle;
+
+/* Test 3：不可构造项校验风格 */
+typedef enum {
+    AXIOM_TEST_UC_NONE = 0,
+    AXIOM_TEST_UC_A,       /**< axiom_test_unconstructible_problems */
+    AXIOM_TEST_UC_B,       /**< axiom_test_unconstructibles_with_https */
+    AXIOM_TEST_UC_MIN_DEPS /**< axiom_test_unconstructibles_min_deps */
+} AxiomTestUcStyle;
+
+/* Test 4：逻辑框架风格 */
+typedef enum {
+    AXIOM_TEST_LF_NONE = 0,
+    AXIOM_TEST_LF_S, /**< axiom_test_logical_framework */
+    AXIOM_TEST_LF_M, /**< axiom_test_logical_framework_checked */
+    AXIOM_TEST_LF_P  /**< axiom_test_logical_framework_presence */
+} AxiomTestLfStyle;
+
+/* Test 5：内容哈希风格 */
+typedef enum {
+    AXIOM_TEST_HASH_NONE = 0,
+    AXIOM_TEST_HASH_SINGLE,       /**< axiom_test_content_hash */
+    AXIOM_TEST_HASH_DETERMINISTIC /**< axiom_test_content_hash_deterministic */
+} AxiomTestHashStyle;
+
+/* Test 6：往返保存/加载风格 */
+typedef enum {
+    AXIOM_TEST_RT_NONE = 0,
+    AXIOM_TEST_RT_BASIC,    /**< axiom_test_round_trip */
+    AXIOM_TEST_RT_SAVE_LOAD /**< axiom_test_round_trip_save_load */
+} AxiomTestRtStyle;
+
+/* Test 7：依赖验证风格 */
+typedef enum {
+    AXIOM_TEST_DEP_NONE = 0,
+    AXIOM_TEST_DEP_V1, /**< axiom_test_dependency_validation */
+    AXIOM_TEST_DEP_V2  /**< axiom_test_dependency_validation_note */
+} AxiomTestDepStyle;
+
+/* Test 9：外部引用校验风格 */
+typedef enum {
+    AXIOM_TEST_EXT_NONE = 0,
+    AXIOM_TEST_EXT_E1, /**< axiom_test_external_refs（表驱动） */
+    AXIOM_TEST_EXT_ALL /**< axiom_test_external_refs_all（遍历全部） */
+} AxiomTestExtStyle;
+
+/** 统一数据驱动用例：一个公理包的全部 9 组共享测试参数 */
+typedef struct {
+    /* Test 1: load_from_file（必填） */
+    const char *pkg_path;
+    const char *pkg_name;
+    const char *save_path; /* Test 6 保存路径 */
+
+    /* Test 2: templates */
+    AxiomTestTmplStyle tmpl_style;
+    int tmpl_count;
+    const char *tmpl_count_msg;
+    const AxiomTestTemplateExpectation *tmpl_expectations; /* WITH_PARAMS / WITH_PARAMS_MIN */
+    const char *const *tmpl_names;                         /* NAMES_ONLY */
+    int tmpl_n;
+
+    /* Test 3: unconstructibles */
+    AxiomTestUcStyle uc_style;
+    int uc_count;
+    const char *uc_count_msg;
+    const AxiomTestUcExpectation *uc_expectations;    /* A / B */
+    const AxiomTestUcMinDepsExpectation *uc_min_deps; /* MIN_DEPS */
+    int uc_n;
+
+    /* Test 4: logical framework */
+    AxiomTestLfStyle lf_style;
+    const char *lf_header; /* M 形态首行文本 */
+    const char *lf_bottom_geometry;
+    const char *lf_negation_encoding;
+    int lf_contradiction_behavior;
+    const char *lf_contradiction_name;
+
+    /* Test 5: content hash */
+    AxiomTestHashStyle hash_style;
+    AxiomTestFreeMode hash_free;
+
+    /* Test 6: round trip（SAVE_LOAD 复用 pkg_name / tmpl_count / uc_count） */
+    AxiomTestRtStyle rt_style;
+
+    /* Test 7: dependency validation */
+    AxiomTestDepStyle dep_style;
+    const char *dep_fail_msg; /* V1：失败提示语 */
+    const char *dep_suffix;   /* V1：printf 收尾后缀 */
+    const char *dep_extra;    /* V2：附加打印行（NULL 不打印） */
+
+    /* Test 8: negative lookups */
+    AxiomTestNegStyle neg_style;
+
+    /* Test 9: external refs */
+    AxiomTestExtStyle ext_style;
+    const AxiomTestExtRefExpectation *ext_refs; /* E1 */
+    int ext_refs_n;
+} AxiomTestCase;
+
+/** 数据驱动用例执行函数：按 AxiomCase 配置顺序执行 9 组共享测试 */
+static inline void axiom_test_run_case(void) {
+    const AxiomTestCase *tc = (const AxiomTestCase *) lv_test_get_data();
+    if (!tc) {
+        fprintf(stderr, "  FAIL: AxiomTestCase data is NULL\n");
+        g_fail_count++;
+        return;
+    }
+
+    printf("\n===== Axiom case [%u]: %s =====\n", lv_test_get_data_index(), tc->pkg_name ? tc->pkg_name : "(null)");
+
+    /* Test 1: load from file */
+    if (tc->pkg_path && tc->pkg_name) {
+        axiom_test_load_from_file(tc->pkg_path, tc->pkg_name);
+    }
+
+    /* Test 2: constraint templates */
+    switch (tc->tmpl_style) {
+    case AXIOM_TEST_TMPL_WITH_PARAMS:
+        axiom_test_templates_with_params(tc->pkg_path, tc->tmpl_count, tc->tmpl_count_msg, tc->tmpl_expectations,
+                                         tc->tmpl_n);
+        break;
+    case AXIOM_TEST_TMPL_WITH_PARAMS_MIN:
+        axiom_test_templates_with_params_min(tc->pkg_path, tc->tmpl_count, tc->tmpl_count_msg, tc->tmpl_expectations,
+                                             tc->tmpl_n);
+        break;
+    case AXIOM_TEST_TMPL_NAMES_ONLY:
+        axiom_test_templates_names_only(tc->pkg_path, tc->tmpl_count, tc->tmpl_count_msg, tc->tmpl_names, tc->tmpl_n);
+        break;
+    default:
+        break;
+    }
+
+    /* Test 3: unconstructible problems */
+    switch (tc->uc_style) {
+    case AXIOM_TEST_UC_A:
+        axiom_test_unconstructible_problems(tc->pkg_path, tc->uc_count, tc->uc_count_msg, tc->uc_expectations, tc->uc_n);
+        break;
+    case AXIOM_TEST_UC_B:
+        axiom_test_unconstructibles_with_https(tc->pkg_path, tc->uc_count, tc->uc_count_msg, tc->uc_expectations,
+                                               tc->uc_n);
+        break;
+    case AXIOM_TEST_UC_MIN_DEPS:
+        axiom_test_unconstructibles_min_deps(tc->pkg_path, tc->uc_count, tc->uc_count_msg, tc->uc_min_deps, tc->uc_n);
+        break;
+    default:
+        break;
+    }
+
+    /* Test 4: logical framework */
+    switch (tc->lf_style) {
+    case AXIOM_TEST_LF_S:
+        axiom_test_logical_framework(tc->pkg_path, tc->lf_bottom_geometry, tc->lf_negation_encoding,
+                                     tc->lf_contradiction_behavior, tc->lf_contradiction_name);
+        break;
+    case AXIOM_TEST_LF_M:
+        axiom_test_logical_framework_checked(tc->pkg_path, tc->lf_header, tc->lf_bottom_geometry,
+                                             tc->lf_negation_encoding, tc->lf_contradiction_behavior,
+                                             tc->lf_contradiction_name);
+        break;
+    case AXIOM_TEST_LF_P:
+        axiom_test_logical_framework_presence(tc->pkg_path, tc->lf_contradiction_behavior, tc->lf_contradiction_name);
+        break;
+    default:
+        break;
+    }
+
+    /* Test 5: content hash */
+    if (tc->hash_style == AXIOM_TEST_HASH_SINGLE) {
+        axiom_test_content_hash(tc->pkg_path, tc->hash_free);
+    } else if (tc->hash_style == AXIOM_TEST_HASH_DETERMINISTIC) {
+        axiom_test_content_hash_deterministic(tc->pkg_path, tc->hash_free);
+    }
+
+    /* Test 6: round-trip save/load */
+    if (tc->rt_style == AXIOM_TEST_RT_BASIC) {
+        axiom_test_round_trip(tc->pkg_path, tc->save_path, tc->hash_free);
+    } else if (tc->rt_style == AXIOM_TEST_RT_SAVE_LOAD) {
+        axiom_test_round_trip_save_load(tc->pkg_path, tc->save_path, tc->pkg_name, tc->tmpl_count, tc->uc_count,
+                                        tc->hash_free);
+    }
+
+    /* Test 7: dependency validation */
+    if (tc->dep_style == AXIOM_TEST_DEP_V1) {
+        axiom_test_dependency_validation(tc->pkg_path, tc->dep_fail_msg, tc->dep_suffix);
+    } else if (tc->dep_style == AXIOM_TEST_DEP_V2) {
+        axiom_test_dependency_validation_note(tc->pkg_path, tc->dep_extra);
+    }
+
+    /* Test 8: negative lookups */
+    axiom_test_negative_lookups(tc->pkg_path, tc->neg_style);
+
+    /* Test 9: external refs */
+    if (tc->ext_style == AXIOM_TEST_EXT_E1) {
+        axiom_test_external_refs(tc->pkg_path, tc->ext_refs, tc->ext_refs_n);
+    } else if (tc->ext_style == AXIOM_TEST_EXT_ALL) {
+        axiom_test_external_refs_all(tc->pkg_path);
+    }
+}
+
+/* 数据驱动注册用全局表指针（LV_REGISTER_AXIOM_CASES 宏设置） */
+static const AxiomTestCase *g_axiom_case_table = NULL;
+static int g_axiom_case_count = 0;
+
+/** 数据驱动 generator：返回第 index 个 AxiomCase */
+static void *axiom_test_case_generator(int index) {
+    if (!g_axiom_case_table || index < 0 || index >= g_axiom_case_count) {
+        return NULL;
+    }
+    return (void *) &g_axiom_case_table[index];
+}
+
+/**
+ * 注册并运行一个文件内的全部 AxiomCase。
+ * 内部循环调用 lv_test_register_data_driven() 接入结构化测试框架，
+ * 然后 lv_test_run_all() 执行并以 lv_test_report_print() 输出报告。
+ * 用例失败计数叠加到 g_fail_count，使 TEST_MAIN_END() 退出码正确。
+ */
+#define LV_REGISTER_AXIOM_CASES(suite_name, cases, count)                       \
+    do {                                                                        \
+        g_axiom_case_table = (const AxiomTestCase *) (cases);                   \
+        g_axiom_case_count = (int) (count);                                     \
+        lv_test_register_data_driven((suite_name), "axiom", axiom_test_run_case,\
+                                     axiom_test_case_generator, (int) (count)); \
+        lvTestReport *lv_report = lv_test_run_all();                            \
+        if (lv_report) {                                                        \
+            lv_test_report_print(lv_report, stdout);                            \
+            g_fail_count += (int) lv_report->failed_count;                      \
+            lv_test_report_destroy(lv_report);                                  \
+        }                                                                       \
+    } while (0)
+
 #endif /* lv_AXIOM_TEST_COMMON_H */

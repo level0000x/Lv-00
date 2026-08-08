@@ -170,7 +170,7 @@ void test_rational_comparison(void) {
 
     /* double */
     double d = alg_rational_to_double(&a);
-    TEST_ASSERT(fabs(d - 1.0 / 3.0) < 1e-15, "to_double(1/3) should be close to 1/3");
+    TEST_ASSERT_DOUBLE(d, 1.0 / 3.0, 1e-15);
 
     PASS();
 }
@@ -313,7 +313,7 @@ void test_quadratic_compare_convert(void) {
 
     /* 转 double */
     double d = alg_quadratic_to_double(&qa); /* 1 + 2*sqrt(3) ≈ 4.464 */
-    TEST_ASSERT(fabs(d - 4.464101615) < 1e-6, "to_double(1+2*sqrt(3)) ≈ 4.464");
+    TEST_ASSERT_DOUBLE(d, 4.464101615, 1e-6);
 
     /* 转字符串 */
     char buf[128];
@@ -679,12 +679,12 @@ void test_symbolic_coord_create(void) {
 void test_symbolic_coord_cache(void) {
     SymbolicCoord *c = symbolic_coord_create_rational(3, 2);
     double v = symbolic_coord_to_double(c);
-    TEST_ASSERT(fabs(v - 1.5) < 1e-15, "to_double 3/2 = 1.5");
+    TEST_ASSERT_DOUBLE(v, 1.5, 1e-15);
     TEST_ASSERT(c->cache_valid == true, "cache should be valid after to_double");
 
     symbolic_coord_invalidate_cache(c);
     TEST_ASSERT(c->cache_valid == false, "cache should be invalid after invalidate");
-    TEST_ASSERT(fabs(c->cached_value - 0.0) < 1e-15, "cached_value reset to 0");
+    TEST_ASSERT_DOUBLE(c->cached_value, 0.0, 1e-15);
 
     symbolic_coord_destroy(c);
     PASS();
@@ -701,22 +701,22 @@ void test_symbolic_coord_rational_arith(void) {
 
     SymbolicCoord *sum = symbolic_coord_add(a, b);
     TEST_ASSERT_NOT_NULL(sum);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(sum) - 5.0 / 6.0) < 1e-9, "1/2 + 1/3 = 5/6");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(sum), 5.0 / 6.0, 1e-9);
     symbolic_coord_destroy(sum);
 
     SymbolicCoord *diff = symbolic_coord_subtract(a, b);
     TEST_ASSERT_NOT_NULL(diff);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(diff) - 1.0 / 6.0) < 1e-9, "1/2 - 1/3 = 1/6");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(diff), 1.0 / 6.0, 1e-9);
     symbolic_coord_destroy(diff);
 
     SymbolicCoord *prod = symbolic_coord_multiply(a, b);
     TEST_ASSERT_NOT_NULL(prod);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(prod) - 1.0 / 6.0) < 1e-9, "1/2 * 1/3 = 1/6");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(prod), 1.0 / 6.0, 1e-9);
     symbolic_coord_destroy(prod);
 
     SymbolicCoord *quot = symbolic_coord_divide(a, b);
     TEST_ASSERT_NOT_NULL(quot);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(quot) - 1.5) < 1e-9, "1/2 / 1/3 = 3/2");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(quot), 1.5, 1e-9);
     symbolic_coord_destroy(quot);
 
     SymbolicCoord *neg = symbolic_coord_negate(a);
@@ -786,25 +786,25 @@ void test_symbolic_coord_pow_sqrt(void) {
     /* sqrt(4) = 2 */
     SymbolicCoord *sqrt_val = symbolic_coord_sqrt(base4);
     TEST_ASSERT_NOT_NULL(sqrt_val);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(sqrt_val) - 2.0) < 1e-9, "sqrt(4) = 2");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(sqrt_val), 2.0, 1e-9);
     symbolic_coord_destroy(sqrt_val);
 
     /* 4^3 = 64 */
     SymbolicCoord *pow3 = symbolic_coord_pow(base4, 3);
     TEST_ASSERT_NOT_NULL(pow3);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(pow3) - 64.0) < 1e-9, "4^3 = 64");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(pow3), 64.0, 1e-9);
     symbolic_coord_destroy(pow3);
 
     /* 4^0 = 1 */
     SymbolicCoord *pow0 = symbolic_coord_pow(base4, 0);
     TEST_ASSERT_NOT_NULL(pow0);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(pow0) - 1.0) < 1e-9, "4^0 = 1");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(pow0), 1.0, 1e-9);
     symbolic_coord_destroy(pow0);
 
     /* 4^1 = 4 */
     SymbolicCoord *pow1 = symbolic_coord_pow(base4, 1);
     TEST_ASSERT_NOT_NULL(pow1);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(pow1) - 4.0) < 1e-9, "4^1 = 4");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(pow1), 4.0, 1e-9);
     symbolic_coord_destroy(pow1);
 
     symbolic_coord_destroy(base4);
@@ -862,17 +862,17 @@ void test_transcendental_ops(void) {
     /* 基本属性 */
     TEST_ASSERT_NOT_NULL(pi);
     double pi_val = symbolic_coord_to_double(pi);
-    TEST_ASSERT(fabs(pi_val - M_PI) < 1e-12, "pi to_double");
+    TEST_ASSERT_DOUBLE(pi_val, M_PI, 1e-12);
 
     double e_val = symbolic_coord_to_double(e);
-    TEST_ASSERT(fabs(e_val - M_E) < 1e-12, "e to_double");
+    TEST_ASSERT_DOUBLE(e_val, M_E, 1e-12);
 
     /* pi + 1 */
     SymbolicCoord *one = symbolic_coord_create_rational(1, 1);
     SymbolicCoord *pi_plus_one = symbolic_coord_add(pi, one);
     TEST_ASSERT_NOT_NULL(pi_plus_one);
     double pp1 = symbolic_coord_to_double(pi_plus_one);
-    TEST_ASSERT(fabs(pp1 - (M_PI + 1.0)) < 1e-12, "pi + 1");
+    TEST_ASSERT_DOUBLE(pp1, M_PI + 1.0, 1e-12);
     symbolic_coord_destroy(pi_plus_one);
 
     /* pi * 2 */
@@ -880,7 +880,7 @@ void test_transcendental_ops(void) {
     SymbolicCoord *pi_times_two = symbolic_coord_multiply(pi, two);
     TEST_ASSERT_NOT_NULL(pi_times_two);
     double pt2 = symbolic_coord_to_double(pi_times_two);
-    TEST_ASSERT(fabs(pt2 - (M_PI * 2.0)) < 1e-12, "pi * 2");
+    TEST_ASSERT_DOUBLE(pt2, M_PI * 2.0, 1e-12);
     symbolic_coord_destroy(pi_times_two);
 
     symbolic_coord_destroy(one);
@@ -924,7 +924,7 @@ void test_cross_type_rational_quadratic(void) {
     TEST_ASSERT_NOT_NULL(sum);
     /* 1 + (2 + 3*sqrt(2)) = 3 + 3*sqrt(2) ≈ 3 + 4.2426 = 7.2426 */
     double expected = 1.0 + 2.0 + 3.0 * sqrt(2.0);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(sum) - expected) < 1e-6, "rat + quad");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(sum), expected, 1e-6);
 
     symbolic_coord_destroy(sum);
     symbolic_coord_destroy(rat);
@@ -1074,7 +1074,7 @@ void test_plan_manager(void) {
     /* 创建带计划的坐标 */
     SymbolicCoord *c = symbolic_coord_create_with_plan(5, 2);
     TEST_ASSERT_NOT_NULL(c);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(c) - 2.5) < 1e-9, "create_with_plan(5,2) = 2.5");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(c), 2.5, 1e-9);
     symbolic_coord_destroy(c);
 
     /* 统计信息 */
@@ -1132,7 +1132,7 @@ void test_null_safety(void) {
     TEST_ASSERT_NULL(null_result);
 
     double d = symbolic_coord_to_double(NULL);
-    TEST_ASSERT(fabs(d) < 1e-15, "to_double(NULL) = 0.0");
+    TEST_ASSERT_DOUBLE(d, 0.0, 1e-15);
 
     int cmp = symbolic_coord_compare(NULL, NULL);
     TEST_ASSERT(cmp == 0, "compare(NULL, NULL) = 0");
@@ -1154,22 +1154,22 @@ void test_zero_and_negative(void) {
 
     /* 零的运算 */
     SymbolicCoord *z_plus_p = symbolic_coord_add(zero, pos);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(z_plus_p) - 3.0) < 1e-9, "0 + 3 = 3");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(z_plus_p), 3.0, 1e-9);
     symbolic_coord_destroy(z_plus_p);
 
     SymbolicCoord *z_times_n = symbolic_coord_multiply(zero, neg);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(z_times_n)) < 1e-15, "0 * (-4) = 0");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(z_times_n), 0.0, 1e-15);
     symbolic_coord_destroy(z_times_n);
 
     SymbolicCoord *n_times_z = symbolic_coord_multiply(neg, zero);
-    TEST_ASSERT(fabs(symbolic_coord_to_double(n_times_z)) < 1e-15, "(-4) * 0 = 0");
+    TEST_ASSERT_DOUBLE(symbolic_coord_to_double(n_times_z), 0.0, 1e-15);
     symbolic_coord_destroy(n_times_z);
 
     /* 负数基本操作 */
     TEST_ASSERT(symbolic_coord_is_positive(neg) == false, "-4 is not positive");
     TEST_ASSERT(symbolic_coord_is_negative(neg) == true, "-4 is negative");
     double nd = symbolic_coord_to_double(neg);
-    TEST_ASSERT(fabs(nd + 4.0) < 1e-9, "to_double(-4) = -4");
+    TEST_ASSERT_DOUBLE(nd, -4.0, 1e-9);
 
     symbolic_coord_destroy(zero);
     symbolic_coord_destroy(pos);
@@ -1186,13 +1186,13 @@ void test_large_numbers(void) {
     SymbolicCoord *add_large = symbolic_coord_add(large, small);
     TEST_ASSERT_NOT_NULL(add_large);
     double add_val = symbolic_coord_to_double(add_large);
-    TEST_ASSERT(fabs(add_val - 1000000.000001) < 1e-3, "large + small ≈ 1000000.000001");
+    TEST_ASSERT_DOUBLE(add_val, 1000000.000001, 1e-3);
     symbolic_coord_destroy(add_large);
 
     SymbolicCoord *mul_large = symbolic_coord_multiply(large, small);
     TEST_ASSERT_NOT_NULL(mul_large);
     double mul_val = symbolic_coord_to_double(mul_large);
-    TEST_ASSERT(fabs(mul_val - 1.0) < 1e-9, "1000000 * 1/1000000 = 1");
+    TEST_ASSERT_DOUBLE(mul_val, 1.0, 1e-9);
     symbolic_coord_destroy(mul_large);
 
     symbolic_coord_destroy(large);

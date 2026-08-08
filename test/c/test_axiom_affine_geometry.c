@@ -91,12 +91,45 @@ static const AxiomTestUcExpectation k_unconstructibles[] = {
 #define K_UNCONSTRUCTIBLES_COUNT (int) (sizeof(k_unconstructibles) / sizeof(k_unconstructibles[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 2 模板校验与 Test 5/6/7 为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "affine_geometry");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "affine_geometry",
+        .save_path = SAVE_TEST_PATH,
+
+        /* Test 2: 模板校验（test_templates 为混合 wrapper，下方保留） */
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+
+        /* Test 3: 不可构造项（A 形态） */
+        .uc_style = AXIOM_TEST_UC_A,
+        .uc_count = EXPECTED_UNCONSTRUCTIBLE_COUNT,
+        .uc_count_msg = "should have 7 unconstructible problems",
+        .uc_expectations = k_unconstructibles, .uc_n = K_UNCONSTRUCTIBLES_COUNT,
+
+        /* Test 4: 逻辑框架（S 形态） */
+        .lf_style = AXIOM_TEST_LF_S,
+        .lf_bottom_geometry = "affine_space",
+        .lf_negation_encoding = "classical_material_implication",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
+
+        /* Test 5/6/7: 文件特有手写，下方保留 */
+        .hash_style = AXIOM_TEST_HASH_NONE,
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+
+        /* Test 8: 负向查找（empty 形态） */
+        .neg_style = AXIOM_TEST_NEG_EMPTY,
+
+        /* Test 9: 外部引用（无此测试） */
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 static void test_templates(void) {
     axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 56 constraint templates",
@@ -189,16 +222,7 @@ static void test_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-static void test_unconstructible_problems(void) {
-    axiom_test_unconstructible_problems(AXIOM_PKG_PATH, EXPECTED_UNCONSTRUCTIBLE_COUNT,
-                                        "should have 7 unconstructible problems", k_unconstructibles,
-                                        K_UNCONSTRUCTIBLES_COUNT);
-}
-
-static void test_logical_framework(void) {
-    axiom_test_logical_framework(AXIOM_PKG_PATH, "affine_space", "classical_material_implication",
-                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
+/* Test 3/4/8 已收敛至 kCases 数据驱动用例（见上） */
 
 /* Test 5：内容哈希（文件特有：两次加载对比 + MATCH/MISMATCH 打印，保留原体） */
 static void test_content_hash(void) {
@@ -305,9 +329,7 @@ static void test_dependency_validation(void) {
     axiom_package_destroy(pkg);
 }
 
-static void test_negative_lookups(void) {
-    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_EMPTY);
-}
+/* Test 8 已收敛至 kCases 数据驱动用例（见上） */
 
 /* Test 9：外部引用（文件特有：https 计数 + 逐条 URL 打印，保留原体） */
 static void test_external_refs(void) {
@@ -419,14 +441,11 @@ static void test_template_groups(void) {
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
 TEST_MAIN_BEGIN("Axiom Package Tests")
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("AffineGeometry", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
-    TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
     TEST_MAIN_RUN(test_content_hash);
     TEST_MAIN_RUN(test_round_trip_save_load);
     TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
     TEST_MAIN_RUN(test_external_refs);
     TEST_MAIN_RUN(test_template_groups);
 TEST_MAIN_END()

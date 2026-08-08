@@ -46,10 +46,10 @@ static ConstraintGraph *create_simple_graph(void) {
         return NULL;
 
     /* (0,0) and (3,0) — horizontal segment */
-    SymbolicCoord *c0_x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *c0_y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *c1_x = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *c1_y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c0_x = mk_rat(0, 1);
+    SymbolicCoord *c0_y = mk_rat(0, 1);
+    SymbolicCoord *c1_x = mk_rat(3, 1);
+    SymbolicCoord *c1_y = mk_rat(0, 1);
     if (!c0_x || !c0_y || !c1_x || !c1_y) {
         if (c0_x)
             symbolic_coord_destroy(c0_x);
@@ -79,10 +79,10 @@ static ConstraintGraph *create_constrained_graph(void) {
     if (!g)
         return NULL;
 
-    SymbolicCoord *c0_x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *c0_y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *c1_x = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *c1_y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *c0_x = mk_rat(0, 1);
+    SymbolicCoord *c0_y = mk_rat(0, 1);
+    SymbolicCoord *c1_x = mk_rat(3, 1);
+    SymbolicCoord *c1_y = mk_rat(0, 1);
     if (!c0_x || !c0_y || !c1_x || !c1_y) {
         if (c0_x)
             symbolic_coord_destroy(c0_x);

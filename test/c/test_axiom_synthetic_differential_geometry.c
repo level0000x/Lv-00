@@ -28,12 +28,31 @@ int g_pass_count = 0;
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 4
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * 本文件仅 Test 1/5 共享，其余测试为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "synthetic_differential_geometry");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "synthetic_differential_geometry",
+        .save_path = SAVE_TEST_PATH,
+
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+        .uc_style = AXIOM_TEST_UC_NONE,
+        .lf_style = AXIOM_TEST_LF_NONE,
+
+        /* Test 5: 内容哈希（确定性形态） */
+        .hash_style = AXIOM_TEST_HASH_DETERMINISTIC,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE,
+
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 2：约束模板（文件特有：混合式循环，保留原体） */
 static void test_templates(void) {
@@ -295,11 +314,10 @@ static void test_dependency_validation(void) {
 
 /* Main entry point */
 TEST_MAIN_BEGIN("Synthetic Differential Geometry Test Suite")
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("SyntheticDifferentialGeometry", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
     TEST_MAIN_RUN(test_unconstructibles);
     TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
     TEST_MAIN_RUN(test_save_load_roundtrip);
     TEST_MAIN_RUN(test_template_retrieval);
     TEST_MAIN_RUN(test_unconstructible_lookup);

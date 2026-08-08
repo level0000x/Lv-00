@@ -250,7 +250,7 @@ static int test_find_merge_candidates(void) {
         return -1;
     }
 
-    SymbolicCoord *c = symbolic_coord_create_rational(5, 2);
+    SymbolicCoord *c = mk_rat(5, 2);
     if (!c) {
         printf("  FAILED: Could not create symbolic coord\n");
         graph_destroy(graph);

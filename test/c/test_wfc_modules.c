@@ -110,11 +110,8 @@ void test_prop_init_state_spaces(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加两个有坐标的点 */
-    SymbolicCoord *coords_a[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *coords_b[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, coords_a, 2);
-    graph_add_point(graph, coords_b, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     PropagationResult result = propagation_init_state_spaces(ctx);
@@ -132,10 +129,6 @@ void test_prop_init_state_spaces(void) {
     TEST_ASSERT(ss1->is_collapsed == true, "节点 1 已坍缩");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(coords_a[0]);
-    symbolic_coord_destroy(coords_a[1]);
-    symbolic_coord_destroy(coords_b[0]);
-    symbolic_coord_destroy(coords_b[1]);
     graph_destroy(graph);
     printf("  PASS: PROP-T02\n");
 }
@@ -149,13 +142,9 @@ void test_prop_ac3_collapsed(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加三个共线点 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c2[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
-    graph_add_point(graph, c2, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
+    add_point(graph, 2, 1, 0, 1);
 
     /* 添加线段 */
     graph_add_line_segment(graph, 0, 1);
@@ -167,11 +156,6 @@ void test_prop_ac3_collapsed(void) {
     TEST_ASSERT(result == PROP_RESULT_SATISFIED || result == PROP_RESULT_STABLE, "传播结果为 SATISFIED 或 STABLE");
 
     propagation_context_destroy(ctx);
-    for (int i = 0; i < 2; i++) {
-        symbolic_coord_destroy(c0[i]);
-        symbolic_coord_destroy(c1[i]);
-        symbolic_coord_destroy(c2[i]);
-    }
     graph_destroy(graph);
     printf("  PASS: PROP-T03\n");
 }
@@ -186,10 +170,10 @@ void test_prop_entropy(void) {
     NodeStateSpace collapsed;
     memset(&collapsed, 0, sizeof(collapsed));
     collapsed.is_collapsed = true;
-    collapsed.collapsed_value = symbolic_coord_create_rational(1, 1);
+    collapsed.collapsed_value = mk_rat(1, 1);
 
     double e0 = propagation_compute_entropy(&collapsed);
-    TEST_ASSERT(fabs(e0) < 1e-10, "已坍缩节点熵为 0");
+    TEST_ASSERT_DOUBLE(e0, 0.0, 1e-10);
 
     symbolic_coord_destroy(collapsed.collapsed_value);
 
@@ -212,9 +196,7 @@ void test_prop_snapshot(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -235,8 +217,6 @@ void test_prop_snapshot(void) {
     TEST_ASSERT(ctx->prune_count == 0, "恢复后 prune_count 为 0");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
     printf("  PASS: PROP-T05\n");
 }
@@ -249,9 +229,7 @@ void test_prop_statistics(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -262,8 +240,6 @@ void test_prop_statistics(void) {
     TEST_ASSERT(collapses == 0, "初始坍缩次数为 0");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
     printf("  PASS: PROP-T06\n");
 }
@@ -297,11 +273,8 @@ void test_equiv_coord_merge(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加两个坐标相同的点 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
-
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 1, 1, 2, 1);
+    add_point(graph, 1, 1, 2, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     int merges = equiv_merge_by_coord(mgr);
@@ -313,10 +286,6 @@ void test_equiv_coord_merge(void) {
     TEST_ASSERT(rep >= 0, "找到代表节点");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
     printf("  PASS: EQC-T02\n");
 }
@@ -329,11 +298,8 @@ void test_equiv_non_equivalent(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -341,10 +307,6 @@ void test_equiv_non_equivalent(void) {
     TEST_ASSERT(!equiv_are_equivalent(mgr, 0, 1), "不同坐标的节点不等价");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
     printf("  PASS: EQC-T03\n");
 }
@@ -357,11 +319,8 @@ void test_equiv_query(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
-
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 1, 1, 1, 1);
+    add_point(graph, 1, 1, 1, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_by_coord(mgr);
@@ -374,10 +333,6 @@ void test_equiv_query(void) {
     TEST_ASSERT(count >= 1, "等价类数量 >= 1");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
     printf("  PASS: EQC-T04\n");
 }
@@ -390,11 +345,8 @@ void test_equiv_statistics(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
 
     EquivClassManager *mgr = equiv_manager_create(graph);
     equiv_merge_all(mgr);
@@ -405,10 +357,6 @@ void test_equiv_statistics(void) {
     TEST_ASSERT(coord > 0, "坐标等价合并次数 > 0");
 
     equiv_manager_destroy(mgr);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
     printf("  PASS: EQC-T05\n");
 }
@@ -442,14 +390,10 @@ void test_meta_proof_l1(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加一个点和一条不经过该点的线段 */
-    SymbolicCoord *pt[2] = {
-        symbolic_coord_create_rational(0, 1), /* x = 0 */
-        symbolic_coord_create_rational(1, 1)  /* y = 1 */
-    };
-    int pt_id = graph_add_point(graph, pt, 2);
+    int pt_id = add_point(graph, 0, 1, 1, 1);
 
-    SymbolicCoord *ep1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *ep2[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *ep1[2] = {mk_rat(0, 1), mk_rat(0, 1)};
+    SymbolicCoord *ep2[2] = {mk_rat(1, 1), mk_rat(0, 1)};
     int line_id = graph_add_line_segment(graph, 0, 1);
 
     /* 点 (0,1) 不在线段 (0,0)-(1,0) 上 */
@@ -458,7 +402,7 @@ void test_meta_proof_l1(void) {
     MetaProofContext *ctx = meta_proof_context_create(graph, NULL);
 
     /* 创建一个明显不在线段上的候选 */
-    SymbolicCoord *bad_candidate = symbolic_coord_create_rational(5, 1);
+    SymbolicCoord *bad_candidate = mk_rat(5, 1);
     int conflicting = -1;
     MetaProofResult result = meta_prove_direct_contradiction(ctx, pt_id, bad_candidate, &conflicting);
 
@@ -467,8 +411,6 @@ void test_meta_proof_l1(void) {
 
     meta_proof_context_destroy(ctx);
     symbolic_coord_destroy(bad_candidate);
-    symbolic_coord_destroy(pt[0]);
-    symbolic_coord_destroy(pt[1]);
     symbolic_coord_destroy(ep1[0]);
     symbolic_coord_destroy(ep1[1]);
     symbolic_coord_destroy(ep2[0]);
@@ -508,7 +450,7 @@ void test_meta_proof_record(void) {
     ConstraintGraph *graph = graph_create();
     MetaProofContext *ctx = meta_proof_context_create(graph, NULL);
 
-    SymbolicCoord *removed[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(2, 1)};
+    SymbolicCoord *removed[2] = {mk_rat(1, 1), mk_rat(2, 1)};
 
     meta_proof_record_pruning(ctx, 0, removed, 2, PRUNE_DIRECT_CONTRADICTION, TRUST_GREEN);
 

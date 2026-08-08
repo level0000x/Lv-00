@@ -57,12 +57,37 @@ int g_pass_count = 0;
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * Test 2/3/5/6/7/8 为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "ergodic_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "ergodic_theory",
+        .save_path = SAVE_TEST_PATH,
+
+        /* Test 2/3: 文件特有手写，下方保留 */
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+        .uc_style = AXIOM_TEST_UC_NONE,
+
+        /* Test 4: 逻辑框架（checked 形态） */
+        .lf_style = AXIOM_TEST_LF_M,
+        .lf_header = "Test 4: Verify logical framework...",
+        .lf_bottom_geometry = "measure_preserving_dynamical_system",
+        .lf_negation_encoding = "classical_equality",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
+
+        /* Test 5/6/7/8/9: 文件特有手写/无此测试 */
+        .hash_style = AXIOM_TEST_HASH_NONE,
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 2：约束模板（文件特有：单条断言 + 动态消息，保留原体） */
 static void test_templates(void) {
@@ -208,11 +233,7 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
-static void test_logical_framework(void) {
-    axiom_test_logical_framework_checked(AXIOM_PKG_PATH, "Test 4: Verify logical framework...",
-                                         "measure_preserving_dynamical_system", "classical_equality",
-                                         PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
+/* Test 4 已收敛至 kCases 数据驱动用例（见上） */
 
 /* Test 5：内容哈希（文件特有：%.16s 打印 + 确定性校验，保留原体） */
 static void test_content_hash(void) {
@@ -398,10 +419,9 @@ static void test_edge_cases(void) {
 TEST_MAIN_BEGIN("Ergodic Theory Axiom Package Test Suite")
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== Testing: axiom_packages/ergodic_theory.lvz ===\n\n");
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("ErgodicTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
     TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
     TEST_MAIN_RUN(test_content_hash);
     TEST_MAIN_RUN(test_round_trip);
     TEST_MAIN_RUN(test_dependency_validation);

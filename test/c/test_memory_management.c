@@ -370,7 +370,7 @@ static void test_geometry_config_sequential(void) {
     /* 获取当前配置 */
     const lvGeometryConfig *cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
-    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15, "当前配置应与默认配置一致");
+    TEST_ASSERT_DOUBLE(cur->collinear_epsilon, def->collinear_epsilon, 1e-15);
 
     /* 设置自定义配置 */
     lvGeometryConfig custom;
@@ -386,7 +386,7 @@ static void test_geometry_config_sequential(void) {
     /* 验证设置生效 */
     cur = lv_geometry_get_config();
     TEST_ASSERT_NOT_NULL(cur);
-    TEST_ASSERT(fabs(cur->collinear_epsilon - 1e-6) < 1e-15, "自定义共线容差应已生效");
+    TEST_ASSERT_DOUBLE(cur->collinear_epsilon, 1e-6, 1e-15);
 
     /* 多次 set/get 交替验证 */
     for (int i = 0; i < 10; i++) {
@@ -401,13 +401,13 @@ static void test_geometry_config_sequential(void) {
         lv_geometry_set_config(&tmp);
 
         const lvGeometryConfig *got = lv_geometry_get_config();
-        TEST_ASSERT(fabs(got->collinear_epsilon - tmp.collinear_epsilon) < 1e-15, "交替 set/get 应一致");
+        TEST_ASSERT_DOUBLE(got->collinear_epsilon, tmp.collinear_epsilon, 1e-15);
     }
 
     /* 恢复默认配置 */
     lv_geometry_set_config(NULL);
     cur = lv_geometry_get_config();
-    TEST_ASSERT(fabs(cur->collinear_epsilon - def->collinear_epsilon) < 1e-15, "恢复默认后配置应与初始默认一致");
+    TEST_ASSERT_DOUBLE(cur->collinear_epsilon, def->collinear_epsilon, 1e-15);
 }
 
 /* ============================================================

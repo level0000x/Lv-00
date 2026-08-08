@@ -388,7 +388,7 @@ static void test_rational_to_double(void) {
     bool ok = lv_rational_to_double(r, &val, &loss_bits);
     TEST_ASSERT_MSG(ok, "to_double should succeed");
 
-    TEST_ASSERT_MSG(fabs(val - 0.5) < 1e-15, "1/2 should be approximately 0.5");
+    TEST_ASSERT_DOUBLE(val, 0.5, 1e-15);
 
     lv_rational_destroy(&r);
 }

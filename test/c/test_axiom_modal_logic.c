@@ -54,12 +54,28 @@ static const char *const k_template_names[] = {
 #define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * 本文件仅 Test 1 共享；Test 2 为混合 wrapper（含文件特有参数校验），
+ * 其余测试为文件特有手写体，均保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "modal_logic");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "modal_logic",
+        .save_path = SAVE_TEST_PATH,
+
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+        .uc_style = AXIOM_TEST_UC_NONE,
+        .lf_style = AXIOM_TEST_LF_NONE,
+        .hash_style = AXIOM_TEST_HASH_NONE,
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 static void test_templates(void) {
     axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 27 constraint templates",
@@ -413,8 +429,7 @@ static void test_key_axioms_present(void) {
 }
 
 TEST_MAIN_BEGIN("Modal Logic")
-
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("ModalLogic", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
     TEST_MAIN_RUN(test_unconstructible_problems);
     TEST_MAIN_RUN(test_logical_framework);
@@ -424,6 +439,5 @@ TEST_MAIN_BEGIN("Modal Logic")
     TEST_MAIN_RUN(test_negative_lookups);
     TEST_MAIN_RUN(test_external_refs);
     TEST_MAIN_RUN(test_key_axioms_present);
-
 TEST_MAIN_END()
 

@@ -336,12 +336,7 @@ static void test_constraint_graph_to_bdd(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* Add a simple point */
-    SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
-    TEST_ASSERT_NOT_NULL(cx);
-    TEST_ASSERT_NOT_NULL(cy);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    add_point(g, 0, 1, 0, 1);
 
     /* Encode to BDD */
     BDDNode *bdd = constraint_graph_to_bdd(g, mgr);
@@ -417,7 +412,7 @@ static void test_add_operations(void) {
     ADDNode *sum = add_add(mgr, c3, c5);
     TEST_ASSERT_NOT_NULL(sum);
     TEST_ASSERT(sum->is_constant, "sum of constants should be constant");
-    TEST_ASSERT(fabs(sum->constant - 8.0) < 1e-10, "3 + 5 should be 8");
+    TEST_ASSERT_DOUBLE(sum->constant, 8.0, 1e-10);
 
     /* sub: 3 - 5 = -2 */
     ADDNode *diff = add_sub(mgr, c3, c5);
@@ -428,37 +423,37 @@ static void test_add_operations(void) {
     ADDNode *prod = add_mul(mgr, c3, c5);
     TEST_ASSERT_NOT_NULL(prod);
     TEST_ASSERT(prod->is_constant, "product of constants should be constant");
-    TEST_ASSERT(fabs(prod->constant - 15.0) < 1e-10, "3 * 5 should be 15");
+    TEST_ASSERT_DOUBLE(prod->constant, 15.0, 1e-10);
 
     /* div: 3 / 5 = 0.6 */
     ADDNode *quot = add_div(mgr, c3, c5);
     TEST_ASSERT_NOT_NULL(quot);
     TEST_ASSERT(quot->is_constant, "quotient of constants should be constant");
-    TEST_ASSERT(fabs(quot->constant - 0.6) < 1e-10, "3 / 5 should be 0.6");
+    TEST_ASSERT_DOUBLE(quot->constant, 0.6, 1e-10);
 
     /* max(3, 5) = 5 */
     ADDNode *mx = add_max(mgr, c3, c5);
     TEST_ASSERT_NOT_NULL(mx);
     TEST_ASSERT(mx->is_constant, "max of constants should be constant");
-    TEST_ASSERT(fabs(mx->constant - 5.0) < 1e-10, "max(3,5) should be 5");
+    TEST_ASSERT_DOUBLE(mx->constant, 5.0, 1e-10);
 
     /* min(3, 5) = 3 */
     ADDNode *mn = add_min(mgr, c3, c5);
     TEST_ASSERT_NOT_NULL(mn);
     TEST_ASSERT(mn->is_constant, "min of constants should be constant");
-    TEST_ASSERT(fabs(mn->constant - 3.0) < 1e-10, "min(3,5) should be 3");
+    TEST_ASSERT_DOUBLE(mn->constant, 3.0, 1e-10);
 
     /* mul by zero = zero */
     ADDNode *zero = add_constant(mgr, 0.0);
     ADDNode *pz = add_mul(mgr, c3, zero);
     TEST_ASSERT_NOT_NULL(pz);
-    TEST_ASSERT(fabs(pz->constant - 0.0) < 1e-10, "3 * 0 should be 0");
+    TEST_ASSERT_DOUBLE(pz->constant, 0.0, 1e-10);
 
     /* mul by one = identity */
     ADDNode *one = add_constant(mgr, 1.0);
     ADDNode *po = add_mul(mgr, c3, one);
     TEST_ASSERT_NOT_NULL(po);
-    TEST_ASSERT(fabs(po->constant - 3.0) < 1e-10, "3 * 1 should be 3");
+    TEST_ASSERT_DOUBLE(po->constant, 3.0, 1e-10);
 
     /* NULL safety */
     TEST_ASSERT_NULL(add_add(mgr, NULL, c5));
@@ -700,10 +695,7 @@ static void test_sat_constraint_graph_to_sat(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* Add a point */
-    SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    add_point(g, 0, 1, 0, 1);
 
     SatEncoding *enc = sat_encoding_create(64, 128);
     TEST_ASSERT_NOT_NULL(enc);
@@ -804,10 +796,7 @@ static void test_atp_encode_with_goal(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* Add a point */
-    SymbolicCoord *cx = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    add_point(g, 1, 1, 2, 1);
 
     char *tptp = atp_encode_constraint_graph(g, ATP_FORMAT_TPTP_FOF, "test_goal", true, NULL);
     TEST_ASSERT_NOT_NULL(tptp);
@@ -987,10 +976,7 @@ static void test_approx_count_solutions(void) {
     TEST_ASSERT_NOT_NULL(g);
 
     /* Add a simple point */
-    SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    add_point(g, 0, 1, 0, 1);
 
     ApproxCountResult result;
     PacConfig cfg;
@@ -1020,10 +1006,7 @@ static void test_approx_count_projected(void) {
     ConstraintGraph *g = graph_create();
     TEST_ASSERT_NOT_NULL(g);
 
-    SymbolicCoord *cx = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(g, coords, 2);
+    add_point(g, 1, 1, 2, 1);
 
     PacConfig cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -1192,8 +1175,8 @@ static void test_prob_dist_create_uniform(void) {
     TEST_ASSERT_NOT_NULL(d);
     TEST_ASSERT_EQ(d->type, PROB_DIST_UNIFORM);
     TEST_ASSERT_EQ(d->param_count, 2);
-    TEST_ASSERT(fabs(d->support_lo - 0.0) < 1e-10, "support_lo should be 0.0");
-    TEST_ASSERT(fabs(d->support_hi - 10.0) < 1e-10, "support_hi should be 10.0");
+    TEST_ASSERT_DOUBLE(d->support_lo, 0.0, 1e-10);
+    TEST_ASSERT_DOUBLE(d->support_hi, 10.0, 1e-10);
     prob_dist_destroy(d);
 
     /* NULL params for uniform uses defaults */
@@ -1215,8 +1198,8 @@ static void test_prob_dist_create_beta(void) {
     ProbDistribution *d = prob_dist_create(PROB_DIST_BETA, params, 2);
     TEST_ASSERT_NOT_NULL(d);
     TEST_ASSERT_EQ(d->type, PROB_DIST_BETA);
-    TEST_ASSERT(fabs(d->support_lo - 0.0) < 1e-10, "beta support_lo should be 0.0");
-    TEST_ASSERT(fabs(d->support_hi - 1.0) < 1e-10, "beta support_hi should be 1.0");
+    TEST_ASSERT_DOUBLE(d->support_lo, 0.0, 1e-10);
+    TEST_ASSERT_DOUBLE(d->support_hi, 1.0, 1e-10);
     prob_dist_destroy(d);
 }
 
@@ -1231,16 +1214,16 @@ static void test_prob_dist_pdf(void) {
     TEST_ASSERT_NOT_NULL(d);
 
     double pdf_at_05 = prob_dist_pdf(d, 0.5);
-    TEST_ASSERT(fabs(pdf_at_05 - 1.0) < 1e-10, "uniform PDF should be 1/(b-a)=1.0");
+    TEST_ASSERT_DOUBLE(pdf_at_05, 1.0, 1e-10);
 
     double pdf_outside = prob_dist_pdf(d, -1.0);
-    TEST_ASSERT(fabs(pdf_outside - 0.0) < 1e-10, "PDF outside support should be 0.0");
+    TEST_ASSERT_DOUBLE(pdf_outside, 0.0, 1e-10);
 
     prob_dist_destroy(d);
 
     /* NULL distribution */
     double pdf = prob_dist_pdf(NULL, 0.5);
-    TEST_ASSERT(fabs(pdf - 0.0) < 1e-10, "NULL dist PDF should be 0.0");
+    TEST_ASSERT_DOUBLE(pdf, 0.0, 1e-10);
 
     /* Normal distribution */
     double normal_params[] = {0.0, 1.0};
@@ -1249,7 +1232,7 @@ static void test_prob_dist_pdf(void) {
     /* PDF at mean should be 1/(sigma * sqrt(2*pi)) */
     double expected = 1.0 / (1.0 * sqrt(2.0 * 3.14159265358979323846));
     pdf = prob_dist_pdf(d, 0.0);
-    TEST_ASSERT(fabs(pdf - expected) < 1e-10, "normal PDF at mean should be 1/sqrt(2*pi)");
+    TEST_ASSERT_DOUBLE(pdf, expected, 1e-10);
     prob_dist_destroy(d);
 }
 
@@ -1260,19 +1243,19 @@ static void test_prob_dist_cdf(void) {
     TEST_ASSERT_NOT_NULL(d);
 
     double cdf_at_05 = prob_dist_cdf(d, 0.5);
-    TEST_ASSERT(fabs(cdf_at_05 - 0.5) < 1e-10, "uniform CDF at 0.5 should be 0.5");
+    TEST_ASSERT_DOUBLE(cdf_at_05, 0.5, 1e-10);
 
     double cdf_below = prob_dist_cdf(d, -1.0);
-    TEST_ASSERT(fabs(cdf_below - 0.0) < 1e-10, "CDF below support should be 0.0");
+    TEST_ASSERT_DOUBLE(cdf_below, 0.0, 1e-10);
 
     double cdf_above = prob_dist_cdf(d, 2.0);
-    TEST_ASSERT(fabs(cdf_above - 1.0) < 1e-10, "CDF above support should be 1.0");
+    TEST_ASSERT_DOUBLE(cdf_above, 1.0, 1e-10);
 
     prob_dist_destroy(d);
 
     /* NULL distribution */
     double cdf = prob_dist_cdf(NULL, 0.5);
-    TEST_ASSERT(fabs(cdf - 0.0) < 1e-10, "NULL dist CDF should be 0.0");
+    TEST_ASSERT_DOUBLE(cdf, 0.0, 1e-10);
 }
 
 static void test_prob_dist_sample(void) {

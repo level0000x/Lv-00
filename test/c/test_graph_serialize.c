@@ -22,12 +22,7 @@ void test_point_serialization(void) {
     lv_ASSERT_NOT_NULL(graph);
 
     /* 创建点 */
-    SymbolicCoord *x = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *coords[2] = {x, y};
-
-    AddNodeResult result = graph_add_point(graph, coords, 2);
-    lv_ASSERT(result == ADD_NODE_OK);
+    add_point(graph, 1, 1, 2, 1);
 
     /* 序列化 */
     char *json = graph_serialize_to_json(graph);
@@ -65,11 +60,8 @@ void test_line_segment_serialization(void) {
     lv_ASSERT_NOT_NULL(graph);
 
     /* 创建两个点 */
-    SymbolicCoord *coords1[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(4, 1)};
-
-    graph_add_point(graph, coords1, 2);
-    graph_add_point(graph, coords2, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 3, 1, 4, 1);
 
     /* 创建线段 */
     AddNodeResult result = graph_add_line_segment(graph, 0, 1);
@@ -100,14 +92,11 @@ void test_constraint_serialization(void) {
     lv_ASSERT_NOT_NULL(graph);
 
     /* 创建点 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, coords, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     /* 创建线段 */
-    SymbolicCoord *coords2[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
-    SymbolicCoord *coords3[2] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(2, 1)};
-    graph_add_point(graph, coords2, 2);
-    graph_add_point(graph, coords3, 2);
+    add_point(graph, 1, 1, 1, 1);
+    add_point(graph, 2, 1, 2, 1);
     graph_add_line_segment(graph, 1, 2);
 
     /* 添加关联约束 */
@@ -146,8 +135,7 @@ void test_module_graph_serialization(void) {
     lv_ASSERT_NOT_NULL(module_get_graph(mod));
 
     /* 添加节点 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(6, 1)};
-    graph_add_point(module_get_graph(mod), coords, 2);
+    add_point(module_get_graph(mod), 5, 1, 6, 1);
 
     printf("原始模块节点数: %d\n", graph_get_node_count(module_get_graph(mod)));
 

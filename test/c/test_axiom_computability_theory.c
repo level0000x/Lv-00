@@ -64,12 +64,50 @@ static const char *const k_template_names[] = {
 #define K_TEMPLATE_NAMES_COUNT (int) (sizeof(k_template_names) / sizeof(k_template_names[0]))
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（纯共享 wrapper 收敛至此；test_templates /
+ * test_unconstructible_problems / test_external_references 含文件特有
+ * 手写逻辑，保留在下方原样运行）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "computability_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "computability_theory",
+        .save_path = SAVE_TEST_PATH,
+
+        /* Test 2: 模板校验（test_templates 为混合 wrapper，下方保留） */
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+
+        /* Test 3: 不可构造项（文件特有手写，下方保留） */
+        .uc_style = AXIOM_TEST_UC_NONE,
+
+        /* Test 4: 逻辑框架（S 形态） */
+        .lf_style = AXIOM_TEST_LF_S,
+        .lf_bottom_geometry = "turing_machine_configuration_space",
+        .lf_negation_encoding = "complement_in_natural_numbers",
+        .lf_contradiction_behavior = PROPOSITION_KIND_EXPLOSION_PRINCIPLE,
+        .lf_contradiction_name = "PROPOSITION_KIND_EXPLOSION_PRINCIPLE",
+
+        /* Test 5: 内容哈希（单次形态） */
+        .hash_style = AXIOM_TEST_HASH_SINGLE,
+        .hash_free = AXIOM_TEST_FREE_LV_FREE_PTR,
+
+        /* Test 6: 往返保存/加载（basic 形态） */
+        .rt_style = AXIOM_TEST_RT_BASIC,
+
+        /* Test 7: 依赖验证（V1 形态） */
+        .dep_style = AXIOM_TEST_DEP_V1,
+        .dep_fail_msg = "FAIL (acceptable)",
+        .dep_suffix = " (expected: may fail for cross-reference reduces_to)",
+
+        /* Test 8: 负向查找 */
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+
+        /* Test 9: 外部引用（文件特有手写，下方保留） */
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 static void test_templates(void) {
     axiom_test_templates_names_only(AXIOM_PKG_PATH, EXPECTED_TEMPLATE_COUNT, "should have 55 constraint templates",
@@ -195,27 +233,7 @@ static void test_unconstructible_problems(void) {
     axiom_package_destroy(pkg);
 }
 
-static void test_logical_framework(void) {
-    axiom_test_logical_framework(AXIOM_PKG_PATH, "turing_machine_configuration_space", "complement_in_natural_numbers",
-                                 PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "PROPOSITION_KIND_EXPLOSION_PRINCIPLE");
-}
-
-static void test_content_hash(void) {
-    axiom_test_content_hash(AXIOM_PKG_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
-}
-
-static void test_round_trip(void) {
-    axiom_test_round_trip(AXIOM_PKG_PATH, SAVE_TEST_PATH, AXIOM_TEST_FREE_LV_FREE_PTR);
-}
-
-static void test_dependency_validation(void) {
-    axiom_test_dependency_validation(AXIOM_PKG_PATH, "FAIL (acceptable)",
-                                     " (expected: may fail for cross-reference reduces_to)");
-}
-
-static void test_negative_lookups(void) {
-    axiom_test_negative_lookups(AXIOM_PKG_PATH, AXIOM_TEST_NEG_BASIC);
-}
+/* Test 4/5/6/7/8 已收敛至 kCases 数据驱动用例（见上） */
 
 /* Test 9：外部引用（文件特有：https 计数格式，保留原体） */
 static void test_external_references(void) {
@@ -314,14 +332,9 @@ static void test_template_group_coverage(void) {
 TEST_MAIN_BEGIN("Computability Theory Axiom Package Test Suite")
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== Testing: axiom_packages/computability_theory.lvz ===\n\n");
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("ComputabilityTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
     TEST_MAIN_RUN(test_unconstructible_problems);
-    TEST_MAIN_RUN(test_logical_framework);
-    TEST_MAIN_RUN(test_content_hash);
-    TEST_MAIN_RUN(test_round_trip);
-    TEST_MAIN_RUN(test_dependency_validation);
-    TEST_MAIN_RUN(test_negative_lookups);
     TEST_MAIN_RUN(test_external_references);
     TEST_MAIN_RUN(test_template_group_coverage);
 TEST_MAIN_END()

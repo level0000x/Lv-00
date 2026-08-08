@@ -113,6 +113,24 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
     return g->next_node_id - 1;
 }
 
+/**
+ * @brief 创建有理数符号坐标的快捷辅助（带分配失败检查）
+ *
+ * 等价于 symbolic_coord_create_rational(n, d)，仅在分配失败时打印
+ * 错误信息并返回 NULL，供测试样板收敛使用。
+ *
+ * @param n 分子
+ * @param d 分母（不允许为 0）
+ * @return 新创建的坐标指针；失败返回 NULL
+ */
+static inline SymbolicCoord *mk_rat(int64_t n, uint64_t d) {
+    SymbolicCoord *c = symbolic_coord_create_rational(n, d);
+    if (c == NULL)
+        fprintf(stderr, "  [ERROR] mk_rat: symbolic_coord_create_rational(%lld, %llu) failed\n",
+                (long long) n, (unsigned long long) d);
+    return c;
+}
+
 static inline int approx_eq(double a, double b) { return fabs(a - b) < 1e-10; }
 static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a - b) < (eps); }
 

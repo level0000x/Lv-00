@@ -57,7 +57,7 @@ void test_csg_node_create_destroy(void) {
     for (int r = 0; r < 4; r++) {
         for (int c = 0; c < 4; c++) {
             double expected = (r == c) ? 1.0 : 0.0;
-            TEST_ASSERT(fabs(prim->transform[r][c] - expected) < 1e-15, "transform is identity");
+            TEST_ASSERT_DOUBLE(prim->transform[r][c], expected, 1e-15);
         }
     }
 
@@ -124,18 +124,18 @@ void test_csg_sphere(void) {
     TEST_ASSERT_NOT_NULL(sphere);
     TEST_ASSERT(sphere->kind == CSG_NODE_PRIMITIVE, "sphere kind");
     TEST_ASSERT(sphere->data.prim.type == 0, "sphere type=0");
-    TEST_ASSERT(fabs(sphere->data.prim.params[0] - 5.0) < 1e-9, "sphere radius=5");
+    TEST_ASSERT_DOUBLE(sphere->data.prim.params[0], 5.0, 1e-9);
 
     /* 包围盒应为 [-5, -5, -5] x [5, 5, 5] */
-    TEST_ASSERT(fabs(sphere->bbox_min[0] + 5.0) < 1e-9, "sphere bbox_min=-5");
-    TEST_ASSERT(fabs(sphere->bbox_max[0] - 5.0) < 1e-9, "sphere bbox_max=5");
+    TEST_ASSERT_DOUBLE(sphere->bbox_min[0], -5.0, 1e-9);
+    TEST_ASSERT_DOUBLE(sphere->bbox_max[0], 5.0, 1e-9);
 
     csg_node_destroy(sphere);
 
     /* 负半径 */
     CSGNode *neg = csg_sphere_create(-3.0);
     TEST_ASSERT_NOT_NULL(neg);
-    TEST_ASSERT(fabs(neg->data.prim.params[0] - 3.0) < 1e-9, "negative radius abs'd to 3");
+    TEST_ASSERT_DOUBLE(neg->data.prim.params[0], 3.0, 1e-9);
     csg_node_destroy(neg);
 
     PASS();
@@ -146,14 +146,14 @@ void test_csg_box(void) {
     CSGNode *box = csg_box_create(4.0, 6.0, 8.0);
     TEST_ASSERT_NOT_NULL(box);
     TEST_ASSERT(box->data.prim.type == 1, "box type=1");
-    TEST_ASSERT(fabs(box->data.prim.params[0] - 4.0) < 1e-9, "box w=4");
-    TEST_ASSERT(fabs(box->data.prim.params[1] - 6.0) < 1e-9, "box h=6");
-    TEST_ASSERT(fabs(box->data.prim.params[2] - 8.0) < 1e-9, "box d=8");
+    TEST_ASSERT_DOUBLE(box->data.prim.params[0], 4.0, 1e-9);
+    TEST_ASSERT_DOUBLE(box->data.prim.params[1], 6.0, 1e-9);
+    TEST_ASSERT_DOUBLE(box->data.prim.params[2], 8.0, 1e-9);
 
     /* 包围盒应为 [-2, -3, -4] x [2, 3, 4] */
-    TEST_ASSERT(fabs(box->bbox_min[0] + 2.0) < 1e-9, "box bbox_min_x=-2");
-    TEST_ASSERT(fabs(box->bbox_min[1] + 3.0) < 1e-9, "box bbox_min_y=-3");
-    TEST_ASSERT(fabs(box->bbox_max[0] - 2.0) < 1e-9, "box bbox_max_x=2");
+    TEST_ASSERT_DOUBLE(box->bbox_min[0], -2.0, 1e-9);
+    TEST_ASSERT_DOUBLE(box->bbox_min[1], -3.0, 1e-9);
+    TEST_ASSERT_DOUBLE(box->bbox_max[0], 2.0, 1e-9);
 
     csg_node_destroy(box);
     PASS();
@@ -164,8 +164,8 @@ void test_csg_cylinder(void) {
     CSGNode *cyl = csg_cylinder_create(3.0, 10.0);
     TEST_ASSERT_NOT_NULL(cyl);
     TEST_ASSERT(cyl->data.prim.type == 2, "cylinder type=2");
-    TEST_ASSERT(fabs(cyl->data.prim.params[0] - 3.0) < 1e-9, "cylinder radius=3");
-    TEST_ASSERT(fabs(cyl->data.prim.params[1] - 10.0) < 1e-9, "cylinder height=10");
+    TEST_ASSERT_DOUBLE(cyl->data.prim.params[0], 3.0, 1e-9);
+    TEST_ASSERT_DOUBLE(cyl->data.prim.params[1], 10.0, 1e-9);
 
     csg_node_destroy(cyl);
     PASS();
@@ -176,9 +176,9 @@ void test_csg_cone(void) {
     CSGNode *cone = csg_cone_create(2.0, 4.0, 8.0);
     TEST_ASSERT_NOT_NULL(cone);
     TEST_ASSERT(cone->data.prim.type == 3, "cone type=3");
-    TEST_ASSERT(fabs(cone->data.prim.params[0] - 2.0) < 1e-9, "cone r1=2");
-    TEST_ASSERT(fabs(cone->data.prim.params[1] - 4.0) < 1e-9, "cone r2=4");
-    TEST_ASSERT(fabs(cone->data.prim.params[2] - 8.0) < 1e-9, "cone h=8");
+    TEST_ASSERT_DOUBLE(cone->data.prim.params[0], 2.0, 1e-9);
+    TEST_ASSERT_DOUBLE(cone->data.prim.params[1], 4.0, 1e-9);
+    TEST_ASSERT_DOUBLE(cone->data.prim.params[2], 8.0, 1e-9);
 
     csg_node_destroy(cone);
     PASS();
@@ -401,8 +401,8 @@ void test_euclidean_declare_point(void) {
     ConstraintGraph *graph = graph_create();
     EuclideanContext *ctx = euclidean_init(graph);
 
-    SymbolicCoord *x = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(4, 1);
+    SymbolicCoord *x = mk_rat(3, 1);
+    SymbolicCoord *y = mk_rat(4, 1);
 
     int p1 = euclidean_declare_point(ctx, x, y, "A");
     TEST_ASSERT(p1 >= 0, "point A declared");
@@ -427,10 +427,10 @@ void test_euclidean_declare_line(void) {
     ConstraintGraph *graph = graph_create();
     EuclideanContext *ctx = euclidean_init(graph);
 
-    SymbolicCoord *x1 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y1 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *x2 = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *y2 = symbolic_coord_create_rational(1, 1);
+    SymbolicCoord *x1 = mk_rat(0, 1);
+    SymbolicCoord *y1 = mk_rat(0, 1);
+    SymbolicCoord *x2 = mk_rat(1, 1);
+    SymbolicCoord *y2 = mk_rat(1, 1);
 
     int p1 = euclidean_declare_point(ctx, x1, y1, "P1");
     int p2 = euclidean_declare_point(ctx, x2, y2, "P2");
@@ -464,9 +464,9 @@ void test_euclidean_declare_circle(void) {
     ConstraintGraph *graph = graph_create();
     EuclideanContext *ctx = euclidean_init(graph);
 
-    SymbolicCoord *x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *radius = symbolic_coord_create_rational(5, 1);
+    SymbolicCoord *x = mk_rat(0, 1);
+    SymbolicCoord *y = mk_rat(0, 1);
+    SymbolicCoord *radius = mk_rat(5, 1);
 
     int center = euclidean_declare_point(ctx, x, y, "Center");
     int circle = euclidean_declare_circle(ctx, center, radius);
@@ -499,12 +499,12 @@ void test_euclidean_assert_collinear(void) {
     EuclideanContext *ctx = euclidean_init(graph);
 
     /* 创建三个共线点：A(0,0), B(1,1), C(2,2) */
-    SymbolicCoord *ax = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *ay = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *bx = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *by = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *cx = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
+    SymbolicCoord *ax = mk_rat(0, 1);
+    SymbolicCoord *ay = mk_rat(0, 1);
+    SymbolicCoord *bx = mk_rat(1, 1);
+    SymbolicCoord *by = mk_rat(1, 1);
+    SymbolicCoord *cx = mk_rat(2, 1);
+    SymbolicCoord *cy = mk_rat(2, 1);
 
     int pa = euclidean_declare_point(ctx, ax, ay, "A");
     int pb = euclidean_declare_point(ctx, bx, by, "B");
@@ -543,12 +543,12 @@ void test_euclidean_assert_between(void) {
     EuclideanContext *ctx = euclidean_init(graph);
 
     /* 创建三个点：A(0,0), B(1,1), C(2,2) - B 在 A 和 C 之间 */
-    SymbolicCoord *ax = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *ay = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *bx = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *by = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *cx = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(2, 1);
+    SymbolicCoord *ax = mk_rat(0, 1);
+    SymbolicCoord *ay = mk_rat(0, 1);
+    SymbolicCoord *bx = mk_rat(1, 1);
+    SymbolicCoord *by = mk_rat(1, 1);
+    SymbolicCoord *cx = mk_rat(2, 1);
+    SymbolicCoord *cy = mk_rat(2, 1);
 
     int pa = euclidean_declare_point(ctx, ax, ay, "A");
     int pb = euclidean_declare_point(ctx, bx, by, "B");
@@ -585,14 +585,14 @@ void test_euclidean_assert_congruent(void) {
     EuclideanContext *ctx = euclidean_init(graph);
 
     /* 创建两个相等线段：AB(0,0)-(1,0) 和 CD(2,0)-(3,0) */
-    SymbolicCoord *a1x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *a1y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *a2x = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *a2y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *b1x = symbolic_coord_create_rational(2, 1);
-    SymbolicCoord *b1y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *b2x = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *b2y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *a1x = mk_rat(0, 1);
+    SymbolicCoord *a1y = mk_rat(0, 1);
+    SymbolicCoord *a2x = mk_rat(1, 1);
+    SymbolicCoord *a2y = mk_rat(0, 1);
+    SymbolicCoord *b1x = mk_rat(2, 1);
+    SymbolicCoord *b1y = mk_rat(0, 1);
+    SymbolicCoord *b2x = mk_rat(3, 1);
+    SymbolicCoord *b2y = mk_rat(0, 1);
 
     int p1 = euclidean_declare_point(ctx, a1x, a1y, "A1");
     int p2 = euclidean_declare_point(ctx, a2x, a2y, "A2");
@@ -704,8 +704,8 @@ void test_euclidean_consistency(void) {
     TEST_ASSERT(consistent == true, "empty context is consistent");
 
     /* 添加点后仍应一致 */
-    SymbolicCoord *x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *x = mk_rat(0, 1);
+    SymbolicCoord *y = mk_rat(0, 1);
     euclidean_declare_point(ctx, x, y, "Origin");
     symbolic_coord_destroy(x);
     symbolic_coord_destroy(y);
@@ -729,12 +729,7 @@ void test_euclidean_consistency(void) {
 void test_compress_config_default(void) {
     /* 创建一个简单约束图用于压缩 */
     ConstraintGraph *graph = graph_create();
-    SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(graph, coords, 2);
-    symbolic_coord_destroy(cx);
-    symbolic_coord_destroy(cy);
+    add_point(graph, 0, 1, 0, 1);
 
     CompressConfig cfg;
     cfg.pred_mode = PREDICT_PARALLELOGRAM;
@@ -772,12 +767,7 @@ void test_predictive_encode(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 添加一个点 */
-    SymbolicCoord *cx = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(4, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(graph, coords, 2);
-    symbolic_coord_destroy(cx);
-    symbolic_coord_destroy(cy);
+    add_point(graph, 3, 1, 4, 1);
 
     /* 测试每种预测模式 */
     bool ok = predictive_encode_coords(graph, PREDICT_NONE);
@@ -816,18 +806,9 @@ void test_edgebreaker_encode(void) {
     }
 
     /* 添加一些点节点 */
-    SymbolicCoord *coords0[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *coords1[] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *coords2[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
-    graph_add_point(graph, coords0, 2);
-    graph_add_point(graph, coords1, 2);
-    graph_add_point(graph, coords2, 2);
-    symbolic_coord_destroy(coords0[0]);
-    symbolic_coord_destroy(coords0[1]);
-    symbolic_coord_destroy(coords1[0]);
-    symbolic_coord_destroy(coords1[1]);
-    symbolic_coord_destroy(coords2[0]);
-    symbolic_coord_destroy(coords2[1]);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
+    add_point(graph, 0, 1, 1, 1);
 
     ok = edgebreaker_encode(graph, &seq, &seq_len);
     TEST_ASSERT(ok == true, "edgebreaker on graph with points");

@@ -259,12 +259,7 @@ static void test_geometry_compress_roundtrip(void) {
     ConstraintGraph *graph = graph_create();
     lv_ASSERT_NOT_NULL(graph);
 
-    SymbolicCoord *cx = symbolic_coord_create_rational(3, 1);
-    SymbolicCoord *cy = symbolic_coord_create_rational(4, 1);
-    SymbolicCoord *coords[] = {cx, cy};
-    graph_add_point(graph, coords, 2);
-    symbolic_coord_destroy(cx);
-    symbolic_coord_destroy(cy);
+    add_point(graph, 3, 1, 4, 1);
 
     CompressConfig cfg;
     cfg.pred_mode = PREDICT_PARALLELOGRAM;

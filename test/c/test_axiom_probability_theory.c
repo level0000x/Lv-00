@@ -55,12 +55,27 @@ int g_pass_count = 0;
 #define EXPECTED_UNCONSTRUCTIBLE_COUNT 8
 
 /* ============================================================
- * 共享测试入口（函数体收敛至 axiom_test_common.h，仅保留差异数据）
+ * 统一数据驱动用例表（wrapper 收敛至此；共享函数体在 axiom_test_common.h。
+ * 本文件仅 Test 1 共享，其余测试为文件特有手写体，保留在下方）
  * ============================================================ */
 
-static void test_load_from_file(void) {
-    axiom_test_load_from_file(AXIOM_PKG_PATH, "probability_theory");
-}
+static const AxiomTestCase kCases[] = {
+    {
+        .pkg_path = AXIOM_PKG_PATH,
+        .pkg_name = "probability_theory",
+        .save_path = SAVE_TEST_PATH,
+
+        .tmpl_style = AXIOM_TEST_TMPL_NONE,
+        .uc_style = AXIOM_TEST_UC_NONE,
+        .lf_style = AXIOM_TEST_LF_NONE,
+        .hash_style = AXIOM_TEST_HASH_NONE,
+        .rt_style = AXIOM_TEST_RT_NONE,
+        .dep_style = AXIOM_TEST_DEP_NONE,
+        .neg_style = AXIOM_TEST_NEG_BASIC,
+        .ext_style = AXIOM_TEST_EXT_NONE,
+    },
+};
+#define K_CASES_COUNT (int) (sizeof(kCases) / sizeof(kCases[0]))
 
 /* Test 2：约束模板（文件特有：>= 50 弱断言 + 动态消息，保留原体） */
 static void test_templates(void) {
@@ -313,7 +328,7 @@ static void test_key_axioms(void) {
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
 TEST_MAIN_BEGIN("Axiom Package Tests")
-    TEST_MAIN_RUN(test_load_from_file);
+    LV_REGISTER_AXIOM_CASES("ProbabilityTheory", kCases, K_CASES_COUNT);
     TEST_MAIN_RUN(test_templates);
     TEST_MAIN_RUN(test_unconstructibles);
     TEST_MAIN_RUN(test_logical_framework);

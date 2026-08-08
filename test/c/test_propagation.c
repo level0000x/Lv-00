@@ -83,8 +83,7 @@ void test_prop_get_state_space(void) {
 
     /* 有点的图：有效节点返回非 NULL */
     ConstraintGraph *graph = graph_create();
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -99,8 +98,6 @@ void test_prop_get_state_space(void) {
     TEST_ASSERT(ss_invalid == NULL, "get_state_space for invalid node returns NULL");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -119,10 +116,8 @@ void test_prop_run_simple(void) {
     /* 创建两个点 + 一条线段 + 关联约束 */
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -142,10 +137,6 @@ void test_prop_run_simple(void) {
                 "propagation_run on simple graph returns valid result");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -164,8 +155,7 @@ void test_prop_select_node(void) {
     /* 全坍缩图：select 应返回 -1 */
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -175,8 +165,6 @@ void test_prop_select_node(void) {
     TEST_ASSERT(node == -1, "select_node on fully collapsed graph returns -1");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -194,8 +182,7 @@ void test_prop_collapse(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 1, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -209,8 +196,6 @@ void test_prop_collapse(void) {
     TEST_ASSERT(!invalid, "collapse on invalid node returns false");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -233,7 +218,7 @@ void test_prop_entropy(void) {
     collapsed.collapsed_value = NULL;
 
     double e0 = propagation_compute_entropy(&collapsed);
-    TEST_ASSERT(fabs(e0) < 1e-12, "collapsed node entropy == 0");
+    TEST_ASSERT_DOUBLE(e0, 0.0, 1e-12);
 
     /* 无界 → PROP_ENTROPY_UNBOUNDED (-1.0) */
     NodeStateSpace unbounded;
@@ -249,7 +234,7 @@ void test_prop_entropy(void) {
     two_candidates.candidates_da.count = 2;
 
     double e2 = propagation_compute_entropy(&two_candidates);
-    TEST_ASSERT(fabs(e2 - 1.0) < 1e-12, "2 candidates => entropy == 1.0");
+    TEST_ASSERT_DOUBLE(e2, 1.0, 1e-12);
 
     /* NULL 输入 */
     double e_null = propagation_compute_entropy(NULL);
@@ -267,10 +252,8 @@ void test_prop_wfc_solve(void) {
     ConstraintGraph *graph = graph_create();
 
     /* 两个已坍缩的点 */
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    SymbolicCoord *c1[2] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, c0, 2);
-    graph_add_point(graph, c1, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 1, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -280,10 +263,6 @@ void test_prop_wfc_solve(void) {
                 "wfc_solve on simple graph returns SATISFIED or STABLE");
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
-    symbolic_coord_destroy(c1[0]);
-    symbolic_coord_destroy(c1[1]);
     graph_destroy(graph);
 
     /* NULL input */
@@ -301,8 +280,7 @@ void test_prop_snapshot(void) {
 
     ConstraintGraph *graph = graph_create();
 
-    SymbolicCoord *c0[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, c0, 2);
+    add_point(graph, 0, 1, 0, 1);
 
     PropagationContext *ctx = propagation_context_create(graph);
     propagation_init_state_spaces(ctx);
@@ -331,8 +309,6 @@ void test_prop_snapshot(void) {
     propagation_snapshot_destroy(snap2);
 
     propagation_context_destroy(ctx);
-    symbolic_coord_destroy(c0[0]);
-    symbolic_coord_destroy(c0[1]);
     graph_destroy(graph);
 
     /* NULL safety */

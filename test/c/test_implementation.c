@@ -26,8 +26,8 @@ static void test_symbolic_coord_basic(void) {
     printf("\n[TEST] Symbolic Coordinate System - Basic Operations\n");
 
     /* Test 1.1: Rational number creation and arithmetic */
-    SymbolicCoord *r1 = symbolic_coord_create_rational(3, 4);
-    SymbolicCoord *r2 = symbolic_coord_create_rational(1, 4);
+    SymbolicCoord *r1 = mk_rat(3, 4);
+    SymbolicCoord *r2 = mk_rat(1, 4);
     lv_ASSERT(r1 != NULL && r2 != NULL);
 
     SymbolicCoord *r_sum = symbolic_coord_add(r1, r2);
@@ -72,7 +72,7 @@ static void test_bit_circuit(void) {
     printf("\n[TEST] Bit Circuit (Digit Cutoff) System\n");
 
     /* Test 2.1: Circuit status check for normal values */
-    SymbolicCoord *small = symbolic_coord_create_rational(12345, 67890);
+    SymbolicCoord *small = mk_rat(12345, 67890);
     CircuitStatus status = check_digit_circuit(small);
     lv_ASSERT(status == CIRCUIT_STATUS_OK);
     printf("  Small number circuit check: OK (status=%d)\n", status);
@@ -113,19 +113,12 @@ static void test_constraint_graph(void) {
     printf("  Graph created: OK\n");
 
     /* Test 3.2: Point creation */
-    SymbolicCoord *x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {x, y};
-
-    AddNodeResult result = graph_add_point(graph, coords, 2);
-    lv_ASSERT(result == ADD_NODE_OK);
+    add_point(graph, 0, 1, 0, 1);
+    AddNodeResult result;
     printf("  Point added: OK (id=%d)\n", graph->nodes[0]->id);
 
     /* Test 3.3: Line segment creation */
-    SymbolicCoord *x2 = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *y2 = symbolic_coord_create_rational(1, 1);
-    SymbolicCoord *coords2[] = {x2, y2};
-    graph_add_point(graph, coords2, 2);
+    add_point(graph, 1, 1, 1, 1);
 
     result = graph_add_line_segment(graph, graph->nodes[0]->id, graph->nodes[1]->id);
     lv_ASSERT(result == ADD_NODE_OK);
@@ -147,10 +140,6 @@ static void test_constraint_graph(void) {
 
     /* Cleanup */
     graph_destroy(graph);
-    symbolic_coord_destroy(x);
-    symbolic_coord_destroy(y);
-    symbolic_coord_destroy(x2);
-    symbolic_coord_destroy(y2);
 
     printf("[PASS] Constraint Graph Core\n");
 
@@ -167,15 +156,8 @@ static void test_graph_normalization(void) {
     ConstraintGraph *graph = graph_create();
 
     /* Create two points with same coordinates */
-    SymbolicCoord *x1 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y1 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords1[] = {x1, y1};
-    graph_add_point(graph, coords1, 2);
-
-    SymbolicCoord *x2 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y2 = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords2[] = {x2, y2};
-    graph_add_point(graph, coords2, 2);
+    add_point(graph, 0, 1, 0, 1);
+    add_point(graph, 0, 1, 0, 1);
 
     printf("  Created graph with %d points (2 with same coords)\n", graph->node_count);
 
@@ -190,10 +172,6 @@ static void test_graph_normalization(void) {
     /* Cleanup */
     normalization_result_destroy(norm);
     graph_destroy(graph);
-    symbolic_coord_destroy(x1);
-    symbolic_coord_destroy(y1);
-    symbolic_coord_destroy(x2);
-    symbolic_coord_destroy(y2);
 
     printf("[PASS] Graph Normalization Engine\n");
 
@@ -215,10 +193,7 @@ static void test_unification(void) {
 
     /* Test 5.2: Create a construction that matches */
     ConstraintGraph *construction = graph_create();
-    SymbolicCoord *x = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *y = symbolic_coord_create_rational(0, 1);
-    SymbolicCoord *coords[] = {x, y};
-    graph_add_point(construction, coords, 2);
+    add_point(construction, 0, 1, 0, 1);
 
     /* Test 5.3: Create proof and check */
     SimpleProof *proof = simple_proof_create(prop, construction);
@@ -231,8 +206,6 @@ static void test_unification(void) {
     /* Cleanup */
     simple_proof_destroy(proof);
     simple_proposition_destroy(prop);
-    symbolic_coord_destroy(x);
-    symbolic_coord_destroy(y);
 
     printf("[PASS] Unification System\n");
 
@@ -246,7 +219,7 @@ static void test_cross_type_arithmetic(void) {
     printf("\n[TEST] Cross-type Arithmetic Operations\n");
 
     /* Test 6.1: Rational + Quadratic */
-    SymbolicCoord *r = symbolic_coord_create_rational(1, 2);
+    SymbolicCoord *r = mk_rat(1, 2);
     Rational *a = rational_create(1, 1);
     Rational *b = rational_create(1, 1);
     SymbolicCoord *q = symbolic_coord_create_quadratic(a, b, 2);
