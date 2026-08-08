@@ -30,6 +30,13 @@ extern "C" {
  * 此处包含以保持 lv_utils.h 使用方的既有可见性（避免重复声明）。 */
 #include "lv_str_utils.h"
 
+/* 数值容差的分级权威定义（lv_EPSILON_SUPERTINY/ULTRA/HIGH/MEDIUM/LOW、
+ * lv_GEO_*_EPSILON、lv_SINGULARITY_THRESHOLD 等）位于 config.h；
+ * 本文件的 epsilon 常量改为语义别名引用，数值去重（值不变，仅去重定义）。
+ * 收敛说明：lv_EPSILON_DOUBLE（1e-12）为通用 double 阈值权威之一，
+ * 与 config.h 的 lv_EPSILON_ULTRA（1e-12）同值，二者均保留为数值来源。 */
+#include "config.h"
+
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
 #endif
@@ -1017,6 +1024,42 @@ lv_PUBLIC_API double lv_random_double(double min, double max);
 lv_PUBLIC_API bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, int min_growth);
 
 /* ============================================================
+ * lvTlsVector —— TLS 指针 + count + capacity 三件套
+ *
+ * 收敛散落各模块的「TLS 指针 + 计数 + 容量」手写样板
+ * （unify_equivalence / formula_converter_util / lv_scratch_buf 等）：
+ * 变量声明统一为 `static lv_THREAD_LOCAL lvTlsVector g_xxx = {0};`，
+ * 扩容走 lv_ensure_capacity 倍增语义；线程退出或系统清理时调用
+ * lv_tls_vector_cleanup 释放堆缓冲区，防止池化线程中的 TLS 堆表永久泄漏。
+ * ============================================================ */
+
+/** @brief TLS 动态向量：线程局部指针 + 元素计数 + 容量三件套 */
+typedef struct {
+    void *ptr;     /**< 数据缓冲区（由 lv_realloc 管理，零初始化时为 NULL） */
+    int count;     /**< 当前元素数量 */
+    int capacity;  /**< 当前缓冲区容量（元素个数） */
+} lvTlsVector;
+
+/**
+ * @brief 确保 TLS 向量容量至少可容纳 need_count 个元素（lv_ensure_capacity 倍增策略）
+ * @param v         向量指针（一般指向 lv_THREAD_LOCAL 静态变量）
+ * @param need_count 需求元素个数（count+1 或按需字节数，scratch 场景 elem_size=1）
+ * @param elem_size  每个元素的字节大小
+ * @return true 成功（可直接写入），false 内存不足（原缓冲区保持不变）
+ */
+lv_PUBLIC_API bool lv_tls_vector_ensure(lvTlsVector *v, int need_count, size_t elem_size);
+
+/**
+ * @brief 清空元素计数（保留缓冲区供复用，等价于原样板只把 count 归零）
+ */
+lv_PUBLIC_API void lv_tls_vector_clear(lvTlsVector *v);
+
+/**
+ * @brief 释放缓冲区并重置为零（线程退出 / lv_cleanup 时调用，防泄漏）
+ */
+lv_PUBLIC_API void lv_tls_vector_cleanup(lvTlsVector *v);
+
+/* ============================================================
  * 统一 FNV-1a 哈希函数
  * ============================================================ */
 
@@ -1179,6 +1222,13 @@ lv_PUBLIC_API char *lv_scratch_buf(size_t min_size);
  */
 lv_PUBLIC_API char *lv_fmt_tmp(const char *fmt, ...);
 
+/**
+ * @brief 释放当前线程的 scratch 缓冲区（lv_cleanup 时调用，防 TLS 泄漏）
+ * @note 池化工作线程退出时无 TLS 析构钩子，其副本由线程生命周期持有；
+ *       主线程副本在此函数中回收。
+ */
+lv_PUBLIC_API void lv_scratch_buf_cleanup(void);
+
 /* ============================================================
  * 数值数组聚合
  * ============================================================ */
@@ -1309,6 +1359,10 @@ lv_PUBLIC_API int lv_resource_tracker_count(const ResourceTracker *rt);
 /**
  * @brief 通用 double 精度阈值
  * 用于一般浮点比较（判零、判相等）
+ *
+ * 数值权威之一（1e-12，与 config.h 的 lv_EPSILON_ULTRA 同值）；
+ * 其余 1e-12 语义常量（lv_ZERO_EPSILON、GEO_EVENT_DEFAULT_TOL、
+ * PCTL_EPSILON、GROEBNER_SMT_ZERO_THRESHOLD 等）统一引用本宏。
  */
 #ifndef lv_EPSILON_DOUBLE
 #define lv_EPSILON_DOUBLE 1e-12
@@ -1317,14 +1371,19 @@ lv_PUBLIC_API int lv_resource_tracker_count(const ResourceTracker *rt);
 /**
  * @brief 数值比较精度阈值
  * 用于代数数隔离区间比较、数值验证等
+ *
+ * 语义别名 = config.h lv_EPSILON_HIGH（1e-10）。
  */
 #ifndef lv_EPSILON_NUMERIC_COMPARE
-#define lv_EPSILON_NUMERIC_COMPARE 1e-10
+#define lv_EPSILON_NUMERIC_COMPARE lv_EPSILON_HIGH
 #endif
 
 /**
  * @brief Newton 迭代收敛阈值
  * 用于代数数求根、区间收缩等 Newton 法迭代
+ *
+ * 独立值（1e-14，分级体系无对应档）；与 groebner 引擎的
+ * GROEBNER_NEWTON_TOL（1e-12，= lv_EPSILON_ULTRA）场景不同，保留各自值。
  */
 #ifndef lv_EPSILON_NEWTON
 #define lv_EPSILON_NEWTON 1e-14
@@ -1333,17 +1392,21 @@ lv_PUBLIC_API int lv_resource_tracker_count(const ResourceTracker *rt);
 /**
  * @brief 分数判零阈值
  * 用于连分数展开等场景的分数值判零
+ *
+ * 语义别名 = config.h lv_EPSILON_SUPERTINY（1e-15）。
  */
 #ifndef lv_EPSILON_FRACTION_ZERO
-#define lv_EPSILON_FRACTION_ZERO 1e-15
+#define lv_EPSILON_FRACTION_ZERO lv_EPSILON_SUPERTINY
 #endif
 
 /**
  * @brief 线段内点判定阈值
  * 用于判断点是否在线段内部（排除端点）
+ *
+ * 语义别名 = config.h lv_EPSILON_MEDIUM（1e-9）。
  */
 #ifndef lv_EPSILON_SEGMENT_INTERIOR
-#define lv_EPSILON_SEGMENT_INTERIOR 1e-9
+#define lv_EPSILON_SEGMENT_INTERIOR lv_EPSILON_MEDIUM
 #endif
 
 /* ============================================================

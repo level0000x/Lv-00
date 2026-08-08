@@ -580,6 +580,8 @@ RemoveNodeResult graph_remove_node(ConstraintGraph *graph, int node_id) {
             graph->dirty = true; /* v3.5.0: 约束被移除，标记脏状态 */
         }
     }
+    /* 反向索引版本失效：约束数组已压缩，下标全部偏移，下次查询时惰性重建 */
+    graph->constraints_version++;
 
     /* 从数组中移除节点（压缩） */
     for (int i = 0; i < graph->node_count; i++) {
@@ -629,6 +631,8 @@ RemoveConstraintResult graph_remove_constraint(ConstraintGraph *graph, int const
     }
     graph->constraint_count--;
     graph->dirty = true; /* v3.5.0: 约束被移除，标记脏状态 */
+    /* 反向索引版本失效：约束数组已压缩，下标全部偏移，下次查询时惰性重建 */
+    graph->constraints_version++;
     graph_emit_constraint_removed(graph, cid, false);
     return REMOVE_CONSTRAINT_OK;
 }
@@ -755,9 +759,96 @@ int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id) {
  * @param max_results 数组最大容量
  * @return 找到的约束数量
  */
+
+/* 反向索引值销毁回调：释放每个节点的约束下标列表（lvDArray*） */
+static void involving_index_free_value(int key, void *value, void *ctx) {
+    (void) key;
+    (void) ctx;
+    lvDArray *list = (lvDArray *) value;
+    if (list) {
+        lv_darray_free(list);
+        lv_free((void **) &list);
+    }
+}
+
+/* 确保反向索引与当前约束集合一致（惰性重建，摊销 O(1) 查询）：
+ * 重建时遍历全部约束，将每个约束的下标按其参与者追加到对应节点的
+ * 列表中（下标升序，与原线性扫描的输出顺序一致）；已废弃约束同样
+ * 入索引，查询时按 is_active 过滤，保证语义与原实现逐字节一致。
+ * 任一分配失败则放弃本次构建（保持索引 NULL），查询回退线性扫描。 */
+static void involving_index_ensure(ConstraintGraph *graph) {
+    if (graph->involving_index && graph->involving_version == graph->constraints_version)
+        return;
+    if (graph->involving_index) {
+        lv_hashtable_int_foreach(graph->involving_index, involving_index_free_value, NULL);
+        lv_hashtable_int_destroy(graph->involving_index);
+        graph->involving_index = NULL;
+    }
+    int init_cap = graph->constraint_count > 0 ? graph->constraint_count : 8;
+    graph->involving_index = lv_hashtable_int_create(init_cap);
+    if (!graph->involving_index)
+        return; /* 构建失败：保持 NULL 与版本不同步，查询回退线性扫描 */
+    int build_ok = 1;
+    for (int i = 0; i < graph->constraint_count && build_ok; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c)
+            continue;
+        for (int j = 0; j < c->participant_count && build_ok; j++) {
+            int node_id = c->participants[j];
+            lvDArray *list = (lvDArray *) lv_hashtable_int_get(graph->involving_index, node_id);
+            if (!list) {
+                list = (lvDArray *) lv_calloc(1, sizeof(lvDArray));
+                if (!list) {
+                    build_ok = 0;
+                    break;
+                }
+                lv_darray_init(list, sizeof(int));
+                if (!lv_hashtable_int_insert(graph->involving_index, node_id, list)) {
+                    lv_darray_free(list);
+                    lv_free((void **) &list);
+                    build_ok = 0;
+                    break;
+                }
+            }
+            if (lv_darray_push(list, &i) < 0)
+                build_ok = 0;
+        }
+    }
+    if (!build_ok) {
+        lv_hashtable_int_foreach(graph->involving_index, involving_index_free_value, NULL);
+        lv_hashtable_int_destroy(graph->involving_index);
+        graph->involving_index = NULL;
+        return; /* 保持版本不同步：下次查询重试构建；期间回退线性扫描 */
+    }
+    graph->involving_version = graph->constraints_version;
+}
+
 int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, int *out_indices, int max_results) {
     if (!graph || !out_indices || max_results <= 0)
         return 0;
+
+    /* 惰性缓存重建需写索引字段（involving_index / involving_version）。
+     * 仅修改缓存字段，不改变图的数据语义，单线程使用下与原线性扫描等价；
+     * 多线程并发写约束集合时本函数同样需要外部同步（与 constraints 数组一致）。 */
+    ConstraintGraph *g = (ConstraintGraph *) graph;
+    involving_index_ensure(g);
+
+    if (g->involving_index) {
+        int count = 0;
+        lvDArray *list = (lvDArray *) lv_hashtable_int_get(g->involving_index, node_id);
+        if (list) {
+            for (int k = 0; k < list->count && count < max_results; k++) {
+                int idx = *(int *) lv_darray_get(list, k);
+                Constraint *c = graph->constraints[idx];
+                if (!c || !c->is_active) /* 惰性删除：索引保留废弃条目，此处按活跃过滤 */
+                    continue;
+                out_indices[count++] = idx;
+            }
+        }
+        return count;
+    }
+
+    /* 索引构建失败（OOM）时回退原线性扫描，保持行为一致 */
     int count = 0;
     for (int i = 0; i < graph->constraint_count && count < max_results; i++) {
         Constraint *c = graph->constraints[i];
@@ -892,6 +983,9 @@ ConstraintGraph *graph_create(void) {
     graph->next_node_id = 0;
     graph->next_constraint_id = 0;
     graph->dirty = false; /* v3.5.0: 脏标记初始化为 false */
+    graph->involving_index = NULL;      /* v3.6.0: 反向索引未构建（惰性） */
+    graph->constraints_version = 0;
+    graph->involving_version = 0;
 
     /* ============================================================================
      * 遗留缓冲区说明 (v3.4.0 计划清理)

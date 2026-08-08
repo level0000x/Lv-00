@@ -95,7 +95,13 @@ static void *worker_func(void *arg)
                 }
                 lv_mutex_unlock(&task->group->mutex);
             }
-            lv_free((void **) &task);
+            /* 任务节点可能由提交线程（lv_calloc）或调用方（标准 calloc）分配：
+             * 跨线程 lv_free 会破坏 lv 分配器 TLS 追踪链表，标准分配节点用 free 释放 */
+            if (task->uses_std_free) {
+                free(task);
+            } else {
+                lv_free((void **) &task);
+            }
         }
     }
 
@@ -295,4 +301,84 @@ lvThreadPool *lv_get_global_thread_pool(void) {
     static lv_once_t g_pool_once = lv_ONCE_INIT;
     lv_once(&g_pool_once, global_pool_init);
     return g_global_pool;
+}
+
+/* ========================================================================
+ * lv_parallel_for —— 并行 for 抽象
+ * ======================================================================== */
+
+/** @brief 单个分片的任务参数（args 数组由 lv_parallel_for 栈/堆持有，等待全部完成前有效） */
+typedef struct lvParForArg {
+    lvParallelForFn fn;   /**< 迭代回调 */
+    void *ctx;            /**< 透传上下文 */
+    int start;            /**< 本片起始下标（含） */
+    int end;              /**< 本片结束下标（不含） */
+} lvParForArg;
+
+/** @brief 线程池 worker 入口：顺序执行本片 [start, end) 的所有迭代 */
+static void par_for_worker(void *arg) {
+    lvParForArg *a = (lvParForArg *) arg;
+    for (int i = a->start; i < a->end; i++) {
+        a->fn(i, a->ctx);
+    }
+}
+
+void lv_parallel_for(lvThreadPool *pool, int n_iters, int chunk_size, lvParallelForFn fn, void *ctx) {
+    /* 参数校验：pool 为 NULL 时顺序执行（与占位实现语义一致） */
+    if (n_iters <= 0 || !fn)
+        return;
+    if (!pool) {
+        for (int i = 0; i < n_iters; i++)
+            fn(i, ctx);
+        return;
+    }
+    if (chunk_size <= 0)
+        chunk_size = 1;
+
+    int n_tasks = (n_iters + chunk_size - 1) / chunk_size;
+    if (n_tasks <= 0)
+        return;
+
+    /* 任务参数数组 + 等待组数组（全部任务阻塞等待完成后释放） */
+    lvParForArg *args = (lvParForArg *) lv_calloc((size_t) n_tasks, sizeof(lvParForArg));
+    lvWaitGroup **groups = (lvWaitGroup **) lv_calloc((size_t) n_tasks, sizeof(lvWaitGroup *));
+    if (!args || !groups) {
+        lv_free((void **) &args);
+        lv_free((void **) &groups);
+        return;
+    }
+
+    /* 提交阶段：全部提交后再统一等待，保证并行性 */
+    int submitted = 0;
+    for (; submitted < n_tasks; submitted++) {
+        /* 任务节点由 worker 线程释放（跨线程），必须用标准 calloc 分配，
+         * 否则 worker 的 lv_free 会破坏提交线程 lv 分配器的 TLS 追踪链表 */
+        lvThreadTask *task = (lvThreadTask *) calloc(1, sizeof(lvThreadTask));
+        if (!task)
+            break;
+        task->uses_std_free = 1;
+        args[submitted].fn = fn;
+        args[submitted].ctx = ctx;
+        args[submitted].start = submitted * chunk_size;
+        args[submitted].end = (submitted + 1) * chunk_size;
+        if (args[submitted].end > n_iters)
+            args[submitted].end = n_iters;
+
+        task->func = par_for_worker;
+        task->arg = &args[submitted];
+        groups[submitted] = lv_thread_pool_submit(pool, task);
+        if (!groups[submitted]) {
+            /* submit 失败时不释放 task 节点（其内部仅释放 group），此处回收节点 */
+            free(task);
+            break;
+        }
+    }
+
+    /* 等待阶段：逐个阻塞等待（timeout_ms = -1 无限等待，完成时 wait_group 内部自动销毁释放） */
+    for (int t = 0; t < submitted; t++) {
+        lv_thread_pool_wait_group(pool, groups[t], -1);
+    }
+
+    lv_free((void **) &args);
+    lv_free((void **) &groups);
 }

@@ -37,7 +37,9 @@ SolverStatus groebner_basis_compute(EquationSystem *system);
 int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
                                           const int *dirty_var_ids, int dirty_count, int *out_count);
 
-/** @brief solver 全局流式上下文定义（供所有 solver 模块通过 solver_types.h 的 extern 引用） */
+/** @brief solver 全局流式上下文定义（供所有 solver 模块通过 solver_types.h 的 extern 引用）
+ * 注：setter solver_set_stream_context 定义在 solver.c（异文件），且本文件的
+ * solver_set_stream_context_local 为 static 局部 setter，不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */
 lv_THREAD_LOCAL StreamContext *solver_stream_ctx = NULL;
 
 static void solver_set_stream_context_local(StreamContext *ctx) {

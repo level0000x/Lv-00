@@ -41,6 +41,7 @@ InteropTheoremContext *interop_theorem_context_create(const char *trust_base_nam
                sizeof(ctx->trust_base_version));
     ctx->exported_calls = NULL;
     ctx->calls_len = 0;
+    ctx->calls_capacity = 0;
 
     return ctx;
 }
@@ -92,16 +93,30 @@ int interop_theorem_add_call(InteropTheoremContext *ctx, const char *theorem_nam
     /* 追加到累积缓冲区（保持 ctx->exported_calls 对外连续的 NUL 结尾字符串语义：
      * 该字段为 InteropTheoremContext 公开结构的 char* + calls_len，跨调用存活，
      * 且 export_calls 按 calls_len 直接读取，故无法用局部 lvStrBuf 替代累积——
-     * 采用"lvStrBuf 构建单条记录 + 一次 realloc 追加"的收敛形态） */
+     * 采用"lvStrBuf 构建单条记录 + 容量倍增的 realloc 追加"形态：
+     * 容量不足时翻倍扩容（摊销 O(1)），避免每次 +1 精确 realloc 的 O(n^2) 拷贝；
+     * 扩容只影响内部缓冲区大小，calls_len 与字节内容对外不变。 */
     size_t new_len = ctx->calls_len + sb.len;
-    char *new_buf = (char *) lv_realloc(ctx->exported_calls, new_len + 1);
-    if (!new_buf) {
-        lv_strbuf_destroy(&sb);
-        lv_RETURN_ERROR_VAL(lv_ERROR_OUT_OF_MEMORY, lv_ERROR_OUT_OF_MEMORY,
-                            "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）",
-                            param_count, theorem_name, new_len + 1);
+    size_t needed = new_len + 1; /* 含 NUL 终止符 */
+    if (needed > ctx->calls_capacity) {
+        size_t new_cap = (ctx->calls_capacity == 0) ? 64 : ctx->calls_capacity;
+        while (new_cap < needed) {
+            if (new_cap > SIZE_MAX / 2) { /* 溢出保护：直接取所需值 */
+                new_cap = needed;
+                break;
+            }
+            new_cap *= 2;
+        }
+        char *new_buf = (char *) lv_realloc(ctx->exported_calls, new_cap);
+        if (!new_buf) {
+            lv_strbuf_destroy(&sb);
+            lv_RETURN_ERROR_VAL(lv_ERROR_OUT_OF_MEMORY, lv_ERROR_OUT_OF_MEMORY,
+                                "定理调用记录失败：无法为%d个参数的调用\"%s\"分配缓冲区（需要%zu字节）",
+                                param_count, theorem_name, needed);
+        }
+        ctx->exported_calls = new_buf;
+        ctx->calls_capacity = new_cap;
     }
-    ctx->exported_calls = new_buf;
     memcpy(ctx->exported_calls + ctx->calls_len, sb.data, sb.len + 1);
     lv_strbuf_destroy(&sb);
 

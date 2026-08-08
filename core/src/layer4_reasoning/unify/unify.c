@@ -88,11 +88,7 @@
 #include "type_system.h"
 #include "lv/lv_strbuf.h"
 
-lv_THREAD_LOCAL StreamContext *unify_stream_ctx = NULL;
-
-void unify_set_stream_context(StreamContext *ctx) {
-    unify_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(unify);
 
 /* 哈希值到节点ID的掩码 —— 取哈希值低31位以确保结果为正整数 */
 #define UNIFY_HASH_TO_ID_MASK 0x7FFFFFFF

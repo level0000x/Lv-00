@@ -97,17 +97,24 @@ int geo_approx_equal(double a, double b, double eps) {
 /**
  * @brief 判断点 (px, py) 是否在线段 (x1,y1)-(x2,y2) 上
  *
- * 使用叉积判断共线性，并检查点是否在线段范围之内。
+ * 收敛实现：共线性判定委托事实来源 lv_segment_side（geo_predicate.c，
+ * APPROX 浮点近似模式）；线段范围检查（含端点）由本地点积保留，因为
+ * 谓词层 lv_segment_side 仅判定点相对于无限直线的位置，无线段范围语义。
+ *
+ * 行为差异说明（迁移后以谓词层为准）：
+ *   - 共线阈值由本地 GEO_EPSILON（1e-12）变为谓词层 distance_epsilon
+ *     （默认 1e-9，见 geometry_config.c），判定更宽松；
+ *   - 退化线段（两端点重合）：旧实现按"点等于端点"判定，谓词层返回
+ *     DEGENERATE（不在线上）。调用方 graph_node_alloc.c 已先行排除退化，
+ *     实际路径不受影响。
  *
  * @return 在线段上返回 1，否则返回 0
  */
 int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2) {
-    /* 叉积判断共线 */
-    double cross = (px - x1) * (y2 - y1) - (py - y1) * (x2 - x1);
-    if (fabs(cross) > GEO_EPSILON)
+    if (lv_segment_side(px, py, x1, y1, x2, y2, lv_PREDICATE_APPROX) != lv_LINE_SIDE_ON)
         return 0;
 
-    /* 范围检查 */
+    /* 范围检查：点是否落在线段两端点之间的范围内（含端点） */
     double dot = (px - x1) * (px - x2) + (py - y1) * (py - y2);
     return dot <= GEO_EPSILON ? 1 : 0;
 }
@@ -124,25 +131,21 @@ double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3,
 }
 
 /**
- * @brief 判断点是否在三角形内部（重心坐标法）
- * @return 在内部返回 1，在边界返回 0，在外部返回 -1
+ * @brief 判断点是否在三角形内部（含边界）
+ *
+ * 收敛实现：委托事实来源 lv_point_in_triangle（geo_predicate.c，
+ * APPROX 浮点近似模式，三次 lv_orientation_2d 同号判定含边界）。
+ *
+ * 返回语义映射：内部/边界 → 1，外部 → -1。
+ *
+ * 边界语义差异（迁移后以谓词层为准）：旧实现用 3 个独立 GEO_EPSILON
+ * 阈值严格区分边界并返回 0；谓词层"同号即内部"将边界与内部统一返回
+ * 真（true）。本函数全项目无调用方、无头文件声明，无旧行为兼容负担。
+ *
+ * @return 在内部或边界返回 1，在外部返回 -1
  */
 int geo_point_in_triangle(double px, double py, double x1, double y1, double x2, double y2, double x3, double y3) {
-    double d1 = geo_signed_area_2x(x1, y1, x2, y2, px, py);
-    double d2 = geo_signed_area_2x(x2, y2, x3, y3, px, py);
-    double d3 = geo_signed_area_2x(x3, y3, x1, y1, px, py);
-
-    int has_neg = (d1 < -GEO_EPSILON) || (d2 < -GEO_EPSILON) || (d3 < -GEO_EPSILON);
-    int has_pos = (d1 > GEO_EPSILON) || (d2 > GEO_EPSILON) || (d3 > GEO_EPSILON);
-
-    if (has_neg && has_pos)
-        return -1; /* 外部 */
-
-    /* 检查是否在边界上 */
-    if (fabs(d1) < GEO_EPSILON || fabs(d2) < GEO_EPSILON || fabs(d3) < GEO_EPSILON) {
-        return 0; /* 边界 */
-    }
-    return 1; /* 内部 */
+    return lv_point_in_triangle(px, py, x1, y1, x2, y2, x3, y3, lv_PREDICATE_APPROX) ? 1 : -1;
 }
 
 /**

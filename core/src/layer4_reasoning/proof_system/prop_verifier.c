@@ -30,6 +30,8 @@
 #include "lv/stream_context_util.h"
 #include "prop_verifier_internal.h"
 
+/* 注：setter prop_verifier_set_stream_context 定义在 prop_verifier_equivalence.c（异文件），
+ * 不适用 LV_STREAM_CTX_DEFINE 宏（宏要求 setter 与变量同文件），保留手写。 */
 lv_THREAD_LOCAL StreamContext *prop_verifier_stream_ctx = NULL;
 
 /* ============================================================

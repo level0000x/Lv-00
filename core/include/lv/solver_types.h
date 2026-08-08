@@ -11,7 +11,7 @@
 #define lv_SOLVER_DYNARRAY_INIT_CAP 16
 #define lv_SOLVER_LINEAR_COEFF_COUNT 2
 #define lv_SOLVER_QUADRATIC_COEFF_COUNT 3
-#define lv_ZERO_EPSILON 1e-12
+#define lv_ZERO_EPSILON lv_EPSILON_DOUBLE /* 数值零判定阈值（语义别名 = lv_EPSILON_DOUBLE，1e-12） */
 
 #ifdef __cplusplus
 extern "C" {

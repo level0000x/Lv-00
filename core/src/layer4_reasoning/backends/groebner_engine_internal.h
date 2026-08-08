@@ -12,14 +12,15 @@
 #include <stdbool.h>
 
 #include "groebner_engine.h"
+#include "lv/config.h" /* GROEBNER_ZERO_THRESHOLD = lv_EPSILON_SUPERTINY / GROEBNER_NEWTON_TOL = lv_EPSILON_ULTRA */
 #include "lv/lv_thread.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** @brief 数值零阈值 */
-#define GROEBNER_ZERO_THRESHOLD 1e-15
+/** @brief 数值零阈值（语义别名 = config.h lv_EPSILON_SUPERTINY，1e-15） */
+#define GROEBNER_ZERO_THRESHOLD lv_EPSILON_SUPERTINY
 
 /** @brief 多项式初始项容量 */
 #define GROEBNER_POLY_INIT_CAPACITY 8
@@ -73,7 +74,9 @@ char *groebner_strdup_safe(const char *src);
 #define GROEBNER_BASIS_INIT_CAPACITY 16
 #define GROEBNER_VARIETY_INIT_SOL_CAPACITY 32
 #define GROEBNER_SOLVE_MAX_ITER 200
-#define GROEBNER_NEWTON_TOL 1e-12
+/* Newton 迭代容差：语义别名 = config.h lv_EPSILON_ULTRA（1e-12）。
+ * 与 lv_utils.h 的 lv_EPSILON_NEWTON（1e-14）为不同场景不同值，保留各自值。 */
+#define GROEBNER_NEWTON_TOL lv_EPSILON_ULTRA
 #define GROEBNER_NEWTON_MAX_ITER 50
 #define GROEBNER_ROOT_SEARCH_SEGMENTS 1000
 #define GROEBNER_STR_MAX 256

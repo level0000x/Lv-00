@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/config.h" /* NUMERIC_VERIFY_TOLERANCE 语义别名 = lv_GEO_DISTANCE_EPSILON */
 #include "lv/float_error.h"
 #include "lv/interval_arith.h"
 #include "lv/lv_str_utils.h"
@@ -60,7 +61,7 @@
  * AMBER<=tolerance、YELLOW<=10*tolerance、RED 其余。
  * 数值验证的证明门槛：误差界（区间半宽）不超过本容差时视为可接受。
  */
-#define NUMERIC_VERIFY_TOLERANCE 1e-8
+#define NUMERIC_VERIFY_TOLERANCE lv_GEO_DISTANCE_EPSILON /* 语义别名 = config.h lv_GEO_DISTANCE_EPSILON（1e-8） */
 
 /* ============== 数值命题提取（命题 -> lhs <op> rhs） ============== */
 

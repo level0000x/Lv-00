@@ -136,6 +136,34 @@ static inline void lv_lock_guard_destroy(lvLockGuard *g) {
     }
 }
 
+/** @brief 锁守卫作用域清理回调（配合 LV_SCOPE_LOCK 的 cleanup 属性使用） */
+static inline void lv_lock_guard_scope_cleanup(void *p) {
+    lv_lock_guard_destroy((lvLockGuard *) p);
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+/**
+ * @brief 作用域锁守卫：进入作用域加锁，离开作用域（含任意 return / goto）自动解锁
+ *
+ * 消除手写 lv_mutex_lock/unlock 配对（尤其多分支 return 函数中漏解锁的隐患）。
+ * 用法：
+ *   LV_SCOPE_LOCK(&g_mutex);
+ *   if (error)
+ *       return NULL;   // 自动解锁
+ *
+ * 条件加锁（可能不加锁）用法：
+ *   lvLockGuard _guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
+ *   if (need_lock)
+ *       lv_lock_guard_init(&_guard, &mutex);   // 离开作用域时若未加锁则 no-op
+ */
+#define LV_SCOPE_LOCK(mutex)                                                     \
+    lvLockGuard _lv_scope_guard_ __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {(mutex)}; \
+    lv_mutex_lock((mutex))
+#else
+/* MSVC 不支持 cleanup 属性：退化为手动配对，离开作用域不自动解锁，需配合 goto cleanup */
+#define LV_SCOPE_LOCK(mutex) lvLockGuard _lv_scope_guard_; lv_lock_guard_init(&_lv_scope_guard_, (mutex))
+#endif
+
 /* ═══════════════════════════════════════════════════════════════════
  * 第 3 节：条件变量（Condition Variable）
  * ═══════════════════════════════════════════════════════════════════ */

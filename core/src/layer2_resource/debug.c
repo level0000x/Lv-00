@@ -30,4 +30,6 @@
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
 
+/* 注：debug 模块无 setter 函数（debug_stream_ctx 由 debug_emergency.c 等直接 extern 引用），
+ * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */
 lv_THREAD_LOCAL StreamContext *debug_stream_ctx = NULL;

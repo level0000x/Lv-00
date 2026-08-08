@@ -27,13 +27,10 @@
 #include "interop_export_internal.h" /* 公共信任颜色全字段表 kTrustColorEntries */
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
 
 /** @brief interop 模块全局流式上下文定义（供所有 interop 子模块通过 interop.h 的 extern 引用） */
-lv_THREAD_LOCAL StreamContext *interop_stream_ctx = NULL;
-
-void interop_set_stream_context(StreamContext *ctx) {
-    interop_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(interop);
 
 /* ── VTable 命令分发 ── */
 

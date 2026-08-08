@@ -15,6 +15,7 @@ extern "C" {
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv/lv_platform.h"
+#include "lv/lv_thread.h" /* lv_mutex_t / LV_SCOPE_LOCK */
 
 /* Thread-local stream context (defined in debug.c) */
 extern lv_THREAD_LOCAL StreamContext *debug_stream_ctx;
@@ -72,6 +73,13 @@ void debug_refcount_lock(void);
 void debug_refcount_unlock(void);
 #define debug_lock_refcount debug_refcount_lock
 #define debug_unlock_refcount debug_refcount_unlock
+
+/* 作用域锁守卫辅助：getter 内部先 lv_once 初始化互斥锁（与 log_lock 语义一致），
+ * 返回互斥锁指针供 LV_SCOPE_LOCK 使用；离开作用域（含任意 return）自动解锁。 */
+lv_mutex_t *debug_log_mutex(void);
+lv_mutex_t *debug_counter_mutex(void);
+#define DEBUG_LOG_LOCK_GUARD() LV_SCOPE_LOCK(debug_log_mutex())
+#define DEBUG_COUNTER_LOCK_GUARD() LV_SCOPE_LOCK(debug_counter_mutex())
 const char *log_level_string(LogLevel level);
 const char *get_home_dir(void);
 int create_directory(const char *path);

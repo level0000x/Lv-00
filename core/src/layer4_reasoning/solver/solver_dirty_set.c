@@ -12,6 +12,7 @@
 #include "solver_common.h"
 #include "lv/solver_dirty_set.h"
 #include "lv/lv_utils.h" /* lv_dirty_set（header-only，lv_utils.h 内联实现） */
+#include "lv/lv_hashtable.h" /* 第三遍传播查重用的哈希集合（i64 键） */
 
 /* ================================================================== */
 /*  脏变量集合（共享实现，供增量求解模块使用）                          */
@@ -103,26 +104,46 @@ void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, Equat
     }
 
     /* 第三遍: 添加与相关变量共享同一节点的方程
-     * (同一节点的 x 和 y 坐标是耦合的) */
+     * (同一节点的 x 和 y 坐标是耦合的)。
+     * 用哈希集合存 filtered 的 (var_node_id, coord_index) 组合键，
+     * 查重从 O(n*m) 线性扫描降为 O(1)（过滤结果与顺序完全不变）。 */
+    lvHashtable *seen = lv_hashtable_i64_create(filtered->eqs.count > 0 ? filtered->eqs.count : 8);
+    if (!seen) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "hashtable create failed (OOM)");
+        dirty_set_free(&related);
+        return;
+    }
+
+    /* 预填充第一遍已加入 filtered 的所有键 */
+    for (int j = 0; j < filtered->eqs.count; j++) {
+        PolyEquation *fj = ((PolyEquation *)lv_darray_get(&filtered->eqs, j));
+        int64_t fk = ((int64_t)(uint32_t) fj->var_node_id << 32) | (uint32_t) fj->coord_index;
+        if (!lv_hashtable_i64_contains(seen, fk) && !lv_hashtable_i64_insert(seen, fk, (void *) (intptr_t) 1)) {
+            lv_set_error(lv_ERROR_OUT_OF_MEMORY, "hashtable insert failed (OOM)");
+            lv_hashtable_i64_destroy(seen);
+            dirty_set_free(&related);
+            return;
+        }
+    }
+
     for (int i = 0; i < sys->eqs.count; i++) {
         PolyEquation *pe = ((PolyEquation *)lv_darray_get(&sys->eqs, i));
         if (pe->poly.degree < 0)
             continue;
         if (dirty_set_contains(&related, pe->var_node_id)) {
-            /* 检查是否已在 filtered 中 */
-            bool found = false;
-            for (int j = 0; j < filtered->eqs.count; j++) {
-                PolyEquation *fj = ((PolyEquation *)lv_darray_get(&filtered->eqs, j));
-                if (poly_eq_same_key(fj->var_node_id, fj->coord_index,
-                                     pe->var_node_id, pe->coord_index)) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
+            int64_t pk = ((int64_t)(uint32_t) pe->var_node_id << 32) | (uint32_t) pe->coord_index;
+            /* 检查是否已在 filtered 中（哈希 O(1)） */
+            if (!lv_hashtable_i64_contains(seen, pk)) {
                 if (equation_system_push(filtered, pe->poly, pe->var_node_id,
                                          pe->coord_index) != 0) {
                     lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+                    lv_hashtable_i64_destroy(seen);
+                    dirty_set_free(&related);
+                    return;
+                }
+                if (!lv_hashtable_i64_insert(seen, pk, (void *) (intptr_t) 1)) {
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "hashtable insert failed (OOM)");
+                    lv_hashtable_i64_destroy(seen);
                     dirty_set_free(&related);
                     return;
                 }
@@ -130,5 +151,6 @@ void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, Equat
         }
     }
 
+    lv_hashtable_i64_destroy(seen);
     dirty_set_free(&related);
 }

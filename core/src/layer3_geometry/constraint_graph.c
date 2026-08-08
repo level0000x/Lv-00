@@ -66,11 +66,7 @@
 #include "symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
 
 /** @brief graph 模块全局流式上下文定义（供所有 graph 子模块通过 constraint_graph.h 的 extern 引用） */
-lv_THREAD_LOCAL StreamContext *graph_stream_ctx = NULL;
-
-void graph_set_stream_context(StreamContext *ctx) {
-    graph_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(graph);
 
 /* ── 子模块已拆分至 constraint_graph/ 子目录 ──
  *

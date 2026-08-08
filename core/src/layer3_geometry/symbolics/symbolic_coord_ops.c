@@ -1127,3 +1127,59 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
     /* 其余组合（RATIONAL÷QUADRATIC 提升、RATIONAL↔ALGEBRAIC、QUADRATIC↔ALGEBRAIC）：统一提升分派 */
     return promote_cross_type_dispatch(a, b, symbolic_coord_divide);
 }
+
+/* ========================================================================
+ * 符号几何判定（公共收敛入口）
+ *
+ * 收敛说明：euclidean_geometry_helpers.c 的 symbolic_check_collinear 与
+ * proof_strategy_vector.c 的共线/平行叉积检查共用本实现，证明策略与断言
+ * 行为一致。浮点域判定保留 geo_predicate.c 的 lv_orientation_2d（不同
+ * 精度域，语义独立）。
+ * ======================================================================== */
+
+bool symbolic_coord_are_collinear(const SymbolicCoord *ax, const SymbolicCoord *ay, const SymbolicCoord *bx,
+                                  const SymbolicCoord *by, const SymbolicCoord *cx, const SymbolicCoord *cy) {
+    if (!ax || !ay || !bx || !by || !cx || !cy)
+        return false;
+
+    SymbolicCoord *abx = symbolic_coord_subtract(bx, ax);
+    SymbolicCoord *aby = symbolic_coord_subtract(by, ay);
+    SymbolicCoord *acx = symbolic_coord_subtract(cx, ax);
+    SymbolicCoord *acy = symbolic_coord_subtract(cy, ay);
+    if (!abx || !aby || !acx || !acy) {
+        if (abx)
+            symbolic_coord_destroy(abx);
+        if (aby)
+            symbolic_coord_destroy(aby);
+        if (acx)
+            symbolic_coord_destroy(acx);
+        if (acy)
+            symbolic_coord_destroy(acy);
+        return false;
+    }
+
+    SymbolicCoord *term1 = symbolic_coord_multiply(abx, acy);
+    SymbolicCoord *term2 = symbolic_coord_multiply(aby, acx);
+    SymbolicCoord *cross = NULL;
+    if (term1 && term2) {
+        cross = symbolic_coord_subtract(term1, term2);
+    }
+    if (term1)
+        symbolic_coord_destroy(term1);
+    if (term2)
+        symbolic_coord_destroy(term2);
+    if (abx)
+        symbolic_coord_destroy(abx);
+    if (aby)
+        symbolic_coord_destroy(aby);
+    if (acx)
+        symbolic_coord_destroy(acx);
+    if (acy)
+        symbolic_coord_destroy(acy);
+    if (!cross)
+        return false;
+
+    bool result = symbolic_coord_is_zero(cross);
+    symbolic_coord_destroy(cross);
+    return result;
+}

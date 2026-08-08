@@ -195,68 +195,14 @@ bool euclidean_register_circle_id(EuclideanContext *ctx, int circle_id) {
 }
 
 /**
- * @brief 基于符号坐标计算三点共线的行列式（精确符号模式）
- *
- * 判断三点 A(ax,ay), B(bx,by), C(cx,cy) 是否共线。
- * 使用行列式法：det = (bx - ax)*(cy - ay) - (by - ay)*(cx - ax)
- * 等于 0 表示共线。
- */
-static bool symbolic_check_collinear(SymbolicCoord *ax, SymbolicCoord *ay, SymbolicCoord *bx, SymbolicCoord *by,
-                                     SymbolicCoord *cx, SymbolicCoord *cy) {
-    if (!ax || !ay || !bx || !by || !cx || !cy)
-        return false;
-
-    SymbolicCoord *dx1 = symbolic_coord_subtract(bx, ax);
-    SymbolicCoord *dy1 = symbolic_coord_subtract(cy, ay);
-    if (!dx1 || !dy1) {
-        if (dx1)
-            symbolic_coord_destroy(dx1);
-        if (dy1)
-            symbolic_coord_destroy(dy1);
-        return false;
-    }
-
-    SymbolicCoord *term1 = symbolic_coord_multiply(dx1, dy1);
-    symbolic_coord_destroy(dx1);
-    symbolic_coord_destroy(dy1);
-    if (!term1)
-        return false;
-
-    SymbolicCoord *dx2 = symbolic_coord_subtract(by, ay);
-    SymbolicCoord *dy2 = symbolic_coord_subtract(cx, ax);
-    if (!dx2 || !dy2) {
-        if (dx2)
-            symbolic_coord_destroy(dx2);
-        if (dy2)
-            symbolic_coord_destroy(dy2);
-        symbolic_coord_destroy(term1);
-        return false;
-    }
-
-    SymbolicCoord *term2 = symbolic_coord_multiply(dx2, dy2);
-    symbolic_coord_destroy(dx2);
-    symbolic_coord_destroy(dy2);
-    if (!term2) {
-        symbolic_coord_destroy(term1);
-        return false;
-    }
-
-    SymbolicCoord *diff = symbolic_coord_subtract(term1, term2);
-    symbolic_coord_destroy(term1);
-    symbolic_coord_destroy(term2);
-    if (!diff)
-        return false;
-
-    bool result = symbolic_coord_is_zero(diff);
-    symbolic_coord_destroy(diff);
-    return result;
-}
-
-/**
  * @brief 基于符号坐标判断点 B 是否在 A 和 C 之间
  *
  * 判断条件：B 在 A 和 C 之间 等价于 |AB| + |BC| == |AC|
  * 若 0 < ratio < 1，则 B 在 A 和 C 之间。
+ *
+ * 三点共线判定收敛：委托公共 API symbolic_coord_are_collinear
+ * （symbolic_coord_ops.c，与 proof_strategy_vector.c 的证明策略共用同一
+ * 符号叉积实现，行为一致）。
  */
 static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay, SymbolicCoord *bx, SymbolicCoord *by,
                                    SymbolicCoord *cx, SymbolicCoord *cy, double *out_ratio) {
@@ -267,7 +213,7 @@ static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay, Symboli
     }
 
     /* 首先确认三点共线 */
-    if (!symbolic_check_collinear(ax, ay, bx, by, cx, cy)) {
+    if (!symbolic_coord_are_collinear(ax, ay, bx, by, cx, cy)) {
         if (out_ratio)
             *out_ratio = -1.0;
         return false;

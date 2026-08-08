@@ -42,6 +42,7 @@ extern "C" {
 
 #include "error_codes.h"
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
+#include "lv/lv_hashtable.h" /* 反向索引（node_id -> 约束下标列表） */
 #include "symbolic_coord.h"
 
 /* 前向声明 */
@@ -453,6 +454,21 @@ struct ConstraintGraph {
      * ============================================================ */
     struct lvContext *context; /**< 关联的 lvContext 实例（可选，v3.4.0 新增） */
     bool dirty;                /**< 脏标记：约束被修改时置 true，需同步后置 false */
+
+    /* ================================================================
+     * v3.6.0: 节点 -> 关联约束 反向索引（graph_find_constraints_involving 加速）
+     *
+     * involving_index：惰性构建的哈希索引 node_id -> lvDArray*（约束数组下标列表，
+     * 下标升序，与原线性扫描的输出顺序一致）。
+     * constraints_version 在约束增/删（含数组压缩）时递增；involving_version 记录
+     * 索引构建时的版本。查询时版本不一致则重建（一次重建服务到下次约束变更前的
+     * 所有查询），将 30+ 处热路径的全表线性扫描降为 O(度数)。
+     * 惰性删除：索引保留已废弃（is_active=false）约束的条目，查询时按 is_active
+     * 过滤，与原线性扫描语义完全一致，无需在废弃时维护索引。
+     * ================================================================ */
+    lvHashtable *involving_index; /**< 反向索引（NULL=未构建/构建失败，查询回退线性扫描） */
+    int constraints_version;      /**< 约束集合变更计数（add/remove/压缩时递增） */
+    int involving_version;        /**< 反向索引对应的版本（与 constraints_version 比对） */
 };
 
 typedef enum {

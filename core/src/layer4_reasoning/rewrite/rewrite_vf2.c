@@ -883,8 +883,17 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
             new_con->participant_count = pc->participant_count;
             new_con->participants = mapped_participants;
 
-            pattern_graph->constraints = lv_realloc(
-                pattern_graph->constraints, (size_t) (pattern_graph->constraint_count + 1) * sizeof(Constraint *));
+            /* 倍增扩容：复用 ConstraintGraph 既有 constraint_capacity 字段
+             * （与同函数 node 数组的 lv_ensure_capacity 模式一致），
+             * 消除循环内 +1 realloc 的 O(n^2) 拷贝。 */
+            if (!lv_ensure_capacity((void **) &pattern_graph->constraints, pattern_graph->constraint_count,
+                                    &pattern_graph->constraint_capacity, sizeof(Constraint *), 1)) {
+                lv_free((void **) &new_con->participants);
+                lv_free((void **) &new_con);
+                lv_free((void **) &var_id_to_idx);
+                graph_destroy(pattern_graph);
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: constraints 扩容失败");
+            }
             pattern_graph->constraints[pattern_graph->constraint_count++] = new_con;
         } else {
             lv_free((void **) &mapped_participants);

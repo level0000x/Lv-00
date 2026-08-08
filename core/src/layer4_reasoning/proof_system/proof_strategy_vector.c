@@ -172,45 +172,20 @@ bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 if (pa->coord_count < 2 || pb->coord_count < 2 || pc->coord_count < 2)
                     continue;
 
-                /* 叉积: (pb-pa) x (pc-pa) = (bx-ax)*(cy-ay) - (by-ay)*(cx-ax) */
-                SymbolicCoord *abx = symbolic_coord_subtract(pb->symbolic_coords[0], pa->symbolic_coords[0]);
-                SymbolicCoord *aby = symbolic_coord_subtract(pb->symbolic_coords[1], pa->symbolic_coords[1]);
-                SymbolicCoord *acx = symbolic_coord_subtract(pc->symbolic_coords[0], pa->symbolic_coords[0]);
-                SymbolicCoord *acy = symbolic_coord_subtract(pc->symbolic_coords[1], pa->symbolic_coords[1]);
-
-                if (abx && aby && acx && acy) {
-                    SymbolicCoord *term1 = symbolic_coord_multiply(abx, acy);
-                    SymbolicCoord *term2 = symbolic_coord_multiply(aby, acx);
-                    SymbolicCoord *cross = NULL;
-                    if (term1 && term2) {
-                        cross = symbolic_coord_subtract(term1, term2);
+                /* 收敛：共用公共 API symbolic_coord_are_collinear（symbolic_coord_ops.c，
+                 * 与 euclidean_geometry_helpers.c 断言侧同一符号叉积实现，行为一致）。
+                 * 叉积 (pb-pa) x (pc-pa) 为零 ⇔ 三点共线。 */
+                if (symbolic_coord_are_collinear(pa->symbolic_coords[0], pa->symbolic_coords[1],
+                                                 pb->symbolic_coords[0], pb->symbolic_coords[1],
+                                                 pc->symbolic_coords[0], pc->symbolic_coords[1])) {
+                    ProofStep *cross_step = proof_step_create(PROOF_STEP_REWRITE);
+                    if (cross_step) {
+                        cross_step->color = PROOF_COLOR_GREEN;
+                        cross_step->note = lv_strdup_safe("[向量法] 叉积为零，验证共线关系成立");
+                        proof_navigator_add_step(nav, cross_step);
                     }
-
-                    if (cross && symbolic_coord_is_zero(cross)) {
-                        ProofStep *cross_step = proof_step_create(PROOF_STEP_REWRITE);
-                        if (cross_step) {
-                            cross_step->color = PROOF_COLOR_GREEN;
-                            cross_step->note = lv_strdup_safe("[向量法] 叉积为零，验证共线关系成立");
-                            proof_navigator_add_step(nav, cross_step);
-                        }
-                        verified = true;
-                    }
-
-                    if (cross)
-                        symbolic_coord_destroy(cross);
-                    if (term2)
-                        symbolic_coord_destroy(term2);
-                    if (term1)
-                        symbolic_coord_destroy(term1);
+                    verified = true;
                 }
-                if (acy)
-                    symbolic_coord_destroy(acy);
-                if (acx)
-                    symbolic_coord_destroy(acx);
-                if (aby)
-                    symbolic_coord_destroy(aby);
-                if (abx)
-                    symbolic_coord_destroy(abx);
             }
         }
 
@@ -272,13 +247,15 @@ bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
                                     symbolic_coord_subtract(p4->symbolic_coords[1], p3->symbolic_coords[1]);
 
                                 if (v1x && v1y && v2x && v2y) {
-                                    SymbolicCoord *cross_term1 = symbolic_coord_multiply(v1x, v2y);
-                                    SymbolicCoord *cross_term2 = symbolic_coord_multiply(v1y, v2x);
-                                    SymbolicCoord *cross = NULL;
-                                    if (cross_term1 && cross_term2) {
-                                        cross = symbolic_coord_subtract(cross_term1, cross_term2);
-                                    }
-                                    if (cross && symbolic_coord_is_zero(cross)) {
+                                    /* 收敛：平行 ⇔ 方向向量叉积 v1 x v2 = 0 ⇔ 点 (0,0)、v1、v2 三点共线，
+                                     * 共用公共 API symbolic_coord_are_collinear（symbolic_coord_ops.c，
+                                     * 与共线检查 / 断言侧同一符号叉积实现，行为一致）。 */
+                                    SymbolicCoord *origin = symbolic_coord_create_rational(0, 1);
+                                    bool parallel = origin != NULL &&
+                                                    symbolic_coord_are_collinear(origin, origin, v1x, v1y, v2x, v2y);
+                                    if (origin)
+                                        symbolic_coord_destroy(origin);
+                                    if (parallel) {
                                         ProofStep *para_step = proof_step_create(PROOF_STEP_REWRITE);
                                         if (para_step) {
                                             para_step->color = PROOF_COLOR_GREEN;
@@ -288,12 +265,6 @@ bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
                                         }
                                         verified = true;
                                     }
-                                    if (cross)
-                                        symbolic_coord_destroy(cross);
-                                    if (cross_term2)
-                                        symbolic_coord_destroy(cross_term2);
-                                    if (cross_term1)
-                                        symbolic_coord_destroy(cross_term1);
                                 }
                                 if (v2y)
                                     symbolic_coord_destroy(v2y);

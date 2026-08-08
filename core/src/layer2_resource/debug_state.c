@@ -123,6 +123,12 @@ void log_unlock(void) {
     lv_mutex_unlock(&s_debug_state.log_mutex);
 }
 
+/* 作用域守卫用互斥锁 getter（内部先 lv_once 初始化，与 log_lock 语义一致） */
+lv_mutex_t *debug_log_mutex(void) {
+    lv_once(&s_debug_state.log_once, log_mutex_init_func);
+    return &s_debug_state.log_mutex;
+}
+
 /* 性能计数器加锁 */
 void counter_lock(void) {
     lv_once(&s_debug_state.counter_once, counter_mutex_init_func);
@@ -131,6 +137,12 @@ void counter_lock(void) {
 
 void counter_unlock(void) {
     lv_mutex_unlock(&s_debug_state.counter_mutex);
+}
+
+/* 作用域守卫用互斥锁 getter（内部先 lv_once 初始化，与 counter_lock 语义一致） */
+lv_mutex_t *debug_counter_mutex(void) {
+    lv_once(&s_debug_state.counter_once, counter_mutex_init_func);
+    return &s_debug_state.counter_mutex;
 }
 
 /* 引用计数加锁/解锁（复用 counter_mutex） */

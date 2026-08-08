@@ -57,6 +57,8 @@
 
 /* ==================== 内部常量 ==================== */
 
+/* 注：high_dim 模块无 setter 函数（变量被 high_dim_preset.c 等直接 extern 引用），
+ * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */
 lv_THREAD_LOCAL StreamContext *high_dim_stream_ctx = NULL;
 
 /**

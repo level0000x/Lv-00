@@ -6,12 +6,13 @@ extern "C" {
 #endif
 
 #include "lv/lv_platform.h"
+#include "lv/lv_utils.h" /* GEO_EVENT_DEFAULT_TOL 语义别名 = lv_EPSILON_DOUBLE */
 #include <stdbool.h>
 #include <stdint.h>
 
 /* ── Constants ── */
 #define GEO_EVENT_MAX_EVENTS 128
-#define GEO_EVENT_DEFAULT_TOL 1e-12
+#define GEO_EVENT_DEFAULT_TOL lv_EPSILON_DOUBLE /* 事件检测默认容差（语义别名 = lv_EPSILON_DOUBLE，1e-12） */
 #define GEO_EVENT_MAX_ROOT_ITERS 100
 
 /* ── Root-finding method ── */

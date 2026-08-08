@@ -210,6 +210,8 @@ static Constraint *constraint_alloc_internal(ConstraintGraph *graph, ConstraintT
 
     graph->constraints[graph->constraint_count++] = con;
     graph_constraint_index_insert(graph, con);
+    /* 反向索引版本失效：约束集合已变更，下次查询时惰性重建 */
+    graph->constraints_version++;
     return con;
 }
 

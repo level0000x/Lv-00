@@ -32,16 +32,13 @@
 #include "lv_utils.h"
 #include "module.h"
 #include "stream.h"
+#include "stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
 #include "symbolic_coord.h"
 
 /* ============== 模块实例结构体定义 ============== */
 #include "lv/module_internal.h"
 
-lv_THREAD_LOCAL StreamContext *module_stream_ctx = NULL;
-
-void module_set_stream_context(StreamContext *ctx) {
-    module_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(module);
 
 /* FNV-1a 哈希常量已在 lv_internal.h 中统一定义为 lv_FNV64_OFFSET_BASIS / lv_FNV64_PRIME；
  * 移除重复的 #ifndef 回退定义，直接使用统一定义。 */

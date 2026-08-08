@@ -25,6 +25,8 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
+/* 注：formula_converter 模块无 setter 函数（变量被 formula_converter_constraint.c 等直接 extern 引用），
+ * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */
 lv_THREAD_LOCAL StreamContext *formula_converter_stream_ctx = NULL;
 
 /* ============================================================
@@ -38,10 +40,8 @@ typedef struct {
 
 /* 注意：此全局变量已使用线程本地存储，每线程独立副本。
  * 若需跨线程共享变量映射，需额外使用互斥锁保护。
- * 动态扩容（TLS 指针 + 惰性分配），消除 MAX_VAR_MAP_SIZE 定长上限。 */
-static lv_THREAD_LOCAL VarMapEntry *g_var_map = NULL;
-static lv_THREAD_LOCAL int g_var_map_count = 0;
-static lv_THREAD_LOCAL int g_var_map_capacity = 0;
+ * 动态扩容（lvTlsVector：TLS 指针 + 计数 + 容量，惰性分配），消除 MAX_VAR_MAP_SIZE 定长上限。 */
+static lv_THREAD_LOCAL lvTlsVector g_var_map = {0};
 
 /**
  * @brief 根据变量名查询节点 ID
@@ -53,9 +53,10 @@ int formula_get_node_id(const char *var_name) {
     if (!var_name)
         return -1;
 
-    for (int i = 0; i < g_var_map_count; i++) {
-        if (strcmp(g_var_map[i].name, var_name) == 0) {
-            return g_var_map[i].node_id;
+    const VarMapEntry *arr = (const VarMapEntry *) g_var_map.ptr;
+    for (int i = 0; i < g_var_map.count; i++) {
+        if (strcmp(arr[i].name, var_name) == 0) {
+            return arr[i].node_id;
         }
     }
     return -1;
@@ -71,31 +72,40 @@ void formula_set_node_id(const char *var_name, int node_id) {
     if (!var_name)
         return;
 
+    VarMapEntry *arr = (VarMapEntry *) g_var_map.ptr;
     /* 检查是否已存在 */
-    for (int i = 0; i < g_var_map_count; i++) {
-        if (strcmp(g_var_map[i].name, var_name) == 0) {
-            g_var_map[i].node_id = node_id;
+    for (int i = 0; i < g_var_map.count; i++) {
+        if (strcmp(arr[i].name, var_name) == 0) {
+            arr[i].node_id = node_id;
             return;
         }
     }
 
     /* 添加新条目（动态扩容，替代原 MAX_VAR_MAP_SIZE 满表静默丢弃） */
-    if (g_var_map_count >= g_var_map_capacity) {
-        if (!lv_ensure_capacity((void **) &g_var_map, g_var_map_count,
-                                &g_var_map_capacity, sizeof(VarMapEntry), 0))
-            return;
-    }
+    if (!lv_tls_vector_ensure(&g_var_map, g_var_map.count + 1, sizeof(VarMapEntry)))
+        return;
+    /* 扩容可能 realloc，重新取指针 */
+    arr = (VarMapEntry *) g_var_map.ptr;
     /* 使用 lv_strlcpy 替代不安全的 strncpy，自动保证零终止 */
-    lv_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
-    g_var_map[g_var_map_count].node_id = node_id;
-    g_var_map_count++;
+    lv_strlcpy(arr[g_var_map.count].name, var_name, MAX_NAME_LENGTH);
+    arr[g_var_map.count].node_id = node_id;
+    g_var_map.count++;
 }
 
 /**
- * @brief 清空变量映射表
+ * @brief 清空变量映射表（保留缓冲区供复用）
  */
 void formula_clear_var_map(void) {
-    g_var_map_count = 0;
+    lv_tls_vector_clear(&g_var_map);
+}
+
+/**
+ * @brief 释放变量映射表的堆缓冲区（lv_cleanup 时调用，防 TLS 堆表泄漏）
+ * @note 池化工作线程退出时无 TLS 析构钩子，其副本由线程生命周期持有；
+ *       主线程副本在此函数中回收。
+ */
+void formula_converter_util_cleanup(void) {
+    lv_tls_vector_cleanup(&g_var_map);
 }
 
 /* ============================================================

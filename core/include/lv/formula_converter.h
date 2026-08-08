@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_converter.h
  * @brief 公式与约束图之间的双向转换
  *
@@ -86,6 +86,10 @@ void formula_set_node_id(const char *var_name, int node_id);
  * @brief 清除所有变量名映射
  */
 void formula_clear_var_map(void);
+/**
+ * @brief 释放变量映射表的 TLS 堆缓冲区（lv_cleanup 时调用，防泄漏）
+ */
+void formula_converter_util_cleanup(void);
 /* ============================================================
  * 辅助转换函数
  * ============================================================ */

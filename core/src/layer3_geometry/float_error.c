@@ -45,6 +45,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "symbolic_coord.h"
+#include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference / lv_NUMERICAL_DIFF_EPSILON） */
 
 /* ========================================================================
  * 内部常量
@@ -603,6 +604,24 @@ static double evaluate_expression(const char *expr, const double *var_values, in
  * 一阶泰勒展开（有限差分近似）
  * ======================================================================== */
 
+/* 有限差分回调上下文：表达式 + 中心点变量值（只读）+ 复用工作缓冲。
+ * 扰动在 work 副本上进行，不修改调用方的 center_vals 数组。 */
+typedef struct {
+    const char *expr;        /**< 表达式字符串 */
+    const double *center_vals; /**< 中心点各变量值（只读） */
+    int var_count;           /**< 变量数量 */
+    int var_idx;             /**< 被求导变量索引 */
+    double *work;            /**< 扰动工作缓冲（var_count 个 double，两次扰动复用） */
+} LvFdExprCtx;
+
+/** @brief 表达式求值回调：将第 var_idx 个变量设为 x 后求值（供 lv_finite_difference 使用） */
+static double expr_eval_at_x(double x, void *userdata) {
+    LvFdExprCtx *ctx = (LvFdExprCtx *) userdata;
+    memcpy(ctx->work, ctx->center_vals, (size_t) ctx->var_count * sizeof(double));
+    ctx->work[ctx->var_idx] = x;
+    return evaluate_expression(ctx->expr, ctx->work, ctx->var_count);
+}
+
 /**
  * @brief 使用有限差分计算一阶偏导数
  *
@@ -641,32 +660,22 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
      * 有限精度（约 15-17 位有效数字）会回落到 x_c。
      * 当 |x_c| 很小时（如 1e-15），步长又可能过度扰动。
      *
-     * 自适应公式：h = sqrt(DBL_EPSILON) * max(1.0, fabs(x_c)) */
+     * 自适应公式：h = sqrt(DBL_EPSILON) * max(1.0, fabs(x_c))
+     * （sqrt(DBL_EPSILON) 与公共基准 lv_NUMERICAL_DIFF_EPSILON=1e-8 量级一致，
+     *   此处保留原值作为中心差分 O(h^2) 截断/舍入平衡的语义别名，见 lv_numeric.h） */
     double h = sqrt(DBL_EPSILON) * fmax(1.0, fabs(x_c));
 
-    /* 扰动后的变量值缓冲区：动态分配，消除 MAX_EQUATIONS 上限 */
-    double *perturbed = (double *) lv_malloc((size_t) var_count * sizeof(double));
-    if (!perturbed)
+    LvFdExprCtx ctx = {expr, center_vals, var_count, var_idx, NULL};
+    ctx.work = (double *) lv_malloc((size_t) var_count * sizeof(double));
+    if (!ctx.work)
         return NAN;
 
-    /* 计算 f(..., xi+h, ...) */
-    memcpy(perturbed, center_vals, (size_t) var_count * sizeof(double));
-    perturbed[var_idx] = x_c + h;
-    double f_plus = evaluate_expression(expr, perturbed, var_count);
+    /* 中心差分：(f(x_c+h) - f(x_c-h)) / (2h)，由公共工具 lv_finite_difference 计算 */
+    double df = lv_finite_difference(expr_eval_at_x, x_c, h, lv_FD_CENTRAL, &ctx);
 
-    /* 计算 f(..., xi-h, ...) */
-    perturbed[var_idx] = x_c - h;
-    double f_minus = evaluate_expression(expr, perturbed, var_count);
+    lv_free((void **) &ctx.work);
 
-    lv_free((void **) &perturbed);
-
-    /* 若任一求值失败，返回 NaN */
-    if (isnan(f_plus) || isnan(f_minus)) {
-        return NAN;
-    }
-
-    /* 中心差分公式：(f(x+h) - f(x-h)) / (2h) */
-    return (f_plus - f_minus) / (2.0 * h);
+    return df;
 }
 
 /**

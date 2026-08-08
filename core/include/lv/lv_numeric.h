@@ -41,8 +41,14 @@ extern "C" {
 /** @brief 自然常数 e */
 #define lv_E 2.71828182845904523536
 
-/** @brief 默认浮点比较精度阈值 */
-#define lv_EPSILON 1e-12
+/**
+ * @brief 默认浮点比较精度阈值
+ *
+ * 语义别名 = lv_EPSILON_DOUBLE（lv_utils.h，1e-12）。本文件未包含
+ * lv_utils.h，此宏在核心代码中无使用点（仅 lv-formal Lean 侧引用），
+ * 展开时需保证 lv_utils.h 已可见。
+ */
+#define lv_EPSILON lv_EPSILON_DOUBLE
 
 /** @brief 正无穷大 */
 #define lv_INFINITY INFINITY
@@ -211,6 +217,104 @@ lv_PUBLIC_API double lv_evaluate_cubic(double a, double b, double c, double d, d
  * @param v 输入 double 值
  */
 lv_PUBLIC_API void lv_mpq_set_d_checked(mpq_t q, double v);
+
+/* ============================================================
+ * 有限差分工具（数值微分，统一 4 处手写差分实现）
+ * ============================================================ */
+
+/**
+ * @brief 统一数值差分步长基准常量。
+ *
+ * 收敛来源（原三处独立常量，量级一致 ~1e-8）：
+ * - geo_constraint_solver_newton.c 的 NUMERICAL_DIFF_EPSILON（1e-8）
+ * - geom_evol.c BDF 雅可比构建的 fd_eps（1e-8）
+ * - float_error.c 中心差分的 sqrt(DBL_EPSILON)（≈1.49e-8）
+ *
+ * 统一取 1e-8 作为默认相对步长基准。各调用方如需保持历史数值行为，
+ * 可显式传入自定义步长 h 或自有 eps（如 float_error.c 保留
+ * sqrt(DBL_EPSILON) 作为中心差分 O(h^2) 截断/舍入平衡的语义别名）。
+ */
+#define lv_NUMERICAL_DIFF_EPSILON 1e-8
+
+/** @brief 有限差分格式 */
+typedef enum lvDiffScheme {
+    lv_FD_CENTRAL = 0, /**< 中心差分 (f(x+h)-f(x-h))/(2h)，截断误差 O(h^2) */
+    lv_FD_FORWARD = 1  /**< 前向差分 (f(x+h)-f(x))/h，截断误差 O(h) */
+} lvDiffScheme;
+
+/**
+ * @brief 标量函数回调：给定扰动后的自变量值 x，返回函数值 f(x)。
+ * @param x        扰动后的自变量值
+ * @param userdata 函数上下文（表达式、变量数组等）
+ * @return f(x)；求值失败返回 NaN
+ */
+typedef double (*lvFdFunc)(double x, void *userdata);
+
+/**
+ * @brief 向量函数回调：F: R -> R^n，给定扰动后的自变量值 x，
+ *        将 n 个输出分量写入 out。
+ * @param x        扰动后的自变量值
+ * @param userdata 函数上下文
+ * @param out      输出数组（长度 >= n）
+ * @param n        输出分量数
+ * @return 0 表示成功，非 0 表示求值失败
+ */
+typedef int (*lvFdVecFunc)(double x, void *userdata, double *out, int n);
+
+/**
+ * @brief 标量函数 f 在 x 处的一阶导数（有限差分近似）。
+ *
+ * - h > 0：使用调用方自定义步长（绝对量，扰动点为 x+h / x-h）；
+ * - h <= 0：使用默认自适应策略 h = lv_NUMERICAL_DIFF_EPSILON * max(1, |x|)。
+ *
+ * @param f       标量函数回调（不可为 NULL）
+ * @param x       求导中心点
+ * @param h       步长（<= 0 时使用默认策略）
+ * @param scheme  差分格式（中心/前向）
+ * @param userdata 透传给 f 的上下文
+ * @return 一阶导数近似值；f 在任一扰动点返回 NaN 时返回 NaN
+ */
+lv_PUBLIC_API double lv_finite_difference(lvFdFunc f, double x, double h, lvDiffScheme scheme, void *userdata);
+
+/**
+ * @brief 向量函数 F(x)=(F_0(x),...,F_{n-1}(x)) 的一阶导数（逐分量有限差分）。
+ *
+ * 一次扰动求值得到整向量，再对每个分量做差分，避免逐分量重复求值。
+ * h 语义与 lv_finite_difference 相同（h <= 0 使用默认自适应策略）。
+ *
+ * @param fn       向量函数回调（不可为 NULL，返回 0 成功）
+ * @param userdata 透传给 fn 的上下文
+ * @param x        求导中心点
+ * @param h        步长（<= 0 时使用默认策略）
+ * @param scheme   差分格式（中心/前向）
+ * @param f_base   可选：x 处的基准函数值 F(x)（长度 >= n），
+ *                 NULL 时内部计算；仅 lv_FD_FORWARD 使用
+ * @param df       输出导数向量（长度 >= n）
+ * @param n        向量维度
+ * @return 0 成功；回调失败或分配失败返回 -1（df 内容不变）
+ */
+lv_PUBLIC_API int lv_finite_difference_vec(lvFdVecFunc fn, void *userdata, double x, double h, lvDiffScheme scheme,
+                                           const double *f_base, double *df, int n);
+
+/**
+ * @brief 自适应相对步长：eps * max(1, |x|)。
+ *
+ * 原语义：float_error.c finite_difference_partial 与
+ * geo_constraint_solver_newton.c build_jacobian_and_residual 的自适应步长策略，
+ * 保证 |x| 很大时扰动仍可区分、|x| 很小时不放大扰动。
+ */
+static inline double lv_fd_step_adaptive(double x, double eps) {
+    return eps * fmax(1.0, fabs(x));
+}
+
+/**
+ * @brief 相对步长（|x|+1 型）：eps * (|x| + 1)。
+ *
+ * 原语义：geom_evol.c BDF 雅可比构建的扰动步长，保证 |x|+1 > 1。
+ */
+static inline double lv_fd_step_relative(double x, double eps) {
+    return eps * (fabs(x) + 1.0);
+}
 
 #ifdef __cplusplus
 }

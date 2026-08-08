@@ -12,6 +12,7 @@ extern "C" {
 
 #include "lv/lv_platform.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_numeric.h" /* lv_NUMERICAL_DIFF_EPSILON（有限差分步长基准） */
 #include "lv/geo_constraint_solver.h"
 #include "lv/config.h"
 #include "lv_utils.h"
@@ -25,7 +26,9 @@ extern "C" {
 
 /* ---- shared constants ---- */
 #define INITIAL_CAPACITY 16
-#define NUMERICAL_DIFF_EPSILON 1e-8
+/* 统一引用公共数值差分步长基准（见 lv/lv_numeric.h 的 lv_NUMERICAL_DIFF_EPSILON，
+ * 原独立定义 1e-8，与 geom_evol.c fd_eps / float_error.c sqrt(DBL_EPSILON) 量级一致） */
+#define NUMERICAL_DIFF_EPSILON lv_NUMERICAL_DIFF_EPSILON
 #define MAX_PARAMS 64
 #define ID_HASH_TABLE_SIZE 512
 #define HASH_LOAD_FACTOR_MAX 0.75

@@ -11,6 +11,7 @@
 #define EUCLIDEAN_GEOMETRY_INTERNAL_H
 
 #include "euclidean_geometry.h"
+#include "lv/config.h" /* EUCLID_COLLINEARITY_EPSILON = lv_EPSILON_HIGH / EUCLID_CONGRUENCE_TOLERANCE = lv_GEO_DISTANCE_EPSILON */
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,11 +27,11 @@ extern "C" {
 /** @brief 等价性证明链的默认翻译映射容量 */
 #define EUCLID_EQUIV_TRANSLATION_CAPACITY 32
 
-/** @brief 共线性验证的默认浮点容差 */
-#define EUCLID_COLLINEARITY_EPSILON 1e-10
+/** @brief 共线性验证的默认浮点容差（语义别名 = config.h lv_EPSILON_HIGH，1e-10） */
+#define EUCLID_COLLINEARITY_EPSILON lv_EPSILON_HIGH
 
-/** @brief 线段全等验证的默认百分比容差 */
-#define EUCLID_CONGRUENCE_TOLERANCE 1e-8
+/** @brief 线段全等验证的默认百分比容差（语义别名 = config.h lv_GEO_DISTANCE_EPSILON，1e-8） */
+#define EUCLID_CONGRUENCE_TOLERANCE lv_GEO_DISTANCE_EPSILON
 
 /**
  * @brief 公理位掩码的分组偏移量

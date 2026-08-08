@@ -42,6 +42,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "numerical_backend.h"
+#include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference_vec / lv_fd_step_relative / lv_NUMERICAL_DIFF_EPSILON） */
 
 /* ========================================================================
  * 模块级常量定义
@@ -475,6 +476,25 @@ static int geoevol_step_adams(lvGeomEvol *evol, double h, const double *y, doubl
  * Newton 迭代参数：最大 10 次，收敛容限 1e-10。
  * 若 Newton 不收敛，缩减步长并重试。
  */
+
+/* BDF 有限差分回调上下文：在 y_base 副本上扰动第 var_idx 个分量后求 RHS */
+typedef struct {
+    lvGeomEvol *evol;     /**< 演化引擎 */
+    double t_next;        /**< 下一时刻 t + h */
+    const double *y_base; /**< 未扰动基准向量（= y_new，只读） */
+    int var_idx;          /**< 被扰动的分量索引 */
+    double *y_work;       /**< 扰动工作向量（dim 个 double） */
+} GeoevolBdfFdCtx;
+
+/** @brief BDF RHS 求值回调：将第 var_idx 个分量设为 x_perturb 后求 f(t_{n+1}, y)
+ *         （供 lv_finite_difference_vec 使用，返回 0 成功） */
+static int geoevol_bdf_rhs_cb(double x_perturb, void *userdata, double *out, int n) {
+    GeoevolBdfFdCtx *ctx = (GeoevolBdfFdCtx *) userdata;
+    memcpy(ctx->y_work, ctx->y_base, (size_t) n * sizeof(double));
+    ctx->y_work[ctx->var_idx] = x_perturb;
+    return geoevol_rhs_eval(ctx->evol, ctx->t_next, ctx->y_work, out);
+}
+
 static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double *y_out) {
     int dim = evol->dim;
     int max_ord = GEOEVOL_ADAMS_MAX_ORDER;
@@ -493,8 +513,8 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     /* Newton 迭代参数 */
     const int newton_max_iter = 10;
     const double newton_tol = lv_EPSILON_HIGH;
-    /* 有限差分 Jacobian 的扰动步长 */
-    const double fd_eps = 1e-8;
+    /* 有限差分 Jacobian 的扰动步长基准（原硬编码 1e-8，统一引用公共常量 lv_NUMERICAL_DIFF_EPSILON） */
+    const double fd_eps = lv_NUMERICAL_DIFF_EPSILON;
 
     /* ── 启动阶段：历史不足时使用 RK4 生成初始历史点 ── */
     if (evol->ms_hist_count < max_ord - 1) {
@@ -527,7 +547,8 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     double *G = NULL;       /* 残差函数值 */
     double *delta = NULL;   /* Newton 修正量 */
     double *f_new = NULL;   /* f(t_{n+1}, y_new) */
-    double *f_pert = NULL;  /* 有限差分扰动 RHS */
+    double *y_pert = NULL;  /* 有限差分扰动工作向量（回调内使用） */
+    double *J_col = NULL;   /* 有限差分 Jacobian 临时列缓冲 */
     double *rhs_sum = NULL; /* 历史项累加 */
     double *J = NULL;       /* 稠密 Jacobian 矩阵（行优先存储） */
     int *piv = NULL;        /* LU 分解主元数组 */
@@ -536,7 +557,8 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     lv_DEFER(lv_defer_free_ptr, &G);
     lv_DEFER(lv_defer_free_ptr, &delta);
     lv_DEFER(lv_defer_free_ptr, &f_new);
-    lv_DEFER(lv_defer_free_ptr, &f_pert);
+    lv_DEFER(lv_defer_free_ptr, &y_pert);
+    lv_DEFER(lv_defer_free_ptr, &J_col);
     lv_DEFER(lv_defer_free_ptr, &rhs_sum);
     lv_DEFER(lv_defer_free_ptr, &J);
     lv_DEFER(lv_defer_free_ptr, &piv);
@@ -546,9 +568,10 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
     G = lv_malloc((size_t) dim * sizeof(double));
     delta = lv_malloc((size_t) dim * sizeof(double));
     f_new = lv_malloc((size_t) dim * sizeof(double));
-    f_pert = lv_malloc((size_t) dim * sizeof(double));
+    y_pert = lv_malloc((size_t) dim * sizeof(double));
+    J_col = lv_malloc((size_t) dim * sizeof(double));
     rhs_sum = lv_malloc((size_t) dim * sizeof(double));
-    if (!y_new || !G || !delta || !f_new || !f_pert || !rhs_sum)
+    if (!y_new || !G || !delta || !f_new || !y_pert || !J_col || !rhs_sum)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "BDF temporary space allocation failed");
 
     /* 计算历史项累加：sum_{j=1}^{order} gamma_j * y_{n+1-j} */
@@ -605,23 +628,28 @@ static int geoevol_step_bdf(lvGeomEvol *evol, double h, const double *y, double 
                 goto cleanup_bdf;
             }
 
-            /* 逐列构建 Jacobian：对每个变量 y_j 做有限差分扰动 */
+            /* 逐列构建 Jacobian：对每个变量 y_j 做有限差分扰动
+             *
+             * 使用公共工具 lv_finite_difference_vec（正向差分），
+             * 基准 RHS 复用当前迭代点已算好的 f_new（f_base 参数），
+             * 扰动步长策略保持原样：pert = fd_eps * (|y_j| + 1)。
+             * 求值次数与向量形态与原实现一致（每列一次扰动求值）。 */
+            GeoevolBdfFdCtx fd_ctx = {evol, evol->t + h, y_new, 0, y_pert};
             for (int j = 0; j < dim; ++j) {
-                double y_save_j = y_new[j];
-                double pert = fd_eps * (fabs(y_save_j) + 1.0);
-                y_new[j] = y_save_j + pert;
+                double y_j = y_new[j];
+                double pert = lv_fd_step_relative(y_j, fd_eps);
+                fd_ctx.var_idx = j;
 
-                ret = geoevol_rhs_eval(evol, evol->t + h, y_new, f_pert);
+                ret = lv_finite_difference_vec(geoevol_bdf_rhs_cb, &fd_ctx, y_j, pert, lv_FD_FORWARD, f_new,
+                                               J_col, dim);
                 if (ret != 0) {
-                    y_new[j] = y_save_j;
-                    /* J 由 lv_DEFER 守卫在函数出口统一释放，此处不再手动 free */
+                    /* J 等临时数组由 lv_DEFER 守卫在函数出口统一释放，此处不再手动 free */
                     goto cleanup_bdf;
                 }
-                y_new[j] = y_save_j;
 
                 /* J_{ij} = gamma_0 * delta_{ij} - h * (f_pert[i] - f_new[i]) / pert */
                 for (int i = 0; i < dim; ++i) {
-                    double dfdy = (f_pert[i] - f_new[i]) / pert;
+                    double dfdy = J_col[i];
                     J[i * dim + j] = (i == j) ? (gamma0 - h * dfdy) : (-h * dfdy);
                 }
             }

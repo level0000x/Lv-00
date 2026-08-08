@@ -20,6 +20,19 @@
  * @details 将多项式系数在 SymbolicCoord 值上逐项求值并累加。
  *          多项式 p(x) = Σ coeffs[i] * x^i，每项用 symbolic_coord_pow 和
  *          symbolic_coord_multiply 计算，最后用 symbolic_coord_add 累加。
+ *
+ *          性能注记（评估于 2026-08，保持原语义未改）：
+ *          - 现状：每项从零重算 value^i（O(degree^2) 乘法工作量）+ 4 次堆分配。
+ *          - 已评估 Horner 化 / 幂迭代（power *= value）优化但放弃，原因：
+ *            1) symbolic_coord_pow 为类型分派实现（rational 走 mpz_pow_ui；
+ *               algebraic 走有理化/边界细化/二次解析公式/极小多项式），
+ *               与乘积累积产生不同的表达式结构，影响 trust 传播与下游比较；
+ *            2) pow 有指数上限（SYMBOLIC_COORD_POW_MAX_EXPONENT，DoS 防护），
+ *               改动后该错误语义（lv_ERROR_SYMBOLIC_EVAL_FAILED）会消失；
+ *            3) 数值虽然精确一致，但 SymbolicCoord 结果结构/信任等级变化
+ *               可能改变下游行为（结构比较、哈希、信任门控）。
+ *          如需优化，须先逐类型验证 symbolic_coord_pow 与乘法的
+ *          结构/信任等价性，再做受控变更。
  * @param poly  整数系数多项式
  * @param value 求值点（符号坐标）
  * @return 求值结果（新分配的 SymbolicCoord），失败返回 NULL

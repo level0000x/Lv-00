@@ -201,16 +201,15 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         return NULL;
     }
 
+    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁，杜绝漏解锁 */
+    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
     if (pool->thread_safe) {
-        lv_mutex_lock(&pool->mutex);
+        lv_lock_guard_init(&_pool_guard, &pool->mutex);
     }
 
     /* 空闲链表为空，需要扩展 */
     if (!pool->free_list) {
         if (!pool->auto_grow) {
-            if (pool->thread_safe) {
-                lv_mutex_unlock(&pool->mutex);
-            }
             return NULL;
         }
 
@@ -222,9 +221,6 @@ void *lv_pool_alloc(lvObjectPool *pool) {
             /* 第一次：扩容 blocks */
             if (!lv_ensure_capacity((void **) &pool->blocks, cap, &cap,
                                     sizeof(void *), 1)) {
-                if (pool->thread_safe) {
-                    lv_mutex_unlock(&pool->mutex);
-                }
                 return NULL;
             }
             int blocks_cap = cap; /* blocks 的新容量 */
@@ -241,9 +237,6 @@ void *lv_pool_alloc(lvObjectPool *pool) {
                     pool->blocks = shrunk;
                 }
                 /* pool->blocks 始终有效（要么是 shrunk，要么是新块） */
-                if (pool->thread_safe) {
-                    lv_mutex_unlock(&pool->mutex);
-                }
                 return NULL;
             }
             pool->block_capacity = (size_t) blocks_cap;
@@ -252,26 +245,17 @@ void *lv_pool_alloc(lvObjectPool *pool) {
         /* 分配新内存块 */
         /* [Bug修复] 溢出检查：确保 capacity * GROWTH_FACTOR 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->capacity, lv_POOL_GROWTH_FACTOR)) {
-            if (pool->thread_safe) {
-                lv_mutex_unlock(&pool->mutex);
-            }
             return NULL;
         }
         size_t new_capacity = pool->capacity * lv_POOL_GROWTH_FACTOR;
 
         /* [Bug修复] 溢出检查：确保 object_size * new_capacity 不会溢出 */
         if (lv_SIZE_MUL_OVERFLOW(pool->object_size, new_capacity)) {
-            if (pool->thread_safe) {
-                lv_mutex_unlock(&pool->mutex);
-            }
             return NULL;
         }
         /* 分配新内存块（性能关键路径：保留原生 malloc，避免循环依赖开销） */
         void *block = malloc(pool->object_size * new_capacity);
         if (!block) {
-            if (pool->thread_safe) {
-                lv_mutex_unlock(&pool->mutex);
-            }
             return NULL;
         }
         pool->blocks[pool->block_count] = block;
@@ -294,9 +278,7 @@ void *lv_pool_alloc(lvObjectPool *pool) {
     pool->total_allocs++;
     pool->current_used++;
 
-    if (pool->thread_safe) {
-        lv_mutex_unlock(&pool->mutex);
-    }
+    /* 守卫在函数末尾自动解锁（原提前解锁点，语义等价：临界区无嵌套锁） */
 
     /* 清零对象 */
     memset(node, 0, pool->object_size);
@@ -316,8 +298,10 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
         return true;
     }
 
+    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁 */
+    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
     if (pool->thread_safe) {
-        lv_mutex_lock(&pool->mutex);
+        lv_lock_guard_init(&_pool_guard, &pool->mutex);
     }
 
     /* [归属校验] 校验 obj 是否落在池的内存块内且位于对象边界上。
@@ -333,9 +317,6 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
         }
     }
     if (!belongs) {
-        if (pool->thread_safe) {
-            lv_mutex_unlock(&pool->mutex);
-        }
         void *tmp = obj;
         lv_free(&tmp);
         return true;
@@ -349,10 +330,6 @@ bool lv_pool_free(lvObjectPool *pool, void *obj) {
     if (pool->current_used > 0)
         pool->current_used--;
 
-    if (pool->thread_safe) {
-        lv_mutex_unlock(&pool->mutex);
-    }
-
     return true;
 }
 
@@ -362,8 +339,10 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
         return;
     }
 
+    /* 作用域锁守卫：离开函数自动解锁 */
+    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
     if (pool->thread_safe) {
-        lv_mutex_lock(&pool->mutex);
+        lv_lock_guard_init(&_pool_guard, &pool->mutex);
     }
 
     if (out_total_allocs)
@@ -372,10 +351,6 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
         *out_total_frees = pool->total_frees;
     if (out_current_used)
         *out_current_used = pool->current_used;
-
-    if (pool->thread_safe) {
-        lv_mutex_unlock(&pool->mutex);
-    }
 }
 
 void lv_pool_clear(lvObjectPool *pool) {
@@ -383,8 +358,10 @@ void lv_pool_clear(lvObjectPool *pool) {
         return;
     }
 
+    /* 作用域锁守卫：离开函数自动解锁 */
+    lvLockGuard _pool_guard __attribute__((cleanup(lv_lock_guard_scope_cleanup))) = {NULL};
     if (pool->thread_safe) {
-        lv_mutex_lock(&pool->mutex);
+        lv_lock_guard_init(&_pool_guard, &pool->mutex);
     }
 
     /* [Bug修复] 使用 block_capacities 记录的实际容量重建空闲链表，
@@ -400,10 +377,6 @@ void lv_pool_clear(lvObjectPool *pool) {
         }
     }
     pool->current_used = 0;
-
-    if (pool->thread_safe) {
-        lv_mutex_unlock(&pool->mutex);
-    }
 }
 
 /* ============== 全局内存统计 ============== */

@@ -52,16 +52,7 @@
  * func_block_determinism.c、func_block_serialize.c 等子模块文件通过 extern 引用，
  * 因此必须使用非 static 的线程局部变量手动声明。
  */
-lv_THREAD_LOCAL StreamContext *func_block_stream_ctx = NULL;
-
-/**
- * @brief 设置函数块模块的流式上下文
- *
- * @param ctx 流式上下文指针（可为 NULL，表示清除上下文）
- */
-void func_block_set_stream_context(StreamContext *ctx) {
-    func_block_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(func_block);
 
 /* ============== 内部辅助函数 ============== */
 

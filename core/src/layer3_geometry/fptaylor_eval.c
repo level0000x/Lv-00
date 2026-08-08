@@ -25,6 +25,7 @@
 
 #include "lv/float_error.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference / lv_NUMERICAL_DIFF_EPSILON） */
 
 /* ============================================================
  * 简易表达式求值器（递归下降解析）
@@ -281,6 +282,23 @@ static double compute_absolute_error_bound(const double *abs_deriv_sum, const do
     return fabs(bound);
 }
 
+/* 有限差分回调上下文：表达式 + 中心值数组（只读）+ 复用工作缓冲 */
+typedef struct {
+    const char *expr;          /**< 表达式字符串 */
+    const double *var_values;  /**< 变量中心值（只读） */
+    int var_count;             /**< 变量数量 */
+    int var_idx;               /**< 被求导变量索引 */
+    double *work;              /**< 扰动工作缓冲（var_count 个 double） */
+} FpTaylorFdCtx;
+
+/** @brief 简易表达式求值回调：将第 var_idx 个变量设为 x 后求值（供 lv_finite_difference 使用） */
+static double simple_expr_at(double x, void *userdata) {
+    FpTaylorFdCtx *ctx = (FpTaylorFdCtx *) userdata;
+    memcpy(ctx->work, ctx->var_values, (size_t) ctx->var_count * sizeof(double));
+    ctx->work[ctx->var_idx] = x;
+    return eval_simple_expr(ctx->expr, ctx->work, ctx->var_count);
+}
+
 /**
  * @brief 计算简单表达式的中心值和近似导数
  *
@@ -313,38 +331,25 @@ static bool compute_taylor_coefficients(const char *expr, const double *var_valu
         return false;
     }
 
-    double h = 1e-8;
+    double h = lv_NUMERICAL_DIFF_EPSILON; /* 原硬编码 1e-8，统一引用公共常量（固定绝对步长） */
 
     /* 数值偏导数近似：对每个变量独立扰动，独立计算偏导 */
     for (int i = 0; i < var_count; i++) {
-        double *x_plus = lv_calloc((size_t) var_count, sizeof(double));
-        double *x_minus = lv_calloc((size_t) var_count, sizeof(double));
-        if (!x_plus || !x_minus) {
-            lv_free((void **) &x_plus);
-            lv_free((void **) &x_minus);
+        /* 回调上下文：在 var_values 副本上扰动第 i 个变量 */
+        FpTaylorFdCtx ctx = {expr, var_values, var_count, i, NULL};
+        ctx.work = lv_calloc((size_t) var_count, sizeof(double));
+        if (!ctx.work) {
             out_derivs[i] = 1.0; /* 保守默认值 */
             continue;
         }
 
-        for (int j = 0; j < var_count; j++) {
-            x_plus[j] = var_values[j];
-            x_minus[j] = var_values[j];
-        }
-        x_plus[i] += h;
-        x_minus[i] -= h;
+        /* 中心差分导数（绝对值语义，与原实现 fabs 一致）：
+         * 求值失败（NaN）时由公共工具返回 NaN，回退保守默认值 */
+        double d = lv_finite_difference(simple_expr_at, var_values[i], h, lv_FD_CENTRAL, &ctx);
 
-        /* 使用表达式求值器计算扰动后的值 */
-        double f_plus = eval_simple_expr(expr, x_plus, var_count);
-        double f_minus = eval_simple_expr(expr, x_minus, var_count);
+        lv_free((void **) &ctx.work);
 
-        lv_free((void **) &x_plus);
-        lv_free((void **) &x_minus);
-
-        if (isnan(f_plus) || isnan(f_minus)) {
-            out_derivs[i] = 1.0; /* 求值失败，保守默认值 */
-        } else {
-            out_derivs[i] = fabs((f_plus - f_minus) / (2.0 * h));
-        }
+        out_derivs[i] = (isnan(d)) ? 1.0 : fabs(d);
     }
     return true;
 }

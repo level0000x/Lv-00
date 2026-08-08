@@ -16,6 +16,7 @@
 
 #include "smt_backend.h"
 #include "groebner_engine.h"
+#include "lv/lv_utils.h" /* GROEBNER_SMT_ZERO_THRESHOLD 语义别名 = lv_EPSILON_DOUBLE */
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +28,8 @@ extern "C" {
 #define SMT_DEFAULT_MEMORY_MB 1024            /* 默认内存限制（MB） */
 #define GROEBNER_VAR_NAME_MAX 64              /* Groebner 后端多项式变量名最大长度 */
 #define GROEBNER_DEFAULT_VAR_CAPACITY 32      /* Groebner 后端默认变量容量（每个点 2 个坐标变量） */
-#define GROEBNER_SMT_ZERO_THRESHOLD 1e-12     /* 数值零判定阈值（用于判断多项式是否为零） */
+/* 数值零判定阈值（用于判断多项式是否为零）：语义别名 = lv_EPSILON_DOUBLE（1e-12） */
+#define GROEBNER_SMT_ZERO_THRESHOLD lv_EPSILON_DOUBLE
 
 /**
  * @brief SMT 求解器内部状态

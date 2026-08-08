@@ -17,6 +17,7 @@
 #include "lv/lv_strbuf.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -474,6 +475,31 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
 }
 
 /* ============================================================
+ * lvTlsVector —— TLS 指针 + count + capacity 三件套
+ * ============================================================ */
+
+bool lv_tls_vector_ensure(lvTlsVector *v, int need_count, size_t elem_size) {
+    if (!v || elem_size == 0)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "tls_vector_ensure 参数无效");
+    /* 复用 lv_ensure_capacity 的倍增扩容与溢出检查语义 */
+    return lv_ensure_capacity(&v->ptr, need_count, &v->capacity, elem_size, 0);
+}
+
+void lv_tls_vector_clear(lvTlsVector *v) {
+    if (v)
+        v->count = 0;
+}
+
+void lv_tls_vector_cleanup(lvTlsVector *v) {
+    if (!v)
+        return;
+    lv_free(&v->ptr);
+    v->ptr = NULL;
+    v->count = 0;
+    v->capacity = 0;
+}
+
+/* ============================================================
  * 统一 FNV-1a 哈希函数
  * ============================================================ */
 
@@ -520,21 +546,26 @@ uint64_t lv_fnv1a_hash_int(uint64_t hash, uint64_t v) {
  * 线程局部临时缓冲区（scratch）
  * ============================================================ */
 
-/** 线程局部 scratch 缓冲区（按需增长，最小分配 256 字节） */
-static lv_THREAD_LOCAL char *s_lv_scratch_buf = NULL;
-static lv_THREAD_LOCAL size_t s_lv_scratch_cap = 0;
+/** 线程局部 scratch 缓冲区（lvTlsVector：TLS 指针 + 容量，按需增长，最小分配 256 字节） */
+static lv_THREAD_LOCAL lvTlsVector s_lv_scratch = {0};
 
 char *lv_scratch_buf(size_t min_size) {
     if (min_size < 256)
         min_size = 256;
-    if (s_lv_scratch_cap < min_size) {
-        char *nb = (char *) lv_realloc(s_lv_scratch_buf, min_size);
-        if (!nb)
-            return s_lv_scratch_buf; /* 分配失败：返回旧缓冲区（尽力而为） */
-        s_lv_scratch_buf = nb;
-        s_lv_scratch_cap = min_size;
+    if ((size_t) s_lv_scratch.capacity < min_size) {
+        /* 超过 INT_MAX 的 scratch 请求不现实，防御性拒绝（返回旧缓冲区） */
+        if (min_size > (size_t) INT_MAX) {
+            return (char *) s_lv_scratch.ptr;
+        }
+        if (!lv_tls_vector_ensure(&s_lv_scratch, (int) min_size, 1)) {
+            return (char *) s_lv_scratch.ptr; /* 分配失败：返回旧缓冲区（尽力而为） */
+        }
     }
-    return s_lv_scratch_buf;
+    return (char *) s_lv_scratch.ptr;
+}
+
+void lv_scratch_buf_cleanup(void) {
+    lv_tls_vector_cleanup(&s_lv_scratch);
 }
 
 char *lv_fmt_tmp(const char *fmt, ...) {
@@ -553,7 +584,7 @@ char *lv_fmt_tmp(const char *fmt, ...) {
     }
 
     char *buf = lv_scratch_buf((size_t) need + 1);
-    if (s_lv_scratch_cap < (size_t) need + 1) {
+    if ((size_t) s_lv_scratch.capacity < (size_t) need + 1) {
         va_end(args);
         return NULL; /* 扩容失败，无法容纳结果 */
     }

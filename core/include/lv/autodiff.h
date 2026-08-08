@@ -17,6 +17,21 @@
  *          Reverse mode: Builds a computation graph, then propagates gradients
  *          backwards (efficient for functions with many inputs and few outputs).
  *
+ * @section integration 接入状态（评估结论，v3.6.0）
+ *
+ * 本模块目前在整个 core 零调用方（仅 test_autodiff.c 单测覆盖），属"已实现待接入"状态。
+ * 候选接入点评估（2026-08 收敛任务）：
+ * - geo_constraint_solver_newton.c build_jacobian_and_residual：
+ *   当前用中心差分（lv_finite_difference_vec）构建雅可比。接入需将 evaluate_constraint
+ *   的任意 C 求值链路（距离/角度/点积等，含除法与分支）重写为 AD 表达式树；
+ *   AD 表达式种类不含 DIV 与条件分支，约束求值无法无损映射，且精确导数与
+ *   差分近似的数值行为差异会导致几何求解测试结果变化。→ 不接入。
+ * - geom_evol.c BDF 雅可比：RHS f(t,y) 经 geoevol_rhs_eval 回调求值，内容由
+ *   调用方任意定义，无法用 AD 表达式树表示。→ 不接入。
+ *
+ * 结论：保持手写差分（数值行为安全优先）。若未来引入表达式字符串驱动的
+ * 约束/ODE 求值链路，可在此处重新评估接入。
+ *
  * @author Lv-00 Project
  * @version 1.1.0
  * @date   2026-05-25

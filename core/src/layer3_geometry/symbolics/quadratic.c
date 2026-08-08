@@ -16,6 +16,21 @@
  *
  *          约化策略：结果中的 b 部分为 0 时自动降级为 RATIONAL 类型。
  *
+ * @section layering 分层边界（与 algebraic_number_quadratic.c 的关系）
+ *
+ * 本文件（quadratic_*）与 algebraic_number_quadratic.c（lv_alg_quadratic_*）
+ * 实现同一数学域 Q(√d)，但精度载体不同，属分层设计，**不合并实现**：
+ * - 本文件：Quadratic 为 mpq_t 堆值类型（GMP 有理数），精确无溢出，
+ *   供符号坐标链（symbolic_coord.*，消费方见 lv/symbolic_coord.h）使用；
+ * - algebraic_number_quadratic.c：AlgQuadratic 为 int64_t 栈值类型，
+ *   轻量无外部依赖，供代数数域链（lv_alg_*，消费方见 lv/algebraic_number.h）
+ *   使用。
+ *
+ * 两处 mul/div 的数学公式编码一致（mul: (a1a2+b1b2n)+(a1b2+a2b1)√n；
+ * div: 乘共轭/范数），仅载体不同，属合理重复，不强行合并。
+ * to_double 转换（quadratic_to_double vs lv_alg_quadratic_to_double）签名与
+ * 载体不兼容（堆类型 vs 值类型），不可互委派。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

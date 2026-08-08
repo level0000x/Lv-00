@@ -11,6 +11,38 @@ typedef void (*StreamContextSetter)(StreamContext *ctx);
 
 void stream_context_register_setter(StreamContextSetter setter);
 
+/* ═══════════════════════════════════════════════════════════════════
+ * LV_STREAM_CTX_DECLARE / LV_STREAM_CTX_DEFINE —— 模块流上下文三件套宏
+ *
+ * 收敛各模块重复的样板：
+ *   声明（模块 .h 中）：  extern lv_THREAD_LOCAL StreamContext *xxx_stream_ctx;
+ *                         void xxx_set_stream_context(StreamContext *ctx);
+ *   定义（模块 .c 中）：  lv_THREAD_LOCAL StreamContext *xxx_stream_ctx = NULL;
+ *                         void xxx_set_stream_context(StreamContext *ctx) { xxx_stream_ctx = ctx; }
+ *
+ * 用法（以 unify 模块为例）：
+ *   // unify.h
+ *   LV_STREAM_CTX_DECLARE(unify);
+ *   // unify.c
+ *   LV_STREAM_CTX_DEFINE(unify);
+ *
+ * 注意：仅覆盖「变量名 = <module>_stream_ctx 且 setter 与变量同文件」的公共形态；
+ * 命名不一致（如 axiom_pkg：变量 axiom_stream_ctx）或 setter 位于其他文件
+ * （如 prop_verifier / solver_engine）的模块保留手写。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** @brief 声明宏（放模块公共头 .h）：extern TLS 变量 + setter 原型 */
+#define LV_STREAM_CTX_DECLARE(module)                           \
+    extern lv_THREAD_LOCAL StreamContext *module##_stream_ctx; \
+    void module##_set_stream_context(StreamContext *ctx)
+
+/** @brief 定义宏（放模块实现 .c）：TLS 变量定义 + setter 实现 */
+#define LV_STREAM_CTX_DEFINE(module)                            \
+    lv_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL; \
+    void module##_set_stream_context(StreamContext *ctx) {     \
+        module##_stream_ctx = ctx;                             \
+    }
+
 /**
  * @brief 便捷函数: 格式化文本并发射简单流式事件
  *

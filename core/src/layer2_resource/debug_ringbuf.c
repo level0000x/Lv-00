@@ -108,9 +108,9 @@ void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level, const char *m
     vsnprintf(entry.message, sizeof(entry.message), fmt, args);
     va_end(args);
 
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     lv_ringbuf_write(&rb->base, &entry);
-    log_unlock();
 }
 
 /**
@@ -130,28 +130,30 @@ lvLogEntry *lv_log_ring_buffer_export(const lvLogRingBuffer *rb, int *out_count)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "环形缓冲区或输出参数为空");
     }
 
-    log_lock();
+    /* 内层作用域锁守卫：多分支 return 自动解锁 */
+    int cnt;
+    lvLogEntry *exported;
+    {
+        DEBUG_LOG_LOCK_GUARD();
 
-    int cnt = lv_ringbuf_count(&rb->base);
-    if (cnt == 0) {
-        *out_count = 0;
-        log_unlock();
-        return NULL;
-    }
+        cnt = lv_ringbuf_count(&rb->base);
+        if (cnt == 0) {
+            *out_count = 0;
+            return NULL; /* 守卫自动解锁 */
+        }
 
-    lvLogEntry *exported = (lvLogEntry *) lv_calloc((size_t) cnt, sizeof(lvLogEntry));
-    if (!exported) {
-        *out_count = 0;
-        log_unlock();
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配导出缓冲区失败");
-    }
+        exported = (lvLogEntry *) lv_calloc((size_t) cnt, sizeof(lvLogEntry));
+        if (!exported) {
+            *out_count = 0;
+            lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配导出缓冲区失败");
+        }
 
-    for (int i = 0; i < cnt; i++) {
-        lv_ringbuf_read(&rb->base, i, &exported[i]);
+        for (int i = 0; i < cnt; i++) {
+            lv_ringbuf_read(&rb->base, i, &exported[i]);
+        }
     }
 
     *out_count = cnt;
-    log_unlock();
     return exported;
 }
 
@@ -163,9 +165,9 @@ void lv_log_ring_buffer_clear(lvLogRingBuffer *rb) {
     if (!rb) {
         return;
     }
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     lv_ringbuf_clear(&rb->base);
-    log_unlock();
 }
 
 /**
@@ -183,8 +185,8 @@ bool lv_log_ring_buffer_resize(lvLogRingBuffer *rb, int capacity) {
         return false;
     }
 
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     bool ok = lv_ringbuf_resize(&rb->base, capacity);
-    log_unlock();
     return ok;
 }

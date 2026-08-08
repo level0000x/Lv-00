@@ -16,9 +16,10 @@ extern "C" {
 #include "geometry_types.h"
 #include "lv_internal.h"
 #include "lv_vec3.h" /* 收敛：CSGVec3 统一 typedef 到公共 lvVec3 */
+#include "lv/config.h" /* CSG_BSP_EPSILON 语义别名 = lv_EPSILON_MEDIUM */
 
 /* ---- constants ---- */
-#define CSG_BSP_EPSILON 1e-9
+#define CSG_BSP_EPSILON lv_EPSILON_MEDIUM /* BSP 分割容差（语义别名 = config.h lv_EPSILON_MEDIUM，1e-9） */
 #define CSG_EXPORT_BUF_INIT 4096
 #define CSG_TRI_VERT_COUNT 3
 #define CSG_MAX_TRI_BUFFER 256

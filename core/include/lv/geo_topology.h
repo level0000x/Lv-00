@@ -35,8 +35,10 @@ typedef struct {
     int n_vertices;
     lvEdge *edges;
     size_t n_edges;
+    size_t edges_capacity;      /* 边数组容量（lv_ensure_capacity 倍增维护） */
     lvTriangle *triangles;
     size_t n_triangles;
+    size_t triangles_capacity;  /* 三角形数组容量（lv_ensure_capacity 倍增维护） */
     int dim;
     int *faces;
     int n_faces;

@@ -285,6 +285,22 @@ bool symbolic_coord_is_zero(const SymbolicCoord *c);
 bool symbolic_coord_is_positive(const SymbolicCoord *c);
 bool symbolic_coord_is_negative(const SymbolicCoord *c);
 bool symbolic_coord_is_amber(const SymbolicCoord *c);
+
+/* ── 符号几何判定（公共收敛入口） ── */
+
+/**
+ * @brief 符号精确判定三点共线
+ *
+ * 计算符号叉积 (B-A)×(C-A) = (bx-ax)*(cy-ay) - (by-ay)*(cx-ax)，
+ * 结果为零则三点共线。NULL-safe：任一参数为 NULL 返回 false。
+ *
+ * 收敛说明：euclidean_geometry_helpers.c 的 symbolic_check_collinear 与
+ * proof_strategy_vector.c 的共线/平行叉积检查共用本实现（证明策略与
+ * 断言行为一致）。浮点域判定请使用 geo_predicate.c 的 lv_orientation_2d
+ * （不同精度域，语义独立，此处不做收敛）。
+ */
+bool symbolic_coord_are_collinear(const SymbolicCoord *ax, const SymbolicCoord *ay, const SymbolicCoord *bx,
+                                  const SymbolicCoord *by, const SymbolicCoord *cx, const SymbolicCoord *cy);
 double symbolic_coord_to_double(const SymbolicCoord *c);
 char *symbolic_coord_serialize(const SymbolicCoord *c);
 

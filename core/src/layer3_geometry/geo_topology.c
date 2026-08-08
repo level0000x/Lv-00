@@ -145,13 +145,12 @@ bool geo_simplicial_add_edge(lvSimplicialComplex *sc, int v0, int v1) {
         return true; /* Already exists, not an error */
     }
 
-    /* Grow edge array */
-    size_t new_size = (sc->n_edges + 1) * sizeof(lvEdge);
-    lvEdge *new_edges = (lvEdge *) lv_realloc(sc->edges, new_size);
-    if (!new_edges)
+    /* Grow edge array（倍增扩容，消除逐边 +1 realloc 的 O(n^2) 拷贝；
+     * 失败时 sc->edges / n_edges 保持不变，与原实现一致） */
+    if (!lv_ensure_capacity((void **) &sc->edges, (int) sc->n_edges, (int *) &sc->edges_capacity,
+                            sizeof(lvEdge), 1))
         return false;
 
-    sc->edges = new_edges;
     sc->edges[sc->n_edges].v0 = v0;
     sc->edges[sc->n_edges].v1 = v1;
     sc->n_edges++;
@@ -180,13 +179,12 @@ bool geo_simplicial_add_triangle(lvSimplicialComplex *sc, int v0, int v1, int v2
         return true;
     }
 
-    /* Grow triangle array */
-    size_t new_size = (sc->n_triangles + 1) * sizeof(lvTriangle);
-    lvTriangle *new_triangles = (lvTriangle *) lv_realloc(sc->triangles, new_size);
-    if (!new_triangles)
+    /* Grow triangle array（倍增扩容，消除逐三角形 +1 realloc 的 O(n^2) 拷贝；
+     * 失败时 sc->triangles / n_triangles 保持不变，与原实现一致） */
+    if (!lv_ensure_capacity((void **) &sc->triangles, (int) sc->n_triangles, (int *) &sc->triangles_capacity,
+                            sizeof(lvTriangle), 1))
         return false;
 
-    sc->triangles = new_triangles;
     sc->triangles[sc->n_triangles].v0 = v0;
     sc->triangles[sc->n_triangles].v1 = v1;
     sc->triangles[sc->n_triangles].v2 = v2;

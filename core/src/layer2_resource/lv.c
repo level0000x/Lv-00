@@ -21,6 +21,7 @@
 #include <time.h>
 
 #include "lv/bit_burning.h"
+#include "lv/formula_converter.h"
 #include "lv/lv_registry.h"
 #include "lv/memory_pool.h"
 
@@ -285,6 +286,16 @@ void lv_cleanup(void) {
 
     /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
     lv_module_cleanup_all();
+
+    /* TLS 堆表清理（当前线程副本）：
+     * unify 等价表 / formula converter 变量映射 / scratch 缓冲区均为
+     * TLS 指针+计数+容量三件套（lvTlsVector），在此释放当前线程的堆缓冲区，
+     * 回收长期驻留的 TLS 堆表（对应 lv_tls_vector_cleanup）。
+     * 注：池化工作线程退出时无 TLS 析构钩子，其副本随线程生命周期持有，
+     *     属遗留问题（需线程退出钩子方彻底解决），此处回收主线程副本。 */
+    lv_unify_equivalence_storage_cleanup();
+    formula_converter_util_cleanup();
+    lv_scratch_buf_cleanup();
 
     s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);

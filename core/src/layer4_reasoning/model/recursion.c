@@ -45,8 +45,4 @@
 #include "stream.h"
 #include "stream_context_util.h"
 
-lv_THREAD_LOCAL StreamContext *recursion_stream_ctx = NULL;
-
-void recursion_set_stream_context(StreamContext *ctx) {
-    recursion_stream_ctx = ctx;
-}
+LV_STREAM_CTX_DEFINE(recursion);

@@ -15,6 +15,9 @@
 #include "lv/lv_numeric.h"
 
 #include <math.h>
+#include <string.h>
+
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 浮点比较工具
@@ -197,4 +200,113 @@ double lv_evaluate_cubic(double a, double b, double c, double d, double x) {
 void lv_mpq_set_d_checked(mpq_t q, double v) {
     mpq_init(q);
     mpq_set_d(q, v);
+}
+
+/* ============================================================
+ * 有限差分工具（数值微分）
+ * ============================================================ */
+
+/**
+ * @brief 标量函数 f 在 x 处的一阶导数（有限差分近似）
+ *
+ * 统一实现，收敛 float_error.c / fptaylor_eval.c / geom_evol.c /
+ * geo_constraint_solver_newton.c 四处手写差分：
+ * - lv_FD_CENTRAL：(f(x+h) - f(x-h)) / (2h)
+ * - lv_FD_FORWARD：(f(x+h) - f(x)) / h
+ * h > 0 时用调用方自定义步长（绝对量），h <= 0 时用默认自适应策略
+ * h = lv_NUMERICAL_DIFF_EPSILON * max(1, |x|)。
+ */
+double lv_finite_difference(lvFdFunc f, double x, double h, lvDiffScheme scheme, void *userdata) {
+    double f_hi, f_lo;
+
+    if (!f)
+        return NAN;
+    if (!(h > 0.0)) {
+        h = lv_fd_step_adaptive(x, lv_NUMERICAL_DIFF_EPSILON);
+    }
+
+    /* 前向差分：基准点为 x（不额外扰动），扰动点为 x+h */
+    if (scheme == lv_FD_FORWARD) {
+        f_hi = f(x + h, userdata);
+        f_lo = f(x, userdata);
+        if (isnan(f_hi) || isnan(f_lo))
+            return NAN;
+        return (f_hi - f_lo) / h;
+    }
+
+    /* 中心差分：扰动点为 x+h 与 x-h */
+    f_hi = f(x + h, userdata);
+    f_lo = f(x - h, userdata);
+    if (isnan(f_hi) || isnan(f_lo))
+        return NAN;
+    return (f_hi - f_lo) / (2.0 * h);
+}
+
+/**
+ * @brief 向量函数 F(x)=(F_0(x),...,F_{n-1}(x)) 的一阶导数（逐分量有限差分）
+ *
+ * 一次扰动求值得到整向量后逐分量差分，避免逐分量重复求值
+ * （原 geom_evol.c BDF / geo_constraint_solver_newton.c 雅可比构建形态）。
+ * FORWARD 且 f_base 非 NULL 时复用调用方已算好的基准值 F(x)，
+ * 求值次数与调用方原实现一致。
+ */
+int lv_finite_difference_vec(lvFdVecFunc fn, void *userdata, double x, double h, lvDiffScheme scheme,
+                             const double *f_base, double *df, int n) {
+    double *tmp_hi, *tmp_lo;
+    const double *base;
+    int i, ret;
+
+    if (!fn || !df || n <= 0)
+        return -1;
+    if (!(h > 0.0)) {
+        h = lv_fd_step_adaptive(x, lv_NUMERICAL_DIFF_EPSILON);
+    }
+
+    tmp_hi = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!tmp_hi)
+        return -1;
+    tmp_lo = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!tmp_lo) {
+        lv_free((void **) &tmp_hi);
+        return -1;
+    }
+
+    ret = fn(x + h, userdata, tmp_hi, n);
+    if (ret != 0) {
+        lv_free((void **) &tmp_hi);
+        lv_free((void **) &tmp_lo);
+        return -1;
+    }
+
+    if (scheme == lv_FD_FORWARD) {
+        /* 基准点：优先复用调用方提供的 f_base，否则内部求值 */
+        base = f_base;
+        if (!base) {
+            ret = fn(x, userdata, tmp_lo, n);
+            if (ret != 0) {
+                lv_free((void **) &tmp_hi);
+                lv_free((void **) &tmp_lo);
+                return -1;
+            }
+            base = tmp_lo;
+        }
+        for (i = 0; i < n; i++) {
+            df[i] = (tmp_hi[i] - base[i]) / h;
+        }
+    } else {
+        /* 中心差分 */
+        ret = fn(x - h, userdata, tmp_lo, n);
+        if (ret != 0) {
+            lv_free((void **) &tmp_hi);
+            lv_free((void **) &tmp_lo);
+            return -1;
+        }
+        for (i = 0; i < n; i++) {
+            df[i] = (tmp_hi[i] - tmp_lo[i]) / (2.0 * h);
+        }
+    }
+
+    lv_free((void **) &tmp_hi);
+    lv_free((void **) &tmp_lo);
+    return 0;
 }

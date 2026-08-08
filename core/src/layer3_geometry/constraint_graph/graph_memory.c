@@ -90,6 +90,17 @@ static void destroy_graph_constraint_elem(void *elem) {
     constraint_destroy((Constraint *) elem);
 }
 
+/* 反向索引值释放回调（v3.6.0）：释放每个节点的约束下标列表（lvDArray*） */
+static void destroy_involving_value(int key, void *value, void *ctx) {
+    (void) key;
+    (void) ctx;
+    lvDArray *list = (lvDArray *) value;
+    if (list) {
+        lv_darray_free(list);
+        lv_free((void **) &list);
+    }
+}
+
 /* graph_destroy 字段描述表：释放顺序与原实现一致
  * （节点 → 约束 → 哈希索引 → 错误/序列化缓冲区 → 外壳），全部置 NULL 安全 */
 static const lvFieldDesc s_graph_destroy_fields[] = {
@@ -104,6 +115,12 @@ static const lvFieldDesc s_graph_destroy_fields[] = {
 void graph_destroy(ConstraintGraph *graph) {
     if (!graph)
         return;
+    /* 释放反向索引（v3.6.0）：每个节点列表（lvDArray*）+ 表本身 */
+    if (graph->involving_index) {
+        lv_hashtable_int_foreach(graph->involving_index, destroy_involving_value, NULL);
+        lv_hashtable_int_destroy(graph->involving_index);
+        graph->involving_index = NULL;
+    }
     lv_obj_destroy_fields(graph, s_graph_destroy_fields,
                           sizeof(s_graph_destroy_fields) / sizeof(s_graph_destroy_fields[0]));
     lv_free((void **) &graph);

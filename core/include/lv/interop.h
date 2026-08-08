@@ -265,8 +265,9 @@ typedef struct {
 typedef struct {
     char trust_base_name[64];    /**< 信任基名称 */
     char trust_base_version[32]; /**< 信任基版本 */
-    char *exported_calls;        /**< 导出的调用序列 */
+    char *exported_calls;        /**< 导出的调用序列（NUL 结尾，calls_len 为有效长度） */
     size_t calls_len;            /**< 调用序列长度 */
+    size_t calls_capacity;       /**< 调用序列缓冲区容量（含 NUL，lv_ensure_capacity 式倍增维护） */
 } InteropTheoremContext;
 
 /* ==================== 服务器管理 ==================== */

@@ -1087,9 +1087,9 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
  */
 ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
     lv_once(&s_delta_baseline_once, delta_baseline_mutex_init);
-    lv_mutex_lock(&s_delta_baseline_mutex);
+    /* 作用域锁守卫：离开函数自动解锁 */
+    LV_SCOPE_LOCK(&s_delta_baseline_mutex);
     ModuleDelta *result = module_compute_delta_locked(mod, base_hash);
-    lv_mutex_unlock(&s_delta_baseline_mutex);
     return result;
 }
 
@@ -1101,12 +1101,12 @@ ModuleDelta *module_compute_delta(const Module *mod, uint64_t base_hash) {
  */
 void module_delta_cleanup(void) {
     lv_once(&s_delta_baseline_once, delta_baseline_mutex_init);
-    lv_mutex_lock(&s_delta_baseline_mutex);
+    /* 作用域锁守卫：离开函数自动解锁 */
+    LV_SCOPE_LOCK(&s_delta_baseline_mutex);
     for (int i = 0; i < s_delta_baseline_state.count; i++) {
         free_delta_baseline(&s_delta_baseline_state.entries[i]);
     }
     s_delta_baseline_state.count = 0;
-    lv_mutex_unlock(&s_delta_baseline_mutex);
 }
 
 void module_delta_destroy(ModuleDelta *delta) {

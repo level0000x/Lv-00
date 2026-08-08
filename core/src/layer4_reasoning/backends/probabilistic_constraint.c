@@ -42,8 +42,8 @@
 /** BFS 队列初始容量 */
 #define PCTL_BFS_QUEUE_INIT 1024
 
-/** 数值精度阈值 */
-#define PCTL_EPSILON 1e-12
+/** 数值精度阈值（语义别名 = lv_EPSILON_DOUBLE，1e-12，见 lv_utils.h） */
+#define PCTL_EPSILON lv_EPSILON_DOUBLE
 
 /** Gamma 采样接受-拒绝法最大重试次数 */
 #define GAMMA_SAMPLE_MAX_RETRIES 10000

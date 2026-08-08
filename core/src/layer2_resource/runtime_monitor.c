@@ -169,17 +169,15 @@ void lv_log_shutdown(void) {
 
 void lv_log_set_level(lvLogLevel level) {
     if (level >= LOG_LEVEL_TRACE && level <= LOG_LEVEL_OFF) {
-        lv_mutex_lock(&s_runtime_state.log.mutex);
+        LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
         s_runtime_state.log.config.min_level = level;
-        lv_mutex_unlock(&s_runtime_state.log.mutex);
     }
 }
 
 void lv_log_set_targets(lvLogTarget targets) {
-    /* 线程安全：加锁保护全局日志目标的修改 */
-    lv_mutex_lock(&s_runtime_state.log.mutex);
+    /* 线程安全：作用域锁守卫保护全局日志目标的修改 */
+    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
     s_runtime_state.log.config.targets = targets;
-    lv_mutex_unlock(&s_runtime_state.log.mutex);
 }
 
 bool lv_log_set_file(const char *path) {
@@ -187,12 +185,11 @@ bool lv_log_set_file(const char *path) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_log_set_file: path is NULL");
     }
 
-    lv_mutex_lock(&s_runtime_state.log.mutex);
+    /* 作用域锁守卫：先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
+    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
 
-    /* 先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
     FILE *new_file = fopen(path, "a");
     if (!new_file) {
-        lv_mutex_unlock(&s_runtime_state.log.mutex);
         lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_log_set_file: fopen failed");
     }
 
@@ -206,17 +203,14 @@ bool lv_log_set_file(const char *path) {
     s_runtime_state.log.log_file = new_file;
     s_runtime_state.log.current_file_size = 0;
 
-    lv_mutex_unlock(&s_runtime_state.log.mutex);
-
     return true;
 }
 
 void lv_log_set_callback(lvLogCallback callback, void *user_data) {
-    /* 线程安全：加锁保护回调和用户数据的修改，防止与日志写入并发冲突 */
-    lv_mutex_lock(&s_runtime_state.log.mutex);
+    /* 线程安全：作用域锁守卫保护回调和用户数据的修改，防止与日志写入并发冲突 */
+    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
     s_runtime_state.log.config.callback = callback;
     s_runtime_state.log.config.callback_user_data = user_data;
-    lv_mutex_unlock(&s_runtime_state.log.mutex);
 }
 
 /* LogLevel 含负数（TRACE=-1），查找表下标需偏移：表下标 = level + LOG_LEVEL_INDEX_OFFSET。
@@ -289,20 +283,22 @@ void lv_perf_shutdown(void) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
+    /* 内层作用域锁守卫：块结束自动解锁，随后再销毁互斥锁 */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
 
-    for (uint32_t i = 0; i < s_runtime_state.perf.timer_count; i++) {
-        lv_free((void **) &s_runtime_state.perf.timers[i]);
+        for (uint32_t i = 0; i < s_runtime_state.perf.timer_count; i++) {
+            lv_free((void **) &s_runtime_state.perf.timers[i]);
+        }
+        for (uint32_t i = 0; i < s_runtime_state.perf.stats_count; i++) {
+            lv_free((void **) &s_runtime_state.perf.stats[i]);
+        }
+        lv_free((void **) &s_runtime_state.perf.timers);
+        s_runtime_state.perf.timers = NULL;
+        lv_free((void **) &s_runtime_state.perf.stats);
+        s_runtime_state.perf.stats = NULL;
     }
-    for (uint32_t i = 0; i < s_runtime_state.perf.stats_count; i++) {
-        lv_free((void **) &s_runtime_state.perf.stats[i]);
-    }
-    lv_free((void **) &s_runtime_state.perf.timers);
-    s_runtime_state.perf.timers = NULL;
-    lv_free((void **) &s_runtime_state.perf.stats);
-    s_runtime_state.perf.stats = NULL;
 
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
     lv_mutex_destroy(&s_runtime_state.perf.mutex);
     s_runtime_state.perf.initialized = false;
 }
@@ -322,19 +318,20 @@ lvTimer *lv_timer_create(const char *name) {
     }
     timer->state = TIMER_STOPPED;
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
-    /* 动态扩容（倍增），消除 MAX_TIMERS 注册上限 */
-    if (s_runtime_state.perf.timer_count >= (uint32_t) s_runtime_state.perf.timer_capacity) {
-        if (!lv_ensure_capacity((void **) &s_runtime_state.perf.timers,
-                                (int) s_runtime_state.perf.timer_count,
-                                &s_runtime_state.perf.timer_capacity, sizeof(lvTimer *), 0)) {
-            lv_mutex_unlock(&s_runtime_state.perf.mutex);
-            lv_free((void **) &timer);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_timer_create: timers array growth failed");
+    /* 内层作用域锁守卫：多分支 return 自动解锁；OOM 分支的 lv_free 由锁内执行（分配器自带内部锁，无死锁风险） */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
+        /* 动态扩容（倍增），消除 MAX_TIMERS 注册上限 */
+        if (s_runtime_state.perf.timer_count >= (uint32_t) s_runtime_state.perf.timer_capacity) {
+            if (!lv_ensure_capacity((void **) &s_runtime_state.perf.timers,
+                                    (int) s_runtime_state.perf.timer_count,
+                                    &s_runtime_state.perf.timer_capacity, sizeof(lvTimer *), 0)) {
+                lv_free((void **) &timer);
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_timer_create: timers array growth failed");
+            }
         }
+        s_runtime_state.perf.timers[s_runtime_state.perf.timer_count++] = timer;
     }
-    s_runtime_state.perf.timers[s_runtime_state.perf.timer_count++] = timer;
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
     return timer;
 }
@@ -344,14 +341,16 @@ void lv_timer_destroy(lvTimer *timer) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
-    for (uint32_t i = 0; i < s_runtime_state.perf.timer_count; i++) {
-        if (s_runtime_state.perf.timers[i] == timer) {
-            s_runtime_state.perf.timers[i] = s_runtime_state.perf.timers[--s_runtime_state.perf.timer_count];
-            break;
+    /* 内层作用域锁守卫：块结束自动解锁后再释放计时器本身 */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
+        for (uint32_t i = 0; i < s_runtime_state.perf.timer_count; i++) {
+            if (s_runtime_state.perf.timers[i] == timer) {
+                s_runtime_state.perf.timers[i] = s_runtime_state.perf.timers[--s_runtime_state.perf.timer_count];
+                break;
+            }
         }
     }
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
     lv_free((void **) &timer);
 }
@@ -445,19 +444,20 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
     stats->min_val = 1e308;
     stats->max_val = -1e308;
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
-    /* 动态扩容（倍增），消除 MAX_PERF_STATS 注册上限 */
-    if (s_runtime_state.perf.stats_count >= (uint32_t) s_runtime_state.perf.stats_capacity) {
-        if (!lv_ensure_capacity((void **) &s_runtime_state.perf.stats,
-                                (int) s_runtime_state.perf.stats_count,
-                                &s_runtime_state.perf.stats_capacity, sizeof(lvPerfStats *), 0)) {
-            lv_mutex_unlock(&s_runtime_state.perf.mutex);
-            lv_free((void **) &stats);
-            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_perf_stats_create: stats array growth failed");
+    /* 内层作用域锁守卫：多分支 return 自动解锁；OOM 分支的 lv_free 由锁内执行（分配器自带内部锁，无死锁风险） */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
+        /* 动态扩容（倍增），消除 MAX_PERF_STATS 注册上限 */
+        if (s_runtime_state.perf.stats_count >= (uint32_t) s_runtime_state.perf.stats_capacity) {
+            if (!lv_ensure_capacity((void **) &s_runtime_state.perf.stats,
+                                    (int) s_runtime_state.perf.stats_count,
+                                    &s_runtime_state.perf.stats_capacity, sizeof(lvPerfStats *), 0)) {
+                lv_free((void **) &stats);
+                lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_perf_stats_create: stats array growth failed");
+            }
         }
+        s_runtime_state.perf.stats[s_runtime_state.perf.stats_count++] = stats;
     }
-    s_runtime_state.perf.stats[s_runtime_state.perf.stats_count++] = stats;
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
     return stats;
 }
@@ -467,14 +467,16 @@ void lv_perf_stats_destroy(lvPerfStats *stats) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
-    for (uint32_t i = 0; i < s_runtime_state.perf.stats_count; i++) {
-        if (s_runtime_state.perf.stats[i] == stats) {
-            s_runtime_state.perf.stats[i] = s_runtime_state.perf.stats[--s_runtime_state.perf.stats_count];
-            break;
+    /* 内层作用域锁守卫：块结束自动解锁后再释放统计对象本身 */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
+        for (uint32_t i = 0; i < s_runtime_state.perf.stats_count; i++) {
+            if (s_runtime_state.perf.stats[i] == stats) {
+                s_runtime_state.perf.stats[i] = s_runtime_state.perf.stats[--s_runtime_state.perf.stats_count];
+                break;
+            }
         }
     }
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
     lv_free((void **) &stats);
 }
@@ -484,7 +486,8 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.perf.mutex);
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
 
     /*
      * Welford 在线算法：避免朴素方差公式的灾难性抵消。
@@ -524,7 +527,6 @@ void lv_perf_stats_record(lvPerfStats *stats, double value) {
         stats->variance = stats->m2 / (double) (stats->count - 1);
         stats->std_dev = sqrt(stats->variance);
     }
-    lv_mutex_unlock(&s_runtime_state.perf.mutex);
 }
 
 void lv_perf_stats_reset(lvPerfStats *stats) {
@@ -571,17 +573,15 @@ void lv_health_shutdown(void) {
 }
 
 void lv_health_set_memory_thresholds(double warning_mb, double critical_mb) {
-    lv_mutex_lock(&s_runtime_state.health.mutex);
+    LV_SCOPE_LOCK(&s_runtime_state.health.mutex);
     s_runtime_state.health.memory_warning_mb = warning_mb;
     s_runtime_state.health.memory_critical_mb = critical_mb;
-    lv_mutex_unlock(&s_runtime_state.health.mutex);
 }
 
 void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
-    lv_mutex_lock(&s_runtime_state.health.mutex);
+    LV_SCOPE_LOCK(&s_runtime_state.health.mutex);
     s_runtime_state.health.cpu_warning_percent = warning_percent;
     s_runtime_state.health.cpu_critical_percent = critical_percent;
-    lv_mutex_unlock(&s_runtime_state.health.mutex);
 }
 
 /* ============== 平台特定 CPU 使用率采样 ============== */
@@ -1012,22 +1012,24 @@ void lv_event_trace_record(lvEventType type, const char *name, const char *data)
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
+    /* 内层作用域锁守卫：块结束自动解锁，随后的事件总线派发保持在锁外（与原来一致） */
+    lvEventRecord *event;
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
 
-    lvEventRecord *event = &s_runtime_state.event.events[s_runtime_state.event.event_count++];
-    event->type = type;
-    event->timestamp_ns = lv_get_time_ns();
-    event->duration_ns = 0;
-    event->thread_id = (int)lv_thread_id();
+        event = &s_runtime_state.event.events[s_runtime_state.event.event_count++];
+        event->type = type;
+        event->timestamp_ns = lv_get_time_ns();
+        event->duration_ns = 0;
+        event->thread_id = (int)lv_thread_id();
 
-    if (name) {
-        strncpy(event->name, name, sizeof(event->name) - 1);
+        if (name) {
+            strncpy(event->name, name, sizeof(event->name) - 1);
+        }
+        if (data) {
+            strncpy(event->data, data, sizeof(event->data) - 1);
+        }
     }
-    if (data) {
-        strncpy(event->data, data, sizeof(event->data) - 1);
-    }
-
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
 
     lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
     lv_event_emit(&s_runtime_state.event_bus, (int)type, (void*)(intptr_t)event->duration_ns);
@@ -1038,19 +1040,22 @@ int lv_event_trace_begin(lvEventType type, const char *name) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_event_trace_begin: event system not initialized or full");
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
+    /* 内层作用域锁守卫：块结束自动解锁，随后的事件总线派发保持在锁外 */
+    int id;
+    lvEventRecord *event;
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
 
-    int id = (int) s_runtime_state.event.event_count;
-    lvEventRecord *event = &s_runtime_state.event.events[s_runtime_state.event.event_count++];
-    event->type = type;
-    event->timestamp_ns = lv_get_time_ns();
-    event->thread_id = (int)lv_thread_id();
+        id = (int) s_runtime_state.event.event_count;
+        event = &s_runtime_state.event.events[s_runtime_state.event.event_count++];
+        event->type = type;
+        event->timestamp_ns = lv_get_time_ns();
+        event->thread_id = (int)lv_thread_id();
 
-    if (name) {
-        strncpy(event->name, name, sizeof(event->name) - 1);
+        if (name) {
+            strncpy(event->name, name, sizeof(event->name) - 1);
+        }
     }
-
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
 
     lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
     lv_event_emit(&s_runtime_state.event_bus, (int)type, (void*)(intptr_t)0);
@@ -1063,16 +1068,18 @@ void lv_event_trace_end(int event_id, const char *data) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
+    /* 内层作用域锁守卫：块结束自动解锁，随后的事件总线派发保持在锁外 */
+    lvEventRecord *event = NULL;
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
 
-    lvEventRecord *event = &s_runtime_state.event.events[event_id];
-    event->duration_ns = lv_get_time_ns() - event->timestamp_ns;
+        event = &s_runtime_state.event.events[event_id];
+        event->duration_ns = lv_get_time_ns() - event->timestamp_ns;
 
-    if (data) {
-        strncpy(event->data, data, sizeof(event->data) - 1);
+        if (data) {
+            strncpy(event->data, data, sizeof(event->data) - 1);
+        }
     }
-
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
 
     lv_once(&s_runtime_state.event_bus_once, event_bus_init_func);
     lv_event_emit(&s_runtime_state.event_bus, (int)event->type, (void*)(intptr_t)event->duration_ns);
@@ -1083,15 +1090,17 @@ uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count) 
         return 0;
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
+    /* 内层作用域锁守卫：块结束自动解锁 */
+    uint32_t count;
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
 
-    uint32_t count = s_runtime_state.event.event_count < max_count ? s_runtime_state.event.event_count : max_count;
-    *out_events = (lvEventRecord *) lv_calloc((size_t) count, sizeof(lvEventRecord));
-    if (*out_events) {
-        memcpy(*out_events, s_runtime_state.event.events, count * sizeof(lvEventRecord));
+        count = s_runtime_state.event.event_count < max_count ? s_runtime_state.event.event_count : max_count;
+        *out_events = (lvEventRecord *) lv_calloc((size_t) count, sizeof(lvEventRecord));
+        if (*out_events) {
+            memcpy(*out_events, s_runtime_state.event.events, count * sizeof(lvEventRecord));
+        }
     }
-
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
 
     return count;
 }
@@ -1101,9 +1110,8 @@ void lv_event_trace_clear(void) {
         return;
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
+    LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
     s_runtime_state.event.event_count = 0;
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
 }
 
 /** @brief 事件类型 -> Chrome trace 元信息 查找表（指定初始化器，编译器校验 lvEventType 对齐）
@@ -1134,40 +1142,40 @@ bool lv_event_trace_export_chrome(const char *path) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_event_trace_export_chrome: not initialized or NULL path");
     }
 
-    lv_mutex_lock(&s_runtime_state.event.mutex);
-
     /* 使用 lvJsonBuf 构建 JSON */
     lvJsonBuf buf;
-    if (!lv_json_buf_init(&buf, (size_t) s_runtime_state.event.event_count * 256 + 64)) {
-        lv_mutex_unlock(&s_runtime_state.event.mutex);
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_export_chrome: json_buf_init failed");
-    }
+    /* 内层作用域锁守卫：块结束自动解锁，随后写文件保持在锁外（与原来一致） */
+    {
+        LV_SCOPE_LOCK(&s_runtime_state.event.mutex);
 
-    lv_json_buf_append_raw(&buf, "[\n");
-
-    for (uint32_t i = 0; i < s_runtime_state.event.event_count; i++) {
-        lvEventRecord *event = &s_runtime_state.event.events[i];
-
-        const char *type_str = "X";
-        const char *cat = "other";
-        if ((unsigned) event->type < lv_ARRAY_SIZE(kEventTraceMeta) && kEventTraceMeta[event->type].ph != NULL) {
-            type_str = kEventTraceMeta[event->type].ph;
-            cat = kEventTraceMeta[event->type].cat;
+        if (!lv_json_buf_init(&buf, (size_t) s_runtime_state.event.event_count * 256 + 64)) {
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_event_trace_export_chrome: json_buf_init failed");
         }
 
-        /* event->name 经 lv_json_buf_append_string 自动 JSON 转义，cat/ph 为内部固定串无需转义 */
-        lv_json_buf_append_raw(&buf, "  {\"name\":");
-        lv_json_buf_append_string(&buf, event->name);
-        lv_json_buf_append_fmt(&buf,
-                     ",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
-                     cat, type_str,
-                     (long long) (event->timestamp_ns / 1000),
-                     (long long) (event->duration_ns / 1000),
-                     event->thread_id,
-                     (i < s_runtime_state.event.event_count - 1) ? "," : "");
-    }
+        lv_json_buf_append_raw(&buf, "[\n");
 
-    lv_mutex_unlock(&s_runtime_state.event.mutex);
+        for (uint32_t i = 0; i < s_runtime_state.event.event_count; i++) {
+            lvEventRecord *event = &s_runtime_state.event.events[i];
+
+            const char *type_str = "X";
+            const char *cat = "other";
+            if ((unsigned) event->type < lv_ARRAY_SIZE(kEventTraceMeta) && kEventTraceMeta[event->type].ph != NULL) {
+                type_str = kEventTraceMeta[event->type].ph;
+                cat = kEventTraceMeta[event->type].cat;
+            }
+
+            /* event->name 经 lv_json_buf_append_string 自动 JSON 转义，cat/ph 为内部固定串无需转义 */
+            lv_json_buf_append_raw(&buf, "  {\"name\":");
+            lv_json_buf_append_string(&buf, event->name);
+            lv_json_buf_append_fmt(&buf,
+                         ",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
+                         cat, type_str,
+                         (long long) (event->timestamp_ns / 1000),
+                         (long long) (event->duration_ns / 1000),
+                         event->thread_id,
+                         (i < s_runtime_state.event.event_count - 1) ? "," : "");
+        }
+    }
 
     lv_json_buf_append_raw(&buf, "]\n");
 

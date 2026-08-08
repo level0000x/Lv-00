@@ -76,6 +76,28 @@ static int compute_residuals(const lvSolverSystem *sys, double *out, int nrows) 
  * @param free_entities 自由实体索引数组
  * @param free_count    自由实体数量
  */
+
+/* 有限差分回调上下文：记录被扰动的实体与参数偏移 */
+typedef struct {
+    lvSolverSystem *sys;  /**< 求解系统 */
+    int ent_idx;          /**< 被扰动实体索引 */
+    int param_offset;     /**< 实体内的参数偏移 */
+} SolverFdCtx;
+
+/** @brief 残差求值回调：将 sys->entities[ent_idx].params[param_offset] 设为
+ *         x_perturb 后计算残差向量（求值后恢复原值，供 lv_finite_difference_vec 使用） */
+static int solver_residual_cb(double x_perturb, void *userdata, double *out, int n) {
+    SolverFdCtx *ctx = (SolverFdCtx *) userdata;
+    lvEntity *e = &ctx->sys->entities[ctx->ent_idx];
+    double orig = e->params[ctx->param_offset];
+
+    e->params[ctx->param_offset] = x_perturb;
+    compute_residuals(ctx->sys, out, n);
+    e->params[ctx->param_offset] = orig; /* 恢复原始值，保证上下文一致 */
+
+    return 0;
+}
+
 static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, double *F, int nrows, int ncols,
                                         const int *param_map, const int *free_entities, int free_count) {
     /* 计算残差向量 F */
@@ -84,8 +106,8 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, do
     /* 使用数值差分计算雅可比矩阵 */
     /* 收敛说明：差分步长与 geom_evol.c BDF 的 fd_eps（1e-8）、float_error.c 的
      * sqrt(DBL_EPSILON)（≈1.49e-8）量级一致（~1e-8）；三处数值保持各自原值
-     * （安全优先，数值不变是底线），常量定义方式受共享头文件作用域限制，
-     * 详见收敛任务报告。 */
+     * （安全优先，数值不变是底线），常量已统一引用公共 lv_NUMERICAL_DIFF_EPSILON
+     * （geo_constraint_solver_internal.h 的 NUMERICAL_DIFF_EPSILON 为语义别名）。 */
     double eps = NUMERICAL_DIFF_EPSILON;
 
     for (int j = 0; j < ncols; j++) {
@@ -110,33 +132,29 @@ static void build_jacobian_and_residual(const lvSolverSystem *sys, double *J, do
         if (ent_idx < 0)
             continue;
 
-        /* 正向扰动 */
         double orig = sys->entities[ent_idx].params[param_offset];
 
         /* 自适应扰动步长：固定步长 1e-8 在参数值较大时会被舍入（10000 + 1e-8 == 10000），
-         * 导致雅可比列为零。使用相对步长 eps * max(1, |orig|) 保证扰动显著。 */
-        double h = eps * fmax(1.0, fabs(orig));
-        sys->entities[ent_idx].params[param_offset] = orig + h;
+         * 导致雅可比列为零。使用相对步长 eps * max(1, |orig|) 保证扰动显著
+         * （策略保持原样，统一由 lv_fd_step_adaptive 提供）。 */
+        double h = lv_fd_step_adaptive(orig, eps);
 
-        double *F_plus = (double *) lv_calloc(nrows, sizeof(double));
-        compute_residuals(sys, F_plus, nrows);
+        /* 中心差分计算第 j 列：J[:, j] = (F_plus - F_minus) / (2 * h)，
+         * 由公共工具 lv_finite_difference_vec 完成（J 为行优先，列写入经临时缓冲）。
+         * 回调需临时写入实体参数，const 仅在接口层，与既有 lv_solver_get_entity
+         * 的 (lvSolverSystem *) cast 风格一致。 */
+        SolverFdCtx ctx = {(lvSolverSystem *) sys, ent_idx, param_offset};
+        double *J_col = (double *) lv_calloc((size_t) nrows, sizeof(double));
+        if (!J_col)
+            return;
+        int rc = lv_finite_difference_vec(solver_residual_cb, &ctx, orig, h, lv_FD_CENTRAL, NULL, J_col, nrows);
 
-        /* 负向扰动 */
-        sys->entities[ent_idx].params[param_offset] = orig - h;
-
-        double *F_minus = (double *) lv_calloc(nrows, sizeof(double));
-        compute_residuals(sys, F_minus, nrows);
-
-        /* 恢复原始值 */
-        sys->entities[ent_idx].params[param_offset] = orig;
-
-        /* 计算雅可比列：J[:, j] = (F_plus - F_minus) / (2 * h) */
-        for (int i = 0; i < nrows; i++) {
-            J[i * ncols + j] = (F_plus[i] - F_minus[i]) / (2.0 * h);
+        if (rc == 0) {
+            for (int i = 0; i < nrows; i++) {
+                J[i * ncols + j] = J_col[i];
+            }
         }
-
-        lv_free((void **) &(F_plus));
-        lv_free((void **) &(F_minus));
+        lv_free((void **) &J_col);
     }
 }
 

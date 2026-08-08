@@ -41,7 +41,8 @@
  * 由 debug_log_rewrite 调用。
  */
 static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_list args) {
-    log_lock();
+    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
 
     /* 输出到控制台 */
     va_list args_copy;
@@ -61,8 +62,6 @@ static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_lis
         fprintf(s_debug_state.log_file, "\n");
         fflush(s_debug_state.log_file);
     }
-
-    log_unlock();
 }
 
 void debug_log_rewrite(const char *fmt, ...) {
@@ -75,42 +74,44 @@ void debug_log_rewrite(const char *fmt, ...) {
 /*=== 新日志系统实现 ===*/
 
 int debug_log_init(void) {
-    /* log_lock() 内部通过 lv_once 保证互斥锁只初始化一次 */
-    log_lock();
-    if (s_debug_state.initialized) {
-        log_unlock();
-        return 0; /* 已初始化 */
+    /* 内层作用域锁守卫（DEBUG_LOG_LOCK_GUARD 经 debug_log_mutex 的 lv_once 保证互斥锁只初始化一次）：
+     * 块结束自动解锁，随后的环形缓冲区创建与 LOG_INFO 保持在锁外
+     * （LOG_INFO → debug_log 会再次获取 log_mutex，若仍在锁内将自死锁）。 */
+    {
+        DEBUG_LOG_LOCK_GUARD();
+        if (s_debug_state.initialized) {
+            return 0; /* 已初始化（守卫自动解锁） */
+        }
+
+        /* 构建日志目录路径: ~/.lv/logs */
+        const char *home = get_home_dir();
+        char home_lv[lv_LOG_PATH_MAX];
+        lv_path_join(home, ".lv", home_lv, sizeof(home_lv));
+        lv_path_join(home_lv, "logs", s_debug_state.log_dir_path, lv_LOG_PATH_MAX);
+
+        /* 创建日志目录 */
+        if (create_directory(s_debug_state.log_dir_path) != 0) {
+            lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", s_debug_state.log_dir_path);
+            /* 继续运行，不使用文件日志 */
+        }
+
+        /* 构建日志文件路径 */
+        lv_path_join(s_debug_state.log_dir_path, lv_DEBUG_LOG_BASENAME, s_debug_state.log_file_path, lv_LOG_PATH_MAX);
+
+        /* 打开日志文件 */
+        s_debug_state.log_file = fopen(s_debug_state.log_file_path, "a");
+        if (!s_debug_state.log_file) {
+            lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", s_debug_state.log_file_path);
+            /* 继续运行，不使用文件日志 */
+        } else {
+            /* 获取当前文件大小 */
+            fseek(s_debug_state.log_file, 0, SEEK_END);
+            long pos = ftell(s_debug_state.log_file);
+            s_debug_state.current_log_size = (pos > 0) ? (size_t) pos : 0;
+        }
+
+        s_debug_state.initialized = true;
     }
-
-    /* 构建日志目录路径: ~/.lv/logs */
-    const char *home = get_home_dir();
-    char home_lv[lv_LOG_PATH_MAX];
-    lv_path_join(home, ".lv", home_lv, sizeof(home_lv));
-    lv_path_join(home_lv, "logs", s_debug_state.log_dir_path, lv_LOG_PATH_MAX);
-
-    /* 创建日志目录 */
-    if (create_directory(s_debug_state.log_dir_path) != 0) {
-        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not create log directory: %s", s_debug_state.log_dir_path);
-        /* 继续运行，不使用文件日志 */
-    }
-
-    /* 构建日志文件路径 */
-    lv_path_join(s_debug_state.log_dir_path, lv_DEBUG_LOG_BASENAME, s_debug_state.log_file_path, lv_LOG_PATH_MAX);
-
-    /* 打开日志文件 */
-    s_debug_state.log_file = fopen(s_debug_state.log_file_path, "a");
-    if (!s_debug_state.log_file) {
-        lv_set_error(lv_ERROR_IO, "[DEBUG] Warning: Could not open log file: %s", s_debug_state.log_file_path);
-        /* 继续运行，不使用文件日志 */
-    } else {
-        /* 获取当前文件大小 */
-        fseek(s_debug_state.log_file, 0, SEEK_END);
-        long pos = ftell(s_debug_state.log_file);
-        s_debug_state.current_log_size = (pos > 0) ? (size_t) pos : 0;
-    }
-
-    s_debug_state.initialized = true;
-    log_unlock();
 
     /* 【v3.3.0】创建全局环形日志缓冲区 */
     if (!s_debug_state.log_ring_buffer) {
@@ -129,32 +130,32 @@ int debug_log_init(void) {
 }
 
 void debug_log_shutdown(void) {
-    /* 必须在锁内检查 initialized，防止与 debug_log_init() 产生竞态条件 */
-    log_lock();
-    if (!s_debug_state.initialized) {
-        log_unlock();
-        return;
+    /* 内层作用域锁守卫：必须在锁内检查 initialized，防止与 debug_log_init() 产生竞态条件；
+     * 块结束自动解锁，随后的环形缓冲区销毁保持在锁外（与原来一致）。 */
+    {
+        DEBUG_LOG_LOCK_GUARD();
+        if (!s_debug_state.initialized) {
+            return; /* 守卫自动解锁 */
+        }
+
+        /* 记录关闭日志 */
+        if (s_debug_state.log_file) {
+            char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
+            get_timestamp(timestamp, sizeof(timestamp));
+            fprintf(s_debug_state.log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
+            fclose(s_debug_state.log_file);
+            s_debug_state.log_file = NULL;
+        }
+
+        /* 先将 initialized 设为 false，阻止新日志进入 */
+        s_debug_state.initialized = false;
+
+        /* 销毁全局追踪会话，防止内存泄漏 */
+        if (s_debug_state.trace_session) {
+            trace_session_destroy(s_debug_state.trace_session);
+            s_debug_state.trace_session = NULL;
+        }
     }
-
-    /* 记录关闭日志 */
-    if (s_debug_state.log_file) {
-        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
-        get_timestamp(timestamp, sizeof(timestamp));
-        fprintf(s_debug_state.log_file, "[%s] [INFO] [debug] === Logging System Shutdown ===\n", timestamp);
-        fclose(s_debug_state.log_file);
-        s_debug_state.log_file = NULL;
-    }
-
-    /* 先将 initialized 设为 false，阻止新日志进入 */
-    s_debug_state.initialized = false;
-
-    /* 销毁全局追踪会话，防止内存泄漏 */
-    if (s_debug_state.trace_session) {
-        trace_session_destroy(s_debug_state.trace_session);
-        s_debug_state.trace_session = NULL;
-    }
-
-    log_unlock();
 
     /* 【v3.3.0】销毁全局环形日志缓冲区 */
     if (s_debug_state.log_ring_buffer) {
@@ -169,79 +170,81 @@ void debug_log_cleanup(void) {
 }
 
 void debug_set_log_level(LogLevel level) {
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     g_log_level = level;
-    log_unlock();
 }
 
 LogLevel debug_get_log_level(void) {
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     LogLevel level = g_log_level;
-    log_unlock();
     return level;
 }
 
 void debug_set_mode(bool debug_mode) {
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     g_debug_mode = debug_mode;
     if (debug_mode) {
         g_log_level = LOG_LEVEL_DEBUG;
     } else {
         g_log_level = LOG_LEVEL_WARN;
     }
-    log_unlock();
 }
 
 bool debug_is_debug_mode(void) {
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     bool mode = g_debug_mode;
-    log_unlock();
     return mode;
 }
 
 void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
-    log_lock();
-
-    /* 检查该日志级别是否需要记录（在锁内检查，防止与 debug_set_log_level 并发修改竞争） */
-    if (level < g_log_level) {
-        log_unlock();
-        return;
-    }
-
-    /* 检查是否需要轮转 */
-    check_rotation();
-
-    /* 格式化消息 */
-    char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
-    get_timestamp(timestamp, sizeof(timestamp));
-
-    /* 格式化可变参数 */
+    /* 格式化消息缓冲区（块外声明：供块外环形缓冲区写入使用） */
     char message[lv_DEBUG_LOG_MESSAGE_BUF_SIZE];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(message, sizeof(message), fmt, args);
-    va_end(args);
+    /* 内层作用域锁守卫：块结束自动解锁，随后的环形日志缓冲区写入保持在锁外
+     * （lv_log_ring_buffer_write 内部自带锁，避免锁内嵌套）。 */
+    {
+        DEBUG_LOG_LOCK_GUARD();
 
-    /* 构建日志行 */
-    char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
-    int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
-                       module ? module : "unknown", message);
+        /* 检查该日志级别是否需要记录（在锁内检查，防止与 debug_set_log_level 并发修改竞争） */
+        if (level < g_log_level) {
+            return; /* 守卫自动解锁 */
+        }
 
-    /* ERROR 和 WARN 输出到 stderr，其余输出到 stdout */
-    if (level >= LOG_LEVEL_WARN) {
-        fputs(log_line, stderr);
-    } else {
-        fputs(log_line, stdout);
+        /* 检查是否需要轮转 */
+        check_rotation();
+
+        /* 格式化消息 */
+        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
+        get_timestamp(timestamp, sizeof(timestamp));
+
+        /* 格式化可变参数 */
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(message, sizeof(message), fmt, args);
+        va_end(args);
+
+        /* 构建日志行 */
+        char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
+        int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
+                           module ? module : "unknown", message);
+
+        /* ERROR 和 WARN 输出到 stderr，其余输出到 stdout */
+        if (level >= LOG_LEVEL_WARN) {
+            fputs(log_line, stderr);
+        } else {
+            fputs(log_line, stdout);
+        }
+
+        /* 写入日志文件 */
+        if (s_debug_state.log_file && s_debug_state.initialized) {
+            fputs(log_line, s_debug_state.log_file);
+            fflush(s_debug_state.log_file);
+            s_debug_state.current_log_size += (size_t) len;
+        }
     }
-
-    /* 写入日志文件 */
-    if (s_debug_state.log_file && s_debug_state.initialized) {
-        fputs(log_line, s_debug_state.log_file);
-        fflush(s_debug_state.log_file);
-        s_debug_state.current_log_size += (size_t) len;
-    }
-
-    log_unlock();
 
     /* 【v3.3.0】写入全局环形日志缓冲区（替代原 log_buffer；锁外调用，wrapper 内部自行加锁） */
     if (s_debug_state.log_ring_buffer) {

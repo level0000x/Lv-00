@@ -53,18 +53,16 @@
 #include "lv/lv.h"
 #include "lv/lv_xmacro.h"
 #include "lv/stream.h"
+#include "stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
 
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "rewrite.h"
 #include "lv/lv_strbuf.h"
 
-/* 流式上下文（非 static，供 type_path_explorer.c 通过 extern 访问） */
-lv_UNUSED_ATTR lv_THREAD_LOCAL StreamContext *type_system_stream_ctx = NULL;
-
-void type_system_set_stream_context(StreamContext *ctx) {
-    type_system_stream_ctx = ctx;
-}
+/* 流式上下文（非 static，供 type_path_explorer.c 通过 extern 访问）
+ * lv_UNUSED_ATTR 仅修饰变量声明，不影响宏生成的 setter。 */
+lv_UNUSED_ATTR LV_STREAM_CTX_DEFINE(type_system);
 
 /* ============== 内部辅助宏 ============== */
 

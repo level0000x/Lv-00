@@ -1698,6 +1698,8 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_registry)
     add_lv_test_auto(test_stream)
     add_lv_test_auto(test_stream_extended)
+    # 线程池并行 for（lv_parallel_for）测试
+    add_lv_test_auto(test_parallel_for)
     add_lv_test_auto(test_func_block_utils)
     # 恢复：preset_blocks.c 已加入 Layer 4 构建列表，依赖已满足
     add_lv_test_auto(test_func_block_preset)

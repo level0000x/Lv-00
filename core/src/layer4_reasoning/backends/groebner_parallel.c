@@ -14,6 +14,7 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,9 +68,10 @@ typedef struct {
     WorkQueue *local_queue;         /**< 线程本地工作队列 */
     WorkQueue **all_queues;         /**< 所有线程的队列（用于 work-stealing） */
     int num_threads;                /**< 总线程数 */
-    volatile int *shutdown_flag;    /**< 关闭标志 */
-    volatile int *global_completed; /**< 全局完成对计数（原子操作） */
-    volatile int *global_total;     /**< 全局总对数（原子操作） */
+    int basis_cap;                  /**< 基数组容量（lv_ensure_capacity 倍增维护） */
+    atomic_int *shutdown_flag;      /**< 关闭标志（C11 原子） */
+    atomic_int *global_completed;   /**< 全局完成对计数（C11 原子） */
+    atomic_int *global_total;       /**< 全局总对数（C11 原子） */
 } WorkerArg;
 
 /* ========================================================================
@@ -627,9 +629,10 @@ static int coprime_leading_terms(const SimplePoly *f, int fi, int fj, int basis_
 static void worker_process(WorkerArg *arg) {
     SimplePoly *basis = arg->basis;
     int basis_size = arg->basis_size;
+    int basis_cap = arg->basis_cap;
     SPair pair;
 
-    while (!*(arg->shutdown_flag)) {
+    while (!atomic_load(arg->shutdown_flag)) {
         int found = 0;
 
         /* 1. 先从本地队列取工作 */
@@ -648,7 +651,7 @@ static void worker_process(WorkerArg *arg) {
 
         if (!found) {
             /* 无可用工作，检查是否所有对都已完成 */
-            if (*(arg->global_completed) >= *(arg->global_total)) {
+            if (atomic_load(arg->global_completed) >= atomic_load(arg->global_total)) {
                 break;
             }
             continue; /* 自旋等待 */
@@ -657,7 +660,7 @@ static void worker_process(WorkerArg *arg) {
         /* 应用 Buchberger 第一个判据：跳过首项互素的对 */
         if (pair.i < basis_size && pair.j < basis_size && coprime_leading_terms(basis, pair.i, pair.j, basis_size)) {
             /* 该对必然约化为零，跳过 */
-            (*(arg->global_completed))++;
+            atomic_fetch_add(arg->global_completed, 1);
             continue;
         }
 
@@ -668,32 +671,31 @@ static void worker_process(WorkerArg *arg) {
         s_poly = reduce_poly(s_poly, basis, basis_size);
 
         /* 更新完成计数 */
-        (*(arg->global_completed))++;
+        atomic_fetch_add(arg->global_completed, 1);
 
         /* 如果约化结果非零，加入基并生成新的对 */
         if (!simple_poly_is_zero(&s_poly)) {
             /* 新多项式加入基 */
             int new_idx = basis_size;
 
-            /* 扩展基数组 */
-            SimplePoly *new_basis = (SimplePoly *) lv_realloc(basis, (size_t) (basis_size + 1) * sizeof(SimplePoly));
-            if (new_basis) {
-                basis = new_basis;
+            /* 扩展基数组（lv_ensure_capacity 倍增扩容，摊销 O(1)） */
+            if (lv_ensure_capacity((void **) &basis, basis_size, &basis_cap, sizeof(SimplePoly), 1)) {
                 basis[new_idx] = s_poly;
 
                 /* 生成新多项式与现有基中所有多项式的 S-对 */
                 for (int k = 0; k < basis_size; k++) {
                     if (!simple_poly_is_zero(&basis[k])) {
                         work_queue_push(arg->local_queue, k, new_idx);
-                        (*(arg->global_total))++;
+                        atomic_fetch_add(arg->global_total, 1);
                     }
                 }
 
                 basis_size++;
                 arg->basis = basis;
                 arg->basis_size = basis_size;
+                arg->basis_cap = basis_cap;
 
-                /* 同步所有线程的基指针与大小（当前为顺序执行框架）：
+                /* 同步所有线程的基指针、大小与容量（当前为顺序执行框架）：
                  * realloc 可能移动基数组，后续线程若沿用 realloc 前的旧指针
                  * 会访问已释放内存（use-after-free）。统一指向最新基数组。 */
                 WorkerArg *all_args = (WorkerArg *) arg->engine->thread_pool;
@@ -701,6 +703,7 @@ static void worker_process(WorkerArg *arg) {
                     for (int t = 0; t < arg->num_threads; t++) {
                         all_args[t].basis = basis;
                         all_args[t].basis_size = basis_size;
+                        all_args[t].basis_cap = basis_cap;
                     }
                 }
             } else {
@@ -757,7 +760,7 @@ void lv_groebner_parallel_destroy(lvGroebnerParallel *engine) {
         /* 设置关闭标志 */
         for (int i = 0; i < num_threads; i++) {
             if (args[i].shutdown_flag) {
-                *(args[i].shutdown_flag) = 1;
+                atomic_store(args[i].shutdown_flag, 1);
             }
         }
 
@@ -928,9 +931,12 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
     if (num_threads > basis_count)
         num_threads = basis_count;
 
-    volatile int shutdown_flag = 0;
-    volatile int global_completed = 0;
-    volatile int global_total = engine->state.total_pairs;
+    /* C11 原子计数器：当前为单线程顺序执行框架；多线程扩展后由多个
+     * worker_process 并发访问，volatile 不足以保证原子性与可见性，
+     * 故使用 stdatomic（原子类型保持与原 volatile int 相同布局）。 */
+    atomic_int shutdown_flag = 0;
+    atomic_int global_completed = 0;
+    atomic_int global_total = engine->state.total_pairs;
 
     WorkerArg *args = (WorkerArg *) lv_calloc((size_t) num_threads, sizeof(WorkerArg));
     WorkQueue **all_queues = (WorkQueue **) lv_calloc((size_t) num_threads, sizeof(WorkQueue *));
@@ -979,6 +985,7 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
         args[t].engine = engine;
         args[t].basis = basis;
         args[t].basis_size = basis_count;
+        args[t].basis_cap = basis_count;
         args[t].local_queue = all_queues[t];
         args[t].all_queues = all_queues;
         args[t].num_threads = num_threads;
@@ -991,19 +998,22 @@ int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, 
     engine->thread_pool = args;
     engine->thread_count = num_threads;
 
-    /* 顺序执行所有线程的工作（当前为单线程并行框架，
-     * 多线程扩展只需将 worker_process 包装为 pthread_create 调用） */
+    /* 顺序执行所有线程的工作（当前为单线程并行框架：
+     * shutdown_flag/global_completed/global_total 已用 C11 原子，多线程扩展时
+     * 只需将 worker_process 包装为线程创建调用；注意 basis/basis_size/basis_cap
+     * 的同步（realloc 移动基数组）需升级为互斥保护或原子指针交换，否则有
+     * use-after-free 风险。 */
     for (int t = 0; t < num_threads; t++) {
         worker_process(&args[t]);
     }
 
     /* 通知所有线程退出 */
-    shutdown_flag = 1;
+    atomic_store(&shutdown_flag, 1);
 
     /* 更新引擎状态 */
-    engine->state.completed_pairs = global_completed;
-    engine->state.total_pairs = global_total;
-    engine->state.remaining_pairs = global_total - global_completed;
+    engine->state.completed_pairs = atomic_load(&global_completed);
+    engine->state.total_pairs = atomic_load(&global_total);
+    engine->state.remaining_pairs = atomic_load(&global_total) - atomic_load(&global_completed);
     engine->state.active_threads = 0;
 
     /* 保存最终基 */

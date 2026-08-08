@@ -134,21 +134,23 @@ extern "C" {
 
 /* 几何专用容差 */
 #ifndef lv_GEO_COLLINEAR_EPSILON
-#define lv_GEO_COLLINEAR_EPSILON 1e-9 /* 共线性判断容差 */
+#define lv_GEO_COLLINEAR_EPSILON lv_EPSILON_MEDIUM /* 共线性判断容差（语义别名 = lv_EPSILON_MEDIUM，1e-9） */
 #endif
 #ifndef lv_GEO_DISTANCE_EPSILON
-#define lv_GEO_DISTANCE_EPSILON 1e-8 /* 距离判断容差 */
+/* 距离判断容差：独立值 1e-8（分级体系无对应档），作为 1e-8 组语义常量
+ * （EUCLID_CONGRUENCE_TOLERANCE、NUMERIC_VERIFY_TOLERANCE）的数值权威。 */
+#define lv_GEO_DISTANCE_EPSILON 1e-8
 #endif
 #ifndef lv_GEO_ANGLE_EPSILON
-#define lv_GEO_ANGLE_EPSILON 1e-10 /* 角度相等容差 */
+#define lv_GEO_ANGLE_EPSILON lv_EPSILON_HIGH /* 角度相等容差（语义别名 = lv_EPSILON_HIGH，1e-10） */
 #endif
 
 /* 代数运算安全阈值 */
 #ifndef lv_SINGULARITY_THRESHOLD
-#define lv_SINGULARITY_THRESHOLD 1e-12 /* 矩阵奇异性判断 */
+#define lv_SINGULARITY_THRESHOLD lv_EPSILON_ULTRA /* 矩阵奇异性判断（语义别名 = lv_EPSILON_ULTRA，1e-12） */
 #endif
 #ifndef lv_NORMALIZATION_THRESHOLD
-#define lv_NORMALIZATION_THRESHOLD 1e-15 /* 向量归一化容差 */
+#define lv_NORMALIZATION_THRESHOLD lv_EPSILON_SUPERTINY /* 向量归一化容差（语义别名 = lv_EPSILON_SUPERTINY，1e-15） */
 #endif
 
 /* 数值范围极限（用于哨兵值） */

@@ -70,7 +70,8 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *modu
 
     /* 3. 若上下文有效，将环形缓冲区中刚写入条目的 context_id 关联到上下文 */
     if (s_debug_state.log_ring_buffer && ctx && ctx->context_id > 0) {
-        log_lock();
+        /* 作用域锁守卫：块结束自动解锁 */
+        DEBUG_LOG_LOCK_GUARD();
         /* debug_log 仅在级别过滤通过时写入环形缓冲区，此处需同样校验，
          * 避免过滤未通过的调用错误覆盖前一条日志的 context_id */
         if (level >= g_log_level) {
@@ -82,7 +83,6 @@ void lv_log_with_context(struct lvContext *ctx, LogLevel level, const char *modu
                 }
             }
         }
-        log_unlock();
     }
 }
 
@@ -92,20 +92,20 @@ void debug_get_counters(PerformanceCounters *counters) {
     if (!counters)
         return;
 
-    counter_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_COUNTER_LOCK_GUARD();
     *counters = s_debug_state.counters;
 
     /* 计算平均求解器耗时 */
     if (s_debug_state.counters.solver_call_count > 0) {
         counters->solver_avg_time_us = (double) s_debug_state.counters.solver_total_time_us / (double) s_debug_state.counters.solver_call_count;
     }
-    counter_unlock();
 }
 
 void debug_reset_counters(void) {
-    counter_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_COUNTER_LOCK_GUARD();
     memset(&s_debug_state.counters, 0, sizeof(s_debug_state.counters));
-    counter_unlock();
 }
 
 void debug_counter_node_created(void) {
@@ -212,10 +212,10 @@ int debug_get_log_path(char *buf, size_t size) {
     if (!buf || size == 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "缓冲区参数无效");
 
-    log_lock();
+    /* 作用域锁守卫：函数末尾自动解锁 */
+    DEBUG_LOG_LOCK_GUARD();
     /* 修复：使用 lv_strlcpy 替代 strncpy，自动保证零终止且更安全 */
     lv_strlcpy(buf, s_debug_state.log_file_path, size);
-    log_unlock();
 
     return 0;
 }

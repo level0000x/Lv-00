@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interactive_geo.h
  * @brief 交互几何系统 —— 借鉴 Cinderella 与 Dr. Geo 的交互几何 UX 设计
  *
@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv/config.h" /* lv_GEO_DEFAULT_TOLERANCE 语义别名 = lv_EPSILON_MEDIUM */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,8 +57,8 @@ typedef struct lvEngine lvEngine;
 #endif
 /** 随机化验证默认采样次数 */
 #define lv_GEO_DEFAULT_SAMPLE_COUNT 10000
-/** 随机化验证默认容差 */
-#define lv_GEO_DEFAULT_TOLERANCE 1e-9
+/** 随机化验证默认容差（语义别名 = config.h lv_EPSILON_MEDIUM，1e-9） */
+#define lv_GEO_DEFAULT_TOLERANCE lv_EPSILON_MEDIUM
 /** 随机化验证高置信度阈值 */
 #define lv_GEO_HIGH_CONFIDENCE 0.9999
 /* ==================== 枚举定义 ==================== */

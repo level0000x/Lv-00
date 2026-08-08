@@ -126,11 +126,12 @@ bool stream_set_async_mode(StreamContext *ctx, bool enabled, int capacity) {
         if (!ctx->async_enabled)
             return true;
 
-        /* 通知消费者线程停止 */
-        lv_mutex_lock(&ctx->async_mutex);
-        ctx->async_running = false;
-        lv_cond_signal(&ctx->async_cond_not_empty);
-        lv_mutex_unlock(&ctx->async_mutex);
+        /* 通知消费者线程停止（作用域锁守卫：块结束自动解锁） */
+        {
+            LV_SCOPE_LOCK(&ctx->async_mutex);
+            ctx->async_running = false;
+            lv_cond_signal(&ctx->async_cond_not_empty);
+        }
 
         /* 等待消费者线程退出 */
         lv_thread_join(ctx->async_thread);
@@ -162,15 +163,15 @@ void stream_flush(StreamContext *ctx) {
     if (!ctx)
         return;
 
-    /* 异步模式：阻塞等待消费者线程排空队列 */
+    /* 异步模式：阻塞等待消费者线程排空队列（作用域锁守卫：块结束自动解锁；
+     * cond_wait 原子释放锁并等待，唤醒后重新持锁，语义与原来完全一致） */
     if (ctx->async_enabled && ctx->async_running) {
-        lv_mutex_lock(&ctx->async_mutex);
+        LV_SCOPE_LOCK(&ctx->async_mutex);
         ctx->async_flush_waiters++;
         while (ctx->buffer_count > 0 && ctx->async_running) {
             lv_cond_wait(&ctx->async_cond_flushed, &ctx->async_mutex);
         }
         ctx->async_flush_waiters--;
-        lv_mutex_unlock(&ctx->async_mutex);
         return;
     }
 

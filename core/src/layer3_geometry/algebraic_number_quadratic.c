@@ -5,6 +5,23 @@
  * @details 由 algebraic_number.c 按数域类型拆分而来。
  *          所有运算基于 int64_t，不依赖 GMP 等外部库。
  *
+ * @section layering 分层边界（与 symbolics/quadratic.c 的关系）
+ *
+ * 本文件（lv_alg_quadratic_*）与 symbolics/quadratic.c（quadratic_*）实现同一
+ * 数学域 Q(√d)，但精度载体不同，属分层设计，**不合并实现**：
+ * - 本文件：AlgQuadratic 为 int64_t 栈值类型（AlgRational = num/den int64），
+ *   轻量、无堆分配、无外部依赖，供代数数域链（algebraic_number.c 的
+ *   lv_alg_* 系列，消费方见 lv/algebraic_number.h）使用；
+ * - symbolics/quadratic.c：Quadratic 为 mpq_t 堆值类型（GMP 有理数），
+ *   精确无溢出，供符号坐标链（symbolic_coord.*，消费方见 lv/symbolic_coord.h）
+ *   使用。
+ *
+ * 两处 mul/div 的数学公式编码一致（mul: (a1a2+b1b2d)+(a1b2+a2b1)√d；
+ * div: 乘共轭/范数），仅载体不同，属合理重复，不强行合并。
+ * to_double 转换（lv_alg_quadratic_to_double vs quadratic_to_double）签名与
+ * 载体不兼容（值类型 vs 堆类型、d 可含 0/负值 vs n 必须正无平方因子），
+ * 不可互委派。
+ *
  * @version 3.5.0
  * @copyright Copyright (c) 2024-2026 Lv-00 Project
  */

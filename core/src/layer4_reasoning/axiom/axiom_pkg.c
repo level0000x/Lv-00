@@ -30,6 +30,8 @@
 
 
 /* 线程局部存储用于错误消息（使用lv_internal.h中定义的lv_THREAD_LOCAL） */
+/* 注：变量名 axiom_stream_ctx 与 setter 名 axiom_pkg_set_stream_context 前缀不一致，
+ * 不适用 LV_STREAM_CTX_DEFINE 宏（宏要求 <module>_stream_ctx 命名），保留手写。 */
 
 lv_THREAD_LOCAL StreamContext *axiom_stream_ctx = NULL;
 
