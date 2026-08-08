@@ -268,9 +268,8 @@ static void test_key_templates(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
+TEST_MAIN_BEGIN("Linear Algebra Axiom Package Tests")
     TEST_SUITE_BEGIN("Linear Algebra");
-
     TEST_RUN(test_load_from_file);
     TEST_RUN(test_templates);
     TEST_RUN(test_unconstructibles);
@@ -281,8 +280,5 @@ int main(void) {
     TEST_RUN(test_negative_lookups);
     TEST_RUN(test_external_references);
     TEST_RUN(test_key_templates);
-
     TEST_SUMMARY();
-
-    return 0;
-}
+TEST_MAIN_END()

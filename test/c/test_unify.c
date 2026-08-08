@@ -274,9 +274,9 @@ static int test_port_match_higher_order(void) {
     return failures;
 }
 
-int main(void) {
-    printf("=== Lv-00 Unify Test Suite ===\n");
+TEST_MAIN_BEGIN("Lv-00 Unify Test Suite")
     int failures = 0;
+    printf("=== Lv-00 Unify Test Suite ===\n");
     failures += test_proposition_create();
     failures += test_successful_unify();
     failures += test_constraint_missing();
@@ -286,11 +286,6 @@ int main(void) {
     failures += test_complex_construction_unify();
     failures += test_empty_graph_unify();
     failures += test_port_match_higher_order();
-
     printf("\n=== Test Summary ===\n");
-    if (failures == 0)
-        printf("All unify tests PASSED!\n");
-    else
-        printf("%d test(s) FAILED\n", failures);
-    return failures ? 1 : 0;
-}
+    return failures != 0 ? 1 : 0;
+TEST_MAIN_END()

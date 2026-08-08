@@ -559,6 +559,7 @@ set(lv_HEADERS
     core/include/lv/sparse_linear_algebra.h
     core/include/lv/status_codes.h
     core/include/lv/tikz_export.h
+    core/include/lv/lv_export_common.h
     # v3.5.0 stub→real: 61 preset module headers
     core/include/lv/preset_advanced_geometry.h
     core/include/lv/preset_algebraic.h
@@ -782,6 +783,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_ringbuf.c
     # v3.8.0 统一字符串工具函数集
     core/src/layer2_resource/lv_str_utils.c
+    # v1.0.0 导出公共工具（layer1/layer5 导出器共用；lv_export_common.h 实现）
+    core/src/layer2_resource/lv_export_common.c
     # v5.x 公共 DOT（Graphviz）写入器（统一 digraph 样板与 label 转义；仅依赖 L2 基础设施，供 L2~L5 复用）
     core/src/layer2_resource/lv_dot_writer.c
     # v3.8.0 统一文件 I/O 抽象层
@@ -882,8 +885,9 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/ga_codegen.c
     core/src/layer3_geometry/geo_invariant_type.c
     # v3.4.0 新增：区间/数值验证模块（MPFI + Gappa + FPTaylor + Herbie + FLINT/Arb 落地）
-    core/src/layer3_geometry/interval_arithmetic.c
-    # v1.0.0 公共区间算术库（数值验证策略的统一区间底座；gappa/float_error 收敛于此）
+    # v1.0.0 公共区间算术库（数值验证策略的统一区间底座；gappa/float_error 收敛于此。
+    # interval_arithmetic.c 已删除：其 interval_* 兼容层并入 interval_arith.c 末尾，
+    # geo_predicate.c 已迁移到 lv_interval_*）
     core/src/layer3_geometry/interval_arith.c
     core/src/layer3_geometry/gappa_dsl.c
     core/src/layer3_geometry/gappa_propagate.c
@@ -1321,7 +1325,6 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/interop/interop_export_lean.c
     core/src/layer5_output/interop/interop_export_pdf.c
     core/src/layer5_output/interop/interop_export_svg.c
-    core/src/layer5_output/interop/interop_export_tikz.c
     core/src/layer5_output/interop/interop_import.c
     core/src/layer5_output/interop/interop_server.c
     core/src/layer5_output/interop/interop_theorem.c
@@ -1720,6 +1723,9 @@ if(BUILD_TESTS)
     # v3.4.0 新增：数论/代数模块测试
     add_lv_test_auto(test_nt_number_theory)
     add_lv_test_auto(test_sym_expr)
+    # 新增：稀疏线性代数（CSR + Jacobi 求解）与数论多项式模块测试
+    add_lv_test_auto(test_sparse_linear_algebra)
+    add_lv_test_auto(test_nt_polynomial)
     # v3.4.0 新增：重写引擎测试
     add_lv_test_auto(test_rewrite_strategy)
     add_lv_test_auto(test_rewrite_strategy_impl)

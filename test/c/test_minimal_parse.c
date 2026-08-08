@@ -17,17 +17,19 @@
 #include <string.h>
 
 #include "lv.h"
+#include "test_helpers.h"
 
-int main(void) {
+int g_pass_count = 0;
+int g_fail_count = 0;
+
+TEST_MAIN_BEGIN("euclidean_plane.lvz (full with comments)")
     setvbuf(stdout, NULL, _IONBF, 0);
-
     printf("=== euclidean_plane.lvz (full with comments) ===\n");
     AxiomPackage *pkg = axiom_package_create("t", "0");
     if (!pkg) {
         printf("ERROR: Failed to create axiom package\n");
         return 1;
     }
-
     /* 路径：先尝试相对于可执行文件所在目录，再尝试相对于当前工作目录 */
     const char *paths[] = {
         "module/axiom_packages/euclidean_plane.lvz",
@@ -36,7 +38,6 @@ int main(void) {
     };
     AxiomLoadStatus s = AXIOM_LOAD_FILE_NOT_FOUND;
     int path_count = sizeof(paths) / sizeof(paths[0]);
-
     for (int i = 0; i < path_count; i++) {
         /* 先检查文件是否存在 */
         FILE *fp = fopen(paths[i], "r");
@@ -49,7 +50,6 @@ int main(void) {
             }
         }
     }
-
     if (s != AXIOM_LOAD_OK) {
         printf("ERROR: Failed to load axiom package (status=%d)\n", (int) s);
         const char *err = axiom_package_get_last_error();
@@ -58,19 +58,15 @@ int main(void) {
         axiom_package_destroy(pkg);
         return 1;
     }
-
     printf("Load: %d, Tmpl: %d, UC: %d, Bottom: %s\n", (int) s, axiom_package_get_template_count(pkg), axiom_package_get_unconstructible_count(pkg),
            pkg->bottom_geometry ? pkg->bottom_geometry : "(null)");
     const char *err = axiom_package_get_last_error();
     if (err)
         printf("Error: %s\n", err);
-
     for (int i = 0; i < axiom_package_get_unconstructible_count(pkg); i++) {
         KnownUnconstructible *uc = axiom_package_get_unconstructible(pkg, i);
         printf("  UC[%d]: %s -> %s (deps=%d, verified=%d)\n", i, uc->name, uc->reduces_to, uc->dependency_chain.count,
                uc->green_verified);
     }
     axiom_package_destroy(pkg);
-
-    return 0;
-}
+TEST_MAIN_END()

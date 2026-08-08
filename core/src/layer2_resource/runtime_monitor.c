@@ -73,9 +73,11 @@ typedef struct RuntimeMonitorState {
 
     /* 性能子系统（原 g_perf_system） */
     struct {
-        lvTimer *timers[MAX_TIMERS];
+        lvTimer **timers;      /**< 计时器指针数组（动态扩容，消除 MAX_TIMERS 上限） */
+        int timer_capacity;    /**< 计时器数组容量 */
         uint32_t timer_count;
-        lvPerfStats *stats[MAX_PERF_STATS];
+        lvPerfStats **stats;   /**< 性能统计指针数组（动态扩容，消除 MAX_PERF_STATS 上限） */
+        int stats_capacity;    /**< 性能统计数组容量 */
         uint32_t stats_count;
         lv_mutex_t mutex;
         bool initialized;
@@ -295,6 +297,10 @@ void lv_perf_shutdown(void) {
     for (uint32_t i = 0; i < s_runtime_state.perf.stats_count; i++) {
         lv_free((void **) &s_runtime_state.perf.stats[i]);
     }
+    lv_free((void **) &s_runtime_state.perf.timers);
+    s_runtime_state.perf.timers = NULL;
+    lv_free((void **) &s_runtime_state.perf.stats);
+    s_runtime_state.perf.stats = NULL;
 
     lv_mutex_unlock(&s_runtime_state.perf.mutex);
     lv_mutex_destroy(&s_runtime_state.perf.mutex);
@@ -302,8 +308,8 @@ void lv_perf_shutdown(void) {
 }
 
 lvTimer *lv_timer_create(const char *name) {
-    if (!s_runtime_state.perf.initialized || s_runtime_state.perf.timer_count >= MAX_TIMERS) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_timer_create: perf system not initialized or full");
+    if (!s_runtime_state.perf.initialized) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_timer_create: perf system not initialized");
     }
 
     lvTimer *timer = (lvTimer *) lv_calloc(1, sizeof(lvTimer));
@@ -317,6 +323,16 @@ lvTimer *lv_timer_create(const char *name) {
     timer->state = TIMER_STOPPED;
 
     lv_mutex_lock(&s_runtime_state.perf.mutex);
+    /* 动态扩容（倍增），消除 MAX_TIMERS 注册上限 */
+    if (s_runtime_state.perf.timer_count >= (uint32_t) s_runtime_state.perf.timer_capacity) {
+        if (!lv_ensure_capacity((void **) &s_runtime_state.perf.timers,
+                                (int) s_runtime_state.perf.timer_count,
+                                &s_runtime_state.perf.timer_capacity, sizeof(lvTimer *), 0)) {
+            lv_mutex_unlock(&s_runtime_state.perf.mutex);
+            lv_free((void **) &timer);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_timer_create: timers array growth failed");
+        }
+    }
     s_runtime_state.perf.timers[s_runtime_state.perf.timer_count++] = timer;
     lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
@@ -414,8 +430,8 @@ int64_t lv_timer_elapsed_ns(const lvTimer *timer) {
 }
 
 lvPerfStats *lv_perf_stats_create(const char *name) {
-    if (!s_runtime_state.perf.initialized || s_runtime_state.perf.stats_count >= MAX_PERF_STATS) {
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_perf_stats_create: perf system not initialized or full");
+    if (!s_runtime_state.perf.initialized) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_perf_stats_create: perf system not initialized");
     }
 
     lvPerfStats *stats = (lvPerfStats *) lv_calloc(1, sizeof(lvPerfStats));
@@ -430,6 +446,16 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
     stats->max_val = -1e308;
 
     lv_mutex_lock(&s_runtime_state.perf.mutex);
+    /* 动态扩容（倍增），消除 MAX_PERF_STATS 注册上限 */
+    if (s_runtime_state.perf.stats_count >= (uint32_t) s_runtime_state.perf.stats_capacity) {
+        if (!lv_ensure_capacity((void **) &s_runtime_state.perf.stats,
+                                (int) s_runtime_state.perf.stats_count,
+                                &s_runtime_state.perf.stats_capacity, sizeof(lvPerfStats *), 0)) {
+            lv_mutex_unlock(&s_runtime_state.perf.mutex);
+            lv_free((void **) &stats);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_perf_stats_create: stats array growth failed");
+        }
+    }
     s_runtime_state.perf.stats[s_runtime_state.perf.stats_count++] = stats;
     lv_mutex_unlock(&s_runtime_state.perf.mutex);
 
@@ -932,6 +958,19 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
 
 static void event_bus_init_func(void) {
     lv_event_bus_init(&s_runtime_state.event_bus, NULL);
+}
+
+/**
+ * @brief 将事件总线桥接到引擎流式上下文（lv_event_bus 桥接激活点）
+ *
+ * 由 engine 初始化路径经 stream_context 分发机制调用（stream_context_util.c
+ * register_builtins_once 注册本函数为 setter → engine_create 的
+ * stream_context_dispatch_all 传入 engine->stream_ctx；engine 销毁时
+ * stream_context_clear_all 以 NULL 调用解除）。先于总线惰性初始化调用安全：
+ * lv_event_bus_init 会保留先于 init 设置的 stream_ctx（见 lv_event_bus.c）。
+ */
+void lv_event_trace_set_stream_context(struct StreamContext *ctx) {
+    lv_event_bus_set_stream(&s_runtime_state.event_bus, ctx);
 }
 
 bool lv_event_trace_init(uint32_t max_events) {

@@ -390,36 +390,32 @@ static void test_external_references(void) {
  * Main
  * ============================================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Axiom Package Test: Galois Theory")
     printf("\n");
     printf("============================================================\n");
     printf("  Lv-00 Axiom Package Test: Galois Theory\n");
     printf("============================================================\n");
     printf("\n");
-
     /* Run all tests */
-    test_load_package();
-    test_template_count();
-    test_core_templates_exist();
-    test_unconstructible_problems();
-    test_logical_framework();
-    test_content_hash();
-    test_round_trip_save_load();
-    test_dependency_validation();
-    test_negative_lookups();
-    test_external_references();
-
+    TEST_MAIN_RUN(test_load_package);
+    TEST_MAIN_RUN(test_template_count);
+    TEST_MAIN_RUN(test_core_templates_exist);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip_save_load);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
     /* Summary */
     printf("\n");
     printf("------------------------------------------------------------\n");
     printf("  Summary: %d/%d tests passed, %d assertions\n", tests_passed, tests_run, assertions_total);
     printf("------------------------------------------------------------\n");
-
     if (tests_passed == tests_run) {
         printf("  Result: ALL TESTS PASSED\n");
-        return 0;
     } else {
         printf("  Result: SOME TESTS FAILED\n");
         return 1;
     }
-}
+TEST_MAIN_END()

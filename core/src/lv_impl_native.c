@@ -621,7 +621,14 @@ Expr *expr_create_binop(int kind, Expr *left, Expr *right) {
 void expr_destroy(Expr *e) {
     if (!e)
         return;
-    Expr *stack[256];
+    /* 动态栈（lv_ensure_capacity 扩容），消除原 256 定长栈在深度超过 255 时
+     * 静默丢弃右子树的问题（遍历不完整 + 泄漏源头） */
+    int cap = 64;
+    Expr **stack = (Expr **) lv_malloc((size_t) cap * sizeof(Expr *));
+    if (!stack) {
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "expr_destroy: stack alloc failed");
+        return;
+    }
     int top = 0;
     Expr *node = e;
     while (node) {
@@ -630,14 +637,22 @@ void expr_destroy(Expr *e) {
         mpq_clear(node->val);
         lv_free((void **) &node->name);
         lv_free((void **) &node);
-        if (right && top < 255) {
-            stack[++top] = right;
+        if (right) {
+            if (top >= cap) {
+                if (!lv_ensure_capacity((void **) &stack, top, &cap, sizeof(Expr *), 0)) {
+                    lv_free((void **) &stack);
+                    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "expr_destroy: stack realloc failed");
+                    return;
+                }
+            }
+            stack[top++] = right;
         }
         node = left;
         if (!node && top > 0) {
-            node = stack[top--];
+            node = stack[--top];
         }
     }
+    lv_free((void **) &stack);
 }
 
 /* ---- VTable-based expression evaluation ---- */

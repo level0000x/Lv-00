@@ -19,10 +19,13 @@
  * 分配均正确销毁。此泄漏不来自测试代码，无需修复。
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test_unified.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 #include "lv.h"
 #include "lv/lv_str_utils.h" /* lv_str_hex_encode / lv_str_ltrim / rtrim / trim */
@@ -37,24 +40,24 @@ static void test_memory_management(void) {
 
     /* 测试基本分配 */
     void *p1 = lv_malloc(100);
-    assert(p1 != NULL);
+    lv_ASSERT_NOT_NULL(p1);
 
     void *p2 = lv_calloc(10, 10);
-    assert(p2 != NULL);
+    lv_ASSERT_NOT_NULL(p2);
     /* 验证清零 */
     for (int i = 0; i < 100; i++) {
-        assert(((char *) p2)[i] == 0);
+        lv_ASSERT(((char *) p2)[i] == 0);
     }
 
     /* 测试重新分配 */
     void *p3 = lv_realloc(p1, 200);
-    assert(p3 != NULL);
+    lv_ASSERT_NOT_NULL(p3);
 
     /* 测试释放 */
     lv_free(&p2);
-    assert(p2 == NULL);
+    lv_ASSERT(p2 == NULL);
     lv_free(&p3);
-    assert(p3 == NULL);
+    lv_ASSERT(p3 == NULL);
 
     /* 测试内存统计 */
     MemoryStats stats_before;
@@ -66,7 +69,7 @@ static void test_memory_management(void) {
     MemoryStats stats_after;
     lv_get_memory_stats(&stats_after);
 
-    assert(stats_after.total_allocated >= stats_before.total_allocated + 1000);
+    lv_ASSERT(stats_after.total_allocated >= stats_before.total_allocated + 1000);
 
     /* 清理 */
     lv_free(&p4);
@@ -79,7 +82,7 @@ static void test_memory_limit(void) {
 
     /* 设置内存限制 */
     lv_set_memory_limit(1024 * 1024); /* 1MB */
-    assert(lv_get_memory_limit() == 1024 * 1024);
+    lv_ASSERT(lv_get_memory_limit() == 1024 * 1024);
 
     /* 测试超过限制 — 当前简化版分配器不强制内存限制，仅验证不崩溃 */
     void *p = lv_malloc(2 * 1024 * 1024); /* 尝试分配2MB */
@@ -91,7 +94,7 @@ static void test_memory_limit(void) {
 
     /* 重置限制 */
     lv_set_memory_limit(0);
-    assert(lv_get_memory_limit() == 0);
+    lv_ASSERT(lv_get_memory_limit() == 0);
 
     printf("  PASSED\n");
 }
@@ -106,44 +109,44 @@ static void test_string_operations(void) {
     /* 测试 strlcpy */
     char dest[20];
     size_t len = lv_strlcpy(dest, "Hello, World!", sizeof(dest));
-    assert(len == 13);
-    assert(strcmp(dest, "Hello, World!") == 0);
+    lv_ASSERT(len == 13);
+    lv_ASSERT_STR_EQ(dest, "Hello, World!");
 
     /* 测试截断 */
     len = lv_strlcpy(dest, "This is a very long string", sizeof(dest));
-    assert(len == 26);
-    assert(strlen(dest) == 19); /* 截断到缓冲区大小-1 */
+    lv_ASSERT(len == 26);
+    lv_ASSERT(strlen(dest) == 19); /* 截断到缓冲区大小-1 */
 
     /* 测试 strlcat */
     strcpy(dest, "Hello");
     len = lv_strlcat(dest, " World", sizeof(dest));
-    assert(strcmp(dest, "Hello World") == 0);
+    lv_ASSERT_STR_EQ(dest, "Hello World");
 
     /* 测试 strdup_safe */
     char *copy = lv_strdup_safe("Test string");
-    assert(copy != NULL);
-    assert(strcmp(copy, "Test string") == 0);
+    lv_ASSERT_NOT_NULL(copy);
+    lv_ASSERT_STR_EQ(copy, "Test string");
     lv_free((void **) &copy);
 
     /* 测试 asprintf */
     char *formatted = lv_asprintf("Value: %d, String: %s", 42, "test");
-    assert(formatted != NULL);
-    assert(strcmp(formatted, "Value: 42, String: test") == 0);
+    lv_ASSERT_NOT_NULL(formatted);
+    lv_ASSERT_STR_EQ(formatted, "Value: 42, String: test");
     lv_free((void **) &formatted);
 
     /* 测试 str_is_blank */
-    assert(lv_str_is_blank("") == true);
-    assert(lv_str_is_blank("   ") == true);
-    assert(lv_str_is_blank("  \t\n  ") == true);
-    assert(lv_str_is_blank("not blank") == false);
-    assert(lv_str_is_blank("  text  ") == false);
+    lv_ASSERT(lv_str_is_blank("") == true);
+    lv_ASSERT(lv_str_is_blank("   ") == true);
+    lv_ASSERT(lv_str_is_blank("  \t\n  ") == true);
+    lv_ASSERT(lv_str_is_blank("not blank") == false);
+    lv_ASSERT(lv_str_is_blank("  text  ") == false);
 
     /* 测试 str_trim */
     char trim_test1[] = "  hello  ";
-    assert(strcmp(lv_str_trim(trim_test1), "hello") == 0);
+    lv_ASSERT_STR_EQ(lv_str_trim(trim_test1), "hello");
 
     char trim_test2[] = "\t\n  world  \t\n";
-    assert(strcmp(lv_str_trim(trim_test2), "world") == 0);
+    lv_ASSERT_STR_EQ(lv_str_trim(trim_test2), "world");
 
     printf("  PASSED\n");
 }
@@ -162,7 +165,7 @@ static void test_strbuf_converge(void) {
     lv_strbuf_append_raw(&sb, "raw", 3);
     lv_strbuf_append_str(&sb, ",str");
     lv_strbuf_append_n(&sb, '!', 2);
-    assert(strcmp(lv_strbuf_cstr(&sb), "a=1,raw,str!!") == 0);
+    lv_ASSERT_STR_EQ(lv_strbuf_cstr(&sb), "a=1,raw,str!!");
     lv_strbuf_destroy(&sb);
 
     /* 大内容自动扩容（SSO 溢出后转堆分配），输出与手工 snprintf 拼接一致 */
@@ -176,23 +179,23 @@ static void test_strbuf_converge(void) {
     for (int i = 0; i < 1000; i++) {
         pos += snprintf(expect + pos, sizeof(expect) - (size_t) pos, "%d ", i);
     }
-    assert((int) big.len == pos);
-    assert(strncmp(lv_strbuf_cstr(&big), expect, (size_t) pos) == 0);
+    lv_ASSERT((int) big.len == pos);
+    lv_ASSERT(strncmp(lv_strbuf_cstr(&big), expect, (size_t) pos) == 0);
     lv_strbuf_destroy(&big);
 
     /* lv_strbuf_to_string 返回堆拷贝（lv_free 释放） */
     lvStrBuf t = {0};
     lv_strbuf_printf(&t, "to_string:%d", 7);
     char *s = lv_strbuf_to_string(&t);
-    assert(s != NULL);
-    assert(strcmp(s, "to_string:7") == 0);
+    lv_ASSERT_NOT_NULL(s);
+    lv_ASSERT_STR_EQ(s, "to_string:7");
     lv_free((void **) &s);
 
     /* hex 编码：小写、每字节 2 字符、无空格 */
     unsigned char bytes[] = {0x00, 0x01, 0x0f, 0x10, 0xab, 0xff};
     char hex[13];
     lv_str_hex_encode(bytes, 6, hex);
-    assert(strcmp(hex, "00010f10abff") == 0);
+    lv_ASSERT_STR_EQ(hex, "00010f10abff");
 
     /* hex 与手工逐字节 %02x 循环逐字节一致（64 字节随机样式数据） */
     unsigned char big_bytes[64];
@@ -203,25 +206,25 @@ static void test_strbuf_converge(void) {
     for (int i = 0; i < 64; i++)
         snprintf(hex_b + i * 2, 3, "%02x", big_bytes[i]);
     hex_b[128] = '\0';
-    assert(strcmp(hex_a, hex_b) == 0);
-    assert(strlen(hex_a) == 128);
+    lv_ASSERT_STR_EQ(hex_a, hex_b);
+    lv_ASSERT(strlen(hex_a) == 128);
 
     /* trim 语义：ltrim 只去左端，rtrim 只去右端 */
     char t1[] = "   hello  ";
-    assert(strcmp(lv_str_ltrim(t1), "hello  ") == 0);
+    lv_ASSERT_STR_EQ(lv_str_ltrim(t1), "hello  ");
     char t2[] = "  world \t\n";
-    assert(strcmp(lv_str_rtrim(t2), "  world") == 0);
+    lv_ASSERT_STR_EQ(lv_str_rtrim(t2), "  world");
     char t3[] = "\t\n  trim  \r\n";
-    assert(strcmp(lv_str_trim(t3), "trim") == 0);
+    lv_ASSERT_STR_EQ(lv_str_trim(t3), "trim");
 
     /* 全空白输入 */
     char t4[] = "   ";
-    assert(lv_str_trim(t4)[0] == '\0');
-    assert(lv_str_ltrim(t4)[0] == '\0');
+    lv_ASSERT(lv_str_trim(t4)[0] == '\0');
+    lv_ASSERT(lv_str_ltrim(t4)[0] == '\0');
 
     /* NULL 安全 */
-    assert(lv_str_ltrim(NULL) == NULL);
-    assert(lv_str_trim(NULL) == NULL);
+    lv_ASSERT(lv_str_ltrim(NULL) == NULL);
+    lv_ASSERT(lv_str_trim(NULL) == NULL);
 
     printf("  PASSED\n");
 }
@@ -235,53 +238,53 @@ static void test_int_array(void) {
 
     /* 测试创建 */
     IntArray *arr = int_array_create(4);
-    assert(arr != NULL);
-    assert(arr->count == 0);
-    assert(arr->capacity >= 4);
+    lv_ASSERT_NOT_NULL(arr);
+    lv_ASSERT(arr->count == 0);
+    lv_ASSERT(arr->capacity >= 4);
 
     /* 测试添加 */
-    assert(int_array_push(arr, 10) == true);
-    assert(int_array_push(arr, 20) == true);
-    assert(int_array_push(arr, 30) == true);
-    assert(arr->count == 3);
+    lv_ASSERT(int_array_push(arr, 10) == true);
+    lv_ASSERT(int_array_push(arr, 20) == true);
+    lv_ASSERT(int_array_push(arr, 30) == true);
+    lv_ASSERT(arr->count == 3);
 
     /* 测试包含检查 */
-    assert(int_array_contains(arr, 20) == true);
-    assert(int_array_contains(arr, 25) == false);
+    lv_ASSERT(int_array_contains(arr, 20) == true);
+    lv_ASSERT(int_array_contains(arr, 25) == false);
 
     /* 测试索引查找 */
-    assert(int_array_index_of(arr, 20) == 1);
-    assert(int_array_index_of(arr, 25) == -1);
+    lv_ASSERT(int_array_index_of(arr, 20) == 1);
+    lv_ASSERT(int_array_index_of(arr, 25) == -1);
 
     /* 测试批量添加 */
     int values[] = {40, 50, 60};
-    assert(int_array_push_many(arr, values, 3) == true);
-    assert(arr->count == 6);
+    lv_ASSERT(int_array_push_many(arr, values, 3) == true);
+    lv_ASSERT(arr->count == 6);
 
     /* 测试排序 */
     int_array_sort(arr);
-    assert(arr->data[0] == 10);
-    assert(arr->data[5] == 60);
+    lv_ASSERT(arr->data[0] == 10);
+    lv_ASSERT(arr->data[5] == 60);
 
     /* 测试移除 */
-    assert(int_array_remove(arr, 20) == true);
-    assert(arr->count == 5);
-    assert(int_array_contains(arr, 20) == false);
+    lv_ASSERT(int_array_remove(arr, 20) == true);
+    lv_ASSERT(arr->count == 5);
+    lv_ASSERT(int_array_contains(arr, 20) == false);
 
     /* 测试复制 */
     IntArray *copy = int_array_copy(arr);
-    assert(copy != NULL);
-    assert(copy->count == arr->count);
+    lv_ASSERT_NOT_NULL(copy);
+    lv_ASSERT(copy->count == arr->count);
     for (size_t i = 0; i < arr->count; i++) {
-        assert(copy->data[i] == arr->data[i]);
+        lv_ASSERT(copy->data[i] == arr->data[i]);
     }
     int_array_destroy(copy);
 
     /* 测试从C数组创建 */
     IntArray *from_c = int_array_from_carray(values, 3);
-    assert(from_c != NULL);
-    assert(from_c->count == 3);
-    assert(from_c->data[0] == 40);
+    lv_ASSERT_NOT_NULL(from_c);
+    lv_ASSERT(from_c->count == 3);
+    lv_ASSERT(from_c->data[0] == 40);
     int_array_destroy(from_c);
 
     /* 清理 */
@@ -299,38 +302,38 @@ static void test_config_management(void) {
 
     /* 测试创建 */
     ConfigManager *cfg = config_manager_create(NULL);
-    assert(cfg != NULL);
+    lv_ASSERT_NOT_NULL(cfg);
 
     /* 测试设置和获取 */
-    assert(config_set_int(cfg, "test.int", 42) == true);
-    assert(config_get_int(cfg, "test.int", 0) == 42);
+    lv_ASSERT(config_set_int(cfg, "test.int", 42) == true);
+    lv_ASSERT(config_get_int(cfg, "test.int", 0) == 42);
 
-    assert(config_set_bool(cfg, "test.bool", true) == true);
-    assert(config_get_bool(cfg, "test.bool", false) == true);
+    lv_ASSERT(config_set_bool(cfg, "test.bool", true) == true);
+    lv_ASSERT(config_get_bool(cfg, "test.bool", false) == true);
 
-    assert(config_set_double(cfg, "test.double", 3.14) == true);
+    lv_ASSERT(config_set_double(cfg, "test.double", 3.14) == true);
     double val = config_get_double(cfg, "test.double", 0.0);
-    assert(val > 3.13 && val < 3.15);
+    lv_ASSERT(val > 3.13 && val < 3.15);
 
-    assert(config_set_string(cfg, "test.string", "hello") == true);
-    assert(strcmp(config_get_string(cfg, "test.string", ""), "hello") == 0);
+    lv_ASSERT(config_set_string(cfg, "test.string", "hello") == true);
+    lv_ASSERT_STR_EQ(config_get_string(cfg, "test.string", ""), "hello");
 
     /* 测试默认值 */
-    assert(config_get_int(cfg, "nonexistent", 100) == 100);
-    assert(config_get_bool(cfg, "nonexistent", true) == true);
+    lv_ASSERT(config_get_int(cfg, "nonexistent", 100) == 100);
+    lv_ASSERT(config_get_bool(cfg, "nonexistent", true) == true);
 
     /* 测试存在检查 */
-    assert(config_has_key(cfg, "test.int") == true);
-    assert(config_has_key(cfg, "nonexistent") == false);
+    lv_ASSERT(config_has_key(cfg, "test.int") == true);
+    lv_ASSERT(config_has_key(cfg, "nonexistent") == false);
 
     /* 测试更新 */
-    assert(config_set_int(cfg, "test.int", 100) == true);
-    assert(config_get_int(cfg, "test.int", 0) == 100);
+    lv_ASSERT(config_set_int(cfg, "test.int", 100) == true);
+    lv_ASSERT(config_get_int(cfg, "test.int", 0) == 100);
 
     /* 测试删除 */
-    assert(config_remove(cfg, "test.int") == true);
-    assert(config_has_key(cfg, "test.int") == false);
-    assert(config_remove(cfg, "nonexistent") == false);
+    lv_ASSERT(config_remove(cfg, "test.int") == true);
+    lv_ASSERT(config_has_key(cfg, "test.int") == false);
+    lv_ASSERT(config_remove(cfg, "nonexistent") == false);
 
     /* 清理 */
     config_manager_destroy(cfg);
@@ -347,48 +350,48 @@ static void test_version_management(void) {
 
     /* 测试解析 */
     lvVersion *v1 = version_parse("3.0.0");
-    assert(v1 != NULL);
-    assert(v1->major == 3);
-    assert(v1->minor == 0);
-    assert(v1->patch == 0);
+    lv_ASSERT_NOT_NULL(v1);
+    lv_ASSERT(v1->major == 3);
+    lv_ASSERT(v1->minor == 0);
+    lv_ASSERT(v1->patch == 0);
     version_destroy(v1);
 
     lvVersion *v2 = version_parse("2.5.1-beta.2");
-    assert(v2 != NULL);
-    assert(v2->major == 2);
-    assert(v2->minor == 5);
-    assert(v2->patch == 1);
-    assert(strcmp(v2->prerelease, "beta.2") == 0);
+    lv_ASSERT_NOT_NULL(v2);
+    lv_ASSERT(v2->major == 2);
+    lv_ASSERT(v2->minor == 5);
+    lv_ASSERT(v2->patch == 1);
+    lv_ASSERT_STR_EQ(v2->prerelease, "beta.2");
     version_destroy(v2);
 
     /* 测试转字符串 */
     lvVersion v3 = {1, 2, 3, NULL, NULL};
     char *str = version_to_string(&v3);
-    assert(str != NULL);
-    assert(strcmp(str, "1.2.3") == 0);
+    lv_ASSERT_NOT_NULL(str);
+    lv_ASSERT_STR_EQ(str, "1.2.3");
     lv_free((void **) &str);
 
     /* 测试比较 */
     lvVersion va = {1, 0, 0, NULL, NULL};
     lvVersion vb = {2, 0, 0, NULL, NULL};
-    assert(version_compare(&va, &vb) < 0);
-    assert(version_compare(&vb, &va) > 0);
-    assert(version_compare(&va, &va) == 0);
+    lv_ASSERT(version_compare(&va, &vb) < 0);
+    lv_ASSERT(version_compare(&vb, &va) > 0);
+    lv_ASSERT(version_compare(&va, &va) == 0);
 
     /* 测试兼容性 */
     lvVersion req = {3, 0, 0, NULL, NULL};
     lvVersion act = {3, 1, 0, NULL, NULL};
-    assert(version_compatible(&req, &act) == true);
+    lv_ASSERT(version_compatible(&req, &act) == true);
 
     lvVersion act2 = {4, 0, 0, NULL, NULL};
-    assert(version_compatible(&req, &act2) == false);
+    lv_ASSERT(version_compatible(&req, &act2) == false);
 
     /* 测试系统版本检查 */
-    assert(lv_check_version("1.0.0") == true);
-    assert(lv_check_version("1.1.0") == true);
-    assert(lv_check_version("2.0.0") == false);
-    assert(lv_check_version("4.0.0") == false);
-    assert(lv_check_version("10.0.0") == false);
+    lv_ASSERT(lv_check_version("1.0.0") == true);
+    lv_ASSERT(lv_check_version("1.1.0") == true);
+    lv_ASSERT(lv_check_version("2.0.0") == false);
+    lv_ASSERT(lv_check_version("4.0.0") == false);
+    lv_ASSERT(lv_check_version("10.0.0") == false);
 
     printf("  PASSED\n");
 }
@@ -405,20 +408,20 @@ static void test_hash_functions(void) {
     uint64_t h2 = lv_hash_string("hello");
     uint64_t h3 = lv_hash_string("world");
 
-    assert(h1 == h2); /* 相同字符串应有相同哈希 */
-    assert(h1 != h3); /* 不同字符串应有不同哈希 */
+    lv_ASSERT(h1 == h2); /* 相同字符串应有相同哈希 */
+    lv_ASSERT(h1 != h3); /* 不同字符串应有不同哈希 */
 
     /* 测试字节哈希 */
     uint8_t data1[] = {1, 2, 3, 4, 5};
     uint8_t data2[] = {1, 2, 3, 4, 5};
     uint64_t bh1 = lv_hash_bytes(data1, 5);
     uint64_t bh2 = lv_hash_bytes(data2, 5);
-    assert(bh1 == bh2);
+    lv_ASSERT(bh1 == bh2);
 
     /* 测试整数哈希 */
     uint64_t ih1 = lv_hash_int(42);
     uint64_t ih2 = lv_hash_int(42);
-    assert(ih1 == ih2);
+    lv_ASSERT(ih1 == ih2);
 
     printf("  PASSED\n");
 }
@@ -432,24 +435,24 @@ static void test_convenience_macros(void) {
 
     /* 测试数组大小宏 */
     int arr[10];
-    assert(lv_ARRAY_SIZE(arr) == 10);
+    lv_ASSERT(lv_ARRAY_SIZE(arr) == 10);
 
     char str[] = "hello";
-    assert(lv_ARRAY_SIZE(str) == 6); /* 包含 '\0' */
+    lv_ASSERT(lv_ARRAY_SIZE(str) == 6); /* 包含 '\0' */
 
     /* 测试 MIN/MAX */
-    assert(lv_MIN(5, 10) == 5);
-    assert(lv_MAX(5, 10) == 10);
+    lv_ASSERT(lv_MIN(5, 10) == 5);
+    lv_ASSERT(lv_MAX(5, 10) == 10);
 
     /* 测试 CLAMP */
-    assert(lv_CLAMP(5, 0, 10) == 5);
-    assert(lv_CLAMP(-5, 0, 10) == 0);
-    assert(lv_CLAMP(15, 0, 10) == 10);
+    lv_ASSERT(lv_CLAMP(5, 0, 10) == 5);
+    lv_ASSERT(lv_CLAMP(-5, 0, 10) == 0);
+    lv_ASSERT(lv_CLAMP(15, 0, 10) == 10);
 
     /* 测试 SWAP */
     int a = 5, b = 10;
     lv_SWAP(int, a, b);
-    assert(a == 10 && b == 5);
+    lv_ASSERT(a == 10 && b == 5);
 
     printf("  PASSED\n");
 }
@@ -458,41 +461,34 @@ static void test_convenience_macros(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Utils Test Suite")
     printf("=== Lv-00 Utils Test Suite ===\n\n");
-
     /* 初始化系统 */
     if (!lv_init()) {
         fprintf(stderr, "Failed to initialize Lv-00 system\n");
         return 1;
     }
-
     /* 运行测试 */
-    test_memory_management();
-    test_memory_limit();
-    test_string_operations();
-    test_strbuf_converge();
-    test_int_array();
-    test_config_management();
-    test_version_management();
-    test_hash_functions();
-    test_convenience_macros();
-
+    TEST_MAIN_RUN(test_memory_management);
+    TEST_MAIN_RUN(test_memory_limit);
+    TEST_MAIN_RUN(test_string_operations);
+    TEST_MAIN_RUN(test_strbuf_converge);
+    TEST_MAIN_RUN(test_int_array);
+    TEST_MAIN_RUN(test_config_management);
+    TEST_MAIN_RUN(test_version_management);
+    TEST_MAIN_RUN(test_hash_functions);
+    TEST_MAIN_RUN(test_convenience_macros);
     /* 测试系统信息 */
     printf("\nTesting system info...\n");
     char info[1024];
     int len = lv_get_system_info(info, sizeof(info));
-    assert(len > 0);
+    TEST_ASSERT_CONTINUE(len > 0, "len > 0");
     printf("System info:\n%s\n", info);
-
     /* 测试健康检查 */
     int health = lv_health_check();
-    assert(health >= 0 && health <= 100);
+    TEST_ASSERT_CONTINUE(health >= 0 && health <= 100, "health >= 0 && health <= 100");
     printf("Health score: %d/100\n", health);
-
     /* 清理 */
     lv_cleanup();
-
     printf("\n=== All tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

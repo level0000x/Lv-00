@@ -37,9 +37,11 @@ typedef struct {
 } VarMapEntry;
 
 /* 注意：此全局变量已使用线程本地存储，每线程独立副本。
- * 若需跨线程共享变量映射，需额外使用互斥锁保护。 */
-static lv_THREAD_LOCAL VarMapEntry g_var_map[MAX_VAR_MAP_SIZE];
+ * 若需跨线程共享变量映射，需额外使用互斥锁保护。
+ * 动态扩容（TLS 指针 + 惰性分配），消除 MAX_VAR_MAP_SIZE 定长上限。 */
+static lv_THREAD_LOCAL VarMapEntry *g_var_map = NULL;
 static lv_THREAD_LOCAL int g_var_map_count = 0;
+static lv_THREAD_LOCAL int g_var_map_capacity = 0;
 
 /**
  * @brief 根据变量名查询节点 ID
@@ -77,13 +79,16 @@ void formula_set_node_id(const char *var_name, int node_id) {
         }
     }
 
-    /* 添加新条目 */
-    if (g_var_map_count < MAX_VAR_MAP_SIZE) {
-        /* 使用 lv_strlcpy 替代不安全的 strncpy，自动保证零终止 */
-        lv_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
-        g_var_map[g_var_map_count].node_id = node_id;
-        g_var_map_count++;
+    /* 添加新条目（动态扩容，替代原 MAX_VAR_MAP_SIZE 满表静默丢弃） */
+    if (g_var_map_count >= g_var_map_capacity) {
+        if (!lv_ensure_capacity((void **) &g_var_map, g_var_map_count,
+                                &g_var_map_capacity, sizeof(VarMapEntry), 0))
+            return;
     }
+    /* 使用 lv_strlcpy 替代不安全的 strncpy，自动保证零终止 */
+    lv_strlcpy(g_var_map[g_var_map_count].name, var_name, MAX_NAME_LENGTH);
+    g_var_map[g_var_map_count].node_id = node_id;
+    g_var_map_count++;
 }
 
 /**

@@ -55,6 +55,7 @@ typedef struct {
         int participants[8];
     } *pattern_constraints;
     int pattern_constraint_count;
+    int pattern_constraint_capacity;
     /* 替换约束 */
     struct {
         ConstraintType type;
@@ -62,12 +63,14 @@ typedef struct {
         int participants[8];
     } *replacement_constraints;
     int replacement_constraint_count;
+    int replacement_constraint_capacity;
     /* 替换节点绑定 */
     struct {
         int pattern_var_id;
         int target_id;
     } *node_bindings;
     int node_binding_count;
+    int node_binding_capacity;
     /* 新节点 */
     int *new_nodes;
     int new_node_count;
@@ -276,16 +279,17 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                         parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].pattern_constraint_count;
-                void *new_pc = lv_realloc(rules[current_rule].pattern_constraints,
-                                          (size_t) (idx + 1) * sizeof(rules[current_rule].pattern_constraints[0]));
-                if (!new_pc) {
+                /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查） */
+                if (!lv_ensure_capacity((void **) &rules[current_rule].pattern_constraints,
+                                        rules[current_rule].pattern_constraint_count,
+                                        &rules[current_rule].pattern_constraint_capacity,
+                                        sizeof(rules[current_rule].pattern_constraints[0]), 1)) {
                     for (int r = 0; r <= current_rule; r++)
                         parsed_rule_destroy(&rules[r]);
                     lv_free((void **) &rules);
                     lv_free((void **) &content);
                     return NULL;
                 }
-                rules[current_rule].pattern_constraints = new_pc;
                 rules[current_rule].pattern_constraints[idx].type = parse_constraint_type(type_str);
                 rules[current_rule].pattern_constraints[idx].participant_count = pcount;
                 memcpy(rules[current_rule].pattern_constraints[idx].participants, parts, (size_t) pcount * sizeof(int));
@@ -306,16 +310,17 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                         parts[pcount++] = v;
                 }
                 int idx = rules[current_rule].replacement_constraint_count;
-                void *new_rc = lv_realloc(rules[current_rule].replacement_constraints,
-                                          (size_t) (idx + 1) * sizeof(rules[current_rule].replacement_constraints[0]));
-                if (!new_rc) {
+                /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查） */
+                if (!lv_ensure_capacity((void **) &rules[current_rule].replacement_constraints,
+                                        rules[current_rule].replacement_constraint_count,
+                                        &rules[current_rule].replacement_constraint_capacity,
+                                        sizeof(rules[current_rule].replacement_constraints[0]), 1)) {
                     for (int r = 0; r <= current_rule; r++)
                         parsed_rule_destroy(&rules[r]);
                     lv_free((void **) &rules);
                     lv_free((void **) &content);
                     return NULL;
                 }
-                rules[current_rule].replacement_constraints = new_rc;
                 rules[current_rule].replacement_constraints[idx].type = parse_constraint_type(type_str);
                 rules[current_rule].replacement_constraints[idx].participant_count = pcount;
                 memcpy(rules[current_rule].replacement_constraints[idx].participants, parts,
@@ -327,16 +332,17 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 p = read_int(p, &var_id);
                 p = read_int(p, &target);
                 int idx = rules[current_rule].node_binding_count;
-                void *new_nb = lv_realloc(rules[current_rule].node_bindings,
-                                          (size_t) (idx + 1) * sizeof(rules[current_rule].node_bindings[0]));
-                if (!new_nb) {
+                /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查） */
+                if (!lv_ensure_capacity((void **) &rules[current_rule].node_bindings,
+                                        rules[current_rule].node_binding_count,
+                                        &rules[current_rule].node_binding_capacity,
+                                        sizeof(rules[current_rule].node_bindings[0]), 1)) {
                     for (int r = 0; r <= current_rule; r++)
                         parsed_rule_destroy(&rules[r]);
                     lv_free((void **) &rules);
                     lv_free((void **) &content);
                     return NULL;
                 }
-                rules[current_rule].node_bindings = new_nb;
                 rules[current_rule].node_bindings[idx].pattern_var_id = var_id;
                 rules[current_rule].node_bindings[idx].target_id = target;
                 rules[current_rule].node_binding_count++;
@@ -581,7 +587,8 @@ int rewrite_rules_load_from_file(const char *filepath, RewriteRule ***out_rules,
         return 0;
     }
 
-    /* 压缩数组 */
+    /* 压缩数组：缩小到实际元素数（一次性收缩内存，非逐条 +1 扩容，
+     * 不构成 O(n²) 模式；lv_ensure_capacity 只扩不缩，故此处保留缩小 realloc） */
     if (loaded < parsed_count) {
         RewriteRule **compressed = lv_realloc(rules, (size_t) loaded * sizeof(RewriteRule *));
         if (compressed)
@@ -655,7 +662,8 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count, const char *rule_name
     }
     (*count)--;
 
-    /* 缩小数组 */
+    /* 缩小数组：一次性收缩内存（非逐条 +1 扩容，不构成 O(n²) 模式；
+     * lv_ensure_capacity 只扩不缩，故此处保留缩小 realloc） */
     if (*count > 0) {
         RewriteRule **compressed = lv_realloc(*rules, (size_t) *count * sizeof(RewriteRule *));
         if (compressed)

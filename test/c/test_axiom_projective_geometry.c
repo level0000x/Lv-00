@@ -13,12 +13,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+int g_fail_count = 0;
+int g_pass_count = 0;
 
 /* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
  * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
-#define AXIOM_TEST_NON_RETURNING 1
+#include "test_helpers.h"
 
 #include "axiom_test_common.h"
 
@@ -291,41 +291,14 @@ static void test_external_refs(void) {
 /* ------------------------------------------------------------------ */
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
-int main(void) {
-    printf("============================================================\n");
-    printf("  Projective Geometry Axiom Package Test Suite\n");
-    printf("============================================================\n\n");
-
-    test_load_from_file();
-    printf("\n");
-
-    test_templates();
-    printf("\n");
-
-    test_unconstructible_problems();
-    printf("\n");
-
-    test_logical_framework();
-    printf("\n");
-
-    test_content_hash();
-    printf("\n");
-
-    test_round_trip_save_load();
-    printf("\n");
-
-    test_dependency_validation();
-    printf("\n");
-
-    test_negative_lookups();
-    printf("\n");
-
-    test_external_refs();
-    printf("\n");
-
-    printf("============================================================\n");
-    printf("  Results: %d passed, %d failed, %d total\n", g_pass_count, g_fail_count, g_pass_count + g_fail_count);
-    printf("============================================================\n");
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Axiom Package Tests")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructible_problems);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_round_trip_save_load);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_refs);
+TEST_MAIN_END()

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：递归与条件系统 (recursion)
  * 功能概述：根据 Lv-00 设计文档第9节实现递归构造系统，包含测度系统、
  *          选择器块、递归深度监控、互递归支持和全局熔断器。
@@ -278,10 +278,12 @@ struct RecursionContext {
     Measure *active_measure;        /* 活动测度 */
     SymbolicCoord **measure_values; /* 测度值历史 */
     int measure_value_count;        /* 测度值数量 */
+    int measure_values_capacity;    /* 测度值数组容量（lv_ensure_capacity 倍增维护） */
 
     /* 递归调用栈 */
     int *call_stack;     /* 调用栈（函数块ID） */
     int call_stack_size; /* 调用栈大小 */
+    int call_stack_capacity; /* 调用栈容量（lv_ensure_capacity 倍增维护） */
 
     /* 状态 */
     bool is_terminated;       /* 是否已终止 */

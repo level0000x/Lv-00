@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_type_system.c
  * @brief 类型系统测试 - 宇宙层级、类型等价检查、类型推断
  *
@@ -12,105 +12,108 @@
  * - 非良基模式
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test_unified.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 #include "lv.h"
 
 /* ============== 测试：类型系统生命周期 ============== */
 
-static int test_type_system_lifecycle(void) {
+static void test_type_system_lifecycle(void) {
     printf("Test: type system lifecycle...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
-    assert(ts->well_founded == true);
-    assert(ts->cumulative == true);
-    assert(ts->type_region_count == 0);
+    lv_ASSERT_NOT_NULL(ts);
+    lv_ASSERT(ts->well_founded == true);
+    lv_ASSERT(ts->cumulative == true);
+    lv_ASSERT(ts->type_region_count == 0);
 
     printf("  类型系统创建成功\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型系统设置 ============== */
 
-static int test_type_system_settings(void) {
+static void test_type_system_settings(void) {
     printf("Test: type system settings...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 测试良基模式设置 */
     type_system_set_well_founded(ts, false);
-    assert(ts->well_founded == false);
+    lv_ASSERT(ts->well_founded == false);
     printf("  良基模式: 关闭\n");
 
     type_system_set_well_founded(ts, true);
-    assert(ts->well_founded == true);
+    lv_ASSERT(ts->well_founded == true);
     printf("  良基模式: 开启\n");
 
     /* 测试累积性设置 */
     type_system_set_cumulative(ts, false);
-    assert(ts->cumulative == false);
+    lv_ASSERT(ts->cumulative == false);
     printf("  累积性: 关闭\n");
 
     type_system_set_cumulative(ts, true);
-    assert(ts->cumulative == true);
+    lv_ASSERT(ts->cumulative == true);
     printf("  累积性: 开启\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：基本类型创建 ============== */
 
-static int test_basic_type_creation(void) {
+static void test_basic_type_creation(void) {
     printf("Test: basic type creation...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建点类型 */
     TypeRegion *point_type = type_create_point(ts);
-    assert(point_type != NULL);
-    assert(point_type->kind == TYPE_KIND_POINT);
-    assert(point_type->level == UNIVERSE_BASE);
+    lv_ASSERT_NOT_NULL(point_type);
+    lv_ASSERT(point_type->kind == TYPE_KIND_POINT);
+    lv_ASSERT(point_type->level == UNIVERSE_BASE);
     printf("  点类型创建成功, ID=%d\n", point_type->id);
 
     /* 创建线段类型 */
     TypeRegion *segment_type = type_create_line_segment(ts);
-    assert(segment_type != NULL);
-    assert(segment_type->kind == TYPE_KIND_LINE_SEGMENT);
+    lv_ASSERT_NOT_NULL(segment_type);
+    lv_ASSERT(segment_type->kind == TYPE_KIND_LINE_SEGMENT);
     printf("  线段类型创建成功, ID=%d\n", segment_type->id);
 
     /* 创建区域类型 */
     int contained_ids[] = {1, 2, 3};
     TypeRegion *region_type = type_create_region(ts, contained_ids, 3);
-    assert(region_type != NULL);
-    assert(region_type->kind == TYPE_KIND_REGION);
-    assert(region_type->contained_count == 3);
+    lv_ASSERT_NOT_NULL(region_type);
+    lv_ASSERT(region_type->kind == TYPE_KIND_REGION);
+    lv_ASSERT(region_type->contained_count == 3);
     printf("  区域类型创建成功, 包含 %d 个节点\n", region_type->contained_count);
 
-    assert(ts->type_region_count == 3);
+    lv_ASSERT(ts->type_region_count == 3);
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：复合类型创建 ============== */
 
-static int test_composite_type_creation(void) {
+static void test_composite_type_creation(void) {
     printf("Test: composite type creation...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建基本类型 */
     TypeRegion *point_type = type_create_point(ts);
@@ -118,110 +121,110 @@ static int test_composite_type_creation(void) {
 
     /* 创建函数类型: Point -> Segment */
     TypeRegion *func_type = type_create_function(ts, point_type, segment_type);
-    assert(func_type != NULL);
-    assert(func_type->kind == TYPE_KIND_FUNCTION);
-    assert(func_type->input_type == point_type);
-    assert(func_type->output_type == segment_type);
+    lv_ASSERT_NOT_NULL(func_type);
+    lv_ASSERT(func_type->kind == TYPE_KIND_FUNCTION);
+    lv_ASSERT(func_type->input_type == point_type);
+    lv_ASSERT(func_type->output_type == segment_type);
     printf("  函数类型创建成功\n");
 
     /* 创建乘积类型: Point * Segment */
     TypeRegion *prod_type = type_create_product(ts, point_type, segment_type);
-    assert(prod_type != NULL);
-    assert(prod_type->kind == TYPE_KIND_PRODUCT);
-    assert(prod_type->left_type == point_type);
-    assert(prod_type->right_type == segment_type);
+    lv_ASSERT_NOT_NULL(prod_type);
+    lv_ASSERT(prod_type->kind == TYPE_KIND_PRODUCT);
+    lv_ASSERT(prod_type->left_type == point_type);
+    lv_ASSERT(prod_type->right_type == segment_type);
     printf("  乘积类型创建成功\n");
 
     /* 创建和类型: Point + Segment */
     TypeRegion *sum_type = type_create_sum(ts, point_type, segment_type);
-    assert(sum_type != NULL);
-    assert(sum_type->kind == TYPE_KIND_SUM);
+    lv_ASSERT_NOT_NULL(sum_type);
+    lv_ASSERT(sum_type->kind == TYPE_KIND_SUM);
     printf("  和类型创建成功\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型变量 ============== */
 
-static int test_type_variables(void) {
+static void test_type_variables(void) {
     printf("Test: type variables...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建类型变量 */
     TypeRegion *var_a = type_create_variable(ts, "A");
-    assert(var_a != NULL);
-    assert(var_a->kind == TYPE_KIND_VARIABLE);
-    assert(strcmp(var_a->variable_name, "A") == 0);
+    lv_ASSERT_NOT_NULL(var_a);
+    lv_ASSERT(var_a->kind == TYPE_KIND_VARIABLE);
+    lv_ASSERT_STR_EQ(var_a->variable_name, "A");
     printf("  类型变量 'A' 创建成功\n");
 
     TypeRegion *var_b = type_create_variable(ts, "B");
-    assert(var_b != NULL);
-    assert(strcmp(var_b->variable_name, "B") == 0);
+    lv_ASSERT_NOT_NULL(var_b);
+    lv_ASSERT_STR_EQ(var_b->variable_name, "B");
     printf("  类型变量 'B' 创建成功\n");
 
     /* 创建依赖类型变量的函数类型 */
     TypeRegion *poly_func = type_create_function(ts, var_a, var_b);
-    assert(poly_func != NULL);
+    lv_ASSERT_NOT_NULL(poly_func);
     printf("  多态函数类型 A -> B 创建成功\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：依赖类型 ============== */
 
-static int test_dependent_types(void) {
+static void test_dependent_types(void) {
     printf("Test: dependent types...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建依赖类型 */
     int param_id = 42;
     TypeRegion *body_type = type_create_point(ts);
     TypeRegion *dep_type = type_create_dependent(ts, param_id, body_type);
 
-    assert(dep_type != NULL);
-    assert(dep_type->kind == TYPE_KIND_DEPENDENT);
-    assert(dep_type->param_node_id == param_id);
-    assert(dep_type->body_type == body_type);
+    lv_ASSERT_NOT_NULL(dep_type);
+    lv_ASSERT(dep_type->kind == TYPE_KIND_DEPENDENT);
+    lv_ASSERT(dep_type->param_node_id == param_id);
+    lv_ASSERT(dep_type->body_type == body_type);
     printf("  依赖类型创建成功, 参数ID=%d\n", param_id);
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：底部类型 ============== */
 
-static int test_bottom_type(void) {
+static void test_bottom_type(void) {
     printf("Test: bottom type...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     TypeRegion *bottom = type_create_bottom(ts);
-    assert(bottom != NULL);
-    assert(bottom->kind == TYPE_KIND_BOTTOM);
+    lv_ASSERT_NOT_NULL(bottom);
+    lv_ASSERT(bottom->kind == TYPE_KIND_BOTTOM);
     printf("  底部类型创建成功\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：宇宙层级检查 ============== */
 
-static int test_universe_level(void) {
+static void test_universe_level(void) {
     printf("Test: universe level checking...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     TypeRegion *point = type_create_point(ts);
     TypeRegion *segment = type_create_line_segment(ts);
@@ -236,9 +239,9 @@ static int test_universe_level(void) {
     printf("  线段层级: %d\n", segment_level);
     printf("  区域层级: %d\n", region_level);
 
-    assert(point_level == UNIVERSE_BASE);
-    assert(segment_level == UNIVERSE_BASE);
-    assert(region_level == UNIVERSE_TYPE_1);
+    lv_ASSERT(point_level == UNIVERSE_BASE);
+    lv_ASSERT(segment_level == UNIVERSE_BASE);
+    lv_ASSERT(region_level == UNIVERSE_TYPE_1);
 
     /* 检查层级有效性 */
     bool valid = type_check_level_validity(ts, region, point);
@@ -246,16 +249,16 @@ static int test_universe_level(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：累积性检查 ============== */
 
-static int test_cumulative_checking(void) {
+static void test_cumulative_checking(void) {
     printf("Test: cumulative checking...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     TypeRegion *point = type_create_point(ts);
     TypeRegion *region = type_create_region(ts, NULL, 0);
@@ -266,16 +269,16 @@ static int test_cumulative_checking(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型等价检查 ============== */
 
-static int test_type_equivalence(void) {
+static void test_type_equivalence(void) {
     printf("Test: type equivalence...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建相同类型 */
     TypeRegion *point1 = type_create_point(ts);
@@ -292,17 +295,17 @@ static int test_type_equivalence(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型推断 ============== */
 
-static int test_type_inference(void) {
+static void test_type_inference(void) {
     printf("Test: type inference...\n");
 
     TypeSystem *ts = type_system_create();
     ConstraintGraph *g = graph_create();
-    assert(ts != NULL && g != NULL);
+    lv_ASSERT(ts != NULL && g != NULL);
 
     /* 创建点 */
     SymbolicCoord *cx = symbolic_coord_create_rational(0, 1);
@@ -323,16 +326,16 @@ static int test_type_inference(void) {
     graph_destroy(g);
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型别名 ============== */
 
-static int test_type_alias(void) {
+static void test_type_alias(void) {
     printf("Test: type alias...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     TypeRegion *point = type_create_point(ts);
 
@@ -346,20 +349,20 @@ static int test_type_alias(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型变量实例化 ============== */
 
-static int test_type_instantiation(void) {
+static void test_type_instantiation(void) {
     printf("Test: type variable instantiation...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建类型变量 */
     TypeRegion *var = type_create_variable(ts, "T");
-    assert(var != NULL);
+    lv_ASSERT_NOT_NULL(var);
 
     /* 创建具体类型 */
     TypeRegion *point = type_create_point(ts);
@@ -370,16 +373,16 @@ static int test_type_instantiation(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：非良基模式 ============== */
 
-static int test_non_well_founded(void) {
+static void test_non_well_founded(void) {
     printf("Test: non-well-founded mode...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 关闭良基模式 */
     type_system_set_well_founded(ts, false);
@@ -396,12 +399,12 @@ static int test_non_well_founded(void) {
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void) {
+static void test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测试类型种类转字符串 */
@@ -436,109 +439,109 @@ static int test_helper_functions(void) {
     printf("  MISMATCH -> %s\n", str);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：类型附加到节点 ============== */
 
-static int test_type_attach_to_node(void) {
+static void test_type_attach_to_node(void) {
     printf("Test: type attach to node...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 创建类型 */
     TypeRegion *point_type = type_create_point(ts);
     TypeRegion *segment_type = type_create_line_segment(ts);
-    assert(point_type != NULL);
-    assert(segment_type != NULL);
+    lv_ASSERT_NOT_NULL(point_type);
+    lv_ASSERT_NOT_NULL(segment_type);
 
     /* 附加类型到节点 */
     bool result = type_attach_to_node(ts, 1, point_type);
     printf("  附加点类型到节点1: %s\n", result ? "成功" : "失败");
-    assert(result);
+    lv_ASSERT(result);
 
     /* 获取节点类型 */
     TypeRegion *retrieved = type_get_node_type(ts, 1);
-    assert(retrieved == point_type);
+    lv_ASSERT(retrieved == point_type);
     printf("  获取节点1类型: %s\n", type_kind_to_string(retrieved->kind));
 
     /* 附加另一个类型到另一个节点 */
     result = type_attach_to_node(ts, 2, segment_type);
-    assert(result);
+    lv_ASSERT(result);
     retrieved = type_get_node_type(ts, 2);
-    assert(retrieved == segment_type);
+    lv_ASSERT(retrieved == segment_type);
     printf("  附加线段类型到节点2: 成功\n");
 
     /* 更新已有节点的类型 */
     TypeRegion *region_type = type_create_region(ts, NULL, 0);
     result = type_attach_to_node(ts, 1, region_type);
-    assert(result);
+    lv_ASSERT(result);
     retrieved = type_get_node_type(ts, 1);
-    assert(retrieved == region_type);
+    lv_ASSERT(retrieved == region_type);
     printf("  更新节点1类型为区域: 成功\n");
 
     /* 获取不存在的节点类型 */
     retrieved = type_get_node_type(ts, 999);
-    assert(retrieved == NULL);
+    lv_ASSERT(retrieved == NULL);
     printf("  获取不存在节点类型: NULL (正确)\n");
 
     /* 分离节点类型 */
     result = type_detach_node_type(ts, 1);
-    assert(result);
+    lv_ASSERT(result);
     retrieved = type_get_node_type(ts, 1);
-    assert(retrieved == NULL);
+    lv_ASSERT(retrieved == NULL);
     printf("  分离节点1类型: 成功\n");
 
     /* 分离不存在的节点类型 */
     result = type_detach_node_type(ts, 999);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  分离不存在节点类型: false (正确)\n");
 
     /* 边界情况：无效参数 */
     result = type_attach_to_node(NULL, 1, point_type);
-    assert(!result);
+    lv_ASSERT(!result);
     result = type_attach_to_node(ts, 0, point_type);
-    assert(!result);
+    lv_ASSERT(!result);
     result = type_attach_to_node(ts, 1, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  无效参数处理: 正确\n");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：累积性层级检查 ============== */
 
-static int test_cumulative_level_check(void) {
+static void test_cumulative_level_check(void) {
     printf("Test: cumulative universe level check...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 第0层类型 */
     TypeRegion *point = type_create_point(ts);
-    assert(point->level == UNIVERSE_BASE);
+    lv_ASSERT(point->level == UNIVERSE_BASE);
 
     /* 第1层类型 */
     TypeRegion *region = type_create_region(ts, NULL, 0);
-    assert(region->level == UNIVERSE_TYPE_1);
+    lv_ASSERT(region->level == UNIVERSE_TYPE_1);
 
     /* 累积性：第0层类型可以出现在第1层区域 */
     bool cumulative = type_check_cumulative(ts, point, region);
-    assert(cumulative == true);
+    lv_ASSERT(cumulative == true);
     printf("  第0层累积到第1层: %s\n", cumulative ? "是" : "否");
 
     /* 同层级也兼容 */
     cumulative = type_check_cumulative(ts, point, point);
-    assert(cumulative == true);
+    lv_ASSERT(cumulative == true);
     printf("  同层级(0->0): %s\n", cumulative ? "是" : "否");
 
     /* 关闭累积性 */
     type_system_set_cumulative(ts, false);
     cumulative = type_check_cumulative(ts, point, region);
-    assert(cumulative == false);
+    lv_ASSERT(cumulative == false);
     printf("  关闭累积性后(0->1): %s\n", cumulative ? "是" : "否");
 
     /* 重新开启 */
@@ -550,124 +553,121 @@ static int test_cumulative_level_check(void) {
 
     /* 第0层累积到第2层 */
     cumulative = type_check_cumulative(ts, point, func_type);
-    assert(cumulative == true);
+    lv_ASSERT(cumulative == true);
     printf("  第0层累积到第%d层: %s\n", func_type->level, cumulative ? "是" : "否");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：依赖类型检查 ============== */
 
-static int test_dependent_type_check(void) {
+static void test_dependent_type_check(void) {
     printf("Test: dependent type check...\n");
 
     TypeSystem *ts = type_system_create();
-    assert(ts != NULL);
+    lv_ASSERT_NOT_NULL(ts);
 
     /* 测试1：相同基本类型兼容 */
     TypeRegion *point1 = type_create_point(ts);
     TypeRegion *point2 = type_create_point(ts);
     bool result = type_check_dependent(ts, point1, point2, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  点与点兼容: %s\n", result ? "是" : "否");
 
     /* 测试2：不同基本类型不兼容 */
     TypeRegion *segment = type_create_line_segment(ts);
     result = type_check_dependent(ts, point1, segment, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  点与线段不兼容: %s\n", result ? "是" : "否");
 
     /* 测试3：类型变量与任何类型兼容 */
     TypeRegion *var = type_create_variable(ts, "T");
     result = type_check_dependent(ts, point1, var, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  点与类型变量兼容: %s\n", result ? "是" : "否");
 
     result = type_check_dependent(ts, var, segment, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  类型变量与线段兼容: %s\n", result ? "是" : "否");
 
     /* 测试4：底部类型与任何类型兼容 */
     TypeRegion *bottom = type_create_bottom(ts);
     result = type_check_dependent(ts, point1, bottom, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  点与底部类型兼容: %s\n", result ? "是" : "否");
 
     /* 测试5：函数类型递归检查 */
     TypeRegion *func1 = type_create_function(ts, point1, segment);
     TypeRegion *func2 = type_create_function(ts, point2, segment);
     result = type_check_dependent(ts, func1, func2, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  相同签名的函数类型兼容: %s\n", result ? "是" : "否");
 
     /* 测试6：函数类型签名不同不兼容 */
     TypeRegion *point3 = type_create_point(ts);
     TypeRegion *func3 = type_create_function(ts, point3, point3);
     result = type_check_dependent(ts, func1, func3, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  不同签名的函数类型不兼容: %s\n", result ? "是" : "否");
 
     /* 测试7：依赖类型的体类型检查 */
     TypeRegion *body = type_create_point(ts);
     TypeRegion *dep_type = type_create_dependent(ts, 42, body);
     result = type_check_dependent(ts, point1, dep_type, NULL);
-    assert(result);
+    lv_ASSERT(result);
     printf("  点与依赖类型(体为点)兼容: %s\n", result ? "是" : "否");
 
     /* 测试8：依赖类型体不兼容 */
     TypeRegion *body_segment = type_create_line_segment(ts);
     TypeRegion *dep_type2 = type_create_dependent(ts, 43, body_segment);
     result = type_check_dependent(ts, point1, dep_type2, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  点与依赖类型(体为线段)不兼容: %s\n", result ? "是" : "否");
 
     /* 测试9：无效参数 */
     result = type_check_dependent(NULL, point1, point2, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     result = type_check_dependent(ts, NULL, point2, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     result = type_check_dependent(ts, point1, NULL, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  无效参数处理: 正确\n");
 
     /* 测试10：非累积模式下的层级严格相等 */
     type_system_set_cumulative(ts, false);
     TypeRegion *region = type_create_region(ts, NULL, 0);
     result = type_check_dependent(ts, region, point1, NULL);
-    assert(!result);
+    lv_ASSERT(!result);
     printf("  非累积模式下层级不等的类型不兼容: %s\n", result ? "是" : "否");
 
     type_system_destroy(ts);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 主函数 ============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Type System Test Suite")
     printf("=== Lv-00 Type System Test Suite ===\n\n");
-
-    test_type_system_lifecycle();
-    test_type_system_settings();
-    test_basic_type_creation();
-    test_composite_type_creation();
-    test_type_variables();
-    test_dependent_types();
-    test_bottom_type();
-    test_universe_level();
-    test_cumulative_checking();
-    test_type_equivalence();
-    test_type_inference();
-    test_type_alias();
-    test_type_instantiation();
-    test_non_well_founded();
-    test_helper_functions();
-    test_type_attach_to_node();
-    test_cumulative_level_check();
-    test_dependent_type_check();
-
+    TEST_MAIN_RUN(test_type_system_lifecycle);
+    TEST_MAIN_RUN(test_type_system_settings);
+    TEST_MAIN_RUN(test_basic_type_creation);
+    TEST_MAIN_RUN(test_composite_type_creation);
+    TEST_MAIN_RUN(test_type_variables);
+    TEST_MAIN_RUN(test_dependent_types);
+    TEST_MAIN_RUN(test_bottom_type);
+    TEST_MAIN_RUN(test_universe_level);
+    TEST_MAIN_RUN(test_cumulative_checking);
+    TEST_MAIN_RUN(test_type_equivalence);
+    TEST_MAIN_RUN(test_type_inference);
+    TEST_MAIN_RUN(test_type_alias);
+    TEST_MAIN_RUN(test_type_instantiation);
+    TEST_MAIN_RUN(test_non_well_founded);
+    TEST_MAIN_RUN(test_helper_functions);
+    TEST_MAIN_RUN(test_type_attach_to_node);
+    TEST_MAIN_RUN(test_cumulative_level_check);
+    TEST_MAIN_RUN(test_dependent_type_check);
     printf("\n=== All type system tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

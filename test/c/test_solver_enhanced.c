@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_solver_enhanced.c
  * @brief 求解器增强功能测试 - 自约化、增强流式输出、精确符号验证
  *
@@ -13,10 +13,13 @@
  * 运行: build\test_solver_enhanced.exe
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test_unified.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 #include "constraint_graph.h"
 #include "engine.h"
@@ -161,7 +164,7 @@ static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64
 
 /* ==================== 测试1: Gröbner 基自约化流式事件 ==================== */
 
-static int test_groebner_auto_reduction_stream(void) {
+static void test_groebner_auto_reduction_stream(void) {
     printf("Test: Gröbner 基自约化流式事件...\n");
 
     reset_collector();
@@ -171,7 +174,7 @@ static int test_groebner_auto_reduction_stream(void) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         printf("  FAILED: graph_create returned NULL\n");
-        return 1;
+        return;
     }
 
     /* 注册流式回调 */
@@ -191,7 +194,7 @@ static int test_groebner_auto_reduction_stream(void) {
         graph_destroy(g);
         if (sctx)
             stream_context_destroy(sctx);
-        return 1;
+        return;
     }
 
     /* 添加线段约束 */
@@ -219,16 +222,16 @@ static int test_groebner_auto_reduction_stream(void) {
     printf("  进度事件: %d\n", g_collector.total_progress_events);
 
     /* 验证：应该有求解开始和完成事件 */
-    assert(has_event_type(STREAM_EVENT_SOLVE_START));
-    assert(has_event_type(STREAM_EVENT_SOLVE_DONE));
+    lv_ASSERT(has_event_type(STREAM_EVENT_SOLVE_START));
+    lv_ASSERT(has_event_type(STREAM_EVENT_SOLVE_DONE));
     printf("  ✓ 求解开始/完成事件存在\n");
 
     /* 验证：应该有方程提取事件 */
-    assert(has_event_type(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED));
+    lv_ASSERT(has_event_type(STREAM_EVENT_SOLVE_EQUATION_EXTRACTED));
     printf("  ✓ 方程提取事件存在\n");
 
     /* 验证：应该有进度事件 */
-    assert(g_collector.total_progress_events > 0);
+    lv_ASSERT(g_collector.total_progress_events > 0);
     printf("  ✓ 进度事件存在 (%d 个)\n", g_collector.total_progress_events);
 
     /* 验证：求解总结事件应包含 solve_summary */
@@ -241,7 +244,7 @@ static int test_groebner_auto_reduction_stream(void) {
             break;
         }
     }
-    assert(has_summary);
+    lv_ASSERT(has_summary);
 
     /* 清理 */
     if (result)
@@ -253,12 +256,11 @@ static int test_groebner_auto_reduction_stream(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
 }
 
 /* ==================== 测试2: 变量求解详细事件 ==================== */
 
-static int test_variable_resolve_detail_events(void) {
+static void test_variable_resolve_detail_events(void) {
     printf("Test: 变量求解详细事件...\n");
 
     reset_collector();
@@ -324,12 +326,12 @@ static int test_variable_resolve_detail_events(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 测试3: 引擎求解流式集成 ==================== */
 
-static int test_engine_solve_stream_integration(void) {
+static void test_engine_solve_stream_integration(void) {
     printf("Test: 引擎求解流式集成...\n");
 
     reset_collector();
@@ -337,7 +339,7 @@ static int test_engine_solve_stream_integration(void) {
     lvEngine *engine = engine_create();
     if (!engine) {
         printf("  FAILED: engine_create returned NULL\n");
-        return 1;
+        return;
     }
 
     /* 注册流式回调 */
@@ -381,18 +383,18 @@ static int test_engine_solve_stream_integration(void) {
     printf("  收集事件总数: %d\n", g_collector.count);
 
     /* 验证引擎生命周期事件 */
-    assert(has_event_type(STREAM_EVENT_ENGINE_START));
-    assert(has_event_type(STREAM_EVENT_ENGINE_DONE));
+    lv_ASSERT(has_event_type(STREAM_EVENT_ENGINE_START));
+    lv_ASSERT(has_event_type(STREAM_EVENT_ENGINE_DONE));
     printf("  ✓ 引擎启动/完成事件存在\n");
 
     /* 验证归一化事件 */
-    assert(has_event_type(STREAM_EVENT_NORMALIZE_START));
-    assert(has_event_type(STREAM_EVENT_NORMALIZE_DONE));
+    lv_ASSERT(has_event_type(STREAM_EVENT_NORMALIZE_START));
+    lv_ASSERT(has_event_type(STREAM_EVENT_NORMALIZE_DONE));
     printf("  ✓ 归一化事件存在\n");
 
     /* 验证求解事件 */
-    assert(has_event_type(STREAM_EVENT_SOLVE_START));
-    assert(has_event_type(STREAM_EVENT_SOLVE_DONE));
+    lv_ASSERT(has_event_type(STREAM_EVENT_SOLVE_START));
+    lv_ASSERT(has_event_type(STREAM_EVENT_SOLVE_DONE));
     printf("  ✓ 求解事件存在\n");
 
     /* 验证节点添加事件 */
@@ -418,12 +420,11 @@ static int test_engine_solve_stream_integration(void) {
     engine_destroy(engine);
 
     printf("  PASSED\n");
-    return 0;
 }
 
 /* ==================== 测试4: 多解分支流式事件 ==================== */
 
-static int test_multiple_solutions_stream(void) {
+static void test_multiple_solutions_stream(void) {
     printf("Test: 多解分支流式事件...\n");
 
     reset_collector();
@@ -465,7 +466,7 @@ static int test_multiple_solutions_stream(void) {
     }
 
     /* 检查是否有进度事件 */
-    assert(g_collector.total_progress_events > 0);
+    lv_ASSERT(g_collector.total_progress_events > 0);
     printf("  ✓ 进度事件: %d 个\n", g_collector.total_progress_events);
 
     if (result)
@@ -477,12 +478,12 @@ static int test_multiple_solutions_stream(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 测试5: Gröbner 基步骤详细事件 ==================== */
 
-static int test_groebner_step_detail_events(void) {
+static void test_groebner_step_detail_events(void) {
     printf("Test: Gröbner 基步骤详细事件...\n");
 
     reset_collector();
@@ -547,12 +548,12 @@ static int test_groebner_step_detail_events(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 测试6: 流式事件统计完整性 ==================== */
 
-static int test_stream_statistics_completeness(void) {
+static void test_stream_statistics_completeness(void) {
     printf("Test: 流式事件统计完整性...\n");
 
     reset_collector();
@@ -585,29 +586,29 @@ static int test_stream_statistics_completeness(void) {
         printf("    收集器数: %d\n", g_collector.count);
 
         /* 总事件数应 >= 收集器数（可能有过滤） */
-        assert(total >= g_collector.count);
+        lv_ASSERT(total >= g_collector.count);
 
         /* 丢弃数应为 0（使用 IMMEDIATE 模式） */
-        assert(dropped == 0);
+        lv_ASSERT(dropped == 0);
 
         /* 验证按类型计数 */
         long engine_start = stream_get_event_count(sctx, STREAM_EVENT_ENGINE_START);
         long engine_done = stream_get_event_count(sctx, STREAM_EVENT_ENGINE_DONE);
         printf("    ENGINE_START: %ld\n", engine_start);
         printf("    ENGINE_DONE:  %ld\n", engine_done);
-        assert(engine_start >= 1);
-        assert(engine_done >= 1);
+        lv_ASSERT(engine_start >= 1);
+        lv_ASSERT(engine_done >= 1);
     }
 
     engine_destroy(engine);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 测试7: 求解总结事件内容验证 ==================== */
 
-static int test_solve_summary_content(void) {
+static void test_solve_summary_content(void) {
     printf("Test: 求解总结事件内容验证...\n");
 
     reset_collector();
@@ -647,24 +648,24 @@ static int test_solve_summary_content(void) {
 
             /* 验证 detail_json 包含预期字段 */
             const char *dj = g_collector.events[i].detail_json;
-            assert(strstr(dj, "solved_variables"));
-            assert(strstr(dj, "remaining_equations"));
-            assert(strstr(dj, "multiple_solutions"));
-            assert(strstr(dj, "unique"));
-            assert(strstr(dj, "overdetermined"));
-            assert(strstr(dj, "max_degree"));
+            lv_ASSERT(strstr(dj, "solved_variables"));
+            lv_ASSERT(strstr(dj, "remaining_equations"));
+            lv_ASSERT(strstr(dj, "multiple_solutions"));
+            lv_ASSERT(strstr(dj, "unique"));
+            lv_ASSERT(strstr(dj, "overdetermined"));
+            lv_ASSERT(strstr(dj, "max_degree"));
 
             printf("  ✓ 求解总结事件包含所有预期字段\n");
             printf("  内容: %s\n", dj);
 
             /* 验证 progress = 1.0 */
-            assert(g_collector.events[i].progress > 0.99);
+            lv_ASSERT(g_collector.events[i].progress > 0.99);
             printf("  ✓ 进度值 = %.2f (期望 1.00)\n", g_collector.events[i].progress);
 
             break;
         }
     }
-    assert(found_summary);
+    lv_ASSERT(found_summary);
 
     if (result)
         groebner_result_destroy(result);
@@ -675,27 +676,17 @@ static int test_solve_summary_content(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 主函数 ==================== */
 
-int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  Lv-00 求解器增强功能测试 v3.2.0                ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
-
-    int failed = 0;
-
-    failed += test_groebner_auto_reduction_stream();
-    failed += test_variable_resolve_detail_events();
-    failed += test_engine_solve_stream_integration();
-    failed += test_multiple_solutions_stream();
-    failed += test_groebner_step_detail_events();
-    failed += test_stream_statistics_completeness();
-    failed += test_solve_summary_content();
-
-    printf("\n=== 增强功能测试结果: %s ===\n", failed == 0 ? "全部通过 ✓" : "有失败 ✗");
-
-    return failed;
-}
+TEST_MAIN_BEGIN("Lv-00 求解器增强功能测试 v3.2.0")
+    TEST_MAIN_RUN(test_groebner_auto_reduction_stream);
+    TEST_MAIN_RUN(test_variable_resolve_detail_events);
+    TEST_MAIN_RUN(test_engine_solve_stream_integration);
+    TEST_MAIN_RUN(test_multiple_solutions_stream);
+    TEST_MAIN_RUN(test_groebner_step_detail_events);
+    TEST_MAIN_RUN(test_stream_statistics_completeness);
+    TEST_MAIN_RUN(test_solve_summary_content);
+TEST_MAIN_END()

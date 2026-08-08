@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_stream.c
  * @brief 流式输出系统模块测试
  *
@@ -17,6 +17,10 @@
 
 #include "lv_utils.h"
 #include "stream.h"
+#include "test_helpers.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* ============== 测试辅助结构 ============== */
 
@@ -360,11 +364,9 @@ static int test_timestamp(void) {
 
 /* ============== 入口 ============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 流式输出系统测试")
     printf("=== Lv-00 流式输出系统测试 ===\n\n");
-
     int total_errors = 0;
-
     total_errors += test_context_lifecycle();
     total_errors += test_callback_register();
     total_errors += test_event_emit();
@@ -373,7 +375,6 @@ int main(void) {
     total_errors += test_event_colors();
     total_errors += test_multiple_callbacks();
     total_errors += test_timestamp();
-
     printf("\n=== 测试结果: %d 个错误 ===\n", total_errors);
-    return total_errors > 0 ? 1 : 0;
-}
+    g_fail_count += total_errors;
+TEST_MAIN_END()

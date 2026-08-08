@@ -40,6 +40,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
+#include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
@@ -319,7 +320,7 @@ void circuit_handle_overflow(void) {
     /* 连续超过阈值后，建议永久降级 */
     int threshold = lv_config_get_int(LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD, 3);
     if (g_overflow_context.overflow_count >= threshold) {
-        fprintf(stderr, "[BIT CIRCUIT] Suggesting permanent downgrade to numerical approximation (AMBER)\n");
+        lv_log(lv_LOG_WARN, "[BIT CIRCUIT] Suggesting permanent downgrade to numerical approximation (AMBER)");
         /* 实际降级由调用者根据用户选择处理 */
     }
 }
@@ -357,104 +358,12 @@ int circuit_get_overflow_count(void) {
 
 /* ============================================================
  * Algebraic Number Implementation
+ *
+ * 注：原本文件维护的 evaluate_poly_at_double / refine_algebraic_bounds /
+ * evaluate_algebraic_at_rational 三个 static 副本已删除——它们与本文件
+ * 内无任何调用点（死代码），且与 algebraic.c 的唯一实现存在漂移
+ * （缺少 NaN/Inf 检查与相对 epsilon 缩放）。如需使用，统一调用
+ * algebraic.c 导出的 sym_evaluate_poly_double / sym_evaluate_algebraic_at_rational
+ * （声明于 symbolic_coord_internal.h）；refine_algebraic_bounds 亦由
+ * algebraic.c 提供全局版本。
  * ============================================================ */
-
-/**
- * 在 double 值处计算多项式的值。
- *
- * 使用 Horner 法则计算多项式 p(x) = sum(coeffs[i] * x^i) 的值。
- *
- * @param poly 多项式对象
- * @param x    求值点
- * @return 多项式在 x 处的值
- */
-static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
-    if (poly->degree < 0)
-        return 0.0;
-    double result = 0.0;
-    double x_pow = 1.0;
-    for (int i = 0; i <= poly->degree; i++) {
-        result += mpz_get_d(poly->coeffs[i]) * x_pow;
-        x_pow *= x;
-    }
-    return result;
-}
-
-/**
- * 使用牛顿法细化代数数的隔离区间边界。
- *
- * 通过二分法结合符号检测，逐步缩小包含根的区间。
- *
- * @param a         代数数对象
- * @param iterations 迭代次数
- */
-static void refine_algebraic_bounds(Algebraic *a, int iterations) {
-    if (a->minimal_poly.degree < 1)
-        return;
-
-    for (int iter = 0; iter < iterations; iter++) {
-        double mid = (a->left_bound + a->right_bound) / 2.0;
-        double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
-        double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
-
-        if (fabs(val_mid) < lv_EPSILON_NEWTON) {
-            a->left_bound = mid - lv_EPSILON_NEWTON;
-            a->right_bound = mid + lv_EPSILON_NEWTON;
-            return;
-        }
-
-        if (val_left * val_mid < 0) {
-            a->right_bound = mid;
-        } else {
-            a->left_bound = mid;
-        }
-    }
-}
-
-/**
- * 在有理数点处求值多项式。
- *
- * 使用 Horner 法则计算多项式 p(x) 在有理数 r 处的值。
- * 结果设为 p(r) 化简后的分子。
- * p(r) = 0 当且仅当 result == 0。
- *
- * @param result 输出参数，存储求值结果的分子
- * @param poly   多项式
- * @param r      有理数求值点
- */
-static void evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, const Rational *r) {
-    mpq_t val;
-    mpq_init(val);
-
-    /* Horner 法则：从最高次项系数开始 */
-    for (int i = poly->degree; i >= 0; i--) {
-        if (i == (int) poly->degree) {
-            mpq_set_z(val, poly->coeffs[i]);
-        } else {
-            mpq_mul(val, val, r->value);
-            mpq_t coeff;
-            mpq_init(coeff);
-            mpq_set_z(coeff, poly->coeffs[i]);
-            mpq_add(val, val, coeff);
-            mpq_clear(coeff);
-        }
-    }
-
-    /* val 现在是 p(r) 化简后的形式（mpq 标准形式）*/
-    /* p(r) = 0 当且仅当分子为 0 */
-    mpz_set(result, mpq_numref(val));
-    mpq_clear(val);
-}
-
-/**
- * 使用连分数展开将 double 值近似为有理数。
- *
- * 使用 GMP 多精度整数计算连分数表示的渐近分数 h_n/k_n，
- * 当分母超过 BIT_CUTOFF_THRESHOLD/2 比特时截断。
- * 若在 epsilon 范围内找到有理数近似则返回 true。
- *
- * @param value   要近似的 double 值
- * @param epsilon 容许误差
- * @param result  输出参数，存储找到的有理数近似
- * @return 找到合适近似返回 true，否则返回 false
- */

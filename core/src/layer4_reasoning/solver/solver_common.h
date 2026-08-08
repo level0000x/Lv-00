@@ -26,6 +26,12 @@
 
 /* ===== Lv-00 公共 API ===== */
 
+/* lv_log / lv_LOG_* 级别常量：放在本头文件最前（早于 debug.h / lv_internal.h），
+ * 保证 lv_LOG_WARN 等在本头文件所有使用点均为可展开的级别常量
+ * （lv_internal.h 的同名函数式宏 lv_LOG_WARN(fmt,...) 会被 lv_log.h 的
+ *  #ifndef 守卫跳过），供 solver_*.c 用 lv_log(lv_LOG_WARN, ...) 记录日志。 */
+#include "lv/lv_log.h"
+
 #include "lv/constraint_graph.h"
 #include "lv/solver.h"
 #include "lv/solver_types.h"

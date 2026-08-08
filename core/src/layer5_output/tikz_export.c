@@ -20,6 +20,7 @@
 #include "lv/lv_check.h"
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_export_common.h"
 #include "lv/lv_utils.h"
 #include "lv/symbolic_coord.h"
 
@@ -201,14 +202,10 @@ int lv_tikz_export_file(void *graph, const char *filename) {
         return -1;
     }
 
-    /* 写入文件 */
-    FILE *fp = fopen(filename, "w");
-    if (!fp) {
-        lv_strbuf_destroy(&buf);
-        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export_file: fopen failed");
-    }
-    size_t written = fwrite(buf.data, 1, buf.len, fp);
-    fclose(fp);
+    /* 写入文件（复用公共文件写出辅助：fopen "w" + fwrite + fclose） */
+    int written = lv_export_write_file(filename, buf.data, buf.len);
     lv_strbuf_destroy(&buf);
-    return (int) written;
+    if (written < 0)
+        lv_RETURN_ERROR(lv_ERROR_IO, "lv_tikz_export_file: fopen failed");
+    return written;
 }

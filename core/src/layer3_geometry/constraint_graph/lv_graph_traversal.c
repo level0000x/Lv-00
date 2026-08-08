@@ -74,23 +74,39 @@ static bool should_skip_node(ConstraintGraph *graph, int node_id,
 /**
  * @brief 查找节点的邻居（通过约束连接）
  *
- * 遍历所有涉及该节点的约束，收集其他参与者作为邻居。
- * 返回邻居数量，邻居 ID 写入 out_neighbors 数组。
+ * 遍历所有涉及该节点的约束，收集其他参与者作为邻居，
+ * 写入调用方提供的动态数组 out_neighbors（无固定容量上限）。
+ *
+ * @return 本次追加到 out_neighbors 的邻居数量；内存不足返回 -1
  */
 static int find_neighbors(ConstraintGraph *graph, int node_id,
-                           int *out_neighbors, int max_neighbors,
+                           lvDArray *out_neighbors,
                            const lvGraphTraversalConfig *config) {
-    if (!graph || !out_neighbors || max_neighbors <= 0)
+    if (!graph || !out_neighbors)
         return 0;
 
-    /* 先找到涉及该节点的所有约束索引 */
-    int constraint_indices[256];
-    int con_count = graph_find_constraints_involving(graph, node_id,
-                                                      constraint_indices, 256);
+    /* 先收集涉及该节点的所有活跃约束索引（动态扩容，消除原 256 上限） */
+    lvDArray con_indices;
+    lv_darray_init(&con_indices, sizeof(int));
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c->is_active)
+            continue;
+        for (int j = 0; j < c->participant_count; j++) {
+            if (c->participants[j] == node_id) {
+                if (lv_darray_push(&con_indices, &i) < 0) {
+                    lv_darray_free(&con_indices);
+                    return -1;
+                }
+                break;
+            }
+        }
+    }
 
-    int count = 0;
-    for (int i = 0; i < con_count && count < max_neighbors; i++) {
-        Constraint *c = graph->constraints[constraint_indices[i]];
+    int added = 0;
+    int base = out_neighbors->count;
+    for (int i = 0; i < con_indices.count; i++) {
+        Constraint *c = graph->constraints[*(const int *)lv_darray_get(&con_indices, i)];
         if (!c->is_active)
             continue;
 
@@ -115,20 +131,23 @@ static int find_neighbors(ConstraintGraph *graph, int node_id,
             }
             /* 去重 */
             bool already = false;
-            for (int k = 0; k < count; k++) {
-                if (out_neighbors[k] == pid) {
+            for (int k = base; k < out_neighbors->count; k++) {
+                if (*(const int *)lv_darray_get(out_neighbors, k) == pid) {
                     already = true;
                     break;
                 }
             }
             if (!already) {
-                out_neighbors[count++] = pid;
-                if (count >= max_neighbors)
-                    return count;
+                if (lv_darray_push(out_neighbors, &pid) < 0) {
+                    lv_darray_free(&con_indices);
+                    return -1;
+                }
+                added++;
             }
         }
     }
-    return count;
+    lv_darray_free(&con_indices);
+    return added;
 }
 
 /**
@@ -217,6 +236,10 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
     stack[stack_top].is_exit = false;
     stack_top++;
 
+    /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
+    lvDArray nbr;
+    lv_darray_init(&nbr, sizeof(int));
+
     int result = lv_OK;
 
     while (stack_top > 0) {
@@ -278,11 +301,15 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
         }
 
         /* 查找邻居并压入栈 */
-        int neighbors[256];
-        int ncount = find_neighbors(graph, frame.node_id, neighbors, 256, config);
+        lv_darray_clear(&nbr);
+        int ncount = find_neighbors(graph, frame.node_id, &nbr, config);
+        if (ncount < 0) {
+            result = lv_ERROR_OUT_OF_MEMORY;
+            goto cleanup;
+        }
 
         for (int i = ncount - 1; i >= 0; i--) {
-            int nid = neighbors[i];
+            int nid = *(const int *)lv_darray_get(&nbr, i);
             if (nid < 0 || nid >= visited_size || visited[nid])
                 continue;
             if (should_skip_node(graph, nid, config))
@@ -304,6 +331,7 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
     }
 
 cleanup:
+    lv_darray_free(&nbr);
     lv_free((void **)&stack);
     return result;
 }
@@ -332,6 +360,10 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
 
     int result = lv_OK;
 
+    /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
+    lvDArray nbr;
+    lv_darray_init(&nbr, sizeof(int));
+
     while (!bfs_queue_is_empty(q)) {
         int node_id;
         int depth;
@@ -354,11 +386,15 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
         }
 
         /* 入队邻居 */
-        int neighbors[256];
-        int ncount = find_neighbors(graph, node_id, neighbors, 256, config);
+        lv_darray_clear(&nbr);
+        int ncount = find_neighbors(graph, node_id, &nbr, config);
+        if (ncount < 0) {
+            result = lv_ERROR_OUT_OF_MEMORY;
+            goto bfs_cleanup;
+        }
 
         for (int i = 0; i < ncount; i++) {
-            int nid = neighbors[i];
+            int nid = *(const int *)lv_darray_get(&nbr, i);
             if (nid < 0 || nid >= visited_size || visited[nid])
                 continue;
             if (should_skip_node(graph, nid, config))
@@ -369,6 +405,7 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
     }
 
 bfs_cleanup:
+    lv_darray_free(&nbr);
     bfs_queue_destroy(q);
     return result;
 }
@@ -514,13 +551,21 @@ static int mark_reachable_from(ConstraintGraph *graph, int start_id,
     stack[top++] = start_id;
     reachable[start_id] = true;
 
+    /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
+    lvDArray nbr;
+    lv_darray_init(&nbr, sizeof(int));
+
     int result = lv_OK;
     while (top > 0) {
         int nid = stack[--top];
-        int neighbors[256];
-        int ncount = find_neighbors(graph, nid, neighbors, 256, config);
+        lv_darray_clear(&nbr);
+        int ncount = find_neighbors(graph, nid, &nbr, config);
+        if (ncount < 0) {
+            result = lv_ERROR_OUT_OF_MEMORY;
+            goto cleanup;
+        }
         for (int i = 0; i < ncount; i++) {
-            int nb = neighbors[i];
+            int nb = *(const int *)lv_darray_get(&nbr, i);
             if (nb < 0 || nb >= reachable_size || reachable[nb])
                 continue;
             if (should_skip_node(graph, nb, config))
@@ -537,6 +582,7 @@ static int mark_reachable_from(ConstraintGraph *graph, int start_id,
     }
 
 cleanup:
+    lv_darray_free(&nbr);
     lv_free((void **)&stack);
     return result;
 }
@@ -710,17 +756,23 @@ int lv_graph_traverse_neighbors(ConstraintGraph *graph, int node_id,
     if (!config)
         config = &default_config;
 
-    int neighbors[256];
-    int ncount = find_neighbors(graph, node_id, neighbors, 256, config);
+    lvDArray nbr;
+    lv_darray_init(&nbr, sizeof(int));
+    int ncount = find_neighbors(graph, node_id, &nbr, config);
+    if (ncount < 0) {
+        lv_darray_free(&nbr);
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_graph_traverse_neighbors: find_neighbors OOM");
+    }
 
     for (int i = 0; i < ncount; i++) {
-        GeomNode *n = graph_get_node(graph, neighbors[i]);
+        GeomNode *n = graph_get_node(graph, *(const int *)lv_darray_get(&nbr, i));
         if (!n)
             continue;
         lvTraversalResult tr = visitor(n, 1, user_data);
         if (tr == lv_TRAVERSAL_STOP)
             break;
     }
+    lv_darray_free(&nbr);
 
     return lv_OK;
 }
@@ -1235,8 +1287,9 @@ int lv_graph_count_nodes(ConstraintGraph *graph) {
 /**
  * @brief lv_graph_has_cycle 的邻居枚举回调
  *
- * 保持原实现语义：约束超图无向邻居（find_neighbors，skip_disabled=true），
- * 且保留原 256 邻居截断上限。
+ * 保持原实现语义：约束超图无向邻居（find_neighbors，skip_disabled=true）。
+ * 邻居经 lvDArray 动态收集（无固定上限），再按槽位容量写出；
+ * 返回 == max_neighbors 时 collect_neighbor_batch 扩容重试，直至完整。
  */
 static int has_cycle_neighbors_cb(void *ctx, int node_id, int batch_index,
                                   int *out_neighbors, void **out_edge_infos,
@@ -1248,10 +1301,23 @@ static int has_cycle_neighbors_cb(void *ctx, int node_id, int batch_index,
         return 0;
     if (batch_index != 0)
         return 0; /* 单批次（全部邻居合并为一个批次），批次 1 起为空 */
-    int cap = max_neighbors < 256 ? max_neighbors : 256;
+
     lvGraphTraversalConfig cfg = lv_GRAPH_TRAVERSAL_DEFAULT_CONFIG;
     cfg.skip_disabled = true;
-    return find_neighbors(graph, node_id, out_neighbors, cap, &cfg);
+
+    lvDArray nbr;
+    lv_darray_init(&nbr, sizeof(int));
+    int cnt = find_neighbors(graph, node_id, &nbr, &cfg);
+    if (cnt < 0) {
+        lv_darray_free(&nbr);
+        return -1; /* 内存不足 */
+    }
+    int out_cnt = cnt < max_neighbors ? cnt : max_neighbors;
+    for (int i = 0; i < out_cnt; i++) {
+        out_neighbors[i] = *(const int *)lv_darray_get(&nbr, i);
+    }
+    lv_darray_free(&nbr);
+    return out_cnt;
 }
 
 /**
@@ -1264,7 +1330,7 @@ static int has_cycle_neighbors_cb(void *ctx, int node_id, int batch_index,
  *
  * 委托给通用核心 lv_cycle_detect（无 on_cycle 回调，发现首个环即返回 true），
  * 语义与原手写实现等价：起点为 nodes 数组序的活跃节点、邻居为约束超图
- * 无向邻居（跳过 disabled、256 截断）。
+ * 无向邻居（跳过 disabled）。
  */
 bool lv_graph_has_cycle(ConstraintGraph *graph) {
     if (!graph || graph->node_count <= 0)
@@ -1365,12 +1431,19 @@ int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_
         result[count++] = nid;
 
         /* 减少邻居的入度 */
-        int neighbors[256];
-        int ncount = find_neighbors(graph, nid, neighbors, 256,
+        lvDArray nbr;
+        lv_darray_init(&nbr, sizeof(int));
+        int ncount = find_neighbors(graph, nid, &nbr,
             &(lvGraphTraversalConfig){lv_TRAVERSAL_DFS_PRE, 0, false, false, true});
+        if (ncount < 0) {
+            lv_darray_free(&nbr);
+            lv_free((void **)&in_degree);
+            lv_free((void **)&queue);
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_graph_topological_sort: find_neighbors OOM");
+        }
 
         for (int i = 0; i < ncount; i++) {
-            int nb = neighbors[i];
+            int nb = *(const int *)lv_darray_get(&nbr, i);
             if (nb < 0 || nb >= visited_size)
                 continue;
             in_degree[nb]--;
@@ -1378,6 +1451,7 @@ int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_
                 queue[qtail++] = nb;
             }
         }
+        lv_darray_free(&nbr);
     }
 
     lv_free((void **)&in_degree);

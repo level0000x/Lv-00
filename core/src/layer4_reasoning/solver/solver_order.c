@@ -147,10 +147,10 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
                 if (!visited[i])
                     unvisited++;
             }
-            fprintf(stderr,
-                    "order_variables_by_dependency: cycle detected in constraint graph, "
-                    "%d variables remain unscheduled\n",
-                    unvisited);
+            lv_log(lv_LOG_WARN,
+                   "order_variables_by_dependency: cycle detected in constraint graph, "
+                   "%d variables remain unscheduled\n",
+                   unvisited);
             for (int i = 0; i < var_count; i++) {
                 if (!visited[i]) {
                     order[order_count++] = var_ids[i];
@@ -328,10 +328,10 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
                 if (!visited[i])
                     unvisited++;
             }
-            fprintf(stderr,
-                    "compute_elimination_order: cycle detected in constraint graph, "
-                    "%d variables remain unscheduled\n",
-                    unvisited);
+            lv_log(lv_LOG_WARN,
+                   "compute_elimination_order: cycle detected in constraint graph, "
+                   "%d variables remain unscheduled\n",
+                   unvisited);
             for (int i = 0; i < var_count; i++) {
                 if (!visited[i]) {
                     order[order_count++] = var_ids[i];

@@ -29,18 +29,12 @@
  * 命题的等价变换
  * ------------------------------------------------------------------------- */
 
-/* 等价声明存储 */
-#define MAX_EQUIVALENCES 256
-
-static lv_THREAD_LOCAL PropositionEquivalence g_equivalences[MAX_EQUIVALENCES];
+/* 等价声明存储（TLS 指针 + 惰性分配，动态扩容消除 MAX_EQUIVALENCES 上限） */
+static lv_THREAD_LOCAL PropositionEquivalence *g_equivalences = NULL;
 static lv_THREAD_LOCAL int g_equivalence_count = 0;
+static lv_THREAD_LOCAL int g_equivalence_capacity = 0;
 
 bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, ConstraintGraph *transformation_rule) {
-    if (g_equivalence_count >= MAX_EQUIVALENCES) {
-        LOG_WARN("unify", "Proposition equivalence table full (max %d), cannot add more", MAX_EQUIVALENCES);
-        return false;
-    }
-
     /* 检查是否已存在相同的等价声明 */
     for (int i = 0; i < g_equivalence_count; i++) {
         if ((g_equivalences[i].prop_a_id == prop_a_id && g_equivalences[i].prop_b_id == prop_b_id) ||
@@ -51,6 +45,15 @@ bool unify_declare_proposition_equivalence(int prop_a_id, int prop_b_id, Constra
             }
             g_equivalences[i].transformation = transformation_rule;
             return true;
+        }
+    }
+
+    /* 动态扩容（倍增），替代原 MAX_EQUIVALENCES 满表失败 */
+    if (g_equivalence_count >= g_equivalence_capacity) {
+        if (!lv_ensure_capacity((void **) &g_equivalences, g_equivalence_count,
+                                &g_equivalence_capacity, sizeof(PropositionEquivalence), 0)) {
+            LOG_WARN("unify", "Proposition equivalence table growth failed (OOM), cannot add more");
+            return false;
         }
     }
 
@@ -88,4 +91,6 @@ void unify_clear_equivalences(void) {
 
 void lv_unify_equivalence_storage_cleanup(void) {
     unify_clear_equivalences();
+    lv_free((void **) &g_equivalences);
+    g_equivalence_capacity = 0;
 }

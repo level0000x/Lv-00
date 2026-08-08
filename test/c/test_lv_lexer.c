@@ -23,10 +23,9 @@ static void test_single_token(const char *src, LvTokenType expected) {
     PASS();
 }
 
-int main(void) {
+TEST_MAIN_BEGIN("lv lexer test")
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== lv lexer test ===\n\n");
-
     /* 关键字 */
     printf("[关键字]\n");
     test_single_token("Point", LV_TOKEN_KW_POINT);
@@ -71,7 +70,6 @@ int main(void) {
     test_single_token("Assume", LV_TOKEN_KW_ASSUME);
     test_single_token("Export", LV_TOKEN_KW_EXPORT);
     test_single_token("bottom", LV_TOKEN_KW_BOTTOM);
-
     /* 标识符 */
     printf("[标识符]\n");
     test_single_token("foo", LV_TOKEN_IDENTIFIER);
@@ -79,14 +77,12 @@ int main(void) {
     test_single_token("my_var_1", LV_TOKEN_IDENTIFIER);
     test_single_token("implies", LV_TOKEN_IDENTIFIER);
     test_single_token("iff", LV_TOKEN_IDENTIFIER);
-
     /* 字面量 */
     printf("[字面量]\n");
     test_single_token("123", LV_TOKEN_INTEGER);
     test_single_token("3/4", LV_TOKEN_RATIONAL);
     test_single_token("3.14", LV_TOKEN_DECIMAL);
     test_single_token("\"hello\"", LV_TOKEN_STRING);
-
     /* 运算符 */
     printf("[运算符/分隔符]\n");
     test_single_token("(", LV_TOKEN_LPAREN);
@@ -116,10 +112,8 @@ int main(void) {
     test_single_token("|-", LV_TOKEN_DARROW);
     test_single_token("|=", LV_TOKEN_MODELS);
     test_single_token("|", LV_TOKEN_PIPE);
-
     /* 合取符号 /\ 等价于关键字 and */
     test_single_token("/\\", LV_TOKEN_KW_AND);
-
     /* 注释 */
     printf("[注释]\n");
     {
@@ -144,7 +138,6 @@ int main(void) {
             FAIL("块注释未跳过");
         lv_lexer_destroy(lex);
     }
-
     /* 完整语句 */
     {
         printf("[完整语句]\n");
@@ -177,7 +170,6 @@ int main(void) {
             FAIL("token 序列不匹配");
         lv_lexer_destroy(lex);
     }
-
     /* EOF */
     printf("[边界]\n");
     {
@@ -190,7 +182,5 @@ int main(void) {
             FAIL("!EOF");
         lv_lexer_destroy(lex);
     }
-
-    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+        
+TEST_MAIN_END()

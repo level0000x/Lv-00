@@ -13,7 +13,6 @@
  * 注意：msgpack 二进制格式按历史约定不含 graph，round-trip 后 graph 为 NULL。
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,20 +21,23 @@
 #include "lv/module_internal.h" /* 访问 mod->dependencies 以设置 dep->module（内部测试） */
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============== JSON round-trip + 字节格式 ============== */
 
-static int test_json_roundtrip(void) {
+static void test_json_roundtrip(void) {
     printf("Test: JSON round-trip + byte format...\n");
 
     Module *mod = module_create("TestModule", "1.0.0");
-    assert(mod != NULL);
+    lv_ASSERT_NOT_NULL(mod);
     module_add_dependency(mod, "Base", ">=1.0.0");
     module_add_dependency(mod, "MathLib", "^2.0.0");
     module_export_function_block(mod, 1001);
     module_export_function_block(mod, 1002);
     module_export_type_region(mod, 2001);
     AxiomPackage *pkg = axiom_package_create("Euclid", "1.0");
-    assert(pkg != NULL);
+    lv_ASSERT_NOT_NULL(pkg);
     module_add_axiom_package(mod, pkg);
 
     /* graph：一个点 */
@@ -43,85 +45,85 @@ static int test_json_roundtrip(void) {
     SymbolicCoord *coords[2] = {symbolic_coord_create_rational(5, 1), symbolic_coord_create_rational(6, 1)};
     graph_add_point(g, coords, 2);
     module_set_graph(mod, g);
-    assert(graph_get_node_count(module_get_graph(mod)) == 1);
+    lv_ASSERT(graph_get_node_count(module_get_graph(mod)) == 1);
 
     char *json = module_serialize_to_json(mod);
-    assert(json != NULL);
+    lv_ASSERT_NOT_NULL(json);
 
     /* 字节格式：紧凑无空白、字段顺序 name/version/dependencies/exports/axiom_packages/graph */
-    assert(json[0] == '{');
-    assert(json[1] == '"'); /* 无空白 */
-    assert(strstr(json, "\"name\":\"TestModule\"") != NULL);
-    assert(strstr(json, "\"version\":\"1.0.0\"") != NULL);
-    assert(strstr(json, "\"dependencies\":[{\"name\":\"Base\",\"version_constraint\":\">=1.0.0\"}") != NULL);
-    assert(strstr(json, "\"exports\":{\"function_blocks\":[1001,1002],\"type_regions\":[2001]}") != NULL);
-    assert(strstr(json, "\"axiom_packages\":[\"Euclid\"]") != NULL);
-    assert(strstr(json, "\"graph\":{") != NULL);
+    lv_ASSERT(json[0] == '{');
+    lv_ASSERT(json[1] == '"'); /* 无空白 */
+    lv_ASSERT(strstr(json, "\"name\":\"TestModule\"") != NULL);
+    lv_ASSERT(strstr(json, "\"version\":\"1.0.0\"") != NULL);
+    lv_ASSERT(strstr(json, "\"dependencies\":[{\"name\":\"Base\",\"version_constraint\":\">=1.0.0\"}") != NULL);
+    lv_ASSERT(strstr(json, "\"exports\":{\"function_blocks\":[1001,1002],\"type_regions\":[2001]}") != NULL);
+    lv_ASSERT(strstr(json, "\"axiom_packages\":[\"Euclid\"]") != NULL);
+    lv_ASSERT(strstr(json, "\"graph\":{") != NULL);
     printf("  JSON 字节: %s\n", json);
 
     /* round-trip：依赖/导出字段循环逗号 bug 已修复（与 graph_serialize.c 同源），
      * 依赖数组完整恢复、后续键（exports/axiom_packages/graph）不再丢失 */
     Module *restored = NULL;
     ModuleLoadStatus status = module_deserialize_from_json(json, &restored);
-    assert(status == MODULE_LOAD_OK);
-    assert(restored != NULL);
-    assert(strcmp(module_get_name(restored), "TestModule") == 0);
-    assert(strcmp(module_get_version(restored), "1.0.0") == 0);
-    assert(module_get_dependency_count(restored) == 2);   /* 两个依赖均恢复 */
-    assert(module_get_axiom_package_count(restored) == 1); /* 后续键不再丢失 */
-    assert(module_get_graph(restored) != NULL);            /* graph 已恢复 */
-    assert(graph_get_node_count(module_get_graph(restored)) == 1);
+    lv_ASSERT(status == MODULE_LOAD_OK);
+    lv_ASSERT_NOT_NULL(restored);
+    lv_ASSERT_STR_EQ(module_get_name(restored), "TestModule");
+    lv_ASSERT_STR_EQ(module_get_version(restored), "1.0.0");
+    lv_ASSERT(module_get_dependency_count(restored) == 2);   /* 两个依赖均恢复 */
+    lv_ASSERT(module_get_axiom_package_count(restored) == 1); /* 后续键不再丢失 */
+    lv_ASSERT_NOT_NULL(module_get_graph(restored));            /* graph 已恢复 */
+    lv_ASSERT(graph_get_node_count(module_get_graph(restored)) == 1);
 
     lv_free_ptr(json);
     module_destroy(restored);
     module_destroy(mod);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== MessagePack round-trip + 字节格式 ============== */
 
-static int test_msgpack_roundtrip(void) {
+static void test_msgpack_roundtrip(void) {
     printf("Test: MessagePack round-trip + byte format...\n");
 
     Module *mod = module_create("TestModule", "1.0.0");
-    assert(mod != NULL);
+    lv_ASSERT_NOT_NULL(mod);
     module_add_dependency(mod, "Base", ">=1.0.0");
     module_export_function_block(mod, 7);
     module_export_type_region(mod, 8);
     AxiomPackage *pkg = axiom_package_create("Euclid", "1.0");
-    assert(pkg != NULL);
+    lv_ASSERT_NOT_NULL(pkg);
     module_add_axiom_package(mod, pkg);
 
     uint8_t *data = NULL;
     size_t size = 0;
     ModuleSaveStatus sstatus = module_save_to_binary(mod, &data, &size);
-    assert(sstatus == MODULE_SAVE_OK);
-    assert(data != NULL && size > 0);
+    lv_ASSERT(sstatus == MODULE_SAVE_OK);
+    lv_ASSERT(data != NULL && size > 0);
 
     /* 字节格式：顶层 fixmap 5 键 + "name" fixstr + "TestModule" fixstr(10) */
-    assert(size >= 12);
-    assert(data[0] == 0x85); /* fixmap 5（msgpack 不含 graph，与历史一致） */
-    assert(memcmp(data + 1, "\xa4name", 5) == 0);
-    assert(data[6] == 0xaa); /* fixstr 10 = "TestModule" */
-    assert(memcmp(data + 7, "TestModule", 10) == 0);
+    lv_ASSERT(size >= 12);
+    lv_ASSERT(data[0] == 0x85); /* fixmap 5（msgpack 不含 graph，与历史一致） */
+    lv_ASSERT(memcmp(data + 1, "\xa4name", 5) == 0);
+    lv_ASSERT(data[6] == 0xaa); /* fixstr 10 = "TestModule" */
+    lv_ASSERT(memcmp(data + 7, "TestModule", 10) == 0);
 
     /* round-trip */
     Module *restored = NULL;
     ModuleLoadStatus status = module_load_from_binary(data, size, &restored);
-    assert(status == MODULE_LOAD_OK);
-    assert(restored != NULL);
-    assert(strcmp(module_get_name(restored), "TestModule") == 0);
-    assert(strcmp(module_get_version(restored), "1.0.0") == 0);
-    assert(module_get_dependency_count(restored) == 1);
-    assert(module_get_axiom_package_count(restored) == 1);
-    assert(module_get_graph(restored) == NULL); /* msgpack 格式不含 graph */
+    lv_ASSERT(status == MODULE_LOAD_OK);
+    lv_ASSERT_NOT_NULL(restored);
+    lv_ASSERT_STR_EQ(module_get_name(restored), "TestModule");
+    lv_ASSERT_STR_EQ(module_get_version(restored), "1.0.0");
+    lv_ASSERT(module_get_dependency_count(restored) == 1);
+    lv_ASSERT(module_get_axiom_package_count(restored) == 1);
+    lv_ASSERT(module_get_graph(restored) == NULL); /* msgpack 格式不含 graph */
 
     lv_free_ptr(data);
     module_destroy(restored);
     module_destroy(mod);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== MessagePack 未知键 skip（跳转表覆盖） ==============
@@ -130,7 +132,7 @@ static int test_msgpack_roundtrip(void) {
  * "extra" 是未知键，其值包含 fixmap/fixarray/uint8/int64/float64/bin8/
  * str16/array16/map16 多种类型，验证 mp_decoder_skip_value 跳转表能完整跳过。
  */
-static int test_msgpack_unknown_key_skip(void) {
+static void test_msgpack_unknown_key_skip(void) {
     printf("Test: MessagePack unknown-key skip (skip table)...\n");
 
     static const uint8_t data[] = {
@@ -153,52 +155,52 @@ static int test_msgpack_unknown_key_skip(void) {
 
     Module *mod = NULL;
     ModuleLoadStatus status = module_load_from_binary(data, sizeof(data), &mod);
-    assert(status == MODULE_LOAD_OK);
-    assert(mod != NULL);
-    assert(strcmp(module_get_name(mod), "M") == 0);
-    assert(strcmp(module_get_version(mod), "1.0") == 0);
+    lv_ASSERT(status == MODULE_LOAD_OK);
+    lv_ASSERT_NOT_NULL(mod);
+    lv_ASSERT_STR_EQ(module_get_name(mod), "M");
+    lv_ASSERT_STR_EQ(module_get_version(mod), "1.0");
 
     module_destroy(mod);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 版本哈希 ============== */
 
-static int test_version_hash(void) {
+static void test_version_hash(void) {
     printf("Test: version hash determinism + sensitivity...\n");
 
     Module *mod = module_create("HashModule", "1.0.0");
-    assert(mod != NULL);
+    lv_ASSERT_NOT_NULL(mod);
     module_add_dependency(mod, "Base", ">=1.0.0");
 
     char *h1 = module_compute_version_hash(mod);
-    assert(h1 != NULL);
+    lv_ASSERT_NOT_NULL(h1);
     char *h2 = module_compute_version_hash(mod);
-    assert(h2 != NULL);
-    assert(strcmp(h1, h2) == 0); /* 确定性 */
+    lv_ASSERT_NOT_NULL(h2);
+    lv_ASSERT_STR_EQ(h1, h2); /* 确定性 */
 
     /* 版本变化 → 哈希变化 */
     Module *mod2 = module_create("HashModule", "2.0.0");
-    assert(mod2 != NULL);
+    lv_ASSERT_NOT_NULL(mod2);
     module_add_dependency(mod2, "Base", ">=1.0.0");
     char *h3 = module_compute_version_hash(mod2);
-    assert(h3 != NULL);
-    assert(strcmp(h1, h3) != 0);
+    lv_ASSERT_NOT_NULL(h3);
+    lv_ASSERT(strcmp(h1, h3) != 0);
 
     /* 依赖变化 → 哈希变化 */
     Module *mod3 = module_create("HashModule", "1.0.0");
-    assert(mod3 != NULL);
+    lv_ASSERT_NOT_NULL(mod3);
     module_add_dependency(mod3, "Other", ">=1.0.0");
     char *h4 = module_compute_version_hash(mod3);
-    assert(h4 != NULL);
-    assert(strcmp(h1, h4) != 0);
+    lv_ASSERT_NOT_NULL(h4);
+    lv_ASSERT(strcmp(h1, h4) != 0);
 
     /* graph 不参与版本哈希（历史行为：hash_field_graph 为空 handler） */
     module_set_graph(mod, graph_create());
     char *h5 = module_compute_version_hash(mod);
-    assert(h5 != NULL);
-    assert(strcmp(h1, h5) == 0);
+    lv_ASSERT_NOT_NULL(h5);
+    lv_ASSERT_STR_EQ(h1, h5);
 
     lv_free_ptr(h1);
     lv_free_ptr(h2);
@@ -209,7 +211,7 @@ static int test_version_hash(void) {
     module_destroy(mod2);
     module_destroy(mod3);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 三色 DFS 环检测 ============== */
@@ -223,17 +225,17 @@ static void link_dependency(Module *mod, const char *dep_name, Module *dep) {
             return;
         }
     }
-    assert(!"link_dependency: 依赖未找到");
+    lv_ASSERT(!"link_dependency: 依赖未找到");
 }
 
-static int test_cycle_detect(void) {
+static void test_cycle_detect(void) {
     printf("Test: three-color DFS cycle detect + path output...\n");
 
     /* 环 A→B→C→A */
     Module *ma = module_create("A", "1.0");
     Module *mb = module_create("B", "1.0");
     Module *mc = module_create("C", "1.0");
-    assert(ma && mb && mc);
+    lv_ASSERT(ma && mb && mc);
     module_add_dependency(ma, "B", "1.0");
     module_add_dependency(mb, "C", "1.0");
     module_add_dependency(mc, "A", "1.0");
@@ -244,10 +246,10 @@ static int test_cycle_detect(void) {
     Module *cyclic[] = {ma, mb, mc};
     int *path = NULL;
     int path_len = 0;
-    assert(module_full_cycle_detect(cyclic, 3, &path, &path_len));
-    assert(path != NULL);
-    assert(path_len == 3);
-    assert(path[0] == 0 && path[1] == 1 && path[2] == 2); /* A→B→C→A */
+    lv_ASSERT(module_full_cycle_detect(cyclic, 3, &path, &path_len));
+    lv_ASSERT_NOT_NULL(path);
+    lv_ASSERT(path_len == 3);
+    lv_ASSERT(path[0] == 0 && path[1] == 1 && path[2] == 2); /* A→B→C→A */
     lv_free_ptr(path);
     module_destroy(ma);
     module_destroy(mb);
@@ -257,7 +259,7 @@ static int test_cycle_detect(void) {
     Module *na = module_create("A", "1.0");
     Module *nb = module_create("B", "1.0");
     Module *nc = module_create("C", "1.0");
-    assert(na && nb && nc);
+    lv_ASSERT(na && nb && nc);
     module_add_dependency(na, "B", "1.0");
     module_add_dependency(nb, "C", "1.0");
     link_dependency(na, "B", nb);
@@ -266,8 +268,8 @@ static int test_cycle_detect(void) {
     Module *acyclic[] = {na, nb, nc};
     path = NULL;
     path_len = 0;
-    assert(!module_full_cycle_detect(acyclic, 3, &path, &path_len));
-    assert(path == NULL);
+    lv_ASSERT(!module_full_cycle_detect(acyclic, 3, &path, &path_len));
+    lv_ASSERT(path == NULL);
     module_destroy(na);
     module_destroy(nb);
     module_destroy(nc);
@@ -275,12 +277,12 @@ static int test_cycle_detect(void) {
     /* > MAX_MODULE_DEPTH(32) 线性链：验证动态路径栈消除固定栈上限 */
     enum { CHAIN_N = 40 };
     Module **chain = (Module **) calloc((size_t) CHAIN_N, sizeof(Module *));
-    assert(chain != NULL);
+    lv_ASSERT_NOT_NULL(chain);
     for (int i = 0; i < CHAIN_N; i++) {
         char buf[32];
         snprintf(buf, sizeof(buf), "M%d", i);
         chain[i] = module_create(buf, "1.0");
-        assert(chain[i] != NULL);
+        lv_ASSERT_NOT_NULL(chain[i]);
         if (i > 0) {
             char dep_name[32];
             snprintf(dep_name, sizeof(dep_name), "M%d", i - 1);
@@ -290,27 +292,24 @@ static int test_cycle_detect(void) {
     }
     path = NULL;
     path_len = 0;
-    assert(!module_full_cycle_detect(chain, CHAIN_N, &path, &path_len)); /* 无环不崩溃 */
-    assert(path == NULL);
+    lv_ASSERT(!module_full_cycle_detect(chain, CHAIN_N, &path, &path_len)); /* 无环不崩溃 */
+    lv_ASSERT(path == NULL);
     for (int i = 0; i < CHAIN_N; i++)
         module_destroy(chain[i]);
     free(chain);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 主函数 ============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Module Serialization Unify Test Suite")
     printf("=== Lv-00 Module Serialization Unify Test Suite ===\n\n");
-
-    test_json_roundtrip();
-    test_msgpack_roundtrip();
-    test_msgpack_unknown_key_skip();
-    test_version_hash();
-    test_cycle_detect();
-
+    TEST_MAIN_RUN(test_json_roundtrip);
+    TEST_MAIN_RUN(test_msgpack_roundtrip);
+    TEST_MAIN_RUN(test_msgpack_unknown_key_skip);
+    TEST_MAIN_RUN(test_version_hash);
+    TEST_MAIN_RUN(test_cycle_detect);
     printf("\n=== All module serialization unify tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

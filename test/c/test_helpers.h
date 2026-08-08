@@ -55,32 +55,15 @@
 /**
  * @brief 字符串相等断言宏 - 比较两个字符串是否相等
  *
- * 使用 strcmp 进行比较，失败时打印实际值和期望值字符串。
- * 支持 NULL 字符串安全比较。
+ * 与 lv_ASSERT_STR_EQ 语义完全一致（失败打印 [file:line] 诊断并 return，
+ * 成功/失败分别递增 g_pass_count/g_fail_count），此处直接映射到
+ * test_framework.h 的 lv_ASSERT_STR_EQ，两套断言体系共享同一计数符号。
+ * 使用点无需任何改动（别名层透明）。
  *
  * @param actual    实际字符串
  * @param expected  期望字符串
  */
-#define TEST_ASSERT_STR_EQ(actual, expected)                                                                       \
-    do {                                                                                                           \
-        const char *_th_actual = (actual);                                                                         \
-        const char *_th_expected = (expected);                                                                     \
-        int _th_cmp = 0;                                                                                           \
-        if (_th_actual == NULL && _th_expected == NULL) {                                                          \
-            _th_cmp = 0;                                                                                           \
-        } else if (_th_actual == NULL || _th_expected == NULL) {                                                   \
-            _th_cmp = 1;                                                                                           \
-        } else {                                                                                                   \
-            _th_cmp = strcmp(_th_actual, _th_expected);                                                            \
-        }                                                                                                          \
-        if (_th_cmp != 0) {                                                                                        \
-            fprintf(stderr, "  FAIL [%s:%d] %s != %s (actual='%s', expected='%s')\n", __FILE__, __LINE__, #actual, \
-                    #expected, _th_actual ? _th_actual : "(null)", _th_expected ? _th_expected : "(null)");        \
-            g_fail_count++;                                                                                        \
-            return;                                                                                                \
-        }                                                                                                          \
-        g_pass_count++;                                                                                            \
-    } while (0)
+#define TEST_ASSERT_STR_EQ(actual, expected) lv_ASSERT_STR_EQ(actual, expected)
 
 /* ============================================================
  * 全局测试计数器（各测试文件需定义）
@@ -201,23 +184,14 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
 /**
  * @brief 不等断言宏 - 比较两个值是否不相等
  *
- * 如果两个值相等，打印失败信息并返回。
+ * 与 lv_ASSERT_NE 语义完全一致（失败打印 [file:line] 诊断并 return，
+ * 成功/失败分别递增 g_pass_count/g_fail_count），此处直接映射到
+ * test_framework.h 的 lv_ASSERT_NE，两套断言体系共享同一计数符号。
  *
  * @param actual    实际值
  * @param expected  不应等于的值
  */
-#define TEST_ASSERT_NE(actual, expected)                                                                    \
-    do {                                                                                                    \
-        intptr_t _th_actual = (intptr_t) (actual);                                                          \
-        intptr_t _th_expected = (intptr_t) (expected);                                                      \
-        if (_th_actual == _th_expected) {                                                                   \
-            fprintf(stderr, "  FAIL [%s:%d] %s == %s (both=%ld)\n", __FILE__, __LINE__, #actual, #expected, \
-                    (long) _th_actual);                                                                     \
-            g_fail_count++;                                                                                 \
-            return;                                                                                         \
-        }                                                                                                   \
-        g_pass_count++;                                                                                     \
-    } while (0)
+#define TEST_ASSERT_NE(actual, expected) lv_ASSERT_NE(actual, expected)
 
 #define TEST_ASSERT_NEAR(actual, expected, tol, msg)                                                              \
     do {                                                                                                          \
@@ -324,19 +298,13 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
 /**
  * @brief 非空指针断言宏 - 检查指针是否不为 NULL
  *
- * 如果指针为 NULL，打印失败信息并返回。
+ * 与 lv_ASSERT_NOT_NULL 语义完全一致（失败打印 [file:line] 诊断并 return，
+ * 成功/失败分别递增 g_pass_count/g_fail_count），此处直接映射到
+ * test_framework.h 的 lv_ASSERT_NOT_NULL，两套断言体系共享同一计数符号。
  *
  * @param ptr  待检查的指针
  */
-#define TEST_ASSERT_NOT_NULL(ptr)                                                     \
-    do {                                                                              \
-        if ((ptr) == NULL) {                                                          \
-            fprintf(stderr, "  FAIL [%s:%d] %s is NULL\n", __FILE__, __LINE__, #ptr); \
-            g_fail_count++;                                                           \
-            return;                                                                   \
-        }                                                                             \
-        g_pass_count++;                                                               \
-    } while (0)
+#define TEST_ASSERT_NOT_NULL(ptr) lv_ASSERT_NOT_NULL(ptr)
 
 /* ============================================================
  * 测试运行与报告宏

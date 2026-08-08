@@ -28,6 +28,11 @@ static void ev_bus_invoke(const lvCallbackEntry *entry, const void *arg) {
 }
 
 void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config) {
+    /* 保留先于 init 设置的 stream 桥接：lv_event_bus_set_stream() 可能
+     * 在总线惰性初始化（首次 emit 的 lv_once）之前被调用（runtime_monitor
+     * 的 lv_event_trace_set_stream_context 在 engine_create 时经 stream
+     * 分发机制注入），若直接 memset 会把预置的 stream_ctx 清掉。 */
+    struct StreamContext *preserved_ctx = bus ? bus->stream_ctx : NULL;
     memset(bus, 0, sizeof(*bus));
     if (config) {
         bus->config = *config;
@@ -36,6 +41,7 @@ void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config) {
     }
     if (bus->config.initial_capacity <= 0)
         bus->config.initial_capacity = 16;
+    bus->stream_ctx = preserved_ctx;
     /* 订阅列表委托公共设施：初始容量 initial_capacity，硬上限 max_callbacks（0 = 无限制） */
     lv_callback_list_init(&bus->subscriptions, bus->config.initial_capacity, bus->config.max_callbacks);
 }
@@ -65,6 +71,15 @@ bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id) {
     return lv_callback_list_remove_by_id(&bus->subscriptions, subscription_id);
 }
 
+/**
+ * @brief 关联 StreamContext（实现）
+ *
+ * 使用说明：由 runtime_monitor 在初始化路径调用一次
+ * （lv_event_trace_set_stream_context，经 engine_create 的 stream_context
+ * 分发机制注入 engine->stream_ctx），把 runtime 事件总线桥接到 Stream 系统；
+ * engine 销毁时由 stream_context_clear_all 以 NULL 解除。
+ * 可先于 lv_event_bus_init() 调用（init 保留预置的 stream_ctx）。
+ */
 void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx) {
     if (!bus)
         return;

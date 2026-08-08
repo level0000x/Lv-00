@@ -12,10 +12,9 @@
  * 外部引用表、逻辑框架字符串等）由调用方作为参数传入。
  *
  * 使用约定：
- *   1. 断言宏：调用方需先提供 TEST_ASSERT（例如先 #include "test_helpers.h"，
- *      其语义为失败即 return）；若历史文件使用"失败不 return"的私有宏，
- *      则在 include 本头之前定义 #define AXIOM_TEST_NON_RETURNING 1，
- *      本头会提供与之兼容的非返回式 TEST_ASSERT 变体。
+ *   1. 断言宏：统一使用 test_helpers.h 的 TEST_ASSERT（失败即 return 并递增
+ *      g_fail_count；成功递增 g_pass_count），不再提供私有兜底实现。
+ *      调用方需在 include 本头之前 #include "test_helpers.h"。
  *   2. 全局计数器：调用方需自行定义 g_fail_count / g_pass_count
  *      （test_helpers.h 声明为 extern，文件内定义；非返回式风格为 static）。
  *   3. 共享函数全部为 static inline，直接包含 "lv.h"（其中已含 axiom_pkg.h、
@@ -34,39 +33,6 @@
 #include <string.h>
 
 #include "lv.h"
-
-/* ============================================================
- * TEST_ASSERT 兼容变体
- *
- * - 若调用方（如 test_helpers.h）已定义 TEST_ASSERT，则直接使用之；
- * - 否则按 AXIOM_TEST_NON_RETURNING 提供两种语义：
- *     返回式    ：失败打印 [file:line] 并 return（与 test_helpers.h 一致）
- *     非返回式  ：失败仅 printf("  FAIL: ...") 计数，继续执行
- *       （与历史私有宏一致，供旧文件切换时保持行为不变）
- * ============================================================ */
-#ifndef TEST_ASSERT
-#ifdef AXIOM_TEST_NON_RETURNING
-#define TEST_ASSERT(cond, msg)           \
-    do {                                 \
-        if (!(cond)) {                   \
-            printf("  FAIL: %s\n", msg); \
-            g_fail_count++;              \
-        } else {                         \
-            g_pass_count++;              \
-        }                                \
-    } while (0)
-#else
-#define TEST_ASSERT(cond, msg)                                                 \
-    do {                                                                       \
-        if (!(cond)) {                                                         \
-            fprintf(stderr, "  FAIL [%s:%d] %s\n", __FILE__, __LINE__, (msg)); \
-            g_fail_count++;                                                    \
-            return;                                                            \
-        }                                                                      \
-        g_pass_count++;                                                        \
-    } while (0)
-#endif
-#endif /* TEST_ASSERT */
 
 /* ============================================================
  * 差异数据结构（各文件数据表的统一形态）

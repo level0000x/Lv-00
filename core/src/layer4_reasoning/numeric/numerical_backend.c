@@ -32,7 +32,9 @@
 #include "lv/gmres_shared.h"
 #include "lv/default_host_ops.h"
 #include "lv/host_linalg.h"
+#include "lv/sparse_linear_algebra.h" /* CSR 稀疏矩阵 + Jacobi 求解 */
 
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,6 +115,18 @@ static int serial_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *
 static int serial_matrix_factor(lvMatrix *A);
 static int serial_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
 
+/* CSR 稀疏矩阵分支操作表函数（serial_sparse_matrix_ops） */
+static lvMatrix *sparse_matrix_clone(const lvMatrix *A);
+static void sparse_matrix_destroy(lvMatrix *A);
+static void sparse_matrix_zero(lvMatrix *A);
+static void sparse_matrix_copy(lvMatrix *dst, const lvMatrix *src);
+static int sparse_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y);
+static void sparse_matrix_scale(lvMatrix *A, double c);
+static void sparse_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val);
+static double sparse_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col);
+static int sparse_matrix_factor(lvMatrix *A);
+static int sparse_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x);
+
 static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method);
 static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
 static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
@@ -139,6 +153,15 @@ static const lvMatrixOps serial_dense_matrix_ops = {
     default_matrix_clone,  default_matrix_destroy, default_matrix_zero,        default_matrix_copy,
     serial_matrix_matvec, default_matrix_scale,   default_matrix_set_element, default_matrix_get_element,
     serial_matrix_factor, serial_matrix_solve,
+};
+
+/* CSR 稀疏矩阵操作表：lv_matrix_create(..., sparse=true) 时绑定。
+ * data 字段持有 lvSparseMatrix*（见 lvMatrix 注释："CSR 为自定义结构"）。 */
+static const lvMatrixOps serial_sparse_matrix_ops = {
+    serial_matrix_create,
+    sparse_matrix_clone,   sparse_matrix_destroy, sparse_matrix_zero,        sparse_matrix_copy,
+    sparse_matrix_matvec, sparse_matrix_scale,   sparse_matrix_set_element, sparse_matrix_get_element,
+    sparse_matrix_factor, sparse_matrix_solve,
 };
 
 static const lvLinearSolverOps serial_dense_linsol_ops = {
@@ -506,7 +529,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     DenseLUData *lu = lv_calloc(1, sizeof(DenseLUData));
     lv_CHECK_ALLOC(lu, lv_BACKEND_MEM_ERROR);
 
-    lu->clone = default_matrix_clone(A);
+    lu->clone = A->ops->clone(A); /* 经操作表克隆，sparse 矩阵走 CSR 深拷贝 */
     if (!lu->clone) {
         lv_free((void **) &lu);
         return lv_BACKEND_MEM_ERROR;
@@ -739,7 +762,13 @@ static double serial_bicgstab_norm(void *ctx, const double *v, int64_t n) {
 
 /** @brief SERIAL 矩阵向量乘：y = A*x（列主序，跳过微小分量，与原实现一致） */
 static void serial_bicgstab_matvec(void *ctx, const lvMatrix *A, const double *x, double *y, int64_t n) {
-    double *a_data = (double *) ((IterSolverData *) ctx)->clone->data;
+    lvMatrix *clone = ((IterSolverData *) ctx)->clone;
+    if (clone->sparse) {
+        /* CSR 稀疏矩阵：直接行遍历（y = A*x） */
+        lv_sparse_matvec((const lvSparseMatrix *) clone->data, x, y);
+        return;
+    }
+    double *a_data = (double *) clone->data;
     memset(y, 0, (size_t) n * sizeof(double));
     for (int64_t j = 0; j < A->cols; ++j) {
         double xj = x[j];
@@ -807,7 +836,6 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVec
     int64_t n = A->rows;
     int max_iter = is->max_iters;
     double tol = is->tol;
-    double *a_data = (double *) is->clone->data;
 
     /* 工作向量别名 */
     double *r = is->r;   /* 残差 */
@@ -833,14 +861,19 @@ static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVec
 
     for (int iter = 0; iter < max_iter; ++iter) {
         /* ap = A * p */
-        memset(ap, 0, (size_t) n * sizeof(double));
-        for (int64_t j = 0; j < A->cols; ++j) {
-            double pj = p[j];
-            if (fabs(pj) < lv_NUM_EPSILON)
-                continue;
-            double *col_j = a_data + j * n;
-            for (int64_t i = 0; i < n; ++i)
-                ap[i] += col_j[i] * pj;
+        if (is->clone->sparse) {
+            lv_sparse_matvec((const lvSparseMatrix *) is->clone->data, p, ap);
+        } else {
+            double *a_data = (double *) is->clone->data;
+            memset(ap, 0, (size_t) n * sizeof(double));
+            for (int64_t j = 0; j < A->cols; ++j) {
+                double pj = p[j];
+                if (fabs(pj) < lv_NUM_EPSILON)
+                    continue;
+                double *col_j = a_data + j * n;
+                for (int64_t i = 0; i < n; ++i)
+                    ap[i] += col_j[i] * pj;
+            }
         }
 
         /* alpha = (r, r) / (p, A*p) */
@@ -930,8 +963,30 @@ static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse) {
     A->sparse = sparse;
     A->format = sparse ? lv_MATRIX_SPARSE_CSR : lv_MATRIX_DENSE;
     A->backend = lv_BACKEND_SERIAL;
-    A->ops = &serial_dense_matrix_ops;
     A->backend_data = NULL;
+
+    /* 稀疏分支：data 挂 CSR 矩阵（lvSparseMatrix*），ops 绑定稀疏操作表。
+     * 仅在 nnz 处存储非零元素，消除"稀疏标志 + 稠密存储"的假稀疏。 */
+    if (sparse) {
+        if (rows > INT_MAX || cols > INT_MAX) {
+            lv_free((void **) &A);
+            lv_ERROR_SET(lv_BACKEND_INVALID_ARGS,
+                         "稀疏矩阵维度超出 CSR 支持范围(int32)，当前 %lldx%lld", (long long) rows,
+                         (long long) cols);
+            return NULL;
+        }
+        A->ops = &serial_sparse_matrix_ops;
+        A->data = lv_sparse_create((int) rows, (int) cols);
+        if (!A->data) {
+            lv_free((void **) &A);
+            lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "稀疏矩阵 CSR 数据分配失败 %lldx%lld", (long long) rows,
+                         (long long) cols);
+            return NULL;
+        }
+        return A;
+    }
+
+    A->ops = &serial_dense_matrix_ops;
 
     size_t data_size = (size_t) (rows * cols) * sizeof(double);
     A->data = lv_malloc(data_size);
@@ -943,6 +998,177 @@ static lvMatrix *serial_matrix_create(int64_t rows, int64_t cols, bool sparse) {
     memset(A->data, 0, data_size);
 
     return A;
+}
+
+/* ========================================================================
+ * 第五部分（续）：CSR 稀疏矩阵分支操作表实现
+ *
+ * data 字段持有 lvSparseMatrix*（由 lv_sparse_create 创建），所有操作
+ * 委托给 sparse_linear_algebra 模块。与稠密分支的生命周期契约一致：
+ * create 分配、destroy 释放、clone 深拷贝。
+ * ======================================================================== */
+
+/**
+ * @brief 深拷贝稀疏矩阵（继承源矩阵后端与操作表）
+ */
+static lvMatrix *sparse_matrix_clone(const lvMatrix *A) {
+    lv_CHECK_NULL(A, NULL);
+    lv_CHECK_NULL(A->data, NULL);
+
+    lvMatrix *clone = lv_calloc(1, sizeof(lvMatrix));
+    lv_CHECK_ALLOC(clone, NULL);
+
+    clone->rows = A->rows;
+    clone->cols = A->cols;
+    clone->sparse = true;
+    clone->format = lv_MATRIX_SPARSE_CSR;
+    clone->backend = A->backend;
+    clone->ops = A->ops;
+    clone->backend_data = NULL;
+
+    clone->data = lv_sparse_create((int) A->rows, (int) A->cols);
+    if (!clone->data) {
+        lv_free((void **) &clone);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "sparse_matrix_clone: lv_sparse_create failed");
+        return NULL;
+    }
+    if (lv_sparse_copy((lvSparseMatrix *) clone->data, (const lvSparseMatrix *) A->data) != 0) {
+        lv_sparse_destroy((lvSparseMatrix *) clone->data);
+        lv_free((void **) &clone);
+        lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "sparse_matrix_clone: lv_sparse_copy failed");
+        return NULL;
+    }
+    return clone;
+}
+
+/**
+ * @brief 销毁稀疏矩阵（释放 CSR 内部数组与矩阵本体）
+ */
+static void sparse_matrix_destroy(lvMatrix *A) {
+    if (!A)
+        return;
+    lv_sparse_destroy((lvSparseMatrix *) A->data);
+    A->data = NULL;
+    lv_free((void **) &A);
+}
+
+/**
+ * @brief 置零（清空所有非零元素，保留 CSR 容量）
+ */
+static void sparse_matrix_zero(lvMatrix *A) {
+    if (!A || !A->data)
+        return;
+    lv_sparse_zero((lvSparseMatrix *) A->data);
+}
+
+/**
+ * @brief 深拷贝：dst = src（均为稀疏矩阵）
+ */
+static void sparse_matrix_copy(lvMatrix *dst, const lvMatrix *src) {
+    if (!dst || !src || !dst->data || !src->data)
+        return;
+    lv_sparse_copy((lvSparseMatrix *) dst->data, (const lvSparseMatrix *) src->data);
+}
+
+/**
+ * @brief 矩阵-向量乘法：y = A * x（CSR 行遍历）
+ */
+static int sparse_matrix_matvec(const lvMatrix *A, const lvVector *x, lvVector *y) {
+    lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(x, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(y, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(A->data, lv_BACKEND_NOT_INITIALIZED);
+    lv_CHECK_NULL(x->data, lv_BACKEND_NOT_INITIALIZED);
+    lv_CHECK_NULL(y->data, lv_BACKEND_NOT_INITIALIZED);
+
+    if (A->cols != x->length || A->rows != y->length) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "sparse matvec 维度不匹配: A(%lldx%lld), x(%lld), y(%lld)",
+                     (long long) A->rows, (long long) A->cols, (long long) x->length, (long long) y->length);
+        return lv_BACKEND_INVALID_ARGS;
+    }
+
+    if (lv_sparse_matvec((const lvSparseMatrix *) A->data, x->data, y->data) != 0) {
+        lv_ERROR_SET(lv_BACKEND_MATVEC_FAILED, "sparse matvec 执行失败");
+        return lv_BACKEND_MATVEC_FAILED;
+    }
+    return lv_BACKEND_OK;
+}
+
+/**
+ * @brief 矩阵-标量乘法：A = c * A
+ */
+static void sparse_matrix_scale(lvMatrix *A, double c) {
+    if (!A || !A->data)
+        return;
+    lv_sparse_scale((lvSparseMatrix *) A->data, c);
+}
+
+/**
+ * @brief 设置单个元素值（越界时静默忽略，与稠密 default_matrix_set_element 一致）
+ */
+static void sparse_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
+    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols)
+        return;
+    lv_sparse_set((lvSparseMatrix *) A->data, (int) row, (int) col, val);
+}
+
+/**
+ * @brief 获取单个元素值（越界返回 0.0，与稠密 default_matrix_get_element 一致）
+ */
+static double sparse_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
+    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols)
+        return 0.0;
+    return lv_sparse_get((const lvSparseMatrix *) A->data, (int) row, (int) col);
+}
+
+/**
+ * @brief 稀疏矩阵"分解"（no-op：Jacobi 迭代无需预分解）
+ */
+static int sparse_matrix_factor(lvMatrix *A) {
+    lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(A->data, lv_BACKEND_NOT_INITIALIZED);
+    return lv_BACKEND_OK;
+}
+
+/**
+ * @brief 求解 A * x = b（委托 lv_sparse_solve，Jacobi 迭代）
+ *
+ * 映射 lv_sparse_solve 返回码到后端错误码：
+ *   iter > 0  → lv_BACKEND_OK；-2 非方阵 → lv_BACKEND_INVALID_ARGS；
+ *   -3 零/近零对角线 → lv_BACKEND_LINSOL_FAILED；-1 → lv_BACKEND_MEM_ERROR
+ */
+static int sparse_matrix_solve(const lvMatrix *A, const lvVector *b, lvVector *x) {
+    lv_CHECK_NULL(A, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(b, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(x, lv_BACKEND_MEM_ERROR);
+    lv_CHECK_NULL(A->data, lv_BACKEND_NOT_INITIALIZED);
+    lv_CHECK_NULL(b->data, lv_BACKEND_NOT_INITIALIZED);
+    lv_CHECK_NULL(x->data, lv_BACKEND_NOT_INITIALIZED);
+
+    if (A->rows != A->cols) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "sparse solve 要求方阵，当前为 %lldx%lld", (long long) A->rows,
+                     (long long) A->cols);
+        return lv_BACKEND_INVALID_ARGS;
+    }
+    if (A->cols != b->length || A->rows != x->length) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "sparse solve 维度不匹配: A(%lldx%lld), b(%lld), x(%lld)",
+                     (long long) A->rows, (long long) A->cols, (long long) b->length, (long long) x->length);
+        return lv_BACKEND_INVALID_ARGS;
+    }
+
+    int iter = lv_sparse_solve((const lvSparseMatrix *) A->data, b->data, x->data);
+    if (iter > 0)
+        return lv_BACKEND_OK;
+    if (iter == -2) {
+        lv_ERROR_SET(lv_BACKEND_INVALID_ARGS, "sparse solve: 非方阵");
+        return lv_BACKEND_INVALID_ARGS;
+    }
+    if (iter == -3) {
+        lv_ERROR_SET(lv_BACKEND_LINSOL_FAILED, "sparse solve: 零/近零对角线，Jacobi 无法收敛");
+        return lv_BACKEND_LINSOL_FAILED;
+    }
+    lv_ERROR_SET(lv_BACKEND_MEM_ERROR, "sparse solve: 参数无效或内存分配失败");
+    return lv_BACKEND_MEM_ERROR;
 }
 
 /**

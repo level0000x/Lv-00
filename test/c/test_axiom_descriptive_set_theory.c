@@ -15,12 +15,12 @@
 #include <stdio.h>
 #include <string.h>
 
-static int g_fail_count = 0;
-static int g_pass_count = 0;
+int g_fail_count = 0;
+int g_pass_count = 0;
 
 /* 历史私有 TEST_ASSERT 为非返回式语义（失败仅计数、继续执行），
  * 通过 AXIOM_TEST_NON_RETURNING 让骨架头提供兼容变体，保持行为不变 */
-#define AXIOM_TEST_NON_RETURNING 1
+#include "test_helpers.h"
 
 #include "axiom_test_common.h"
 
@@ -243,21 +243,15 @@ static void test_key_templates_present(void) {
     axiom_package_destroy(pkg);
 }
 
-int main(void) {
-    printf("=== Descriptive Set Theory Axiom Package Tests ===\n\n");
-
-    test_load_from_file();
-    test_templates();
-    test_unconstructibles();
-    test_logical_framework();
-    test_content_hash();
-    test_save_load_roundtrip();
-    test_dependency_validation();
-    test_negative_lookups();
-    test_external_references();
-    test_key_templates_present();
-
-    printf("\n=== Results: %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-
-    return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_BEGIN("Descriptive Set Theory Axiom Package Tests")
+    TEST_MAIN_RUN(test_load_from_file);
+    TEST_MAIN_RUN(test_templates);
+    TEST_MAIN_RUN(test_unconstructibles);
+    TEST_MAIN_RUN(test_logical_framework);
+    TEST_MAIN_RUN(test_content_hash);
+    TEST_MAIN_RUN(test_save_load_roundtrip);
+    TEST_MAIN_RUN(test_dependency_validation);
+    TEST_MAIN_RUN(test_negative_lookups);
+    TEST_MAIN_RUN(test_external_references);
+    TEST_MAIN_RUN(test_key_templates_present);
+TEST_MAIN_END()

@@ -43,6 +43,7 @@
 #include <stdint.h> /* v3.4.2: 添加 uint16_t 支持 */
 
 #include "constraint_graph.h"
+#include "determinism_state.h"
 #include "func_block_utils.h"
 #include "stream.h"
 #include "symbolic_coord.h"
@@ -58,13 +59,9 @@ typedef struct SolutionSelector SolutionSelector;
 
 /* ============== 确定性状态机 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ * DeterminismState 枚举定义收敛于 determinism_state.h（见上 include），
+ * 此处不再重复定义，避免双定义漂移。
  */
-typedef enum {
-    DETERMINISM_STATE_UNVERIFIED,        /**< 打包完成，尚未进行静态分析 */
-    DETERMINISM_STATE_VERIFIED,          /**< 静态分析确认解唯一 */
-    DETERMINISM_STATE_NON_DETERMINISTIC, /**< 应用时出现过一次多解 */
-    DETERMINISM_STATE_PARTIALLY_VERIFIED /**< 静态分析未完成但未发现冲突 */
-} DeterminismState;
 
 /* ============== 端口依赖类型 ============== */
 typedef enum {

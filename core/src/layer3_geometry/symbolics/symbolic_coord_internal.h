@@ -31,6 +31,11 @@ typedef struct CoordOpsVTable {
 /* 由 symbolic_coord_ops.c 定义的全局 vtable 数组 */
 extern const CoordOpsVTable kCoordOpsVTable[];
 
+/* ── 代数数共享辅助（由 algebraic.c 定义，symbolics 层复用，
+ *    rational.c 不再维护重复的 static 副本）── */
+double sym_evaluate_poly_double(const mpz_poly_t *poly, double x);
+void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, const Rational *r);
+
 /* ── 生命周期 VTable handlers（由 symbolic_coord_lifecycle.c 定义）── */
 void destroy_rational(SymbolicCoord *coord);
 void destroy_algebraic(SymbolicCoord *coord);

@@ -9,12 +9,11 @@
 #include "lv/geo_predicate.h"
 #include "test_helpers.h"
 
-static int tests_passed = 0;
-static int tests_failed = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
-int main(void) {
+TEST_MAIN_BEGIN("geo_predicate 模块测试")
     printf("=== geo_predicate 模块测试 ===\n\n");
-
     /* 1. orientation_2d 基础测试 */
     printf("[组 1] orientation_2d 基础测试\n");
     {
@@ -23,35 +22,32 @@ int main(void) {
         lvOrientation o = lv_orientation_2d(0, 0, 1, 0, 0, 1, lv_PREDICATE_APPROX);
         if (o == lv_ORIENTATION_LEFT) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 LEFT");
-            tests_failed++;
+            g_fail_count++;
         }
-
         /* 顺时针三角形 */
         TEST("orientation_2d: 顺时针三角形");
         o = lv_orientation_2d(0, 0, 0, 1, 1, 0, lv_PREDICATE_APPROX);
         if (o == lv_ORIENTATION_RIGHT) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 RIGHT");
-            tests_failed++;
+            g_fail_count++;
         }
-
         /* 共线 */
         TEST("orientation_2d: 三点共线");
         o = lv_orientation_2d(0, 0, 1, 1, 2, 2, lv_PREDICATE_APPROX);
         if (o == lv_ORIENTATION_COLLINEAR) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 COLLINEAR");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 2. orientation_2d 精度模式测试 */
     printf("\n[组 2] orientation_2d 精度模式测试\n");
     {
@@ -64,24 +60,22 @@ int main(void) {
         /* 至少两种模式都应该返回有效结果 */
         if (o_approx != lv_ORIENTATION_DEGENERATE && o_exact != lv_ORIENTATION_DEGENERATE) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("返回了 DEGENERATE");
-            tests_failed++;
+            g_fail_count++;
         }
-
         /* 自适应模式 */
         TEST("orientation_2d: 自适应模式");
         lvOrientation o_adapt = lv_orientation_2d(0, 0, 1, 0, 0, 1, lv_PREDICATE_ADAPTIVE);
         if (o_adapt == lv_ORIENTATION_LEFT) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 LEFT");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 3. line_side 测试 */
     printf("\n[组 3] line_side 测试\n");
     {
@@ -89,33 +83,30 @@ int main(void) {
         lvLineSide s = lv_line_side(0, 1, 0, 0, 1, 0, lv_PREDICATE_APPROX);
         if (s == lv_LINE_SIDE_LEFT) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 LEFT");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("line_side: 点在直线右侧");
         s = lv_line_side(0, -1, 0, 0, 1, 0, lv_PREDICATE_APPROX);
         if (s == lv_LINE_SIDE_RIGHT) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 RIGHT");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("line_side: 点在直线上");
         s = lv_line_side(0.5, 0, 0, 0, 1, 0, lv_PREDICATE_APPROX);
         if (s == lv_LINE_SIDE_ON) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 ON");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 4. side_of_circle 测试 */
     printf("\n[组 4] side_of_circle 测试\n");
     {
@@ -123,33 +114,30 @@ int main(void) {
         lvSideOfCircle sc = lv_side_of_circle(0, 0, 1, 0, 2.0, lv_PREDICATE_APPROX);
         if (sc == lv_SIDE_INSIDE) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 INSIDE");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("side_of_circle: 点在圆上");
         sc = lv_side_of_circle(3, 0, 1, 0, 2.0, lv_PREDICATE_APPROX);
         if (sc == lv_SIDE_ON) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 ON");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("side_of_circle: 点在圆外");
         sc = lv_side_of_circle(5, 0, 1, 0, 2.0, lv_PREDICATE_APPROX);
         if (sc == lv_SIDE_OUTSIDE) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 OUTSIDE");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 5. same_side_of_line 测试 */
     printf("\n[组 5] same_side_of_line 测试\n");
     {
@@ -157,23 +145,21 @@ int main(void) {
         bool r = lv_same_side_of_line(0, 1, 1, 2, 0, 0, 1, 0, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("same_side_of_line: 两点在异侧");
         r = lv_same_side_of_line(0, 1, 0, -1, 0, 0, 1, 0, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 6. segments_intersect 测试 */
     printf("\n[组 6] segments_intersect 测试\n");
     {
@@ -181,33 +167,30 @@ int main(void) {
         bool r = lv_segments_intersect(0, 0, 2, 2, 0, 2, 2, 0, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("segments_intersect: 不相交线段");
         r = lv_segments_intersect(0, 0, 1, 1, 2, 2, 3, 3, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("segments_intersect: 共享端点");
         r = lv_segments_intersect(0, 0, 2, 2, 0, 0, 0, 2, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false（共享端点不算内部相交）");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 7. point_in_triangle 测试 */
     printf("\n[组 7] point_in_triangle 测试\n");
     {
@@ -215,33 +198,30 @@ int main(void) {
         bool r = lv_point_in_triangle(0.5, 0.5, 0, 0, 1, 0, 0, 1, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("point_in_triangle: 外部点");
         r = lv_point_in_triangle(2, 2, 0, 0, 1, 0, 0, 1, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("point_in_triangle: 顶点");
         r = lv_point_in_triangle(0, 0, 0, 0, 1, 0, 0, 1, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true（顶点算内部）");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 8. polygon_is_convex 测试 */
     printf("\n[组 8] polygon_is_convex 测试\n");
     {
@@ -251,25 +231,23 @@ int main(void) {
         bool r = lv_polygon_is_convex(sq_x, sq_y, 4, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         double l_x[] = {0, 2, 1, 1};
         double l_y[] = {0, 0, 1, 2};
         TEST("polygon_is_convex: L 形（凹）");
         r = lv_polygon_is_convex(l_x, l_y, 4, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 9. point_in_polygon 测试 */
     printf("\n[组 9] point_in_polygon 测试\n");
     {
@@ -279,23 +257,21 @@ int main(void) {
         bool r = lv_point_in_polygon(0.5, 0.5, sq_x, sq_y, 4, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("point_in_polygon: 外部点");
         r = lv_point_in_polygon(2, 2, sq_x, sq_y, 4, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 10. four_points_concyclic 测试 */
     printf("\n[组 10] four_points_concyclic 测试\n");
     {
@@ -303,23 +279,21 @@ int main(void) {
         bool r = lv_four_points_concyclic(1, 0, 0, 1, -1, 0, 0, -1, lv_PREDICATE_APPROX);
         if (r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 true");
-            tests_failed++;
+            g_fail_count++;
         }
-
         TEST("four_points_concyclic: 不共圆四点");
         r = lv_four_points_concyclic(0, 0, 1, 0, 0, 1, 1, 1, lv_PREDICATE_APPROX);
         if (!r) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 false");
-            tests_failed++;
+            g_fail_count++;
         }
     }
-
     /* 11. 谓词统计测试 */
     printf("\n[组 11] 谓词统计测试\n");
     {
@@ -332,15 +306,13 @@ int main(void) {
         TEST("predicate stats: 精确计数正确");
         if (stats.exact_count == 2) {
             PASS();
-            tests_passed++;
+            g_pass_count++;
         } else {
             FAIL("期望 2");
-            tests_failed++;
+            g_fail_count++;
         }
         lv_predicate_set_mode(lv_PREDICATE_ADAPTIVE);
     }
-
     /* 结果汇总 */
-    printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", tests_passed, tests_failed);
-    return tests_failed > 0 ? 1 : 0;
-}
+        
+TEST_MAIN_END()

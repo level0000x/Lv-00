@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_prop_verifier.c
  * @brief 命题逻辑验证器测试
  *
@@ -18,25 +18,28 @@
  *   因此，每个测试只销毁"根"公式（不被其他公式包含的公式）。
  */
 
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "lv_utils.h"
-#include "prop_verifier.h"
-
-/* ============================================================
- * 测试辅助宏
- * ============================================================ */
-
+/* 测试辅助宏（先于 test_unified.h 定义，避免与 test_helpers.h 的兼容 TEST 宏冲突） */
+#ifndef TEST
 #define TEST(name) static void name(void)
+#endif
+#ifndef RUN_TEST
 #define RUN_TEST(name)             \
     do {                           \
         printf("  %-50s ", #name); \
         name();                    \
         printf("PASSED\n");        \
     } while (0)
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "lv_utils.h"
+#include "prop_verifier.h"
+#include "test_unified.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 /* 公式构造快捷宏 */
 #define ATOM(name) prop_formula_create_atom(name)
@@ -70,52 +73,52 @@
 TEST(test_formula_create_destroy) {
     /* 原子命题 */
     PropFormula *p = ATOM("P");
-    assert(p != NULL);
-    assert(p->type == PROP_ATOM);
-    assert(strcmp(p->data.atom.name, "P") == 0);
+    lv_ASSERT_NOT_NULL(p);
+    lv_ASSERT(p->type == PROP_ATOM);
+    lv_ASSERT_STR_EQ(p->data.atom.name, "P");
     prop_formula_destroy(p);
 
     /* 合取 */
     PropFormula *ab = AND(ATOM("A"), ATOM("B"));
-    assert(ab != NULL);
-    assert(ab->type == PROP_CONJUNCTION);
+    lv_ASSERT_NOT_NULL(ab);
+    lv_ASSERT(ab->type == PROP_CONJUNCTION);
     prop_formula_destroy(ab); /* 递归销毁 A 和 B */
 
     /* 析取 */
     PropFormula *aob = OR(ATOM("A"), ATOM("B"));
-    assert(aob != NULL);
-    assert(aob->type == PROP_DISJUNCTION);
+    lv_ASSERT_NOT_NULL(aob);
+    lv_ASSERT(aob->type == PROP_DISJUNCTION);
     prop_formula_destroy(aob);
 
     /* 蕴涵 */
     PropFormula *aib = IMPL(ATOM("A"), ATOM("B"));
-    assert(aib != NULL);
-    assert(aib->type == PROP_IMPLICATION);
+    lv_ASSERT_NOT_NULL(aib);
+    lv_ASSERT(aib->type == PROP_IMPLICATION);
     prop_formula_destroy(aib);
 
     /* 否定 */
     PropFormula *na = NEG(ATOM("A"));
-    assert(na != NULL);
-    assert(na->type == PROP_NEGATION);
+    lv_ASSERT_NOT_NULL(na);
+    lv_ASSERT(na->type == PROP_NEGATION);
     prop_formula_destroy(na);
 
     /* 矛盾 */
     PropFormula *bot = BOT();
-    assert(bot != NULL);
-    assert(bot->type == PROP_BOTTOM);
+    lv_ASSERT_NOT_NULL(bot);
+    lv_ASSERT(bot->type == PROP_BOTTOM);
     prop_formula_destroy(bot);
 
     /* 真 */
     PropFormula *top = TOP();
-    assert(top != NULL);
-    assert(top->type == PROP_TRUE);
+    lv_ASSERT_NOT_NULL(top);
+    lv_ASSERT(top->type == PROP_TRUE);
     prop_formula_destroy(top);
 
     /* NULL 输入 */
-    assert(prop_formula_create_atom(NULL) == NULL);
-    assert(prop_formula_create_conjunction(NULL, ATOM("B")) == NULL);
-    assert(prop_formula_create_conjunction(ATOM("A"), NULL) == NULL);
-    assert(prop_formula_create_negation(NULL) == NULL);
+    lv_ASSERT(prop_formula_create_atom(NULL) == NULL);
+    lv_ASSERT(prop_formula_create_conjunction(NULL, ATOM("B")) == NULL);
+    lv_ASSERT(prop_formula_create_conjunction(ATOM("A"), NULL) == NULL);
+    lv_ASSERT(prop_formula_create_negation(NULL) == NULL);
 
     /* 销毁 NULL 不崩溃 */
     prop_formula_destroy(NULL);
@@ -129,24 +132,24 @@ TEST(test_formula_copy) {
     PropFormula *pq = AND(ATOM("P"), ATOM("Q"));
 
     PropFormula *copy = prop_formula_copy(pq);
-    assert(copy != NULL);
-    assert(copy != pq);
-    assert(copy->type == PROP_CONJUNCTION);
-    assert(copy->data.binary.left != pq->data.binary.left);
-    assert(copy->data.binary.right != pq->data.binary.right);
-    assert(strcmp(copy->data.binary.left->data.atom.name, "P") == 0);
+    lv_ASSERT_NOT_NULL(copy);
+    lv_ASSERT(copy != pq);
+    lv_ASSERT(copy->type == PROP_CONJUNCTION);
+    lv_ASSERT(copy->data.binary.left != pq->data.binary.left);
+    lv_ASSERT(copy->data.binary.right != pq->data.binary.right);
+    lv_ASSERT_STR_EQ(copy->data.binary.left->data.atom.name, "P");
 
     prop_formula_destroy(copy);
     prop_formula_destroy(pq);
 
     /* 拷贝 NULL */
-    assert(prop_formula_copy(NULL) == NULL);
+    lv_ASSERT(prop_formula_copy(NULL) == NULL);
 
     /* 拷贝各种类型 */
     PropFormula *bot = BOT();
     PropFormula *bot_copy = prop_formula_copy(bot);
-    assert(bot_copy != NULL);
-    assert(bot_copy->type == PROP_BOTTOM);
+    lv_ASSERT_NOT_NULL(bot_copy);
+    lv_ASSERT(bot_copy->type == PROP_BOTTOM);
     prop_formula_destroy(bot_copy);
     prop_formula_destroy(bot);
 }
@@ -160,49 +163,49 @@ TEST(test_formula_to_string) {
 
     /* 原子 */
     s = prop_formula_to_string(ATOM("P"));
-    assert(s != NULL && strcmp(s, "P") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "P") == 0);
     lv_free_ptr(s);
 
     /* 合取 - basic output check (format may vary by compiler) */
     s = prop_formula_to_string(AND(ATOM("A"), ATOM("B")));
-    assert(s != NULL && strlen(s) > 0);
+    lv_ASSERT(s != NULL && strlen(s) > 0);
     lv_free_ptr(s);
 
     /* 析取 */
     s = prop_formula_to_string(OR(ATOM("A"), ATOM("B")));
-    assert(s != NULL && strcmp(s, "A \\/ B") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "A \\/ B") == 0);
     lv_free_ptr(s);
 
     /* 蕴涵 */
     s = prop_formula_to_string(IMPL(ATOM("A"), ATOM("B")));
-    assert(s != NULL && strcmp(s, "A -> B") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "A -> B") == 0);
     lv_free_ptr(s);
 
     /* 否定 */
     s = prop_formula_to_string(NEG(ATOM("A")));
-    assert(s != NULL && strcmp(s, "~A") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "~A") == 0);
     lv_free_ptr(s);
 
     /* 矛盾 */
     s = prop_formula_to_string(BOT());
-    assert(s != NULL && strcmp(s, "_|_") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "_|_") == 0);
     lv_free_ptr(s);
 
     /* 真 */
     s = prop_formula_to_string(TOP());
-    assert(s != NULL && strcmp(s, "T") == 0);
+    lv_ASSERT(s != NULL && strcmp(s, "T") == 0);
     lv_free_ptr(s);
 
     /* NULL */
-    assert(prop_formula_to_string(NULL) == NULL);
+    lv_ASSERT(prop_formula_to_string(NULL) == NULL);
 
     /* 嵌套公式 */
     PropFormula *complex = IMPL(IMPL(ATOM("P"), ATOM("Q")), ATOM("R"));
     s = prop_formula_to_string(complex);
-    assert(s != NULL);
-    assert(strstr(s, "P") != NULL);
-    assert(strstr(s, "Q") != NULL);
-    assert(strstr(s, "R") != NULL);
+    lv_ASSERT_NOT_NULL(s);
+    lv_ASSERT(strstr(s, "P") != NULL);
+    lv_ASSERT(strstr(s, "Q") != NULL);
+    lv_ASSERT(strstr(s, "R") != NULL);
     lv_free_ptr(s);
     prop_formula_destroy(complex);
 }
@@ -215,27 +218,27 @@ TEST(test_formula_to_latex) {
     char *s;
 
     s = prop_formula_to_latex(AND(ATOM("P"), ATOM("Q")));
-    assert(s != NULL && strstr(s, "\\wedge") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\wedge") != NULL);
     lv_free_ptr(s);
 
     s = prop_formula_to_latex(OR(ATOM("P"), ATOM("Q")));
-    assert(s != NULL && strstr(s, "\\vee") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\vee") != NULL);
     lv_free_ptr(s);
 
     s = prop_formula_to_latex(IMPL(ATOM("P"), ATOM("Q")));
-    assert(s != NULL && strstr(s, "\\to") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\to") != NULL);
     lv_free_ptr(s);
 
     s = prop_formula_to_latex(NEG(ATOM("P")));
-    assert(s != NULL && strstr(s, "\\neg") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\neg") != NULL);
     lv_free_ptr(s);
 
     s = prop_formula_to_latex(BOT());
-    assert(s != NULL && strstr(s, "\\bot") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\bot") != NULL);
     lv_free_ptr(s);
 
     s = prop_formula_to_latex(TOP());
-    assert(s != NULL && strstr(s, "\\top") != NULL);
+    lv_ASSERT(s != NULL && strstr(s, "\\top") != NULL);
     lv_free_ptr(s);
 }
 
@@ -259,8 +262,8 @@ TEST(test_modus_ponens) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, q, &config);
-    assert(detail.result == VERIFY_PROVEN);
-    assert(detail.steps_used > 0);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.steps_used > 0);
 
     /* pimplq 是根，包含 p 和 q */
     prop_formula_destroy(pimplq);
@@ -281,10 +284,10 @@ TEST(test_conjunction_elimination) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, p_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     detail = prop_verifier_verify(premises, 1, q_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(pq);
 }
@@ -303,7 +306,7 @@ TEST(test_disjunction_introduction) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, porq, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* porq 包含 p 和 q，只销毁 porq */
     prop_formula_destroy(porq);
@@ -319,7 +322,7 @@ TEST(test_implication_introduction) {
 
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
     VerifyDetail detail = prop_verifier_verify(NULL, 0, pimplp, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(pimplp);
 }
@@ -338,7 +341,7 @@ TEST(test_negation_elimination) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, bot, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* notp 包含 p，bot 独立 */
     prop_formula_destroy(notp);
@@ -362,7 +365,7 @@ TEST(test_negation_introduction) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, notp, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(notp);     /* 包含 p2 */
     prop_formula_destroy(pimplbot); /* 包含 p 和 bot */
@@ -384,7 +387,7 @@ TEST(test_hypothetical_syllogism) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, pimplr, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(pimplr);
     prop_formula_destroy(qimplr);
@@ -397,30 +400,30 @@ TEST(test_hypothetical_syllogism) {
 
 TEST(test_builtin_smoke_tests) {
     int count = prop_verifier_builtin_smoke_test_count();
-    assert(count == 13);
+    lv_ASSERT(count == 13);
 
     VerifyDetail *results = (VerifyDetail *) calloc(count, sizeof(VerifyDetail));
-    assert(results != NULL);
+    lv_ASSERT_NOT_NULL(results);
 
     int passed = prop_verifier_run_builtin_smoke_tests(results);
     printf("(%d/%d) ", passed, count);
 
     /* 所有测试应该通过 */
-    assert(passed == count);
+    lv_ASSERT(passed == count);
 
     /* 验证具体结果 */
     /* 测试 1-9 应该可证 */
     for (int i = 0; i < 9; i++) {
-        assert(results[i].result == VERIFY_PROVEN);
+        lv_ASSERT(results[i].result == VERIFY_PROVEN);
     }
 
     /* 测试 10-12 在直觉主义模式下不可证 */
     for (int i = 9; i < 12; i++) {
-        assert(results[i].result != VERIFY_PROVEN);
+        lv_ASSERT(results[i].result != VERIFY_PROVEN);
     }
 
     /* 测试 13 (爆炸原理) 应该可证（因为启用了 ex_falso） */
-    assert(results[12].result == VERIFY_PROVEN);
+    lv_ASSERT(results[12].result == VERIFY_PROVEN);
 
     lv_free_ptr(results);
 }
@@ -439,7 +442,7 @@ TEST(test_intuitionistic_vs_classical) {
         PropFormula *p = ATOM("P");
         const PropFormula *premises[] = {notnotp};
         VerifyDetail detail = prop_verifier_verify(premises, 1, p, &config);
-        assert(detail.result != VERIFY_PROVEN);
+        lv_ASSERT(detail.result != VERIFY_PROVEN);
         prop_formula_destroy(notnotp);
         prop_formula_destroy(p);
     }
@@ -448,7 +451,7 @@ TEST(test_intuitionistic_vs_classical) {
     {
         PropFormula *pornotp = OR(ATOM("P"), NEG(ATOM("P")));
         VerifyDetail detail = prop_verifier_verify(NULL, 0, pornotp, &config);
-        assert(detail.result != VERIFY_PROVEN);
+        lv_ASSERT(detail.result != VERIFY_PROVEN);
         prop_formula_destroy(pornotp);
     }
 }
@@ -468,12 +471,12 @@ TEST(test_ex_falso) {
     config.enable_ex_falso = false;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, p, &config);
-    assert(detail.result != VERIFY_PROVEN);
+    lv_ASSERT(detail.result != VERIFY_PROVEN);
 
     /* 启用 ex_falso：⊥ ⊢ P */
     config.enable_ex_falso = true;
     detail = prop_verifier_verify(premises, 1, p, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* bot 和 p 互相独立 */
     prop_formula_destroy(bot);
@@ -492,7 +495,7 @@ TEST(test_timeout) {
     config.max_steps = 1000000;
 
     VerifyDetail detail = prop_verifier_verify(NULL, 0, complex, &config);
-    assert(detail.result == VERIFY_TIMEOUT || detail.result == VERIFY_FAILED);
+    lv_ASSERT(detail.result == VERIFY_TIMEOUT || detail.result == VERIFY_FAILED);
 
     prop_formula_destroy(complex);
 }
@@ -508,8 +511,8 @@ TEST(test_step_limit) {
     config.max_steps = 2;
 
     VerifyDetail detail = prop_verifier_verify(NULL, 0, porq, &config);
-    assert(detail.result == VERIFY_FAILED);
-    assert(detail.steps_used <= config.max_steps + 1);
+    lv_ASSERT(detail.result == VERIFY_FAILED);
+    lv_ASSERT(detail.steps_used <= config.max_steps + 1);
 
     prop_formula_destroy(porq);
 }
@@ -523,30 +526,30 @@ TEST(test_edge_cases) {
 
     /* NULL 目标 */
     VerifyDetail detail = prop_verifier_verify(NULL, 0, NULL, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    lv_ASSERT(detail.result == VERIFY_INVALID_INPUT);
 
     /* 负前提数 */
     PropFormula *tmp = ATOM("P");
     detail = prop_verifier_verify(NULL, -1, tmp, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    lv_ASSERT(detail.result == VERIFY_INVALID_INPUT);
 
     /* 前提数组为 NULL 但数量 > 0 */
     detail = prop_verifier_verify(NULL, 1, tmp, &config);
-    assert(detail.result == VERIFY_INVALID_INPUT);
+    lv_ASSERT(detail.result == VERIFY_INVALID_INPUT);
 
     /* NULL 配置（使用默认值） */
     detail = prop_verifier_verify(NULL, 0, tmp, NULL);
-    assert(detail.result == VERIFY_FAILED);
+    lv_ASSERT(detail.result == VERIFY_FAILED);
 
     /* ⊤ 总是可证的 */
     PropFormula *top = TOP();
     detail = prop_verifier_verify(NULL, 0, top, NULL);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* 空前提 ⊢ ⊥ 不可证 */
     PropFormula *bot = BOT();
     detail = prop_verifier_verify(NULL, 0, bot, NULL);
-    assert(detail.result != VERIFY_PROVEN);
+    lv_ASSERT(detail.result != VERIFY_PROVEN);
 
     prop_formula_destroy(bot);
     prop_formula_destroy(top);
@@ -571,7 +574,7 @@ TEST(test_distribution) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 1, pandqorpandr, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(pandqorpandr);
     prop_formula_destroy(pandqorr);
@@ -587,7 +590,7 @@ TEST(test_contraposition) {
 
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
     VerifyDetail detail = prop_verifier_verify(NULL, 0, contraposition, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(contraposition);
 }
@@ -621,7 +624,7 @@ TEST(test_custom_smoke_tests) {
 
     VerifyDetail results[2];
     int passed = prop_verifier_run_smoke_tests(tests, 2, results);
-    assert(passed == 2);
+    lv_ASSERT(passed == 2);
 
     /* pimplq 包含 p 和 q；p2 独立 */
     prop_formula_destroy(pimplq);
@@ -641,11 +644,11 @@ TEST(test_verify_detail) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, q, &config);
-    assert(detail.result == VERIFY_PROVEN);
-    assert(detail.steps_used > 0);
-    assert(detail.max_steps == config.max_steps);
-    assert(strlen(detail.construction_summary) > 0);
-    assert(strlen(detail.error_message) == 0);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.steps_used > 0);
+    lv_ASSERT(detail.max_steps == config.max_steps);
+    lv_ASSERT(strlen(detail.construction_summary) > 0);
+    lv_ASSERT(strlen(detail.error_message) == 0);
 
     prop_formula_destroy(pimplq);
 }
@@ -666,7 +669,7 @@ TEST(test_complex_nested) {
     VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
 
     VerifyDetail detail = prop_verifier_verify(premises, 2, r, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(r);
     prop_formula_destroy(pandq);
@@ -683,20 +686,20 @@ TEST(test_top_bottom) {
     /* ⊤ 总是可证 */
     PropFormula *top = TOP();
     VerifyDetail detail = prop_verifier_verify(NULL, 0, top, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* ⊥ ⊢ ⊥ */
     PropFormula *bot = BOT();
     const PropFormula *premises[] = {bot};
     detail = prop_verifier_verify(premises, 1, bot, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     /* ⊤ → P ⊢ P */
     PropFormula *topimplp = IMPL(TOP(), ATOM("P"));
     const PropFormula *premises2[] = {topimplp};
     PropFormula *p_goal = ATOM("P");
     detail = prop_verifier_verify(premises2, 1, p_goal, &config);
-    assert(detail.result == VERIFY_PROVEN);
+    lv_ASSERT(detail.result == VERIFY_PROVEN);
 
     prop_formula_destroy(p_goal);
     prop_formula_destroy(topimplp);
@@ -708,40 +711,34 @@ TEST(test_top_bottom) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("命题逻辑验证器测试")
     printf("=== 命题逻辑验证器测试 ===\n\n");
-
     printf("[公式构造与销毁]\n");
-    RUN_TEST(test_formula_create_destroy);
-    RUN_TEST(test_formula_copy);
-
+    TEST_MAIN_RUN(test_formula_create_destroy);
+    TEST_MAIN_RUN(test_formula_copy);
     printf("[公式序列化]\n");
-    RUN_TEST(test_formula_to_string);
-    RUN_TEST(test_formula_to_latex);
-
+    TEST_MAIN_RUN(test_formula_to_string);
+    TEST_MAIN_RUN(test_formula_to_latex);
     printf("[推理规则测试]\n");
-    RUN_TEST(test_modus_ponens);
-    RUN_TEST(test_conjunction_elimination);
-    RUN_TEST(test_disjunction_introduction);
-    RUN_TEST(test_implication_introduction);
-    RUN_TEST(test_negation_elimination);
-    RUN_TEST(test_negation_introduction);
-    RUN_TEST(test_hypothetical_syllogism);
-
+    TEST_MAIN_RUN(test_modus_ponens);
+    TEST_MAIN_RUN(test_conjunction_elimination);
+    TEST_MAIN_RUN(test_disjunction_introduction);
+    TEST_MAIN_RUN(test_implication_introduction);
+    TEST_MAIN_RUN(test_negation_elimination);
+    TEST_MAIN_RUN(test_negation_introduction);
+    TEST_MAIN_RUN(test_hypothetical_syllogism);
     printf("[综合测试]\n");
-    RUN_TEST(test_builtin_smoke_tests);
-    RUN_TEST(test_intuitionistic_vs_classical);
-    RUN_TEST(test_ex_falso);
-    RUN_TEST(test_timeout);
-    RUN_TEST(test_step_limit);
-    RUN_TEST(test_edge_cases);
-    RUN_TEST(test_distribution);
-    RUN_TEST(test_contraposition);
-    RUN_TEST(test_custom_smoke_tests);
-    RUN_TEST(test_verify_detail);
-    RUN_TEST(test_complex_nested);
-    RUN_TEST(test_top_bottom);
-
+    TEST_MAIN_RUN(test_builtin_smoke_tests);
+    TEST_MAIN_RUN(test_intuitionistic_vs_classical);
+    TEST_MAIN_RUN(test_ex_falso);
+    TEST_MAIN_RUN(test_timeout);
+    TEST_MAIN_RUN(test_step_limit);
+    TEST_MAIN_RUN(test_edge_cases);
+    TEST_MAIN_RUN(test_distribution);
+    TEST_MAIN_RUN(test_contraposition);
+    TEST_MAIN_RUN(test_custom_smoke_tests);
+    TEST_MAIN_RUN(test_verify_detail);
+    TEST_MAIN_RUN(test_complex_nested);
+    TEST_MAIN_RUN(test_top_bottom);
     printf("\n=== 全部 %d 项测试通过 ===\n", 23);
-    return 0;
-}
+TEST_MAIN_END()

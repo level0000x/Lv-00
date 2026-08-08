@@ -7,33 +7,32 @@
  * 新增覆盖：PARALLEL、PERPENDICULAR、ANGLE、EQUAL_LENGTH、VERTICAL、ON_CIRCLE
  */
 #include "lv/lv_platform.h"
-#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 
 #include "lv/geo_constraint_solver.h"
 
-#define TEST_PASS_STATEMENT tests_passed++
-#define TEST_FAIL_STATEMENT tests_failed++
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 #include "test_helpers.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 #define ASSERT_NEAR(a, b, eps)                                                                             \
     do {                                                                                                   \
         double _diff = fabs((double) (a) - (double) (b));                                                  \
         if (_diff > (eps)) {                                                                               \
             printf("  ASSERT_NEAR FAIL: %f vs %f (eps=%f)\n", (double) (a), (double) (b), (double) (eps)); \
-            tests_failed++;                                                                                \
+            g_fail_count++;                                                                                \
         } else {                                                                                           \
-            tests_passed++;                                                                                \
+            g_pass_count++;                                                                                \
         }                                                                                                  \
     } while (0)
-
-static int tests_passed = 0;
-static int tests_failed = 0;
 
 /* ============== 辅助：创建求解器并添加两点一线 ============== */
 static lvSolverSystem *create_line_solver(void) {
     lvSolverSystem *sys = lv_geo_solver_create(NULL);
-    assert(sys);
+    TEST_ASSERT_CONTINUE(sys, "sys");
     lvEntity p1 = lv_entity_point_2d(0, 0.0, 0.0);
     lvEntity p2 = lv_entity_point_2d(1, 1.0, 1.0);
     lvEntity l1 = lv_entity_line_2d(2, 0.0, 0.0, 1.0, 1.0);
@@ -43,8 +42,7 @@ static lvSolverSystem *create_line_solver(void) {
     return sys;
 }
 
-int main(void) {
-    printf("=== 几何约束求解器扩展测试 ===\n\n");
+TEST_MAIN_BEGIN("几何约束求解器扩展测试")
 
     /* ---- 组1: DOF 完整性 ---- */
     printf("[组 1] 约束类型 DOF 校验\n");
@@ -96,7 +94,7 @@ int main(void) {
     printf("\n[组 2] 平行约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,1)->(2,2) 斜线 */
         lvEntity l1 = lv_entity_segment_2d(0, 0.0, 0.0, 1.0, 0.0);
@@ -125,7 +123,7 @@ int main(void) {
     printf("\n[组 3] 垂直约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,1)->(1,1) 水平 (初始平行) */
         lvEntity l1 = lv_entity_segment_2d(0, 0.0, 0.0, 1.0, 0.0);
@@ -153,7 +151,7 @@ int main(void) {
     printf("\n[组 4] 角度约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 两条线段: L1(0,0)->(1,0) 水平, L2(0,0)->(1,1) 45度 */
         lvEntity l1 = lv_entity_segment_2d(0, 0.0, 0.0, 1.0, 0.0);
@@ -182,7 +180,7 @@ int main(void) {
     printf("\n[组 5] 等长约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 两条线段: L1(0,0)->(3,0) 长3, L2(0,1)->(1,1) 长1 */
         lvEntity l1 = lv_entity_segment_2d(0, 0.0, 0.0, 3.0, 0.0);
@@ -210,7 +208,7 @@ int main(void) {
     printf("\n[组 6] 垂直直线约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 一个点 + 一个线段 */
         lvEntity pt = lv_entity_point_2d(0, 1.0, 2.0);
@@ -239,7 +237,7 @@ int main(void) {
     printf("\n[组 7] 点在圆上约束\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 一个点(1,0) + 圆(0,0, r=2) */
         lvEntity pt = lv_entity_point_2d(0, 1.0, 0.0);
@@ -281,7 +279,7 @@ int main(void) {
     printf("\n[组 8] 混合约束系统\n");
     {
         lvSolverSystem *sys = lv_geo_solver_create(NULL);
-        assert(sys);
+        TEST_ASSERT_CONTINUE(sys, "sys");
 
         /* 两个三角形组合: 
          * 线段L1(0,0)->(1,0) 水平, 线段L2(0,1)->(2,1) 水平
@@ -321,7 +319,4 @@ int main(void) {
         lv_geo_solver_destroy(sys);
     }
 
-    /* ---- 总计 ---- */
-    printf("\n=== 结果: %d passed, %d failed, %d total ===\n", tests_passed, tests_failed, tests_passed + tests_failed);
-    return tests_failed > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

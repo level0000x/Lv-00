@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_stream_extended.c
  * @brief 流式输出系统扩展测试
  *
@@ -11,10 +11,13 @@
  * - 发射模式配置（emit mode）
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "test_unified.h"
+
+int g_pass_count = 0;
+int g_fail_count = 0;
 
 #include "lv_utils.h"
 #include "stream.h"
@@ -27,18 +30,18 @@ static void count_callback(const StreamEvent *event, void *user_data) {
         (*count)++;
 }
 
-static int test_async_mode_basic(void) {
+static void test_async_mode_basic(void) {
     printf("Test: async mode basic...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int event_count = 0;
 
     stream_register_callback(ctx, count_callback, &event_count);
 
-    assert(stream_set_async_mode(ctx, true, 0) == true);
-    assert(stream_pending_count(ctx) == 0);
+    lv_ASSERT(stream_set_async_mode(ctx, true, 0) == true);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
@@ -48,27 +51,27 @@ static int test_async_mode_basic(void) {
         stream_emit(ctx, &ev);
     }
 
-    assert(stream_pending_count(ctx) > 0);
+    lv_ASSERT(stream_pending_count(ctx) > 0);
 
     stream_flush(ctx);
 
-    assert(event_count == 10);
-    assert(stream_pending_count(ctx) == 0);
+    lv_ASSERT(event_count == 10);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_async_mode_capacity(void) {
+static void test_async_mode_capacity(void) {
     printf("Test: async mode capacity...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     stream_register_callback(ctx, count_callback, &(int) {0});
 
-    assert(stream_set_async_mode(ctx, true, 100) == true);
+    lv_ASSERT(stream_set_async_mode(ctx, true, 100) == true);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
@@ -78,19 +81,19 @@ static int test_async_mode_capacity(void) {
         stream_emit(ctx, &ev);
     }
 
-    assert(stream_pending_count(ctx) == 50);
+    lv_ASSERT(stream_pending_count(ctx) == 50);
 
     stream_flush(ctx);
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_callback_filter_by_id(void) {
+static void test_callback_filter_by_id(void) {
     printf("Test: callback filter by ID...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int error_count = 0;
     int warning_count = 0;
@@ -100,90 +103,90 @@ static int test_callback_filter_by_id(void) {
     int cb_id2 =
         stream_register_callback_ex(ctx, count_callback, &warning_count, STREAM_EVENT_MASK(STREAM_EVENT_WARNING));
 
-    assert(cb_id1 >= 0);
-    assert(cb_id2 >= 0);
-    assert(cb_id1 != cb_id2);
+    lv_ASSERT(cb_id1 >= 0);
+    lv_ASSERT(cb_id2 >= 0);
+    lv_ASSERT(cb_id1 != cb_id2);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
 
     ev.type = STREAM_EVENT_ERROR;
     stream_emit(ctx, &ev);
-    assert(error_count == 1);
-    assert(warning_count == 0);
+    lv_ASSERT(error_count == 1);
+    lv_ASSERT(warning_count == 0);
 
     ev.type = STREAM_EVENT_WARNING;
     stream_emit(ctx, &ev);
-    assert(error_count == 1);
-    assert(warning_count == 1);
+    lv_ASSERT(error_count == 1);
+    lv_ASSERT(warning_count == 1);
 
     ev.type = STREAM_EVENT_INFO;
     stream_emit(ctx, &ev);
-    assert(error_count == 1);
-    assert(warning_count == 1);
+    lv_ASSERT(error_count == 1);
+    lv_ASSERT(warning_count == 1);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_callback_filter_update(void) {
+static void test_callback_filter_update(void) {
     printf("Test: callback filter update...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int count1 = 0;
     int cb_id = stream_register_callback_ex(ctx, count_callback, &count1, STREAM_EVENT_MASK(STREAM_EVENT_ERROR));
 
-    assert(cb_id >= 0);
+    lv_ASSERT(cb_id >= 0);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_ERROR;
     stream_emit(ctx, &ev);
-    assert(count1 == 1);
+    lv_ASSERT(count1 == 1);
 
     ev.type = STREAM_EVENT_WARNING;
     stream_emit(ctx, &ev);
-    assert(count1 == 1);
+    lv_ASSERT(count1 == 1);
 
     stream_set_callback_filter(ctx, cb_id, STREAM_EVENT_MASK(STREAM_EVENT_WARNING));
 
     ev.type = STREAM_EVENT_WARNING;
     stream_emit(ctx, &ev);
-    assert(count1 == 2);
+    lv_ASSERT(count1 == 2);
 
     ev.type = STREAM_EVENT_ERROR;
     stream_emit(ctx, &ev);
-    assert(count1 == 2);
+    lv_ASSERT(count1 == 2);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_callback_filter_get(void) {
+static void test_callback_filter_get(void) {
     printf("Test: callback filter get...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     uint64_t mask1 = STREAM_EVENT_MASK(STREAM_EVENT_ERROR);
     int cb_id = stream_register_callback_ex(ctx, count_callback, &(int) {0}, mask1);
 
     uint64_t retrieved = stream_get_callback_filter(ctx, cb_id);
-    assert(retrieved == mask1);
+    lv_ASSERT(retrieved == mask1);
 
     uint64_t invalid = stream_get_callback_filter(ctx, 9999);
-    assert(invalid == STREAM_FILTER_NONE);
+    lv_ASSERT(invalid == STREAM_FILTER_NONE);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_json_serialization(void) {
+static void test_json_serialization(void) {
     printf("Test: JSON serialization...\n");
 
     StreamEvent ev;
@@ -200,21 +203,21 @@ static int test_json_serialization(void) {
     char buffer[4096];
     int len = stream_event_to_json(&ev, buffer, sizeof(buffer));
 
-    assert(len > 0);
-    assert(strlen(buffer) > 0);
+    lv_ASSERT(len > 0);
+    lv_ASSERT(strlen(buffer) > 0);
 
-    assert(strstr(buffer, "\"type\"") != NULL);
-    assert(strstr(buffer, "\"timestamp_ms\"") != NULL);
-    assert(strstr(buffer, "\"step\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\"type\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\"timestamp_ms\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\"step\"") != NULL);
 
     printf("  JSON output sample: %.100s...\n", buffer);
 
     stream_context_destroy(NULL);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_jsonrpc_serialization(void) {
+static void test_jsonrpc_serialization(void) {
     printf("Test: JSON-RPC serialization...\n");
 
     StreamEvent ev;
@@ -229,22 +232,22 @@ static int test_jsonrpc_serialization(void) {
     char buffer[4096];
     int len = stream_event_to_jsonrpc(&ev, buffer, sizeof(buffer));
 
-    assert(len > 0);
-    assert(strstr(buffer, "\"jsonrpc\"") != NULL);
-    assert(strstr(buffer, "\"method\"") != NULL);
-    assert(strstr(buffer, "\"params\"") != NULL);
+    lv_ASSERT(len > 0);
+    lv_ASSERT(strstr(buffer, "\"jsonrpc\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\"method\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\"params\"") != NULL);
 
     printf("  JSON-RPC output sample: %.100s...\n", buffer);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_event_stats(void) {
+static void test_event_stats(void) {
     printf("Test: event stats...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     stream_reset_stats(ctx);
 
@@ -260,22 +263,22 @@ static int test_event_stats(void) {
     ev.type = STREAM_EVENT_ENGINE_START;
     stream_emit(ctx, &ev);
 
-    assert(stream_get_event_count(ctx, STREAM_EVENT_ENGINE_START) == 2);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_ENGINE_DONE) == 1);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_ERROR) == 0);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_ENGINE_START) == 2);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_ENGINE_DONE) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_ERROR) == 0);
 
-    assert(stream_get_total_event_count(ctx) == 3);
+    lv_ASSERT(stream_get_total_event_count(ctx) == 3);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_dropped_event_count(void) {
+static void test_dropped_event_count(void) {
     printf("Test: dropped event count...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     stream_register_callback(ctx, count_callback, &(int) {0});
     stream_set_async_mode(ctx, true, 5);
@@ -294,64 +297,64 @@ static int test_dropped_event_count(void) {
     stream_flush(ctx);
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_parse_filter_mask(void) {
+static void test_parse_filter_mask(void) {
     printf("Test: parse filter mask...\n");
 
     uint64_t mask;
 
     mask = stream_parse_filter_mask("all");
-    assert(mask == STREAM_FILTER_ALL);
+    lv_ASSERT(mask == STREAM_FILTER_ALL);
 
     mask = stream_parse_filter_mask("*");
-    assert(mask == STREAM_FILTER_ALL);
+    lv_ASSERT(mask == STREAM_FILTER_ALL);
 
     mask = stream_parse_filter_mask("none");
-    assert(mask == STREAM_FILTER_NONE);
+    lv_ASSERT(mask == STREAM_FILTER_NONE);
 
     mask = stream_parse_filter_mask("ENGINE_START");
-    assert(mask == STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START));
+    lv_ASSERT(mask == STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START));
 
     mask = stream_parse_filter_mask("ENGINE_START,ENGINE_DONE");
-    assert(mask == (STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START) | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)));
+    lv_ASSERT(mask == (STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START) | STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)));
 
     mask = stream_parse_filter_mask("invalid_type");
-    assert(mask == STREAM_FILTER_NONE);
+    lv_ASSERT(mask == STREAM_FILTER_NONE);
 
     mask = stream_parse_filter_mask(NULL);
-    assert(mask == STREAM_FILTER_NONE);
+    lv_ASSERT(mask == STREAM_FILTER_NONE);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_emit_mode(void) {
+static void test_emit_mode(void) {
     printf("Test: emit mode configuration...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     stream_set_emit_mode(ctx, STREAM_EMIT_IMMEDIATE, 0);
-    assert(stream_get_emit_mode(ctx) == STREAM_EMIT_IMMEDIATE);
+    lv_ASSERT(stream_get_emit_mode(ctx) == STREAM_EMIT_IMMEDIATE);
 
     stream_set_emit_mode(ctx, STREAM_EMIT_BUFFERED, 0);
-    assert(stream_get_emit_mode(ctx) == STREAM_EMIT_BUFFERED);
+    lv_ASSERT(stream_get_emit_mode(ctx) == STREAM_EMIT_BUFFERED);
 
     stream_set_emit_mode(ctx, STREAM_EMIT_THROTTLED, 100);
-    assert(stream_get_emit_mode(ctx) == STREAM_EMIT_THROTTLED);
+    lv_ASSERT(stream_get_emit_mode(ctx) == STREAM_EMIT_THROTTLED);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_unregister_by_id(void) {
+static void test_unregister_by_id(void) {
     printf("Test: unregister callback by ID...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int count1 = 0, count2 = 0, count3 = 0;
 
@@ -359,55 +362,55 @@ static int test_unregister_by_id(void) {
     int id2 = stream_register_callback_ex(ctx, count_callback, &count2, STREAM_FILTER_ALL);
     int id3 = stream_register_callback_ex(ctx, count_callback, &count3, STREAM_FILTER_ALL);
 
-    assert(id1 >= 0 && id2 >= 0 && id3 >= 0);
-    assert(id1 != id2 && id2 != id3);
+    lv_ASSERT(id1 >= 0 && id2 >= 0 && id3 >= 0);
+    lv_ASSERT(id1 != id2 && id2 != id3);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_INFO;
     stream_emit(ctx, &ev);
 
-    assert(count1 == 1 && count2 == 1 && count3 == 1);
+    lv_ASSERT(count1 == 1 && count2 == 1 && count3 == 1);
 
-    assert(stream_unregister_callback_by_id(ctx, id2) == true);
+    lv_ASSERT(stream_unregister_callback_by_id(ctx, id2) == true);
 
     stream_emit(ctx, &ev);
-    assert(count1 == 2 && count2 == 1 && count3 == 2);
+    lv_ASSERT(count1 == 2 && count2 == 1 && count3 == 2);
 
-    assert(stream_unregister_callback_by_id(ctx, 9999) == false);
+    lv_ASSERT(stream_unregister_callback_by_id(ctx, 9999) == false);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_event_type_id(void) {
+static void test_event_type_id(void) {
     printf("Test: event type ID...\n");
 
     const char *id;
 
     id = stream_event_type_id(STREAM_EVENT_ENGINE_START);
-    assert(id != NULL);
-    assert(strlen(id) > 0);
+    lv_ASSERT_NOT_NULL(id);
+    lv_ASSERT(strlen(id) > 0);
 
     id = stream_event_type_id(STREAM_EVENT_ERROR);
-    assert(id != NULL);
+    lv_ASSERT_NOT_NULL(id);
 
     id = stream_event_type_id(STREAM_EVENT_WARNING);
-    assert(id != NULL);
+    lv_ASSERT_NOT_NULL(id);
 
     printf("  ENGINE_START ID: %s\n", stream_event_type_id(STREAM_EVENT_ENGINE_START));
     printf("  ERROR ID: %s\n", stream_event_type_id(STREAM_EVENT_ERROR));
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
-static int test_stream_emit_helpers(void) {
+static void test_stream_emit_helpers(void) {
     printf("Test: stream emit helper functions...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int node_count = 0;
     int constraint_count = 0;
@@ -424,19 +427,19 @@ static int test_stream_emit_helpers(void) {
     stream_register_callback_ex(ctx, count_callback, &error_count, STREAM_EVENT_MASK(STREAM_EVENT_ERROR));
 
     stream_emit_node_event(ctx, STREAM_EVENT_NODE_ADDED, 42, "Test node", 1);
-    assert(node_count == 1);
+    lv_ASSERT(node_count == 1);
 
     stream_emit_constraint_event(ctx, STREAM_EVENT_CONSTRAINT_ADDED, 7, "Test constraint", 2);
-    assert(constraint_count == 1);
+    lv_ASSERT(constraint_count == 1);
 
     stream_emit_progress(ctx, 0.75, "Progress test", 3, 4);
-    assert(progress_count == 1);
+    lv_ASSERT(progress_count == 1);
 
     stream_emit_variable_resolved(ctx, 99, 3.14159, "Variable resolved", 4);
-    assert(numeric_count == 1);
+    lv_ASSERT(numeric_count == 1);
 
     stream_emit_error(ctx, "Error test", 5);
-    assert(error_count == 1);
+    lv_ASSERT(error_count == 1);
 
     stream_emit_warning(ctx, "Warning test", 6);
     stream_emit_info(ctx, "Info test", 7);
@@ -445,104 +448,104 @@ static int test_stream_emit_helpers(void) {
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ==================== 新增测试用例 ==================== */
 
 /** 测试类别过滤掩码解析 */
-static int test_parse_filter_category(void) {
+static void test_parse_filter_category(void) {
     printf("Test: parse filter category...\n");
 
     uint64_t mask;
 
     /* "engine" 类别应包含 ENGINE_START/DONE/PAUSED */
     mask = stream_parse_filter_mask("engine");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_PAUSED)) != 0);
     /* 不应包含其他类别的事件 */
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ERROR)) == 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ERROR)) == 0);
 
     /* "rewrite" 类别 */
     mask = stream_parse_filter_mask("rewrite");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_MATCH_FOUND)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_APPLIED)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_DONE)) != 0);
 
     /* "solve" 类别 */
     mask = stream_parse_filter_mask("solve");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_VARIABLE_RESOLVED)) != 0);
 
     /* "proof" 类别 */
     mask = stream_parse_filter_mask("proof");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROOF_STEP_ADDED)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROOF_UNIFY)) != 0);
 
     /* "func_block" 类别 */
     mask = stream_parse_filter_mask("func_block");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_PACK_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_FUNC_BLOCK_INSTANTIATE_DONE)) != 0);
 
     /* "normalize" 类别 */
     mask = stream_parse_filter_mask("normalize");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_MERGE)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_NORMALIZE_DONE)) != 0);
 
     /* "conflict" 类别 */
     mask = stream_parse_filter_mask("conflict");
-    assert(mask == STREAM_EVENT_MASK(STREAM_EVENT_CONFLICT_DETECTED));
+    lv_ASSERT(mask == STREAM_EVENT_MASK(STREAM_EVENT_CONFLICT_DETECTED));
 
     /* "info" 类别 */
     mask = stream_parse_filter_mask("info");
-    assert(mask != STREAM_FILTER_NONE);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_INFO)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT)) != 0);
+    lv_ASSERT(mask != STREAM_FILTER_NONE);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_INFO)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_PROGRESS)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_GRAPH_SNAPSHOT)) != 0);
 
     /* 混合使用类别和事件 ID */
     mask = stream_parse_filter_mask("engine,REWRITE_START,ERROR");
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ERROR)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)) == 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_REWRITE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ERROR)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_SOLVE_START)) == 0);
 
     /* 大小写不敏感 */
     mask = stream_parse_filter_mask("Engine");
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
 
     /* 带空格的输入 */
     mask = stream_parse_filter_mask(" ENGINE_START , ENGINE_DONE ");
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
-    assert((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_START)) != 0);
+    lv_ASSERT((mask & STREAM_EVENT_MASK(STREAM_EVENT_ENGINE_DONE)) != 0);
 
     /* 空字符串 */
     mask = stream_parse_filter_mask("");
-    assert(mask == STREAM_FILTER_NONE);
+    lv_ASSERT(mask == STREAM_FILTER_NONE);
 
     /* 纯空白字符串 */
     mask = stream_parse_filter_mask("   ");
-    assert(mask == STREAM_FILTER_NONE);
+    lv_ASSERT(mask == STREAM_FILTER_NONE);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试 stream_clear_buffer 清空缓冲区 */
-static int test_clear_buffer(void) {
+static void test_clear_buffer(void) {
     printf("Test: clear buffer...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int event_count = 0;
     stream_register_callback(ctx, count_callback, &event_count);
@@ -558,32 +561,32 @@ static int test_clear_buffer(void) {
         stream_emit(ctx, &ev);
     }
 
-    assert(stream_pending_count(ctx) == 10);
-    assert(stream_buffer_size(ctx) == 10);
+    lv_ASSERT(stream_pending_count(ctx) == 10);
+    lv_ASSERT(stream_buffer_size(ctx) == 10);
 
     /* 清空缓冲区（不发射） */
     int cleared = stream_clear_buffer(ctx);
-    assert(cleared == 10);
-    assert(stream_pending_count(ctx) == 0);
-    assert(stream_buffer_size(ctx) == 0);
+    lv_ASSERT(cleared == 10);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
+    lv_ASSERT(stream_buffer_size(ctx) == 0);
     /* 回调不应被调用 */
-    assert(event_count == 0);
+    lv_ASSERT(event_count == 0);
 
     /* 清空已空的缓冲区 */
     cleared = stream_clear_buffer(ctx);
-    assert(cleared == 0);
+    lv_ASSERT(cleared == 0);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试缓冲模式手动刷新 */
-static int test_buffered_mode_flush(void) {
+static void test_buffered_mode_flush(void) {
     printf("Test: buffered mode flush...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int event_count = 0;
     stream_register_callback(ctx, count_callback, &event_count);
@@ -597,25 +600,25 @@ static int test_buffered_mode_flush(void) {
     /* 缓冲模式下事件不立即触发回调 */
     stream_emit(ctx, &ev);
     stream_emit(ctx, &ev);
-    assert(event_count == 0);
-    assert(stream_pending_count(ctx) == 2);
+    lv_ASSERT(event_count == 0);
+    lv_ASSERT(stream_pending_count(ctx) == 2);
 
     /* 手动刷新 */
     stream_flush(ctx);
-    assert(event_count == 2);
-    assert(stream_pending_count(ctx) == 0);
+    lv_ASSERT(event_count == 2);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试从缓冲模式切换到立即模式时自动刷新 */
-static int test_mode_switch_auto_flush(void) {
+static void test_mode_switch_auto_flush(void) {
     printf("Test: mode switch auto flush...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int event_count = 0;
     stream_register_callback(ctx, count_callback, &event_count);
@@ -628,28 +631,28 @@ static int test_mode_switch_auto_flush(void) {
     ev.type = STREAM_EVENT_INFO;
     stream_emit(ctx, &ev);
     stream_emit(ctx, &ev);
-    assert(event_count == 0);
+    lv_ASSERT(event_count == 0);
 
     /* 切换到立即模式应自动刷新 */
     stream_set_emit_mode(ctx, STREAM_EMIT_IMMEDIATE, 0);
-    assert(event_count == 2);
-    assert(stream_pending_count(ctx) == 0);
+    lv_ASSERT(event_count == 2);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
 
     /* 切换后事件应立即触发 */
     stream_emit(ctx, &ev);
-    assert(event_count == 3);
+    lv_ASSERT(event_count == 3);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试便捷发射函数的字段正确性 */
-static int test_emit_helper_fields(void) {
+static void test_emit_helper_fields(void) {
     printf("Test: emit helper field correctness...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     /* 捕获回调：记录最后一次事件的完整字段 */
     StreamEvent captured;
@@ -679,40 +682,40 @@ static int test_emit_helper_fields(void) {
 
     /* 替代方案：直接发射事件后通过统计验证 */
     stream_emit_node_event(ctx, STREAM_EVENT_NODE_ADDED, 42, "node test", 3);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_NODE_ADDED) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_NODE_ADDED) == 1);
 
     stream_emit_constraint_event(ctx, STREAM_EVENT_CONSTRAINT_ADDED, 99, "constraint test", 4);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_CONSTRAINT_ADDED) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_CONSTRAINT_ADDED) == 1);
 
     stream_emit_progress(ctx, 0.85, "progress test", 5, 10);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_PROGRESS) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_PROGRESS) == 1);
 
     stream_emit_numeric(ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED, 2.71828, "numeric test", 6);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) == 1);
 
     stream_emit_graph_snapshot(ctx, STREAM_EVENT_GRAPH_SNAPSHOT, "{\"nodes\":[]}", "snapshot test", 7);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_GRAPH_SNAPSHOT) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_GRAPH_SNAPSHOT) == 1);
 
     stream_emit_merge(ctx, 15, 25, 8);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_NORMALIZE_MERGE) == 1);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_NORMALIZE_MERGE) == 1);
 
     stream_emit_variable_resolved(ctx, 77, 1.41421, "var resolved", 9);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) == 2);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_SOLVE_VARIABLE_RESOLVED) == 2);
 
     /* 总事件数验证 */
-    assert(stream_get_total_event_count(ctx) == 7);
+    lv_ASSERT(stream_get_total_event_count(ctx) == 7);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试 stream_reset_stats 重置统计 */
-static int test_reset_stats(void) {
+static void test_reset_stats(void) {
     printf("Test: reset stats...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     StreamEvent ev;
     memset(&ev, 0, sizeof(ev));
@@ -722,36 +725,36 @@ static int test_reset_stats(void) {
     stream_emit(ctx, &ev);
     stream_emit(ctx, &ev);
 
-    assert(stream_get_total_event_count(ctx) == 3);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_INFO) == 3);
+    lv_ASSERT(stream_get_total_event_count(ctx) == 3);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_INFO) == 3);
 
     stream_reset_stats(ctx);
 
-    assert(stream_get_total_event_count(ctx) == 0);
-    assert(stream_get_event_count(ctx, STREAM_EVENT_INFO) == 0);
-    assert(stream_get_dropped_count(ctx) == 0);
+    lv_ASSERT(stream_get_total_event_count(ctx) == 0);
+    lv_ASSERT(stream_get_event_count(ctx, STREAM_EVENT_INFO) == 0);
+    lv_ASSERT(stream_get_dropped_count(ctx) == 0);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试 NULL 安全性 */
-static int test_null_safety(void) {
+static void test_null_safety(void) {
     printf("Test: NULL safety...\n");
 
     /* 所有 API 在 ctx=NULL 时应安全返回 */
     stream_context_destroy(NULL);
 
-    assert(stream_register_callback(NULL, count_callback, NULL) == false);
-    assert(stream_register_callback_ex(NULL, count_callback, NULL, STREAM_FILTER_ALL) < 0);
-    assert(stream_unregister_callback(NULL, count_callback) == false);
-    assert(stream_unregister_callback_by_id(NULL, 1) == false);
-    assert(stream_set_callback_filter(NULL, 1, STREAM_FILTER_ALL) == false);
-    assert(stream_get_callback_filter(NULL, 1) == STREAM_FILTER_NONE);
+    lv_ASSERT(stream_register_callback(NULL, count_callback, NULL) == false);
+    lv_ASSERT(stream_register_callback_ex(NULL, count_callback, NULL, STREAM_FILTER_ALL) < 0);
+    lv_ASSERT(stream_unregister_callback(NULL, count_callback) == false);
+    lv_ASSERT(stream_unregister_callback_by_id(NULL, 1) == false);
+    lv_ASSERT(stream_set_callback_filter(NULL, 1, STREAM_FILTER_ALL) == false);
+    lv_ASSERT(stream_get_callback_filter(NULL, 1) == STREAM_FILTER_NONE);
 
     stream_set_emit_mode(NULL, STREAM_EMIT_IMMEDIATE, 0);
-    assert(stream_get_emit_mode(NULL) == STREAM_EMIT_IMMEDIATE);
+    lv_ASSERT(stream_get_emit_mode(NULL) == STREAM_EMIT_IMMEDIATE);
 
     stream_emit(NULL, NULL);
     stream_emit_simple(NULL, STREAM_EVENT_INFO, "test", 0);
@@ -766,35 +769,35 @@ static int test_null_safety(void) {
     stream_emit_warning(NULL, "test", 0);
     stream_emit_info(NULL, "test", 0);
 
-    assert(stream_set_async_mode(NULL, true, 100) == false);
+    lv_ASSERT(stream_set_async_mode(NULL, true, 100) == false);
     stream_flush(NULL);
-    assert(stream_pending_count(NULL) == 0);
-    assert(stream_clear_buffer(NULL) == 0);
-    assert(stream_buffer_size(NULL) == 0);
+    lv_ASSERT(stream_pending_count(NULL) == 0);
+    lv_ASSERT(stream_clear_buffer(NULL) == 0);
+    lv_ASSERT(stream_buffer_size(NULL) == 0);
 
     stream_reset_stats(NULL);
-    assert(stream_get_event_count(NULL, STREAM_EVENT_INFO) == 0);
-    assert(stream_get_total_event_count(NULL) == 0);
-    assert(stream_get_dropped_count(NULL) == 0);
+    lv_ASSERT(stream_get_event_count(NULL, STREAM_EVENT_INFO) == 0);
+    lv_ASSERT(stream_get_total_event_count(NULL) == 0);
+    lv_ASSERT(stream_get_dropped_count(NULL) == 0);
 
     /* stream_event_to_json 和 stream_event_to_jsonrpc 对 NULL event 应安全 */
     char buf[256];
     int len = stream_event_to_json(NULL, buf, sizeof(buf));
-    assert(len == 0);
+    lv_ASSERT(len == 0);
 
     len = stream_event_to_jsonrpc(NULL, buf, sizeof(buf));
-    assert(len == 0);
+    lv_ASSERT(len == 0);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试大量回调注册（接近上限） */
-static int test_many_callbacks(void) {
+static void test_many_callbacks(void) {
     printf("Test: many callbacks registration...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int counts[32];
     memset(counts, 0, sizeof(counts));
@@ -803,10 +806,10 @@ static int test_many_callbacks(void) {
     int ids[32];
     for (int i = 0; i < 32; i++) {
         ids[i] = stream_register_callback_ex(ctx, count_callback, &counts[i], STREAM_FILTER_ALL);
-        assert(ids[i] >= 0);
+        lv_ASSERT(ids[i] >= 0);
         /* 验证每个回调获得唯一 ID */
         for (int j = 0; j < i; j++) {
-            assert(ids[i] != ids[j]);
+            lv_ASSERT(ids[i] != ids[j]);
         }
     }
 
@@ -818,32 +821,32 @@ static int test_many_callbacks(void) {
 
     /* 验证所有 32 个回调都被调用 */
     for (int i = 0; i < 32; i++) {
-        assert(counts[i] == 1);
+        lv_ASSERT(counts[i] == 1);
     }
 
     /* 通过 ID 注销部分回调 */
-    assert(stream_unregister_callback_by_id(ctx, ids[0]) == true);
-    assert(stream_unregister_callback_by_id(ctx, ids[15]) == true);
-    assert(stream_unregister_callback_by_id(ctx, ids[31]) == true);
+    lv_ASSERT(stream_unregister_callback_by_id(ctx, ids[0]) == true);
+    lv_ASSERT(stream_unregister_callback_by_id(ctx, ids[15]) == true);
+    lv_ASSERT(stream_unregister_callback_by_id(ctx, ids[31]) == true);
 
     stream_emit(ctx, &ev);
 
     /* 已注销的回调不应再被调用 */
-    assert(counts[0] == 1);
-    assert(counts[15] == 1);
-    assert(counts[31] == 1);
+    lv_ASSERT(counts[0] == 1);
+    lv_ASSERT(counts[15] == 1);
+    lv_ASSERT(counts[31] == 1);
     /* 其余回调应被调用两次 */
-    assert(counts[1] == 2);
-    assert(counts[16] == 2);
-    assert(counts[30] == 2);
+    lv_ASSERT(counts[1] == 2);
+    lv_ASSERT(counts[16] == 2);
+    lv_ASSERT(counts[30] == 2);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试 JSON 序列化包含特殊字符的描述 */
-static int test_json_escape(void) {
+static void test_json_escape(void) {
     printf("Test: JSON escape special characters...\n");
 
     StreamEvent ev;
@@ -854,28 +857,28 @@ static int test_json_escape(void) {
     char buffer[4096];
     int len = stream_event_to_json(&ev, buffer, sizeof(buffer));
 
-    assert(len > 0);
+    lv_ASSERT(len > 0);
     /* 转义后的字符串应包含转义序列 */
-    assert(strstr(buffer, "\\\"quotes\\\"") != NULL);
-    assert(strstr(buffer, "\\\\backslash\\\\") != NULL);
-    assert(strstr(buffer, "\\n") != NULL);
+    lv_ASSERT(strstr(buffer, "\\\"quotes\\\"") != NULL);
+    lv_ASSERT(strstr(buffer, "\\\\backslash\\\\") != NULL);
+    lv_ASSERT(strstr(buffer, "\\n") != NULL);
 
     /* NULL 描述应序列化为 null */
     ev.description = NULL;
     len = stream_event_to_json(&ev, buffer, sizeof(buffer));
-    assert(len > 0);
-    assert(strstr(buffer, "\"description\": null") != NULL);
+    lv_ASSERT(len > 0);
+    lv_ASSERT(strstr(buffer, "\"description\": null") != NULL);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /** 测试禁用异步模式时自动刷新 */
-static int test_async_disable_flush(void) {
+static void test_async_disable_flush(void) {
     printf("Test: async disable auto flush...\n");
 
     StreamContext *ctx = stream_context_create();
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int event_count = 0;
     stream_register_callback(ctx, count_callback, &event_count);
@@ -891,49 +894,45 @@ static int test_async_disable_flush(void) {
     stream_emit(ctx, &ev);
     stream_emit(ctx, &ev);
 
-    assert(event_count == 0);
-    assert(stream_pending_count(ctx) == 3);
+    lv_ASSERT(event_count == 0);
+    lv_ASSERT(stream_pending_count(ctx) == 3);
 
     /* 禁用异步应自动刷新 */
     stream_set_async_mode(ctx, false, 0);
-    assert(event_count == 3);
-    assert(stream_pending_count(ctx) == 0);
+    lv_ASSERT(event_count == 3);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
 
     stream_context_destroy(ctx);
     printf("  PASSED\n");
-    return 0;
+
 }
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Stream Extended Test Suite")
     printf("=== Lv-00 Stream Extended Test Suite ===\n\n");
-
-    test_async_mode_basic();
-    test_async_mode_capacity();
-    test_callback_filter_by_id();
-    test_callback_filter_update();
-    test_callback_filter_get();
-    test_json_serialization();
-    test_jsonrpc_serialization();
-    test_event_stats();
-    test_dropped_event_count();
-    test_parse_filter_mask();
-    test_emit_mode();
-    test_unregister_by_id();
-    test_event_type_id();
-    test_stream_emit_helpers();
-
+    TEST_MAIN_RUN(test_async_mode_basic);
+    TEST_MAIN_RUN(test_async_mode_capacity);
+    TEST_MAIN_RUN(test_callback_filter_by_id);
+    TEST_MAIN_RUN(test_callback_filter_update);
+    TEST_MAIN_RUN(test_callback_filter_get);
+    TEST_MAIN_RUN(test_json_serialization);
+    TEST_MAIN_RUN(test_jsonrpc_serialization);
+    TEST_MAIN_RUN(test_event_stats);
+    TEST_MAIN_RUN(test_dropped_event_count);
+    TEST_MAIN_RUN(test_parse_filter_mask);
+    TEST_MAIN_RUN(test_emit_mode);
+    TEST_MAIN_RUN(test_unregister_by_id);
+    TEST_MAIN_RUN(test_event_type_id);
+    TEST_MAIN_RUN(test_stream_emit_helpers);
     /* 新增测试 */
-    test_parse_filter_category();
-    test_clear_buffer();
-    test_buffered_mode_flush();
-    test_mode_switch_auto_flush();
-    test_emit_helper_fields();
-    test_reset_stats();
-    test_null_safety();
-    test_many_callbacks();
-    test_json_escape();
-    test_async_disable_flush();
-
+    TEST_MAIN_RUN(test_parse_filter_category);
+    TEST_MAIN_RUN(test_clear_buffer);
+    TEST_MAIN_RUN(test_buffered_mode_flush);
+    TEST_MAIN_RUN(test_mode_switch_auto_flush);
+    TEST_MAIN_RUN(test_emit_helper_fields);
+    TEST_MAIN_RUN(test_reset_stats);
+    TEST_MAIN_RUN(test_null_safety);
+    TEST_MAIN_RUN(test_many_callbacks);
+    TEST_MAIN_RUN(test_json_escape);
+    TEST_MAIN_RUN(test_async_disable_flush);
     printf("\n=== All stream extended tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

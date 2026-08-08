@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_edge_cases.c
  * @brief Lv-00 边界条件与鲁棒性测试套件
  *
@@ -791,17 +791,14 @@ static void test_memory_boundaries(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Edge Case Test Suite")
     setbuf(stdout, NULL);
-
     printf("=== Lv-00 Edge Case Test Suite ===\n");
     printf("Version: %s\n\n", lv_get_version_string());
-
     /* 步骤 0: 初始化系统 */
     printf("--- Initialization ---\n");
     printf("Calling lv_init() ... ");
     fflush(stdout);
-
     if (!lv_init()) {
         fprintf(stderr, "\nFATAL: lv_init() failed!\n");
         fprintf(stderr, "Last error: %s (code %d)\n", lv_get_last_error_message(), (int) lv_get_last_error_code());
@@ -810,33 +807,28 @@ int main(void) {
     }
     printf("OK\n");
     g_pass_count++;
-
     printf("System initialized: %s\n", lv_is_initialized() ? "YES" : "NO");
     if (!lv_is_initialized()) {
         fprintf(stderr, "FATAL: System claims to be uninitialized after lv_init() succeeded\n");
         return 1;
     }
-
     /* 重置计数器（不含初始化步骤） */
     g_pass_count = 0;
     g_fail_count = 0;
-
     /* 运行所有测试 */
-    test_null_parameter_safety();
-    test_extreme_coordinates();
-    test_empty_graph_operations();
-    test_memory_cycle();
-    test_large_graph();
-    test_symbolic_coord_types();
-    test_memory_boundaries();
-
+    TEST_MAIN_RUN(test_null_parameter_safety);
+    TEST_MAIN_RUN(test_extreme_coordinates);
+    TEST_MAIN_RUN(test_empty_graph_operations);
+    TEST_MAIN_RUN(test_memory_cycle);
+    TEST_MAIN_RUN(test_large_graph);
+    TEST_MAIN_RUN(test_symbolic_coord_types);
+    TEST_MAIN_RUN(test_memory_boundaries);
     /* 步骤 N: 清理系统 */
     printf("\n--- Cleanup ---\n");
     printf("Calling lv_cleanup() ... ");
     fflush(stdout);
     lv_cleanup();
     printf("OK\n");
-
     /* ================================================================
      * 结果汇总
      * ================================================================ */
@@ -854,6 +846,5 @@ int main(void) {
         printf("  Status: SOME TESTS FAILED\n");
     }
     printf("========================================\n");
-
     return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

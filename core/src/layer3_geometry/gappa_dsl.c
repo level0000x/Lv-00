@@ -21,6 +21,7 @@
  */
 
 #include "lv/gappa_dsl.h"
+#include "lv/lv_strbuf.h"
 
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
@@ -634,22 +635,19 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
     if (goal_count)
         *goal_count = 0;
 
-    /* 分割假设与目标：以 "->" 分隔 */
+    /* 分割假设与目标：以 "->" 分隔。
+     * 用 lvStrBuf 代替原固定 1024 栈缓冲 + strncpy 截断，消除长输入的静默截断。 */
     const char *arrow = strstr(input, "->");
-    char hyp_part[1024] = {0};
-    char goal_part[1024] = {0};
+    lvStrBuf hyp_sb;
+    lv_strbuf_init(&hyp_sb);
+    lvStrBuf goal_sb;
+    lv_strbuf_init(&goal_sb);
 
     if (arrow) {
-        size_t hyp_len = (size_t) (arrow - input);
-        if (hyp_len >= sizeof(hyp_part))
-            hyp_len = sizeof(hyp_part) - 1;
-        memcpy(hyp_part, input, hyp_len);
-        hyp_part[hyp_len] = '\0';
-        strncpy(goal_part, arrow + 2, sizeof(goal_part));
-        goal_part[sizeof(goal_part) - 1] = '\0';
+        lv_strbuf_append_raw(&hyp_sb, input, (size_t) (arrow - input));
+        lv_strbuf_append_str(&goal_sb, arrow + 2);
     } else {
-        strncpy(hyp_part, input, sizeof(hyp_part));
-        hyp_part[sizeof(hyp_part) - 1] = '\0';
+        lv_strbuf_append_str(&hyp_sb, input);
     }
 
     /* 解析假设：按 ";" 分割，每条 "var in [lo, hi]" */
@@ -657,9 +655,13 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
     lvDArray h_arr;
     lv_darray_init(&h_arr, sizeof(lvGappaPredicate));
     {
-        char buf[1024] = {0};
-        strncpy(buf, hyp_part, sizeof(buf));
-        buf[sizeof(buf) - 1] = '\0';
+        /* 从 lvStrBuf 提取堆分配可变副本（strtok_r 需要就地修改，原 buf[1024] 固定缓冲
+         * 会截断超长假设；改为完整长度动态副本） */
+        char *buf = lv_strbuf_to_string(&hyp_sb);
+        if (!buf) {
+            lv_strbuf_destroy(&goal_sb);
+            return false;
+        }
         char *saveptr = NULL;
         char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
@@ -684,15 +686,19 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
             }
             token = lv_strtok_r(NULL, ";", &saveptr);
         }
+        lv_free((void **) &buf);
     }
 
     /* 解析目标：按 ";" 分割，每条 "|expr| <= bound" */
     int g_count = 0;
     lvDArray g_arr;
     lv_darray_init(&g_arr, sizeof(lvGappaProofGoal));
-    if (goal_part[0]) {
-        char buf[1024];
-        strncpy(buf, goal_part, sizeof(buf) - 1);
+    if (goal_sb.len > 0) {
+        char *buf = lv_strbuf_to_string(&goal_sb);
+        if (!buf) {
+            lv_free((void **) &h_arr.data);
+            return false;
+        }
         char *saveptr = NULL;
         char *token = lv_strtok_r(buf, ";", &saveptr);
         while (token) {
@@ -748,6 +754,9 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
             }
             token = lv_strtok_r(NULL, ";", &saveptr);
         }
+        lv_free((void **) &buf);
+    } else {
+        lv_strbuf_destroy(&goal_sb);
     }
 
     if (hyp)

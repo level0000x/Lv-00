@@ -14,6 +14,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* 必须放在 debug.h / lv_internal.h 之前：保证 lv_LOG_WARN 为可展开的
+ * 级别常量（若 lv_log.h 后于 lv_internal.h 包含，lv_LOG_WARN 会被
+ * lv_internal.h 的同名函数式宏遮蔽且无枚举常量兜底，导致编译错误）。 */
+#include "lv/lv_log.h"
+
 #include "lv/module.h"
 #include "lv/module_internal.h"
 #include "lv/lv_file.h"
@@ -972,10 +977,10 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             lv_json_next(&p);
                         if (cnt > 0 && mod->graph) {
                             /* 有图变化，记录警告并标记需要完整图替换 */
-                            fprintf(stderr,
-                                    "[WARN] module_apply_delta: graph changes detected "
-                                    "(%s: %d items), falling back to full graph re-serialization\n",
-                                    ck, cnt);
+                            lv_log(lv_LOG_WARN,
+                                   "module_apply_delta: graph changes detected "
+                                   "(%s: %d items), falling back to full graph re-serialization\n",
+                                   ck, cnt);
                         }
                     }
                 } else {

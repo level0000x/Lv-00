@@ -28,6 +28,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
+#include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
@@ -40,14 +41,25 @@
 #define COORD_SEVEN_OVER_FIVE_N 32
 /* ── Algebraic type ── */
 
-static double evaluate_poly_at_double(const mpz_poly_t *poly, double x) {
+/**
+ * 在 double 值处计算多项式的值（Horner 法则）。
+ *
+ * 收敛自本文件旧的两份重复求值器（原 evaluate_poly_at_double 幂次递增版
+ * 与原 poly_eval_double Horner 版），统一为 Horner 实现并导出，供
+ * symbolics 层共享（rational.c 不再维护 static 副本）。
+ *
+ * @param poly 多项式对象
+ * @param x    求值点
+ * @return 多项式在 x 处的 double 近似值
+ */
+double sym_evaluate_poly_double(const mpz_poly_t *poly, double x) {
     if (poly->degree < 0)
         return 0.0;
-    double result = 0.0;
-    double x_pow = 1.0;
-    for (int i = 0; i <= poly->degree; i++) {
-        result += mpz_get_d(poly->coeffs[i]) * x_pow;
-        x_pow *= x;
+
+    /* 使用 Horner 法则从最高次项开始计算 */
+    double result = mpz_get_d(poly->coeffs[poly->degree]);
+    for (int i = poly->degree - 1; i >= 0; i--) {
+        result = result * x + mpz_get_d(poly->coeffs[i]);
     }
     return result;
 }
@@ -66,8 +78,8 @@ void refine_algebraic_bounds(Algebraic *a, int iterations) {
 
     for (int iter = 0; iter < iterations; iter++) {
         double mid = (a->left_bound + a->right_bound) / 2.0;
-        double val_mid = evaluate_poly_at_double(&a->minimal_poly, mid);
-        double val_left = evaluate_poly_at_double(&a->minimal_poly, a->left_bound);
+        double val_mid = sym_evaluate_poly_double(&a->minimal_poly, mid);
+        double val_left = sym_evaluate_poly_double(&a->minimal_poly, a->left_bound);
 
         /* 检查 NaN/Inf：如果求值结果无效，终止细化 */
         if (!isfinite(val_mid) || !isfinite(val_left)) {
@@ -103,7 +115,7 @@ void refine_algebraic_bounds(Algebraic *a, int iterations) {
  * @param poly   多项式
  * @param r      有理数求值点
  */
-static void evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, const Rational *r) {
+void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, const Rational *r) {
     mpq_t val;
     mpq_init(val);
 
@@ -288,7 +300,7 @@ static Algebraic *try_priority_rationalization(Algebraic *a) {
         return a;
     mpz_t eval;
     mpz_init(eval);
-    evaluate_algebraic_at_rational(eval, &a->minimal_poly, approx);
+    sym_evaluate_algebraic_at_rational(eval, &a->minimal_poly, approx);
     if (mpz_cmp_si(eval, 0) == 0) {
         mpz_clear(eval);
         Rational *cached_rational = rational_create(0, 1);
@@ -316,7 +328,7 @@ static Algebraic *try_priority_rationalization(Algebraic *a) {
 
         mpz_t cf_eval;
         mpz_init(cf_eval);
-        evaluate_algebraic_at_rational(cf_eval, &a->minimal_poly, &candidate);
+        sym_evaluate_algebraic_at_rational(cf_eval, &a->minimal_poly, &candidate);
 
         if (mpz_cmp_si(cf_eval, 0) == 0) {
             /* 候选值是极小多项式的精确根 */
@@ -344,26 +356,8 @@ static Algebraic *try_priority_rationalization(Algebraic *a) {
  * 计算极小多项式的所有实根近似，确保区间与任何其他实根不重叠。
  * ============================================================ */
 
-/*
- * poly_eval_double - 使用双精度浮点计算多项式在 x 处的值。
- *
- * coeffs: 从常数项到最高次项的系数数组（与 mpz_poly_t 布局一致）
- * degree: 多项式次数
- * x:      求值点
- *
- * 返回值: 多项式在 x 处的近似值
- */
-static double poly_eval_double(const mpz_poly_t *poly, double x) {
-    if (poly->degree < 0)
-        return 0.0;
-
-    /* 使用 Horner 法则从最高次项开始计算 */
-    double result = mpz_get_d(poly->coeffs[poly->degree]);
-    for (int i = poly->degree - 1; i >= 0; i--) {
-        result = result * x + mpz_get_d(poly->coeffs[i]);
-    }
-    return result;
-}
+/* 多项式 double 求值统一使用上方导出的 sym_evaluate_poly_double
+ * （Horner 法则），不再维护本文件的重复实现。 */
 
 /*
  * count_roots_in_interval - 计算多项式在区间 [a, b] 内的不同实根数量。
@@ -406,8 +400,8 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
 
     while (stack_top > 0) {
         Interval cur = stack[--stack_top];
-        double fa = poly_eval_double(poly, cur.lo);
-        double fb = poly_eval_double(poly, cur.hi);
+        double fa = sym_evaluate_poly_double(poly, cur.lo);
+        double fb = sym_evaluate_poly_double(poly, cur.hi);
 
         /* 如果端点之一恰好是根（或非常接近），计入并缩小区间 */
         if (fabs(fa) < lv_ROOT_EPSILON) {
@@ -416,7 +410,7 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
             cur.lo += lv_ROOT_EPSILON;
             if (cur.lo >= cur.hi)
                 continue;
-            fa = poly_eval_double(poly, cur.lo);
+            fa = sym_evaluate_poly_double(poly, cur.lo);
         }
         if (fabs(fb) < lv_ROOT_EPSILON) {
             root_count++;
@@ -424,7 +418,7 @@ static int count_roots_in_interval(const mpz_poly_t *poly, double a, double b) {
             cur.hi -= lv_ROOT_EPSILON;
             if (cur.lo >= cur.hi)
                 continue;
-            fb = poly_eval_double(poly, cur.hi);
+            fb = sym_evaluate_poly_double(poly, cur.hi);
         }
 
         /* 检查是否有符号变化 */
@@ -543,17 +537,17 @@ Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right) {
     int verify_result = verify_unique_real_root(poly, left, right);
     if (verify_result != 0) {
         if (verify_result < 0) {
-            fprintf(stderr,
-                    "[ALGEBRAIC CREATE] Error: unique real root verification "
-                    "failed (internal error) for interval [%.15g, %.15g], degree %d. "
-                    "Returning NULL.\n",
-                    left, right, poly->degree);
+            lv_log(lv_LOG_ERROR,
+                   "[ALGEBRAIC CREATE] Error: unique real root verification "
+                   "failed (internal error) for interval [%.15g, %.15g], degree %d. "
+                   "Returning NULL.",
+                   left, right, poly->degree);
         } else {
-            fprintf(stderr,
-                    "[ALGEBRAIC CREATE] Error: interval [%.15g, %.15g] does not "
-                    "contain exactly one isolated real root (degree %d). "
-                    "Returning NULL.\n",
-                    left, right, poly->degree);
+            lv_log(lv_LOG_ERROR,
+                   "[ALGEBRAIC CREATE] Error: interval [%.15g, %.15g] does not "
+                   "contain exactly one isolated real root (degree %d). "
+                   "Returning NULL.",
+                   left, right, poly->degree);
         }
         /* 验证失败：释放已分配的资源并返回 NULL */
         mpz_poly_clear(&a->minimal_poly);

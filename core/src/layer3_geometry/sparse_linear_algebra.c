@@ -76,10 +76,10 @@ lvSparseMatrix *lv_sparse_create(int rows, int cols) {
 void lv_sparse_destroy(lvSparseMatrix *m) {
     if (!m)
         return;
-    lv_free(m->values);
-    lv_free(m->col_idx);
-    lv_free(m->row_ptr);
-    lv_free(m);
+    lv_free((void **) &m->values);
+    lv_free((void **) &m->col_idx);
+    lv_free((void **) &m->row_ptr);
+    lv_free((void **) &m);
 }
 
 static bool sparse_grow(lvSparseMatrix *m, int needed) {
@@ -117,8 +117,36 @@ int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     if (!m || row < 0 || row >= m->rows || col < 0 || col >= m->cols)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_sparse_set: invalid matrix or out of bounds");
 
-    if (val == 0.0)
-        return 0; /* 不存储零元素 */
+    if (val == 0.0) {
+        /* 标准稀疏语义：设为 0 即删除已存储元素，保证 get 返回 0 */
+        int start = m->row_ptr[row];
+        int end = m->row_ptr[row + 1];
+        for (int j = start; j < end; j++) {
+            if (m->col_idx[j] == col) {
+                for (int k = j; k < m->nnz - 1; k++) {
+                    m->values[k] = m->values[k + 1];
+                    m->col_idx[k] = m->col_idx[k + 1];
+                }
+                m->nnz--;
+                for (int r = row + 1; r <= m->rows; r++)
+                    m->row_ptr[r]--;
+                return 0;
+            }
+        }
+        return 0; /* 未存储，无需操作 */
+    }
+
+    /* 若该元素已存储，就地更新（避免重复存储导致 get 返回旧值） */
+    {
+        int start = m->row_ptr[row];
+        int end = m->row_ptr[row + 1];
+        for (int j = start; j < end; j++) {
+            if (m->col_idx[j] == col) {
+                m->values[j] = val;
+                return 0;
+            }
+        }
+    }
 
     if (!sparse_grow(m, 1))
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_set: sparse_grow failed");
@@ -169,7 +197,7 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
     if (!A || !b || !x)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_sparse_solve: NULL parameter");
     if (A->rows != A->cols)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_sparse_solve: non-square matrix");
+        return -2; /* 非方阵错误码（与头文件契约一致） */
 
     int n = A->rows;
 
@@ -224,6 +252,86 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
             break;
     }
 
-    lv_free(x_next);
+    lv_free((void **) &x_next);
     return iter + 1; /* 返回迭代次数 */
+}
+
+/**
+ * @brief 清空矩阵所有元素（等效于全部置零，保留已分配容量）
+ * @param m 矩阵指针（可为 NULL）
+ */
+void lv_sparse_zero(lvSparseMatrix *m) {
+    if (!m)
+        return;
+    m->nnz = 0;
+    for (int i = 0; i <= m->rows; i++)
+        m->row_ptr[i] = 0;
+}
+
+/**
+ * @brief 矩阵-向量乘法：y = A * x（CSR 行遍历）
+ * @param A 矩阵
+ * @param x 输入向量（长度 >= A->cols）
+ * @param y 输出向量（长度 >= A->rows）
+ * @return 成功返回 0；参数无效返回 -1
+ */
+int lv_sparse_matvec(const lvSparseMatrix *A, const double *x, double *y) {
+    if (!A || !x || !y)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_sparse_matvec: NULL parameter");
+
+    for (int i = 0; i < A->rows; i++) {
+        double sum = 0.0;
+        int start = A->row_ptr[i];
+        int end = A->row_ptr[i + 1];
+        for (int j = start; j < end; j++) {
+            sum += A->values[j] * x[A->col_idx[j]];
+        }
+        y[i] = sum;
+    }
+    return 0;
+}
+
+/**
+ * @brief 深拷贝：dst = src（维度须一致）
+ * @param dst 目标矩阵（原有元素被覆盖）
+ * @param src 源矩阵
+ * @return 成功返回 0；参数无效返回 -1；扩容失败返回 -1
+ */
+int lv_sparse_copy(lvSparseMatrix *dst, const lvSparseMatrix *src) {
+    if (!dst || !src)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_sparse_copy: NULL parameter");
+    if (dst->rows != src->rows || dst->cols != src->cols)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_sparse_copy: dimension mismatch");
+
+    lv_sparse_zero(dst);
+    if (src->nnz == 0)
+        return 0;
+
+    if (!sparse_grow(dst, src->nnz))
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_copy: sparse_grow failed");
+
+    memcpy(dst->values, src->values, sizeof(double) * src->nnz);
+    memcpy(dst->col_idx, src->col_idx, sizeof(int) * src->nnz);
+    memcpy(dst->row_ptr, src->row_ptr, sizeof(int) * (dst->rows + 1));
+    dst->nnz = src->nnz;
+    return 0;
+}
+
+/**
+ * @brief 矩阵-标量乘法：m = c * m（c == 0.0 时等效于 lv_sparse_zero）
+ * @param m 矩阵
+ * @param c 缩放因子
+ * @return 成功返回 0；参数无效返回 -1
+ */
+int lv_sparse_scale(lvSparseMatrix *m, double c) {
+    if (!m)
+        lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_sparse_scale: NULL parameter");
+
+    if (c == 0.0) {
+        lv_sparse_zero(m);
+        return 0;
+    }
+    for (int i = 0; i < m->nnz; i++)
+        m->values[i] *= c;
+    return 0;
 }

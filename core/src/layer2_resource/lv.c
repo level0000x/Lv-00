@@ -521,8 +521,12 @@ EngineSolveResult lv_solve(lvEngine *engine) {
  *     键空间——其中与系统 A 同名的键（如 circuit_overflow_threshold、
  *     smoke_test_step_limit 等）在两侧各有副本，读写路径分裂。
  *
- * 收敛方式：字符串键统一分发——先查系统 A 注册表（与 A 同名键
+ * 收敛方式（v4 配置归一）：字符串键统一分发——先查系统 A 注册表（与 A 同名键
  * 统一读取 lvConfig 单例，消除第二副本），未命中再回落系统 B。
+ * get_int / get_bool / get_double / get_string 四条读取路径与
+ * set_bool / set_string 写入路径遵循同一条 "A 优先、B 回落" 规则，
+ * 同一逻辑键在任意类型访问下读到一致值（A 无字符串存储：get_string 对 A 键
+ * 返回 default、set_string 对 A 键返回 false；bool 按值非零归一化）。
  * 对外 API 名与 LV_CFG_* 宏名均保持不变，仅键归属明确为 A 或 B。
  * ============================================================ */
 
@@ -554,11 +558,45 @@ static bool lv_config_resolve_a_double(const char *key, double *out) {
     return false;
 }
 
+/** @brief 系统 A 布尔键字符串分发：命中返回 true 并写出 *out
+ *  int 键按 (值 != 0)、double 键按 (值 != 0.0) 归一化为 bool，
+ *  与 get_int / get_double 的读取语义保持一致（同键任意类型访问读到一致值）。 */
+static bool lv_config_resolve_a_bool(const char *key, bool *out) {
+    const lvConfig *c = lv_config_current();
+#define A_BOOL_INT_IF(k, t, f, d) \
+    if (strcmp(key, #k) == 0) {   \
+        *out = (c->f != 0);       \
+        return true;              \
+    }
+    LV_CONFIG_INT_KEYS(A_BOOL_INT_IF)
+#undef A_BOOL_INT_IF
+#define A_BOOL_DBL_IF(k, t, f, d) \
+    if (strcmp(key, #k) == 0) {   \
+        *out = (c->f != 0.0);     \
+        return true;              \
+    }
+    LV_CONFIG_DOUBLE_KEYS(A_BOOL_DBL_IF)
+#undef A_BOOL_DBL_IF
+    (void) c;
+    return false;
+}
+
+/** @brief 系统 A 任意键命中检测（int 或 double 注册表任一命中即 true） */
+static bool lv_config_resolve_a_any(const char *key) {
+    int ival = 0;
+    double dval = 0.0;
+    return lv_config_resolve_a_int(key, &ival) || lv_config_resolve_a_double(key, &dval);
+}
+
 /**
  * @brief 获取配置值（便捷函数）
  *
- * 统一分发：与系统 A（lvConfig 注册表）同名的键读 A 单例；
- * 其余键回落系统 B（ConfigManager）。
+ * 统一分发（v4 配置归一）：所有 lv_config_get_*(key, default) 走同一条规则
+ * —— 键命中系统 A（lvConfig 注册表）→ 读 A 单例；未命中 → 回落系统 B
+ * （ConfigManager）。任何类型访问都不会在 A/B 两侧产生同键双副本：
+ *   - get_int / get_double：A 值原样返回；
+ *   - get_bool：A 命中键按值非零归一化（与 get_int/double 一致）；
+ *   - get_string：A 注册表无字符串存储，A 命中键返回 default_val（不再查 B）。
  */
 int lv_config_get_int(const char *key, int default_val) {
     if (!key)
@@ -573,9 +611,14 @@ int lv_config_get_int(const char *key, int default_val) {
 
 /** @brief 获取布尔配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
 bool lv_config_get_bool(const char *key, bool default_val) {
+    if (!key)
+        return default_val;
+    bool a_val = false;
+    if (lv_config_resolve_a_bool(key, &a_val))
+        return a_val; /* A 优先：与 get_int/get_double 读到同一份值 */
     if (!s_lv_state.config)
         return default_val;
-    return config_get_bool(s_lv_state.config, key, default_val);
+    return config_get_bool(s_lv_state.config, key, default_val); /* B 回落 */
 }
 
 /** @brief 获取双精度浮点配置项 @param key 配置键名 @param default_val 默认值 @return 配置值 */
@@ -592,24 +635,53 @@ double lv_config_get_double(const char *key, double default_val) {
 
 /** @brief 获取字符串配置项 @param key 配置键名 @param default_val 默认值 @return 配置值（可能为 NULL） */
 const char *lv_config_get_string(const char *key, const char *default_val) {
+    if (!key)
+        return default_val;
+    /* A 注册表无字符串存储：A 命中键返回 default_val 且不查 B，避免 B 侧陈旧副本 */
+    if (lv_config_resolve_a_any(key))
+        return default_val;
     if (!s_lv_state.config)
         return default_val;
     return config_get_string(s_lv_state.config, key, default_val);
 }
 
-/* lv_config_set_int / lv_config_set_double → 已迁移至 lv_config.c */
+/* lv_config_set_int / lv_config_set_double → 已迁移至 lv_config.c（仅接受 A 注册表键） */
 
-/** @brief 设置布尔配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
+/**
+ * @brief 设置布尔配置项 @param key 配置键名 @param value 配置值 @return true 成功
+ *
+ * 与 get_bool 对称的统一规则：键命中系统 A → 归一化写入 A 对应字段
+ * （int 字段写 0/1、double 字段写 0.0/1.0）；未命中 → 回落系统 B。
+ */
 bool lv_config_set_bool(const char *key, bool value) {
+    if (!key)
+        return false;
+    int a_int = 0;
+    double a_dbl = 0.0;
+    if (lv_config_resolve_a_int(key, &a_int))
+        return lv_config_set_int(key, value ? 1 : 0);
+    if (lv_config_resolve_a_double(key, &a_dbl))
+        return lv_config_set_double(key, value ? 1.0 : 0.0);
     if (!s_lv_state.config)
         return false;
-    return config_set_bool(s_lv_state.config, key, value);
+    return config_set_bool(s_lv_state.config, key, value); /* B 回落 */
 }
 
 /* lv_config_set_double → 已迁移至 lv_config.c */
 
-/** @brief 设置字符串配置项 @param key 配置键名 @param value 配置值 @return true 成功 */
+/**
+ * @brief 设置字符串配置项 @param key 配置键名 @param value 配置值 @return true 成功
+ *
+ * A 注册表无字符串存储：键命中系统 A 时返回 false（不写 B，避免同键双副本）；
+ * 否则回落系统 B。
+ */
 bool lv_config_set_string(const char *key, const char *value) {
+    if (!key)
+        return false;
+    int a_int = 0;
+    double a_dbl = 0.0;
+    if (lv_config_resolve_a_int(key, &a_int) || lv_config_resolve_a_double(key, &a_dbl))
+        return false;
     if (!s_lv_state.config)
         return false;
     return config_set_string(s_lv_state.config, key, value);

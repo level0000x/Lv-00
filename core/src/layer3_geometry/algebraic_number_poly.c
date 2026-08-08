@@ -323,6 +323,10 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
         /* 两个不同的实根 */
         /* x = (-b +/- sqrt(disc)) / (2a) */
         /* 先检查 disc 是否为完全平方数 */
+        /* 【收敛评估】此处不共享 solver_types.h 的 solver_quadratic_roots_double：
+         * 本函数返回 AlgRational 精确有理根（仅当整数判别式 disc 为完全平方时
+         * 存在），而 solver_quadratic_roots_double 返回 double 近似根（浮点判别式
+         * + 相对容差），语义不同，不可替换。 */
         if (alg_is_perfect_square(disc)) {
             int64_t sqrt_disc = alg_isqrt(disc);
             AlgRationalError r_err;

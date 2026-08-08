@@ -383,10 +383,18 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
     if (!dst)
         return NULL;
 
-    /* 复制目标栈 */
-    for (i = 0; i <= src->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
-        if (src->goal_stack[i]) {
-            dst->goal_stack[i] = lv_strdup_safe(src->goal_stack[i]);
+    /* 复制目标栈（动态扩容，消除 lv_GOAL_STACK_MAX 定长上限） */
+    if (src->goal_stack_top >= 0) {
+        if (!lv_ensure_capacity((void **) &dst->goal_stack, src->goal_stack_top + 1,
+                                &dst->goal_stack_capacity, sizeof(char *), 0)) {
+            lv_free((void **) &dst->goal_stack);
+            lv_free((void **) &dst);
+            return NULL;
+        }
+        for (i = 0; i <= src->goal_stack_top; i++) {
+            if (src->goal_stack[i]) {
+                dst->goal_stack[i] = lv_strdup_safe(src->goal_stack[i]);
+            }
         }
     }
     dst->goal_stack_top = src->goal_stack_top;
@@ -484,7 +492,16 @@ static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine, lvProofSt
             }
 
             /* 从成功状态复制数据到初始状态 */
-            for (int g = 0; g <= current_state->goal_stack_top && g < lv_GOAL_STACK_MAX; g++) {
+            if (current_state->goal_stack_top >= 0) {
+                if (!lv_ensure_capacity((void **) &initial_state->goal_stack,
+                                        current_state->goal_stack_top + 1,
+                                        &initial_state->goal_stack_capacity, sizeof(char *), 0)) {
+                    proof_state_destroy(current_state);
+                    bfs_queue_clear(&queue);
+                    return SEARCH_RESULT_ERROR;
+                }
+            }
+            for (int g = 0; g <= current_state->goal_stack_top; g++) {
                 if (current_state->goal_stack[g]) {
                     initial_state->goal_stack[g] = lv_strdup_safe(current_state->goal_stack[g]);
                 }
@@ -761,6 +778,7 @@ lvProofState *proof_state_create(const char *initial_goal) {
         return NULL;
 
     state->goal_stack_top = -1;
+    state->goal_stack_capacity = 0; /* 目标栈惰性分配（push 时扩容） */
     state->current_depth = 0;
 
     /* Push the initial goal */
@@ -778,12 +796,15 @@ void proof_state_destroy(lvProofState *state) {
         return;
 
     /* Free goal stack entries */
-    for (i = 0; i <= state->goal_stack_top && i < lv_GOAL_STACK_MAX; i++) {
+    for (i = 0; i <= state->goal_stack_top; i++) {
         if (state->goal_stack[i]) {
             lv_free((void **) &state->goal_stack[i]);
             state->goal_stack[i] = NULL;
         }
     }
+    lv_free((void **) &state->goal_stack);
+    state->goal_stack = NULL;
+    state->goal_stack_capacity = 0;
 
     /* Free hypothesis entries */
     for (i = 0; i < state->hypothesis_count && i < lv_HYPOTHESIS_MAX; i++) {
@@ -808,8 +829,11 @@ void proof_state_destroy(lvProofState *state) {
 bool proof_state_push_goal(lvProofState *state, const char *goal) {
     if (!state || !goal)
         return false;
-    if (state->goal_stack_top + 1 >= lv_GOAL_STACK_MAX)
-        return false;
+    if (state->goal_stack_top + 1 >= state->goal_stack_capacity) {
+        if (!lv_ensure_capacity((void **) &state->goal_stack, state->goal_stack_top + 1,
+                                &state->goal_stack_capacity, sizeof(char *), 0))
+            return false;
+    }
 
     state->goal_stack_top++;
     state->goal_stack[state->goal_stack_top] = lv_strdup_safe(goal);

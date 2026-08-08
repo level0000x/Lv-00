@@ -69,9 +69,11 @@ typedef struct {
 struct lvPerfSession {
     char *name;             /**< 会话名称 */
     uint64_t start_time_ns; /**< 会话创建/重置时间 */
-    PerfRegion regions[MAX_REGIONS];
+    PerfRegion *regions;    /**< 计时区域数组（动态扩容，消除 MAX_REGIONS 上限） */
+    int region_capacity;    /**< 计时区域容量 */
     int region_count;
-    PerfMemStat mem_stats[MAX_MEM_TYPES];
+    PerfMemStat *mem_stats; /**< 内存统计数组（动态扩容，消除 MAX_MEM_TYPES 上限） */
+    int mem_capacity;       /**< 内存统计容量 */
     int mem_count;
 };
 
@@ -96,7 +98,7 @@ static int find_region(const lvPerfSession *session, const char *name) {
 
 /**
  * @brief 查找或创建计时区域
- * @return 索引，容量满返回 -1
+ * @return 索引，失败返回 -1
  */
 static int get_or_create_region(lvPerfSession *session, const char *name) {
     if (!session || !name)
@@ -104,9 +106,14 @@ static int get_or_create_region(lvPerfSession *session, const char *name) {
     int idx = find_region(session, name);
     if (idx >= 0)
         return idx;
-    if (session->region_count >= MAX_REGIONS)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "region capacity exhausted");
+    /* 动态扩容（倍增），消除 MAX_REGIONS 容量耗尽 */
+    if (session->region_count >= session->region_capacity) {
+        if (!lv_ensure_capacity((void **) &session->regions, session->region_count,
+                                &session->region_capacity, sizeof(PerfRegion), 0))
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "region capacity exhausted");
+    }
     idx = session->region_count++;
+    memset(&session->regions[idx], 0, sizeof(PerfRegion));
     session->regions[idx].name = lv_strdup_safe(name);
     session->regions[idx].count = 0;
     session->regions[idx].total_ns = 0;
@@ -134,7 +141,7 @@ static int find_mem_stat(const lvPerfSession *session, const char *type_name) {
 
 /**
  * @brief 查找或创建内存统计条目
- * @return 索引，容量满返回 -1
+ * @return 索引，失败返回 -1
  */
 static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name) {
     if (!session || !type_name)
@@ -142,9 +149,14 @@ static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name)
     int idx = find_mem_stat(session, type_name);
     if (idx >= 0)
         return idx;
-    if (session->mem_count >= MAX_MEM_TYPES)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "mem stat capacity exhausted");
+    /* 动态扩容（倍增），消除 MAX_MEM_TYPES 容量耗尽 */
+    if (session->mem_count >= session->mem_capacity) {
+        if (!lv_ensure_capacity((void **) &session->mem_stats, session->mem_count,
+                                &session->mem_capacity, sizeof(PerfMemStat), 0))
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "mem stat capacity exhausted");
+    }
     idx = session->mem_count++;
+    memset(&session->mem_stats[idx], 0, sizeof(PerfMemStat));
     session->mem_stats[idx].type_name = lv_strdup_safe(type_name);
     session->mem_stats[idx].total_alloc_bytes = 0;
     session->mem_stats[idx].total_free_bytes = 0;
@@ -458,6 +470,11 @@ void lv_perf_session_destroy(lvPerfSession *session) {
     for (int i = 0; i < session->mem_count; i++) {
         lv_free((void **) &session->mem_stats[i].type_name);
     }
+
+    lv_free((void **) &session->regions);
+    session->regions = NULL;
+    lv_free((void **) &session->mem_stats);
+    session->mem_stats = NULL;
 
     lv_free((void **) &session->name);
     lv_free((void **) &session);

@@ -89,8 +89,12 @@ int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInt
  *    - 独有扩展：tan/atan/pow/asin/acos/floor/ceil。
  *    选择依据：数值验证（fptaylor 误差界）与 gappa_propagate 的区间传播。
  *
- * 结论：两者 API 集合、定义域外语义、舍入细节、极值点算法均不同，
- * 且各服务于不同调用方（符号求值/验证 vs 误差界传播），不是重复代码。
+ * 结论：两者 API 集合、定义域外语义、舍入细节、极值点算法均不同。
+ *
+ * 【v1.1.0 收口】interval_arithmetic.c 已删除：interval_* 实现并入
+ * interval_arith.c 末尾的「废弃兼容层」，geo_predicate.c 已迁移到
+ * lv_interval_*。interval_* 仅为测试与兼容用途保留（deprecated），
+ * 新代码请使用 lv_interval_*（interval_arith.h）。
  * ======================================================================== */
 
 #ifdef __cplusplus

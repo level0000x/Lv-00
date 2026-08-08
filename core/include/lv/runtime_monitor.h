@@ -26,6 +26,9 @@ extern "C" {
 #include <stdint.h>
 #include <time.h>
 
+/* 前向声明：避免本头文件强依赖 stream.h（lv_event_bus.h 同款写法） */
+struct StreamContext;
+
 /* ============== 配置常量 ============== */
 
 /** 日志消息最大长度 */
@@ -540,6 +543,21 @@ bool lv_event_trace_init(uint32_t max_events);
  * @brief 关闭事件追踪
  */
 void lv_event_trace_shutdown(void);
+
+/**
+ * @brief 将事件总线桥接到引擎流式上下文（Stream 可观测接入点）
+ *
+ * 关联后，lv_event_trace_record/begin/end 发出的所有事件会以
+ * STREAM_EVENT_BUS_EVENT 类型同步投射到 Stream 系统（原始 event_type
+ * 存入 StreamEvent.rule_id）。传入 NULL 解除关联。
+ *
+ * 由 engine 初始化路径经 stream_context 分发机制调用一次
+ * （stream_context_util.c 的 register_builtins_once 注册本函数为 setter，
+ * engine_create 的 stream_context_dispatch_all 分发 engine->stream_ctx）。
+ * 可先于事件总线惰性初始化（lv_event_bus_init 会保留先于 init 设置的
+ * stream_ctx），也可由 stream_context_clear_all 以 NULL 清理。
+ */
+void lv_event_trace_set_stream_context(struct StreamContext *ctx);
 
 /**
  * @brief 记录事件

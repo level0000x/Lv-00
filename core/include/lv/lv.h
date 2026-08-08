@@ -615,12 +615,19 @@ lv_PUBLIC_API int lv_set_numeric_assumption(lvEngine *engine, int node_id, doubl
  *     （LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS）+ 类型安全
  *     lv_config_get_<key>() / lv_config_set_<key>()，JSON 持久化；
  *   - 系统 B（ConfigManager）：lv_utils_config.c。字符串键存储，
- *     公共 API 即本节的 lv_config_get_*(key, default) 等。
+ *     公共工具 API（含 string/array 能力，test_utils 直接测试）。
  *
  * 本节的 lv_config_get_int/bool/double/string(key, default) 与
- * lv_config_set_bool/set_string 为系统 B 的公共 API；lv_config_set_int /
- * lv_config_set_double 为系统 A 的通用 setter（与 config.h 中同一符号，
- * 定义于 lv_config.c），仅接受 A 注册表内的键，未知键返回 false。
+ * lv_config_set_bool/set_string 统一遵循 "A 优先、B 回落" 分发规则
+ * （v4 配置归一，lv.c 实现）：
+ *   - 键命中系统 A 注册表（与 A 同名）→ 一律读写 lvConfig 单例，不再查 B；
+ *   - 未命中 → 回落系统 B（ConfigManager）。
+ * 因此同一逻辑键在 int/bool/double/string 任意类型访问下读到一致值：
+ * A 注册表键无字符串表示（get_string 返回 default、set_string 返回 false），
+ * bool 读取按 A 值非零归一化、写入归一化为 0/1（int）或 0.0/1.0（double）。
+ * lv_config_set_int / lv_config_set_double 为系统 A 的通用 setter
+ * （与 config.h 中同一符号，定义于 lv_config.c），仅接受 A 注册表内的键，
+ * 未知键返回 false。
  *
  * config.h 的 LV_CFG_* 字符串键宏不再构成独立配置系统：与 A 同名的键
  * 经 lv.c 的统一分发读取 lvConfig 单例，其余键归属 B 的键空间。

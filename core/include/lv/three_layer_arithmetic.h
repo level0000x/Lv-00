@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file three_layer_arithmetic.h
  * @brief 三层算术编译标志与安全算术宏
  *
@@ -17,6 +17,8 @@
 
 #ifndef lv_THREE_LAYER_ARITHMETIC_H
 #define lv_THREE_LAYER_ARITHMETIC_H
+
+#include "lv/lv_arith_safe.h" /* lv_safe_mul_i64 / lv_safe_add_i64 / lv_safe_sub_i64（权威实现） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -96,7 +98,7 @@ extern "C" {
  * @return int   1 = 成功，0 = 溢出
  */
 #ifndef lv_SAFE_MUL
-#define lv_SAFE_MUL(a, b, result) lv_safe_mul_impl(a, b, result)
+#define lv_SAFE_MUL(a, b, result) lv_safe_mul_i64(a, b, result)
 #endif
 
 /**
@@ -111,7 +113,7 @@ extern "C" {
  * @return int   1 = 成功，0 = 溢出
  */
 #ifndef lv_SAFE_ADD_CHECK
-#define lv_SAFE_ADD_CHECK(a, b, result) lv_safe_add_check_impl(a, b, result)
+#define lv_SAFE_ADD_CHECK(a, b, result) lv_safe_add_i64(a, b, result)
 #endif
 
 /**
@@ -126,7 +128,7 @@ extern "C" {
  * @return int   1 = 成功，0 = 溢出
  */
 #ifndef lv_SAFE_SUB
-#define lv_SAFE_SUB(a, b, result) lv_safe_sub_impl(a, b, result)
+#define lv_SAFE_SUB(a, b, result) lv_safe_sub_i64(a, b, result)
 #endif
 
 /* ============================================================

@@ -95,7 +95,8 @@ typedef struct lvProofRule {
 /* ============== 证明状态结构体 ============== */
 
 typedef struct lvProofState {
-    char *goal_stack[lv_GOAL_STACK_MAX];
+    char **goal_stack;        /**< 目标栈（动态扩容，消除 lv_GOAL_STACK_MAX 定长上限） */
+    int goal_stack_capacity;  /**< 目标栈容量（元素个数） */
     int goal_stack_top;
     char *current_goal;
     char *hypotheses[lv_HYPOTHESIS_MAX];

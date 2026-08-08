@@ -22,20 +22,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
-
-
-static void svg_escape_string(const char *src, char *dst, size_t dst_size) {
-    if (!src || !dst || dst_size == 0)
-        return;
-    lvStrBuf sb = {0};
-    lv_str_escape_xml(&sb, src, strlen(src));
-    size_t n = sb.len;
-    if (n >= dst_size)
-        n = dst_size - 1;
-    memcpy(dst, lv_strbuf_cstr(&sb), n);
-    dst[n] = '\0';
-    lv_strbuf_destroy(&sb);
-}
+#include "lv/lv_export_common.h"
 
 /* ---- 约束类型 → SVG 属性窄适配（颜色/线宽取自公共核心表 kConstraintVisuals） ---- */
 typedef struct {
@@ -60,14 +47,16 @@ static void constraint_rgb_to_svg_hex(const ConstraintVisual *vis, char *hex, si
  *       原约束渲染 switch 收敛为 kSvgConstraintOps 经 constraint_render_dispatch 分发） ---- */
 
 static bool svg_render_betweenness(const ConstraintRenderCtx *ctx) {
-    /* 之间约束：三点之间用标签标注 */
+    /* 之间约束：三点之间用标签标注（颜色取自公共核心表 kConstraintVisuals） */
     double mx = (ctx->x0 + ctx->x1) / 2.0;
     double my = (ctx->y0 + ctx->y1) / 2.0;
+    char hex[8];
+    constraint_rgb_to_svg_hex(&kConstraintVisuals[BETWEENNESS], hex, sizeof(hex));
     fprintf(ctx->fp,
             "  <text class=\"label\" x=\"%.2f\" y=\"%.2f\" "
-            "text-anchor=\"middle\" fill=\"#6366f1\" font-style=\"italic\">"
+            "text-anchor=\"middle\" fill=\"%s\" font-style=\"italic\">"
             "B(%d,%d",
-            mx, my, ctx->c->participants[0], ctx->c->participants[1]);
+            mx, my, hex, ctx->c->participants[0], ctx->c->participants[1]);
     if (ctx->c->participant_count >= 3) {
         fprintf(ctx->fp, ",%d", ctx->c->participants[2]);
     }
@@ -76,7 +65,7 @@ static bool svg_render_betweenness(const ConstraintRenderCtx *ctx) {
 }
 
 static bool svg_render_intersection(const ConstraintRenderCtx *ctx) {
-    /* 相交约束：计算精确交点并标记紫色十字 */
+    /* 相交约束：计算精确交点并标记紫色十字（颜色取自公共核心表 kConstraintVisuals） */
     double ix = ctx->x0, iy = ctx->y0; /* 默认交点为第一个参与者 */
     double a1x = ctx->x0, a1y = ctx->y0;
     double b1x = ctx->x1, b1y = ctx->y1;
@@ -84,25 +73,28 @@ static bool svg_render_intersection(const ConstraintRenderCtx *ctx) {
     /* 公共几何辅助：两线段时求精确交点，否则回退 (x0,y0)（与原内联实现语义一致） */
     constraint_intersection_point(ctx->p0, ctx->p1, ctx->x0, ctx->y0, &ix, &iy);
 
+    char hex[8];
+    constraint_rgb_to_svg_hex(&kConstraintVisuals[INTERSECTION], hex, sizeof(hex));
+
     fprintf(ctx->fp,
             "  <line class=\"constraint\" x1=\"%.2f\" y1=\"%.2f\" "
-            "x2=\"%.2f\" y2=\"%.2f\" stroke=\"#a855f7\"/>\n",
-            a1x, a1y, b1x, b1y);
+            "x2=\"%.2f\" y2=\"%.2f\" stroke=\"%s\"/>\n",
+            a1x, a1y, b1x, b1y, hex);
 
     /* 在精确交点处绘制紫色十字标记 */
     double cross_r = 5.0;
     fprintf(ctx->fp,
             "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-            "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-            ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r);
+            "stroke=\"%s\" stroke-width=\"2\"/>\n",
+            ix - cross_r, iy - cross_r, ix + cross_r, iy + cross_r, hex);
     fprintf(ctx->fp,
             "  <line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
-            "stroke=\"#a855f7\" stroke-width=\"2\"/>\n",
-            ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r);
+            "stroke=\"%s\" stroke-width=\"2\"/>\n",
+            ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r, hex);
     fprintf(ctx->fp,
             "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-            "fill=\"none\" stroke=\"#a855f7\" stroke-width=\"1.5\"/>\n",
-            ix, iy);
+            "fill=\"none\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
+            ix, iy, hex);
     return true;
 }
 
@@ -211,8 +203,8 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
      *
      * 【外部依赖说明】
      *   本函数完全使用标准C的 fprintf 生成纯文本SVG，不依赖任何外部XML或
-     *   图形库。所有辅助函数（compute_bounding_box、trust_color_to_svg、
-     *   svg_escape_string）均为本文件内部实现。
+     *   图形库。辅助函数（compute_bounding_box、trust_color_to_svg）为本文件内部实现，
+     *   XML 转义复用公共实现 lv_export_xml_escape（lv/lv_export_common.h）。
      *
      * 【使用示例】
      *   InteropExportConfig cfg;
@@ -282,7 +274,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
         const char *color = trust_color_to_svg(node->trust);
         char escaped_name[256];
-        svg_escape_string(geom_type_name(node->type), escaped_name, sizeof(escaped_name));
+        lv_export_xml_escape(geom_type_name(node->type), escaped_name, sizeof(escaped_name));
 
         fprintf(fp, "  <!-- Region id=%d -->\n", node->id);
         fprintf(fp, "  <polygon class=\"region\" fill=\"%s\" stroke=\"%s\" points=\"", color, color);
@@ -313,7 +305,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
 
         const char *color = trust_color_to_svg(node->trust);
         char escaped_name[256];
-        svg_escape_string(geom_type_name(node->type), escaped_name, sizeof(escaped_name));
+        lv_export_xml_escape(geom_type_name(node->type), escaped_name, sizeof(escaped_name));
 
         /* 函数块：圆角矩形 */
         double bw = 120.0, bh = 60.0;

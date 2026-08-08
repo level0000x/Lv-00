@@ -55,6 +55,28 @@ int propagation_wfc_max_collaboration_iterations(void) {
 #define MAX_CONSTRAINTS_PER_NODE 128
 #define MAX_NEIGHBOR_CONSTRAINTS 64
 
+/** @brief 收集涉及 node_id 的所有活跃约束索引（lvDArray 动态收集，消除定长上限）
+ *  @param out 输出数组（函数内先清空）
+ *  @return 数量；内存不足返回 -1 */
+static int collect_constraints_involving(ConstraintGraph *graph, int node_id, lvDArray *out) {
+    lv_darray_clear(out);
+    if (!graph)
+        return 0;
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active)
+            continue;
+        for (int j = 0; j < c->participant_count; j++) {
+            if (c->participants[j] == node_id) {
+                if (lv_darray_push(out, &i) < 0)
+                    return -1;
+                break;
+            }
+        }
+    }
+    return out->count;
+}
+
 /* ================================================================
  * 内部辅助函数
  * ================================================================ */
@@ -195,12 +217,14 @@ static void init_state_point(PropagationContext *ctx, int node_id, GeomNode *nod
         ss->collapsed_value = symbolic_coord_copy(node->symbolic_coords[0]);
         ss->is_collapsed = true;
     } else {
-        /* 无坐标 → 检查是否有约束 */
-        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
-        int count = graph_find_constraints_involving(ctx->graph, node_id, constraints, MAX_NEIGHBOR_CONSTRAINTS);
+        /* 无坐标 → 检查是否有约束（动态收集，消除 64 上限） */
+        lvDArray constraints;
+        lv_darray_init(&constraints, sizeof(int));
+        int count = collect_constraints_involving(ctx->graph, node_id, &constraints);
         if (count == 0) {
             ss->is_unbounded = true;
         }
+        lv_darray_free(&constraints);
         /* 有约束但无坐标 → 由传播引擎后续填充 */
     }
 }
@@ -293,8 +317,12 @@ static int select_by_min_entropy(PropagationContext *ctx) {
         if (entropy < 0)
             continue;
 
-        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
-        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
+        lvDArray constraints;
+        lv_darray_init(&constraints, sizeof(int));
+        int degree = collect_constraints_involving(ctx->graph, i, &constraints);
+        if (degree < 0)
+            degree = 0; /* OOM：退化为最低度 */
+        lv_darray_free(&constraints);
 
         if (entropy < min_entropy || (entropy == min_entropy && degree > best_degree)) {
             min_entropy = entropy;
@@ -321,8 +349,12 @@ static int select_by_degree(PropagationContext *ctx) {
         if (entropy < 0)
             continue;
 
-        int constraints[MAX_NEIGHBOR_CONSTRAINTS];
-        int degree = graph_find_constraints_involving(ctx->graph, i, constraints, MAX_NEIGHBOR_CONSTRAINTS);
+        lvDArray constraints;
+        lv_darray_init(&constraints, sizeof(int));
+        int degree = collect_constraints_involving(ctx->graph, i, &constraints);
+        if (degree < 0)
+            degree = 0; /* OOM：退化为最低度 */
+        lv_darray_free(&constraints);
 
         if (degree > best_degree || (degree == best_degree && entropy < min_entropy)) {
             best_degree = degree;
@@ -351,10 +383,13 @@ static int select_by_topological(PropagationContext *ctx) {
 
         /* 拓扑排序策略：按约束依赖关系选择"被依赖最多"的未坍缩节点 */
         int in_degree = 0;
-        int cids_t[128];
-        int nc_t = graph_find_constraints_involving(ctx->graph, i, cids_t, 128);
+        lvDArray cids_t;
+        lv_darray_init(&cids_t, sizeof(int));
+        int nc_t = collect_constraints_involving(ctx->graph, i, &cids_t);
+        if (nc_t < 0)
+            nc_t = 0; /* OOM：按无约束处理 */
         for (int ci = 0; ci < nc_t; ci++) {
-            Constraint *cc = graph_get_constraint(ctx->graph, cids_t[ci]);
+            Constraint *cc = graph_get_constraint(ctx->graph, *(const int *)lv_darray_get(&cids_t, ci));
             if (!cc || !cc->is_active)
                 continue;
             for (int p = 0; p < cc->participant_count; p++) {
@@ -367,6 +402,7 @@ static int select_by_topological(PropagationContext *ctx) {
                 }
             }
         }
+        lv_darray_free(&cids_t);
         if (in_degree > best_degree || (in_degree == best_degree && entropy < min_entropy)) {
             best_degree = in_degree;
             best_node = i;
@@ -400,18 +436,22 @@ static int collapse_weighted(PropagationContext *ctx, NodeStateSpace *ss) {
     /* 基于约束兼容性的加权随机选择 */
     double *weights = (double *) lv_calloc((size_t) ss->candidates_da.count, sizeof(double));
     if (weights && ss->candidates_da.count > 0) {
-        int cids[128];
-        int nc = graph_find_constraints_involving(ctx->graph, ss->node_id, cids, 128);
+        lvDArray cids;
+        lv_darray_init(&cids, sizeof(int));
+        int nc = collect_constraints_involving(ctx->graph, ss->node_id, &cids);
+        if (nc < 0)
+            nc = 0; /* OOM：按无约束处理 */
         for (int k = 0; k < ss->candidates_da.count; k++) {
             double w = 1.0;
             for (int ci = 0; ci < nc; ci++) {
-                Constraint *c = graph_get_constraint(ctx->graph, cids[ci]);
+                Constraint *c = graph_get_constraint(ctx->graph, *(const int *)lv_darray_get(&cids, ci));
                 if (c && c->is_active && check_constraint_compatible(cand[k].coord, c, ctx->graph)) {
                     w += 1.0;
                 }
             }
             weights[k] = w;
         }
+        lv_darray_free(&cids);
         double total = 0.0;
         for (int k = 0; k < ss->candidates_da.count; k++)
             total += weights[k];
@@ -762,12 +802,18 @@ PropagationResult propagation_run(PropagationContext *ctx) {
         if (!queue_pop(ctx, &node_id))
             break;
 
-        /* 查找涉及该节点的所有约束 */
-        int constraint_ids[MAX_CONSTRAINTS_PER_NODE];
-        int count = graph_find_constraints_involving(ctx->graph, node_id, constraint_ids, MAX_CONSTRAINTS_PER_NODE);
+        /* 查找涉及该节点的所有约束（动态收集，消除 128 上限） */
+        lvDArray constraint_ids;
+        lv_darray_init(&constraint_ids, sizeof(int));
+        int count = collect_constraints_involving(ctx->graph, node_id, &constraint_ids);
+        if (count < 0) {
+            lv_darray_free(&constraint_ids);
+            return PROP_RESULT_CONTRADICTION; /* OOM：保守终止传播 */
+        }
 
         for (int i = 0; i < count; i++) {
-            bool changed = propagation_arc_reduce(ctx, constraint_ids[i]);
+            int cid = *(const int *)lv_darray_get(&constraint_ids, i);
+            bool changed = propagation_arc_reduce(ctx, cid);
             ctx->propagation_steps++;
 
             if (changed) {
@@ -775,12 +821,13 @@ PropagationResult propagation_run(PropagationContext *ctx) {
                 for (int j = 0; j < ctx->state_count; j++) {
                     NodeStateSpace *ss = &ctx->state_spaces[j];
                     if (!ss->is_unbounded && ss->candidates_da.count == 0 && !ss->is_collapsed) {
+                        lv_darray_free(&constraint_ids);
                         return PROP_RESULT_CONTRADICTION;
                     }
                 }
 
                 /* 将受影响的邻域节点重新入队 */
-                Constraint *c = graph_get_constraint(ctx->graph, constraint_ids[i]);
+                Constraint *c = graph_get_constraint(ctx->graph, cid);
                 if (c && c->is_active) {
                     for (int p = 0; p < c->participant_count; p++) {
                         if (c->participants[p] != node_id) {
@@ -790,6 +837,7 @@ PropagationResult propagation_run(PropagationContext *ctx) {
                 }
             }
         }
+        lv_darray_free(&constraint_ids);
 
         iterations++;
     }

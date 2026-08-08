@@ -28,6 +28,7 @@
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
+#include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
@@ -62,11 +63,11 @@ SymbolicCoord *symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, dou
 
     result->trust = TRUST_AMBER;
 
-    fprintf(stderr, "[AMBER DOWNGRADE] Precision: %.15g, Declaration: %s\n", precision,
-            declaration ? declaration : "(none)");
+    lv_log(lv_LOG_WARN, "[AMBER DOWNGRADE] Precision: %.15g, Declaration: %s", precision,
+           declaration ? declaration : "(none)");
 
     double numerical_value = symbolic_coord_to_double(result);
-    fprintf(stderr, "[AMBER DOWNGRADE] Numerical value: %.15g\n", numerical_value);
+    lv_log(lv_LOG_WARN, "[AMBER DOWNGRADE] Numerical value: %.15g", numerical_value);
 
     return result;
 }

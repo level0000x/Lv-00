@@ -43,11 +43,12 @@ int64_t preset_glide_reflect(lvEngine *ctx, int64_t obj_id, int64_t line_id, int
 /* ============================================================
  * 测试计数器与宏
  * ============================================================ */
-static int g_pass = 0, g_fail = 0;
+int g_pass_count = 0;
+int g_fail_count = 0;
 
-/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 g_pass/g_fail 计数行为 */
-#define TEST_PASS_STATEMENT g_pass++
-#define TEST_FAIL_STATEMENT g_fail++
+/* 使用共享 TEST/PASS/FAIL 宏；计数挂钩保持原有 g_pass_count/g_fail_count 计数行为 */
+#define TEST_PASS_STATEMENT g_pass_count++
+#define TEST_FAIL_STATEMENT g_fail_count++
 
 #include "test_helpers.h"
 
@@ -421,49 +422,36 @@ static void test_preset_glide_reflect(void) {
 /* ============================================================
  * Main
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("几何变换预设函数测试")
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== 几何变换预设函数测试 ===\n\n");
-
     if (!lv_init()) {
         fprintf(stderr, "lv_init 失败\n");
         return 1;
     }
-
     printf("[组 1] 平移变换\n");
-    test_preset_translate();
-
+    TEST_MAIN_RUN(test_preset_translate);
     printf("[组 2] 缩放变换\n");
-    test_preset_scale();
-
+    TEST_MAIN_RUN(test_preset_scale);
     printf("[组 3] 仿射变换（90度旋转）\n");
-    test_preset_affine();
-
+    TEST_MAIN_RUN(test_preset_affine);
     printf("[组 4] 关于点的反射\n");
-    test_preset_reflect_point();
-
+    TEST_MAIN_RUN(test_preset_reflect_point);
     printf("[组 5] 恒等变换\n");
-    test_preset_identity();
-
+    TEST_MAIN_RUN(test_preset_identity);
     printf("[组 6] 位似变换\n");
-    test_preset_dilate();
-
+    TEST_MAIN_RUN(test_preset_dilate);
     printf("[组 7] 绕指定点旋转\n");
-    test_preset_rotation_about();
-
+    TEST_MAIN_RUN(test_preset_rotation_about);
     printf("[组 8] 绕原点旋转\n");
-    test_preset_rotate();
-
+    TEST_MAIN_RUN(test_preset_rotate);
     printf("[组 9] X 方向剪切\n");
-    test_preset_shear_x();
-
+    TEST_MAIN_RUN(test_preset_shear_x);
     printf("[组 10] Y 方向剪切\n");
-    test_preset_shear_y();
-
+    TEST_MAIN_RUN(test_preset_shear_y);
     printf("[组 11] 滑移反射\n");
-    test_preset_glide_reflect();
-
+    TEST_MAIN_RUN(test_preset_glide_reflect);
     lv_cleanup();
-    printf("\n=== %d passed, %d failed ===\n", g_pass, g_fail);
-    return g_fail > 0 ? 1 : 0;
-}
+    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
+    return g_fail_count > 0 ? 1 : 0;
+TEST_MAIN_END()

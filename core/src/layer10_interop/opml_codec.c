@@ -71,10 +71,9 @@ typedef enum {
 /* 证明步骤结构体 */
 typedef struct {
     int type;              /* 步骤类型（lvProofStepType） */
-    char description[512]; /* 步骤描述 */
+    char *description;     /* 步骤描述（堆分配，消除 512 定长截断） */
     int id;                /* 步骤编号 */
-    int dependencies[64];  /* 依赖的步骤 ID 列表 */
-    int dep_count;         /* 依赖数量 */
+    lvDArray dependencies; /* 依赖的步骤 ID 列表（int，动态，消除 64 上限） */
 } lvProofStep;
 
 /* 内部证明结构体（用于导出/导入） */
@@ -83,7 +82,7 @@ typedef struct {
     int step_count;         /* 步骤数量 */
     int step_capacity;      /* 步骤容量 */
     lvProofStep *steps;     /* 步骤数组 */
-    char axioms[lv_PATH_BUF_SIZE];      /* 公理列表（逗号分隔） */
+    char *axioms;           /* 公理列表（逗号分隔，动态拼接，消除 lv_PATH_BUF_SIZE 上限） */
 } lvOpmlProof;
 
 /**
@@ -216,20 +215,21 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
                          step->id, step_type_name(step->type));
 
         /* 写入描述（完整 JSON 转义：引号/反斜杠/控制字符，替代原先只转义 " 和 \ 的手写循环） */
-        char *esc_desc = json_escape_alloc(step->description, strlen(step->description));
+        const char *desc = step->description ? step->description : "";
+        char *esc_desc = json_escape_alloc(desc, strlen(desc));
         lv_strbuf_printf(&sb, "%s", esc_desc ? esc_desc : "");
         lv_free((void **) &esc_desc);
 
         lv_strbuf_printf(&sb, "\",\n");
 
-        /* 写入依赖列表 */
+        /* 写入依赖列表（动态 lvDArray，无 64 上限） */
         lv_strbuf_printf(&sb, "        \"dependencies\": [");
 
-        for (int d = 0; d < step->dep_count; d++) {
+        for (int d = 0; d < step->dependencies.count; d++) {
             if (d > 0) {
                 lv_strbuf_printf(&sb, ", ");
             }
-            lv_strbuf_printf(&sb, "%d", step->dependencies[d]);
+            lv_strbuf_printf(&sb, "%d", *(const int *)lv_darray_get(&step->dependencies, d));
         }
 
         lv_strbuf_printf(&sb,
@@ -272,11 +272,12 @@ static const char *json_skip_object(const char *p) {
  *
  * 基于统一 JSON 解析器 lvJsonParser（lv/lv_json.h），
  * 替代原手写 json_find_key/json_extract_string 实现。
+ * 输出为 lvDArray<char *>（元素为堆分配字符串，调用方负责逐个释放），
+ * 无固定数量上限（原 32 上限已消除）。
  */
-static void parse_theory_section(const char *theory_json, char axioms[][256], int *axiom_count, int max_axioms,
-                                 char definitions[][256], int *def_count, int max_defs) {
-    *axiom_count = 0;
-    *def_count = 0;
+static void parse_theory_section(const char *theory_json, lvDArray *axioms, lvDArray *definitions) {
+    lv_darray_clear(axioms);
+    lv_darray_clear(definitions);
     if (!theory_json)
         return;
 
@@ -286,7 +287,7 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
         lvJsonParser p;
         lv_json_parser_init(&p, axioms_val, strlen(axioms_val));
         lv_json_next(&p); /* 跳过 '[' */
-        while (*axiom_count < max_axioms) {
+        for (;;) {
             char c = lv_json_peek(&p);
             if (c == ']' || c == '\0')
                 break;
@@ -297,9 +298,10 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
             if (c == '"') {
                 char *s = lv_json_parse_string(&p);
                 if (s) {
-                    lv_strlcpy(axioms[*axiom_count], s, 256);
-                    (*axiom_count)++;
-                    lv_free((void **) &s);
+                    if (lv_darray_push(axioms, &s) < 0) {
+                        lv_free((void **) &s);
+                        break;
+                    }
                 }
             } else {
                 lv_json_skip_value(&p);
@@ -313,7 +315,7 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
         lvJsonParser p;
         lv_json_parser_init(&p, defs_val, strlen(defs_val));
         lv_json_next(&p); /* 跳过 '[' */
-        while (*def_count < max_defs) {
+        for (;;) {
             char c = lv_json_peek(&p);
             if (c == ']' || c == '\0')
                 break;
@@ -324,9 +326,10 @@ static void parse_theory_section(const char *theory_json, char axioms[][256], in
             if (c == '"') {
                 char *s = lv_json_parse_string(&p);
                 if (s) {
-                    lv_strlcpy(definitions[*def_count], s, 256);
-                    (*def_count)++;
-                    lv_free((void **) &s);
+                    if (lv_darray_push(definitions, &s) < 0) {
+                        lv_free((void **) &s);
+                        break;
+                    }
                 }
             } else {
                 lv_json_skip_value(&p);
@@ -401,7 +404,9 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
             if (strcmp(key, "name") == 0 && lv_json_peek(&p) == '"') {
                 char *val = lv_json_parse_string(&p);
                 if (val) {
-                    lv_strlcpy(step->description, val, sizeof(step->description));
+                    /* 描述动态存储，消除 512 定长截断 */
+                    lv_free((void **) &step->description);
+                    step->description = lv_strdup_safe(val);
                     lv_free((void **) &val);
                 }
             } else if (strcmp(key, "type") == 0 && lv_json_peek(&p) == '"') {
@@ -467,26 +472,34 @@ static int opml_import_proof(const char *input, void **proof) {
                 memcpy(theory_buf, brace, len);
                 theory_buf[len] = '\0';
 
-                /* 从 theory 中提取公理和定义名称 */
-                char axiom_names[32][256];
-                char def_names[32][256];
-                int axiom_count = 0, def_count = 0;
-                parse_theory_section(theory_buf, axiom_names, &axiom_count, 32, def_names, &def_count, 32);
+                /* 从 theory 中提取公理和定义名称（动态数组，无 32 上限） */
+                lvDArray axiom_names;
+                lv_darray_init(&axiom_names, sizeof(char *));
+                lvDArray def_names;
+                lv_darray_init(&def_names, sizeof(char *));
+                parse_theory_section(theory_buf, &axiom_names, &def_names);
 
-                /* 将公理名称写入 axioms 字段（逗号分隔） */
-                int pos = 0;
-                for (int i = 0; i < axiom_count && pos < (int) sizeof(p->axioms) - 1; i++) {
-                    if (i > 0 && pos < (int) sizeof(p->axioms) - 2) {
-                        p->axioms[pos++] = ',';
-                        p->axioms[pos++] = ' ';
-                    }
-                    int slen = (int) strlen(axiom_names[i]);
-                    if (pos + slen >= (int) sizeof(p->axioms))
-                        slen = (int) sizeof(p->axioms) - pos - 1;
-                    memcpy(p->axioms + pos, axiom_names[i], slen);
-                    pos += slen;
+                /* 将公理名称写入 axioms 字段（逗号分隔，lvStrBuf 动态拼接，
+                 * 消除 lv_PATH_BUF_SIZE 上限） */
+                lvStrBuf ax_sb = {0};
+                for (int i = 0; i < axiom_names.count; i++) {
+                    const char *name = *(const char **) lv_darray_get(&axiom_names, i);
+                    if (i > 0)
+                        lv_strbuf_printf(&ax_sb, ", ");
+                    lv_strbuf_printf(&ax_sb, "%s", name);
                 }
-                p->axioms[pos] = '\0';
+                p->axioms = lv_strdup_safe(lv_strbuf_cstr(&ax_sb));
+                lv_strbuf_destroy(&ax_sb);
+
+                /* 释放名称数组（元素为 parse 阶段堆分配的字符串） */
+                for (int i = 0; i < axiom_names.count; i++) {
+                    lv_free((void **) lv_darray_get(&axiom_names, i));
+                }
+                lv_darray_free(&axiom_names);
+                for (int i = 0; i < def_names.count; i++) {
+                    lv_free((void **) lv_darray_get(&def_names, i));
+                }
+                lv_darray_free(&def_names);
 
                 lv_free((void **) &theory_buf);
             }

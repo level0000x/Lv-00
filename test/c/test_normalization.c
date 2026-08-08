@@ -294,9 +294,9 @@ static int test_find_merge_candidates(void) {
     return 0;
 }
 
-int main(void) {
-    printf("=== Lv-00 Normalization Test Suite ===\n");
+TEST_MAIN_BEGIN("Lv-00 Normalization Test Suite")
     int failures = 0;
+    printf("=== Lv-00 Normalization Test Suite ===\n");
     failures += test_basic_point_merge();
     failures += test_idempotence();
     failures += test_transitive_closure();
@@ -304,11 +304,6 @@ int main(void) {
     failures += test_large_scale_merge();
     failures += test_segment_merge_after_normalize();
     failures += test_find_merge_candidates();
-
     printf("\n=== Test Summary ===\n");
-    if (failures == 0)
-        printf("All normalization tests PASSED!\n");
-    else
-        printf("%d test(s) FAILED\n", failures);
-    return failures ? 1 : 0;
-}
+    return failures != 0 ? 1 : 0;
+TEST_MAIN_END()

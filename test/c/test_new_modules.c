@@ -23,6 +23,11 @@
 #include "runtime_monitor.h"
 #include "test_unified.h"
 
+/* lv_ASSERT_* 宏所需的全局计数器（与 test_helpers.h 共享符号，供 TEST_MAIN_END
+ * 类退出码判定使用；本文件的结构化报告以 report->failed_count 为准） */
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============== 内存池测试 ============== */
 
 lv_TEST(MemoryPool, CreateDestroy) {

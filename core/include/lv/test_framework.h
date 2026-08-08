@@ -168,6 +168,15 @@ uint32_t lv_test_get_data_index(void);
 #include <stdio.h>
 #include <string.h>
 
+/* ── 断言宏共享的全局计数器 ──
+ * lv_ASSERT_* 失败时递增 g_fail_count 并 return（在 void 测试函数内）；
+ * 成功时递增 g_pass_count。与 test_helpers.h 的 TEST_ASSERT_* 使用同一对
+ * 符号（g_pass_count/g_fail_count），使两套断言体系的计数统一：
+ * TEST_MAIN_END() 可依据 g_fail_count 正确决定退出码，杜绝"失败但退出码为 0"。
+ * 使用 lv_ASSERT_* 的测试 TU 必须定义这两个变量（仅声明 extern 于此）。 */
+extern int g_pass_count;
+extern int g_fail_count;
+
 #define lv_TEST(suite, name)                 \
     static void test_##suite##_##name(void); \
     static void test_##suite##_##name(void)
@@ -176,16 +185,20 @@ uint32_t lv_test_get_data_index(void);
     do {                                                                       \
         if (!(cond)) {                                                         \
             fprintf(stderr, "  FAIL [%s:%d] %s\n", __FILE__, __LINE__, #cond); \
+            g_fail_count++;                                                    \
             return;                                                            \
         }                                                                      \
+        g_pass_count++;                                                        \
     } while (0)
 
 #define lv_ASSERT_NOT_NULL(ptr)                                                       \
     do {                                                                              \
         if ((ptr) == NULL) {                                                          \
             fprintf(stderr, "  FAIL [%s:%d] %s is NULL\n", __FILE__, __LINE__, #ptr); \
+            g_fail_count++;                                                           \
             return;                                                                   \
         }                                                                             \
+        g_pass_count++;                                                               \
     } while (0)
 
 #define lv_ASSERT_TRUE(expr) lv_ASSERT(expr)
@@ -193,8 +206,10 @@ uint32_t lv_test_get_data_index(void);
     do {                                                                               \
         if ((expr)) {                                                                  \
             fprintf(stderr, "  FAIL [%s:%d] %s is true\n", __FILE__, __LINE__, #expr); \
+            g_fail_count++;                                                            \
             return;                                                                    \
         }                                                                              \
+        g_pass_count++;                                                                \
     } while (0)
 
 #define lv_ASSERT_EQ(expected, actual)                                                                             \
@@ -202,8 +217,10 @@ uint32_t lv_test_get_data_index(void);
         if ((intptr_t) (expected) != (intptr_t) (actual)) {                                                        \
             fprintf(stderr, "  FAIL [%s:%d] %s != %s (expected=%ld, actual=%ld)\n", __FILE__, __LINE__, #expected, \
                     #actual, (long) (intptr_t) (expected), (long) (intptr_t) (actual));                            \
+            g_fail_count++;                                                                                        \
             return;                                                                                                \
         }                                                                                                          \
+        g_pass_count++;                                                                                            \
     } while (0)
 
 #define lv_ASSERT_STR_EQ(actual, expected)                                                                      \
@@ -222,8 +239,10 @@ uint32_t lv_test_get_data_index(void);
             fprintf(stderr, "  FAIL [%s:%d] %s != %s (actual='%s', expected='%s')\n", __FILE__, __LINE__,       \
                     #actual, #expected, _lv_actual ? _lv_actual : "(null)",                                     \
                     _lv_expected ? _lv_expected : "(null)");                                                    \
+            g_fail_count++;                                                                                     \
             return;                                                                                             \
         }                                                                                                       \
+        g_pass_count++;                                                                                         \
     } while (0)
 
 #define lv_ASSERT_NE(a, e)                                                                                      \
@@ -231,8 +250,10 @@ uint32_t lv_test_get_data_index(void);
         if ((intptr_t) (a) == (intptr_t) (e)) {                                                                 \
             fprintf(stderr, "  FAIL [%s:%d] %s == %s (value=%ld)\n", __FILE__, __LINE__, #a, #e,                 \
                     (long) (intptr_t) (a));                                                                     \
+            g_fail_count++;                                                                                     \
             return;                                                                                             \
         }                                                                                                       \
+        g_pass_count++;                                                                                         \
     } while (0)
 
 #define lv_ASSERT_FLOAT_EQ(expected, actual, tol)                                                             \
@@ -242,8 +263,10 @@ uint32_t lv_test_get_data_index(void);
         if (_d > _t) {                                                                                        \
             fprintf(stderr, "  FAIL [%s:%d] %s ~= %s (expected=%f, actual=%f, tol=%f)\n", __FILE__, __LINE__, \
                     #expected, #actual, _e, _a, _t);                                                          \
+            g_fail_count++;                                                                                   \
             return;                                                                                           \
         }                                                                                                     \
+        g_pass_count++;                                                                                       \
     } while (0)
 
 #endif /* lv_TEST_MACROS_DEFINED */

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * test_complex_graph.c - Lv-00 复杂约束图测试
  *
  * 测试复杂约束图场景：
@@ -189,9 +189,9 @@ static int test_region_validation(void) {
     graph_destroy(graph);
     return 0;
 }
-int main(void) {
-    printf("=== Lv-00 Complex Graph Test Suite ===\n");
+TEST_MAIN_BEGIN("Lv-00 Complex Graph Test Suite")
     int failures = 0;
+    printf("=== Lv-00 Complex Graph Test Suite ===\n");
     failures += test_many_nodes();
     failures += test_constraint_conflicts();
     failures += test_redundant_constraints();
@@ -199,9 +199,5 @@ int main(void) {
     failures += test_cross_boundary();
     failures += test_region_validation();
     printf("\n=== Test Summary ===\n");
-    if (failures == 0)
-        printf("All complex graph tests PASSED!\n");
-    else
-        printf("%d test(s) FAILED\n", failures);
-    return failures ? 1 : 0;
-}
+    return failures != 0 ? 1 : 0;
+TEST_MAIN_END()

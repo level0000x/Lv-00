@@ -26,7 +26,7 @@
 
 #include "lv/config.h"
 #include "lv/geometry_config.h"
-#include "lv/interval_arithmetic.h"
+#include "lv/interval_arith.h"
 #include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
 
@@ -115,15 +115,15 @@ static lvPredicateMode normalize_predicate_mode(lvPredicateMode mode) {
 static lvInterval orientation_2d_exact_interval(double p1x, double p1y, double p2x, double p2y, double p3x,
                                                 double p3y) {
     /* (p2 - p1) x (p3 - p1) = (p2x-p1x)*(p3y-p1y) - (p3x-p1x)*(p2y-p1y) */
-    lvInterval dx2 = interval_sub(interval_point(p2x), interval_point(p1x));
-    lvInterval dy2 = interval_sub(interval_point(p2y), interval_point(p1y));
-    lvInterval dx3 = interval_sub(interval_point(p3x), interval_point(p1x));
-    lvInterval dy3 = interval_sub(interval_point(p3y), interval_point(p1y));
+    lvInterval dx2 = lv_interval_sub(lv_interval_make(p2x, p2x, 1), lv_interval_make(p1x, p1x, 1));
+    lvInterval dy2 = lv_interval_sub(lv_interval_make(p2y, p2y, 1), lv_interval_make(p1y, p1y, 1));
+    lvInterval dx3 = lv_interval_sub(lv_interval_make(p3x, p3x, 1), lv_interval_make(p1x, p1x, 1));
+    lvInterval dy3 = lv_interval_sub(lv_interval_make(p3y, p3y, 1), lv_interval_make(p1y, p1y, 1));
 
     /* cross = dx2 * dy3 - dx3 * dy2 */
-    lvInterval term1 = interval_mul(dx2, dy3);
-    lvInterval term2 = interval_mul(dx3, dy2);
-    lvInterval result = interval_sub(term1, term2);
+    lvInterval term1 = lv_interval_mul(dx2, dy3);
+    lvInterval term2 = lv_interval_mul(dx3, dy2);
+    lvInterval result = lv_interval_sub(term1, term2);
 
     return result;
 }
@@ -142,34 +142,34 @@ static lvInterval orientation_3d_exact_interval(double p1x, double p1y, double p
                                                 double p3x, double p3y, double p3z, double p4x, double p4y,
                                                 double p4z) {
     /* 构造三个列向量（区间） */
-    lvInterval ax = interval_sub(interval_point(p2x), interval_point(p1x));
-    lvInterval ay = interval_sub(interval_point(p2y), interval_point(p1y));
-    lvInterval az = interval_sub(interval_point(p2z), interval_point(p1z));
+    lvInterval ax = lv_interval_sub(lv_interval_make(p2x, p2x, 1), lv_interval_make(p1x, p1x, 1));
+    lvInterval ay = lv_interval_sub(lv_interval_make(p2y, p2y, 1), lv_interval_make(p1y, p1y, 1));
+    lvInterval az = lv_interval_sub(lv_interval_make(p2z, p2z, 1), lv_interval_make(p1z, p1z, 1));
 
-    lvInterval bx = interval_sub(interval_point(p3x), interval_point(p1x));
-    lvInterval by = interval_sub(interval_point(p3y), interval_point(p1y));
-    lvInterval bz = interval_sub(interval_point(p3z), interval_point(p1z));
+    lvInterval bx = lv_interval_sub(lv_interval_make(p3x, p3x, 1), lv_interval_make(p1x, p1x, 1));
+    lvInterval by = lv_interval_sub(lv_interval_make(p3y, p3y, 1), lv_interval_make(p1y, p1y, 1));
+    lvInterval bz = lv_interval_sub(lv_interval_make(p3z, p3z, 1), lv_interval_make(p1z, p1z, 1));
 
-    lvInterval cx = interval_sub(interval_point(p4x), interval_point(p1x));
-    lvInterval cy = interval_sub(interval_point(p4y), interval_point(p1y));
-    lvInterval cz = interval_sub(interval_point(p4z), interval_point(p1z));
+    lvInterval cx = lv_interval_sub(lv_interval_make(p4x, p4x, 1), lv_interval_make(p1x, p1x, 1));
+    lvInterval cy = lv_interval_sub(lv_interval_make(p4y, p4y, 1), lv_interval_make(p1y, p1y, 1));
+    lvInterval cz = lv_interval_sub(lv_interval_make(p4z, p4z, 1), lv_interval_make(p1z, p1z, 1));
 
     /* det = a*(b x c) */
     /* b x c = (by*cz - bz*cy, bz*cx - bx*cz, bx*cy - by*cx) */
     /* dot(a, bxc) = ax*(by*cz - bz*cy) - ay*(bx*cz - bz*cx) + az*(bx*cy - by*cx) */
 
-    lvInterval bycz = interval_mul(by, cz);
-    lvInterval bzcy = interval_mul(bz, cy);
-    lvInterval bxcy = interval_mul(bx, cy);
-    lvInterval bycx = interval_mul(by, cx);
-    lvInterval bxcz = interval_mul(bx, cz);
-    lvInterval bzcx = interval_mul(bz, cx);
+    lvInterval bycz = lv_interval_mul(by, cz);
+    lvInterval bzcy = lv_interval_mul(bz, cy);
+    lvInterval bxcy = lv_interval_mul(bx, cy);
+    lvInterval bycx = lv_interval_mul(by, cx);
+    lvInterval bxcz = lv_interval_mul(bx, cz);
+    lvInterval bzcx = lv_interval_mul(bz, cx);
 
-    lvInterval term1 = interval_mul(ax, interval_sub(bycz, bzcy));
-    lvInterval term2 = interval_mul(ay, interval_sub(bxcz, bzcx));
-    lvInterval term3 = interval_mul(az, interval_sub(bxcy, bycx));
+    lvInterval term1 = lv_interval_mul(ax, lv_interval_sub(bycz, bzcy));
+    lvInterval term2 = lv_interval_mul(ay, lv_interval_sub(bxcz, bzcx));
+    lvInterval term3 = lv_interval_mul(az, lv_interval_sub(bxcy, bycx));
 
-    return interval_add(interval_sub(term1, term2), term3);
+    return lv_interval_add(lv_interval_sub(term1, term2), term3);
 }
 
 /**
@@ -178,11 +178,11 @@ static lvInterval orientation_3d_exact_interval(double p1x, double p1y, double p
  * 计算 |p - c|^2 - r^2 的区间。
  */
 static lvInterval side_of_circle_exact_interval(double px, double py, double cx, double cy, double r) {
-    lvInterval dx = interval_sub(interval_point(px), interval_point(cx));
-    lvInterval dy = interval_sub(interval_point(py), interval_point(cy));
-    lvInterval dist_sq = interval_add(interval_mul(dx, dx), interval_mul(dy, dy));
-    lvInterval r_sq = interval_mul(interval_point(r), interval_point(r));
-    return interval_sub(dist_sq, r_sq);
+    lvInterval dx = lv_interval_sub(lv_interval_make(px, px, 1), lv_interval_make(cx, cx, 1));
+    lvInterval dy = lv_interval_sub(lv_interval_make(py, py, 1), lv_interval_make(cy, cy, 1));
+    lvInterval dist_sq = lv_interval_add(lv_interval_mul(dx, dx), lv_interval_mul(dy, dy));
+    lvInterval r_sq = lv_interval_mul(lv_interval_make(r, r, 1), lv_interval_make(r, r, 1));
+    return lv_interval_sub(dist_sq, r_sq);
 }
 
 /**
@@ -199,14 +199,14 @@ static lvInterval side_of_circle_exact_interval(double px, double py, double cx,
 static lvInterval four_points_concyclic_exact_interval(double ax, double ay, double bx, double by, double cx, double cy,
                                                        double dx, double dy) {
     /* 计算 ax^2+ay^2 等 */
-    lvInterval a2 = interval_add(interval_mul(interval_point(ax), interval_point(ax)),
-                                 interval_mul(interval_point(ay), interval_point(ay)));
-    lvInterval b2 = interval_add(interval_mul(interval_point(bx), interval_point(bx)),
-                                 interval_mul(interval_point(by), interval_point(by)));
-    lvInterval c2 = interval_add(interval_mul(interval_point(cx), interval_point(cx)),
-                                 interval_mul(interval_point(cy), interval_point(cy)));
-    lvInterval d2 = interval_add(interval_mul(interval_point(dx), interval_point(dx)),
-                                 interval_mul(interval_point(dy), interval_point(dy)));
+    lvInterval a2 = lv_interval_add(lv_interval_mul(lv_interval_make(ax, ax, 1), lv_interval_make(ax, ax, 1)),
+                                 lv_interval_mul(lv_interval_make(ay, ay, 1), lv_interval_make(ay, ay, 1)));
+    lvInterval b2 = lv_interval_add(lv_interval_mul(lv_interval_make(bx, bx, 1), lv_interval_make(bx, bx, 1)),
+                                 lv_interval_mul(lv_interval_make(by, by, 1), lv_interval_make(by, by, 1)));
+    lvInterval c2 = lv_interval_add(lv_interval_mul(lv_interval_make(cx, cx, 1), lv_interval_make(cx, cx, 1)),
+                                 lv_interval_mul(lv_interval_make(cy, cy, 1), lv_interval_make(cy, cy, 1)));
+    lvInterval d2 = lv_interval_add(lv_interval_mul(lv_interval_make(dx, dx, 1), lv_interval_make(dx, dx, 1)),
+                                 lv_interval_mul(lv_interval_make(dy, dy, 1), lv_interval_make(dy, dy, 1)));
 
     /*
      * Laplace 展开沿最后一列（全为 1）：
@@ -241,31 +241,31 @@ static lvInterval four_points_concyclic_exact_interval(double ax, double ay, dou
      */
 
     /* M11 */
-    lvInterval m11_t1 = interval_mul(interval_point(by), interval_sub(c2, d2));
-    lvInterval m11_t2 = interval_mul(b2, interval_sub(interval_point(cy), interval_point(dy)));
-    lvInterval m11_t3 = interval_sub(interval_mul(interval_point(cy), d2), interval_mul(c2, interval_point(dy)));
-    lvInterval m11 = interval_add(interval_sub(m11_t1, m11_t2), m11_t3);
+    lvInterval m11_t1 = lv_interval_mul(lv_interval_make(by, by, 1), lv_interval_sub(c2, d2));
+    lvInterval m11_t2 = lv_interval_mul(b2, lv_interval_sub(lv_interval_make(cy, cy, 1), lv_interval_make(dy, dy, 1)));
+    lvInterval m11_t3 = lv_interval_sub(lv_interval_mul(lv_interval_make(cy, cy, 1), d2), lv_interval_mul(c2, lv_interval_make(dy, dy, 1)));
+    lvInterval m11 = lv_interval_add(lv_interval_sub(m11_t1, m11_t2), m11_t3);
 
     /* M21 */
-    lvInterval m21_t1 = interval_mul(interval_point(bx), interval_sub(c2, d2));
-    lvInterval m21_t2 = interval_mul(a2, interval_sub(interval_point(cx), interval_point(dx)));
-    lvInterval m21_t3 = interval_sub(interval_mul(interval_point(cx), d2), interval_mul(c2, interval_point(dx)));
-    lvInterval m21 = interval_add(interval_sub(m21_t1, m21_t2), m21_t3);
+    lvInterval m21_t1 = lv_interval_mul(lv_interval_make(bx, bx, 1), lv_interval_sub(c2, d2));
+    lvInterval m21_t2 = lv_interval_mul(a2, lv_interval_sub(lv_interval_make(cx, cx, 1), lv_interval_make(dx, dx, 1)));
+    lvInterval m21_t3 = lv_interval_sub(lv_interval_mul(lv_interval_make(cx, cx, 1), d2), lv_interval_mul(c2, lv_interval_make(dx, dx, 1)));
+    lvInterval m21 = lv_interval_add(lv_interval_sub(m21_t1, m21_t2), m21_t3);
 
     /* M31 */
-    lvInterval m31_t1 = interval_mul(interval_point(ax), interval_sub(b2, d2));
-    lvInterval m31_t2 = interval_mul(a2, interval_sub(interval_point(bx), interval_point(dx)));
-    lvInterval m31_t3 = interval_sub(interval_mul(interval_point(bx), d2), interval_mul(b2, interval_point(dx)));
-    lvInterval m31 = interval_add(interval_sub(m31_t1, m31_t2), m31_t3);
+    lvInterval m31_t1 = lv_interval_mul(lv_interval_make(ax, ax, 1), lv_interval_sub(b2, d2));
+    lvInterval m31_t2 = lv_interval_mul(a2, lv_interval_sub(lv_interval_make(bx, bx, 1), lv_interval_make(dx, dx, 1)));
+    lvInterval m31_t3 = lv_interval_sub(lv_interval_mul(lv_interval_make(bx, bx, 1), d2), lv_interval_mul(b2, lv_interval_make(dx, dx, 1)));
+    lvInterval m31 = lv_interval_add(lv_interval_sub(m31_t1, m31_t2), m31_t3);
 
     /* M41 */
-    lvInterval m41_t1 = interval_mul(interval_point(ax), interval_sub(b2, c2));
-    lvInterval m41_t2 = interval_mul(a2, interval_sub(interval_point(bx), interval_point(cx)));
-    lvInterval m41_t3 = interval_sub(interval_mul(interval_point(bx), c2), interval_mul(b2, interval_point(cx)));
-    lvInterval m41 = interval_add(interval_sub(m41_t1, m41_t2), m41_t3);
+    lvInterval m41_t1 = lv_interval_mul(lv_interval_make(ax, ax, 1), lv_interval_sub(b2, c2));
+    lvInterval m41_t2 = lv_interval_mul(a2, lv_interval_sub(lv_interval_make(bx, bx, 1), lv_interval_make(cx, cx, 1)));
+    lvInterval m41_t3 = lv_interval_sub(lv_interval_mul(lv_interval_make(bx, bx, 1), c2), lv_interval_mul(b2, lv_interval_make(cx, cx, 1)));
+    lvInterval m41 = lv_interval_add(lv_interval_sub(m41_t1, m41_t2), m41_t3);
 
     /* det = M11 - M21 + M31 - M41 */
-    lvInterval det = interval_sub(interval_add(interval_sub(m11, m21), m31), m41);
+    lvInterval det = lv_interval_sub(lv_interval_add(lv_interval_sub(m11, m21), m31), m41);
 
     return det;
 }

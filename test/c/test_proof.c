@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof.c
  * @brief 璇佹槑绯荤粺娴嬭瘯 - 鍛介鍒涘缓銆佸悎涓€妫€鏌ャ€佽瘉鏄庡鑸櫒銆佺垎鐐稿師鐞?
  *
@@ -12,7 +12,6 @@
  * - 瀵煎嚭鍔熻兘
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,22 +19,25 @@
 #include "lv.h"
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============== 娴嬭瘯锛氬懡棰樼敓鍛藉懆鏈?============== */
 
-static int test_proposition_lifecycle(void) {
+static void test_proposition_lifecycle(void) {
     printf("Test: proposition lifecycle...\n");
 
     /* --- 楠岃瘉鍛介鍒涘缓鍚庣殑鍒濆鐘舵€?--- */
     Proposition *prop = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-    assert(prop != NULL);
-    assert(prop->id == 1);
-    assert(prop->type == PROPOSITION_TYPE_ATOMIC);
-    assert(prop->input_count == 0);
-    assert(prop->output_count == 0);
+    lv_ASSERT_NOT_NULL(prop);
+    lv_ASSERT(prop->id == 1);
+    lv_ASSERT(prop->type == PROPOSITION_TYPE_ATOMIC);
+    lv_ASSERT(prop->input_count == 0);
+    lv_ASSERT(prop->output_count == 0);
     /* 鍒濆鐘舵€佷笅瀛愬懡棰樻暟閲忓簲涓?0 */
-    assert(prop->sub_prop_count == 0);
+    lv_ASSERT(prop->sub_prop_count == 0);
     /* 鍒濆鐘舵€佷笅妯″紡鍥惧簲涓?NULL */
-    assert(prop->pattern == NULL);
+    lv_ASSERT(prop->pattern == NULL);
 
     printf("  鍘熷瓙鍛介鍒涘缓鎴愬姛 (ID=%d)\n", prop->id);
 
@@ -43,23 +45,23 @@ static int test_proposition_lifecycle(void) {
     /* 璁剧疆杈撳叆绔彛锛岄獙璇?input_count 鍙樺寲 */
     int in_ports[] = {10, 20};
     bool ok = proposition_set_input_ports(prop, in_ports, 2);
-    assert(ok == true);
-    assert(prop->input_count == 2);
+    lv_ASSERT(ok == true);
+    lv_ASSERT(prop->input_count == 2);
     printf("  璁剧疆杈撳叆绔彛鍚? input_count = %d\n", prop->input_count);
 
     /* 璁剧疆杈撳嚭绔彛锛岄獙璇?output_count 鍙樺寲 */
     int out_ports[] = {30};
     ok = proposition_set_output_ports(prop, out_ports, 1);
-    assert(ok == true);
-    assert(prop->output_count == 1);
+    lv_ASSERT(ok == true);
+    lv_ASSERT(prop->output_count == 1);
     printf("  璁剧疆杈撳嚭绔彛鍚? output_count = %d\n", prop->output_count);
 
     /* 娣诲姞瀛愬懡棰橈紝楠岃瘉 sub_prop_count 鍙樺寲 */
     Proposition *child = proposition_create(2, PROPOSITION_TYPE_ATOMIC);
-    assert(child != NULL);
+    lv_ASSERT_NOT_NULL(child);
     ok = proposition_add_sub_proposition(prop, child);
-    assert(ok == true);
-    assert(prop->sub_prop_count == 1);
+    lv_ASSERT(ok == true);
+    lv_ASSERT(prop->sub_prop_count == 1);
     printf("  娣诲姞瀛愬懡棰樺悗: sub_prop_count = %d\n", prop->sub_prop_count);
 
     /* --- 楠岃瘉閿€姣佸悗鐨勮祫婧愰噴鏀?--- */
@@ -71,47 +73,47 @@ static int test_proposition_lifecycle(void) {
     printf("  鍛介閿€姣佸畬鎴愶紝璧勬簮宸查噴鏀綷n");
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氬鍚堝懡棰?============== */
 
-static int test_composite_propositions(void) {
+static void test_composite_propositions(void) {
     printf("Test: composite propositions...\n");
 
     /* 鍒涘缓鍚堝彇鍛介 */
     Proposition *conj = proposition_create(1, PROPOSITION_TYPE_CONJUNCTION);
-    assert(conj != NULL);
+    lv_ASSERT_NOT_NULL(conj);
     printf("  鍚堝彇鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓鏋愬彇鍛介 */
     Proposition *disj = proposition_create(2, PROPOSITION_TYPE_DISJUNCTION);
-    assert(disj != NULL);
+    lv_ASSERT_NOT_NULL(disj);
     printf("  鏋愬彇鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓钑村惈鍛介 */
     Proposition *impl = proposition_create(3, PROPOSITION_TYPE_IMPLICATION);
-    assert(impl != NULL);
+    lv_ASSERT_NOT_NULL(impl);
     printf("  钑村惈鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓鍚﹀畾鍛介 */
     Proposition *neg = proposition_create(4, PROPOSITION_TYPE_NEGATION);
-    assert(neg != NULL);
+    lv_ASSERT_NOT_NULL(neg);
     printf("  鍚﹀畾鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓鍏ㄧО鍛介 */
     Proposition *univ = proposition_create(5, PROPOSITION_TYPE_UNIVERSAL);
-    assert(univ != NULL);
+    lv_ASSERT_NOT_NULL(univ);
     printf("  鍏ㄧО鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓瀛樺湪鍛介 */
     Proposition *exist = proposition_create(6, PROPOSITION_TYPE_EXISTENTIAL);
-    assert(exist != NULL);
+    lv_ASSERT_NOT_NULL(exist);
     printf("  瀛樺湪鍛介鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓鐭涚浘鍛介 */
     Proposition *bottom = proposition_create(7, PROPOSITION_TYPE_BOTTOM);
-    assert(bottom != NULL);
+    lv_ASSERT_NOT_NULL(bottom);
     printf("  鐭涚浘鍛介鍒涘缓鎴愬姛\n");
 
     proposition_destroy(conj);
@@ -123,31 +125,31 @@ static int test_composite_propositions(void) {
     proposition_destroy(bottom);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氬懡棰樼鍙ｈ缃?============== */
 
-static int test_proposition_ports(void) {
+static void test_proposition_ports(void) {
     printf("Test: proposition port configuration...\n");
 
     ConstraintGraph *g = graph_create();
 
     Proposition *prop = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-    assert(prop != NULL);
+    lv_ASSERT_NOT_NULL(prop);
 
     /* 鍒涘缓杈撳叆绔彛 */
     int in_ports[] = {1, 2};
     bool ok = proposition_set_input_ports(prop, in_ports, 2);
-    assert(ok);
-    assert(prop->input_count == 2);
+    lv_ASSERT(ok);
+    lv_ASSERT(prop->input_count == 2);
     printf("  杈撳叆绔彛璁剧疆鎴愬姛: %d 涓猏n", prop->input_count);
 
     /* 鍒涘缓杈撳嚭绔彛 */
     int out_ports[] = {3};
     ok = proposition_set_output_ports(prop, out_ports, 1);
-    assert(ok);
-    assert(prop->output_count == 1);
+    lv_ASSERT(ok);
+    lv_ASSERT(prop->output_count == 1);
     printf("  杈撳嚭绔彛璁剧疆鎴愬姛: %d 涓猏n", prop->output_count);
 
     /* 鍒涘缓妯″紡鍥?*/
@@ -156,25 +158,25 @@ static int test_proposition_ports(void) {
     graph_add_line_segment(g, p1, p2);
 
     ok = proposition_set_pattern(prop, g);
-    assert(ok);
-    assert(prop->pattern == g);
+    lv_ASSERT(ok);
+    lv_ASSERT(prop->pattern == g);
     printf("  妯″紡鍥捐缃垚鍔焅n");
 
     proposition_destroy(prop);
     /* 娉ㄦ剰锛歡 宸茬敱 proposition_destroy 鍐呴儴閿€姣侊紙浣滀负 prop->pattern锛夛紝涓嶈鍐嶆閲婃斁 */
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氬瓙鍛介 ============== */
 
-static int test_sub_propositions(void) {
+static void test_sub_propositions(void) {
     printf("Test: sub-propositions...\n");
 
     /* 鍒涘缓鐖跺懡棰?*/
     Proposition *parent = proposition_create(1, PROPOSITION_TYPE_CONJUNCTION);
-    assert(parent != NULL);
+    lv_ASSERT_NOT_NULL(parent);
 
     /* 鍒涘缓瀛愬懡棰?*/
     Proposition *child1 = proposition_create(2, PROPOSITION_TYPE_ATOMIC);
@@ -182,48 +184,48 @@ static int test_sub_propositions(void) {
 
     /* 娣诲姞瀛愬懡棰?*/
     bool ok = proposition_add_sub_proposition(parent, child1);
-    assert(ok);
+    lv_ASSERT(ok);
     printf("  瀛愬懡棰?娣诲姞鎴愬姛\n");
 
     ok = proposition_add_sub_proposition(parent, child2);
-    assert(ok);
+    lv_ASSERT(ok);
     printf("  瀛愬懡棰?娣诲姞鎴愬姛\n");
 
-    assert(parent->sub_prop_count == 2);
+    lv_ASSERT(parent->sub_prop_count == 2);
 
     proposition_destroy(parent);
     /* 娉ㄦ剰锛歱roposition_destroy 浼氶€掑綊閿€姣佸瓙鍛介 */
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氳瘉鏄庢楠?============== */
 
-static int test_proof_steps(void) {
+static void test_proof_steps(void) {
     printf("Test: proof steps...\n");
 
     /* 鍒涘缓涓嶅悓绫诲瀷鐨勮瘉鏄庢楠?*/
     ProofStep *step1 = proof_step_create(PROOF_STEP_ADD_NODE);
-    assert(step1 != NULL);
-    assert(step1->type == PROOF_STEP_ADD_NODE);
+    lv_ASSERT_NOT_NULL(step1);
+    lv_ASSERT(step1->type == PROOF_STEP_ADD_NODE);
     printf("  娣诲姞鑺傜偣姝ラ鍒涘缓鎴愬姛\n");
 
     ProofStep *step2 = proof_step_create(PROOF_STEP_ADD_CONSTRAINT);
-    assert(step2 != NULL);
+    lv_ASSERT_NOT_NULL(step2);
     printf("  娣诲姞绾︽潫姝ラ鍒涘缓鎴愬姛\n");
 
     ProofStep *step3 = proof_step_create(PROOF_STEP_NORMALIZATION);
-    assert(step3 != NULL);
+    lv_ASSERT_NOT_NULL(step3);
     printf("  瑙勮寖鍖栨楠ゅ垱寤烘垚鍔焅n");
 
     ProofStep *step4 = proof_step_create(PROOF_STEP_UNIFY);
-    assert(step4 != NULL);
+    lv_ASSERT_NOT_NULL(step4);
     printf("  鍚堜竴妫€鏌ユ楠ゅ垱寤烘垚鍔焅n");
 
     /* 璁剧疆鏂偣 */
     proof_step_set_breakpoint(step1, true);
-    assert(step1->is_breakpoint == true);
+    lv_ASSERT(step1->is_breakpoint == true);
     printf("  鏂偣璁剧疆鎴愬姛\n");
 
     /* 娣诲姞渚濊禆鍏崇郴 */
@@ -236,38 +238,38 @@ static int test_proof_steps(void) {
     proof_step_destroy(step4);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氳瘉鏄庡鑸櫒 ============== */
 
-static int test_proof_navigator(void) {
+static void test_proof_navigator(void) {
     printf("Test: proof navigator...\n");
 
     /* 鍒涘缓鐩爣鍛介 */
     Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-    assert(target != NULL);
+    lv_ASSERT_NOT_NULL(target);
 
     /* 鍒涘缓璇佹槑瀵艰埅鍣?*/
     ProofNavigator *nav = proof_navigator_create(target, NULL);
-    assert(nav != NULL);
-    assert(nav->target_prop == target);
-    assert(nav->step_count == 0);
-    assert(nav->current_step == -1); /* 鍒濆鍊间负 -1锛堟棤褰撳墠姝ラ锛?*/
+    lv_ASSERT_NOT_NULL(nav);
+    lv_ASSERT(nav->target_prop == target);
+    lv_ASSERT(nav->step_count == 0);
+    lv_ASSERT(nav->current_step == -1); /* 鍒濆鍊间负 -1锛堟棤褰撳墠姝ラ锛?*/
 
     printf("  璇佹槑瀵艰埅鍣ㄥ垱寤烘垚鍔焅n");
 
     /* 娣诲姞璇佹槑姝ラ */
     ProofStep *step1 = proof_step_create(PROOF_STEP_ADD_NODE);
     bool ok = proof_navigator_add_step(nav, step1);
-    assert(ok);
-    assert(nav->step_count == 1);
+    lv_ASSERT(ok);
+    lv_ASSERT(nav->step_count == 1);
     printf("  姝ラ1娣诲姞鎴愬姛\n");
 
     ProofStep *step2 = proof_step_create(PROOF_STEP_NORMALIZATION);
     ok = proof_navigator_add_step(nav, step2);
-    assert(ok);
-    assert(nav->step_count == 2);
+    lv_ASSERT(ok);
+    lv_ASSERT(nav->step_count == 2);
     printf("  姝ラ2娣诲姞鎴愬姛\n");
 
     /* 瀵艰埅娴嬭瘯 */
@@ -290,12 +292,12 @@ static int test_proof_navigator(void) {
     proposition_destroy(target);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氬悎涓€妫€鏌?============== */
 
-static int test_unify_check(void) {
+static void test_unify_check(void) {
     printf("Test: unify check...\n");
 
     /* 鍒涘缓鏋勯€犲浘 */
@@ -306,7 +308,7 @@ static int test_unify_check(void) {
 
     /* 鍒涘缓鍛介 */
     Proposition *prop = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
-    assert(prop != NULL);
+    lv_ASSERT_NOT_NULL(prop);
 
     /* 璁剧疆鍛介鐨勬ā寮忓浘 */
     ConstraintGraph *pattern = graph_create();
@@ -334,18 +336,18 @@ static int test_unify_check(void) {
     /* 娉ㄦ剰锛歱attern 宸茬敱 proposition_destroy 鍐呴儴閿€姣侊紝涓嶈鍐嶆閲婃斁 */
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氳瘉鏄庝緷璧栭摼 ============== */
 
-static int test_proof_dependencies(void) {
+static void test_proof_dependencies(void) {
     printf("Test: proof dependencies...\n");
 
     /* 鍒涘缓渚濊禆 */
     ProofDependency *dep = proof_dependency_create(PROOF_COLOR_GREEN);
-    assert(dep != NULL);
-    assert(dep->color == PROOF_COLOR_GREEN);
+    lv_ASSERT_NOT_NULL(dep);
+    lv_ASSERT(dep->color == PROOF_COLOR_GREEN);
     printf("  渚濊禆鍒涘缓鎴愬姛\n");
 
     /* 鍒涘缓瀛愪緷璧?*/
@@ -360,12 +362,12 @@ static int test_proof_dependencies(void) {
     proof_dependency_destroy(dep);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氱垎鐐稿師鐞?============== */
 
-static int test_ex_falso(void) {
+static void test_ex_falso(void) {
     printf("Test: explosion principle (ex falso)...\n");
 
     ConstraintGraph *g = graph_create();
@@ -392,12 +394,12 @@ static int test_ex_falso(void) {
     graph_destroy(bottom_proof);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氳瘉鏄庨鑹?============== */
 
-static int test_proof_colors(void) {
+static void test_proof_colors(void) {
     printf("Test: proof colors...\n");
 
     /* 娴嬭瘯鎵€鏈夎瘉鏄庨鑹?*/
@@ -416,12 +418,12 @@ static int test_proof_colors(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 娴嬭瘯锛氳緟鍔╁嚱鏁?============== */
 
-static int test_helper_functions(void) {
+static void test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 鍛介绫诲瀷杞瓧绗︿覆 */
@@ -455,26 +457,23 @@ static int test_helper_functions(void) {
     printf("  CONSTRAINT_MISMATCH -> %s\n", str);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 涓诲嚱鏁?============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Proof System Test Suite")
     printf("=== Lv-00 Proof System Test Suite ===\n\n");
-
-    test_proposition_lifecycle();
-    test_composite_propositions();
-    test_proposition_ports();
-    test_sub_propositions();
-    test_proof_steps();
-    test_proof_navigator();
-    test_unify_check();
-    test_proof_dependencies();
-    test_ex_falso();
-    test_proof_colors();
-    test_helper_functions();
-
+    TEST_MAIN_RUN(test_proposition_lifecycle);
+    TEST_MAIN_RUN(test_composite_propositions);
+    TEST_MAIN_RUN(test_proposition_ports);
+    TEST_MAIN_RUN(test_sub_propositions);
+    TEST_MAIN_RUN(test_proof_steps);
+    TEST_MAIN_RUN(test_proof_navigator);
+    TEST_MAIN_RUN(test_unify_check);
+    TEST_MAIN_RUN(test_proof_dependencies);
+    TEST_MAIN_RUN(test_ex_falso);
+    TEST_MAIN_RUN(test_proof_colors);
+    TEST_MAIN_RUN(test_helper_functions);
     printf("\n=== All proof system tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

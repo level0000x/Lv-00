@@ -37,20 +37,20 @@
  * 验证所有 pipeline 阶段都已完成或被跳过，没有遗留的
  * PENDING/RUNNING/FAILED 状态。
  */
-static int check_structural(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_structural(const lvSession *session, int strict, lvStrBuf *sb) {
     (void) strict;
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
     for (int i = 0; i < lv_STAGE_COUNT; i++) {
         lvStageStatus s = session->stages[i].status;
         if (s != lv_STAGE_COMPLETED && s != lv_STAGE_SKIPPED) {
-            snprintf(desc, desc_size, "Stage %d not completed (status=%d)", i, s);
+            lv_strbuf_printf(sb, "Stage %d not completed (status=%d)", i, s);
             return 0;
         }
     }
-    snprintf(desc, desc_size, "All stages completed successfully");
+    lv_strbuf_printf(sb, "All stages completed successfully");
     return 1;
 }
 
@@ -60,23 +60,23 @@ static int check_structural(const lvSession *session, int strict, char *desc, in
  * 验证 proof 输出类型与目标命题类型匹配。
  * 通过检查推理阶段的输出信息来验证类型一致性。
  */
-static int check_type_consistency(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_type_consistency(const lvSession *session, int strict, lvStrBuf *sb) {
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
 
     /* 检查推理阶段是否已完成 */
     if (session->stages[lv_STAGE_REASONING].status != lv_STAGE_COMPLETED) {
-        snprintf(desc, desc_size, "类型一致性失败：推理阶段未完成 (status=%d)",
-                 session->stages[lv_STAGE_REASONING].status);
+        lv_strbuf_printf(sb, "类型一致性失败：推理阶段未完成 (status=%d)",
+                         session->stages[lv_STAGE_REASONING].status);
         return 0;
     }
 
     /* 检查推理阶段是否有有效输出信息 */
     const char *reasoning_msg = session->stages[lv_STAGE_REASONING].error_msg;
     if (!reasoning_msg || reasoning_msg[0] == '\0') {
-        snprintf(desc, desc_size, "类型一致性失败：推理阶段无输出信息");
+        lv_strbuf_printf(sb, "类型一致性失败：推理阶段无输出信息");
         return 0;
     }
 
@@ -88,7 +88,7 @@ static int check_type_consistency(const lvSession *session, int strict, char *de
     }
 
     if (!has_proof_result) {
-        snprintf(desc, desc_size, "类型一致性失败：推理结果无有效证明类型标记 (msg: %.200s)", reasoning_msg);
+        lv_strbuf_printf(sb, "类型一致性失败：推理结果无有效证明类型标记 (msg: %.200s)", reasoning_msg);
         return 0;
     }
 
@@ -101,21 +101,21 @@ static int check_type_consistency(const lvSession *session, int strict, char *de
             /* 输出消息中未包含配置的格式标识，可能是类型不匹配 */
             if (strict) {
                 /* 严格模式：格式标识缺失直接判定为失败，而非仅警告 */
-                snprintf(desc, desc_size, "类型一致性失败：输出格式 '%s' 未在输出消息中找到", fmt);
+                lv_strbuf_printf(sb, "类型一致性失败：输出格式 '%s' 未在输出消息中找到", fmt);
                 return 0;
             }
-            snprintf(desc, desc_size, "类型一致性警告：输出格式 '%s' 未在输出消息中找到", fmt);
+            lv_strbuf_printf(sb, "类型一致性警告：输出格式 '%s' 未在输出消息中找到", fmt);
             /* 不严格失败，仅警告 */
         }
     }
 
     /* 检查最终证明状态是否与预期一致（session->success 应为 1） */
     if (!session->success) {
-        snprintf(desc, desc_size, "类型一致性失败：会话标记为失败，但推理阶段已完成");
+        lv_strbuf_printf(sb, "类型一致性失败：会话标记为失败，但推理阶段已完成");
         return 0;
     }
 
-    snprintf(desc, desc_size, "类型一致性通过: 推理结果类型有效，输出格式匹配");
+    lv_strbuf_printf(sb, "类型一致性通过: 推理结果类型有效，输出格式匹配");
     return 1;
 }
 
@@ -125,10 +125,10 @@ static int check_type_consistency(const lvSession *session, int strict, char *de
  * 验证所有子目标都已解决。
  * 检查所有 pipeline 阶段是否已完成，无遗留的未解决依赖。
  */
-static int check_completeness(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_completeness(const lvSession *session, int strict, lvStrBuf *sb) {
     (void) strict;
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
 
@@ -154,13 +154,13 @@ static int check_completeness(const lvSession *session, int strict, char *desc, 
     }
 
     if (unresolved_count > 0) {
-        snprintf(desc, desc_size, "完备性失败: %d 个阶段未完成，首个未解决阶段=%d", unresolved_count, first_unresolved);
+        lv_strbuf_printf(sb, "完备性失败: %d 个阶段未完成，首个未解决阶段=%d", unresolved_count, first_unresolved);
         return 0;
     }
 
     /* 检查推理阶段状态是否为 COMPLETED（非 ONGOING） */
     if (session->stages[lv_STAGE_REASONING].status != lv_STAGE_COMPLETED) {
-        snprintf(desc, desc_size, "完备性失败：推理阶段状态为 ONGOING 或 FAILED");
+        lv_strbuf_printf(sb, "完备性失败：推理阶段状态为 ONGOING 或 FAILED");
         return 0;
     }
 
@@ -176,18 +176,18 @@ static int check_completeness(const lvSession *session, int strict, char *desc, 
             }
         }
         if (has_failure) {
-            snprintf(desc, desc_size, "完备性失败：存在 FAILED 状态的阶段");
+            lv_strbuf_printf(sb, "完备性失败：存在 FAILED 状态的阶段");
             return 0;
         }
     }
 
     /* 检查会话整体成功标志 */
     if (!session->success) {
-        snprintf(desc, desc_size, "完备性失败：会话整体标记为失败");
+        lv_strbuf_printf(sb, "完备性失败：会话整体标记为失败");
         return 0;
     }
 
-    snprintf(desc, desc_size, "完备性通过: 所有 %d 个阶段已完成，无未解决依赖", lv_STAGE_COUNT);
+    lv_strbuf_printf(sb, "完备性通过: 所有 %d 个阶段已完成，无未解决依赖", lv_STAGE_COUNT);
     return 1;
 }
 
@@ -197,10 +197,10 @@ static int check_completeness(const lvSession *session, int strict, char *desc, 
  * 验证每一步推理都逻辑可靠。
  * 检查阶段间的依赖链一致性、无循环依赖、无矛盾。
  */
-static int check_soundness(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_soundness(const lvSession *session, int strict, lvStrBuf *sb) {
     (void) strict;
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
 
@@ -210,7 +210,7 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
             /* 如果当前阶段完成，前驱阶段也必须完成（除非前驱是 SKIPPED） */
             lvStageStatus prev = session->stages[i - 1].status;
             if (prev != lv_STAGE_COMPLETED && prev != lv_STAGE_SKIPPED) {
-                snprintf(desc, desc_size, "可靠性失败：阶段 %d 已完成但其前驱阶段 %d 状态=%d", i, i - 1, prev);
+                lv_strbuf_printf(sb, "可靠性失败：阶段 %d 已完成但其前驱阶段 %d 状态=%d", i, i - 1, prev);
                 return 0;
             }
         }
@@ -221,7 +221,7 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
         if (session->stages[i].status == lv_STAGE_COMPLETED && session->stages[i - 1].status == lv_STAGE_COMPLETED) {
             /* 验证耗时合理性：后续阶段耗时不应为负 */
             if (session->stages[i].elapsed_ms < 0) {
-                snprintf(desc, desc_size, "可靠性失败：阶段 %d 耗时为负值 (%.2fms)", i, session->stages[i].elapsed_ms);
+                lv_strbuf_printf(sb, "可靠性失败：阶段 %d 耗时为负值 (%.2fms)", i, session->stages[i].elapsed_ms);
                 return 0;
             }
         }
@@ -234,7 +234,7 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
         const char *contradiction_markers[] = {"矛盾", "contradiction", "CONTRADICTORY", "不一致"};
         int marker_idx = lv_str_match_any(reasoning_msg, contradiction_markers);
         if (marker_idx >= 0) {
-            snprintf(desc, desc_size, "可靠性失败：推理阶段包含矛盾标记 '%s'", contradiction_markers[marker_idx]);
+            lv_strbuf_printf(sb, "可靠性失败：推理阶段包含矛盾标记 '%s'", contradiction_markers[marker_idx]);
             return 0;
         }
     }
@@ -252,8 +252,8 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
         /* 存在混合状态：检查是否合理（如后续阶段因前置失败而终止） */
         /* 如果有 FAILED 阶段，会话应该标记为失败 */
         if (session->success) {
-            snprintf(desc, desc_size, "可靠性失败：存在 %d 个完成和 %d 个失败阶段，但会话标记为成功", completed_count,
-                     failed_count);
+            lv_strbuf_printf(sb, "可靠性失败：存在 %d 个完成和 %d 个失败阶段，但会话标记为成功", completed_count,
+                             failed_count);
             return 0;
         }
     }
@@ -261,12 +261,12 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
     /* 检查推理阶段是否报告了有效的规则应用 */
     if (session->stages[lv_STAGE_REASONING].status == lv_STAGE_COMPLETED) {
         if (!reasoning_msg || reasoning_msg[0] == '\0') {
-            snprintf(desc, desc_size, "可靠性失败：推理阶段已完成但无规则应用信息");
+            lv_strbuf_printf(sb, "可靠性失败：推理阶段已完成但无规则应用信息");
             return 0;
         }
     }
 
-    snprintf(desc, desc_size, "可靠性通过: 依赖链一致，无循环依赖，无矛盾，%d 阶段完成", completed_count);
+    lv_strbuf_printf(sb, "可靠性通过: 依赖链一致，无循环依赖，无矛盾，%d 阶段完成", completed_count);
     return 1;
 }
 
@@ -276,23 +276,23 @@ static int check_soundness(const lvSession *session, int strict, char *desc, int
  * 验证证明不是平凡的（如空证明、零步推理）。
  * 检查推理阶段是否有实质性的工作产出。
  */
-static int check_nontriviality(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_nontriviality(const lvSession *session, int strict, lvStrBuf *sb) {
     (void) strict;
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
 
     /* 检查推理阶段是否已完成 */
     if (session->stages[lv_STAGE_REASONING].status != lv_STAGE_COMPLETED) {
-        snprintf(desc, desc_size, "非平凡性失败：推理阶段未完成");
+        lv_strbuf_printf(sb, "非平凡性失败：推理阶段未完成");
         return 0;
     }
 
     /* 检查推理阶段是否有实质性输出（至少 2 个步骤/策略） */
     const char *reasoning_msg = session->stages[lv_STAGE_REASONING].error_msg;
     if (!reasoning_msg || reasoning_msg[0] == '\0') {
-        snprintf(desc, desc_size, "非平凡性失败：推理阶段无输出信息（空证明）");
+        lv_strbuf_printf(sb, "非平凡性失败：推理阶段无输出信息（空证明）");
         return 0;
     }
 
@@ -300,7 +300,7 @@ static int check_nontriviality(const lvSession *session, int strict, char *desc,
     const char *trivial_markers[] = {"trivial", "rfl", "平凡", "axiom", "假设即结论"};
     int marker_idx = lv_str_match_any(reasoning_msg, trivial_markers);
     if (marker_idx >= 0) {
-        snprintf(desc, desc_size, "非平凡性失败：证明仅包含平凡标记 '%s'", trivial_markers[marker_idx]);
+        lv_strbuf_printf(sb, "非平凡性失败：证明仅包含平凡标记 '%s'", trivial_markers[marker_idx]);
         return 0;
     }
 
@@ -320,8 +320,8 @@ static int check_nontriviality(const lvSession *session, int strict, char *desc,
     /* 检查证明深度 > 1：至少尝试了 2 个策略或推理耗时 > 1ms */
     double reasoning_time = session->stages[lv_STAGE_REASONING].elapsed_ms;
     if (strategy_attempts > 0 && strategy_attempts < 2 && reasoning_time < 1.0) {
-        snprintf(desc, desc_size, "非平凡性失败：证明深度不足 (策略尝试=%d, 耗时=%.2fms)", strategy_attempts,
-                 reasoning_time);
+        lv_strbuf_printf(sb, "非平凡性失败：证明深度不足 (策略尝试=%d, 耗时=%.2fms)", strategy_attempts,
+                         reasoning_time);
         return 0;
     }
 
@@ -337,7 +337,7 @@ static int check_nontriviality(const lvSession *session, int strict, char *desc,
                 int tokens = 0;
                 lv_parse_int(num_start, &tokens);
                 if (tokens < 2) {
-                    snprintf(desc, desc_size, "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
+                    lv_strbuf_printf(sb, "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
                     return 0;
                 }
             }
@@ -356,15 +356,15 @@ static int check_nontriviality(const lvSession *session, int strict, char *desc,
                 int objs = 0;
                 lv_parse_int(num_start, &objs);
                 if (objs < 1) {
-                    snprintf(desc, desc_size, "非平凡性失败：无几何对象被识别");
+                    lv_strbuf_printf(sb, "非平凡性失败：无几何对象被识别");
                     return 0;
                 }
             }
         }
     }
 
-    snprintf(desc, desc_size, "非平凡性通过: 策略尝试=%d, 推理耗时=%.2fms, 证明非平凡", strategy_attempts,
-             reasoning_time);
+    lv_strbuf_printf(sb, "非平凡性通过: 策略尝试=%d, 推理耗时=%.2fms, 证明非平凡", strategy_attempts,
+                     reasoning_time);
     return 1;
 }
 
@@ -374,22 +374,22 @@ static int check_nontriviality(const lvSession *session, int strict, char *desc,
  * 验证输出可以重新解析为等价结构。
  * 检查输出阶段是否包含有效的结构化标记。
  */
-static int check_roundtrip(const lvSession *session, int strict, char *desc, int desc_size) {
+static int check_roundtrip(const lvSession *session, int strict, lvStrBuf *sb) {
     if (!session) {
-        snprintf(desc, desc_size, "Session is NULL");
+        lv_strbuf_printf(sb, "Session is NULL");
         return 0;
     }
 
     /* 检查输出阶段是否已完成 */
     if (session->stages[lv_STAGE_OUTPUT].status != lv_STAGE_COMPLETED) {
-        snprintf(desc, desc_size, "往返验证失败：输出阶段未完成 (status=%d)", session->stages[lv_STAGE_OUTPUT].status);
+        lv_strbuf_printf(sb, "往返验证失败：输出阶段未完成 (status=%d)", session->stages[lv_STAGE_OUTPUT].status);
         return 0;
     }
 
     /* 检查输出阶段是否有非空文本 */
     const char *output_msg = session->stages[lv_STAGE_OUTPUT].error_msg;
     if (!output_msg || output_msg[0] == '\0') {
-        snprintf(desc, desc_size, "往返验证失败：输出文本为空");
+        lv_strbuf_printf(sb, "往返验证失败：输出文本为空");
         return 0;
     }
 
@@ -404,7 +404,7 @@ static int check_roundtrip(const lvSession *session, int strict, char *desc, int
     }
 
     if (found_markers < 2) {
-        snprintf(desc, desc_size, "往返验证失败：输出缺少有效的结构化标记 (仅找到 %d 个)", found_markers);
+        lv_strbuf_printf(sb, "往返验证失败：输出缺少有效的结构化标记 (仅找到 %d 个)", found_markers);
         return 0;
     }
 
@@ -418,7 +418,7 @@ static int check_roundtrip(const lvSession *session, int strict, char *desc, int
             int bytes = 0;
             lv_parse_int(num_start, &bytes);
             if (bytes <= 0) {
-                snprintf(desc, desc_size, "往返验证失败：输出字节数无效 (%d)", bytes);
+                lv_strbuf_printf(sb, "往返验证失败：输出字节数无效 (%d)", bytes);
                 return 0;
             }
         }
@@ -435,12 +435,12 @@ static int check_roundtrip(const lvSession *session, int strict, char *desc, int
             if (parse_msg[i] == ')' || parse_msg[i] == ']')
                 bracket_depth--;
             if (bracket_depth < 0) {
-                snprintf(desc, desc_size, "往返验证失败：解析输出包含不匹配的括号");
+                lv_strbuf_printf(sb, "往返验证失败：解析输出包含不匹配的括号");
                 return 0;
             }
         }
         if (bracket_depth != 0) {
-            snprintf(desc, desc_size, "往返验证失败：解析输出括号不平衡 (depth=%d)", bracket_depth);
+            lv_strbuf_printf(sb, "往返验证失败：解析输出括号不平衡 (depth=%d)", bracket_depth);
             return 0;
         }
     }
@@ -456,25 +456,25 @@ static int check_roundtrip(const lvSession *session, int strict, char *desc, int
         } else {
             if (strict) {
                 /* 严格模式：无法确认推理输出可重新解析即判定为失败 */
-                snprintf(desc, desc_size, "往返验证失败：推理输出格式不可重新解析");
+                lv_strbuf_printf(sb, "往返验证失败：推理输出格式不可重新解析");
                 return 0;
             }
-            snprintf(desc, desc_size, "往返验证警告：推理输出格式可能不可重新解析");
+            lv_strbuf_printf(sb, "往返验证警告：推理输出格式可能不可重新解析");
             /* 不严格失败 */
         }
     }
 
-    snprintf(desc, desc_size, "往返验证通过: 输出包含 %d 个结构化标记，可重新解析", found_markers);
+    lv_strbuf_printf(sb, "往返验证通过: 输出包含 %d 个结构化标记，可重新解析", found_markers);
     return 1;
 }
 
 /**
  * @brief 检查函数分发表类型
  *
- * 所有内部检查函数遵循统一签名：接收只读会话指针、严格模式标记、输出描述缓冲区及大小，
+ * 所有内部检查函数遵循统一签名：接收只读会话指针、严格模式标记、lvStrBuf 输出缓冲，
  * 返回 1（通过）或 0（失败）。
  */
-typedef int (*check_func_t)(const lvSession *, int, char *, int);
+typedef int (*check_func_t)(const lvSession *, int, lvStrBuf *);
 
 /** 
  * @brief 证明对象级验证处理器函数指针类型
@@ -596,16 +596,19 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     for (int i = 0; i < lv_CHECK_COUNT; i++) {
         report.results[i].check = (lvVerifyCheck) i;
         if (verifier->check_mask & lv_bit_mask((unsigned) i)) {
-            /* 调用对应的检查函数，传入严格模式标记 */
-            int passed =
-                g_check_funcs[i](session, verifier->strict_mode, report.results[i].description,
-                                 sizeof(report.results[i].description));
+            /* 调用对应的检查函数，传入严格模式标记（lvStrBuf 输出描述） */
+            lvStrBuf sb = {0};
+            int passed = LV_DISPATCH(g_check_funcs, i, (lv_strbuf_printf(&sb, "Unknown check"), 0), session,
+                                     verifier->strict_mode, &sb);
             report.results[i].passed = passed;
             if (passed) {
                 report.passed_checks++;
             } else {
                 report.failed_checks++;
             }
+            strncpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
+            report.results[i].description[sizeof(report.results[i].description) - 1] = '\0';
+            lv_strbuf_destroy(&sb);
         } else {
             /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
             if (verifier->strict_mode) {

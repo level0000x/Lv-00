@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_recursion.c
  * @brief 递归与条件系统测试 - 测度系统、选择器块、递归深度监控
  *
@@ -12,7 +12,6 @@
  * - 互递归支持
  */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,44 +19,47 @@
 #include "lv.h"
 #include "test_helpers.h"
 
+int g_pass_count = 0;
+int g_fail_count = 0;
+
 /* ============== 测试：测度系统生命周期 ============== */
 
-static int test_measure_system_lifecycle(void) {
+static void test_measure_system_lifecycle(void) {
     printf("Test: measure system lifecycle...\n");
 
     MeasureSystem *ms = measure_system_create();
-    assert(ms != NULL);
-    assert(ms->measure_count == 0);
-    assert(ms->default_measure == NULL);
-    assert(ms->has_non_symbolic == false);
+    lv_ASSERT_NOT_NULL(ms);
+    lv_ASSERT(ms->measure_count == 0);
+    lv_ASSERT(ms->default_measure == NULL);
+    lv_ASSERT(ms->has_non_symbolic == false);
 
     printf("  测度系统创建成功\n");
 
     measure_system_destroy(ms);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：符号测度创建 ============== */
 
-static int test_symbolic_measure(void) {
+static void test_symbolic_measure(void) {
     printf("Test: symbolic measure creation...\n");
 
     /* 创建长度测度 */
     Measure *length_measure = measure_create_symbolic("Length", 0, 1);
-    assert(length_measure != NULL);
-    assert(length_measure->type == MEASURE_SYMBOLIC);
-    assert(strcmp(length_measure->name, "Length") == 0);
+    lv_ASSERT_NOT_NULL(length_measure);
+    lv_ASSERT(length_measure->type == MEASURE_SYMBOLIC);
+    lv_ASSERT_STR_EQ(length_measure->name, "Length");
     printf("  长度测度创建成功\n");
 
     /* 创建面积测度 */
     Measure *area_measure = measure_create_symbolic("Area", 1, 2);
-    assert(area_measure != NULL);
+    lv_ASSERT_NOT_NULL(area_measure);
     printf("  面积测度创建成功\n");
 
     /* 创建角度测度 */
     Measure *angle_measure = measure_create_symbolic("Angle", 2, 3);
-    assert(angle_measure != NULL);
+    lv_ASSERT_NOT_NULL(angle_measure);
     printf("  角度测度创建成功\n");
 
     measure_destroy(length_measure);
@@ -65,7 +67,7 @@ static int test_symbolic_measure(void) {
     measure_destroy(angle_measure);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：非符号测度 ============== */
@@ -77,64 +79,64 @@ static int custom_compare(GeomNode *a, GeomNode *b, void *user_data) {
     return 0; /* 相等 */
 }
 
-static int test_custom_measure(void) {
+static void test_custom_measure(void) {
     printf("Test: custom measure creation...\n");
 
     int user_data = 42;
     Measure *custom = measure_create_custom("CustomOrder", custom_compare, &user_data);
-    assert(custom != NULL);
-    assert(custom->type == MEASURE_CUSTOM);
-    assert(custom->compare_func == custom_compare);
-    assert(custom->user_data == &user_data);
+    lv_ASSERT_NOT_NULL(custom);
+    lv_ASSERT(custom->type == MEASURE_CUSTOM);
+    lv_ASSERT(custom->compare_func == custom_compare);
+    lv_ASSERT(custom->user_data == &user_data);
 
     printf("  非符号测度创建成功\n");
 
     measure_destroy(custom);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：测度系统管理 ============== */
 
-static int test_measure_system_management(void) {
+static void test_measure_system_management(void) {
     printf("Test: measure system management...\n");
 
     MeasureSystem *ms = measure_system_create();
-    assert(ms != NULL);
+    lv_ASSERT_NOT_NULL(ms);
 
     /* 添加测度 */
     Measure *m1 = measure_create_symbolic("M1", 0, 1);
     bool ok = measure_system_add(ms, m1);
-    assert(ok);
-    assert(ms->measure_count == 1);
+    lv_ASSERT(ok);
+    lv_ASSERT(ms->measure_count == 1);
     printf("  添加测度 'M1' 成功\n");
 
     Measure *m2 = measure_create_symbolic("M2", 0, 2);
     ok = measure_system_add(ms, m2);
-    assert(ok);
-    assert(ms->measure_count == 2);
+    lv_ASSERT(ok);
+    lv_ASSERT(ms->measure_count == 2);
     printf("  添加测度 'M2' 成功\n");
 
     /* 设置默认测度 */
     measure_system_set_default(ms, m1);
-    assert(ms->default_measure == m1);
+    lv_ASSERT(ms->default_measure == m1);
     printf("  设置默认测度成功\n");
 
     measure_system_destroy(ms);
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：测度比较 ============== */
 
-static int test_measure_comparison(void) {
+static void test_measure_comparison(void) {
     printf("Test: measure comparison...\n");
 
     ConstraintGraph *g = graph_create();
 
     /* 创建测度 */
     Measure *measure = measure_create_symbolic("Test", 0, 1);
-    assert(measure != NULL);
+    lv_ASSERT_NOT_NULL(measure);
 
     /* 创建节点 */
     int p1 = add_point(g, 0, 1, 0, 1);
@@ -160,27 +162,27 @@ static int test_measure_comparison(void) {
     graph_destroy(g);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：递归上下文 ============== */
 
-static int test_recursion_context(void) {
+static void test_recursion_context(void) {
     printf("Test: recursion context...\n");
 
     /* 创建递归上下文 */
     RecursionContext *ctx = recursion_context_create(100);
-    assert(ctx != NULL);
-    assert(ctx->max_depth == 100);
-    assert(ctx->current_depth == 0);
-    assert(ctx->is_terminated == false);
+    lv_ASSERT_NOT_NULL(ctx);
+    lv_ASSERT(ctx->max_depth == 100);
+    lv_ASSERT(ctx->current_depth == 0);
+    lv_ASSERT(ctx->is_terminated == false);
 
     printf("  递归上下文创建成功 (最大深度: %d)\n", ctx->max_depth);
 
     /* 设置活动测度 */
     Measure *measure = measure_create_symbolic("Depth", 3, 1);
     recursion_context_set_measure(ctx, measure);
-    assert(ctx->active_measure == measure);
+    lv_ASSERT(ctx->active_measure == measure);
     printf("  设置活动测度成功\n");
 
     /* 获取当前深度 */
@@ -191,17 +193,17 @@ static int test_recursion_context(void) {
     measure_destroy(measure);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：递归进入/退出 ============== */
 
-static int test_recursion_enter_exit(void) {
+static void test_recursion_enter_exit(void) {
     printf("Test: recursion enter/exit...\n");
 
     ConstraintGraph *g = graph_create();
     RecursionContext *ctx = recursion_context_create(10);
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     /* 创建输入节点 */
     int p1 = add_point(g, 0, 1, 0, 1);
@@ -225,18 +227,18 @@ static int test_recursion_enter_exit(void) {
     graph_destroy(g);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：递归深度超限 ============== */
 
-static int test_recursion_depth_exceeded(void) {
+static void test_recursion_depth_exceeded(void) {
     printf("Test: recursion depth exceeded...\n");
 
     ConstraintGraph *g = graph_create();
     /* 设置很小的最大深度 */
     RecursionContext *ctx = recursion_context_create(3);
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     int p1 = add_point(g, 0, 1, 0, 1);
     GeomNode *input = graph_get_node(g, p1);
@@ -257,16 +259,16 @@ static int test_recursion_depth_exceeded(void) {
     graph_destroy(g);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：测度递减检查 ============== */
 
-static int test_measure_decreasing(void) {
+static void test_measure_decreasing(void) {
     printf("Test: measure decreasing check...\n");
 
     RecursionContext *ctx = recursion_context_create(100);
-    assert(ctx != NULL);
+    lv_ASSERT_NOT_NULL(ctx);
 
     /* 创建测度 */
     Measure *measure = measure_create_symbolic("Length", 0, 1);
@@ -289,21 +291,21 @@ static int test_measure_decreasing(void) {
     measure_destroy(measure);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：选择器块 ============== */
 
-static int test_selector_block(void) {
+static void test_selector_block(void) {
     printf("Test: selector block...\n");
 
     ConstraintGraph *g = graph_create();
 
     /* 创建选择器块 */
     SelectorBlock *sb = selector_block_create(1, g);
-    assert(sb != NULL);
-    assert(sb->id == 1);
-    assert(sb->graph == g);
+    lv_ASSERT_NOT_NULL(sb);
+    lv_ASSERT(sb->id == 1);
+    lv_ASSERT(sb->graph == g);
     /* 注意：selector_block_create 使用 calloc，状态初始为 0 (BRANCH_INACTIVE) */
     printf("  初始状态 - 真分支: %s, 假分支: %s\n", branch_state_to_string(sb->true_state),
            branch_state_to_string(sb->false_state));
@@ -337,12 +339,12 @@ static int test_selector_block(void) {
     graph_destroy(g);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：分支状态 ============== */
 
-static int test_branch_states(void) {
+static void test_branch_states(void) {
     printf("Test: branch states...\n");
 
     BranchState states[] = {BRANCH_INACTIVE, BRANCH_ACTIVE_SELECTED, BRANCH_PENDING};
@@ -355,16 +357,16 @@ static int test_branch_states(void) {
     }
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：互递归 ============== */
 
-static int test_mutual_recursion(void) {
+static void test_mutual_recursion(void) {
     printf("Test: mutual recursion...\n");
 
     MeasureSystem *ms = measure_system_create();
-    assert(ms != NULL);
+    lv_ASSERT_NOT_NULL(ms);
 
     /* 添加测度 */
     Measure *measure = measure_create_symbolic("Mutual", 0, 1);
@@ -380,12 +382,12 @@ static int test_mutual_recursion(void) {
     /* 注意：measure 已由 measure_system_destroy 内部销毁，不要再次释放 */
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 测试：辅助函数 ============== */
 
-static int test_helper_functions(void) {
+static void test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
     /* 测度类型转字符串 */
@@ -409,28 +411,25 @@ static int test_helper_functions(void) {
     printf("  CYCLE_DETECTED -> %s\n", str);
 
     printf("  PASSED\n");
-    return 0;
+
 }
 
 /* ============== 主函数 ============== */
 
-int main(void) {
+TEST_MAIN_BEGIN("Lv-00 Recursion System Test Suite")
     printf("=== Lv-00 Recursion System Test Suite ===\n\n");
-
-    test_measure_system_lifecycle();
-    test_symbolic_measure();
-    test_custom_measure();
-    test_measure_system_management();
-    test_measure_comparison();
-    test_recursion_context();
-    test_recursion_enter_exit();
-    test_recursion_depth_exceeded();
-    test_measure_decreasing();
-    test_selector_block();
-    test_branch_states();
-    test_mutual_recursion();
-    test_helper_functions();
-
+    TEST_MAIN_RUN(test_measure_system_lifecycle);
+    TEST_MAIN_RUN(test_symbolic_measure);
+    TEST_MAIN_RUN(test_custom_measure);
+    TEST_MAIN_RUN(test_measure_system_management);
+    TEST_MAIN_RUN(test_measure_comparison);
+    TEST_MAIN_RUN(test_recursion_context);
+    TEST_MAIN_RUN(test_recursion_enter_exit);
+    TEST_MAIN_RUN(test_recursion_depth_exceeded);
+    TEST_MAIN_RUN(test_measure_decreasing);
+    TEST_MAIN_RUN(test_selector_block);
+    TEST_MAIN_RUN(test_branch_states);
+    TEST_MAIN_RUN(test_mutual_recursion);
+    TEST_MAIN_RUN(test_helper_functions);
     printf("\n=== All recursion tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

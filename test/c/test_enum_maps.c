@@ -263,21 +263,18 @@ static void test_entry_macro_uniqueness(void) {
 /* ============================================================
  * 主函数
  * ============================================================ */
-int main(void) {
+TEST_MAIN_BEGIN("枚举映射单一事实来源测试")
     printf("========================================\n");
     printf("枚举映射单一事实来源测试\n");
     printf("========================================\n\n");
-
     g_pass_count = 0;
     g_fail_count = 0;
-
     func_block_preset_library_init();
-    test_geom_type_name();
-    test_geom_type_alias_interop();
-    test_preset_category_consistency();
-    test_entry_macro_uniqueness();
+    TEST_MAIN_RUN(test_geom_type_name);
+    TEST_MAIN_RUN(test_geom_type_alias_interop);
+    TEST_MAIN_RUN(test_preset_category_consistency);
+    TEST_MAIN_RUN(test_entry_macro_uniqueness);
     func_block_preset_library_cleanup();
-
     printf("\n========================================\n");
     if (g_fail_count == 0) {
         printf("所有测试通过! (%d 项)\n", g_pass_count);
@@ -285,6 +282,5 @@ int main(void) {
         printf("测试结果: %d 通过, %d 失败, %d 总计\n", g_pass_count, g_fail_count, g_pass_count + g_fail_count);
     }
     printf("========================================\n");
-
     return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

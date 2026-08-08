@@ -19,10 +19,9 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-int main(void) {
+TEST_MAIN_BEGIN("constraint_graph 约束图操作测试")
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== constraint_graph 约束图操作测试 ===\n\n");
-
     /* 组 1 */
     printf("[组 1] 图创建与基本属性\n");
     {
@@ -47,7 +46,6 @@ int main(void) {
         PASS();
         graph_destroy(g);
     }
-
     /* 组 2 */
     printf("[组 2] 节点添加\n");
     {
@@ -55,14 +53,12 @@ int main(void) {
         SymbolicCoord *c0 = symbolic_coord_create_rational(0, 1);
         SymbolicCoord *c1 = symbolic_coord_create_rational(1, 1);
         const SymbolicCoord *cs[2] = {c0, c1};
-
         TEST("add_point");
         AddNodeResult r = graph_add_point(g, (SymbolicCoord **) cs, 2);
         if (r == ADD_NODE_OK && graph_get_node_count(g) == 1)
             PASS();
         else
             FAIL("FAIL");
-
         int id1 = graph_get_last_added_node_id(g);
         TEST("get_node_by_id");
         GeomNode *n = graph_get_node_by_id(g, id1);
@@ -70,7 +66,6 @@ int main(void) {
             PASS();
         else
             FAIL("NULL");
-
         const SymbolicCoord *cs2[2] = {c0, c0};
         AddNodeResult r2 = graph_add_point(g, (SymbolicCoord **) cs2, 2);
         int id2 = graph_get_last_added_node_id(g);
@@ -79,18 +74,15 @@ int main(void) {
             PASS();
         else
             FAIL("不变");
-
         TEST("bad_id→NULL");
         if (graph_get_node_by_id(g, 9999) == NULL)
             PASS();
         else
             FAIL("!NULL");
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         graph_destroy(g);
     }
-
     /* 组 3 */
     printf("[组 3] 线段约束\n");
     {
@@ -104,14 +96,12 @@ int main(void) {
         int p1 = graph_get_last_added_node_id(g);
         graph_add_point(g, (SymbolicCoord **) cs2, 2);
         int p2 = graph_get_last_added_node_id(g);
-
         TEST("add_line_segment");
         AddNodeResult r = graph_add_line_segment(g, p1, p2);
         if (r == ADD_NODE_OK)
             PASS();
         else
             FAIL("FAIL");
-
         int sid = graph_get_last_added_node_id(g);
         GeomNode *sn = graph_get_node_by_id(g, sid);
         TEST("type=SEGMENT");
@@ -119,13 +109,11 @@ int main(void) {
             PASS();
         else
             FAIL("!SEGMENT");
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         symbolic_coord_destroy(c2);
         graph_destroy(g);
     }
-
     /* 组 4 */
     printf("[组 4] 约束查询\n");
     {
@@ -141,7 +129,6 @@ int main(void) {
         int p2 = graph_get_last_added_node_id(g);
         graph_add_point(g, (SymbolicCoord **) cs3, 2);
         int p3 = graph_get_last_added_node_id(g);
-
         TEST("add_incidence");
         AddNodeResult ln = graph_add_line_segment(g, p1, p2);
         int lid = graph_get_last_added_node_id(g);
@@ -150,11 +137,9 @@ int main(void) {
             PASS();
         else
             FAIL("FAIL");
-
         TEST("add_betweenness");
         graph_add_betweenness(g, p1, p2, p3); /* 不崩溃即通过 */
         PASS();
-
         TEST("get_constraint");
         int cc = graph_get_constraint_count(g);
         if (cc > 0) {
@@ -165,14 +150,12 @@ int main(void) {
                 FAIL("NULL");
         } else
             PASS();
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         symbolic_coord_destroy(c2);
         symbolic_coord_destroy(c3);
         graph_destroy(g);
     }
-
     /* 组 5 */
     printf("[组 5] 冲突检测\n");
     {
@@ -190,7 +173,6 @@ int main(void) {
         graph_add_line_segment(g, p1, p2);
         graph_add_line_segment(g, p2, p3);
         graph_add_line_segment(g, p3, p1);
-
         TEST("detect_conflicts");
         int nc = 0, *sz = NULL;
         int **cf = graph_detect_conflicts(g, &nc, &sz);
@@ -202,13 +184,11 @@ int main(void) {
         if (sz)
             lv_free_ptr(sz);
         PASS();
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         symbolic_coord_destroy(c2);
         graph_destroy(g);
     }
-
     /* 组 6 */
     printf("[组 6] 序列化\n");
     {
@@ -217,7 +197,6 @@ int main(void) {
         SymbolicCoord *c1 = symbolic_coord_create_rational(1, 1);
         const SymbolicCoord *cs[2] = {c0, c1};
         graph_add_point(g, (SymbolicCoord **) cs, 2);
-
         TEST("serialize_json");
         char *j = graph_serialize_to_json(g);
         if (j && strlen(j) > 0)
@@ -225,7 +204,6 @@ int main(void) {
         else
             FAIL("empty");
         lv_free_ptr(j);
-
         TEST("NULL→empty");
         char *nj = graph_serialize_to_json(NULL);
         if (nj == NULL || strlen(nj) == 0)
@@ -233,12 +211,10 @@ int main(void) {
         else
             FAIL("!empty");
         lv_free_ptr(nj);
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         graph_destroy(g);
     }
-
     /* 组 7 */
     printf("[组 7] 兼容性检查\n");
     {
@@ -247,19 +223,16 @@ int main(void) {
         SymbolicCoord *c1 = symbolic_coord_create_rational(1, 1);
         const SymbolicCoord *cs[2] = {c0, c1};
         graph_add_point(g, (SymbolicCoord **) cs, 2);
-
         TEST("check_compatibility");
         lvConstraintCompatibilityResult r;
         bool compat = graph_check_compatibility(g, &r);
         /* 不应崩溃 */
         (void) compat;
         PASS();
-
         symbolic_coord_destroy(c0);
         symbolic_coord_destroy(c1);
         graph_destroy(g);
     }
-
     /* 组 8 */
     printf("[组 8] 大量节点\n");
     {
@@ -286,7 +259,6 @@ int main(void) {
     out:
         graph_destroy(g);
     }
-
     /* 组 9 */
     printf("[组 9] NULL安全\n");
     {
@@ -305,7 +277,5 @@ int main(void) {
         graph_check_compatibility(NULL, &r);
         PASS();
     }
-
-    printf("\n=== %d passed, %d failed ===\n", g_pass_count, g_fail_count);
-    return g_fail_count > 0 ? 1 : 0;
-}
+        
+TEST_MAIN_END()

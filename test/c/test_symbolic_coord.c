@@ -13,7 +13,6 @@
 
 /* [QA] Uses double for test assertions against GMP mpq_t via comparison helpers. Acceptable in test code. */
 
-#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,57 +30,57 @@ void test_rational_arithmetic() {
 
     Rational *r1 = rational_create(1, 2);
     Rational *r2 = rational_create(1, 3);
-    assert(r1 != NULL);
-    assert(r2 != NULL);
+    lv_ASSERT_NOT_NULL(r1);
+    lv_ASSERT_NOT_NULL(r2);
     printf("  Create rationals: PASSED\n");
 
     Rational *sum = rational_add(r1, r2);
     Rational *expected_sum = rational_create(5, 6);
-    assert(rational_compare(sum, expected_sum) == 0);
+    lv_ASSERT(rational_compare(sum, expected_sum) == 0);
     rational_destroy(expected_sum);
     printf("  Addition: PASSED\n");
 
     Rational *diff = rational_subtract(r1, r2);
     Rational *expected_diff = rational_create(1, 6);
-    assert(rational_compare(diff, expected_diff) == 0);
+    lv_ASSERT(rational_compare(diff, expected_diff) == 0);
     rational_destroy(expected_diff);
     printf("  Subtraction: PASSED\n");
 
     Rational *prod = rational_multiply(r1, r2);
     Rational *expected_prod = rational_create(1, 6);
-    assert(rational_compare(prod, expected_prod) == 0);
+    lv_ASSERT(rational_compare(prod, expected_prod) == 0);
     rational_destroy(expected_prod);
     printf("  Multiplication: PASSED\n");
 
     Rational *quot = rational_divide(r1, r2);
     Rational *expected_quot = rational_create(3, 2);
-    assert(rational_compare(quot, expected_quot) == 0);
+    lv_ASSERT(rational_compare(quot, expected_quot) == 0);
     rational_destroy(expected_quot);
     printf("  Division: PASSED\n");
 
     Rational *copy = rational_copy(r1);
-    assert(rational_compare(copy, r1) == 0);
+    lv_ASSERT(rational_compare(copy, r1) == 0);
     printf("  Copy: PASSED\n");
 
     char *ser = rational_serialize(sum);
-    assert(strstr(ser, "5/6") != NULL);
+    lv_ASSERT(strstr(ser, "5/6") != NULL);
     lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
     Rational *parsed = rational_parse("3/4");
     Rational *expected_parsed = rational_create(3, 4);
-    assert(rational_compare(parsed, expected_parsed) == 0);
+    lv_ASSERT(rational_compare(parsed, expected_parsed) == 0);
     rational_destroy(expected_parsed);
     rational_destroy(parsed);
     printf("  Parsing: PASSED\n");
 
     int cmp = rational_compare(r1, r2);
-    assert(cmp > 0);
+    lv_ASSERT(cmp > 0);
     printf("  Comparison: PASSED\n");
 
     Rational *zero = rational_create(0, 1);
     Rational *null_quot = rational_divide(r1, zero);
-    assert(null_quot == NULL);
+    lv_ASSERT(null_quot == NULL);
     rational_destroy(zero);
     printf("  Division by zero: PASSED\n");
 
@@ -100,40 +99,40 @@ void test_symbolic_coord_rational() {
     printf("Testing symbolic coord rational...\n");
 
     SymbolicCoord *coord = symbolic_coord_create_rational(3, 4);
-    assert(coord != NULL);
-    assert(coord->type == RATIONAL);
+    lv_ASSERT_NOT_NULL(coord);
+    lv_ASSERT(coord->type == RATIONAL);
     printf("  Create rational coord: PASSED\n");
 
     double val = symbolic_coord_to_double(coord);
-    assert(fabs(val - 0.75) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(val, 0.75, 1e-9);
     printf("  To double: PASSED\n");
 
     int cmp = symbolic_coord_compare(coord, coord);
-    assert(cmp == 0);
+    lv_ASSERT(cmp == 0);
     printf("  Self comparison: PASSED\n");
 
     SymbolicCoord *coord2 = symbolic_coord_create_rational(1, 2);
     cmp = symbolic_coord_compare(coord, coord2);
-    assert(cmp > 0);
+    lv_ASSERT(cmp > 0);
     printf("  Comparison: PASSED\n");
 
     SymbolicCoord *copy = symbolic_coord_copy(coord);
-    assert(symbolic_coord_compare(copy, coord) == 0);
+    lv_ASSERT(symbolic_coord_compare(copy, coord) == 0);
     symbolic_coord_destroy(copy);
     printf("  Copy: PASSED\n");
 
-    assert(symbolic_coord_is_positive(coord) == true);
-    assert(symbolic_coord_is_negative(coord) == false);
-    assert(symbolic_coord_is_zero(coord) == false);
+    lv_ASSERT(symbolic_coord_is_positive(coord) == true);
+    lv_ASSERT(symbolic_coord_is_negative(coord) == false);
+    lv_ASSERT(symbolic_coord_is_zero(coord) == false);
     printf("  Sign checks: PASSED\n");
 
     SymbolicCoord *neg = symbolic_coord_negate(coord);
-    assert(symbolic_coord_is_negative(neg) == true);
+    lv_ASSERT(symbolic_coord_is_negative(neg) == true);
     symbolic_coord_destroy(neg);
     printf("  Negation: PASSED\n");
 
     char *ser = symbolic_coord_serialize(coord);
-    assert(ser != NULL);
+    lv_ASSERT_NOT_NULL(ser);
     lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
@@ -151,25 +150,25 @@ void test_symbolic_coord_arithmetic() {
 
     SymbolicCoord *sum = symbolic_coord_add(a, b);
     double sum_val = symbolic_coord_to_double(sum);
-    assert(fabs(sum_val - 5.0 / 6.0) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(sum_val, 5.0 / 6.0, 1e-9);
     symbolic_coord_destroy(sum);
     printf("  Addition: PASSED\n");
 
     SymbolicCoord *diff = symbolic_coord_subtract(a, b);
     double diff_val = symbolic_coord_to_double(diff);
-    assert(fabs(diff_val - 1.0 / 6.0) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(diff_val, 1.0 / 6.0, 1e-9);
     symbolic_coord_destroy(diff);
     printf("  Subtraction: PASSED\n");
 
     SymbolicCoord *prod = symbolic_coord_multiply(a, b);
     double prod_val = symbolic_coord_to_double(prod);
-    assert(fabs(prod_val - 1.0 / 6.0) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(prod_val, 1.0 / 6.0, 1e-9);
     symbolic_coord_destroy(prod);
     printf("  Multiplication: PASSED\n");
 
     SymbolicCoord *quot = symbolic_coord_divide(a, b);
     double quot_val = symbolic_coord_to_double(quot);
-    assert(fabs(quot_val - 1.5) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(quot_val, 1.5, 1e-9);
     symbolic_coord_destroy(quot);
     printf("  Division: PASSED\n");
 
@@ -184,22 +183,22 @@ void test_bit_circuit() {
 
     SymbolicCoord *coord = symbolic_coord_create_rational(1, 1);
     CircuitStatus status = check_digit_circuit(coord);
-    assert(status == CIRCUIT_STATUS_OK);
+    lv_ASSERT(status == CIRCUIT_STATUS_OK);
     printf("  Check digit circuit OK: PASSED\n");
 
     circuit_reset_context();
     printf("  Reset context: PASSED\n");
 
     int count = circuit_get_overflow_count();
-    assert(count == 0);
+    lv_ASSERT(count == 0);
     printf("  Get overflow count: PASSED\n");
 
     circuit_set_frozen_point((void *) 0x1234);
-    assert(circuit_has_frozen_point() == true);
+    lv_ASSERT(circuit_has_frozen_point() == true);
     printf("  Set frozen point: PASSED\n");
 
     void *fp = circuit_get_frozen_point();
-    assert(fp != NULL);
+    lv_ASSERT_NOT_NULL(fp);
     printf("  Get frozen point: PASSED\n");
 
     symbolic_coord_destroy(coord);
@@ -211,17 +210,17 @@ void test_algebraic_plan_switching() {
     printf("Testing algebraic plan switching...\n");
 
     AlgebraicPlan plan = algebraic_get_plan();
-    assert(plan == PLAN_A_FULL_ALGEBRAIC);
+    lv_ASSERT(plan == PLAN_A_FULL_ALGEBRAIC);
     printf("  Get default plan: PASSED\n");
 
     algebraic_set_plan(PLAN_B_QUADRATIC_ONLY);
     plan = algebraic_get_plan();
-    assert(plan == PLAN_B_QUADRATIC_ONLY);
+    lv_ASSERT(plan == PLAN_B_QUADRATIC_ONLY);
     printf("  Set plan B: PASSED\n");
 
     algebraic_set_plan(PLAN_A_FULL_ALGEBRAIC);
     plan = algebraic_get_plan();
-    assert(plan == PLAN_A_FULL_ALGEBRAIC);
+    lv_ASSERT(plan == PLAN_A_FULL_ALGEBRAIC);
     printf("  Restore plan A: PASSED\n");
 
     printf("  PASSED\n");
@@ -249,21 +248,21 @@ void test_transcendental() {
     printf("Testing transcendental numbers...\n");
 
     Transcendental *pi = transcendental_create("pi");
-    assert(pi != NULL);
-    assert(strcmp(pi->name, "pi") == 0);
+    lv_ASSERT_NOT_NULL(pi);
+    lv_ASSERT_STR_EQ(pi->name, "pi");
     printf("  Create pi: PASSED\n");
 
     Transcendental *e = transcendental_create("e");
-    assert(e != NULL);
-    assert(strcmp(e->name, "e") == 0);
+    lv_ASSERT_NOT_NULL(e);
+    lv_ASSERT_STR_EQ(e->name, "e");
     printf("  Create e: PASSED\n");
 
     int cmp = transcendental_compare(pi, e);
-    assert(cmp != 0);
+    lv_ASSERT(cmp != 0);
     printf("  Comparison: PASSED\n");
 
     char *ser = transcendental_serialize(pi);
-    assert(ser != NULL);
+    lv_ASSERT_NOT_NULL(ser);
     lv_free_ptr(ser);
     printf("  Serialization: PASSED\n");
 
@@ -277,19 +276,19 @@ void test_symbolic_coord_trust_color() {
     printf("Testing symbolic coord trust color...\n");
 
     SymbolicCoord *coord = symbolic_coord_create_rational(1, 1);
-    assert(coord->trust == TRUST_GREEN);
+    lv_ASSERT(coord->trust == TRUST_GREEN);
     printf("  Default trust color: PASSED\n");
 
     TrustColor trust = symbolic_coord_get_trust(coord);
-    assert(trust == TRUST_GREEN);
+    lv_ASSERT(trust == TRUST_GREEN);
     printf("  Get trust color: PASSED\n");
 
     symbolic_coord_set_trust(coord, TRUST_BLUE_UNEXPLORED);
     trust = symbolic_coord_get_trust(coord);
-    assert(trust == TRUST_BLUE_UNEXPLORED);
+    lv_ASSERT(trust == TRUST_BLUE_UNEXPLORED);
     printf("  Set trust color: PASSED\n");
 
-    assert(symbolic_coord_is_amber(coord) == false);
+    lv_ASSERT(symbolic_coord_is_amber(coord) == false);
     printf("  Is amber check: PASSED\n");
 
     symbolic_coord_destroy(coord);
@@ -304,18 +303,18 @@ void test_symbolic_coord_misc() {
 
     SymbolicCoord *sqrt_coord = symbolic_coord_sqrt(coord);
     double sqrt_val = symbolic_coord_to_double(sqrt_coord);
-    assert(fabs(sqrt_val - 2.0) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(sqrt_val, 2.0, 1e-9);
     symbolic_coord_destroy(sqrt_coord);
     printf("  Square root: PASSED\n");
 
     SymbolicCoord *pow_coord = symbolic_coord_pow(coord, 3);
     double pow_val = symbolic_coord_to_double(pow_coord);
-    assert(fabs(pow_val - 64.0) < 1e-9);
+    lv_ASSERT_FLOAT_EQ(pow_val, 64.0, 1e-9);
     symbolic_coord_destroy(pow_coord);
     printf("  Power: PASSED\n");
 
     uint64_t hash = symbolic_coord_hash(coord);
-    assert(hash != 0);
+    lv_ASSERT(hash != 0);
     printf("  Hash: PASSED\n");
 
     symbolic_coord_destroy(coord);
@@ -330,11 +329,11 @@ void test_circuit_context() {
     circuit_set_context(result, "test_operation", RATIONAL, RATIONAL);
 
     SymbolicCoord *last = circuit_get_last_result();
-    assert(last == result);
+    lv_ASSERT(last == result);
     printf("  Set/get last result: PASSED\n");
 
     const char *op = circuit_get_last_operation();
-    assert(strcmp(op, "test_operation") == 0);
+    lv_ASSERT_STR_EQ(op, "test_operation");
     printf("  Get last operation: PASSED\n");
 
     symbolic_coord_destroy(result);
@@ -342,20 +341,17 @@ void test_circuit_context() {
     printf("  PASSED\n");
 }
 
-int main() {
+TEST_MAIN_BEGIN("Lv-00 Symbolic Coordinate Test Suite")
     printf("=== Lv-00 Symbolic Coordinate Test Suite ===\n\n");
-
-    test_rational_arithmetic();
-    test_symbolic_coord_rational();
-    test_symbolic_coord_arithmetic();
-    test_bit_circuit();
-    test_algebraic_plan_switching();
-    test_algebraic_stress_test();
-    test_transcendental();
-    test_symbolic_coord_trust_color();
-    test_symbolic_coord_misc();
-    test_circuit_context();
-
+    TEST_MAIN_RUN(test_rational_arithmetic);
+    TEST_MAIN_RUN(test_symbolic_coord_rational);
+    TEST_MAIN_RUN(test_symbolic_coord_arithmetic);
+    TEST_MAIN_RUN(test_bit_circuit);
+    TEST_MAIN_RUN(test_algebraic_plan_switching);
+    TEST_MAIN_RUN(test_algebraic_stress_test);
+    TEST_MAIN_RUN(test_transcendental);
+    TEST_MAIN_RUN(test_symbolic_coord_trust_color);
+    TEST_MAIN_RUN(test_symbolic_coord_misc);
+    TEST_MAIN_RUN(test_circuit_context);
     printf("\n=== All symbolic_coord tests PASSED! ===\n");
-    return 0;
-}
+TEST_MAIN_END()

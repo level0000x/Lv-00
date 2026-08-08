@@ -644,9 +644,9 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
      * 自适应公式：h = sqrt(DBL_EPSILON) * max(1.0, fabs(x_c)) */
     double h = sqrt(DBL_EPSILON) * fmax(1.0, fabs(x_c));
 
-    /* 扰动后的变量值缓冲区：在栈上分配，最多 MAX_EQUATIONS 个变量 */
-    double perturbed[MAX_EQUATIONS];
-    if (var_count > MAX_EQUATIONS)
+    /* 扰动后的变量值缓冲区：动态分配，消除 MAX_EQUATIONS 上限 */
+    double *perturbed = (double *) lv_malloc((size_t) var_count * sizeof(double));
+    if (!perturbed)
         return NAN;
 
     /* 计算 f(..., xi+h, ...) */
@@ -657,6 +657,8 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
     /* 计算 f(..., xi-h, ...) */
     perturbed[var_idx] = x_c - h;
     double f_minus = evaluate_expression(expr, perturbed, var_count);
+
+    lv_free((void **) &perturbed);
 
     /* 若任一求值失败，返回 NaN */
     if (isnan(f_plus) || isnan(f_minus)) {
@@ -696,8 +698,13 @@ static bool basic_taylor_expand(const char *expr, const FloatInterval *var_bound
         return false;
     }
 
-    /* 计算中心点值：取每个变量区间的中点 */
-    double center_vals[MAX_EQUATIONS];
+    /* 计算中心点值：取每个变量区间的中点（动态分配，消除 MAX_EQUATIONS 上限） */
+    double *center_vals = (double *) lv_malloc((size_t) var_count * sizeof(double));
+    if (!center_vals) {
+        lv_free((void **) &tf->first_derivs);
+        lv_free((void **) &tf->deriv_var_ids);
+        return false;
+    }
     for (int i = 0; i < var_count; i++) {
         center_vals[i] = var_bounds[i].lo + (var_bounds[i].hi - var_bounds[i].lo) / 2.0;
         tf->deriv_var_ids[i] = i;
@@ -762,13 +769,12 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
     if (graph->constraint_count == 0)
         return true;
 
-    /* 分配表达式数组 */
-    int alloc_count = (graph->constraint_count < MAX_EQUATIONS) ? graph->constraint_count : MAX_EQUATIONS;
-    char **eqs = (char **) lv_malloc((size_t) alloc_count * sizeof(char *));
+    /* 分配表达式数组（全量分配，消除 MAX_EQUATIONS 上限） */
+    char **eqs = (char **) lv_malloc((size_t) graph->constraint_count * sizeof(char *));
     if (!eqs)
         return false;
 
-    for (int ci = 0; ci < graph->constraint_count && *eq_count < alloc_count; ci++) {
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         if (!c)
             continue;

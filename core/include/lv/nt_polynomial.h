@@ -10,6 +10,21 @@
  *
  * @author Lv-00 Project
  * @version 1.1.0
+ *
+ * @note 设计意图与 mpz_poly.h 的关系：
+ *   - lvPoly 是本模块（nt_polynomial.c）提供的堆指针语义一元多项式，
+ *     系数数组带 capacity 字段，经 lv_ensure_capacity 摊销扩容，
+ *     适合长期复用、频繁 set_coeff 增长/替换系数的场景。
+ *   - mpz_poly.h 是 algebra 生态（solver/symbolic_coord/coeff_pool 等
+ *     36 个文件）使用的栈值语义内联实现（mpz_poly_t 无 capacity，
+ *     每次运算精确分配），接口以 static inline 形式嵌在头文件中。
+ *   - 两套实现系数布局一致（升幂、degree=-1 为零多项式），但内存
+ *     所有权模型不同（堆指针 vs 栈值），直接让 mpz_poly.h 委托本模块
+ *     需要同时改造 36 个依赖文件的分配/释放约定，改动面大、回归风险
+ *     高，收益（capacity 摊销）在当前代数规模下有限，故暂不合并。
+ *   - 本模块目前作为"预留模块"保持独立：供未来大规模数论/代数数论
+ *     场景（大量临时多项式对象、重复系数写入）直接使用；已有最小
+ *     单测（test/c/test_nt_polynomial.c）保证其行为基线。
  */
 #ifndef lv_NT_POLYNOMIAL_H
 #define lv_NT_POLYNOMIAL_H

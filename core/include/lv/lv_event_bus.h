@@ -86,6 +86,10 @@ void lv_event_emit(lvEventBus *bus, int event_type, void *event_data);
  * 类型投射到 Stream 系统，原始 event_type 存储在 StreamEvent.rule_id 中。
  * 传入 NULL 可解除关联。
  *
+ * 调用方：runtime_monitor 的 lv_event_trace_set_stream_context() 在引擎
+ * 初始化路径（stream_context 分发机制）调用一次；engine 销毁时以 NULL
+ * 解除。可先于 lv_event_bus_init() 调用（init 保留预置的 stream_ctx）。
+ *
  * @param bus        事件总线
  * @param stream_ctx StreamContext 指针（或 NULL）
  */

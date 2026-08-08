@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_func_block_preset.c
  * @brief 预设函数块库测试
  *
@@ -245,22 +245,19 @@ static void test_inverse_operations(void) {
  * 主函数
  * ============================================================ */
 
-int main(void) {
+TEST_MAIN_BEGIN("预设函数块库测试")
     printf("========================================\n");
     printf("预设函数块库测试\n");
     printf("========================================\n\n");
-
     g_pass_count = 0;
     g_fail_count = 0;
-
-    test_library_lifecycle();
-    test_preset_lookup();
-    test_param_counts();
-    test_preset_list();
-    test_string_conversions();
-    test_documentation();
-    test_inverse_operations();
-
+    TEST_MAIN_RUN(test_library_lifecycle);
+    TEST_MAIN_RUN(test_preset_lookup);
+    TEST_MAIN_RUN(test_param_counts);
+    TEST_MAIN_RUN(test_preset_list);
+    TEST_MAIN_RUN(test_string_conversions);
+    TEST_MAIN_RUN(test_documentation);
+    TEST_MAIN_RUN(test_inverse_operations);
     printf("\n========================================\n");
     if (g_fail_count == 0) {
         printf("所有测试通过! (%d 项)\n", g_pass_count);
@@ -268,8 +265,6 @@ int main(void) {
         printf("测试结果: %d 通过, %d 失败, %d 总计\n", g_pass_count, g_fail_count, g_pass_count + g_fail_count);
     }
     printf("========================================\n");
-
     func_block_preset_library_cleanup();
-
     return g_fail_count > 0 ? 1 : 0;
-}
+TEST_MAIN_END()

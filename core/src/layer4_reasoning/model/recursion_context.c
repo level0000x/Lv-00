@@ -165,39 +165,25 @@ RecursionCheckResult recursion_context_enter(RecursionContext *ctx, int func_blo
             }
 
             /* 记录测度值 */
+            /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查） */
+            if (!lv_ensure_capacity((void **) &ctx->measure_values, ctx->measure_value_count,
+                                    &ctx->measure_values_capacity, sizeof(SymbolicCoord *), 1)) {
+                symbolic_coord_destroy(new_value);
+                return RECURSION_ERROR;
+            }
+            ctx->measure_values[ctx->measure_value_count] = new_value;
             ctx->measure_value_count++;
-            /* 检查乘法溢出 */
-            if ((size_t) ctx->measure_value_count > SIZE_MAX / sizeof(SymbolicCoord *)) {
-                ctx->measure_value_count--;
-                symbolic_coord_destroy(new_value);
-                return RECURSION_ERROR;
-            }
-            SymbolicCoord **new_vals =
-                lv_realloc(ctx->measure_values, (size_t) ctx->measure_value_count * sizeof(SymbolicCoord *));
-            if (!new_vals) {
-                ctx->measure_value_count--;
-                symbolic_coord_destroy(new_value);
-                return RECURSION_ERROR;
-            }
-            ctx->measure_values = new_vals;
-            ctx->measure_values[ctx->measure_value_count - 1] = new_value;
         }
     }
 
     /* 记录调用栈 */
+    /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查） */
+    if (!lv_ensure_capacity((void **) &ctx->call_stack, ctx->call_stack_size,
+                            &ctx->call_stack_capacity, sizeof(int), 1)) {
+        return RECURSION_ERROR;
+    }
+    ctx->call_stack[ctx->call_stack_size] = func_block_id;
     ctx->call_stack_size++;
-    /* 检查乘法溢出 */
-    if ((size_t) ctx->call_stack_size > SIZE_MAX / sizeof(int)) {
-        ctx->call_stack_size--;
-        return RECURSION_ERROR;
-    }
-    int *new_stack = lv_realloc(ctx->call_stack, (size_t) ctx->call_stack_size * sizeof(int));
-    if (!new_stack) {
-        ctx->call_stack_size--;
-        return RECURSION_ERROR;
-    }
-    ctx->call_stack = new_stack;
-    ctx->call_stack[ctx->call_stack_size - 1] = func_block_id;
 
     /*
      * 检测循环调用：如果同一个函数块在调用栈中已经存在，
@@ -358,10 +344,12 @@ void recursion_context_reset(RecursionContext *ctx) {
     lv_free((void **) &ctx->measure_values);
     ctx->measure_values = NULL;
     ctx->measure_value_count = 0;
+    ctx->measure_values_capacity = 0;
 
     lv_free((void **) &ctx->call_stack);
     ctx->call_stack = NULL;
     ctx->call_stack_size = 0;
+    ctx->call_stack_capacity = 0;
 
     ctx->current_depth = 0;
     ctx->is_terminated = false;

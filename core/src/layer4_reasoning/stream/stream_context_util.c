@@ -23,6 +23,7 @@
 #include "lv/lv_thread.h"
 
 #include "lv/lv_strbuf.h"
+#include "runtime_monitor.h"   /* lv_event_trace_set_stream_context（事件总线→Stream 桥接 setter） */
 
 /* ---- 依赖前向声明：内置模块的 setter 函数 ---- */
 
@@ -33,6 +34,7 @@
 #include "lv/constraint_graph.h" /* graph_set_stream_context   */
 #include "lv/interop.h"          /* interop_set_stream_context */
 #include "lv/proof.h"            /* proof_set_stream_context      */
+#include "lv/runtime_monitor.h"  /* lv_event_trace_set_stream_context（事件总线 → Stream 桥接） */
 #include "lv/solver.h"           /* solver_set_stream_context     */
 
 #include "func_block.h"    /* func_block_set_stream_context */
@@ -185,6 +187,12 @@ static void register_builtins_once(void) {
 
     /* ---- 约束图模块 ---- */
     stream_context_register_setter(graph_set_stream_context);
+
+    /* ---- 运行时事件总线（runtime_monitor）→ Stream 桥接 ----
+     * engine_create 分发 engine->stream_ctx 时即激活 lv_event_bus 的
+     * stream 投射（STREAM_EVENT_BUS_EVENT）；engine 销毁时由
+     * stream_context_clear_all 以 NULL 解除，避免悬垂指针。 */
+    stream_context_register_setter(lv_event_trace_set_stream_context);
 
     /* ---- 互操作模块 ---- */
     stream_context_register_setter(interop_set_stream_context);

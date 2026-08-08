@@ -134,8 +134,9 @@ struct Proposition {
     int postcondition_count;           /* 后置条件数量 */
 
     /* 子命题（用于复合命题） */
-    Proposition **sub_props; /* 子命题数组 */
-    int sub_prop_count;      /* 子命题数量 */
+    Proposition **sub_props;   /* 子命题数组 */
+    int sub_prop_count;        /* 子命题数量 */
+    int sub_prop_capacity;     /* 子命题数组容量（lv_ensure_capacity 倍增维护） */
 
     /* 类型信息 */
     TypeRegion *prop_type; /* 命题类型 */
@@ -192,8 +193,10 @@ struct ProofStep {
     /* 依赖关系 */
     int *dependency_step_ids; /* 依赖的前驱步骤ID */
     int dependency_count;     /* 依赖数量 */
+    int dependency_capacity;  /* 前驱依赖数组容量（lv_ensure_capacity 倍增维护） */
     int *dependent_step_ids;  /* 被依赖的后继步骤ID */
     int dependent_count;      /* 被依赖数量 */
+    int dependent_capacity;   /* 后继依赖数组容量（lv_ensure_capacity 倍增维护） */
 
     /* 状态 */
     bool is_breakpoint; /* 是否为断点 */
@@ -310,9 +313,10 @@ void lv_task_group_destroy(lvTaskGroup *g);
 
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {
-    ProofStep **steps; /* 证明步骤数组 */
-    int step_count;    /* 步骤数量 */
-    int current_step;  /* 当前步骤索引 */
+    ProofStep **steps;     /* 证明步骤数组 */
+    int step_count;        /* 步骤数量 */
+    int step_capacity;     /* 步骤数组容量（lv_ensure_capacity 倍增维护） */
+    int current_step;      /* 当前步骤索引 */
 
     Proposition *target_prop;      /* 目标命题 */
     ConstraintGraph *construction; /* 构造图 */
@@ -325,8 +329,9 @@ struct ProofNavigator {
     ProofState proof_state; /* 证明状态（进行中/完成/矛盾） */
 
     /* 断点管理 */
-    int *breakpoint_indices; /* 断点索引数组 */
-    int breakpoint_count;    /* 断点数量 */
+    int *breakpoint_indices;    /* 断点索引数组 */
+    int breakpoint_count;       /* 断点数量 */
+    int breakpoint_capacity;    /* 断点索引数组容量（lv_ensure_capacity 倍增维护） */
 
     /* 命题等价表 */
     lvDArray equivalences;              /**< 等价命题数组 (PropositionEquivalence) */

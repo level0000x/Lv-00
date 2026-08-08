@@ -379,27 +379,6 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
 int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *config);
 
 /**
- * @brief 导出为LaTeX TikZ代码
- * @param graph 约束图
- * @param config 导出配置
- * @return 成功返回0，失败返回错误码
- */
-int interop_export_tikz(const ConstraintGraph *graph, const InteropExportConfig *config);
-
-/**
- * @brief 导出为 TikZ 片段（不含文档框架）
- *
- * 仅输出 \begin{tikzpicture}...\end{tikzpicture} 片段，
- * 可直接嵌入已有的 LaTeX 文档。
- *
- * @param graph 约束图
- * @param output 输出缓冲区
- * @param size 缓冲区大小
- * @return 实际写入字符数（不含终止符），失败返回负数
- */
-int interop_export_tikz_fragment(const ConstraintGraph *graph, char *output, size_t size);
-
-/**
  * @brief 导出规范表示
  * @param graph 约束图
  * @param output_path 输出路径

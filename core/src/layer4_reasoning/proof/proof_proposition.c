@@ -288,15 +288,16 @@ bool proposition_add_sub_proposition(Proposition *parent, Proposition *child) {
     if (!parent || !child)
         return false;
 
-    /* 线性 +1 扩容（sub_props 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-    int new_count = parent->sub_prop_count + 1;
-    Proposition **new_arr = lv_realloc(parent->sub_props, (size_t) new_count * sizeof(Proposition *));
-    if (!new_arr)
+    /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查）。
+     * 原历史注释以"无容量字段、改动最小"为由保持 +1 线性扩容（O(n²)）；
+     * 已重新评估：Proposition 通过 lv_calloc 分配且仅在本项目内编译使用，
+     * 无外部固定布局序列化/ABI 约束，故增加 sub_prop_capacity 字段并迁移。 */
+    if (!lv_ensure_capacity((void **) &parent->sub_props, parent->sub_prop_count,
+                            &parent->sub_prop_capacity, sizeof(Proposition *), 1)) {
         return false;
-
-    parent->sub_props = new_arr;
+    }
     parent->sub_props[parent->sub_prop_count] = child;
-    parent->sub_prop_count = new_count;
+    parent->sub_prop_count++;
     parent->last_modified = time(NULL);
     return true;
 }
@@ -474,16 +475,16 @@ static void update_dependent_steps(ProofNavigator *nav, int step_id, int dep_id)
     }
 
     /* 将 step_id 添加到 dep_id 的 dependent_step_ids 中 */
-    dep_step->dependent_count++;
-    /* 线性 +1 扩容（dependent_step_ids 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-    int *new_arr = lv_realloc(dep_step->dependent_step_ids, dep_step->dependent_count * sizeof(int));
-    if (!new_arr) {
-        dep_step->dependent_count--;
+    /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查）。
+     * 原历史注释以"无容量字段、改动最小"为由保持 +1 线性扩容（O(n²)）；
+     * 已重新评估：ProofStep 通过 lv_calloc 分配且仅在本项目内编译使用，
+     * 无外部固定布局序列化/ABI 约束，故增加 dependent_capacity 字段并迁移。 */
+    if (!lv_ensure_capacity((void **) &dep_step->dependent_step_ids, dep_step->dependent_count,
+                            &dep_step->dependent_capacity, sizeof(int), 1)) {
         return;
     }
-
-    dep_step->dependent_step_ids = new_arr;
-    dep_step->dependent_step_ids[dep_step->dependent_count - 1] = step_id;
+    dep_step->dependent_step_ids[dep_step->dependent_count] = step_id;
+    dep_step->dependent_count++;
 }
 
 /**
@@ -541,15 +542,15 @@ bool proof_step_add_dependency(ProofStep *step, int dep_step_id) {
     if (!step)
         return false;
 
-    /* 线性 +1 扩容（dependency_step_ids 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-    int new_count = step->dependency_count + 1;
-    int *new_arr = lv_realloc(step->dependency_step_ids, (size_t) new_count * sizeof(int));
-    if (!new_arr)
+    /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查）。
+     * 原历史注释以"无容量字段、改动最小"为由保持 +1 线性扩容（O(n²)）；
+     * 已重新评估：无外部 ABI 约束，故增加 dependency_capacity 字段并迁移。 */
+    if (!lv_ensure_capacity((void **) &step->dependency_step_ids, step->dependency_count,
+                            &step->dependency_capacity, sizeof(int), 1)) {
         return false;
-
-    step->dependency_step_ids = new_arr;
+    }
     step->dependency_step_ids[step->dependency_count] = dep_step_id;
-    step->dependency_count = new_count;
+    step->dependency_count++;
     return true;
 }
 
@@ -679,15 +680,15 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
         }
     }
 
-    /* 线性 +1 扩容（steps 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-    int new_count = nav->step_count + 1;
-    ProofStep **new_arr = lv_realloc(nav->steps, (size_t) new_count * sizeof(ProofStep *));
-    if (!new_arr)
+    /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查）。
+     * 原历史注释以"无容量字段、改动最小"为由保持 +1 线性扩容（O(n²)）；
+     * 已重新评估：无外部 ABI 约束，故增加 step_capacity 字段并迁移。 */
+    if (!lv_ensure_capacity((void **) &nav->steps, nav->step_count,
+                            &nav->step_capacity, sizeof(ProofStep *), 1)) {
         return false;
-
-    nav->steps = new_arr;
+    }
     nav->steps[nav->step_count] = step;
-    nav->step_count = new_count;
+    nav->step_count++;
     /* 添加首个步骤时自动定位到步骤 0 */
     if (nav->step_count == 1) {
         nav->current_step = 0;
@@ -700,12 +701,13 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
 
     /* 如果是断点，添加到断点列表 */
     if (step->is_breakpoint) {
-        nav->breakpoint_count++;
-        /* 线性 +1 扩容（breakpoint_indices 无容量字段，改动最小：保持原样，不迁移到 lv_ensure_capacity） */
-        int *new_bp = lv_realloc(nav->breakpoint_indices, nav->breakpoint_count * sizeof(int));
-        if (new_bp) {
-            nav->breakpoint_indices = new_bp;
-            nav->breakpoint_indices[nav->breakpoint_count - 1] = step->id;
+        /* 统一倍增扩容（capacity 字段 + lv_ensure_capacity，摊还 O(1)，含溢出检查）。
+         * 原历史注释以"无容量字段、改动最小"为由保持 +1 线性扩容（O(n²)）；
+         * 已重新评估：无外部 ABI 约束，故增加 breakpoint_capacity 字段并迁移。 */
+        if (lv_ensure_capacity((void **) &nav->breakpoint_indices, nav->breakpoint_count,
+                               &nav->breakpoint_capacity, sizeof(int), 1)) {
+            nav->breakpoint_indices[nav->breakpoint_count] = step->id;
+            nav->breakpoint_count++;
         }
     }
 
