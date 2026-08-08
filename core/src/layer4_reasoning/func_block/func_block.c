@@ -1255,9 +1255,9 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (!dst)
         return NULL;
 
-    /* 深拷贝内部节点 ID 数组 */
+    /* 深拷贝内部节点 ID 数组 —— 收敛至公共 lv_copy_int_array */
     if (src->internal_node_count > 0 && src->internal_node_ids) {
-        dst->internal_node_ids = dup_int_array(src->internal_node_ids, src->internal_node_count);
+        dst->internal_node_ids = lv_copy_int_array(src->internal_node_ids, src->internal_node_count);
         if (!dst->internal_node_ids)
             goto fail;
     }
@@ -1265,7 +1265,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
 
     /* 深拷贝输入端口 ID 数组 */
     if (src->input_count > 0 && src->input_port_ids) {
-        dst->input_port_ids = dup_int_array(src->input_port_ids, src->input_count);
+        dst->input_port_ids = lv_copy_int_array(src->input_port_ids, src->input_count);
         if (!dst->input_port_ids)
             goto fail;
     }
@@ -1273,7 +1273,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
 
     /* 深拷贝输出端口 ID 数组 */
     if (src->output_count > 0 && src->output_port_ids) {
-        dst->output_port_ids = dup_int_array(src->output_port_ids, src->output_count);
+        dst->output_port_ids = lv_copy_int_array(src->output_port_ids, src->output_count);
         if (!dst->output_port_ids)
             goto fail;
     }
@@ -1309,24 +1309,15 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
         /* 深拷贝选择器名称 */
         if (src->selector->name) {
             dst->selector->name = lv_strdup(src->selector->name);
-            if (!dst->selector->name) {
-                lv_free((void **) &dst->selector);
-                dst->selector = NULL;
-                goto fail;
-            }
-        } else {
-            dst->selector->name = NULL;
+            if (!dst->selector->name)
+                goto fail; /* 统一清理：func_block_destroy → selector_destroy 释放子字段 */
         }
 
         /* 深拷贝 solution_values 数组 */
         if (src->selector->solution_count > 0 && src->selector->solution_values) {
             dst->selector->solution_values = lv_malloc((size_t) src->selector->solution_count * sizeof(double));
-            if (!dst->selector->solution_values) {
-                lv_free((void **) &dst->selector->name);
-                lv_free((void **) &dst->selector);
-                dst->selector = NULL;
-                goto fail;
-            }
+            if (!dst->selector->solution_values)
+                goto fail; /* 统一清理：selector_destroy 释放 name/solution_values/外壳 */
             memcpy(dst->selector->solution_values, src->selector->solution_values,
                    (size_t) src->selector->solution_count * sizeof(double));
         } else {
@@ -1362,9 +1353,9 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
             goto fail;
     }
 
-    /* 深拷贝前置条件区域 ID 数组 */
+    /* 深拷贝前置条件区域 ID 数组 —— 收敛至公共 lv_copy_int_array */
     if (src->precondition_count > 0 && src->precondition_region_ids) {
-        dst->precondition_region_ids = dup_int_array(src->precondition_region_ids, src->precondition_count);
+        dst->precondition_region_ids = lv_copy_int_array(src->precondition_region_ids, src->precondition_count);
         if (!dst->precondition_region_ids)
             goto fail;
     }

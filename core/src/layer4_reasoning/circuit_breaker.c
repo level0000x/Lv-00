@@ -23,6 +23,7 @@
 #include "lv/context.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h"
 #include "lv/recursion.h"
 
 /* ============================================================
@@ -68,21 +69,24 @@ bool lv_circuit_breaker_record_failure(lvContext *ctx) {
     return lv_circuit_breaker_record_error(&ctx->circuit_breaker);
 }
 
+/* ============================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * ============================================================ */
+
+/** @brief lv_circuit_breaker_state_name 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_circuit_breaker_state_name_entries[] = {
+    {"关闭（正常）", CIRCUIT_BREAKER_CLOSED},
+    {"半开（试探中）", CIRCUIT_BREAKER_HALF_OPEN},
+    {"打开（熔断）", CIRCUIT_BREAKER_OPEN},
+};
+
 const char *lv_circuit_breaker_state_name(lvContext *ctx) {
     if (!ctx)
         return "无上下文";
 
     CircuitBreaker *cb = &ctx->circuit_breaker;
-    switch (cb->state) {
-        case CIRCUIT_BREAKER_CLOSED:
-            return "关闭（正常）";
-        case CIRCUIT_BREAKER_HALF_OPEN:
-            return "半开（试探中）";
-        case CIRCUIT_BREAKER_OPEN:
-            return "打开（熔断）";
-        default:
-            return "未知状态";
-    }
+    return lv_enum_to_str(s_circuit_breaker_state_name_entries,
+                          lv_ARRAY_SIZE(s_circuit_breaker_state_name_entries), (int) cb->state, "未知状态");
 }
 
 int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {

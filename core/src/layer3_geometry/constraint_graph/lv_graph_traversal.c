@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_graph_traversal.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 
 #include "lv_internal.h"
@@ -150,6 +151,23 @@ static int find_neighbors(ConstraintGraph *graph, int node_id,
     return added;
 }
 
+/* ---- lv_DEFER 作用域守卫回调（本文件 goto cleanup 样板的统一替代） ---- */
+
+/* BFS 队列部分构建守卫：guard 持有队列值拷贝，清理时按原失败路径语义
+ * 释放 ids/depths/外壳（lv_free NULL 安全），避免字段级注册的 detach 失效问题 */
+typedef struct {
+    BFSQueue *q;
+} BfsQueueGuard;
+
+static void bfs_queue_guard_cleanup(void *p) {
+    BfsQueueGuard *g = (BfsQueueGuard *) p;
+    if (g->q) {
+        lv_free((void **) &g->q->ids);
+        lv_free((void **) &g->q->depths);
+        lv_free((void **) &g->q);
+    }
+}
+
 /**
  * @brief 初始化 BFS 队列
  */
@@ -157,17 +175,18 @@ static BFSQueue *bfs_queue_create(int capacity) {
     BFSQueue *q = (BFSQueue *)lv_malloc(sizeof(BFSQueue));
     if (!q)
         return NULL;
+    /* 注册 lv_DEFER 守卫：ids/depths 任一失败自动释放已分配的成员与外壳；
+     * 成功路径 guard.q = NULL 解除守卫 */
+    BfsQueueGuard guard = {q};
+    lv_DEFER(bfs_queue_guard_cleanup, &guard);
     q->ids = (int *)lv_malloc((size_t)capacity * sizeof(int));
     q->depths = (int *)lv_malloc((size_t)capacity * sizeof(int));
-    if (!q->ids || !q->depths) {
-        lv_free((void **)&q->ids);
-        lv_free((void **)&q->depths);
-        lv_free((void **)&q);
+    if (!q->ids || !q->depths)
         return NULL;
-    }
     q->head = 0;
     q->tail = 0;
     q->capacity = capacity;
+    guard.q = NULL; /* 守卫解除：结果移交调用方 */
     return q;
 }
 
@@ -177,6 +196,21 @@ static void bfs_queue_destroy(BFSQueue *q) {
     lv_free((void **)&q->ids);
     lv_free((void **)&q->depths);
     lv_free((void **)&q);
+}
+
+/* ---- lv_DEFER 作用域守卫回调（本文件 goto cleanup 样板的统一替代） ---- */
+
+/* lvDArray 清理回调（栈上结构体，仅释放内部堆数据；配合 lv_DEFER(cleanup, &arr)） */
+static void traversal_darray_cleanup(void *p) {
+    lvDArray *d = (lvDArray *)p;
+    lv_darray_free(d);
+}
+
+/* BFS 队列清理回调（变量置 NULL 即解除守卫；配合 lv_DEFER(cleanup, &q)） */
+static void traversal_bfs_queue_cleanup(void *p) {
+    BFSQueue **pp = (BFSQueue **)p;
+    if (*pp)
+        bfs_queue_destroy(*pp);
 }
 
 static bool bfs_queue_push(BFSQueue *q, int id, int depth) {
@@ -229,6 +263,7 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
     DFSFrame *stack = (DFSFrame *)lv_malloc((size_t)stack_cap * sizeof(DFSFrame));
     if (!stack)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "dfs_traverse_from: stack alloc failed");
+    lv_DEFER_FREE(stack);
 
     int stack_top = 0;
     stack[stack_top].node_id = start_id;
@@ -239,6 +274,7 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
     /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
     lvDArray nbr;
     lv_darray_init(&nbr, sizeof(int));
+    lv_DEFER(traversal_darray_cleanup, &nbr);
 
     int result = lv_OK;
 
@@ -252,10 +288,8 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
                 GeomNode *node = graph_get_node(graph, frame.node_id);
                 if (node) {
                     lvTraversalResult tr = visitor(node, frame.depth, user_data);
-                    if (tr == lv_TRAVERSAL_STOP) {
-                        result = lv_OK;
-                        goto cleanup;
-                    }
+                    if (tr == lv_TRAVERSAL_STOP)
+                        return result;
                 }
             }
             continue;
@@ -275,10 +309,8 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
             GeomNode *node = graph_get_node(graph, frame.node_id);
             if (node) {
                 lvTraversalResult tr = visitor(node, frame.depth, user_data);
-                if (tr == lv_TRAVERSAL_STOP) {
-                    result = lv_OK;
-                    goto cleanup;
-                }
+                if (tr == lv_TRAVERSAL_STOP)
+                    return result;
                 if (tr == lv_TRAVERSAL_SKIP_CHILDREN)
                     continue;
             }
@@ -288,10 +320,8 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
         if (config->order == lv_TRAVERSAL_DFS_POST) {
             /* 扩展栈 */
             if (stack_top >= stack_cap) {
-                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0)) {
-                    lv_free((void **)&stack);
+                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0))
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "dfs_traverse_from: stack realloc failed");
-                }
             }
             /* 压入退出帧 */
             stack[stack_top].node_id = frame.node_id;
@@ -303,10 +333,8 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
         /* 查找邻居并压入栈 */
         lv_darray_clear(&nbr);
         int ncount = find_neighbors(graph, frame.node_id, &nbr, config);
-        if (ncount < 0) {
-            result = lv_ERROR_OUT_OF_MEMORY;
-            goto cleanup;
-        }
+        if (ncount < 0)
+            return lv_ERROR_OUT_OF_MEMORY;
 
         for (int i = ncount - 1; i >= 0; i--) {
             int nid = *(const int *)lv_darray_get(&nbr, i);
@@ -317,10 +345,8 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
 
             /* 扩展栈 */
             if (stack_top >= stack_cap) {
-                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0)) {
-                    lv_free((void **)&stack);
+                if (!lv_ensure_capacity((void **)&stack, stack_top, &stack_cap, sizeof(DFSFrame), 0))
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "dfs_traverse_from: stack realloc failed");
-                }
             }
 
             stack[stack_top].node_id = nid;
@@ -330,9 +356,6 @@ static int dfs_traverse_from(ConstraintGraph *graph, int start_id,
         }
     }
 
-cleanup:
-    lv_darray_free(&nbr);
-    lv_free((void **)&stack);
     return result;
 }
 
@@ -354,6 +377,7 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
     BFSQueue *q = bfs_queue_create(graph->node_count + 64);
     if (!q)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "bfs_traverse_from: queue alloc failed");
+    lv_DEFER(traversal_bfs_queue_cleanup, &q);
 
     visited[start_id] = true;
     bfs_queue_push(q, start_id, base_depth);
@@ -363,6 +387,7 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
     /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
     lvDArray nbr;
     lv_darray_init(&nbr, sizeof(int));
+    lv_DEFER(traversal_darray_cleanup, &nbr);
 
     while (!bfs_queue_is_empty(q)) {
         int node_id;
@@ -377,10 +402,8 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
         GeomNode *node = graph_get_node(graph, node_id);
         if (node) {
             lvTraversalResult tr = visitor(node, depth, user_data);
-            if (tr == lv_TRAVERSAL_STOP) {
-                result = lv_OK;
-                goto bfs_cleanup;
-            }
+            if (tr == lv_TRAVERSAL_STOP)
+                return result;
             if (tr == lv_TRAVERSAL_SKIP_CHILDREN)
                 continue;
         }
@@ -388,10 +411,8 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
         /* 入队邻居 */
         lv_darray_clear(&nbr);
         int ncount = find_neighbors(graph, node_id, &nbr, config);
-        if (ncount < 0) {
-            result = lv_ERROR_OUT_OF_MEMORY;
-            goto bfs_cleanup;
-        }
+        if (ncount < 0)
+            return lv_ERROR_OUT_OF_MEMORY;
 
         for (int i = 0; i < ncount; i++) {
             int nid = *(const int *)lv_darray_get(&nbr, i);
@@ -404,9 +425,6 @@ static int bfs_traverse_from(ConstraintGraph *graph, int start_id,
         }
     }
 
-bfs_cleanup:
-    lv_darray_free(&nbr);
-    bfs_queue_destroy(q);
     return result;
 }
 
@@ -546,6 +564,7 @@ static int mark_reachable_from(ConstraintGraph *graph, int start_id,
     int *stack = (int *)lv_malloc((size_t)stack_cap * sizeof(int));
     if (!stack)
         return lv_ERROR_OUT_OF_MEMORY;
+    lv_DEFER_FREE(stack);
 
     int top = 0;
     stack[top++] = start_id;
@@ -554,16 +573,15 @@ static int mark_reachable_from(ConstraintGraph *graph, int start_id,
     /* 邻居缓冲（lvDArray 动态收集，消除原 256 邻居截断上限） */
     lvDArray nbr;
     lv_darray_init(&nbr, sizeof(int));
+    lv_DEFER(traversal_darray_cleanup, &nbr);
 
     int result = lv_OK;
     while (top > 0) {
         int nid = stack[--top];
         lv_darray_clear(&nbr);
         int ncount = find_neighbors(graph, nid, &nbr, config);
-        if (ncount < 0) {
-            result = lv_ERROR_OUT_OF_MEMORY;
-            goto cleanup;
-        }
+        if (ncount < 0)
+            return lv_ERROR_OUT_OF_MEMORY;
         for (int i = 0; i < ncount; i++) {
             int nb = *(const int *)lv_darray_get(&nbr, i);
             if (nb < 0 || nb >= reachable_size || reachable[nb])
@@ -572,18 +590,13 @@ static int mark_reachable_from(ConstraintGraph *graph, int start_id,
                 continue;
             reachable[nb] = true;
             if (top >= stack_cap) {
-                if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(int), 0)) {
-                    result = lv_ERROR_OUT_OF_MEMORY;
-                    goto cleanup;
-                }
+                if (!lv_ensure_capacity((void **)&stack, top, &stack_cap, sizeof(int), 0))
+                    return lv_ERROR_OUT_OF_MEMORY;
             }
             stack[top++] = nb;
         }
     }
 
-cleanup:
-    lv_darray_free(&nbr);
-    lv_free((void **)&stack);
     return result;
 }
 
@@ -804,6 +817,8 @@ int lv_tree_traverse(void *root,
             lv_free((void **)&depths);
             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: queue alloc failed");
         }
+        lv_DEFER_FREE(queue);
+        lv_DEFER_FREE(depths);
 
         int head = 0, tail = 0;
         queue[tail] = root;
@@ -832,8 +847,6 @@ int lv_tree_traverse(void *root,
                 if (tail >= cap) {
                     if (!lv_ensure_capacity((void **)&queue, tail, &cap, sizeof(void *), 0) ||
                         !lv_ensure_capacity((void **)&depths, tail, &cap, sizeof(int), 0)) {
-                        lv_free((void **)&queue);
-                        lv_free((void **)&depths);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: queue realloc failed");
                     }
@@ -845,9 +858,7 @@ int lv_tree_traverse(void *root,
 
             lv_free((void **)&children);
         }
-
-        lv_free((void **)&queue);
-        lv_free((void **)&depths);
+        /* BFS 分支结束：lv_DEFER 守卫自动释放 queue/depths */
     } else {
         /* DFS 栈（前序/后序） */
         int cap = 64;
@@ -860,6 +871,7 @@ int lv_tree_traverse(void *root,
         TreeFrame *stack = (TreeFrame *)lv_malloc((size_t)cap * sizeof(TreeFrame));
         if (!stack)
             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: stack alloc failed");
+        lv_DEFER_FREE(stack);
 
         int top = 0;
         stack[top].node = root;
@@ -900,7 +912,6 @@ int lv_tree_traverse(void *root,
                 /* 后序：先压入退出帧，再压入子节点 */
                 if (top >= cap) {
                     if (!lv_ensure_capacity((void **)&stack, top, &cap, sizeof(TreeFrame), 0)) {
-                        lv_free((void **)&stack);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: stack realloc failed");
                     }
@@ -915,7 +926,6 @@ int lv_tree_traverse(void *root,
             for (int i = child_count - 1; i >= 0; i--) {
                 if (top >= cap) {
                     if (!lv_ensure_capacity((void **)&stack, top, &cap, sizeof(TreeFrame), 0)) {
-                        lv_free((void **)&stack);
                         lv_free((void **)&children);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_tree_traverse: stack realloc failed");
                     }
@@ -928,8 +938,7 @@ int lv_tree_traverse(void *root,
 
             lv_free((void **)&children);
         }
-
-        lv_free((void **)&stack);
+        /* DFS 分支结束：lv_DEFER 守卫自动释放 stack */
     }
 
     return lv_OK;
@@ -1147,6 +1156,7 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
     char *color = (char *)lv_calloc((size_t)n, sizeof(char)); /* 0 WHITE 1 GRAY 2 BLACK */
     if (!color)
         return false;
+    lv_DEFER_FREE(color);
 
     typedef struct {
         int node_id;
@@ -1155,14 +1165,15 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
 
     int stack_cap = 64;
     CycleFrame *stack = (CycleFrame *)lv_malloc((size_t)stack_cap * sizeof(CycleFrame));
-    if (!stack) {
-        lv_free((void **)&color);
-        return false;
-    }
+    if (!stack)
+        return false; /* 守卫自动释放 color */
+    lv_DEFER_FREE(stack);
 
     int buf_cap = 0;
     int *nbr_ids = NULL;
     void **nbr_edges = NULL;
+    lv_DEFER_FREE(nbr_ids);
+    lv_DEFER_FREE(nbr_edges);
 
     bool detected = false;
 
@@ -1200,8 +1211,9 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
                     continue;
                 }
                 if (cnt < 0) {
-                    /* 内存不足：按"无环"返回（与原实现 OOM 返回 false 一致） */
-                    goto cleanup;
+                    /* 内存不足：按"无环"返回（与原实现 OOM 返回 false 一致），
+                     * 守卫自动释放 color/stack/nbr 缓冲 */
+                    return false;
                 }
                 if (cnt == 0) {
                     /* 无更多批次 → 枚举耗尽 → 标黑 */
@@ -1237,9 +1249,8 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
                         color[nb] = 1;
                         if (top + 2 > stack_cap) {
                             if (!lv_ensure_capacity((void **)&stack, top, &stack_cap,
-                                                    sizeof(CycleFrame), 1)) {
-                                goto cleanup;
-                            }
+                                                    sizeof(CycleFrame), 1))
+                                return false; /* 守卫自动释放 color/stack/nbr 缓冲 */
                         }
                         stack[top].node_id = f.node_id;
                         stack[top].iter = bi + 1;
@@ -1260,11 +1271,6 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
         }
     }
 
-cleanup:
-    lv_free((void **)&stack);
-    lv_free((void **)&nbr_ids);
-    lv_free((void **)&nbr_edges);
-    lv_free((void **)&color);
     return detected;
 }
 

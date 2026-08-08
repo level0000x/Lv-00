@@ -120,6 +120,38 @@ bool lv_json_parse_double(lvJsonParser *p, double *out);
 bool lv_json_parse_bool(lvJsonParser *p, bool *out);
 
 /**
+ * @brief 读取 JSON 对象的下一个字段（key → ':' 组合）
+ *
+ * 收敛各模块手写的"while (peek != '}') { key = parse_string; expect(':');
+ * 处理值; 吃 ',' }"同构循环。解析器应位于对象内部（'{' 之后）。
+ * 每轮调用读取一个字段的键名并越过冒号，调用方随后读取该字段的值，
+ * 下一轮调用自动消费上一字段后的逗号。
+ *
+ * 容错语义与既有手写循环保持一致：
+ *   - 对象结束（'}' 或输入末尾）返回 false；
+ *   - 尾部逗号（"a":1,}）被容忍：本函数先消费逗号再检查 '}'；
+ *   - 键不是字符串（parse_string 失败）或缺冒号返回 false（调用方 break，
+ *     与历史 break 行为一致）；
+ *   - 空对象返回 false，循环体不执行。
+ *
+ * 典型用法：
+ * @code
+ *   char *key;
+ *   while (lv_json_parse_field(p, &key)) {
+ *       if (strcmp(key, "id") == 0) lv_json_parse_int(p, &ctx->id);
+ *       else lv_json_skip_value(p);
+ *       lv_free((void **)&key);
+ *   }
+ * @endcode
+ *
+ * @param p   解析器指针
+ * @param key 输出键名字符串（堆分配，调用者用 lv_free 释放）；
+ *            失败时置为 NULL
+ * @return true 读取到字段，false 对象已结束或字段结构非法
+ */
+bool lv_json_parse_field(lvJsonParser *p, char **key);
+
+/**
  * @brief 在 JSON 对象顶层按名称查找键值
  *
  * 扫描 JSON 字符串，找到指定 key 后返回其对应值的起始位置。

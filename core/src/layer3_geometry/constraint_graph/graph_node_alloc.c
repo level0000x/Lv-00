@@ -445,14 +445,8 @@ static GeomNode *port_clone(const GeomNode *node, ConstraintGraph *dst_graph) {
         return dst; /* 源无端口数据，保留目标默认值 */
     Port *src_p = node->data.port;
     Port *dst_p = dst->data.port;
-    dst_p->id = src_p->id;
-    dst_p->type = src_p->type;
-    dst_p->namespace_depth = src_p->namespace_depth;
-    dst_p->parent_block_id = src_p->parent_block_id;
-    dst_p->is_formal_param = src_p->is_formal_param;
-    dst_p->is_polymorphic = src_p->is_polymorphic;
-    /* type_region 浅拷贝：所有权由 TypeSystem 统一管理（同 node_deep_copy_port） */
-    dst_p->type_region = src_p->type_region;
+    /* 标量字段收敛至共享辅助 port_copy_fields（graph_node_internal.h） */
+    port_copy_fields(dst_p, src_p);
     /* connected_to 先拷贝源图引用，由 fixup_refs 重映射到新图 */
     dst_p->connected_to = src_p->connected_to;
     return dst;
@@ -470,19 +464,22 @@ static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_gra
     dst->data.func_block.input_port_ids = NULL;
     dst->data.func_block.output_port_ids = NULL;
 
+    /* 三数组深拷贝收敛至公共辅助 lv_copy_ptr_array / lv_copy_int_array
+     * （lv_utils.h）：internal_nodes 指针数组浅拷贝源图引用（后续由
+     * fixup_refs 重映射）；端口 ID 数组按值深拷贝。分配失败统一回滚已分配
+     * 数组并返回 NULL，保持节点数据一致（随图销毁走 func_block_free 释放）。 */
     if (node->data.func_block.internal_nodes && node->data.func_block.internal_node_count > 0) {
         dst->data.func_block.internal_nodes =
-            (GeomNode **) lv_malloc((size_t) node->data.func_block.internal_node_count * sizeof(GeomNode *));
+            (GeomNode **) lv_copy_ptr_array((void *const *) node->data.func_block.internal_nodes,
+                                            node->data.func_block.internal_node_count);
         if (!dst->data.func_block.internal_nodes) {
             dst->data.func_block.internal_node_count = 0;
             return NULL;
         }
-        /* 先拷贝源图引用，后续由 fixup_refs 重映射到新图 */
-        memcpy(dst->data.func_block.internal_nodes, node->data.func_block.internal_nodes,
-               (size_t) node->data.func_block.internal_node_count * sizeof(GeomNode *));
     }
     if (node->data.func_block.input_port_ids && node->data.func_block.input_count > 0) {
-        dst->data.func_block.input_port_ids = (int *) lv_malloc((size_t) node->data.func_block.input_count * sizeof(int));
+        dst->data.func_block.input_port_ids =
+            lv_copy_int_array(node->data.func_block.input_port_ids, node->data.func_block.input_count);
         if (!dst->data.func_block.input_port_ids) {
             /* 分配失败：释放已分配数据并保持一致性，随图销毁走 func_block_free */
             dst->data.func_block.input_count = 0;
@@ -490,12 +487,10 @@ static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_gra
             dst->data.func_block.internal_node_count = 0;
             return NULL;
         }
-        memcpy(dst->data.func_block.input_port_ids, node->data.func_block.input_port_ids,
-               (size_t) node->data.func_block.input_count * sizeof(int));
     }
     if (node->data.func_block.output_port_ids && node->data.func_block.output_count > 0) {
         dst->data.func_block.output_port_ids =
-            (int *) lv_malloc((size_t) node->data.func_block.output_count * sizeof(int));
+            lv_copy_int_array(node->data.func_block.output_port_ids, node->data.func_block.output_count);
         if (!dst->data.func_block.output_port_ids) {
             /* 分配失败：释放已分配数据并保持一致性，随图销毁走 func_block_free */
             dst->data.func_block.output_count = 0;
@@ -505,8 +500,6 @@ static GeomNode *func_block_clone(const GeomNode *node, ConstraintGraph *dst_gra
             dst->data.func_block.internal_node_count = 0;
             return NULL;
         }
-        memcpy(dst->data.func_block.output_port_ids, node->data.func_block.output_port_ids,
-               (size_t) node->data.func_block.output_count * sizeof(int));
     }
     return dst;
 }
@@ -682,15 +675,10 @@ static const SymbolicCoord *node_coord_at(const GeomNode *node, int idx) {
     return node->symbolic_coords[idx];
 }
 
-/* 两个符号坐标可确定相等（均存在且符号比较相等） */
-static bool coords_equal(const SymbolicCoord *p, const SymbolicCoord *q) {
-    return p && q && symbolic_coord_compare(p, q) == 0;
-}
-
-/* 坐标对相等（线段端点对比较） */
+/* 坐标对相等（线段端点对比较）—— 逐坐标收敛至公共 symbolic_coord_equal */
 static bool coord_pair_equal(const SymbolicCoord *p1, const SymbolicCoord *p2, const SymbolicCoord *q1,
                              const SymbolicCoord *q2) {
-    return coords_equal(p1, q1) && coords_equal(p2, q2);
+    return symbolic_coord_equal(p1, q1) && symbolic_coord_equal(p2, q2);
 }
 
 static bool point_detect_conflict(const GeomNode *a, const GeomNode *b) {
@@ -699,8 +687,8 @@ static bool point_detect_conflict(const GeomNode *a, const GeomNode *b) {
     if (b->type == GEOM_POINT) {
         /* 同位置点：两个点节点的 (x, y) 坐标完全重合 → 对象重叠冲突。
          * 坐标缺失时无法确定，保守返回 false。 */
-        return coords_equal(node_coord_at(a, 0), node_coord_at(b, 0)) &&
-               coords_equal(node_coord_at(a, 1), node_coord_at(b, 1));
+        return symbolic_coord_equal(node_coord_at(a, 0), node_coord_at(b, 0)) &&
+               symbolic_coord_equal(node_coord_at(a, 1), node_coord_at(b, 1));
     }
     if (b->type == GEOM_CIRCLE) {
         /* 点为该圆的定义节点（圆心或半径端点）：合法从属关系，非冲突 */
@@ -735,17 +723,17 @@ static bool line_segment_detect_conflict(const GeomNode *a, const GeomNode *b) {
         return true;
 
     /* 退化线段（任一端点重合）：非标准数据，其余重叠关系无法可靠确定 → 保守 false */
-    if (coords_equal(a1, b1) && coords_equal(a2, b2))
+    if (symbolic_coord_equal(a1, b1) && symbolic_coord_equal(a2, b2))
         return false;
-    if (coords_equal(c1, d1) && coords_equal(c2, d2))
+    if (symbolic_coord_equal(c1, d1) && symbolic_coord_equal(c2, d2))
         return false;
 
     /* 端点接触计数（符号精确）：区分"仅端点接触"（合法拓扑，如多边形共顶点）
      * 与"重叠 / 相交"（几何冲突） */
     int shared = 0;
-    if (coords_equal(a1, c1) || coords_equal(a1, d1))
+    if (symbolic_coord_equal(a1, c1) || symbolic_coord_equal(a1, d1))
         shared++;
-    if (coords_equal(b1, c1) || coords_equal(b1, d1))
+    if (symbolic_coord_equal(b1, c1) || symbolic_coord_equal(b1, d1))
         shared++;
 
     /* 数值近似：符号坐标 → double（紧容差 GEO_EPSILON），仅用于确定
@@ -758,16 +746,16 @@ static bool line_segment_detect_conflict(const GeomNode *a, const GeomNode *b) {
     if (shared == 1) {
         /* 共享一个端点：若任一线段的未共享端点严格落在另一线段内部
          * （端点重合已排除，命中即内部点）→ 部分重叠冲突 */
-        if (!coords_equal(c1, a1) && !coords_equal(c1, b1) &&
+        if (!symbolic_coord_equal(c1, a1) && !symbolic_coord_equal(c1, b1) &&
             geo_point_on_segment(bx1, by1, ax1, ay1, ax2, ay2))
             return true;
-        if (!coords_equal(d1, a1) && !coords_equal(d1, b1) &&
+        if (!symbolic_coord_equal(d1, a1) && !symbolic_coord_equal(d1, b1) &&
             geo_point_on_segment(bx2, by2, ax1, ay1, ax2, ay2))
             return true;
-        if (!coords_equal(a1, c1) && !coords_equal(a1, d1) &&
+        if (!symbolic_coord_equal(a1, c1) && !symbolic_coord_equal(a1, d1) &&
             geo_point_on_segment(ax1, ay1, bx1, by1, bx2, by2))
             return true;
-        if (!coords_equal(b1, c1) && !coords_equal(b1, d1) &&
+        if (!symbolic_coord_equal(b1, c1) && !symbolic_coord_equal(b1, d1) &&
             geo_point_on_segment(ax2, ay2, bx1, by1, bx2, by2))
             return true;
         return false; /* 仅端点接触 → 合法拓扑，非冲突 */

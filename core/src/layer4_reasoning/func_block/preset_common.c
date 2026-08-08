@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "error_codes.h"
+#include "lv_utils.h"
 
 /* ============================================================
  * 字符串操作实现
@@ -111,25 +112,10 @@ bool lv_int_arrays_equal(const int *a, int count_a, const int *b, int count_b) {
 }
 
 int *lv_dup_int_array(const int *src, int count) {
-    if (src == NULL || count <= 0) {
-        return NULL;
-    }
-
-    /* 检查整数溢出 */
-    if (count > INT_MAX / (int) sizeof(int)) {
-        lv_ERROR_SET(lv_ERROR_OVERFLOW, "数组大小溢出: count=%d", count);
-        return NULL;
-    }
-
-    size_t size = (size_t) count * sizeof(int);
-    int *dup = (int *) lv_malloc(size);
-    if (dup == NULL) {
-        lv_ERROR_SET(lv_ERROR_ALLOCATION_FAILED, "数组内存分配失败");
-        return NULL;
-    }
-
-    memcpy(dup, src, size);
-    return dup;
+    /* 收敛：委托给 lv_utils.c 的统一数组拷贝入口（lv_copy_int_array），
+     * 消除此处与 func_block_utils.c dup_int_array 的手写并行实现。
+     * 保持公共符号以维持向后兼容 ABI。 */
+    return lv_copy_int_array(src, count);
 }
 
 /* ============================================================

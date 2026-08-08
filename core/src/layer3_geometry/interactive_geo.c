@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file interactive_geo.c
  * @brief 交互几何系统实现 —— 借鉴 Cinderella 与 Dr. Geo
  * @see interactive_geo.h
@@ -16,6 +16,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_json.h"
 
 #define HIT_RADIUS 12.0
 #define MAX_ZOOM 20.0
@@ -532,23 +533,55 @@ int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
     lvGeoCanvasState *cs = &g->canvas_state;
     int mv = (int) cs->current_mode, di = -1, sc = 0;
     double dx = 0, dy = 0, zm = 1, ox = 0, oy = 0;
-    const char *p;
-    if ((p = strstr(j, "\"mode\":")) && sscanf(p + 7, "%d", &mv) != 1)
-        mv = 0;
-    if ((p = strstr(j, "\"drag_target\":")) && sscanf(p + 14, "%d", &di) != 1)
-        di = -1;
-    if ((p = strstr(j, "\"drag_pos\":[")) && sscanf(p + 12, "%lf,%lf", &dx, &dy) != 2) {
-        dx = 0;
-        dy = 0;
+
+    /* 快照为 JSON 对象（interactive_geo_snapshot 生成），用统一 lvJsonParser
+     * 按字段名分发解析（替代原 strstr+sscanf 手写定位；字段顺序无关，
+     * 缺失字段保持初始默认值——与 strstr 未命中时保持初值的容错语义一致，
+     * 字段存在但解析失败时回退默认值的语义亦保持一致） */
+    lvJsonParser jp;
+    lv_json_parser_init(&jp, j, strlen(j));
+    if (lv_json_peek(&jp) == '{') {
+        jp.pos++; /* 跳过 '{' */
+        char *key = NULL;
+        while (lv_json_parse_field(&jp, &key)) {
+            if (strcmp(key, "mode") == 0) {
+                if (!lv_json_parse_int(&jp, &mv))
+                    mv = 0;
+            } else if (strcmp(key, "drag_target") == 0) {
+                if (!lv_json_parse_int(&jp, &di))
+                    di = -1;
+            } else if (strcmp(key, "drag_pos") == 0) {
+                double arr[2];
+                size_t cnt = 0;
+                if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
+                    dx = 0;
+                    dy = 0;
+                } else {
+                    dx = arr[0];
+                    dy = arr[1];
+                }
+            } else if (strcmp(key, "zoom") == 0) {
+                if (!lv_json_parse_double(&jp, &zm))
+                    zm = 1;
+            } else if (strcmp(key, "offset") == 0) {
+                double arr[2];
+                size_t cnt = 0;
+                if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
+                    ox = 0;
+                    oy = 0;
+                } else {
+                    ox = arr[0];
+                    oy = arr[1];
+                }
+            } else if (strcmp(key, "selected_count") == 0) {
+                if (!lv_json_parse_int(&jp, &sc))
+                    sc = 0;
+            } else {
+                lv_json_skip_value(&jp);
+            }
+            lv_free((void **) &key);
+        }
     }
-    if ((p = strstr(j, "\"zoom\":")) && sscanf(p + 7, "%lf", &zm) != 1)
-        zm = 1;
-    if ((p = strstr(j, "\"offset\":[")) && sscanf(p + 10, "%lf,%lf", &ox, &oy) != 2) {
-        ox = 0;
-        oy = 0;
-    }
-    if ((p = strstr(j, "\"selected_count\":")) && sscanf(p + 17, "%d", &sc) != 1)
-        sc = 0;
     cs->current_mode = (InteractiveGeoMode) mv;
     cs->drag_target_id = di;
     cs->drag_current_x = dx;

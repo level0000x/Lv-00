@@ -23,6 +23,7 @@
 
 #include "error_codes.h"
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h"
 
 /* ============================================================
  * AB4 系数表
@@ -74,15 +75,17 @@ int lv_ode_rk4_step(double t, const double *y, size_t n, double h, double *yout,
     double *k3 = (double *) lv_calloc(n, sizeof(double));
     double *k4 = (double *) lv_calloc(n, sizeof(double));
     double *ytmp = (double *) lv_calloc(n, sizeof(double));
+    /* 逐分配注册 lv_DEFER 守卫：任一分配失败 / deriv 失败路径（goto cleanup 位置）
+     * 自动释放全部已分配缓冲，替代重复 5 连 lv_free 样板 */
+    lv_DEFER_FREE(k1);
+    lv_DEFER_FREE(k2);
+    lv_DEFER_FREE(k3);
+    lv_DEFER_FREE(k4);
+    lv_DEFER_FREE(ytmp);
 
     if (!k1 || !k2 || !k3 || !k4 || !ytmp) {
-        /* 分配失败：清零输出并清理 */
+        /* 分配失败：清零输出（已分配的缓冲由守卫自动释放） */
         memset(yout, 0, n * sizeof(double));
-        lv_free((void **) &k1);
-        lv_free((void **) &k2);
-        lv_free((void **) &k3);
-        lv_free((void **) &k4);
-        lv_free((void **) &ytmp);
         return lv_ERROR_ALLOCATION_FAILED;
     }
 
@@ -92,47 +95,37 @@ int lv_ode_rk4_step(double t, const double *y, size_t n, double h, double *yout,
 
     /* k1 = f(t, y) */
     ret = deriv(t, y, k1, ctx);
-    if (ret != 0) {
-        goto cleanup;
-    }
+    if (ret != 0)
+        return ret;
 
     /* k2 = f(t + h/2, y + h/2 * k1) */
     for (size_t i = 0; i < n; i++) {
         ytmp[i] = y[i] + half_h * k1[i];
     }
     ret = deriv(t + half_h, ytmp, k2, ctx);
-    if (ret != 0) {
-        goto cleanup;
-    }
+    if (ret != 0)
+        return ret;
 
     /* k3 = f(t + h/2, y + h/2 * k2) */
     for (size_t i = 0; i < n; i++) {
         ytmp[i] = y[i] + half_h * k2[i];
     }
     ret = deriv(t + half_h, ytmp, k3, ctx);
-    if (ret != 0) {
-        goto cleanup;
-    }
+    if (ret != 0)
+        return ret;
 
     /* k4 = f(t + h, y + h * k3) */
     for (size_t i = 0; i < n; i++) {
         ytmp[i] = y[i] + h * k3[i];
     }
     ret = deriv(t + h, ytmp, k4, ctx);
-    if (ret != 0) {
-        goto cleanup;
-    }
+    if (ret != 0)
+        return ret;
 
     /* yout = y + h/6 * (k1 + 2*k2 + 2*k3 + k4) */
     for (size_t i = 0; i < n; i++) {
         yout[i] = y[i] + sixth_h * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
     }
 
-cleanup:
-    lv_free((void **) &k1);
-    lv_free((void **) &k2);
-    lv_free((void **) &k3);
-    lv_free((void **) &k4);
-    lv_free((void **) &ytmp);
     return ret;
 }

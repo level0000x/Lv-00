@@ -90,6 +90,9 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     } else {
         lv_json_buf_append_raw(&jb, ",\n  \"description\": null");
     }
+    /* 流式输出：progress/numeric_value 为进度类数值，%.6g 有意为之
+     * （流式事件不需要 15 位精度，6 位有效数字足以表达进度，输出更紧凑；
+     * 与 lv_json_buf_append_double 的 %.15g 数据序列化口径不冲突）。 */
     lv_json_buf_append_fmt(&jb, ",\n  \"progress\": %.6g", event->progress);
     lv_json_buf_append_fmt(&jb, ",\n  \"numeric_value\": %.6g\n", event->numeric_value);
     lv_json_buf_append_raw(&jb, "}");

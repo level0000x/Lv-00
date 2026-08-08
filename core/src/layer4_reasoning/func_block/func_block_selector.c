@@ -224,15 +224,23 @@ SolutionSelector *selector_create_custom(SelectorFunction func, void *user_data)
 /**
  * @brief 销毁选择器
  *
- * 注意：本函数仅释放选择器结构体本身的内存，不会释放 user_data 所指向的内存。
- * 调用者有责任在销毁选择器之前自行管理 user_data 的生命周期（分配与释放）。
+ * 释放选择器内部拥有的 name / solution_values 子字段以及结构体本身。
+ *
+ * 注意：本函数不会释放 user_data 所指向的内存（含 func_block_copy
+ * 经 copy_user_data 深拷贝的副本，按既有约定由调用者管理其生命周期）。
  * 这一约定避免了选择器与调用者之间的内存所有权歧义。
+ *
+ * 【2026-08 收敛】此前仅释放外壳，func_block_copy 深拷贝的 name /
+ * solution_values 无释放路径（泄漏）；现统一由本函数释放，使
+ * func_block_copy 的失败路径可统一 goto fail 走 func_block_destroy 清理。
  *
  * @param selector 选择器指针
  */
 void selector_destroy(SolutionSelector *selector) {
     if (!selector)
         return;
+    lv_free((void **) &selector->name);
+    lv_free((void **) &selector->solution_values);
     lv_free((void **) &selector);
 }
 

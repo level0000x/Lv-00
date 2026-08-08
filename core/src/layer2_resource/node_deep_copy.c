@@ -89,14 +89,11 @@ Port *node_deep_copy_port(const Port *orig) {
     if (!copy)
         return NULL;
 
-    copy->id = orig->id;
-    copy->type = orig->type;
-    copy->namespace_depth = orig->namespace_depth;
-    copy->parent_block_id = orig->parent_block_id;
-    copy->is_formal_param = orig->is_formal_param;
-    copy->is_polymorphic = orig->is_polymorphic;
-    /* type_region 浅拷贝（指针赋值），所有权由 TypeSystem 统一管理 */
-    copy->type_region = orig->type_region;
+    /* 标量字段收敛至共享辅助 port_copy_fields（graph_node_internal.h，
+     * 与 GeomNodeVTable::clone 槽 port_clone 共用同一字段拷贝逻辑）：
+     * id/type/namespace_depth/parent_block_id/is_formal_param/is_polymorphic
+     * 直接赋值；type_region 浅拷贝（指针赋值），所有权由 TypeSystem 统一管理 */
+    port_copy_fields(copy, orig);
     copy->connected_to = NULL; /* 后续通过 ID 映射更新连接关系 */
 
     return copy;

@@ -36,16 +36,14 @@
 #define lv_PLUGIN_VERSION_OK 1
 #define lv_PLUGIN_VERSION_MISMATCH 0
 
-/* 解析语义版本字符串 "major.minor.patch"，返回 sscanf 匹配项数 */
-static int parse_semver(const char *ver_str, int *major, int *minor, int *patch) {
-    if (!ver_str)
-        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "parse_semver: ver_str is NULL");
-    *major = *minor = *patch = 0;
-    return sscanf(ver_str, "%d.%d.%d", major, minor, patch);
-}
-
 /**
  * @brief 检查版本号是否满足要求（语义版本比较）
+ *
+ * 版本解析统一走公共 lvVersion 实现（lv_utils_misc.c version_parse，
+ * 支持 prerelease/build 后缀，功能最全），替代原手写 sscanf("%d.%d.%d")。
+ * 容错语义以公共实现为准：非法版本串（含单段 "1"、">=1.0.0" 前缀等）
+ * 解析失败返回 MISMATCH。
+ *
  * @param required 要求的版本字符串
  * @param provided 提供的版本字符串
  * @return 兼容返回 lv_PLUGIN_VERSION_OK (1)，不兼容返回 lv_PLUGIN_VERSION_MISMATCH (0)
@@ -54,35 +52,21 @@ int lv_plugin_check_version(const char *required, const char *provided) {
     if (!required || !provided)
         return lv_PLUGIN_VERSION_MISMATCH;
 
-    /* 解析 required 版本 */
-    int req_major, req_minor, req_patch;
-    if (parse_semver(required, &req_major, &req_minor, &req_patch) < 1) {
+    lvVersion *req = version_parse(required);
+    if (!req)
+        return lv_PLUGIN_VERSION_MISMATCH;
+    lvVersion *prov = version_parse(provided);
+    if (!prov) {
+        version_destroy(req);
         return lv_PLUGIN_VERSION_MISMATCH;
     }
 
-    /* 解析 provided 版本 */
-    int prov_major, prov_minor, prov_patch;
-    if (parse_semver(provided, &prov_major, &prov_minor, &prov_patch) < 1) {
-        return lv_PLUGIN_VERSION_MISMATCH;
-    }
-
-    /* 语义版本比较：逐级比较 major -> minor -> patch */
-    if (prov_major > req_major)
-        return lv_PLUGIN_VERSION_OK;
-    if (prov_major < req_major)
-        return lv_PLUGIN_VERSION_MISMATCH;
-
-    /* major 相同，比较 minor */
-    if (prov_minor > req_minor)
-        return lv_PLUGIN_VERSION_OK;
-    if (prov_minor < req_minor)
-        return lv_PLUGIN_VERSION_MISMATCH;
-
-    /* minor 相同，比较 patch */
-    if (prov_patch >= req_patch)
-        return lv_PLUGIN_VERSION_OK;
-
-    return lv_PLUGIN_VERSION_MISMATCH;
+    /* 语义版本比较：provided >= required（逐级比较 major -> minor -> patch，
+     * 与旧实现一致；prerelease/build 后缀比较以公共 version_compare 为准） */
+    int cmp = version_compare(prov, req);
+    version_destroy(req);
+    version_destroy(prov);
+    return (cmp >= 0) ? lv_PLUGIN_VERSION_OK : lv_PLUGIN_VERSION_MISMATCH;
 }
 
 /**

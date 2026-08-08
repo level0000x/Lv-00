@@ -23,6 +23,13 @@ static const char *ineq_type_str(lvInequalityType type) {
     return lv_enum_to_str(s_ineq_type_str_entries, lv_ARRAY_SIZE(s_ineq_type_str_entries), (int) type, "?");
 }
 
+/** @brief lv_ineq_proof_to_string 状态名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_ineq_status_str_entries[] = {
+    {"PROVED", INEQ_STATUS_PROVED},
+    {"DISPROVED", INEQ_STATUS_DISPROVED},
+    {"CONDITIONAL", INEQ_STATUS_CONDITIONAL},
+};
+
 char *lv_ineq_to_string(const lvInequality *ineq) {
     if (!ineq) {
         char *s = (char *) lv_malloc(1);
@@ -54,20 +61,8 @@ char *lv_ineq_proof_to_string(const lvInequalityProof *proof) {
     if (!s)
         return NULL;
 
-    const char *status_str = "UNKNOWN";
-    switch (proof->status) {
-        case INEQ_STATUS_PROVED:
-            status_str = "PROVED";
-            break;
-        case INEQ_STATUS_DISPROVED:
-            status_str = "DISPROVED";
-            break;
-        case INEQ_STATUS_CONDITIONAL:
-            status_str = "CONDITIONAL";
-            break;
-        default:
-            break;
-    }
+    const char *status_str = lv_enum_to_str(s_ineq_status_str_entries, lv_ARRAY_SIZE(s_ineq_status_str_entries),
+                                            (int) proof->status, "UNKNOWN");
 
     snprintf(s, buf_size, "Proof: %s, %d steps", status_str, proof->step_count);
     return s;

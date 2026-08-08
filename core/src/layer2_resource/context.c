@@ -13,6 +13,7 @@
  */
 
 #include "context.h"
+#include "lv/circuit_breaker.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
 
@@ -748,9 +749,7 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
                  (unsigned long long) ctx->context_id, ctx->name ? ctx->name : "(无名)",
                  lv_context_state_name(ctx->state), ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth,
                  (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps,
-                 ctx->circuit_breaker.state == CIRCUIT_BREAKER_CLOSED      ? "关闭（正常）"
-                 : ctx->circuit_breaker.state == CIRCUIT_BREAKER_HALF_OPEN ? "半开（试探）"
-                                                                           : "打开（熔断）",
+                 lv_circuit_breaker_state_name((lvContext *) ctx),
                  ctx->circuit_breaker.trip_count, ctx->circuit_breaker.consecutive_errors,
                  ctx->circuit_breaker.max_consecutive_errors, ctx->problems_processed,
                  (long long) ctx->state_transition_count, (unsigned long long) uptime_ms);

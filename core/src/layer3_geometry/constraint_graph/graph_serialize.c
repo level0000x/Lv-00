@@ -737,18 +737,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
     int next_node_id = 0, next_constraint_id = 0;
 
     /* 解析节点和约束数组 */
-    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-        char *key = lv_json_parse_string(&p);
-        if (!key)
-            break;
-
-        lv_json_skip_ws(&p);
-        if (p.pos >= p.size || p.data[p.pos] != ':') {
-            lv_free((void **) &key);
-            break;
-        }
-        p.pos++;
-
+    char *key = NULL;
+    while (lv_json_parse_field(&p, &key)) {
         if (strcmp(key, "nodes") == 0) {
             if (!lv_json_expect(&p, '[')) {
                 lv_free((void **) &key);
@@ -783,18 +773,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 ctx.circle_radius_id = -1;
                 ctx.port_type = PORT_INPUT;
 
-                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                    char *node_key = lv_json_parse_string(&p);
-                    if (!node_key)
-                        break;
-
-                    lv_json_skip_ws(&p);
-                    if (p.pos >= p.size || p.data[p.pos] != ':') {
-                        lv_free((void **) &node_key);
-                        break;
-                    }
-                    p.pos++;
-
+                char *node_key = NULL;
+                while (lv_json_parse_field(&p, &node_key)) {
                     /* 字段查表分发（替代 15 分支 strcmp 链） */
                     NodeFieldHandler fh = node_field_lookup(node_key);
                     if (fh)
@@ -803,9 +783,6 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         lv_json_skip_value(&p);
 
                     lv_free((void **) &node_key);
-                    lv_json_skip_ws(&p);
-                    if (lv_json_peek(&p) == ',')
-                        p.pos++;
                 }
 
                 if (lv_json_peek(&p) == '}')
@@ -956,18 +933,8 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                 cctx.template_id = -1;
                 cctx.constraint_type = INCIDENCE;
 
-                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                    char *ckey = lv_json_parse_string(&p);
-                    if (!ckey)
-                        break;
-
-                    lv_json_skip_ws(&p);
-                    if (p.pos >= p.size || p.data[p.pos] != ':') {
-                        lv_free((void **) &ckey);
-                        break;
-                    }
-                    p.pos++;
-
+                char *ckey = NULL;
+                while (lv_json_parse_field(&p, &ckey)) {
                     /* 字段查表分发（替代 5 分支 strcmp 链） */
                     ConstraintFieldHandler cfh = constraint_field_lookup(ckey);
                     if (cfh)
@@ -976,9 +943,6 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
                         lv_json_skip_value(&p);
 
                     lv_free((void **) &ckey);
-                    lv_json_skip_ws(&p);
-                    if (lv_json_peek(&p) == ',')
-                        p.pos++;
                 }
 
                 if (lv_json_peek(&p) == '}')
@@ -1007,9 +971,6 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
         }
 
         lv_free((void **) &key);
-        lv_json_skip_ws(&p);
-        if (lv_json_peek(&p) == ',')
-            p.pos++;
     }
 
     return graph;

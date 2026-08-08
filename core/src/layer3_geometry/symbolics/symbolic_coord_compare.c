@@ -153,3 +153,12 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b) {
         return 1;
     return 0;
 }
+
+/* 收敛入口：propagation.c / graph_node_alloc.c / graph_node_conflict.c
+ * 三处手写 coords_equal 统一改调本函数，消除并行实现。
+ * 语义约定（NULL-safe）：任一参数为 NULL 即视为不等。 */
+bool symbolic_coord_equal(const SymbolicCoord *a, const SymbolicCoord *b) {
+    if (!a || !b)
+        return false;
+    return symbolic_coord_compare(a, b) == 0;
+}

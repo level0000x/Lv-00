@@ -48,15 +48,19 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *
                            "  \"mappings\": [\n",
                            preset->dimension_count, preset->mapping_count);
 
-    /* 序列化映射配置 */
+    /* 序列化映射配置。
+     * 数值格式统一为 %.15g（与 lv_json_buf_append_double / graph_serialize
+     * numeric_value 的序列化风格一致）。原 %.6f 定宽在 scale/offset 为
+     * 1e-8 量级时会被截断为 0.000000，导致"序列化→反序列化"往返丢失精度
+     * （真实精度 bug，已修复）。%.15g 可无损往返 double。 */
     for (int i = 0; i < preset->mapping_count; i++) {
         const HighDimAxisMapping *m = &preset->mappings[i];
         lv_json_buf_append_fmt(&buf,
                                "    {\n"
                                "      \"axis_index\": %d,\n"
                                "      \"mapping_type\": \"%s\",\n"
-                               "      \"scale\": %.6f,\n"
-                               "      \"offset\": %.6f\n"
+                               "      \"scale\": %.15g,\n"
+                               "      \"offset\": %.15g\n"
                                "    }%s\n",
                                m->axis_index, high_dim_mapping_type_to_string(m->mapping_type), m->scale,
                                m->offset, (i < preset->mapping_count - 1) ? "," : "");
@@ -65,10 +69,10 @@ int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *
     lv_json_buf_append_fmt(&buf,
                            "  ],\n"
                            "  \"transform\": {\n"
-                           "    \"m00\": %.6f,\n"
-                           "    \"m01\": %.6f,\n"
-                           "    \"m10\": %.6f,\n"
-                           "    \"m11\": %.6f\n"
+                           "    \"m00\": %.15g,\n"
+                           "    \"m01\": %.15g,\n"
+                           "    \"m10\": %.15g,\n"
+                           "    \"m11\": %.15g\n"
                            "  },\n"
                            "  \"is_default\": %s\n"
                            "}",

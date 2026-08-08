@@ -8,6 +8,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/representation_converter.h"
 #include "lv/lv_strbuf.h"
 
@@ -124,20 +125,22 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     const char *p = code;
     int block_id_counter = 0;
     while (*p) {
-        /* 跳过空白行 */
-        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
-            p++;
+        /* 跳过空白行（统一走公共原语 lv_str_skip_ws） */
+        p = lv_str_skip_ws(p);
         if (!*p)
             break;
 
         /* 检测 "block" 关键字 */
         if (strncmp(p, "block ", 6) == 0) {
             p += 6;
-            /* 提取块名称 */
+            /* 提取块名称（统一走公共原语 lv_str_read_token，替代手写标识符循环） */
             char name[256] = {0};
-            int ni = 0;
-            while (*p && *p != ' ' && *p != '{' && *p != '\n' && ni < 255) {
-                name[ni++] = *p++;
+            char *name_tok = NULL;
+            p = lv_str_read_token(&p, &name_tok, " {\n");
+            if (name_tok) {
+                strncpy(name, name_tok, sizeof(name) - 1);
+                name[sizeof(name) - 1] = '\0';
+                lv_free((void **) &name_tok);
             }
             /* 跳到花括号 */
             while (*p && *p != '{')
@@ -155,9 +158,8 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                 int in_cnt = 0, out_cnt = 0;
 
                 while (*p && *p != '}') {
-                    /* 跳过空白 */
-                    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
-                        p++;
+                    /* 跳过空白（统一走公共原语 lv_str_skip_ws） */
+                    p = lv_str_skip_ws(p);
                     if (!*p || *p == '}')
                         break;
 

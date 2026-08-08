@@ -120,6 +120,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
             lv_json_buf_append_raw(&buf, "      \"type\": \"Feature\",\n");
             lv_json_buf_append_raw(&buf, "      \"geometry\": {\n");
             lv_json_buf_append_raw(&buf, "        \"type\": \"LineString\",\n");
+            /* 坐标输出 %.15g：保留 double 精度（口径同 Point 分支） */
             lv_json_buf_append_fmt(&buf, "        \"coordinates\": [[%.15g, %.15g], [%.15g, %.15g]]\n", endpoints[0],
                                    endpoints[1], endpoints[2], endpoints[3]);
             lv_json_buf_append_raw(&buf, "      },\n");

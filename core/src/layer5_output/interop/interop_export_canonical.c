@@ -97,7 +97,8 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
                     fprintf(fp, "%s", serialized);
                     lv_free((void **) &serialized);
                 } else {
-                    /* 序列化失败时回退到数值表示 */
+                    /* 序列化失败时回退到数值表示；%.6g 为展示型精度（回退分支），
+                     * 与主路径 symbolic_coord_serialize 的精确有理数输出不冲突 */
                     double val = symbolic_coord_to_double(coord);
                     fprintf(fp, "%.6g", val);
                 }

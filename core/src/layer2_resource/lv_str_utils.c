@@ -236,6 +236,115 @@ bool lv_str_check_balanced(const char *p, char open, char close) {
     return depth == 0;
 }
 
+/* ===== 流式文本解析原语 ===== */
+
+const char *lv_str_skip_ws(const char *p) {
+    if (!p)
+        return NULL;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
+    return p;
+}
+
+bool lv_str_read_int(const char **pp, int64_t *out) {
+    if (!pp || !out)
+        return false;
+    const char *p = lv_str_skip_ws(*pp);
+    bool negative = false;
+    if (*p == '-') {
+        negative = true;
+        p++;
+    }
+    if (*p < '0' || *p > '9') {
+        /* 无数字：输出 0、指针不动（与历史 parse_int/read_int 语义一致） */
+        *out = 0;
+        return false;
+    }
+
+    /* 无符号累加避免有符号溢出未定义行为；溢出时钳位并继续消费数字 */
+    uint64_t val = 0;
+    bool overflow = false;
+    while (*p >= '0' && *p <= '9') {
+        uint64_t digit = (uint64_t) (*p - '0');
+        if (!overflow) {
+            if (val > (UINT64_MAX - digit) / 10)
+                overflow = true;
+            else
+                val = val * 10 + digit;
+        }
+        p++;
+    }
+    *pp = p;
+
+    if (overflow) {
+        *out = negative ? INT64_MIN : INT64_MAX;
+    } else if (negative) {
+        /* val <= 2^63：直接取负；val == 2^63 恰为 INT64_MIN */
+        if (val > (uint64_t) INT64_MAX + 1)
+            *out = INT64_MIN;
+        else
+            *out = (val == (uint64_t) INT64_MAX + 1) ? INT64_MIN : -(int64_t) val;
+    } else {
+        *out = (val > (uint64_t) INT64_MAX) ? INT64_MAX : (int64_t) val;
+    }
+    return true;
+}
+
+bool lv_str_read_quoted(const char **pp, char **out) {
+    if (!pp || !out)
+        return false;
+    const char *p = lv_str_skip_ws(*pp);
+    *out = NULL;
+    if (*p != '"') {
+        *pp = p; /* 失败：停在跳过空白后的位置（与历史 parse_quoted_string 一致） */
+        return false;
+    }
+    p++; /* 跳过开始引号 */
+    const char *start = p;
+    while (*p && *p != '"')
+        p++;
+    size_t len = (size_t) (p - start);
+    char *result = lv_malloc(len + 1);
+    if (!result) {
+        *pp = p;
+        return false;
+    }
+    if (len > 0)
+        memcpy(result, start, len);
+    result[len] = '\0';
+    if (*p == '"')
+        p++; /* 跳过结束引号 */
+    *out = result;
+    *pp = p;
+    return true;
+}
+
+const char *lv_str_read_token(const char **pp, char **out, const char *delims) {
+    if (!out) {
+        return pp ? *pp : NULL;
+    }
+    *out = NULL;
+    if (!pp || !delims) {
+        return pp ? *pp : NULL;
+    }
+    const char *p = lv_str_skip_ws(*pp);
+    const char *start = p;
+    while (*p && !strchr(delims, *p))
+        p++;
+    size_t len = (size_t) (p - start);
+    char *result = lv_malloc(len + 1);
+    if (!result) {
+        *pp = p;
+        return p;
+    }
+    if (len > 0)
+        memcpy(result, start, len);
+    result[len] = '\0';
+    *out = result;
+    *pp = p;
+    return p;
+}
+
 /* ===== 字符串替换 ===== */
 
 char *lv_str_replace(const char *str, const char *old_str, const char *new_str) {

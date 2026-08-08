@@ -14,6 +14,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h"
 #include "mpz_poly.h"
 
 /* ============================================================
@@ -109,6 +110,36 @@ static void bivariate_poly_clear(BivariatePoly *bp) {
     }
     bp->coeffs = NULL;
     bp->deg_x = -1;
+}
+
+/* ---- lv_DEFER 作用域守卫（mpz 资源的 defer 清理，替代本文件 goto cleanup 样板） ---- */
+
+/* mpz_t 数组守卫：mpz_clear 逐个清理后 lv_free（清理时按 count 读取最新已 init 个数；
+ * 参照 graph_memory.c 的 mpq_matrix_guard_cleanup 模式） */
+typedef struct {
+    mpz_t *arr; /* 数组指针（置 NULL 即解除守卫） */
+    int count;  /* 已 mpz_init 的元素个数 */
+} MpzArrayGuard;
+
+static void mpz_array_guard_cleanup(void *p) {
+    MpzArrayGuard *g = (MpzArrayGuard *) p;
+    if (g->arr) {
+        for (int i = 0; i < g->count; i++)
+            mpz_clear(g->arr[i]);
+        lv_free((void **) &g->arr);
+    }
+}
+
+/* 单个 mpz_t 变量的 defer 清理回调（配合 lv_DEFER(mpz_clear_deferred, &v)） */
+static void mpz_clear_deferred(void *p) {
+    mpz_clear(*(mpz_t *) p);
+}
+
+/* mpz_poly_t（部分构建的结式）的 defer 清理回调（变量置 NULL 即解除守卫） */
+static void mpz_poly_clear_deferred(void *p) {
+    mpz_poly_t **pp = (mpz_poly_t **) p;
+    if (*pp)
+        mpz_poly_clear(*pp);
 }
 
 /**
@@ -257,17 +288,24 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
         return true;
     }
 
-    /* 创建工作副本 */
+    /* 创建工作副本（lv_DEFER 守卫：任意出口自动 mpz_clear 逐个清理后释放数组） */
+    MpzArrayGuard a_guard = {NULL, 0};
     mpz_t *a = lv_malloc((size_t) n * (size_t) n * sizeof(mpz_t));
     if (!a) {
         mpz_set_si(result, 0);
         return false;
     }
+    a_guard.arr = a;
+    lv_DEFER(mpz_array_guard_cleanup, &a_guard);
     for (int i = 0; i < n * n; i++)
         mpz_init_set(a[i], m->data[i]);
+    a_guard.count = n * n;
 
     mpz_t pivot, temp, prev_pivot;
     mpz_inits(pivot, temp, prev_pivot, NULL);
+    lv_DEFER(mpz_clear_deferred, &pivot);
+    lv_DEFER(mpz_clear_deferred, &temp);
+    lv_DEFER(mpz_clear_deferred, &prev_pivot);
     mpz_set_ui(prev_pivot, MPZ_RES_INITIAL_PIVOT);
 
     int sign = MPZ_RES_SIGN_POSITIVE; /* 跟踪行交换的符号变化 */
@@ -285,7 +323,7 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
             }
             if (swap_row < 0) {
                 mpz_set_ui(result, 0);
-                goto cleanup;
+                return true; /* 守卫自动清理 a / pivot / temp / prev_pivot */
             }
             /* 交换第 k 行和 swap_row 行 */
             for (int j = k; j < n; j++) {
@@ -311,12 +349,7 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
     if (sign < 0)
         mpz_neg(result, result);
 
-cleanup:
-    mpz_clears(pivot, temp, prev_pivot, NULL);
-    for (int i = 0; i < n * n; i++)
-        mpz_clear(a[i]);
-    lv_free((void **) &a);
-    return true;
+    return true; /* 守卫自动清理 a / pivot / temp / prev_pivot */
 }
 
 /**
@@ -448,6 +481,8 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
     }
 
     /* 在多个 x 取值处计算结式，然后进行插值 */
+    MpzArrayGuard x_guard = {NULL, 0};
+    MpzArrayGuard y_guard = {NULL, 0};
     mpz_t *x_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
     mpz_t *y_vals = lv_malloc(res_deg_bound * sizeof(mpz_t));
     if (!x_vals || !y_vals) {
@@ -457,6 +492,12 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
         resultant->degree = -1;
         return false;
     }
+    x_guard.arr = x_vals;
+    x_guard.count = res_deg_bound;
+    y_guard.arr = y_vals;
+    y_guard.count = res_deg_bound;
+    lv_DEFER(mpz_array_guard_cleanup, &x_guard);
+    lv_DEFER(mpz_array_guard_cleanup, &y_guard);
     for (int i = 0; i < res_deg_bound; i++) {
         mpz_init(x_vals[i]);
         mpz_init(y_vals[i]);
@@ -480,7 +521,7 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
         mpz_matrix_init(&S, size, size);
         if (!S.data) {
             mpz_clear(x_val);
-            goto cleanup_x_y_vals;
+            return false; /* 守卫自动释放 x_vals / y_vals */
         }
 
         /* 填充来自 f 的行（n 行） */
@@ -571,6 +612,9 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
     /* 使用牛顿均差法 */
 
     mpz_poly_init(resultant);
+    /* 注册 resultant 部分构建守卫：错误路径自动清空（成功路径置 NULL 解除） */
+    mpz_poly_t *resultant_guard = resultant;
+    lv_DEFER(mpz_poly_clear_deferred, &resultant_guard);
 
     /* 通过检查最高次非零系数确定实际次数 */
     int actual_deg = res_deg_bound - 1;
@@ -579,7 +623,7 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
     resultant->coeffs = lv_malloc((actual_deg + 1) * sizeof(mpz_t));
     if (!resultant->coeffs) {
         resultant->degree = -1;
-        goto cleanup_x_y_vals;
+        return false; /* 守卫自动清空 resultant 并释放 x_vals / y_vals */
     }
     for (int i = 0; i <= actual_deg; i++) {
         mpz_init(resultant->coeffs[i]);
@@ -589,9 +633,10 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
     /* 使用均差法进行插值 */
     mpz_t *div_diff = NULL;
     div_diff = lv_malloc((actual_deg + 1) * sizeof(mpz_t));
-    if (!div_diff) {
-        goto cleanup_resultant;
-    }
+    if (!div_diff)
+        return false; /* 守卫自动清空 resultant 并释放 x_vals / y_vals */
+    MpzArrayGuard div_diff_guard = {div_diff, actual_deg + 1};
+    lv_DEFER(mpz_array_guard_cleanup, &div_diff_guard);
     for (int i = 0; i <= actual_deg; i++) {
         mpz_init(div_diff[i]);
         mpz_set(div_diff[i], y_vals[i]);
@@ -615,7 +660,7 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
                 mpz_clear(num);
                 mpz_clear(den);
                 mpz_clear(diff);
-                goto cleanup_resultant;
+                return false;
             }
             mpz_tdiv_q(diff, num, den);
             mpz_set(div_diff[i], diff);
@@ -644,7 +689,7 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
     newton_term.coeffs = lv_malloc(sizeof(mpz_t));
     if (!newton_term.coeffs) {
         mpz_poly_clear(&newton_term);
-        goto cleanup_resultant;
+        return false;
     }
     mpz_init_set_si(newton_term.coeffs[0], MPZ_RES_NEWTON_CONST_TERM);
 
@@ -657,7 +702,7 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
         if (!new_term.coeffs) {
             mpz_poly_clear(&new_term);
             mpz_poly_clear(&newton_term);
-            goto cleanup_resultant;
+            return false;
         }
 
         /* 将所有系数初始化为 0 */
@@ -701,42 +746,9 @@ static bool compute_bivariate_resultant(const BivariatePoly *f, /* f(x,y) - x �
         resultant->degree--;
     }
 
-    /* 清理均差数组 */
-    for (int i = 0; i <= actual_deg; i++) {
-        mpz_clear(div_diff[i]);
-    }
-    lv_free((void **) &div_diff);
-
     ret = true;
-
-cleanup_resultant:
-    if (!ret) {
-        /* 错误路径：清理部分构建的结式和均差数组 */
-        if (div_diff) {
-            for (int i = 0; i <= actual_deg; i++) {
-                mpz_clear(div_diff[i]);
-            }
-            lv_free((void **) &div_diff);
-        }
-        if (resultant->coeffs) {
-            for (int i = 0; i <= resultant->degree; i++) {
-                mpz_clear(resultant->coeffs[i]);
-            }
-            lv_free((void **) &resultant->coeffs);
-            resultant->coeffs = NULL;
-        }
-        resultant->degree = -1;
-    }
-
-cleanup_x_y_vals:
-    for (int i = 0; i < res_deg_bound; i++) {
-        mpz_clear(x_vals[i]);
-        mpz_clear(y_vals[i]);
-    }
-    lv_free((void **) &x_vals);
-    lv_free((void **) &y_vals);
-
-    return ret;
+    resultant_guard = NULL; /* 守卫解除：结果移交调用方 */
+    return ret; /* div_diff / x_vals / y_vals 由 lv_DEFER 守卫自动释放 */
 }
 
 /* ------------------------------------------------------------------ */

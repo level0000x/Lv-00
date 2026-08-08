@@ -217,13 +217,21 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
         }
     }
 
-    /* 版本号：解析 "M.m.p" 格式，字段缺失时回退 1.0.0 */
+    /* 版本号：解析 "M.m.p" 格式，字段缺失/非法时回退 1.0.0。
+     * 解析统一走公共 lvVersion（version_parse，支持 prerelease/build 后缀）；
+     * 容错以公共实现为准：至少 "major.minor" 两段才算合法（"M.m" → patch=0）。 */
     meta.version_major = 1;
     meta.version_minor = 0;
     meta.version_patch = 0;
     char version_buf[64] = {0};
     if (lv_json_get_string(json_copy, "version", version_buf, sizeof(version_buf)) && version_buf[0]) {
-        if (sscanf(version_buf, "%d.%d.%d", &meta.version_major, &meta.version_minor, &meta.version_patch) != 3) {
+        lvVersion *v = version_parse(version_buf);
+        if (v) {
+            meta.version_major = v->major;
+            meta.version_minor = v->minor;
+            meta.version_patch = v->patch;
+            version_destroy(v);
+        } else {
             meta.version_major = 1;
             meta.version_minor = 0;
             meta.version_patch = 0;

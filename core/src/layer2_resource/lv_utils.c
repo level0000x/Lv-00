@@ -45,6 +45,7 @@
 #include "lv/lv_path.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -348,6 +349,35 @@ void lv_free_external(void **ptr) {
      * 不能用lv_free释放，因为lv_free期望AllocHeader头部 */
     free(*ptr);
     *ptr = NULL;
+}
+
+/* 裸数组深拷贝（lv_utils.h 声明的统一收敛入口）：
+ * func_block_copy / func_block_clone / dup_int_array / lv_dup_int_array
+ * 均委托本组函数，消除各处手写 "lv_malloc + memcpy + 溢出检查"。 */
+int *lv_copy_int_array(const int *src, int count) {
+    if (!src || count <= 0)
+        return NULL;
+    if (count > INT_MAX / (int) sizeof(int))
+        return NULL; /* 溢出保护 */
+    size_t size = (size_t) count * sizeof(int);
+    int *dup = (int *) lv_malloc(size);
+    if (!dup)
+        return NULL;
+    memcpy(dup, src, size);
+    return dup;
+}
+
+void **lv_copy_ptr_array(void *const *src, int count) {
+    if (!src || count <= 0)
+        return NULL;
+    if (count > INT_MAX / (int) sizeof(void *))
+        return NULL; /* 溢出保护 */
+    size_t size = (size_t) count * sizeof(void *);
+    void **dup = (void **) lv_malloc(size);
+    if (!dup)
+        return NULL;
+    memcpy(dup, src, size);
+    return dup;
 }
 
 /**

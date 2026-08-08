@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_utils.c
  * @brief 函数块内部工具函数实现
  * @details 提供整数数组相关的工具函数：ID 检查、深拷贝、合并。
@@ -13,9 +13,6 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
-
-/* 前向声明：委托给 preset_common.c 中的主实现，避免循环依赖 */
-extern int *lv_dup_int_array(const int *src, int count);
 
 /* ==================== 命名常量 ==================== */
 
@@ -53,18 +50,18 @@ bool is_id_in_array(int id, const int *arr, int count) {
  * ================================================================ */
 
 /**
- * @brief 深拷贝整数数组（委托给 lv_dup_int_array）
+ * @brief 深拷贝整数数组（委托给 lv_copy_int_array）
  *
  * 此函数保留以维持向后兼容的公共 API。
- * 实际逻辑委托给 preset_common.c 中的 lv_dup_int_array，
- * 后者具有更完善的错误检查（含溢出检查和错误码设置）。
+ * 实际逻辑委托给 lv_utils.c 中的 lv_copy_int_array（统一收敛入口），
+ * 后者具有更完善的错误检查（含溢出保护）。
  *
  * @param src   源数组指针
  * @param count 元素个数
  * @return 新分配的整数数组指针，失败返回 NULL
  */
 int *dup_int_array(const int *src, int count) {
-    return lv_dup_int_array(src, count);
+    return lv_copy_int_array(src, count);
 }
 
 /* ================================================================

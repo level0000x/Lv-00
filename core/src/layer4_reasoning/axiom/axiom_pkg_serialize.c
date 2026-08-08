@@ -18,6 +18,7 @@
 
 #include "lv/sha256.h"
 #include "lv/lv_str_utils.h" /* lv_str_hex_encode */
+#include "lv/lv_xmacro.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -28,16 +29,16 @@
 
 /* ============== 保存功能 ============== */
 
+/** @brief behavior_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_behavior_str_entries[] = {
+    {"constructive", PROPOSITION_KIND_CONSTRUCTIVE},
+    {"non_constructive_oracle", PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE},
+    {"explosion_principle", PROPOSITION_KIND_EXPLOSION_PRINCIPLE},
+};
+
 static const char *behavior_to_string(int behavior) {
-    switch (behavior) {
-        case CONSTRUCTIVE:
-            return "constructive";
-        case NON_CONSTRUCTIVE_ORACLE:
-            return "non_constructive_oracle";
-        case EXPLOSION_PRINCIPLE:
-        default:
-            return "explosion_principle";
-    }
+    return lv_enum_to_str(s_behavior_str_entries, lv_ARRAY_SIZE(s_behavior_str_entries), behavior,
+                          "explosion_principle");
 }
 
 AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const char *filepath) {

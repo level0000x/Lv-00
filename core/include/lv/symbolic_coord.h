@@ -267,6 +267,20 @@ SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord)
 
 /* ── SymbolicCoord queries ── */
 int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b);
+
+/**
+ * @brief 判断两个符号坐标是否相等（NULL-safe）
+ *
+ * 任一参数为 NULL 时返回 false；否则返回 symbolic_coord_compare == 0。
+ * 作为各模块手写 coords_equal / graph_coord_equal_for_compatibility
+ * 封装的统一收敛入口（propagation.c / graph_node_alloc.c /
+ * graph_node_conflict.c 共用同一语义）。
+ *
+ * @param a 第一个坐标（可为 NULL）
+ * @param b 第二个坐标（可为 NULL）
+ * @return true 两坐标均存在且符号比较相等
+ */
+bool symbolic_coord_equal(const SymbolicCoord *a, const SymbolicCoord *b);
 bool symbolic_coord_is_zero(const SymbolicCoord *c);
 bool symbolic_coord_is_positive(const SymbolicCoord *c);
 bool symbolic_coord_is_negative(const SymbolicCoord *c);

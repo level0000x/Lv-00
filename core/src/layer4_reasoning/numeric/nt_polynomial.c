@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_lifecycle.h"
 
 /* ============================================================
  * Internal helpers
@@ -87,6 +88,13 @@ lv_PUBLIC_API void nt_poly_destroy(lvPoly *p) {
         lv_free((void **) &p->coeffs);
     }
     lv_free((void **) &p);
+}
+
+/* lv_DEFER 守卫回调：销毁单个 lvPoly* 变量（变量置 NULL 即解除守卫） */
+static void nt_poly_defer_destroy(void *p) {
+    lvPoly **pp = (lvPoly **) p;
+    if (*pp)
+        nt_poly_destroy(*pp);
 }
 
 /* ============================================================
@@ -322,23 +330,25 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) 
     lvPoly *u = nt_poly_create();
     lvPoly *v = nt_poly_create();
     lvPoly *temp = nt_poly_create();
-    if (!u || !v || !temp) {
-        nt_poly_destroy(u);
-        nt_poly_destroy(v);
-        nt_poly_destroy(temp);
+    /* 注册 lv_DEFER 守卫：任一失败路径 / 正常返回时自动销毁三个临时多项式，
+     * 替代两处重复的三连 nt_poly_destroy 样板（u/v/temp 在循环中被交换，
+     * 守卫按变量当前值清理，始终覆盖全部三个对象） */
+    lv_DEFER(nt_poly_defer_destroy, &u);
+    lv_DEFER(nt_poly_defer_destroy, &v);
+    lv_DEFER(nt_poly_defer_destroy, &temp);
+    if (!u || !v || !temp)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: temporary poly creation failed");
-    }
 
     /* Copy a into u */
     if (nt_poly_ensure_capacity(u, a->degree) != 0)
-        goto fail;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: operation failed");
     for (int i = 0; i <= a->degree; i++)
         mpz_set(u->coeffs[i], a->coeffs[i]);
     u->degree = a->degree;
 
     /* Copy b into v */
     if (nt_poly_ensure_capacity(v, b->degree) != 0)
-        goto fail;
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: operation failed");
     for (int i = 0; i <= b->degree; i++)
         mpz_set(v->coeffs[i], b->coeffs[i]);
     v->degree = b->degree;
@@ -355,23 +365,14 @@ lv_PUBLIC_API int nt_poly_gcd(lvPoly *result, const lvPoly *a, const lvPoly *b) 
     /* u now holds the GCD; copy into result */
     if (u->degree >= 0) {
         if (nt_poly_ensure_capacity(result, u->degree) != 0)
-            goto fail;
+            lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: operation failed");
         for (int i = 0; i <= u->degree; i++) {
             mpz_set(result->coeffs[i], u->coeffs[i]);
         }
     }
     result->degree = u->degree;
 
-    nt_poly_destroy(u);
-    nt_poly_destroy(v);
-    nt_poly_destroy(temp);
-    return 0;
-
-fail:
-    nt_poly_destroy(u);
-    nt_poly_destroy(v);
-    nt_poly_destroy(temp);
-    lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "nt_poly_gcd: operation failed");
+    return 0; /* 守卫自动销毁 u/v/temp */
 }
 
 /* ============================================================

@@ -140,6 +140,31 @@ static int coord_equal_func_block(GeomNode *a, GeomNode *b) {
     return 1;
 }
 
+/* ---------------------------------------------------------------------------
+ * 坐标相等分发表（coord_equal_* 与 GeomNodeVTable::compare 的收敛评估结论）
+ *
+ * 【为何不收敛到 get_vtable_for_type(a->type)->compare】
+ * 语义维度不同，直接替换会破坏 unify 正确性：
+ *
+ * 1. 比较内容不同：
+ *    - 本组 coord_equal_* 比较【坐标内容】（coord_count + 逐坐标
+ *      symbolic_coord_compare，region 递归比较边界线段坐标、func_block
+ *      递归比较内部节点坐标），用于命题图 ↔ 构造图的几何对齐判定；
+ *    - graph_node_alloc.c 的 compare 槽比较【结构/身份】（region_compare
+ *      按 boundary_segments 的节点 ID、func_block_compare 按内部节点 ID、
+ *      port_compare 按 Port 元数据与 connected_to 引用），与各类型 hash
+ *      对齐，用于图内去重与一致性排序。两者比较对象不同，结果语义不同。
+ *
+ * 2. 线段方向性不同：coord_equal_point_port_segment（LINE_SEGMENT 复用）
+ *    是逐位置比较（方向相关）；line_segment_compare 是同向/反向端点互换
+ *    均判等（方向无关）。
+ *
+ * 3. 宽松性不同：unify 侧对非 POINT / 坐标缺失节点由调用方
+ *    （unify_basic.c 阶段C）显式跳过坐标检查；graph 侧 compare 槽对
+ *    数据缺失采用严格 NULL 模式比较。
+ *
+ * 综上：保留本组分发表，不收敛至 VTable::compare。
+ * ------------------------------------------------------------------------- */
 static CoordEqualFunc s_coord_equal_funcs[] = {
     [GEOM_POINT] = coord_equal_point_port_segment,
     [GEOM_LINE_SEGMENT] = coord_equal_point_port_segment,

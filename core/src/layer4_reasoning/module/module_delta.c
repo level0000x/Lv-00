@@ -3,6 +3,12 @@
  * @brief Delta 差分系统
  *
  * @details 拆分子模块（Lv-00 v3.3.0+）。
+ *
+ * @todo 待迁移：module_apply_delta（L759 起，嵌套最深 4 层的对象字段遍历，
+ *       ~25 处 lv_json_peek 手写循环）与 lv/lv_json.h 新增的 lv_json_parse_field
+ *       公共辅助同构；因"name/version 字段嵌套对象取 new 键、图增量字段跳过
+ *       数组计数"等专用容错逻辑，暂保留现状，后续统一迁移。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

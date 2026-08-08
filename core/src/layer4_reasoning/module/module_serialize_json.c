@@ -4,6 +4,12 @@
  *
  * @details 从 module_serialize.c 拆分的子模块（Lv-00 项目 v3.3.0+）。
  *
+ * @todo 待迁移：module_deserialize_from_json（L471-542）、json_parse_dependencies
+ *       （L251-280）、json_parse_exports（L302-363）仍为手写"parse_string →
+ *       expect(':') → 值 → 逗号"对象字段遍历循环，与 lv/lv_json.h 新增的
+ *       lv_json_parse_field 公共辅助同构；因各字段值解析容错（未知键跳过/
+ *       嵌套对象逐字符扫描）互有差异，暂保留现状，后续统一迁移。
+ *
  * @author Lv-00 Project
  * @version 3.3.0
  */

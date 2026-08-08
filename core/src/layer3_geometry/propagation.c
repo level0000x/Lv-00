@@ -174,20 +174,16 @@ static bool state_remove_at(NodeStateSpace *state, int index) {
     return true;
 }
 
-/** @brief 检查两个坐标是否相等（使用 symbolic_coord_compare） */
-static bool coords_equal(const SymbolicCoord *a, const SymbolicCoord *b) {
-    if (!a || !b)
-        return (a == b);
-    return (symbolic_coord_compare(a, b) == 0);
-}
-
-/** @brief 检查状态空间中是否已包含某坐标（避免重复） */
+/** @brief 检查状态空间中是否已包含某坐标（避免重复）
+ *  （坐标相等判定收敛至公共 symbolic_coord_equal；原 static coords_equal
+ *   对 NULL 返回 (a==b) 的差异在可达路径上不可见——调用点已保证首参非 NULL，
+ *   公共语义"任一 NULL 即不等"行为一致） */
 static bool state_contains(const NodeStateSpace *state, const SymbolicCoord *coord) {
     if (!state || !coord)
         return false;
     CoordCandidate *cand = (CoordCandidate *)state->candidates_da.data;
     for (int i = 0; i < state->candidates_da.count; i++) {
-        if (cand[i].coord && coords_equal(cand[i].coord, coord)) {
+        if (cand[i].coord && symbolic_coord_equal(cand[i].coord, coord)) {
             return true;
         }
     }

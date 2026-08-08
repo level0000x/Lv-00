@@ -340,6 +340,33 @@ bool lv_json_parse_bool(lvJsonParser *p, bool *out) {
     return false;
 }
 
+bool lv_json_parse_field(lvJsonParser *p, char **key) {
+    *key = NULL;
+    lv_json_skip_ws(p);
+    if (p->pos >= p->size || p->data[p->pos] == '}')
+        return false; /* 对象结束或输入末尾 */
+
+    if (p->data[p->pos] == ',') {
+        p->pos++; /* 消费上一字段后的逗号（尾部逗号在下一轮被 '}' 检查兜住） */
+        lv_json_skip_ws(p);
+        if (p->pos >= p->size || p->data[p->pos] == '}')
+            return false; /* 尾部逗号容错 */
+    }
+
+    *key = lv_json_parse_string(p);
+    if (!*key)
+        return false; /* 键不是字符串：调用方 break，与历史行为一致 */
+
+    lv_json_skip_ws(p);
+    if (p->pos >= p->size || p->data[p->pos] != ':') {
+        /* 缺冒号：释放 key，返回 false（调用方 break，与历史行为一致） */
+        lv_free((void **) key);
+        return false;
+    }
+    p->pos++; /* skip ':' */
+    return true;
+}
+
 const char *lv_json_find_key(const char *json, const char *key, size_t key_len) {
     if (!json || !key || key_len == 0)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "lv_json_find_key: NULL json/key or zero key_len");

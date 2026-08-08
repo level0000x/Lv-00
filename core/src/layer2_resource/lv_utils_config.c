@@ -327,7 +327,7 @@ bool config_load(ConfigManager *mgr) {
 
             const char *p = value + 1;
             while (*p) {
-                p = lv_str_ltrim((char *) p);
+                p = lv_str_skip_ws(p);
                 if (*p == '\0' || *p == ']')
                     break;
                 if (*p == ',') {
@@ -335,13 +335,11 @@ bool config_load(ConfigManager *mgr) {
                     continue;
                 }
                 if (*p == '"') {
-                    p++;
-                    const char *start = p;
-                    while (*p && *p != '"')
-                        p++;
-                    size_t elen = (size_t) (p - start);
-                    if (*p == '"')
-                        p++;
+                    /* 引号提取统一走公共原语 lv_str_read_quoted（替代手写
+                     * "跳引号 → 扫到闭引号 → 复制" 三行循环） */
+                    char *elem_str = NULL;
+                    if (!lv_str_read_quoted(&p, &elem_str))
+                        break; /* 不可能走到（*p=='"' 保证），防御性 break */
 
                     if (cnt >= cap) {
                         cap *= 2;
@@ -365,15 +363,10 @@ bool config_load(ConfigManager *mgr) {
                         lv_file_close(f);
                         lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "config_load 数组元素分配失败");
                     }
-                    /* 元素值存于 key（与 config_serialize_array 写出形态对称） */
+                    /* 元素值存于 key（与 config_serialize_array 写出形态对称）；
+                     * elem_str 为 lv_str_read_quoted 堆分配结果，所有权直接转移 */
                     elem->type = CONFIG_TYPE_STRING;
-                    elem->key = (char *) lv_malloc(elen + 1);
-                    if (elem->key) {
-                        memcpy(elem->key, start, elen);
-                        elem->key[elen] = '\0';
-                    } else {
-                        elem->key = lv_strdup_safe("");
-                    }
+                    elem->key = elem_str ? elem_str : lv_strdup_safe("");
                     arr[cnt++] = elem;
                 } else {
                     /* 非字符串元素：跳过到下一个逗号或结束 */

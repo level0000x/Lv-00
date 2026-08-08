@@ -13,6 +13,7 @@
 #include "lv_strbuf.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -125,6 +126,12 @@ const char *lv_str_skip_balanced(const char *p, char open, char close);
  * @brief 校验字符串中 open/close 是否平衡
  */
 bool lv_str_check_balanced(const char *p, char open, char close);
+
+/* ===== 流式文本解析原语 ===== */
+const char *lv_str_skip_ws(const char *p);
+bool lv_str_read_int(const char **pp, int64_t *out);
+bool lv_str_read_quoted(const char **pp, char **out);
+const char *lv_str_read_token(const char **pp, char **out, const char *delims);
 
 /* ===== 字符串替换 ===== */
 

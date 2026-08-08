@@ -26,12 +26,24 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
 
 #include "bootstrap_test_internal.h"
 
 /* ============== 报告生成 ============== */
+
+/** @brief diff_result_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_diff_result_str_entries[] = {
+    {"IDENTICAL", DIFF_RESULT_EQUAL},
+    {"DIFFERENT", DIFF_RESULT_DIFFERENT},
+    {"ERROR", DIFF_RESULT_ERROR},
+};
+
+static const char *diff_result_to_string(DiffComparisonResult result) {
+    return lv_enum_to_str(s_diff_result_str_entries, lv_ARRAY_SIZE(s_diff_result_str_entries), (int) result, "N/A");
+}
 
 /**
  * @brief 生成差分测试报告
@@ -90,20 +102,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
                 continue;
             }
             const char *status = results[i]->passed ? "PASS" : "FAIL";
-            const char *comp = "N/A";
-            switch (results[i]->comparison) {
-                case DIFF_RESULT_EQUAL:
-                    comp = "IDENTICAL";
-                    break;
-                case DIFF_RESULT_DIFFERENT:
-                    comp = "DIFFERENT";
-                    break;
-                case DIFF_RESULT_ERROR:
-                    comp = "ERROR";
-                    break;
-                default:
-                    break;
-            }
+            const char *comp = diff_result_to_string(results[i]->comparison);
             if (results[i]->error_message) {
                 /* error_message 经完整 JSON 转义（两遍法），status/comparison 为内部固定串无需转义 */
                 size_t err_len = strlen(results[i]->error_message);
@@ -149,20 +148,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
             continue;
         }
         const char *status = results[i]->passed ? "PASS" : "FAIL";
-        const char *comp = "N/A";
-        switch (results[i]->comparison) {
-            case DIFF_RESULT_EQUAL:
-                comp = "IDENTICAL";
-                break;
-            case DIFF_RESULT_DIFFERENT:
-                comp = "DIFFERENT";
-                break;
-            case DIFF_RESULT_ERROR:
-                comp = "ERROR";
-                break;
-            default:
-                break;
-        }
+        const char *comp = diff_result_to_string(results[i]->comparison);
         lv_strbuf_printf(&sb, "[%u] %s (comparison: %s)\n", i, status, comp);
         if (results[i]->error_message) {
             lv_strbuf_printf(&sb, "    Error: %s\n", results[i]->error_message);

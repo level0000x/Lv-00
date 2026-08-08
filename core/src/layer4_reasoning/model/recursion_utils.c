@@ -21,15 +21,15 @@
 
 /* ============== 辅助函数 ============== */
 
+/** @brief measure_type_to_string 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_measure_type_to_string_entries[] = {
+    {"Symbolic", MEASURE_SYMBOLIC},
+    {"Custom", MEASURE_CUSTOM},
+};
+
 const char *measure_type_to_string(MeasureType type) {
-    switch (type) {
-        case MEASURE_SYMBOLIC:
-            return "Symbolic";
-        case MEASURE_CUSTOM:
-            return "Custom";
-        default:
-            return "Unknown";
-    }
+    return lv_enum_to_str(s_measure_type_to_string_entries, lv_ARRAY_SIZE(s_measure_type_to_string_entries),
+                          (int) type, "Unknown");
 }
 
 /* ================================================================

@@ -47,6 +47,14 @@ static const char *port_dep_type_to_string(PortDependencyType type) {
     return lv_enum_to_str(s_port_dep_type_to_string_entries, lv_ARRAY_SIZE(s_port_dep_type_to_string_entries), (int) type, "UNKNOWN");
 }
 
+/** @brief view_state 序列化名称表（按枚举值升序：EXPANDED=0, COLLAPSED=1, PINNED=2；
+ *  未命中回退 "EXPANDED" 与旧 switch default 分支语义一致） */
+static const lvStrToEnumEntry s_view_state_to_string_entries[] = {
+    {"EXPANDED", FB_VIEW_STATE_EXPANDED},
+    {"COLLAPSED", FB_VIEW_STATE_COLLAPSED},
+    {"PINNED", FB_VIEW_STATE_PINNED},
+};
+
 /**
  * @brief 辅助函数：从字符串解析端口依赖类型
  *
@@ -54,15 +62,11 @@ static const char *port_dep_type_to_string(PortDependencyType type) {
  * @return 对应的端口依赖类型枚举值
  */
 static PortDependencyType port_dep_type_from_string(const char *s) {
-    if (strcmp(s, "INCIDENCE") == 0)
-        return PORT_DEP_INCIDENCE;
-    if (strcmp(s, "BETWEENNESS") == 0)
-        return PORT_DEP_BETWEENNESS;
-    if (strcmp(s, "CONTAINMENT") == 0)
-        return PORT_DEP_CONTAINMENT;
-    if (strcmp(s, "INTERSECTION") == 0)
-        return PORT_DEP_INTERSECTION;
-    return PORT_DEP_INCIDENCE;
+    /* 查表反序列化（复用上方 s_port_dep_type_to_string_entries 表，
+     * 替代 4 分支 strcmp 链；未命中回退 PORT_DEP_INCIDENCE 语义不变） */
+    return (PortDependencyType) lv_str_to_enum(s_port_dep_type_to_string_entries,
+                                               lv_ARRAY_SIZE(s_port_dep_type_to_string_entries), s,
+                                               PORT_DEP_INCIDENCE);
 }
 
 /**
@@ -174,9 +178,7 @@ char *func_block_serialize_state(const FuncBlock *fb) {
  * @return 指向第一个非空白字符的指针
  */
 static const char *skip_whitespace(const char *p) {
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
-        p++;
-    return p;
+    return lv_str_skip_ws(p);
 }
 
 /**
@@ -187,19 +189,12 @@ static const char *skip_whitespace(const char *p) {
  * @return 指向解析结束位置的指针
  */
 static const char *parse_int(const char *p, int *out) {
-    p = skip_whitespace(p);
-    *out = 0;
-    int sign = 1;
-    if (*p == '-') {
-        sign = -1;
-        p++;
-    }
-    while (*p >= '0' && *p <= '9') {
-        *out = *out * 10 + (*p - '0');
-        p++;
-    }
-    *out *= sign;
-    return p;
+    /* 转发公共原语 lv_str_read_int（int64 溢出钳位，替代原无钳位手写累加） */
+    int64_t v = 0;
+    const char *next = p;
+    (void) lv_str_read_int(&next, &v);
+    *out = (int) v;
+    return next;
 }
 
 /**
@@ -212,23 +207,8 @@ static const char *parse_int(const char *p, int *out) {
  * @return 指向结束引号后的指针
  */
 static const char *parse_quoted_string(const char *p, char **out) {
-    p = skip_whitespace(p);
-    if (*p != '"') {
-        *out = NULL;
-        return p;
-    }
-    p++; /* 跳过开始引号 */
-    const char *start = p;
-    while (*p && *p != '"')
-        p++;
-    size_t len = (size_t) (p - start);
-    *out = lv_malloc(len + 1);
-    if (*out) {
-        memcpy(*out, start, len);
-        (*out)[len] = '\0';
-    }
-    if (*p == '"')
-        p++; /* 跳过结束引号 */
+    /* 转发公共原语 lv_str_read_quoted（失败时 out=NULL、指针停在空白后） */
+    (void) lv_str_read_quoted(&p, out);
     return p;
 }
 
@@ -249,14 +229,15 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
     }
     p++; /* 跳过 '[' */
 
-    /* 先计算元素数量 */
+    /* 第一遍：用 lv_str_read_int 计数元素（支持负号，替代原仅数字的扫描） */
     int count = 0;
     const char *scan = p;
     while (*scan && *scan != ']') {
-        if (*scan >= '0' && *scan <= '9') {
+        const char *next = scan;
+        int64_t v;
+        if (lv_str_read_int(&next, &v)) {
             count++;
-            while (*scan >= '0' && *scan <= '9')
-                scan++;
+            scan = next;
         } else {
             scan++;
         }
@@ -281,17 +262,19 @@ static const char *parse_int_array(const char *p, int **out, int *out_count) {
     while (*p && *p != ']' && idx < count) {
         p = skip_whitespace(p);
         if (*p >= '0' || *p == '-') {
-            int val = 0;
-            int sign = 1;
-            if (*p == '-') {
-                sign = -1;
-                p++;
+            int64_t v = 0;
+            const char *next = p;
+            if (lv_str_read_int(&next, &v)) {
+                p = next;
+                arr[idx++] = (int) v;
+            } else {
+                /* '-' 后无数字：与旧 parse_int 一致按 0 计并前进（畸形输入兜底） */
+                if (*p == '-')
+                    p++;
+                while (*p >= '0' && *p <= '9')
+                    p++;
+                arr[idx++] = 0;
             }
-            while (*p >= '0' && *p <= '9') {
-                val = val * 10 + (*p - '0');
-                p++;
-            }
-            arr[idx++] = val * sign;
         } else {
             p++;
         }

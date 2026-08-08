@@ -390,6 +390,35 @@ lv_PUBLIC_API IntArray *int_array_copy(const IntArray *arr);
  */
 lv_PUBLIC_API IntArray *int_array_from_carray(const int *data, size_t count);
 
+/**
+ * @brief 深拷贝裸整数数组（lv_malloc + memcpy）
+ *
+ * 分配 count 个 int 的新数组并复制源数组内容。
+ * src 为 NULL 或 count <= 0 时返回 NULL；含整数溢出保护。
+ * 作为 func_block_copy / func_block_clone 等模块手写
+ * "lv_malloc + memcpy + 失败回滚" 并行实现的统一收敛入口
+ * （func_block_utils.c 的 dup_int_array / preset_common.c 的
+ * lv_dup_int_array 均委托本函数）。
+ *
+ * @param src   源数组（可为 NULL）
+ * @param count 元素个数
+ * @return 新分配的整数数组，失败返回 NULL
+ */
+lv_PUBLIC_API int *lv_copy_int_array(const int *src, int count);
+
+/**
+ * @brief 深拷贝裸指针数组（lv_malloc + memcpy）
+ *
+ * 分配 count 个 void* 的新数组并复制源数组内容（浅拷贝元素指针本身，
+ * 所有权语义由调用方约定；func_block_clone 中用于 internal_nodes 指针数组）。
+ * src 为 NULL 或 count <= 0 时返回 NULL；含整数溢出保护。
+ *
+ * @param src   源指针数组（可为 NULL）
+ * @param count 元素个数
+ * @return 新分配的指针数组，失败返回 NULL
+ */
+lv_PUBLIC_API void **lv_copy_ptr_array(void *const *src, int count);
+
 /* ============================================================
  * 配置管理
  * ============================================================ */

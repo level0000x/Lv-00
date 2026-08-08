@@ -19,6 +19,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h"
 
 /* ================================================================
  *  多项式项排序
@@ -109,6 +110,18 @@ int poly_sort_terms(lvPolynomial *poly, const lvPolynomialRing *ring) {
  * @param label    标签
  * @return 多项式指针，失败返回 NULL
  */
+/* lvPolynomial 部分构建守卫：guard 持有值拷贝，失败路径自动按 destroy 语义清理
+ * （poly_internal_destroy 已在 groebner_engine_internal.h 声明） */
+typedef struct {
+    lvPolynomial *poly;
+} PolyCreateGuard;
+
+static void poly_create_guard_cleanup(void *p) {
+    PolyCreateGuard *g = (PolyCreateGuard *) p;
+    if (g->poly)
+        poly_internal_destroy(g->poly);
+}
+
 lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, const char *label) {
     if (!ring) {
         return NULL;
@@ -118,6 +131,10 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
     if (!poly) {
         return NULL;
     }
+    /* 注册 lv_DEFER 守卫：任一字段分配失败自动释放已分配资源；
+     * 成功路径 guard.poly = NULL 解除守卫 */
+    PolyCreateGuard guard = {poly};
+    lv_DEFER(poly_create_guard_cleanup, &guard);
 
     if (capacity < 1) {
         capacity = lv_config_get_int(LV_CFG_GROEBNER_POLY_INIT_CAPACITY, GROEBNER_POLY_INIT_CAPACITY);
@@ -125,17 +142,12 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
 
     int vc = ring->var_count;
     poly->powers = (int *) lv_calloc((size_t) capacity * (size_t) vc, sizeof(int));
-    if (!poly->powers) {
-        lv_free((void **) &poly);
+    if (!poly->powers)
         return NULL;
-    }
 
     poly->coeffs = (double *) lv_calloc((size_t) capacity, sizeof(double));
-    if (!poly->coeffs) {
-        lv_free((void **) &poly->powers);
-        lv_free((void **) &poly);
+    if (!poly->coeffs)
         return NULL;
-    }
 
     poly->ring_id = ring->ring_id;
     poly->var_count = vc;
@@ -145,6 +157,7 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
     poly->is_homogeneous = true;
     poly->label = groebner_strdup_safe(label);
 
+    guard.poly = NULL; /* 守卫解除：结果移交调用方 */
     return poly;
 }
 
@@ -666,16 +679,22 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     lcm = (int *) lv_calloc((size_t) vc, sizeof(int));
     quot_f = (int *) lv_calloc((size_t) vc, sizeof(int));
     quot_g = (int *) lv_calloc((size_t) vc, sizeof(int));
+    /* 逐分配注册 lv_DEFER 守卫：任一分配失败时已分配的数组在函数出口自动释放 */
+    lv_DEFER_FREE(lt_f);
+    lv_DEFER_FREE(lt_g);
+    lv_DEFER_FREE(lcm);
+    lv_DEFER_FREE(quot_f);
+    lv_DEFER_FREE(quot_g);
 
-    /* 任一分配失败：统一走 cleanup（NULL 保护释放） */
+    /* 任一分配失败：守卫自动释放已分配数组（NULL 元素跳过） */
     if (!lt_f || !lt_g || !lcm || !quot_f || !quot_g)
-        goto cleanup;
+        return result;
 
     /* 获取前导项 */
     if (poly_leading_term(f, ring, lt_f, &lc_f) != 0 || poly_leading_term(g, ring, lt_g, &lc_g) != 0) {
         /* 如果任一项为零多项式，S-多项式为零 */
         result = poly_internal_create(ring, 1, NULL);
-        goto cleanup;
+        return result;
     }
 
     /* 计算 LCM 和商 */
@@ -685,16 +704,15 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
 
     /* 构造 (lcm/lt_f) * f 部分 */
     lvPolynomial *term_f = poly_internal_create(ring, 1, NULL);
-    if (!term_f) {
-        goto cleanup;
-    }
+    if (!term_f)
+        return result;
     lv_free((void **) &term_f->powers);
     lv_free((void **) &term_f->coeffs);
     term_f->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
     term_f->coeffs = (double *) lv_calloc(1, sizeof(double));
     if (!term_f->powers || !term_f->coeffs) {
         poly_internal_destroy(term_f);
-        goto cleanup;
+        return result;
     }
     term_f->term_capacity = 1;
     term_f->term_count = 1;
@@ -703,15 +721,14 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
 
     lvPolynomial *part_f = poly_internal_multiply(term_f, f, ring);
     poly_internal_destroy(term_f);
-    if (!part_f) {
-        goto cleanup;
-    }
+    if (!part_f)
+        return result;
 
     /* 构造 (lcm/lt_g) * g 部分 */
     lvPolynomial *term_g = poly_internal_create(ring, 1, NULL);
     if (!term_g) {
         poly_internal_destroy(part_f);
-        goto cleanup;
+        return result;
     }
     lv_free((void **) &term_g->powers);
     lv_free((void **) &term_g->coeffs);
@@ -720,7 +737,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     if (!term_g->powers || !term_g->coeffs) {
         poly_internal_destroy(term_g);
         poly_internal_destroy(part_f);
-        goto cleanup;
+        return result;
     }
     term_g->term_capacity = 1;
     term_g->term_count = 1;
@@ -731,7 +748,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     poly_internal_destroy(term_g);
     if (!part_g) {
         poly_internal_destroy(part_f);
-        goto cleanup;
+        return result;
     }
 
     /* S = part_f - part_g */
@@ -739,15 +756,7 @@ lvPolynomial *poly_internal_s_polynomial(const lvPolynomial *f, const lvPolynomi
     lvPolynomial *s_poly = poly_internal_add(part_f, part_g, ring);
     poly_internal_destroy(part_f);
     poly_internal_destroy(part_g);
-    result = s_poly;
-
-cleanup:
-    lv_free((void **) &lt_f);
-    lv_free((void **) &lt_g);
-    lv_free((void **) &lcm);
-    lv_free((void **) &quot_f);
-    lv_free((void **) &quot_g);
-    return result;
+    return s_poly;
 }
 
 /* ================================================================

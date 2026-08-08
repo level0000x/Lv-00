@@ -63,6 +63,21 @@ void constraint_destroy(Constraint *con);
  * 供 graph_conflict.c / graph_memory.c 冗余约束检测复用 */
 int cg_mpq_row_echelon(mpq_t *matrix, int num_linear, int num_vars, int *pivot_row);
 
+/* 端口标量字段拷贝辅助：graph_node_alloc.c 的 port_clone（GeomNodeVTable::clone
+ * 槽）与 layer2 的 node_deep_copy_port 共用同一字段拷贝逻辑，消除两处手写
+ * 逐字段赋值并行实现。type_region 均为浅拷贝（指针赋值），所有权由 TypeSystem
+ * 统一管理；connected_to 语义两处不同（clone 拷贝源引用待 fixup_refs 重映射，
+ * deep_copy 置 NULL 待调用方经 ID 映射重绑定），由调用方各自处理。 */
+static inline void port_copy_fields(Port *dst_p, const Port *src_p) {
+    dst_p->id = src_p->id;
+    dst_p->type = src_p->type;
+    dst_p->namespace_depth = src_p->namespace_depth;
+    dst_p->parent_block_id = src_p->parent_block_id;
+    dst_p->is_formal_param = src_p->is_formal_param;
+    dst_p->is_polymorphic = src_p->is_polymorphic;
+    dst_p->type_region = src_p->type_region; /* 浅拷贝：所有权由 TypeSystem 统一管理 */
+}
+
 #ifdef __cplusplus
 }
 #endif

@@ -96,9 +96,7 @@ static ConstraintType parse_constraint_type(const char *str) {
  * @return 跳过空白后的指针
  */
 static const char *skip_whitespace(const char *p) {
-    while (*p == ' ' || *p == '\t' || *p == '\r')
-        p++;
-    return p;
+    return lv_str_skip_ws(p);
 }
 
 /**
@@ -116,47 +114,36 @@ static const char *skip_line(const char *p) {
 }
 
 /* 读取一个整数 token。
- * 支持可选的正负号前缀。如果数值超出 int 范围，将设置 *out 为
- * INT_MAX 或 INT_MIN 并继续解析（不会崩溃，但值可能不精确）。
+ * 支持可选的正负号前缀。溢出语义以公共原语 lv_str_read_int 为准：
+ * 累加溢出时钳位到 int64 范围并继续消费数字（原实现钳位到 int 范围，
+ * 两处语义不一致，统一为公共实现；正常数值输入无行为差异）。
  * 返回指向解析后下一个字符的指针。 */
 static const char *read_int(const char *p, int *out) {
-    p = skip_whitespace(p);
-    *out = 0;
-    int sign = 1;
-    if (*p == '-') {
-        sign = -1;
-        p++;
-    }
-    while (*p >= '0' && *p <= '9') {
-        int digit = *p - '0';
-        /* 溢出检查：在乘法前判断 value * 10 是否会超出 INT_MAX/10 */
-        if (*out > INT_MAX / 10 || (*out == INT_MAX / 10 && digit > INT_MAX % 10)) {
-            /* 整数溢出，钳位到最大/最小值 */
-            *out = (sign > 0) ? INT_MAX : INT_MIN;
-            /* 跳过剩余数字字符 */
-            while (*p >= '0' && *p <= '9')
-                p++;
-            return p;
-        }
-        *out = *out * 10 + digit;
-        p++;
-    }
-    *out *= sign;
-    return p;
+    int64_t v = 0;
+    const char *next = p;
+    (void) lv_str_read_int(&next, &v);
+    *out = (int) v;
+    return next;
 }
 
 /* 前向声明 */
 static void parsed_rule_destroy(ParsedRule *rule);
 
-/* 读取一个字符串 token（到空白或行尾） */
+/* 读取一个字符串 token（到空白或行尾；转发公共原语 lv_str_read_token） */
 static const char *read_token(const char *p, char *buf, int buf_size) {
-    p = skip_whitespace(p);
-    int i = 0;
-    while (*p && *p != ' ' && *p != '\t' && *p != '\r' && *p != '\n' && i < buf_size - 1) {
-        buf[i++] = *p++;
+    char *tok = NULL;
+    const char *next = lv_str_read_token(&p, &tok, " \t\r\n");
+    if (tok) {
+        size_t len = strlen(tok);
+        size_t n = (len < (size_t) buf_size - 1) ? len : (size_t) buf_size - 1;
+        if (n > 0)
+            memcpy(buf, tok, n);
+        buf[n] = '\0';
+        lv_free((void **) &tok);
+    } else {
+        buf[0] = '\0';
     }
-    buf[i] = '\0';
-    return p;
+    return next;
 }
 
 /**

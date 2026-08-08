@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_lifecycle.h"
 
 /* ================================================================
  *  内部辅助宏
@@ -59,6 +60,19 @@ static const char *token_lexeme_dup(const char *s, size_t len) {
     memcpy(dup, s, len);
     dup[len] = '\0';
     return dup;
+}
+
+/* ---- lv_DEFER 作用域守卫：token 数组的 defer 清理（替代 goto fail 样板的销毁调用） ---- */
+
+typedef struct {
+    DslToken **tokens; /* 指向 tokens 指针变量的地址（置 NULL 即解除守卫） */
+    int *count;        /* 指向当前 token 数量的地址（动态获取最新值） */
+} DslTokenGuard;
+
+static void dsl_tokens_guard_cleanup(void *p) {
+    DslTokenGuard *g = (DslTokenGuard *) p;
+    if (*g->tokens)
+        dsl_tokens_destroy(*g->tokens, *g->count);
 }
 
 /* ================================================================
@@ -122,6 +136,10 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
         return false;
 
     int count = 0;
+    /* 注册 lv_DEFER 守卫：任一 token_append 扩容失败时自动销毁已收集的 token 数组
+     * （逐 token 释放动态 lexeme + 数组外壳），替代 goto fail 样板的销毁调用 */
+    DslTokenGuard tokens_guard = {&tokens, &count};
+    lv_DEFER(dsl_tokens_guard_cleanup, &tokens_guard);
     size_t pos = 0;
     int line = 1;
     int col = 1;
@@ -187,14 +205,14 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             }
             /* 添加注释 Token（便于 AST 溯源） */
             if (!token_append(&tokens, &count, &capacity, DSL_TOK_COMMENT, "#", line, start_col))
-                goto fail;
+                return false;
             continue;
         }
 
         /* ---- 多字符运算符：-> (箭头) ---- */
         if (c == '-' && pos + 1 < src_len && source[pos + 1] == '>') {
             if (!token_append(&tokens, &count, &capacity, DSL_TOK_ARROW, "->", line, start_col))
-                goto fail;
+                return false;
             pos += 2;
             col += 2;
             continue;
@@ -243,12 +261,12 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             /* 创建一个长度为 1 的静态字符串，实际用 lexeme 较长但安全 */
             char *lex_buf = lv_malloc(num_len + 1);
             if (!lex_buf)
-                goto fail;
+                return false;
             memcpy(lex_buf, source + start_pos, num_len);
             lex_buf[num_len] = '\0';
 
             if (!token_append(&tokens, &count, &capacity, DSL_TOK_NUMBER, lex_buf, line, start_col_num))
-                goto fail;
+                return false;
             continue;
         }
 
@@ -289,11 +307,11 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
                 /* 标识符：动态分配 */
                 lexeme_str = token_lexeme_dup(lex, len);
                 if (!lexeme_str)
-                    goto fail;
+                    return false;
             }
 
             if (!token_append(&tokens, &count, &capacity, tok_type, lexeme_str, line, start_col_id))
-                goto fail;
+                return false;
             continue;
         }
 
@@ -307,22 +325,19 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
         }
 
         if (!token_append(&tokens, &count, &capacity, single->type, single->lex, line, start_col))
-            goto fail;
+            return false;
         pos++;
         col++;
     }
 
     /* 追加 EOF Token */
     if (!token_append(&tokens, &count, &capacity, DSL_TOK_EOF, "(eof)", line, col))
-        goto fail;
+        return false;
 
     *out_tokens = tokens;
     *out_count = count;
+    tokens = NULL; /* 守卫解除：结果移交调用方 */
     return true;
-
-fail:
-    dsl_tokens_destroy(tokens, count);
-    return false;
 }
 
 /**

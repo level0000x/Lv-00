@@ -358,9 +358,13 @@ static bool graph_coord_equal_for_compatibility(const SymbolicCoord *a, const Sy
         return false;
     if (a->type != b->type)
         return false;
+    /* 保守策略（本函数专用）：RATIONAL 同类型比较要求 data 完整；
+     * 其余同类型比较收敛至公共 symbolic_coord_equal（NULL-safe + 符号精确）。
+     * 注意：不直接使用 symbolic_coord_compare 的跨类型近似路径，
+     * 避免不同表达形式的坐标在数值近似下被误判为重合。 */
     if (a->type == RATIONAL)
         return a->data.rational && b->data.rational && rational_compare(a->data.rational, b->data.rational) == 0;
-    return symbolic_coord_compare(a, b) == 0;
+    return symbolic_coord_equal(a, b);
 }
 
 static bool graph_segment_is_degenerate(const GeomNode *segment) {
