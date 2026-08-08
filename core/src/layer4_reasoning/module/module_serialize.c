@@ -451,6 +451,12 @@ static void serialize_constraint_graph(FILE *f, const ConstraintGraph *graph) {
     }
 }
 
+/* LVZ 文本格式写端。字段清单从 X-macro 单一事实源 LV_MODULE_FIELD_X 派生：
+ * module/deps/exports/axioms 四节对应 name+version / dependencies / exports /
+ * axiom_packages，graph 节由 serialize_constraint_graph 写出；本函数输出字节
+ * 为既有 .lvz 文件格式，保持不变（module_lvz.c lvz_parse 为对应读端）。
+ * 节式语法（每节关键字 + 计数）与 X-macro 的字段序不同，故保持手写而不
+ * 以宏生成 handler 表；新增字段时在此补一节即可（字段枚举仍以 X-macro 为准）。 */
 ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
     FILE *f = lv_file_open(filepath, "w");
     if (!f)
@@ -495,6 +501,71 @@ ModuleSaveStatus module_save(const Module *mod, const char *filepath) {
 
 /* ============== FNV-1a 版本哈希（统一委托 lv_hash 模块） ============== */
 
+/* 版本哈希的字段处理表由 X-macro 单一事实源 LV_MODULE_FIELD_X 生成：
+ * 字段清单（name/version/dependencies/exports/axiom_packages）与
+ * module_serialize_json.c / module_serialize_msgpack.c 共享同一枚举，
+ * 新增字段时补齐 hash_field_<field> 即可（未补会编译期报错）。 */
+
+typedef void (*ModuleHashFieldFn)(lvHashCtx *ctx, const Module *mod);
+
+/* 前向声明：kModuleHashFields 表初始化器引用这些函数（静态初始化器须先声明） */
+static void hash_field_name(lvHashCtx *ctx, const Module *mod);
+static void hash_field_version(lvHashCtx *ctx, const Module *mod);
+static void hash_field_dependencies(lvHashCtx *ctx, const Module *mod);
+static void hash_field_exports(lvHashCtx *ctx, const Module *mod);
+static void hash_field_axiom_packages(lvHashCtx *ctx, const Module *mod);
+static void hash_field_graph(lvHashCtx *ctx, const Module *mod);
+
+#define LV_MODULE_HASH_ENTRY(field) hash_field_##field,
+static const ModuleHashFieldFn kModuleHashFields[] = {
+    LV_MODULE_FIELD_X(LV_MODULE_HASH_ENTRY)
+};
+
+static void hash_field_name(lvHashCtx *ctx, const Module *mod) {
+    lv_hash_str(ctx, mod->name);
+}
+
+static void hash_field_version(lvHashCtx *ctx, const Module *mod) {
+    lv_hash_str(ctx, mod->version);
+}
+
+static void hash_field_dependencies(lvHashCtx *ctx, const Module *mod) {
+    lv_hash_int32(ctx, mod->dependencies.count);
+    for (int i = 0; i < mod->dependencies.count; i++) {
+        lv_hash_str(ctx, ((ModuleDependency *) mod->dependencies.data)[i].name);
+        lv_hash_str(ctx, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
+    }
+}
+
+static void hash_field_exports(lvHashCtx *ctx, const Module *mod) {
+    lv_hash_int32(ctx, mod->exports->function_block_ids.count);
+    lv_hash_int32(ctx, mod->exports->type_region_ids.count);
+
+    for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
+        lv_hash_int32(ctx, ((int *) mod->exports->function_block_ids.data)[i]);
+    }
+
+    for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
+        lv_hash_int32(ctx, ((int *) mod->exports->type_region_ids.data)[i]);
+    }
+}
+
+static void hash_field_axiom_packages(lvHashCtx *ctx, const Module *mod) {
+    lv_hash_int32(ctx, mod->axiom_packages.count);
+    for (int i = 0; i < mod->axiom_packages.count; i++) {
+        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
+            lv_hash_str(ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
+            lv_hash_str(ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->version);
+        }
+    }
+}
+
+/* 版本哈希不含约束图（历史行为：graph 变化不参与 module_compute_version_hash） */
+static void hash_field_graph(lvHashCtx *ctx, const Module *mod) {
+    (void) ctx;
+    (void) mod;
+}
+
 char *module_compute_version_hash(const Module *mod) {
     if (!mod)
         return NULL;
@@ -502,36 +573,9 @@ char *module_compute_version_hash(const Module *mod) {
     lvHashCtx ctx;
     lv_hash_init(&ctx, LV_HASH_FNV1A);
 
-    /* 哈希模块名和版本 */
-    lv_hash_str(&ctx, mod->name);
-    lv_hash_str(&ctx, mod->version);
-
-    /* 哈希依赖信息 */
-    lv_hash_int32(&ctx, mod->dependencies.count);
-    for (int i = 0; i < mod->dependencies.count; i++) {
-        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].name);
-        lv_hash_str(&ctx, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
-    }
-
-    /* 哈希导出信息 */
-    lv_hash_int32(&ctx, mod->exports->function_block_ids.count);
-    lv_hash_int32(&ctx, mod->exports->type_region_ids.count);
-
-    for (int i = 0; i < mod->exports->function_block_ids.count; i++) {
-        lv_hash_int32(&ctx, ((int *) mod->exports->function_block_ids.data)[i]);
-    }
-
-    for (int i = 0; i < mod->exports->type_region_ids.count; i++) {
-        lv_hash_int32(&ctx, ((int *) mod->exports->type_region_ids.data)[i]);
-    }
-
-    /* 哈希公理包信息 */
-    lv_hash_int32(&ctx, mod->axiom_packages.count);
-    for (int i = 0; i < mod->axiom_packages.count; i++) {
-        if (((AxiomPackage **) mod->axiom_packages.data)[i]) {
-            lv_hash_str(&ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->name);
-            lv_hash_str(&ctx, ((AxiomPackage **) mod->axiom_packages.data)[i]->version);
-        }
+    /* 按字段清单（X-macro 表序）逐一哈希，输入序列与历史实现完全一致 */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kModuleHashFields); i++) {
+        kModuleHashFields[i](&ctx, mod);
     }
 
     /* 转换为十六进制字符串 (64位 = 16个十六进制字符) */
@@ -656,6 +700,22 @@ static bool dfs_detect_cycle(Module *mod, Module **modules, int count, DFSColor 
  * @param out_path 输出：循环路径（调用者需 free，可为 NULL）
  * @param out_path_len 输出：路径长度（可为 NULL）
  * @return true 检测到循环依赖，false 无循环
+ *
+ * 【lv_cycle_detect 收敛评估结论（不收敛，保留本实现）】
+ *   lv_cycle_detect（lv_graph_traversal.h）仅通过 on_cycle 回调报告
+ *   from_id → to_id 反向边，不提供当前 DFS 路径栈内容，无法重建
+ *   module_load 错误消息所需的完整环路径（"A → B → C → A"）：
+ *     1. 路径重建缺失：lvCycleFoundFunc 签名只含 from_id/to_id/edge_info，
+ *        不含当前 DFS 路径；CONTINUE 逐环报告也无法拼接路径（回调间无
+ *        共享路径上下文，且批次式邻居枚举与模块依赖的单批次语义不同）。
+ *     2. 公开 API 承诺：module.h 中 module_full_cycle_detect 的
+ *        out_path/out_path_len 参数显式要求输出环路径，迁移将破坏该语义。
+ *     3. 三色标记逻辑等价：lv_cycle_detect 的 WHITE/GRAY/BLACK 语义与
+ *        本实现一致，但本实现额外维护 path_stack 记录 DFS 路径。
+ *   故保留手写三色 DFS；本次仅将固定 path_stack[MAX_MODULE_DEPTH] 改为
+ *   按 count 动态分配，消除 MAX_MODULE_DEPTH=32 的模块数上限（路径栈
+ *   深度不超过模块数 count）。若未来 lv_cycle_detect 增加路径输出回调
+ *   （on_cycle 携带路径栈），可再收敛。
  */
 bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *out_path_len) {
     if (!modules)
@@ -667,8 +727,13 @@ bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *
     if (!color_map)
         return false;
 
-    /* 路径栈：跟踪当前 DFS 路径上的模块索引 */
-    int path_stack[MAX_MODULE_DEPTH];
+    /* 路径栈：跟踪当前 DFS 路径上的模块索引（动态分配，按模块数定长，
+     * 消除历史固定栈 path_stack[MAX_MODULE_DEPTH] 的 32 模块上限） */
+    int *path_stack = (int *) lv_malloc((size_t) count * sizeof(int));
+    if (!path_stack) {
+        lv_free((void **) &color_map);
+        return false;
+    }
     int path_stack_len = 0;
 
     bool has_cycle = false;
@@ -679,6 +744,7 @@ bool module_full_cycle_detect(Module **modules, int count, int **out_path, int *
         }
     }
 
+    lv_free((void **) &path_stack);
     lv_free((void **) &color_map);
     return has_cycle;
 }

@@ -4,7 +4,9 @@
 #include "lv/block_graph_view.h"
 #include "lv/func_block.h"
 #include "lv/geometry_types.h"
+#include "lv/lv_error.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 #include "lv/representation_converter.h"
 #include "lv/symbolic_coord.h"
@@ -124,6 +126,27 @@ void lv_geometry_encoding_destroy(void *ptr) {
 #define BLOCK_GAP_Y 30.0
 #define PORT_RADIUS 6.0
 
+/* GeometryEncoding 守卫：失败路径整体释放（成功路径置空移交调用方） */
+static void geometry_encoding_defer_cleanup(void *p) {
+    void **pp = (void **) p;
+    if (*pp)
+        lv_geometry_encoding_destroy(*pp);
+}
+
+/* SimpleBlockGraph 守卫：失败路径销毁已建函数块并释放结构（成功路径置空移交） */
+static void simple_block_graph_guard_cleanup(void *p) {
+    SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
+    SimpleBlockGraph *sg = *pp;
+    if (!sg)
+        return;
+    for (int i = 0; i < sg->count; i++) {
+        if (sg->blocks && sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
+    }
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) pp);
+}
+
 /* 将函数块转换为几何实体 */
 /* 编码规则：
  *   Block → 矩形区域（PolygonEntity，4个顶点）
@@ -145,9 +168,12 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     GeometryEncoding *enc = lv_calloc(1, sizeof(GeometryEncoding));
     if (!enc) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
+    /* 注册作用域守卫：任一失败分支直接 return，几何编码在函数出口自动释放 */
+    void *enc_guard = enc;
+    lv_DEFER(geometry_encoding_defer_cleanup, &enc_guard);
 
     /* 预分配空间 */
     int total_ports = 0;
@@ -159,26 +185,20 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     }
     enc->rects = lv_calloc(bg->count + 1, sizeof(PolygonEntity *));
     if (!enc->rects) {
-        lv_free((void **) &enc);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
     enc->port_points = lv_calloc(total_ports + 1, sizeof(PointEntity *));
     if (!enc->port_points) {
-        lv_free((void **) &enc->rects);
-        lv_free((void **) &enc);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
     enc->connections = lv_calloc(total_ports + 1, sizeof(LinearEntity *));
     if (!enc->connections) {
-        lv_free((void **) &enc->rects);
-        lv_free((void **) &enc->port_points);
-        lv_free((void **) &enc);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
 
@@ -302,6 +322,7 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
         }
     }
 
+    enc_guard = NULL; /* 成功移交调用方，守卫不再释放 */
     result.output = enc;
     result.success = 1;
     return result;
@@ -327,15 +348,16 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
+    /* 注册作用域守卫：任一失败分支直接 return，已建函数块与结构在函数出口自动释放 */
+    lv_DEFER(simple_block_graph_guard_cleanup, &sg);
     sg->cap = enc->rect_count > 0 ? enc->rect_count : 8;
     sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-        lv_free((void **) &sg);
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
 
@@ -384,14 +406,14 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
 
         if (!lv_ensure_capacity((void **) &sg->blocks, sg->count, &sg->cap, sizeof(FuncBlock *), 0)) {
             result.success = 0;
-            strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-            /* 原始指针 sg->blocks 保持有效，可由调用者释放 */
-            return result;
+            strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+            return result; /* 已建函数块与结构由守卫统一释放 */
         }
         sg->blocks[sg->count++] = fb;
     }
 
     result.output = sg;
+    sg = NULL; /* 守卫解除：结果移交调用方 */
     result.success = 1;
     return result;
 }

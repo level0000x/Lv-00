@@ -25,19 +25,8 @@ static FormulaNode *parse_python_term(ParserContext *ctx);
 static FormulaNode *parse_python_factor(ParserContext *ctx);
 static FormulaNode *parse_python_atom(ParserContext *ctx);
 
-/* ── 数学函数名→节点创建 分发表（与 formula_dsl.c 共享查找函数） ── */
-
-/** @brief 数学函数分发表条目（定义与 formula_dsl.c 一致） */
-typedef struct {
-    const char *name;   /**< 函数名 */
-    int arg_count;      /**< 期望的参数个数 */
-    NodeType op;        /**< 对应运算符节点类型 */
-    bool is_binary;     /**< true=二元运算，false=一元运算 */
-} MathFuncEntry;
-
-/* 共享查找函数（实现在 formula_dsl.c） */
-FormulaNode *formula_apply_math_func(const char *ident, FormulaNode **args, int arg_count,
-                                     const MathFuncEntry *table, size_t table_size);
+/* ── 数学函数名→节点创建 分发表（与 formula_dsl.c 共享；MathFuncEntry 类型与
+ *   formula_apply_math_func 声明见 lv/formula_parser.h） ── */
 
 /** @brief Python 数学函数表（含 pow；Python 不识别 ln/log） */
 static const MathFuncEntry kPythonMathFuncTable[] = {
@@ -172,23 +161,11 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
                 return NULL;
             }
 
-            /* 根据函数名创建对应节点 */
-            FormulaNode *node = NULL;
-            if (strcmp(ident, "sqrt") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_SQRT, args[0]);
-            } else if (strcmp(ident, "sin") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_SIN, args[0]);
-            } else if (strcmp(ident, "cos") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_COS, args[0]);
-            } else if (strcmp(ident, "tan") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_TAN, args[0]);
-            } else if (strcmp(ident, "abs") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_ABS, args[0]);
-            } else if (strcmp(ident, "pow") == 0 && arg_count == 2) {
-                node = formula_create_binary_op(NODE_BINARY_OP_POW, args[0], args[1]);
-            } else {
-                node = formula_create_variable(ident);
-            }
+            /* 根据函数名查表创建对应节点（替代 6 分支 strcmp 链） */
+            FormulaNode *node = formula_apply_math_func(ident, args, arg_count, kPythonMathFuncTable,
+                                                        sizeof(kPythonMathFuncTable) / sizeof(kPythonMathFuncTable[0]));
+            if (!node)
+                node = formula_create_variable(ident); /* 未知函数，作为变量返回 */
 
             lv_free((void **) &ident);
             for (int i = 0; i < arg_count; i++)

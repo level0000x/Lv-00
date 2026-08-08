@@ -39,6 +39,9 @@ extern "C" {
 /** 最大错误消息长度 */
 #define lv_ERROR_MSG_MAX 256
 
+/** 内存分配失败的标准错误消息（统一 OOM 用户可见文本，供各模块收敛字面量） */
+#define lv_ERR_MSG_OOM "out of memory"
+
 /** 错误帧栈最大容量 */
 #define lv_ERROR_MAX_FRAMES 8
 

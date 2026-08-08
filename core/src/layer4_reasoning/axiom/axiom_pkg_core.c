@@ -1,4 +1,4 @@
-/*
+﻿/*
  * @file axiom_pkg_core.c
  * @brief Axiom package system - create/destroy, unconstructible mgmt, template mgmt
  * @details Split from axiom_pkg.c
@@ -9,6 +9,8 @@
 
 #include "lv/lv_file.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/lv_registry.h"
+#include "lv/lv_thread.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -25,6 +27,86 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "stream.h"
+
+/* ============== 名称索引注册表 ============== */
+
+/**
+ * @brief 公理包名称索引注册表（通用注册表设施）。
+ *
+ * key  = "<pkg指针>:<kind>:<name>"（kind: T = 模板，U = 不可构造问题），
+ * value = boxed int 元素索引（指向 pkg->templates / pkg->known_unconstructibles
+ *        lvDArray 中的元素；darray 扩容 realloc 不改变元素索引，故索引保持有效）。
+ *
+ * 模板/不可构造问题数据仍存储于各 pkg 的 lvDArray（公共 API get_by_index/
+ * get_count 及 serialize/verify 等按索引/直接遍历访问），注册表仅承担
+ * name→索引 的 strcmp 查重与查找；重复注册时首次映射生效（与原线性查找
+ * "首个匹配优先"语义一致）。文件级单例（lv_once 惰性初始化，线程安全）。
+ */
+static lvRegistry g_axiom_name_registry;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_axiom_name_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表 key 缓冲区大小（pkg 指针 + kind + 名称） */
+#define AXIOM_REGKEY_MAX 512
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void axiom_name_registry_init_once(void) {
+    lv_registry_init(&g_axiom_name_registry, 32);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void axiom_name_registry_ensure(void) {
+    lv_once(&g_axiom_name_registry_once, axiom_name_registry_init_once);
+}
+
+/** @brief 装箱元素索引（注册表 value） */
+static void *axiom_box_index(int idx) {
+    int *p = (int *) lv_malloc(sizeof(int));
+    if (p) {
+        *p = idx;
+    }
+    return p;
+}
+
+/** @brief boxed 索引的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void axiom_box_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+/** @brief 解箱元素索引 */
+static int axiom_unbox_index(void *value) {
+    return value ? *(int *) value : -1;
+}
+
+/** @brief 构造注册表 key（"<pkg>:<kind>:<name>"，kind: T/U） */
+static void axiom_build_key(const AxiomPackage *pkg, char kind, const char *name, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%p:%c:%s", (const void *) pkg, kind, name);
+}
+
+/** @brief 移除指定 pkg 的全部注册条目（pkg 销毁时调用，防止残留悬垂索引） */
+static void axiom_registry_remove_pkg(const AxiomPackage *pkg) {
+    if (!pkg) {
+        return;
+    }
+    /* 可能从未注册过任何条目：确保注册表已初始化（lv_once 幂等），
+     * 避免对未初始化互斥锁加锁 */
+    axiom_name_registry_ensure();
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "%p:", (const void *) pkg);
+    size_t prefix_len = strlen(prefix);
+    int total = lv_registry_count(&g_axiom_name_registry);
+    for (int i = total - 1; i >= 0; i--) {
+        const char *reg_name = NULL;
+        void *reg_value = NULL;
+        if (!lv_registry_get_at(&g_axiom_name_registry, i, &reg_name, &reg_value)) {
+            continue;
+        }
+        if (strncmp(reg_name, prefix, prefix_len) == 0) {
+            lv_registry_remove(&g_axiom_name_registry, reg_name);
+        }
+    }
+}
 
 /* ============== 创建和销毁 ============== */
 
@@ -142,6 +224,9 @@ void axiom_package_destroy(AxiomPackage *pkg) {
     if (!pkg)
         return;
 
+    /* 移除该包在名称索引注册表中的全部条目（防止残留悬垂索引） */
+    axiom_registry_remove_pkg(pkg);
+
     lv_obj_destroy_fields(pkg, s_axiom_package_destroy_fields,
                           sizeof(s_axiom_package_destroy_fields) / sizeof(s_axiom_package_destroy_fields[0]));
     lv_free((void **) &pkg);
@@ -189,6 +274,15 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
         return false;
     }
 
+    /* 登记名称索引（value = boxed 元素索引；重复注册保留首次映射，与线性查找"首个匹配优先"语义一致） */
+    axiom_name_registry_ensure();
+    char regkey[AXIOM_REGKEY_MAX];
+    axiom_build_key(pkg, 'U', target_item.name, regkey, sizeof(regkey));
+    void *boxed = axiom_box_index((int) pkg->known_unconstructibles.count - 1);
+    if (boxed && !lv_registry_put_ex(&g_axiom_name_registry, regkey, boxed, axiom_box_destroy)) {
+        lv_free((void **) &boxed);
+    }
+
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册不可构造问题", 0);
     }
@@ -200,13 +294,17 @@ KnownUnconstructible *axiom_package_lookup_unconstructible(AxiomPackage *pkg, co
     if (!pkg || !name)
         return NULL;
 
-    for (int i = 0; i < pkg->known_unconstructibles.count; i++) {
-        KnownUnconstructible *uc = (KnownUnconstructible *)lv_darray_get(&pkg->known_unconstructibles, i);
-        if (strcmp(uc->name, name) == 0) {
-            return uc;
-        }
-    }
-    return NULL;
+    /* 委托注册表按名称定位索引（strcmp 由 lv_registry 承担），再经 darray 取元素指针 */
+    axiom_name_registry_ensure();
+    char regkey[AXIOM_REGKEY_MAX];
+    axiom_build_key(pkg, 'U', name, regkey, sizeof(regkey));
+    void *boxed = lv_registry_get(&g_axiom_name_registry, regkey);
+    if (!boxed)
+        return NULL;
+    int idx = axiom_unbox_index(boxed);
+    if (idx < 0 || idx >= (int) pkg->known_unconstructibles.count)
+        return NULL;
+    return (KnownUnconstructible *) lv_darray_get(&pkg->known_unconstructibles, idx);
 }
 
 /* ============== 模板管理 ============== */
@@ -238,6 +336,15 @@ bool axiom_package_register_template(AxiomPackage *pkg, ConstraintTemplate *tmpl
         return false;
     }
 
+    /* 登记名称索引（value = boxed 元素索引；重复注册保留首次映射，与线性查找"首个匹配优先"语义一致） */
+    axiom_name_registry_ensure();
+    char regkey[AXIOM_REGKEY_MAX];
+    axiom_build_key(pkg, 'T', slot.name, regkey, sizeof(regkey));
+    void *boxed = axiom_box_index((int) pkg->templates.count - 1);
+    if (boxed && !lv_registry_put_ex(&g_axiom_name_registry, regkey, boxed, axiom_box_destroy)) {
+        lv_free((void **) &boxed);
+    }
+
     if (axiom_stream_ctx) {
         stream_emit_simple(axiom_stream_ctx, STREAM_EVENT_INFO, "已注册约束模板", 0);
     }
@@ -251,11 +358,15 @@ ConstraintTemplate *axiom_package_get_template(AxiomPackage *pkg, const char *na
     if (!name)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "axiom_package_get_template: name is NULL");
 
-    for (int i = 0; i < pkg->templates.count; i++) {
-        ConstraintTemplate *t = (ConstraintTemplate *)lv_darray_get(&pkg->templates, i);
-        if (strcmp(t->name, name) == 0) {
-            return t;
-        }
-    }
-    return NULL;
+    /* 委托注册表按名称定位索引（strcmp 由 lv_registry 承担），再经 darray 取元素指针 */
+    axiom_name_registry_ensure();
+    char regkey[AXIOM_REGKEY_MAX];
+    axiom_build_key(pkg, 'T', name, regkey, sizeof(regkey));
+    void *boxed = lv_registry_get(&g_axiom_name_registry, regkey);
+    if (!boxed)
+        return NULL;
+    int idx = axiom_unbox_index(boxed);
+    if (idx < 0 || idx >= (int) pkg->templates.count)
+        return NULL;
+    return (ConstraintTemplate *) lv_darray_get(&pkg->templates, idx);
 }

@@ -71,15 +71,19 @@ static bool ensure_id_map_capacity(lvDynGraph *graph, int new_capacity) {
     if (new_capacity <= graph->node_capacity)
         return true;
 
+    /* id_to_index 与 nodes 在 add_node 中同步扩容，正常路径下容量恒
+     * >= node_capacity；此处仅作防御性独立扩容。不复用 node_capacity
+     * 共享指针，以免错误抬高 nodes 的容量判定导致 nodes 越界写。 */
     int old_capacity = graph->node_capacity;
+    int id_capacity = old_capacity;
     /* min_growth makes min_required = new_capacity, so new capacity >= target */
     if (!lv_ensure_capacity((void **) &graph->id_to_index, old_capacity,
-                            &graph->node_capacity, sizeof(int),
+                            &id_capacity, sizeof(int),
                             new_capacity - old_capacity))
         return false;
 
     /* initialize new segment to lv_DYN_INVALID */
-    for (int i = old_capacity; i < graph->node_capacity; i++) {
+    for (int i = old_capacity; i < id_capacity; i++) {
         graph->id_to_index[i] = lv_DYN_INVALID;
     }
 
@@ -180,14 +184,19 @@ static void add_parent_edge(lvDynGraph *graph, int node_idx, int parent_idx) {
     if (!ensure_adj_capacity(graph, total_needed))
         return;
 
-    /* 移动后续节点 */
-    for (int i = graph->node_count; i > node_idx; i--) {
-        graph->parent_adj_offsets[i + 1] = graph->parent_adj_offsets[i] + 1;
+    /* 后移后续边数据，为 node_idx 的新边腾出位置（total = 当前总边数槽） */
+    int total = graph->parent_adj_offsets[graph->node_count + 1];
+    for (int i = total; i > end; i--) {
+        graph->parent_adj[i] = graph->parent_adj[i - 1];
     }
-    graph->parent_adj_offsets[node_idx + 1]++;
 
     /* 插入新父节点 */
     graph->parent_adj[end] = parent_idx;
+
+    /* 偏移数组：node_idx 之后的节点起始位置 +1（含总边数槽 node_count+1） */
+    for (int k = node_idx + 1; k <= graph->node_count + 1; k++) {
+        graph->parent_adj_offsets[k]++;
+    }
 }
 
 /**
@@ -216,14 +225,19 @@ static void add_child_edge(lvDynGraph *graph, int node_idx, int child_idx) {
     if (!ensure_adj_capacity(graph, total_needed))
         return;
 
-    /* 移动后续节点 */
-    for (int i = graph->node_count; i > node_idx; i--) {
-        graph->child_adj_offsets[i + 1] = graph->child_adj_offsets[i] + 1;
+    /* 后移后续边数据，为 node_idx 的新边腾出位置（total = 当前总边数槽） */
+    int total = graph->child_adj_offsets[graph->node_count + 1];
+    for (int i = total; i > end; i--) {
+        graph->child_adj[i] = graph->child_adj[i - 1];
     }
-    graph->child_adj_offsets[node_idx + 1]++;
 
     /* 插入新子节点 */
     graph->child_adj[end] = child_idx;
+
+    /* 偏移数组：node_idx 之后的节点起始位置 +1（含总边数槽 node_count+1） */
+    for (int k = node_idx + 1; k <= graph->node_count + 1; k++) {
+        graph->child_adj_offsets[k]++;
+    }
 }
 
 /* ========================================================================
@@ -302,22 +316,29 @@ int lv_dyn_graph_add_node(lvDynGraph *graph, lvDynNodeType type, const int *pare
             return lv_DYN_INVALID;
         int new_cap = graph->node_capacity;
 
-        /* offset arrays hold node_capacity + 1 elements and must grow in sync
-         * with nodes.  Rewind the shared capacity pointer before each call so
-         * the growth really executes; on any failure release ALL three arrays
-         * and restore the old capacity. */
-        for (int pass = 0; pass < 2; pass++) {
+        /* id_to_index / offset arrays must grow in sync with nodes (all sized
+         * off node_capacity).  Rewind the shared capacity pointer before each
+         * call so the growth really executes; on any failure release ALL
+         * arrays and restore the old capacity. */
+        for (int pass = 0; pass < 3; pass++) {
             graph->node_capacity = old_cap; /* temporary rewind */
-            if (!lv_ensure_capacity((void **) (pass == 0 ? &graph->parent_adj_offsets
-                                                         : &graph->child_adj_offsets),
-                                    old_cap + 1, &graph->node_capacity, sizeof(int),
+            void **arr = (pass == 0) ? (void **) &graph->id_to_index
+                        : (pass == 1) ? (void **) &graph->parent_adj_offsets
+                                      : (void **) &graph->child_adj_offsets;
+            int count = (pass == 0) ? old_cap : old_cap + 1; /* id 映射长度 = 容量；偏移数组长度 = 容量 + 1 */
+            if (!lv_ensure_capacity(arr, count, &graph->node_capacity, sizeof(int),
                                     new_cap - old_cap)) {
                 lv_free((void **) &graph->nodes);
+                lv_free((void **) &graph->id_to_index);
                 lv_free((void **) &graph->parent_adj_offsets);
                 lv_free((void **) &graph->child_adj_offsets);
                 graph->node_capacity = old_cap;
                 return lv_DYN_INVALID;
             }
+        }
+        /* initialize the new id_to_index segment */
+        for (int i = old_cap; i < new_cap; i++) {
+            graph->id_to_index[i] = lv_DYN_INVALID;
         }
         graph->node_capacity = new_cap;
     }
@@ -331,6 +352,11 @@ int lv_dyn_graph_add_node(lvDynGraph *graph, lvDynNodeType type, const int *pare
     node->parent_count = 0;
     node->child_count = 0;
     node->param_count = param_count;
+
+    /* 初始化新节点的边列表（起始 = 结束；add_parent_edge / add_child_edge
+     * 在插入时负责维护其结束槽 node_count+1） */
+    graph->parent_adj_offsets[graph->node_count + 1] = graph->parent_adj_offsets[graph->node_count];
+    graph->child_adj_offsets[graph->node_count + 1] = graph->child_adj_offsets[graph->node_count];
 
     /* 复制父节点 */
     if (parent_ids && parent_count > 0) {
@@ -354,10 +380,6 @@ int lv_dyn_graph_add_node(lvDynGraph *graph, lvDynNodeType type, const int *pare
 
     /* 注册 ID */
     register_node_id(graph, new_id, graph->node_count);
-
-    /* 更新偏移数组 */
-    graph->parent_adj_offsets[graph->node_count + 1] = graph->parent_adj_offsets[graph->node_count];
-    graph->child_adj_offsets[graph->node_count + 1] = graph->child_adj_offsets[graph->node_count];
 
     graph->node_count++;
     return new_id;
@@ -452,6 +474,19 @@ int lv_dyn_graph_get_children(const lvDynGraph *graph, int node_id, int *out_chi
  * 第六部分：级联更新
  * ======================================================================== */
 
+/**
+ * @brief 动态整数栈 push：容量不足时自动扩容
+ * @return false 表示内存不足（栈保持不变，调用方应中止本次操作）
+ */
+static bool dyn_int_stack_push(int **stack, int *top, int *cap, int value) {
+    if (*top >= *cap) {
+        if (!lv_ensure_capacity((void **) stack, *top, cap, sizeof(int), 1))
+            return false;
+    }
+    (*stack)[(*top)++] = value;
+    return true;
+}
+
 static void update_node_params(lvDynGraph *graph, int node_id) {
     lvDynNode *node = lv_dyn_graph_get_node(graph, node_id);
     if (!node)
@@ -506,14 +541,34 @@ int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc 
     if (!root)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_dyn_graph_update_cascade: root node not found");
 
+    /* 【lv_graph_traversal 收敛评估结论（不收敛，保留本实现）】
+     *   lv_bfs_run / lv_cycle_detect 均无法表达本函数的"依赖序更新"语义：
+     *     1. 节点弹出后若存在未更新的父节点，须把该节点放回栈、将父节点压到
+     *        其上方（先父后子的延迟等待）；lv_bfs_run 的 visit 回调在出队时
+     *        仅调用一次、无重新入队能力，BFS 队列亦非 LIFO，无法表达"等待
+     *        父节点更新后再处理"；
+     *     2. lv_cycle_detect 是环检测，无更新副作用入口；
+     *     3. 本函数对节点有更新副作用（update_func / update_node_params 修改
+     *        节点参数、marks、计数），泛型遍历设施仅提供访问回调。
+     *   结论：语义确实不同，无法通过泛型遍历收敛；仅将原固定 256 栈改为动态
+     *   扩容栈：原 `while (top > 0 && top < 256)` 在栈深达到 256 时静默截断
+     *   （大图部分节点不更新），且 push 处无容量检查可越界写。 */
     int updated = 0;
-    int stack[256];
+    int stack_cap = graph->node_count > 16 ? graph->node_count : 16;
+    int *stack = (int *) lv_malloc((size_t) stack_cap * sizeof(int));
+    if (!stack)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_update_cascade: stack alloc failed");
+
     int top = 0;
+    bool oom = false;
 
-    stack[top++] = root_id;
-    root->marks |= lv_DYN_MARK_VISITED;
+    if (!dyn_int_stack_push(&stack, &top, &stack_cap, root_id)) {
+        oom = true;
+    } else {
+        root->marks |= lv_DYN_MARK_VISITED;
+    }
 
-    while (top > 0 && top < 256) {
+    while (!oom && top > 0) {
         int current_id = stack[--top];
         lvDynNode *current = lv_dyn_graph_get_node(graph, current_id);
 
@@ -536,12 +591,18 @@ int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc 
 
         if (!all_parents_updated) {
             /* 将节点放回栈，等待父节点更新 */
-            stack[top++] = current_id;
+            if (!dyn_int_stack_push(&stack, &top, &stack_cap, current_id)) {
+                oom = true;
+                break;
+            }
             /* 先处理父节点 */
             for (int i = 0; i < current->parent_count; i++) {
                 lvDynNode *parent = lv_dyn_graph_get_node(graph, current->parent_ids[i]);
                 if (parent && !(parent->marks & lv_DYN_MARK_VISITED)) {
-                    stack[top++] = current->parent_ids[i];
+                    if (!dyn_int_stack_push(&stack, &top, &stack_cap, current->parent_ids[i])) {
+                        oom = true;
+                        break;
+                    }
                     parent->marks |= lv_DYN_MARK_VISITED;
                 }
             }
@@ -561,15 +622,24 @@ int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc 
         for (int i = 0; i < current->child_count; i++) {
             lvDynNode *child = lv_dyn_graph_get_node(graph, current->child_ids[i]);
             if (child && !(child->marks & lv_DYN_MARK_VISITED)) {
-                stack[top++] = current->child_ids[i];
+                if (!dyn_int_stack_push(&stack, &top, &stack_cap, current->child_ids[i])) {
+                    oom = true;
+                    break;
+                }
                 child->marks |= lv_DYN_MARK_VISITED;
             }
         }
     }
 
-    /* 清除标记 */
+    /* 清除标记（OOM 提前退出时同样清理，避免残留 VISITED/UPDATED 影响后续调用） */
     for (int i = 0; i < graph->node_count; i++) {
         graph->nodes[i].marks &= ~(lv_DYN_MARK_VISITED | lv_DYN_MARK_UPDATED);
+    }
+
+    lv_free((void **) &stack);
+
+    if (oom) {
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_update_cascade: stack realloc failed");
     }
 
     return updated;
@@ -579,15 +649,30 @@ int lv_dyn_graph_update_chain(lvDynGraph *graph, int leaf_id) {
     if (!graph)
         return 0;
 
+    /* 【lv_graph_traversal 收敛评估结论（不收敛，保留本实现）】
+     *   lv_cycle_detect 为全图三色 DFS 环检测（发现反向边时回调），而本函数
+     *   是"沿链更新"语义：从 leaf 出发沿"第一个 DIRTY 父节点"向上逐节点执行
+     *   更新副作用，并用独立 visited 集合检测链上重复节点（命中即停止）。
+     *     1. 核心是逐节点更新（update_node_params 修改节点参数/状态/计数），
+     *        lv_cycle_detect 无访问/更新回调，只有环发现回调；
+     *     2. 环检测语义不同：本函数只沿单链查重（命中即返回已更新数），
+     *        非全图 DFS 三色遍历；lv_bfs_run 无环检测，且为 BFS 全图遍历。
+     *   结论：语义确实不同，无法通过泛型遍历收敛；仅将原固定 256 visited
+     *   数组改为按节点总数分配（链上互异节点数不可能超过 node_count，环必在
+     *   node_count+1 步内被查重捕获），消除大图（链长 >256）下的静默截断。 */
     int updated = 0;
     int current = leaf_id;
-    int visited[256];
+    int cap = graph->node_count > 0 ? graph->node_count : 1;
+    int *visited = (int *) lv_malloc((size_t) cap * sizeof(int));
+    if (!visited)
+        return 0;
     int visited_count = 0;
 
-    while (current != lv_DYN_INVALID && visited_count < 256) {
+    while (current != lv_DYN_INVALID && visited_count < cap) {
         /* 检测循环 */
         for (int i = 0; i < visited_count; i++) {
             if (visited[i] == current) {
+                lv_free((void **) &visited);
                 return updated; /* 检测到循环 */
             }
         }
@@ -616,6 +701,7 @@ int lv_dyn_graph_update_chain(lvDynGraph *graph, int leaf_id) {
         }
     }
 
+    lv_free((void **) &visited);
     return updated;
 }
 

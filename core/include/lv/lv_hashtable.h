@@ -1,12 +1,15 @@
 /**
  * @file lv_hashtable.h
- * @brief 统一哈希表设施（int 键 / string 键 双形态）
+ * @brief 统一哈希表设施（int 键 / int64 键 / string 键 三形态）
  *
  * @details 收敛项目内多处手写哈希（ConstraintGraph 节点/约束索引、
  *          几何约束求解器 IdHashTable、预设库名称哈希、快速空间索引、
- *          表达式规范化合并去重桶），提供两种键形态：
+ *          表达式规范化合并去重桶），提供三种键形态：
  *            - int 键（lv_hashtable_int_*）：开放寻址（线性探测）+
  *              自动扩容重哈希 + tombstone（墓碑）删除
+ *            - int64 键（lv_hashtable_i64_*）：与 int 形态同一套
+ *              开放寻址实现（由宏模板实例化），键类型 int64_t，
+ *              哈希为 FNV-1a 64 位混入键的 8 字节
  *            - string 键（lv_hashtable_str_*）：分离链式（头插）+
  *              自动扩容重哈希；键副本由表内部持有，值所有权归调用方
  *
@@ -33,6 +36,8 @@ typedef struct lvHashtable lvHashtable;
 
 /** int 键遍历回调 */
 typedef void (*lvHashtableIntVisitor)(int key, void *value, void *ctx);
+/** int64 键遍历回调 */
+typedef void (*lvHashtableI64Visitor)(int64_t key, void *value, void *ctx);
 /** string 键遍历回调 */
 typedef void (*lvHashtableStrVisitor)(const char *key, void *value, void *ctx);
 
@@ -77,6 +82,49 @@ void lv_hashtable_int_foreach(lvHashtable *ht, lvHashtableIntVisitor visitor, vo
  *  供依赖固定数组布局、无法持有句柄的调用方（如 ConstraintGraph 内嵌
  *  索引数组）与 lv_hashtable 共享完全一致的哈希。 */
 unsigned lv_hashtable_int_hash(int key, int capacity);
+
+/* ========================================================================
+ * int64（i64）键形态
+ *
+ * 与 int 形态完全相同的开放寻址（线性探测）+ tombstone 实现
+ * （同一宏模板实例化，扩容/重哈希/删除语义严格一致），仅键类型与
+ * 哈希函数不同：
+ *   - 键类型 int64_t（覆盖 64 位整数键；uint64_t 键可按位模式转换）
+ *   - 哈希为 FNV-1a 64 位混入键的 8 字节（lv_fnv1a_hash_int），
+ *     连续/相近整数键分布均匀
+ * ======================================================================== */
+
+/** @brief 创建 int64 键哈希表
+ *  @param initial_capacity 初始容量（<=0 时使用默认值；自动向上取 2 的幂）
+ *  @return 哈希表句柄，失败返回 NULL */
+lvHashtable *lv_hashtable_i64_create(int initial_capacity);
+
+/** @brief 销毁 int64 键哈希表并释放内部存储（不释放 value） */
+void lv_hashtable_i64_destroy(lvHashtable *ht);
+
+/** @brief 插入键值对；键已存在时返回 false 不覆盖 */
+bool lv_hashtable_i64_insert(lvHashtable *ht, int64_t key, void *value);
+
+/** @brief 按键查找；未找到返回 NULL */
+void *lv_hashtable_i64_get(const lvHashtable *ht, int64_t key);
+
+/** @brief 键是否存在 */
+bool lv_hashtable_i64_contains(const lvHashtable *ht, int64_t key);
+
+/** @brief 删除键值对；键不存在返回 false */
+bool lv_hashtable_i64_remove(lvHashtable *ht, int64_t key);
+
+/** @brief 当前条目数 */
+int lv_hashtable_i64_count(const lvHashtable *ht);
+
+/** @brief 遍历所有条目（顺序不定）；回调中删除当前条目安全 */
+void lv_hashtable_i64_foreach(lvHashtable *ht, lvHashtableI64Visitor visitor, void *ctx);
+
+/** @brief int64 键哈希（FNV-1a 64 位：以 lv_FNV64_OFFSET_BASIS 为初值混入
+ *  键的 8 字节；容量为 2 的幂时走位掩码，否则取模）。
+ *  供依赖固定数组布局、无法持有句柄的调用方与 lv_hashtable 共享
+ *  完全一致的哈希。 */
+unsigned lv_hashtable_i64_hash(int64_t key, int capacity);
 
 /* ========================================================================
  * string 键形态

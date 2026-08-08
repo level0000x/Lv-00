@@ -2,6 +2,8 @@
 
 #include "lv/block_graph_view.h"
 #include "lv/func_block.h"
+#include "lv/lv_error.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 #include "lv/representation_converter.h"
 
@@ -33,6 +35,17 @@ typedef struct {
 
 static void lv_convert_block_to_node_cleanup(NodeGraph *ng);
 
+/* 节点图守卫：失败路径由 lv_DEFER 在函数出口整体释放；成功路径置 ng=NULL 移交调用方 */
+typedef struct {
+    NodeGraph *ng;
+} NodeGraphGuard;
+
+static void node_graph_guard_cleanup(void *p) {
+    NodeGraphGuard *g = (NodeGraphGuard *) p;
+    if (g->ng)
+        lv_convert_block_to_node_cleanup(g->ng);
+}
+
 /* 将函数块转换为节点图表示 */
 /* 每个 FuncBlock → 一个 NodeGraphNode */
 /* 块的输入/输出端口 → 节点的输入/输出端口 */
@@ -52,24 +65,24 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     NodeGraph *ng = lv_calloc(1, sizeof(NodeGraph));
     if (!ng) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
+    /* 注册作用域守卫：任一失败分支直接 return，整个节点图在函数出口自动释放 */
+    NodeGraphGuard guard = {ng};
+    lv_DEFER(node_graph_guard_cleanup, &guard);
     ng->node_cap = bg->count > 0 ? bg->count : 8;
     ng->nodes = lv_calloc(ng->node_cap, sizeof(NodeGraphNode));
     if (!ng->nodes) {
-        lv_free((void **) &ng);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
     ng->edge_cap = 32;
     ng->edges = lv_calloc(ng->edge_cap, sizeof(ng->edges[0]));
     if (!ng->edges) {
-        lv_free((void **) &ng->nodes);
-        lv_free((void **) &ng);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
 
@@ -95,12 +108,9 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (in_count > 0 && fb->input_port_ids) {
             node->input_ports = lv_calloc(in_count, sizeof(int));
             if (!node->input_ports) {
-                lv_free((void **) &node->name);
-                ng->node_count--;
-                lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
-                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-                return result;
+                strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+                return result; /* 守卫自动释放（含当前节点已置字段） */
             }
             memcpy(node->input_ports, fb->input_port_ids, in_count * sizeof(int));
             node->input_count = in_count;
@@ -111,13 +121,9 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (out_count > 0 && fb->output_port_ids) {
             node->output_ports = lv_calloc(out_count, sizeof(int));
             if (!node->output_ports) {
-                lv_free((void **) &node->name);
-                lv_free((void **) &node->input_ports);
-                ng->node_count--;
-                lv_convert_block_to_node_cleanup(ng);
                 result.success = 0;
-                strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
-                return result;
+                strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+                return result; /* 守卫自动释放（含当前节点已置字段） */
             }
             memcpy(node->output_ports, fb->output_port_ids, out_count * sizeof(int));
             node->output_count = out_count;
@@ -146,9 +152,8 @@ lvConvertResult lv_convert_block_to_node(void *block) {
             if (src_idx >= 0 && dst_idx >= 0) {
                 /* 扩容检查（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
                 if (!lv_ensure_capacity((void **) &ng->edges, ng->edge_count, &ng->edge_cap, sizeof(ng->edges[0]), 0)) {
-                    lv_convert_block_to_node_cleanup(ng);
                     result.success = 0;
-                    strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+                    strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
                     return result;
                 }
                 ng->edges[ng->edge_count].src_node = src_idx;
@@ -160,6 +165,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         }
     }
 
+    guard.ng = NULL; /* 成功移交调用方，守卫不再释放 */
     result.output = ng;
     result.success = 1;
     return result;
@@ -181,6 +187,20 @@ static void lv_convert_block_to_node_cleanup(NodeGraph *ng) {
     lv_free((void **) &ng);
 }
 
+/* SimpleBlockGraph 守卫：失败路径销毁已建函数块并释放结构（成功路径置空移交） */
+static void simple_block_graph_guard_cleanup(void *p) {
+    SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
+    SimpleBlockGraph *sg = *pp;
+    if (!sg)
+        return;
+    for (int i = 0; i < sg->count; i++) {
+        if (sg->blocks && sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
+    }
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) pp);
+}
+
 lvConvertResult lv_convert_node_to_block(void *node) {
     lvConvertResult result = {0};
     if (!node) {
@@ -196,15 +216,18 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     BlockGraphView *bg = lv_calloc(1, sizeof(BlockGraphView));
     if (!bg) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
+    /* 注册作用域守卫：任一失败分支直接 return，已建函数块与结构在函数出口自动释放 */
+    lv_DEFER(simple_block_graph_guard_cleanup, &bg);
 
     if (ng->node_count <= 0) {
         /* 空节点图，返回空的 BlockGraphView */
         bg->blocks = NULL;
         bg->count = 0;
         result.output = bg;
+        bg = NULL; /* 守卫解除：结果移交调用方 */
         result.success = 1;
         return result;
     }
@@ -213,9 +236,8 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     bg->count = ng->node_count;
     bg->blocks = lv_calloc(ng->node_count, sizeof(FuncBlock *));
     if (!bg->blocks) {
-        lv_free((void **) &bg);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
 
@@ -225,12 +247,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
         /* 创建函数块，使用节点 ID 作为块 ID */
         FuncBlock *fb = func_block_create(n->id);
         if (!fb) {
-            /* 内存不足，清理已创建的块 */
-            for (int j = 0; j < i; j++) {
-                func_block_destroy(bg->blocks[j]);
-            }
-            lv_free((void **) &bg->blocks);
-            lv_free((void **) &bg);
+            /* 内存不足，已建块由守卫统一释放 */
             result.success = 0;
             strncpy(result.error_msg, "out of memory creating FuncBlock", sizeof(result.error_msg));
             return result;
@@ -287,6 +304,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     }
 
     result.output = bg;
+    bg = NULL; /* 守卫解除：结果移交调用方 */
     result.success = 1;
     return result;
 }

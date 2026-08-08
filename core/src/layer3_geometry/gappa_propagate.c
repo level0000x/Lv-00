@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file gappa_propagate.c
  * @brief Gappa 浮点误差传播引擎
  *
@@ -26,6 +26,8 @@
 
 #include "lv/gappa_dsl.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_registry.h"
+#include "lv/lv_thread.h"
 
 #include "lv_utils.h"
 
@@ -298,11 +300,90 @@ static int forward_propagate(const char *expr, const PropInterval *vars, double 
     return 0;
 }
 
+/* ============================================================
+ * 谓词集名称索引注册表（通用注册表设施）
+ *
+ * key  = "<set指针>:<expr_lhs>"，value = boxed int 元素索引（指向 set->preds[idx]）。
+ * set->preds 数组仍是谓词数据的主存储（传播/收紧逻辑按索引访问），
+ * 注册表仅承担 expr_lhs 查重（lv_gappa_pred_set_add）与按名定位
+ * （lv_gappa_pred_set_find）；索引在 preds 数组扩容 realloc 后保持有效。
+ * 结构变更只经由 lv_gappa_pred_set_add 发生，init/clear 时同步清理
+ * 该 set 的全部注册条目（防止同地址复用后残留过期映射）。
+ * 文件级单例（lv_once 惰性初始化，线程安全）。
+ * ============================================================ */
+
+/** @brief 注册表 key 缓冲区大小（set 指针 + expr_lhs） */
+#define GAPPA_REGKEY_MAX 512
+
+/** @brief 谓词集名称索引注册表（文件级单例） */
+static lvRegistry g_gappa_pred_registry;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_gappa_pred_registry_once = lv_ONCE_INIT;
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void gappa_pred_registry_init_once(void) {
+    lv_registry_init(&g_gappa_pred_registry, 64);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void gappa_pred_registry_ensure(void) {
+    lv_once(&g_gappa_pred_registry_once, gappa_pred_registry_init_once);
+}
+
+/** @brief 装箱谓词索引（注册表 value） */
+static void *gappa_box_index(int idx) {
+    int *p = (int *) lv_malloc(sizeof(int));
+    if (p) {
+        *p = idx;
+    }
+    return p;
+}
+
+/** @brief boxed 索引的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void gappa_box_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+/** @brief 解箱谓词索引 */
+static int gappa_unbox_index(void *value) {
+    return value ? *(int *) value : -1;
+}
+
+/** @brief 构造注册表 key（"<set>:<expr_lhs>"） */
+static void gappa_build_key(const lvGappaPredSet *set, const char *expr_lhs, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%p:%s", (const void *) set, expr_lhs);
+}
+
+/** @brief 移除指定 set 的全部注册条目（init/clear 时调用，防止残留过期映射） */
+static void gappa_pred_registry_remove_set(const lvGappaPredSet *set) {
+    if (!set) {
+        return;
+    }
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "%p:", (const void *) set);
+    size_t prefix_len = strlen(prefix);
+    int total = lv_registry_count(&g_gappa_pred_registry);
+    for (int i = total - 1; i >= 0; i--) {
+        const char *reg_name = NULL;
+        void *reg_value = NULL;
+        if (!lv_registry_get_at(&g_gappa_pred_registry, i, &reg_name, &reg_value)) {
+            continue;
+        }
+        if (strncmp(reg_name, prefix, prefix_len) == 0) {
+            lv_registry_remove(&g_gappa_pred_registry, reg_name);
+        }
+    }
+}
+
 /* -- Structured propagation API -- */
 
 void lv_gappa_pred_set_init(lvGappaPredSet *set) {
     if (!set)
         return;
+    /* 同步清理该 set 地址的历史注册条目（防止同地址复用后残留过期映射） */
+    gappa_pred_registry_ensure();
+    gappa_pred_registry_remove_set(set);
     set->preds = NULL;
     set->count = 0;
     set->capacity = 0;
@@ -312,11 +393,13 @@ bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
     if (!set || !pred)
         return false;
 
-    /* Check for duplicate expr_lhs */
-    for (int i = 0; i < set->count; i++) {
-        if (strcmp(set->preds[i].expr_lhs, pred->expr_lhs) == 0) {
-            return false; /* Duplicate: a predicate with this name already exists */
-        }
+    gappa_pred_registry_ensure();
+
+    /* 查重（委托注册表 strcmp 查重，key = "<set>:<expr_lhs>"） */
+    char regkey[GAPPA_REGKEY_MAX];
+    gappa_build_key(set, pred->expr_lhs, regkey, sizeof(regkey));
+    if (lv_registry_get(&g_gappa_pred_registry, regkey) != NULL) {
+        return false; /* Duplicate: a predicate with this name already exists */
     }
 
     if (set->count >= set->capacity) {
@@ -327,26 +410,46 @@ bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
         set->preds = p;
         set->capacity = new_cap;
     }
-    set->preds[set->count++] = *pred;
+    set->preds[set->count] = *pred;
+
+    /* 登记名称索引（value = boxed 元素索引；索引在扩容 realloc 后保持有效）。
+     * 失败（内存不足）时不增加 count，保持一致性 */
+    void *boxed = gappa_box_index(set->count);
+    if (!boxed)
+        return false;
+    if (!lv_registry_put_ex(&g_gappa_pred_registry, regkey, boxed, gappa_box_destroy)) {
+        lv_free((void **) &boxed);
+        return false;
+    }
+    set->count++;
     return true;
 }
 
 int lv_gappa_pred_set_find(const lvGappaPredSet *set, const char *name, lvGappaPredicate *found) {
     if (!set || !name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_gappa_pred_set_find: NULL param");
-    for (int i = 0; i < set->count; i++) {
-        if (strcmp(set->preds[i].expr_lhs, name) == 0) {
-            if (found)
-                *found = set->preds[i];
-            return i;
-        }
-    }
-    return -1;
+
+    /* 委托注册表按名称定位索引（strcmp 由 lv_registry 承担） */
+    gappa_pred_registry_ensure();
+    char regkey[GAPPA_REGKEY_MAX];
+    gappa_build_key(set, name, regkey, sizeof(regkey));
+    void *boxed = lv_registry_get(&g_gappa_pred_registry, regkey);
+    if (!boxed)
+        return -1;
+    int idx = gappa_unbox_index(boxed);
+    if (idx < 0 || idx >= set->count)
+        return -1;
+    if (found)
+        *found = set->preds[idx];
+    return idx;
 }
 
 void lv_gappa_pred_set_clear(lvGappaPredSet *set) {
     if (!set)
         return;
+    /* 同步清理该 set 的全部注册条目 */
+    gappa_pred_registry_ensure();
+    gappa_pred_registry_remove_set(set);
     lv_free((void **) &(set->preds));
     set->preds = NULL;
     set->count = 0;

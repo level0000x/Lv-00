@@ -175,52 +175,47 @@ char *graph_node_serialize_to_json(const GeomNode *node) {
     if (!lv_json_buf_init(&buf, 1024))
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_node_serialize_to_json: json buf init failed");
 
-    lv_json_buf_append_raw(&buf, "{");
+    /* 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
+    lv_json_buf_begin_object(&buf);
 
     /* id */
-    lv_json_buf_append_raw(&buf, "\"id\":");
-    char id_str[32];
-    snprintf(id_str, sizeof(id_str), "%d", node->id);
-    lv_json_buf_append_raw(&buf, id_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "id");
+    lv_json_buf_append_int(&buf, node->id);
 
     /* type */
-    lv_json_buf_append_raw(&buf, "\"type\":\"");
-    lv_json_buf_append_raw(&buf, geom_type_to_string(node->type));
-    lv_json_buf_append_raw(&buf, "\",");
+    lv_json_buf_append_key(&buf, "type");
+    lv_json_buf_append_string(&buf, geom_type_to_string(node->type));
 
     /* trust */
-    lv_json_buf_append_raw(&buf, "\"trust\":\"");
-    lv_json_buf_append_raw(&buf, trust_color_to_string(node->trust));
-    lv_json_buf_append_raw(&buf, "\",");
+    lv_json_buf_append_key(&buf, "trust");
+    lv_json_buf_append_string(&buf, trust_color_to_string(node->trust));
 
     /* namespace_depth */
-    lv_json_buf_append_raw(&buf, "\"namespace_depth\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->namespace_depth);
-    lv_json_buf_append_raw(&buf, id_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "namespace_depth");
+    lv_json_buf_append_int(&buf, node->namespace_depth);
 
     /* parent_block_id */
-    lv_json_buf_append_raw(&buf, "\"parent_block_id\":");
-    snprintf(id_str, sizeof(id_str), "%d", node->parent_block_id);
-    lv_json_buf_append_raw(&buf, id_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "parent_block_id");
+    lv_json_buf_append_int(&buf, node->parent_block_id);
 
-    /* coords */
-    lv_json_buf_append_raw(&buf, "\"coords\":[");
+    /* coords：元素为预序列化的坐标 JSON（raw 写入），需手动管理数组内逗号 */
+    lv_json_buf_append_key(&buf, "coords");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < node->coord_count; i++) {
         if (i > 0)
             lv_json_buf_append_char(&buf, ',');
         json_buf_append_coord(&buf, node->symbolic_coords[i]);
     }
-    lv_json_buf_append_raw(&buf, "],");
+    lv_json_buf_end_array(&buf);
 
-    /* 类型特定数据：通过 vtable 调用 */
+    /* 类型特定数据：vtable serialize 以 raw 追加自带分隔的 "key":value 片段，
+     * 不感知对象级状态机，故 coords 数组后的分隔逗号按原行为手动写出 */
+    lv_json_buf_append_char(&buf, ',');
     if (node->vtable && node->vtable->serialize) {
         node->vtable->serialize(node, &buf);
     }
 
-    lv_json_buf_append_char(&buf, '}');
+    lv_json_buf_end_object(&buf);
     return lv_json_buf_finalize(&buf);
 }
 
@@ -233,41 +228,34 @@ char *graph_constraint_serialize_to_json(const Constraint *constraint) {
     if (!lv_json_buf_init(&buf, 256))
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_constraint_serialize_to_json: json buf init failed");
 
-    lv_json_buf_append_raw(&buf, "{");
+    /* 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
+    lv_json_buf_begin_object(&buf);
 
     /* id */
-    lv_json_buf_append_raw(&buf, "\"id\":");
-    char id_str[32];
-    snprintf(id_str, sizeof(id_str), "%d", constraint->id);
-    lv_json_buf_append_raw(&buf, id_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "id");
+    lv_json_buf_append_int(&buf, constraint->id);
 
     /* type */
-    lv_json_buf_append_raw(&buf, "\"constraint_type\":\"");
-    lv_json_buf_append_raw(&buf, constraint_type_to_string(constraint->type));
-    lv_json_buf_append_raw(&buf, "\",");
+    lv_json_buf_append_key(&buf, "constraint_type");
+    lv_json_buf_append_string(&buf, constraint_type_to_string(constraint->type));
 
-    /* participants */
-    lv_json_buf_append_raw(&buf, "\"participants\":[");
+    /* participants：整型数组，append_int 自动管理逗号 */
+    lv_json_buf_append_key(&buf, "participants");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < constraint->participant_count; i++) {
-        if (i > 0)
-            lv_json_buf_append_char(&buf, ',');
-        snprintf(id_str, sizeof(id_str), "%d", constraint->participants[i]);
-        lv_json_buf_append_raw(&buf, id_str);
+        lv_json_buf_append_int(&buf, constraint->participants[i]);
     }
-    lv_json_buf_append_raw(&buf, "],");
+    lv_json_buf_end_array(&buf);
 
     /* template_id */
-    lv_json_buf_append_raw(&buf, "\"template_id\":");
-    snprintf(id_str, sizeof(id_str), "%d", constraint->template_id);
-    lv_json_buf_append_raw(&buf, id_str);
+    lv_json_buf_append_key(&buf, "template_id");
+    lv_json_buf_append_int(&buf, constraint->template_id);
 
-    /* numeric_value (used by ANGLE constraints) */
-    lv_json_buf_append_raw(&buf, ",\"numeric_value\":");
-    snprintf(id_str, sizeof(id_str), "%.15g", constraint->numeric_value);
-    lv_json_buf_append_raw(&buf, id_str);
+    /* numeric_value (used by ANGLE constraints)：append_double 为 %.15g 风格，与旧格式一致 */
+    lv_json_buf_append_key(&buf, "numeric_value");
+    lv_json_buf_append_double(&buf, constraint->numeric_value);
 
-    lv_json_buf_append_char(&buf, '}');
+    lv_json_buf_end_object(&buf);
     return lv_json_buf_finalize(&buf);
 }
 
@@ -284,32 +272,25 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "graph_serialize_to_json: json buf init failed");
     }
 
-    lv_json_buf_append_raw(&buf, "{");
+    /* 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
+    lv_json_buf_begin_object(&buf);
 
     /* 图元数据 */
-    lv_json_buf_append_raw(&buf, "\"node_count\":");
-    char num_str[32];
-    snprintf(num_str, sizeof(num_str), "%d", graph->node_count);
-    lv_json_buf_append_raw(&buf, num_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "node_count");
+    lv_json_buf_append_int(&buf, graph->node_count);
 
-    lv_json_buf_append_raw(&buf, "\"constraint_count\":");
-    snprintf(num_str, sizeof(num_str), "%d", graph->constraint_count);
-    lv_json_buf_append_raw(&buf, num_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "constraint_count");
+    lv_json_buf_append_int(&buf, graph->constraint_count);
 
-    lv_json_buf_append_raw(&buf, "\"next_node_id\":");
-    snprintf(num_str, sizeof(num_str), "%d", graph->next_node_id);
-    lv_json_buf_append_raw(&buf, num_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "next_node_id");
+    lv_json_buf_append_int(&buf, graph->next_node_id);
 
-    lv_json_buf_append_raw(&buf, "\"next_constraint_id\":");
-    snprintf(num_str, sizeof(num_str), "%d", graph->next_constraint_id);
-    lv_json_buf_append_raw(&buf, num_str);
-    lv_json_buf_append_raw(&buf, ",");
+    lv_json_buf_append_key(&buf, "next_constraint_id");
+    lv_json_buf_append_int(&buf, graph->next_constraint_id);
 
-    /* 节点数组 */
-    lv_json_buf_append_raw(&buf, "\"nodes\":[");
+    /* 节点数组：元素为预序列化的节点 JSON（raw 写入），需手动管理数组内逗号 */
+    lv_json_buf_append_key(&buf, "nodes");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < graph->node_count; i++) {
         if (i > 0)
             lv_json_buf_append_char(&buf, ',');
@@ -321,10 +302,11 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
             lv_json_buf_append_raw(&buf, "null");
         }
     }
-    lv_json_buf_append_raw(&buf, "],");
+    lv_json_buf_end_array(&buf);
 
-    /* 约束数组 */
-    lv_json_buf_append_raw(&buf, "\"constraints\":[");
+    /* 约束数组：同上，元素为预序列化的约束 JSON */
+    lv_json_buf_append_key(&buf, "constraints");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < graph->constraint_count; i++) {
         if (i > 0)
             lv_json_buf_append_char(&buf, ',');
@@ -336,9 +318,9 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
             lv_json_buf_append_raw(&buf, "null");
         }
     }
-    lv_json_buf_append_raw(&buf, "]");
+    lv_json_buf_end_array(&buf);
 
-    lv_json_buf_append_char(&buf, '}');
+    lv_json_buf_end_object(&buf);
     return lv_json_buf_finalize(&buf);
 }
 

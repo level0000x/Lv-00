@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file test_framework.c
  * @brief 增强单元测试框架实现
  *
@@ -28,6 +28,7 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
+#include "lv/lv_registry.h"
 
 
 static int64_t get_time_ns(void) {
@@ -44,9 +45,16 @@ static int64_t get_time_ns(void) {
 
 /* ============== 全局状态 ============== */
 
+/** @brief 套件注册表（通用注册表设施：key = 套件名，value = lvTestSuite*）。
+ *  保持注册顺序（get_at 遍历顺序 = 注册顺序）；strcmp 查重由 lv_registry 承担。 */
+static lvRegistry g_suite_registry;
+
+/** @brief 用例注册表（通用注册表设施：key = "<suite>\x1f<case>"，value = boxed int 用例索引）。
+ *  用例数据仍存储于 suite->cases 数组（报告/遍历按索引访问），注册表仅承担
+ *  name→索引 查重与查找；索引在数组扩容 realloc 后保持有效。 */
+static lvRegistry g_case_registry;
+
 static struct {
-    lvTestSuite *suites[lv_TEST_MAX_SUITES];
-    uint32_t suite_count;
     lv_mutex_t mutex;
     bool initialized;
 
@@ -62,16 +70,39 @@ static struct {
 
 /* ============== 内部函数 ============== */
 
+/** @brief 构造用例注册表 key（"<suite>\x1f<case>"，\x1f 为极少出现在名称中的控制字符） */
+static void build_case_key(const char *suite_name, const char *test_name, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s\x1f%s", suite_name, test_name);
+}
+
+/** @brief 装箱用例索引（注册表 value；索引在 cases 数组扩容 realloc 后保持有效） */
+static void *box_case_index(int idx) {
+    int *p = (int *) lv_malloc(sizeof(int));
+    if (p) {
+        *p = idx;
+    }
+    return p;
+}
+
+/** @brief boxed 索引的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void box_case_index_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+/** @brief 解箱用例索引 */
+static int unbox_case_index(void *value) {
+    return value ? *(int *) value : -1;
+}
+
 static lvTestSuite *find_or_create_suite(const char *name) {
-    /* 查找现有套件 */
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        if (strcmp(g_test_system.suites[i]->name, name) == 0) {
-            return g_test_system.suites[i];
-        }
+    /* 查找现有套件（委托注册表 strcmp 查找） */
+    lvTestSuite *existing = (lvTestSuite *) lv_registry_get(&g_suite_registry, name);
+    if (existing) {
+        return existing;
     }
 
     /* 创建新套件 */
-    if (g_test_system.suite_count >= lv_TEST_MAX_SUITES) {
+    if (lv_registry_count(&g_suite_registry) >= lv_TEST_MAX_SUITES) {
         return NULL;
     }
 
@@ -88,7 +119,12 @@ static lvTestSuite *find_or_create_suite(const char *name) {
     }
     suite->case_capacity = TEST_CASE_INIT_CAPACITY;
 
-    g_test_system.suites[g_test_system.suite_count++] = suite;
+    /* 写入套件注册表（内部查重 + 尾部追加，保持注册顺序；失败则回滚） */
+    if (!lv_registry_put(&g_suite_registry, name, suite)) {
+        lv_free((void **) &suite->cases);
+        lv_free((void **) &suite);
+        return NULL;
+    }
     return suite;
 }
 
@@ -103,6 +139,8 @@ static void init_test_system(void) {
 
     memset(&g_test_system, 0, sizeof(g_test_system));
     lv_mutex_init(&g_test_system.mutex);
+    lv_registry_init(&g_suite_registry, TEST_SUITE_INIT_CAPACITY);
+    lv_registry_init(&g_case_registry, TEST_CASE_INIT_CAPACITY);
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
     g_test_system.initialized = true;
     lv_lazy_lock_unlock(&g_test_init_lock);
@@ -130,12 +168,12 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
         return false;
     }
 
-    /* 检查是否已存在 */
-    for (uint32_t i = 0; i < suite->case_count; i++) {
-        if (strcmp(suite->cases[i].name, test_name) == 0) {
-            lv_mutex_unlock(&g_test_system.mutex);
-            return false;
-        }
+    /* 检查是否已存在（委托注册表 strcmp 查重，key = "<suite>\x1f<case>"） */
+    char case_key[2 * lv_TEST_NAME_MAX_LEN + 2];
+    build_case_key(suite_name, test_name, case_key, sizeof(case_key));
+    if (lv_registry_get(&g_case_registry, case_key) != NULL) {
+        lv_mutex_unlock(&g_test_system.mutex);
+        return false;
     }
 
     /* 扩容（统一委托 lv_ensure_capacity；case_capacity 为 uint32_t，经局部 int 桥接） */
@@ -158,6 +196,17 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
     test_case->setup = setup;
     test_case->teardown = teardown;
     test_case->status = TEST_STATUS_PENDING;
+
+    /* 登记到用例注册表（value = boxed 用例索引；失败则回滚用例，保持一致性） */
+    void *boxed = box_case_index(suite->case_count - 1);
+    if (!boxed || !lv_registry_put_ex(&g_case_registry, case_key, boxed, box_case_index_destroy)) {
+        if (boxed) {
+            lv_free((void **) &boxed);
+        }
+        suite->case_count--;
+        lv_mutex_unlock(&g_test_system.mutex);
+        return false;
+    }
 
     lv_mutex_unlock(&g_test_system.mutex);
     return true;
@@ -190,29 +239,34 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
         return false;
     }
 
+    /* 确保注册表已初始化（原实现依赖系统已初始化；此处显式确保，幂等） */
+    init_test_system();
+
     lv_mutex_lock(&g_test_system.mutex);
 
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        lvTestSuite *suite = g_test_system.suites[i];
-        if (strcmp(suite->name, suite_name) == 0) {
-            for (uint32_t j = 0; j < suite->case_count; j++) {
-                lvTestCase *test_case = &suite->cases[j];
-                if (strcmp(test_case->name, test_name) == 0) {
-                    /* 添加标签（使用安全的字符串复制函数 lv_strlcpy） */
-                    if (test_case->tag_count < 8) {
-                        if (test_case->tag_count == 0) {
-                            test_case->tags = (char **) lv_malloc(8 * sizeof(char *));
-                        }
-                        test_case->tags[test_case->tag_count] = (char *) lv_malloc(strlen(tag) + 1);
-                        if (test_case->tags[test_case->tag_count]) {
-                            /* 使用安全的字符串复制函数，自动保证零终止 */
-                            lv_strlcpy(test_case->tags[test_case->tag_count], tag, strlen(tag) + 1);
-                            test_case->tag_count++;
-                        }
+    lvTestSuite *suite = (lvTestSuite *) lv_registry_get(&g_suite_registry, suite_name);
+    if (suite) {
+        char case_key[2 * lv_TEST_NAME_MAX_LEN + 2];
+        build_case_key(suite_name, test_name, case_key, sizeof(case_key));
+        void *boxed = lv_registry_get(&g_case_registry, case_key);
+        if (boxed) {
+            int case_index = unbox_case_index(boxed);
+            if (case_index >= 0 && case_index < suite->case_count) {
+                lvTestCase *test_case = &suite->cases[case_index];
+                /* 添加标签（使用安全的字符串复制函数 lv_strlcpy） */
+                if (test_case->tag_count < 8) {
+                    if (test_case->tag_count == 0) {
+                        test_case->tags = (char **) lv_malloc(8 * sizeof(char *));
                     }
-                    lv_mutex_unlock(&g_test_system.mutex);
-                    return true;
+                    test_case->tags[test_case->tag_count] = (char *) lv_malloc(strlen(tag) + 1);
+                    if (test_case->tags[test_case->tag_count]) {
+                        /* 使用安全的字符串复制函数，自动保证零终止 */
+                        lv_strlcpy(test_case->tags[test_case->tag_count], tag, strlen(tag) + 1);
+                        test_case->tag_count++;
+                    }
                 }
+                lv_mutex_unlock(&g_test_system.mutex);
+                return true;
             }
         }
     }
@@ -324,17 +378,23 @@ lvTestReport *lv_test_run_all(void) {
     lv_mutex_lock(&g_test_system.mutex);
 
     /* 分配套件数组 */
-    report->suites = (lvTestSuite *) lv_calloc(g_test_system.suite_count, sizeof(lvTestSuite));
+    int suite_total = lv_registry_count(&g_suite_registry);
+    report->suites = (lvTestSuite *) lv_calloc((size_t) suite_total, sizeof(lvTestSuite));
     if (!report->suites) {
         lv_mutex_unlock(&g_test_system.mutex);
         lv_free((void **) &report);
         return NULL;
     }
-    report->suite_count = g_test_system.suite_count;
+    report->suite_count = (uint32_t) suite_total;
 
-    /* 运行所有测试 */
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        lvTestSuite *suite = g_test_system.suites[i];
+    /* 运行所有测试（按注册顺序遍历注册表条目，get_at 语义与原数组遍历一致） */
+    for (int i = 0; i < suite_total; i++) {
+        const char *suite_reg_name = NULL;
+        void *suite_reg_value = NULL;
+        if (!lv_registry_get_at(&g_suite_registry, i, &suite_reg_name, &suite_reg_value)) {
+            continue;
+        }
+        lvTestSuite *suite = (lvTestSuite *) suite_reg_value;
 
         /* 重置统计 */
         suite->passed_count = 0;
@@ -385,13 +445,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
 
     lv_mutex_lock(&g_test_system.mutex);
 
-    lvTestSuite *suite = NULL;
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        if (strcmp(g_test_system.suites[i]->name, suite_name) == 0) {
-            suite = g_test_system.suites[i];
-            break;
-        }
-    }
+    lvTestSuite *suite = (lvTestSuite *) lv_registry_get(&g_suite_registry, suite_name);
 
     if (!suite) {
         lv_mutex_unlock(&g_test_system.mutex);
@@ -461,17 +515,16 @@ lvTestResult *lv_test_run_single(const char *suite_name, const char *test_name) 
 
     lvTestResult *result = NULL;
 
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        lvTestSuite *suite = g_test_system.suites[i];
-        if (strcmp(suite->name, suite_name) == 0) {
-            for (uint32_t j = 0; j < suite->case_count; j++) {
-                lvTestCase *test_case = &suite->cases[j];
-                if (strcmp(test_case->name, test_name) == 0) {
-                    result = run_single_test(test_case, suite);
-                    break;
-                }
+    lvTestSuite *suite = (lvTestSuite *) lv_registry_get(&g_suite_registry, suite_name);
+    if (suite) {
+        char case_key[2 * lv_TEST_NAME_MAX_LEN + 2];
+        build_case_key(suite_name, test_name, case_key, sizeof(case_key));
+        void *boxed = lv_registry_get(&g_case_registry, case_key);
+        if (boxed) {
+            int case_index = unbox_case_index(boxed);
+            if (case_index >= 0 && case_index < suite->case_count) {
+                result = run_single_test(&suite->cases[case_index], suite);
             }
-            break;
         }
     }
 
@@ -496,8 +549,14 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
 
     lv_mutex_lock(&g_test_system.mutex);
 
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        lvTestSuite *suite = g_test_system.suites[i];
+    int suite_total = lv_registry_count(&g_suite_registry);
+    for (int i = 0; i < suite_total; i++) {
+        const char *suite_reg_name = NULL;
+        void *suite_reg_value = NULL;
+        if (!lv_registry_get_at(&g_suite_registry, i, &suite_reg_name, &suite_reg_value)) {
+            continue;
+        }
+        lvTestSuite *suite = (lvTestSuite *) suite_reg_value;
 
         for (uint32_t j = 0; j < suite->case_count; j++) {
             lvTestCase *test_case = &suite->cases[j];
@@ -548,8 +607,14 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
     lv_mutex_lock(&g_test_system.mutex);
 
     /* 简单的模式匹配（仅支持 * 通配符） */
-    for (uint32_t i = 0; i < g_test_system.suite_count; i++) {
-        lvTestSuite *suite = g_test_system.suites[i];
+    int suite_total = lv_registry_count(&g_suite_registry);
+    for (int i = 0; i < suite_total; i++) {
+        const char *suite_reg_name = NULL;
+        void *suite_reg_value = NULL;
+        if (!lv_registry_get_at(&g_suite_registry, i, &suite_reg_name, &suite_reg_value)) {
+            continue;
+        }
+        lvTestSuite *suite = (lvTestSuite *) suite_reg_value;
 
         for (uint32_t j = 0; j < suite->case_count; j++) {
             lvTestCase *test_case = &suite->cases[j];
@@ -628,16 +693,11 @@ bool lv_test_register_parameterized(const char *suite_name, const char *test_nam
 
         /* 存储数据索引 */
         lv_mutex_lock(&g_test_system.mutex);
-        for (uint32_t j = 0; j < g_test_system.suite_count; j++) {
-            lvTestSuite *suite = g_test_system.suites[j];
-            if (strcmp(suite->name, suite_name) == 0) {
-                if (suite->case_count > 0) {
-                    lvTestCase *test_case = &suite->cases[suite->case_count - 1];
-                    test_case->test_data = generator(i);
-                    test_case->data_index = i;
-                }
-                break;
-            }
+        lvTestSuite *suite = (lvTestSuite *) lv_registry_get(&g_suite_registry, suite_name);
+        if (suite && suite->case_count > 0) {
+            lvTestCase *test_case = &suite->cases[suite->case_count - 1];
+            test_case->test_data = generator(i);
+            test_case->data_index = i;
         }
         lv_mutex_unlock(&g_test_system.mutex);
     }

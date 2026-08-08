@@ -366,39 +366,51 @@ int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t bu
     if (!session || !buffer || buffer_size == 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "session, buffer or buffer_size is invalid");
 
-    /* 用 lvJsonBuf 统一构建；字符串字段经 append_string 自动 JSON 转义 */
+    /* 用 lvJsonBuf 统一构建；字符串字段经 append_string 自动 JSON 转义；
+     * 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 4096))
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_perf_report_to_json: lv_json_buf_init failed");
 
-    lv_json_buf_append_raw(&buf, "{\"name\":");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "name");
     lv_json_buf_append_string(&buf, session->name ? session->name : "");
-    lv_json_buf_append_raw(&buf, ",\"regions\":[");
 
+    /* regions：对象数组，begin_object 自动管理逗号 */
+    lv_json_buf_append_key(&buf, "regions");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < session->region_count; i++) {
         const PerfRegion *r = &session->regions[i];
-        if (i > 0)
-            lv_json_buf_append_raw(&buf, ",");
-        lv_json_buf_append_raw(&buf, "{\"name\":");
+        lv_json_buf_begin_object(&buf);
+        lv_json_buf_append_key(&buf, "name");
         lv_json_buf_append_string(&buf, r->name ? r->name : "");
-        lv_json_buf_append_fmt(&buf, ",\"count\":%d,\"total_ns\":%llu}", r->count,
-                               (unsigned long long) r->total_ns);
+        lv_json_buf_append_key(&buf, "count");
+        lv_json_buf_append_int(&buf, r->count);
+        lv_json_buf_append_key(&buf, "total_ns");
+        lv_json_buf_append_int(&buf, (long long) r->total_ns);
+        lv_json_buf_end_object(&buf);
     }
+    lv_json_buf_end_array(&buf);
 
-    lv_json_buf_append_raw(&buf, "],\"memory\":[");
-
+    /* memory：对象数组 */
+    lv_json_buf_append_key(&buf, "memory");
+    lv_json_buf_begin_array(&buf);
     for (int i = 0; i < session->mem_count; i++) {
         const PerfMemStat *m = &session->mem_stats[i];
-        if (i > 0)
-            lv_json_buf_append_raw(&buf, ",");
-        lv_json_buf_append_raw(&buf, "{\"type\":");
+        lv_json_buf_begin_object(&buf);
+        lv_json_buf_append_key(&buf, "type");
         lv_json_buf_append_string(&buf, m->type_name ? m->type_name : "");
-        lv_json_buf_append_fmt(&buf, ",\"alloc\":%zu,\"free\":%zu,\"net\":%zd}",
-                               m->total_alloc_bytes, m->total_free_bytes,
-                               (ptrdiff_t) (m->total_alloc_bytes - m->total_free_bytes));
+        lv_json_buf_append_key(&buf, "alloc");
+        lv_json_buf_append_int(&buf, (long long) m->total_alloc_bytes);
+        lv_json_buf_append_key(&buf, "free");
+        lv_json_buf_append_int(&buf, (long long) m->total_free_bytes);
+        lv_json_buf_append_key(&buf, "net");
+        lv_json_buf_append_int(&buf, (long long) (m->total_alloc_bytes - m->total_free_bytes));
+        lv_json_buf_end_object(&buf);
     }
+    lv_json_buf_end_array(&buf);
 
-    lv_json_buf_append_raw(&buf, "]}");
+    lv_json_buf_end_object(&buf);
 
     char *json = lv_json_buf_finalize(&buf);
     if (!json)

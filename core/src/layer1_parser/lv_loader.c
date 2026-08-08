@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_loader.c
  * @brief .lv 文件加载与引擎集成实现
  *
@@ -8,7 +8,7 @@
  *          2. 词法分析 → 语法分析 → 语义分析管线
  *          3. 将解析结果应用到引擎（实体声明、约束添加、证明目标设置）
  *
- *          通过名称映射表（LvNameMap）跟踪 AST 中声明的实体名称到
+ *          通过名称映射表跟踪 AST 中声明的实体名称到
  *          引擎节点 ID 的映射关系。
  *
  * @author Lv-00 Project
@@ -29,39 +29,63 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 
+#include "lv/lv_registry.h"
+#include "lv/lv_thread.h"
+
 
 /* ── 名称映射表：跟踪 AST 名称到引擎节点 ID 的映射 ── */
 
 /**
- * @brief 名称映射条目
+ * @brief 名称映射表（通用注册表设施：key = 实体名称，value = boxed int 引擎节点 ID）。
  *
  * 将 AST 中声明的实体名称与引擎内部的节点 ID 关联，
  * 用于在后续约束和证明语句中引用已声明的实体。
+ * 文件级单例（lv_once 惰性初始化，线程安全）；strcmp 查重、内部 name 拷贝、
+ * 动态扩容与清空均由 lv_registry 承担。
+ *
+ * 语义保持：重复添加同名实体时首次映射生效（原线性查找"首个匹配优先"），
+ * 容量上限 LV_MAX_NAMED_ENTITIES 与原实现一致（满时静默忽略）。
  */
-typedef struct {
-    char name[64]; /**< 实体名称（最多 63 字符） */
-    int node_id;   /**< 引擎节点 ID，-1 表示尚未关联 */
-} LvNameMap;
+static lvRegistry s_loader_names;
+
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t s_loader_names_once = lv_ONCE_INIT;
 
 /** @brief 名称映射表最大容量 */
 #define LV_MAX_NAMED_ENTITIES 256
 
-/** @brief 名称映射表单例状态 */
-typedef struct {
-    LvNameMap entries[LV_MAX_NAMED_ENTITIES]; /**< 名称映射表 */
-    int count;                                /**< 当前已注册的名称数量 */
-} LoaderNameState;
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
+static void loader_names_init_once(void) {
+    lv_registry_init(&s_loader_names, 32);
+}
 
-/** @brief 名称映射表全局单例 */
-static LoaderNameState s_loader_names = {0};
+/** @brief 确保注册表已初始化 */
+static inline void loader_names_ensure(void) {
+    lv_once(&s_loader_names_once, loader_names_init_once);
+}
+
+/** @brief 装箱引擎节点 ID（注册表 value） */
+static void *loader_box_id(int node_id) {
+    int *p = (int *) lv_malloc(sizeof(int));
+    if (p) {
+        *p = node_id;
+    }
+    return p;
+}
+
+/** @brief boxed 节点 ID 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void loader_box_destroy(void *value) {
+    lv_free((void **) &value);
+}
 
 /**
  * @brief 清空名称映射表
  *
- * 重置映射表计数器，清除所有已注册的名称映射。
+ * 释放所有条目（destroy 回调 + 内部 name），保留注册表结构可继续使用。
  */
 static void loader_names_clear(void) {
-    s_loader_names.count = 0;
+    loader_names_ensure();
+    lv_registry_clear(&s_loader_names);
 }
 
 /**
@@ -84,17 +108,23 @@ void lv_loader_reset(void) {
  * @param node_id 引擎节点 ID
  */
 static void loader_names_add(const char *name, int node_id) {
-    if (s_loader_names.count >= LV_MAX_NAMED_ENTITIES)
+    loader_names_ensure();
+    if (lv_registry_count(&s_loader_names) >= LV_MAX_NAMED_ENTITIES)
         return;
-    LvNameMap *entry = &s_loader_names.entries[s_loader_names.count++];
-    lv_strncpy(entry->name, name, sizeof(entry->name));
-    entry->node_id = node_id;
+
+    void *boxed = loader_box_id(node_id);
+    if (!boxed)
+        return;
+    if (!lv_registry_put_ex(&s_loader_names, name, boxed, loader_box_destroy)) {
+        /* 名称重复：保留首次映射（与原线性查找"首个匹配优先"语义一致） */
+        lv_free((void **) &boxed);
+    }
 }
 
 /**
  * @brief 在名称映射表中查找名称
  *
- * 遍历名称映射表，查找与给定名称匹配的条目。
+ * 委托注册表按名称查找（strcmp 由 lv_registry 承担）。
  *
  * @param name 实体名称（允许为 NULL，返回 -1）
  * @return 引擎节点 ID，未找到或 name 为 NULL 返回 -1
@@ -102,11 +132,9 @@ static void loader_names_add(const char *name, int node_id) {
 static int loader_names_lookup(const char *name) {
     if (!name)
         return -1;
-    for (int i = 0; i < s_loader_names.count; i++) {
-        if (strcmp(s_loader_names.entries[i].name, name) == 0)
-            return s_loader_names.entries[i].node_id;
-    }
-    return -1;
+    loader_names_ensure();
+    void *boxed = lv_registry_get(&s_loader_names, name);
+    return boxed ? *(int *) boxed : -1;
 }
 
 /* ================================================================

@@ -871,39 +871,59 @@ char *lv_diagnostics_to_json(const lvDiagnostics *diag) {
     if (!lv_json_buf_init(&buf, 4096))
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_diagnostics_to_json: json_buf_init failed");
 
-    lv_json_buf_append_raw(&buf, "{");
-    lv_json_buf_append_raw(&buf, "\"version\":");
+    /* 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致）。
+     * avg_proof_time_ms/avg_solve_time_ms 保持 %.2f 数值格式（append_double 为
+     * %.15g，字节不同），以带前导逗号的 raw 片段写出，不经过对象级状态机。 */
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "version");
     lv_json_buf_append_string(&buf, diag->version);
-    lv_json_buf_append_raw(&buf, ",");
-    lv_json_buf_append_raw(&buf, "\"build_date\":");
+    lv_json_buf_append_key(&buf, "build_date");
     lv_json_buf_append_string(&buf, diag->build_date);
-    lv_json_buf_append_raw(&buf, ",");
-    lv_json_buf_append_fmt(&buf, "\"uptime_ms\":%lld,", (long long) diag->uptime_ms);
-    lv_json_buf_append_raw(&buf, "\"memory\":{");
-    lv_json_buf_append_fmt(&buf, "\"total\":%llu,", (unsigned long long) diag->memory_total);
-    lv_json_buf_append_fmt(&buf, "\"peak\":%llu,", (unsigned long long) diag->memory_peak);
-    lv_json_buf_append_fmt(&buf, "\"alloc_count\":%llu,", (unsigned long long) diag->alloc_count);
-    lv_json_buf_append_fmt(&buf, "\"free_count\":%llu", (unsigned long long) diag->free_count);
-    lv_json_buf_append_raw(&buf, "},");
-    lv_json_buf_append_raw(&buf, "\"performance\":{");
-    lv_json_buf_append_fmt(&buf, "\"proof_count\":%llu,", (unsigned long long) diag->proof_count);
-    lv_json_buf_append_fmt(&buf, "\"solve_count\":%llu,", (unsigned long long) diag->solve_count);
-    lv_json_buf_append_fmt(&buf, "\"avg_proof_time_ms\":%.2f,", diag->avg_proof_time_ms);
-    lv_json_buf_append_fmt(&buf, "\"avg_solve_time_ms\":%.2f", diag->avg_solve_time_ms);
-    lv_json_buf_append_raw(&buf, "},");
-    lv_json_buf_append_raw(&buf, "\"errors\":{");
-    lv_json_buf_append_fmt(&buf, "\"count\":%llu,", (unsigned long long) diag->error_count);
-    lv_json_buf_append_fmt(&buf, "\"warning_count\":%llu,", (unsigned long long) diag->warning_count);
-    lv_json_buf_append_raw(&buf, "\"last_error\":");
+    lv_json_buf_append_key(&buf, "uptime_ms");
+    lv_json_buf_append_int(&buf, (long long) diag->uptime_ms);
+
+    lv_json_buf_append_key(&buf, "memory");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "total");
+    lv_json_buf_append_int(&buf, (long long) diag->memory_total);
+    lv_json_buf_append_key(&buf, "peak");
+    lv_json_buf_append_int(&buf, (long long) diag->memory_peak);
+    lv_json_buf_append_key(&buf, "alloc_count");
+    lv_json_buf_append_int(&buf, (long long) diag->alloc_count);
+    lv_json_buf_append_key(&buf, "free_count");
+    lv_json_buf_append_int(&buf, (long long) diag->free_count);
+    lv_json_buf_end_object(&buf);
+
+    lv_json_buf_append_key(&buf, "performance");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "proof_count");
+    lv_json_buf_append_int(&buf, (long long) diag->proof_count);
+    lv_json_buf_append_key(&buf, "solve_count");
+    lv_json_buf_append_int(&buf, (long long) diag->solve_count);
+    lv_json_buf_append_fmt(&buf, ",\"avg_proof_time_ms\":%.2f", diag->avg_proof_time_ms);
+    lv_json_buf_append_fmt(&buf, ",\"avg_solve_time_ms\":%.2f", diag->avg_solve_time_ms);
+    lv_json_buf_end_object(&buf);
+
+    lv_json_buf_append_key(&buf, "errors");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "count");
+    lv_json_buf_append_int(&buf, (long long) diag->error_count);
+    lv_json_buf_append_key(&buf, "warning_count");
+    lv_json_buf_append_int(&buf, (long long) diag->warning_count);
+    lv_json_buf_append_key(&buf, "last_error");
     lv_json_buf_append_string(&buf, diag->last_error);
-    lv_json_buf_append_raw(&buf, "},");
-    lv_json_buf_append_raw(&buf, "\"system\":{");
-    lv_json_buf_append_raw(&buf, "\"os\":");
+    lv_json_buf_end_object(&buf);
+
+    lv_json_buf_append_key(&buf, "system");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "os");
     lv_json_buf_append_string(&buf, diag->os_info);
-    lv_json_buf_append_raw(&buf, ",");
-    lv_json_buf_append_fmt(&buf, "\"cpu_cores\":%u,", diag->cpu_cores);
-    lv_json_buf_append_fmt(&buf, "\"total_memory_mb\":%u", diag->total_memory_mb);
-    lv_json_buf_append_raw(&buf, "}}");
+    lv_json_buf_append_key(&buf, "cpu_cores");
+    lv_json_buf_append_int(&buf, (long long) diag->cpu_cores);
+    lv_json_buf_append_key(&buf, "total_memory_mb");
+    lv_json_buf_append_int(&buf, (long long) diag->total_memory_mb);
+    lv_json_buf_end_object(&buf);
+    lv_json_buf_end_object(&buf);
 
     return lv_json_buf_finalize(&buf);
 }

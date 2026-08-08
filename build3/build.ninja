@@ -8465,6 +8465,120 @@ build test_bytes.exe: C_EXECUTABLE_LINKER__test_bytes_Debug CMakeFiles/test_byte
   TARGET_SUPPORT_DIR = CMakeFiles\test_bytes.dir
 
 # =============================================================================
+# Object build statements for EXECUTABLE target test_json_buf
+
+
+#############################################
+# Order-only phony target for test_json_buf
+
+build cmake_object_order_depends_target_test_json_buf: phony || cmake_object_order_depends_target_lv_static
+
+build CMakeFiles/test_json_buf.dir/test/c/test_json_buf.c.obj: C_COMPILER__test_json_buf_unscanned_Debug C$:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_json_buf.c || cmake_object_order_depends_target_test_json_buf
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\test_json_buf.dir\test\c\test_json_buf.c.obj.d
+  FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  OBJECT_DIR = CMakeFiles\test_json_buf.dir
+  OBJECT_FILE_DIR = CMakeFiles\test_json_buf.dir\test\c
+  TARGET_SUPPORT_DIR = CMakeFiles\test_json_buf.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target test_json_buf
+
+
+#############################################
+# Link the executable test_json_buf.exe
+
+build test_json_buf.exe: C_EXECUTABLE_LINKER__test_json_buf_Debug CMakeFiles/test_json_buf.dir/test/c/test_json_buf.c.obj | liblv.a C$:/msys64/mingw64/lib/libgmp.a || liblv.a
+  CONFIG = Debug
+  FLAGS = -g
+  LINK_LIBRARIES = liblv.a  C:/msys64/mingw64/lib/libgmp.a  -lws2_32  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\test_json_buf.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = test_json_buf.exe
+  TARGET_IMPLIB = libtest_json_buf.dll.a
+  TARGET_PDB = test_json_buf.exe.dbg
+  TARGET_SUPPORT_DIR = CMakeFiles\test_json_buf.dir
+
+# =============================================================================
+# Object build statements for EXECUTABLE target test_hashtable
+
+
+#############################################
+# Order-only phony target for test_hashtable
+
+build cmake_object_order_depends_target_test_hashtable: phony || cmake_object_order_depends_target_lv_static
+
+build CMakeFiles/test_hashtable.dir/test/c/test_hashtable.c.obj: C_COMPILER__test_hashtable_unscanned_Debug C$:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_hashtable.c || cmake_object_order_depends_target_test_hashtable
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\test_hashtable.dir\test\c\test_hashtable.c.obj.d
+  FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  OBJECT_DIR = CMakeFiles\test_hashtable.dir
+  OBJECT_FILE_DIR = CMakeFiles\test_hashtable.dir\test\c
+  TARGET_SUPPORT_DIR = CMakeFiles\test_hashtable.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target test_hashtable
+
+
+#############################################
+# Link the executable test_hashtable.exe
+
+build test_hashtable.exe: C_EXECUTABLE_LINKER__test_hashtable_Debug CMakeFiles/test_hashtable.dir/test/c/test_hashtable.c.obj | liblv.a C$:/msys64/mingw64/lib/libgmp.a || liblv.a
+  CONFIG = Debug
+  FLAGS = -g
+  LINK_LIBRARIES = liblv.a  C:/msys64/mingw64/lib/libgmp.a  -lws2_32  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\test_hashtable.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = test_hashtable.exe
+  TARGET_IMPLIB = libtest_hashtable.dll.a
+  TARGET_PDB = test_hashtable.exe.dbg
+  TARGET_SUPPORT_DIR = CMakeFiles\test_hashtable.dir
+
+# =============================================================================
+# Object build statements for EXECUTABLE target test_module_serialize_unify
+
+
+#############################################
+# Order-only phony target for test_module_serialize_unify
+
+build cmake_object_order_depends_target_test_module_serialize_unify: phony || cmake_object_order_depends_target_lv_static
+
+build CMakeFiles/test_module_serialize_unify.dir/test/c/test_module_serialize_unify.c.obj: C_COMPILER__test_module_serialize_unify_unscanned_Debug C$:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_module_serialize_unify.c || cmake_object_order_depends_target_test_module_serialize_unify
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\test_module_serialize_unify.dir\test\c\test_module_serialize_unify.c.obj.d
+  FLAGS = -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wconversion -Wnull-dereference -Wformat=2 -Wduplicated-branches -Wduplicated-cond -Wlogical-op -Wjump-misses-init -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong
+  INCLUDES = -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv
+  OBJECT_DIR = CMakeFiles\test_module_serialize_unify.dir
+  OBJECT_FILE_DIR = CMakeFiles\test_module_serialize_unify.dir\test\c
+  TARGET_SUPPORT_DIR = CMakeFiles\test_module_serialize_unify.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target test_module_serialize_unify
+
+
+#############################################
+# Link the executable test_module_serialize_unify.exe
+
+build test_module_serialize_unify.exe: C_EXECUTABLE_LINKER__test_module_serialize_unify_Debug CMakeFiles/test_module_serialize_unify.dir/test/c/test_module_serialize_unify.c.obj | liblv.a C$:/msys64/mingw64/lib/libgmp.a || liblv.a
+  CONFIG = Debug
+  FLAGS = -g
+  LINK_LIBRARIES = liblv.a  C:/msys64/mingw64/lib/libgmp.a  -lws2_32  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\test_module_serialize_unify.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = test_module_serialize_unify.exe
+  TARGET_IMPLIB = libtest_module_serialize_unify.dll.a
+  TARGET_PDB = test_module_serialize_unify.exe.dbg
+  TARGET_SUPPORT_DIR = CMakeFiles\test_module_serialize_unify.dir
+
+# =============================================================================
 # Object build statements for EXECUTABLE target test_lifecycle
 
 
@@ -12785,6 +12899,8 @@ build test_groebner_parallel: phony test_groebner_parallel.exe
 
 build test_group_minimal: phony test_group_minimal.exe
 
+build test_hashtable: phony test_hashtable.exe
+
 build test_high_dim: phony test_high_dim.exe
 
 build test_implementation: phony test_implementation.exe
@@ -12796,6 +12912,8 @@ build test_interop: phony test_interop.exe
 build test_interval_arith: phony test_interval_arith.exe
 
 build test_interval_arithmetic: phony test_interval_arithmetic.exe
+
+build test_json_buf: phony test_json_buf.exe
 
 build test_lambda_church: phony test_lambda_church.exe
 
@@ -12828,6 +12946,8 @@ build test_meta_verify: phony test_meta_verify.exe
 build test_minimal_parse: phony test_minimal_parse.exe
 
 build test_module: phony test_module.exe
+
+build test_module_serialize_unify: phony test_module_serialize_unify.exe
 
 build test_new_modules: phony test_new_modules.exe
 
@@ -12919,7 +13039,7 @@ build test_wfc_modules: phony test_wfc_modules.exe
 #############################################
 # Folder: C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/build3
 
-build all: phony lv_layer2_resource lv_core lv_layer1_parser lv_layer3_geometry lv_layer4_reasoning lv_layer5_output lv_layer6_visual lv_layer8_meta_verify lv_layer10_interop liblv.a test_basic.exe test_edge_cases.exe test_complex_graph.exe test_normalization.exe test_constraint_graph_ops.exe test_graph_hash.exe test_constraint_compatibility.exe test_unify.exe test_func_block.exe test_solver.exe test_solver_enhanced.exe test_groebner_basis.exe test_rewrite.exe test_critical_pair.exe test_type_system.exe test_type_equiv_explorer.exe test_proof.exe test_axiom_pkg.exe test_template_test.exe test_module.exe test_graph_serialize.exe test_recursion.exe test_implementation.exe test_minimal_parse.exe test_axiom_euclidean_plane.exe test_axiom_boolean_algebra.exe test_axiom_classical_propositional_logic.exe test_axiom_group_theory.exe test_axiom_zfc_set_theory.exe test_axiom_ring_theory.exe test_axiom_intuitionistic_logic.exe test_axiom_intuitionistic_propositional_logic.exe test_axiom_category_theory.exe test_axiom_point_set_topology.exe test_axiom_hyperbolic_geometry.exe test_axiom_elliptic_geometry.exe test_axiom_simple_type_theory.exe test_axiom_field_theory.exe test_axiom_nbg_set_theory.exe test_axiom_real_analysis.exe test_axiom_combinatorics.exe test_axiom_algebraic_topology.exe test_axiom_model_theory.exe test_axiom_dependent_type_theory.exe test_axiom_homological_algebra.exe test_axiom_universal_algebra.exe test_axiom_differential_geometry.exe test_axiom_number_theory.exe test_axiom_functional_analysis.exe test_axiom_algebraic_geometry.exe test_axiom_proof_theory.exe test_axiom_homotopy_type_theory.exe test_axiom_affine_geometry.exe test_axiom_projective_geometry.exe test_axiom_lattice_theory.exe test_axiom_lie_theory.exe test_axiom_modal_logic.exe test_axiom_linear_logic.exe test_axiom_metric_space.exe test_axiom_game_theory.exe test_axiom_information_theory.exe test_axiom_descriptive_set_theory.exe test_axiom_domain_theory.exe test_axiom_computability_theory.exe test_axiom_computational_complexity_theory.exe test_axiom_presburger_arithmetic.exe test_utils.exe test_enum_maps.exe test_bytes.exe test_lifecycle.exe test_registry.exe test_stream.exe test_stream_extended.exe test_func_block_utils.exe test_func_block_preset.exe test_error_codes.exe test_interop.exe test_high_dim.exe test_symbolic_coord.exe test_rational.exe test_expr_canon.exe test_proof_trace.exe test_new_modules.exe test_circuit_breaker.exe test_ga_multivector.exe test_geo_invariant.exe test_interval_arithmetic.exe test_gappa_dsl.exe test_smt_bitvector.exe test_proof_rule_engine.exe test_nt_number_theory.exe test_sym_expr.exe test_rewrite_strategy.exe test_rewrite_strategy_impl.exe test_proof_version.exe test_autodiff.exe test_prop_verifier.exe test_wfc_modules.exe test_geo_constraint_solver.exe test_geo_constraint_solver_ext.exe test_ode_solver.exe test_proof_export_enhanced.exe test_performance.exe test_memory_management.exe test_group_minimal.exe test_geo_topology.exe test_geo_predicate.exe test_geo_halfedge_mesh.exe test_geo_dynamic.exe test_geo_visual.exe test_propagation.exe test_equiv_class.exe test_interactive_geo.exe test_geom_transform_presets.exe test_geo_aabb_tree.exe test_error_handling.exe test_conflict_detector.exe test_adaptive_threshold.exe test_engine_ops.exe test_engine_scheduler.exe test_trust_color.exe test_layer5_output_ops.exe test_solve_debug.exe test_lv_lexer.exe test_lv_parser.exe test_lv_bootstrap.exe test_meta_verify.exe test_lambda_church.exe test_lambda_eval.exe test_lambda_unify.exe test_axiom_topos_theory.exe test_axiom_synthetic_differential_geometry.exe test_axiom_second_order_arithmetic.exe test_axiom_robin_arithmetic.exe test_axiom_quantum_information_theory.exe test_axiom_probability_theory.exe test_axiom_peano_arithmetic.exe test_axiom_order_theory.exe test_axiom_non_well_founded_set_theory.exe test_axiom_measure_theory.exe test_axiom_linear_algebra.exe test_axiom_graph_theory.exe test_axiom_galois_theory.exe test_axiom_ergodic_theory.exe test_axiom_cartesian_closed_category.exe test_symbolic_coord_ops.exe test_geometry_core.exe test_smt_backend.exe test_bdd_sat_atp.exe test_solver_submodules.exe test_layer4_misc.exe test_layer5_output.exe test_layer5_core.exe test_output_export.exe test_layer6_visual.exe test_proof_infra.exe test_proof_strategy_numeric.exe test_interval_arith.exe test_callback_list.exe test_groebner_parallel.exe test_proof_rule_numeric.exe test_proof_strategy_legacy.exe example_triangle.exe example_circle.exe example_composition.exe example_high_dim.exe example_streaming.exe example_stream_advanced.exe example_type_system.exe example_recursion.exe
+build all: phony lv_layer2_resource lv_core lv_layer1_parser lv_layer3_geometry lv_layer4_reasoning lv_layer5_output lv_layer6_visual lv_layer8_meta_verify lv_layer10_interop liblv.a test_basic.exe test_edge_cases.exe test_complex_graph.exe test_normalization.exe test_constraint_graph_ops.exe test_graph_hash.exe test_constraint_compatibility.exe test_unify.exe test_func_block.exe test_solver.exe test_solver_enhanced.exe test_groebner_basis.exe test_rewrite.exe test_critical_pair.exe test_type_system.exe test_type_equiv_explorer.exe test_proof.exe test_axiom_pkg.exe test_template_test.exe test_module.exe test_graph_serialize.exe test_recursion.exe test_implementation.exe test_minimal_parse.exe test_axiom_euclidean_plane.exe test_axiom_boolean_algebra.exe test_axiom_classical_propositional_logic.exe test_axiom_group_theory.exe test_axiom_zfc_set_theory.exe test_axiom_ring_theory.exe test_axiom_intuitionistic_logic.exe test_axiom_intuitionistic_propositional_logic.exe test_axiom_category_theory.exe test_axiom_point_set_topology.exe test_axiom_hyperbolic_geometry.exe test_axiom_elliptic_geometry.exe test_axiom_simple_type_theory.exe test_axiom_field_theory.exe test_axiom_nbg_set_theory.exe test_axiom_real_analysis.exe test_axiom_combinatorics.exe test_axiom_algebraic_topology.exe test_axiom_model_theory.exe test_axiom_dependent_type_theory.exe test_axiom_homological_algebra.exe test_axiom_universal_algebra.exe test_axiom_differential_geometry.exe test_axiom_number_theory.exe test_axiom_functional_analysis.exe test_axiom_algebraic_geometry.exe test_axiom_proof_theory.exe test_axiom_homotopy_type_theory.exe test_axiom_affine_geometry.exe test_axiom_projective_geometry.exe test_axiom_lattice_theory.exe test_axiom_lie_theory.exe test_axiom_modal_logic.exe test_axiom_linear_logic.exe test_axiom_metric_space.exe test_axiom_game_theory.exe test_axiom_information_theory.exe test_axiom_descriptive_set_theory.exe test_axiom_domain_theory.exe test_axiom_computability_theory.exe test_axiom_computational_complexity_theory.exe test_axiom_presburger_arithmetic.exe test_utils.exe test_enum_maps.exe test_bytes.exe test_json_buf.exe test_hashtable.exe test_module_serialize_unify.exe test_lifecycle.exe test_registry.exe test_stream.exe test_stream_extended.exe test_func_block_utils.exe test_func_block_preset.exe test_error_codes.exe test_interop.exe test_high_dim.exe test_symbolic_coord.exe test_rational.exe test_expr_canon.exe test_proof_trace.exe test_new_modules.exe test_circuit_breaker.exe test_ga_multivector.exe test_geo_invariant.exe test_interval_arithmetic.exe test_gappa_dsl.exe test_smt_bitvector.exe test_proof_rule_engine.exe test_nt_number_theory.exe test_sym_expr.exe test_rewrite_strategy.exe test_rewrite_strategy_impl.exe test_proof_version.exe test_autodiff.exe test_prop_verifier.exe test_wfc_modules.exe test_geo_constraint_solver.exe test_geo_constraint_solver_ext.exe test_ode_solver.exe test_proof_export_enhanced.exe test_performance.exe test_memory_management.exe test_group_minimal.exe test_geo_topology.exe test_geo_predicate.exe test_geo_halfedge_mesh.exe test_geo_dynamic.exe test_geo_visual.exe test_propagation.exe test_equiv_class.exe test_interactive_geo.exe test_geom_transform_presets.exe test_geo_aabb_tree.exe test_error_handling.exe test_conflict_detector.exe test_adaptive_threshold.exe test_engine_ops.exe test_engine_scheduler.exe test_trust_color.exe test_layer5_output_ops.exe test_solve_debug.exe test_lv_lexer.exe test_lv_parser.exe test_lv_bootstrap.exe test_meta_verify.exe test_lambda_church.exe test_lambda_eval.exe test_lambda_unify.exe test_axiom_topos_theory.exe test_axiom_synthetic_differential_geometry.exe test_axiom_second_order_arithmetic.exe test_axiom_robin_arithmetic.exe test_axiom_quantum_information_theory.exe test_axiom_probability_theory.exe test_axiom_peano_arithmetic.exe test_axiom_order_theory.exe test_axiom_non_well_founded_set_theory.exe test_axiom_measure_theory.exe test_axiom_linear_algebra.exe test_axiom_graph_theory.exe test_axiom_galois_theory.exe test_axiom_ergodic_theory.exe test_axiom_cartesian_closed_category.exe test_symbolic_coord_ops.exe test_geometry_core.exe test_smt_backend.exe test_bdd_sat_atp.exe test_solver_submodules.exe test_layer4_misc.exe test_layer5_output.exe test_layer5_core.exe test_output_export.exe test_layer6_visual.exe test_proof_infra.exe test_proof_strategy_numeric.exe test_interval_arith.exe test_callback_list.exe test_groebner_parallel.exe test_proof_rule_numeric.exe test_proof_strategy_legacy.exe example_triangle.exe example_circle.exe example_composition.exe example_high_dim.exe example_streaming.exe example_stream_advanced.exe example_type_system.exe example_recursion.exe
 
 # =============================================================================
 # Built-in targets

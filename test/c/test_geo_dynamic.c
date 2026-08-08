@@ -391,6 +391,90 @@ int main(void) {
         lv_dyn_graph_destroy(graph);
     }
 
+    /* 9. 大图级联更新测试（栈深 > 256，验证动态栈无静默截断） */
+    printf("\n[组 9] 大图级联更新（>256 栈深）\n");
+    {
+        lvDynGraph *graph = lv_dyn_graph_create(NULL);
+
+        /* 结构：p0 -> D1 -> D2 -> ... -> D20 依赖链；每层 D_i 先挂 15 个
+         * 叶子中点（child_ids 顺序使链节点最后入栈 → LIFO 下链节点先弹出，
+         * 栈深随层数累积，峰值 > 256，可触发原固定 256 栈的截断/越界写）。 */
+        int p0 = lv_dyn_create_point(graph, 0, 0);
+        int prev = p0;
+        for (int i = 1; i <= 20; i++) {
+            int pi = lv_dyn_create_point(graph, (double) i, 0.0);
+            int di = lv_dyn_create_midpoint(graph, prev, pi);
+            prev = di;
+            for (int k = 0; k < 15; k++) {
+                int q = lv_dyn_create_point(graph, (double) k, (double) i);
+                lv_dyn_create_midpoint(graph, di, q);
+            }
+        }
+
+        int expected = graph->node_count; /* 全部节点均可达且应被更新 */
+
+        TEST("update_cascade: 大图（>256 栈深）更新全部节点");
+        int updated = lv_dyn_graph_update_cascade(graph, p0, NULL);
+        if (updated == expected) {
+            PASS();
+            tests_passed++;
+        } else {
+            printf("  (updated=%d expected=%d)\n", updated, expected);
+            FAIL("级联更新未覆盖全部节点（疑似栈截断）");
+            tests_failed++;
+        }
+
+        TEST("update_cascade: 每个节点 update_count > 0");
+        bool all_updated = true;
+        for (int i = 0; i < graph->node_count; i++) {
+            lvDynNode *n = lv_dyn_graph_get_node(graph, i);
+            if (!n || n->update_count == 0) {
+                all_updated = false;
+                break;
+            }
+        }
+        if (all_updated) {
+            PASS();
+            tests_passed++;
+        } else {
+            FAIL("存在未被级联更新的节点");
+            tests_failed++;
+        }
+
+        lv_dyn_graph_destroy(graph);
+    }
+
+    /* 10. 大图更新链测试（链长 > 256，验证动态 visited 无静默截断） */
+    printf("\n[组 10] 大图更新链（链长 > 256）\n");
+    {
+        lvDynGraph *graph = lv_dyn_graph_create(NULL);
+
+        /* 300 层中点链：p0 -> D1 -> D2 -> ... -> D300 */
+        int p0 = lv_dyn_create_point(graph, 0, 0);
+        int prev = p0;
+        for (int i = 1; i <= 300; i++) {
+            int pi = lv_dyn_create_point(graph, (double) i, 0.0);
+            prev = lv_dyn_create_midpoint(graph, prev, pi);
+        }
+        int leaf = prev; /* D300 */
+
+        /* 链式结构下 mark_dirty 栈深恒 1，可完整标记 p0 + D1..D300 */
+        lv_dyn_graph_mark_dirty(graph, p0);
+
+        TEST("update_chain: 长链（301 节点）全部更新");
+        int updated = lv_dyn_graph_update_chain(graph, leaf);
+        if (updated == 301) {
+            PASS();
+            tests_passed++;
+        } else {
+            printf("  (updated=%d expected=301)\n", updated);
+            FAIL("更新链未覆盖全部节点（疑似 visited 截断）");
+            tests_failed++;
+        }
+
+        lv_dyn_graph_destroy(graph);
+    }
+
     printf("\n=== 测试结果: %d 通过, %d 失败 ===\n", tests_passed, tests_failed);
     return tests_failed > 0 ? 1 : 0;
 }

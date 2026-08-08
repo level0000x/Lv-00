@@ -179,11 +179,18 @@ bool lv_json_parse_double_array(lvJsonParser *p, double *out, size_t max_count, 
  *
  * 动态增长的 JSON 写入缓冲区。初始容量由 init 参数指定，
  * 写入过程中按需自动扩展（2 倍策略）。
+ *
+ * depth/has_elem/key_pending/pretty 由对象级 API（begin/end/append_key 等）
+ * 维护，配合 lv_json_buf_init 初始化，旧 API 不感知这些成员。
  */
 typedef struct {
     char *buffer;    /* 缓冲区数据 */
     size_t capacity; /* 缓冲区总容量 */
     size_t pos;      /* 当前写入位置 */
+    unsigned depth;  /* 当前嵌套深度（begin/end 配对增减，缩进输出上限 64 级） */
+    bool has_elem;   /* 当前容器是否已写入元素（决定元素前是否加逗号/换行） */
+    bool key_pending; /* append_key 后等待值写入（值为 key 紧邻值时不再加逗号） */
+    bool pretty;     /* 是否 pretty 输出（换行 + 2 空格/级缩进） */
 } lvJsonBuf;
 
 /**
@@ -254,6 +261,103 @@ char *lv_json_buf_finalize(lvJsonBuf *buf);
  * @param buf lvJsonBuf 指针
  */
 void lv_json_buf_free(lvJsonBuf *buf);
+
+/* ===== JSON 对象级写入 API ===== */
+
+/**
+ * @brief 设置/关闭 pretty 输出模式
+ *
+ * 开启后，对象/数组开始符输出后换行并按嵌套深度缩进（2 空格/级，
+ * 超过 64 级按 64 级处理），元素间以 "," + 换行分隔，结束符前换行并回退缩进；
+ * 关闭时输出保持紧凑。可在写入前或写入中随时切换。
+ *
+ * @param buf    lvJsonBuf 指针
+ * @param pretty true 开启 pretty，false 关闭
+ */
+void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty);
+
+/**
+ * @brief 开始一个 JSON 对象（写 '{'）
+ *
+ * 作为容器内元素时自动处理前置逗号/换行/缩进；作为对象值时需先
+ * lv_json_buf_append_key。必须与 lv_json_buf_end_object 配对。
+ *
+ * @param buf lvJsonBuf 指针
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_begin_object(lvJsonBuf *buf);
+
+/**
+ * @brief 结束当前 JSON 对象（写 '}'）
+ * @param buf lvJsonBuf 指针
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_end_object(lvJsonBuf *buf);
+
+/**
+ * @brief 开始一个 JSON 数组（写 '['）
+ *
+ * 语义与 lv_json_buf_begin_object 相同，必须与 lv_json_buf_end_array 配对。
+ *
+ * @param buf lvJsonBuf 指针
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_begin_array(lvJsonBuf *buf);
+
+/**
+ * @brief 结束当前 JSON 数组（写 ']'）
+ * @param buf lvJsonBuf 指针
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_end_array(lvJsonBuf *buf);
+
+/**
+ * @brief 写入对象键（写 '"key":'）
+ *
+ * 自动处理键名引号与 JSON 转义，以及元素间逗号/换行/缩进。
+ * 写入后必须紧跟一个值写入 API（append_int/double/bool/null/
+ * append_string/begin_object/begin_array），该值前不会重复加逗号。
+ *
+ * @param buf lvJsonBuf 指针
+ * @param key 键名（不能为 NULL）
+ * @return true 成功，false buf 或 key 为空
+ */
+bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key);
+
+/**
+ * @brief 写入整数数值（紧凑十进制，long long 范围）
+ *
+ * 作为对象值时需先 lv_json_buf_append_key；作为数组元素时自动处理
+ * 元素间逗号/换行/缩进。
+ *
+ * @param buf lvJsonBuf 指针
+ * @param v   整数值
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_append_int(lvJsonBuf *buf, long long v);
+
+/**
+ * @brief 写入浮点数值（%.15g 风格，与现有序列化一致）
+ * @param buf lvJsonBuf 指针
+ * @param v   浮点值
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_append_double(lvJsonBuf *buf, double v);
+
+/**
+ * @brief 写入布尔值（true/false）
+ * @param buf lvJsonBuf 指针
+ * @param v   布尔值
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v);
+
+/**
+ * @brief 写入 null
+ * @param buf lvJsonBuf 指针
+ * @return true 成功，false buf 为空
+ */
+bool lv_json_buf_append_null(lvJsonBuf *buf);
 
 /* ===== JSON 便利查询函数 ===== */
 

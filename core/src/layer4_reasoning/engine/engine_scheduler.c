@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file engine_scheduler.c
  * @brief 引擎调度器 —— 多后端求解引擎的动态路由与分发
  *
@@ -17,6 +17,7 @@
 
 #include "lv/engine.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_registry.h"
 #include "lv/lv_utils.h"
 #include "lv/normalization.h"
 #include "lv/solver.h"
@@ -31,8 +32,10 @@ struct EngineScheduler {
     SchedulerBackendEntry backends[SCHEDULER_MAX_BACKEND_INSTANCES];
     int backend_count;
 
-    RoutingRule routing_rules[SCHEDULER_MAX_ROUTING_RULES];
-    int routing_rule_count;
+    /* 路由规则注册表（通用注册表设施：key = 规则名，value = RoutingRule* 堆拷贝）。
+     * 承担 strcmp 查重、尾部追加、删除前移紧凑（保持注册顺序）与析构回调；
+     * 遍历顺序 = 注册顺序（get_at 语义与原数组遍历一致）。 */
+    lvRegistry routing_rule_registry;
 
     SolverBackendType default_backend;
     SolverBackendType fallback_chain[SCHEDULER_MAX_FALLBACK_DEPTH];
@@ -61,6 +64,11 @@ static int rule_compare(const void *a, const void *b) {
     const RoutingRule *ra = (const RoutingRule *) a;
     const RoutingRule *rb = (const RoutingRule *) b;
     return ra->priority - rb->priority;
+}
+
+/** @brief RoutingRule 堆拷贝的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void routing_rule_destroy(void *value) {
+    lv_free((void **) &value);
 }
 
 /* ============================================================
@@ -303,6 +311,9 @@ EngineScheduler *scheduler_create(void) {
     if (!sched)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "scheduler_create: calloc failed");
 
+    /* 初始化路由规则注册表 */
+    lv_registry_init(&sched->routing_rule_registry, 8);
+
     /* 默认后端：GROEBNER */
     sched->default_backend = GROEBNER;
 
@@ -328,6 +339,10 @@ EngineScheduler *scheduler_create(void) {
 }
 
 void scheduler_destroy(EngineScheduler *scheduler) {
+    if (!scheduler)
+        return;
+    /* 释放路由规则注册表（destroy 回调释放各 RoutingRule 堆拷贝与内部 name） */
+    lv_registry_destroy(&scheduler->routing_rule_registry);
     lv_free((void **) &scheduler);
 }
 
@@ -337,8 +352,8 @@ void scheduler_reset(EngineScheduler *scheduler) {
 
     memset(scheduler->backends, 0, sizeof(scheduler->backends));
     scheduler->backend_count = 0;
-    memset(scheduler->routing_rules, 0, sizeof(scheduler->routing_rules));
-    scheduler->routing_rule_count = 0;
+    /* 清空路由规则（destroy 回调释放各 RoutingRule 堆拷贝，保留注册表结构可继续使用） */
+    lv_registry_clear(&scheduler->routing_rule_registry);
     memset(&scheduler->stats, 0, sizeof(scheduler->stats));
 
     scheduler->default_backend = GROEBNER;
@@ -498,20 +513,28 @@ static const RoutingRule kPresetRoutingRules[] = {
 int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule) {
     if (!scheduler || !rule)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_add_routing_rule: NULL scheduler or rule");
-    if (scheduler->routing_rule_count >= SCHEDULER_MAX_ROUTING_RULES)
+
+    /* 与旧语义一致：容量上限优先于查重（达到上限时即使更新现有规则也返回资源耗尽） */
+    if (lv_registry_count(&scheduler->routing_rule_registry) >= SCHEDULER_MAX_ROUTING_RULES)
         lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "scheduler_add_routing_rule: max routing rules reached");
 
-    /* 检查名称是否已存在 */
-    for (int i = 0; i < scheduler->routing_rule_count; i++) {
-        if (strcmp(scheduler->routing_rules[i].name, rule->name) == 0) {
-            /* 更新现有规则 */
-            scheduler->routing_rules[i] = *rule;
-            return 0;
-        }
+    /* 检查名称是否已存在（委托注册表 strcmp 查重） */
+    RoutingRule *existing = (RoutingRule *) lv_registry_get(&scheduler->routing_rule_registry, rule->name);
+    if (existing) {
+        /* 更新现有规则（保持注册顺序与注册表 key 不变） */
+        *existing = *rule;
+        return 0;
     }
 
-    scheduler->routing_rules[scheduler->routing_rule_count] = *rule;
-    scheduler->routing_rule_count++;
+    /* 尾部追加：堆拷贝 RoutingRule 交由注册表管理（remove/destroy 时释放） */
+    RoutingRule *copy = (RoutingRule *) lv_malloc(sizeof(RoutingRule));
+    if (!copy)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "scheduler_add_routing_rule: malloc failed");
+    *copy = *rule;
+    if (!lv_registry_put_ex(&scheduler->routing_rule_registry, rule->name, copy, routing_rule_destroy)) {
+        lv_free((void **) &copy);
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "scheduler_add_routing_rule: registry insert failed");
+    }
 
     return 0;
 }
@@ -520,16 +543,9 @@ int scheduler_remove_routing_rule(EngineScheduler *scheduler, const char *name) 
     if (!scheduler || !name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_remove_routing_rule: NULL scheduler or name");
 
-    for (int i = 0; i < scheduler->routing_rule_count; i++) {
-        if (strcmp(scheduler->routing_rules[i].name, name) == 0) {
-            for (int j = i; j < scheduler->routing_rule_count - 1; j++) {
-                scheduler->routing_rules[j] = scheduler->routing_rules[j + 1];
-            }
-            scheduler->routing_rule_count--;
-            memset(&scheduler->routing_rules[scheduler->routing_rule_count], 0, sizeof(RoutingRule));
-            return 0;
-        }
-    }
+    /* 委托注册表删除：destroy 回调释放 RoutingRule 堆拷贝，后续条目前移紧凑（保持顺序） */
+    if (lv_registry_remove(&scheduler->routing_rule_registry, name))
+        return 0;
     lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "scheduler_remove_routing_rule: rule not found");
 }
 
@@ -537,9 +553,8 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler) {
     if (!scheduler)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_load_preset_rules: scheduler is NULL");
 
-    /* 清空现有规则 */
-    scheduler->routing_rule_count = 0;
-    memset(scheduler->routing_rules, 0, sizeof(scheduler->routing_rules));
+    /* 清空现有规则（destroy 回调释放堆拷贝，保留注册表结构可继续使用） */
+    lv_registry_clear(&scheduler->routing_rule_registry);
 
     /* 从静态描述符表批量拷贝预设规则（防止超出容量） */
     size_t count = sizeof(kPresetRoutingRules) / sizeof(kPresetRoutingRules[0]);
@@ -547,9 +562,15 @@ int scheduler_load_preset_rules(EngineScheduler *scheduler) {
         count = SCHEDULER_MAX_ROUTING_RULES;
     }
     for (size_t i = 0; i < count; i++) {
-        scheduler->routing_rules[i] = kPresetRoutingRules[i];
+        RoutingRule *copy = (RoutingRule *) lv_malloc(sizeof(RoutingRule));
+        if (!copy)
+            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "scheduler_load_preset_rules: malloc failed");
+        *copy = kPresetRoutingRules[i];
+        if (!lv_registry_put_ex(&scheduler->routing_rule_registry, copy->name, copy, routing_rule_destroy)) {
+            lv_free((void **) &copy);
+            lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "scheduler_load_preset_rules: registry insert failed");
+        }
     }
-    scheduler->routing_rule_count = (int) count;
 
     return 0;
 }
@@ -688,12 +709,19 @@ SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, con
         memset(&features, 0, sizeof(features));
     }
 
-    /* 创建规则的排序副本 */
+    /* 创建规则的排序副本（按注册顺序遍历注册表，与旧数组遍历语义一致） */
     RoutingRule sorted_rules[SCHEDULER_MAX_ROUTING_RULES];
     int sorted_count = 0;
-    for (int i = 0; i < scheduler->routing_rule_count; i++) {
-        if (scheduler->routing_rules[i].enabled) {
-            sorted_rules[sorted_count++] = scheduler->routing_rules[i];
+    int rule_total = lv_registry_count(&scheduler->routing_rule_registry);
+    for (int i = 0; i < rule_total; i++) {
+        const char *rule_reg_name = NULL;
+        void *rule_reg_value = NULL;
+        if (!lv_registry_get_at(&scheduler->routing_rule_registry, i, &rule_reg_name, &rule_reg_value)) {
+            continue;
+        }
+        RoutingRule *rule = (RoutingRule *) rule_reg_value;
+        if (rule->enabled && sorted_count < SCHEDULER_MAX_ROUTING_RULES) {
+            sorted_rules[sorted_count++] = *rule;
         }
     }
     qsort(sorted_rules, (size_t) sorted_count, sizeof(RoutingRule), rule_compare);
@@ -983,16 +1011,24 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
             pos += rc;
     }
 
-    rc = snprintf(buf + pos, buf_size - (size_t) pos, "Routing rules: %d\n", scheduler->routing_rule_count);
+    rc = snprintf(buf + pos, buf_size - (size_t) pos, "Routing rules: %d\n",
+                  lv_registry_count(&scheduler->routing_rule_registry));
     if (rc > 0)
         pos += rc;
 
-    for (int i = 0; i < scheduler->routing_rule_count; i++) {
+    int rule_total = lv_registry_count(&scheduler->routing_rule_registry);
+    for (int i = 0; i < rule_total; i++) {
+        const char *rule_reg_name = NULL;
+        void *rule_reg_value = NULL;
+        if (!lv_registry_get_at(&scheduler->routing_rule_registry, i, &rule_reg_name, &rule_reg_value)) {
+            continue;
+        }
+        RoutingRule *rule = (RoutingRule *) rule_reg_value;
         rc = snprintf(buf + pos, buf_size - (size_t) pos,
                       "  [%d] '%s' priority=%d enabled=%s conditions=%d backend=%d\n", i,
-                      scheduler->routing_rules[i].name, scheduler->routing_rules[i].priority,
-                      scheduler->routing_rules[i].enabled ? "yes" : "no", scheduler->routing_rules[i].condition_count,
-                      (int) scheduler->routing_rules[i].target_backend);
+                      rule->name, rule->priority,
+                      rule->enabled ? "yes" : "no", rule->condition_count,
+                      (int) rule->target_backend);
         if (rc > 0)
             pos += rc;
     }

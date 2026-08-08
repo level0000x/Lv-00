@@ -517,6 +517,18 @@ FormulaNode *formula_parse_number(ParserContext *ctx);
 /** @brief 解析标识符字符串 */
 char *formula_parse_identifier_str(ParserContext *ctx);
 
+/** @brief 数学函数分发表条目（formula_dsl / formula_python 共享，替代两处重复 typedef） */
+typedef struct {
+    const char *name;   /**< 函数名 */
+    int arg_count;      /**< 期望的参数个数 */
+    NodeType op;        /**< 对应运算符节点类型 */
+    bool is_binary;     /**< true=二元运算，false=一元运算 */
+} MathFuncEntry;
+
+/** @brief 按函数名查表创建数学函数节点（formula_dsl.c 定义，formula_dsl/formula_python 共享） */
+FormulaNode *formula_apply_math_func(const char *ident, FormulaNode **args, int arg_count,
+                                     const MathFuncEntry *table, size_t table_size);
+
 /** @brief DSL 关键字表（NULL 终止） */
 extern const char *formula_dsl_keywords[];
 /** @brief LaTeX 命令表（NULL 终止） */

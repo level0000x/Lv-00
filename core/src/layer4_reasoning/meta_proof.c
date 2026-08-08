@@ -23,6 +23,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/groebner_engine.h"
 #include "lv/lv.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -1016,6 +1017,29 @@ static int meta_poly_create_linear(lvRingRegistry *registry, int ring_id, int va
     return pid;
 }
 
+/* meta_groebner_candidate_excluded 的 defer 守卫：变量名数组（含字符串）与
+ * 环注册表（rings 数组 + 外壳）在函数出口统一释放（失败/成功路径一致） */
+typedef struct {
+    char **var_names;        /* 变量名数组（元素为 lv_strdup 的字符串） */
+    int var_count;           /* 数组元素个数 */
+    lvRingRegistry *registry; /* 环注册表 */
+} MetaGroebnerGuard;
+
+static void meta_groebner_guard_cleanup(void *p) {
+    MetaGroebnerGuard *g = (MetaGroebnerGuard *) p;
+    if (g->var_names) {
+        for (int i = 0; i < g->var_count; i++) {
+            if (g->var_names[i])
+                lv_free((void **) &g->var_names[i]);
+        }
+        lv_free((void **) &g->var_names);
+    }
+    if (g->registry) {
+        lv_free((void **) &g->registry->rings);
+        lv_free((void **) &g->registry);
+    }
+}
+
 /**
  * @brief 使用 Groebner 基判定候选坐标是否被约束代数系统排除
  *
@@ -1049,19 +1073,20 @@ static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int n
 
     int var_count = point_count * 2;
 
-    /* 创建环注册表与多项式环 */
-    lvRingRegistry *registry = ring_registry_create(8);
-    if (!registry)
+    /* 变量名数组与注册表由 lv_DEFER 守卫在函数出口统一释放（失败/成功路径一致），
+     * 任一失败分支直接 return false 即可 */
+    MetaGroebnerGuard guard = {NULL, 0, NULL};
+    lv_DEFER(meta_groebner_guard_cleanup, &guard);
+    guard.var_count = var_count;
+    guard.registry = ring_registry_create(8);
+    if (!guard.registry)
         return false;
 
     /* 生成变量名 p{id}_x / p{id}_y，变量索引顺序与
      * constraint_graph_to_ideal 的 POINT 节点遍历顺序保持一致 */
-    char **var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
-    if (!var_names) {
-        lv_free((void **) &registry->rings);
-        lv_free((void **) &registry);
+    guard.var_names = (char **) lv_calloc((size_t) var_count, sizeof(char *));
+    if (!guard.var_names)
         return false;
-    }
 
     int vi = 0;
     int node_vi = -1; /* node_id 的 x 变量索引 */
@@ -1071,88 +1096,64 @@ static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int n
             continue;
         char name[64];
         snprintf(name, sizeof(name), "p%d_x", node->id);
-        var_names[vi] = lv_strdup(name);
-        if (!var_names[vi])
-            goto fail;
+        guard.var_names[vi] = lv_strdup(name);
+        if (!guard.var_names[vi])
+            return false;
         snprintf(name, sizeof(name), "p%d_y", node->id);
-        var_names[vi + 1] = lv_strdup(name);
-        if (!var_names[vi + 1])
-            goto fail;
+        guard.var_names[vi + 1] = lv_strdup(name);
+        if (!guard.var_names[vi + 1])
+            return false;
         if (node->id == node_id)
             node_vi = vi;
         vi += 2;
     }
     if (node_vi < 0 || node_vi + 1 >= var_count)
-        goto fail;
+        return false;
 
-    int ring_id = ring_create(registry, (const char **) var_names, var_count, RING_FIELD_REAL,
+    int ring_id = ring_create(guard.registry, (const char **) guard.var_names, var_count, RING_FIELD_REAL,
                               MONOMIAL_GREVLEX, "meta_proof_l3");
     if (ring_id < 0)
-        goto fail;
-
-    /* 释放变量名字符串（ring_create 已复制） */
-    for (int i = 0; i < var_count; i++) {
-        if (var_names[i])
-            lv_free((void **) &var_names[i]);
-    }
-    lv_free((void **) &var_names);
-    var_names = NULL;
+        return false;
 
     /* 将约束图编码为多项式理想 */
-    int ideal_id = constraint_graph_to_ideal(registry, graph, ring_id, "meta_proof_constraint_ideal");
+    int ideal_id = constraint_graph_to_ideal(guard.registry, graph, ring_id, "meta_proof_constraint_ideal");
     if (ideal_id < 0)
-        goto fail;
+        return false;
 
     /* 构造候选坐标方程：x_v - cx = 0、y_v - cy = 0 */
     double cx = symbolic_coord_to_double(candidate);
     double cy = symbolic_coord_to_double(candidate + 1);
-    int px_id = meta_poly_create_linear(registry, ring_id, node_vi, cx, "candidate_x");
-    int py_id = meta_poly_create_linear(registry, ring_id, node_vi + 1, cy, "candidate_y");
+    int px_id = meta_poly_create_linear(guard.registry, ring_id, node_vi, cx, "candidate_x");
+    int py_id = meta_poly_create_linear(guard.registry, ring_id, node_vi + 1, cy, "candidate_y");
     if (px_id < 0 || py_id < 0)
-        goto fail;
+        return false;
 
     /* 将候选方程加入理想：J = I + <x_v - cx, y_v - cy> */
-    if (ideal_add_generator(registry, ideal_id, px_id) != 0)
-        goto fail;
-    if (ideal_add_generator(registry, ideal_id, py_id) != 0)
-        goto fail;
+    if (ideal_add_generator(guard.registry, ideal_id, px_id) != 0)
+        return false;
+    if (ideal_add_generator(guard.registry, ideal_id, py_id) != 0)
+        return false;
 
     /* 计算 Groebner 基 */
-    if (groebner_compute(registry, ideal_id, GROEBNER_AUTO) != 0)
-        goto fail;
+    if (groebner_compute(guard.registry, ideal_id, GROEBNER_AUTO) != 0)
+        return false;
 
     /* 判定 1 ∈ J：若恒 1 多项式属于理想，则 J 为整个多项式环，
      * 约束系统与候选坐标矛盾 → 候选被代数排除 */
-    int one_id = meta_poly_create_constant(registry, ring_id, 1.0, "constant_one");
+    int one_id = meta_poly_create_constant(guard.registry, ring_id, 1.0, "constant_one");
     if (one_id < 0)
-        goto fail;
-    int member = ideal_membership(registry, ideal_id, one_id);
+        return false;
+    int member = ideal_membership(guard.registry, ideal_id, one_id);
 
     /* 清理本次创建的多项式（理想/环销毁由下述调用完成；
      * 注意 ring_registry_destroy 会清空全局池，故此处不调用它，
      * 避免影响其他环的 Groebner 数据） */
-    poly_destroy(registry, one_id);
-    poly_destroy(registry, px_id);
-    poly_destroy(registry, py_id);
-    ideal_destroy(registry, ideal_id);
-    ring_destroy(registry, ring_id);
-    lv_free((void **) &registry->rings);
-    lv_free((void **) &registry);
+    poly_destroy(guard.registry, one_id);
+    poly_destroy(guard.registry, px_id);
+    poly_destroy(guard.registry, py_id);
+    ideal_destroy(guard.registry, ideal_id);
+    ring_destroy(guard.registry, ring_id);
+    /* 变量名数组与注册表由守卫在函数出口统一释放 */
 
     return member == 1;
-
-fail:
-    /* 失败路径：释放本次创建的变量名与注册表结构 */
-    if (var_names) {
-        for (int i = 0; i < var_count; i++) {
-            if (var_names[i])
-                lv_free((void **) &var_names[i]);
-        }
-        lv_free((void **) &var_names);
-    }
-    if (registry) {
-        lv_free((void **) &registry->rings);
-        lv_free((void **) &registry);
-    }
-    return false;
 }

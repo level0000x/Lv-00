@@ -106,21 +106,26 @@ char *lv_plugin_get_info_json(const lvPlugin *plugin) {
     if (!plugin)
         return NULL;
 
-    /* 使用 lvJsonBuf 自动对字符串字段做 JSON 转义（name/version/author/description） */
+    /* 使用 lvJsonBuf 自动对字符串字段做 JSON 转义（name/version/author/description）；
+     * 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 1024))
         return NULL;
 
-    lv_json_buf_append_raw(&buf, "{");
-    lv_json_buf_append_raw(&buf, "\"name\":");
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "name");
     lv_json_buf_append_string(&buf, plugin->info.name);
-    lv_json_buf_append_raw(&buf, ",\"version\":");
+    lv_json_buf_append_key(&buf, "version");
     lv_json_buf_append_string(&buf, plugin->info.version);
-    lv_json_buf_append_raw(&buf, ",\"author\":");
+    lv_json_buf_append_key(&buf, "author");
     lv_json_buf_append_string(&buf, plugin->info.author);
-    lv_json_buf_append_raw(&buf, ",\"description\":");
+    lv_json_buf_append_key(&buf, "description");
     lv_json_buf_append_string(&buf, plugin->info.description);
-    lv_json_buf_append_fmt(&buf, ",\"state\":%d,\"type\":%d}", plugin->state, plugin->info.type);
+    lv_json_buf_append_key(&buf, "state");
+    lv_json_buf_append_int(&buf, plugin->state);
+    lv_json_buf_append_key(&buf, "type");
+    lv_json_buf_append_int(&buf, plugin->info.type);
+    lv_json_buf_end_object(&buf);
 
     return lv_json_buf_finalize(&buf);
 }
@@ -134,29 +139,36 @@ char *lv_plugin_system_get_info_json(const lvPluginSystem *system) {
     if (!system)
         return NULL;
 
-    /* 使用 lvJsonBuf 动态构建（自动转义 name/version 字符串字段，无固定缓冲截断风险） */
+    /* 使用 lvJsonBuf 动态构建（自动转义 name/version 字符串字段，无固定缓冲截断风险）；
+     * 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
     lvJsonBuf buf;
     if (!lv_json_buf_init(&buf, 2048))
         return NULL;
 
-    lv_json_buf_append_fmt(&buf,
-                           "{\"version\":%u,"
-                           "\"plugin_count\":%zu,"
-                           "\"interface_count\":%zu,"
-                           "\"plugins\":[",
-                           system->version, system->plugin_count, system->interface_count);
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "version");
+    lv_json_buf_append_int(&buf, system->version);
+    lv_json_buf_append_key(&buf, "plugin_count");
+    lv_json_buf_append_int(&buf, (long long) system->plugin_count);
+    lv_json_buf_append_key(&buf, "interface_count");
+    lv_json_buf_append_int(&buf, (long long) system->interface_count);
 
+    /* plugins：对象数组，begin_object 自动管理逗号 */
+    lv_json_buf_append_key(&buf, "plugins");
+    lv_json_buf_begin_array(&buf);
     for (size_t i = 0; i < system->plugin_count; i++) {
-        lv_json_buf_append_raw(&buf, "{\"name\":");
+        lv_json_buf_begin_object(&buf);
+        lv_json_buf_append_key(&buf, "name");
         lv_json_buf_append_string(&buf, system->plugins[i]->info.name);
-        lv_json_buf_append_raw(&buf, ",\"version\":");
+        lv_json_buf_append_key(&buf, "version");
         lv_json_buf_append_string(&buf, system->plugins[i]->info.version);
-        lv_json_buf_append_fmt(&buf, ",\"state\":%d}", system->plugins[i]->state);
-        if (i < system->plugin_count - 1)
-            lv_json_buf_append_char(&buf, ',');
+        lv_json_buf_append_key(&buf, "state");
+        lv_json_buf_append_int(&buf, system->plugins[i]->state);
+        lv_json_buf_end_object(&buf);
     }
+    lv_json_buf_end_array(&buf);
 
-    lv_json_buf_append_raw(&buf, "]}");
+    lv_json_buf_end_object(&buf);
 
     return lv_json_buf_finalize(&buf);
 }

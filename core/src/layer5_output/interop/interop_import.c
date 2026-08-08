@@ -630,178 +630,208 @@ static bool svg_parse_coord(const char **s, double *x, double *y) {
  * @param is_relative 是否为相对坐标命令（小写字母）
  * @return true 解析成功，false 解析失败
  */
+/** @brief SVG path 命令处理器类型 */
+typedef bool (*SvgPathHandler)(const char **s, SvgParserState *state, double *out_points,
+                               int max_points, int *out_count, bool is_relative);
+
+/** @brief 贝塞尔/圆弧采样点数 */
+#define SVG_PATH_SAMPLES 10
+
+/** @brief moveto：移动到绝对位置（M/m） */
+static bool svg_path_moveto(const char **s, SvgParserState *state, double *out_points,
+                            int max_points, int *out_count, bool is_relative) {
+    double abs_x, abs_y;
+    if (!svg_parse_coord(s, &abs_x, &abs_y))
+        return false;
+    if (is_relative) {
+        abs_x += state->cx;
+        abs_y += state->cy;
+    }
+    if (*out_count < max_points) {
+        out_points[(*out_count) * 2] = abs_x;
+        out_points[(*out_count) * 2 + 1] = abs_y;
+        (*out_count)++;
+    }
+    state->cx = abs_x;
+    state->cy = abs_y;
+    state->start_x = abs_x;
+    state->start_y = abs_y;
+    return true;
+}
+
+/** @brief lineto：直线段（L/l） */
+static bool svg_path_lineto(const char **s, SvgParserState *state, double *out_points,
+                            int max_points, int *out_count, bool is_relative) {
+    double abs_x, abs_y;
+    if (!svg_parse_coord(s, &abs_x, &abs_y))
+        return false;
+    if (is_relative) {
+        abs_x += state->cx;
+        abs_y += state->cy;
+    }
+    if (*out_count < max_points) {
+        out_points[(*out_count) * 2] = abs_x;
+        out_points[(*out_count) * 2 + 1] = abs_y;
+        (*out_count)++;
+    }
+    state->cx = abs_x;
+    state->cy = abs_y;
+    return true;
+}
+
+/** @brief cubic Bezier: C x1,y1 x2,y2 x,y（C/c） */
+static bool svg_path_cubic_bezier(const char **s, SvgParserState *state, double *out_points,
+                                  int max_points, int *out_count, bool is_relative) {
+    double x1, y1, x2, y2, abs_x, abs_y;
+    if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &x2, &y2) || !svg_parse_coord(s, &abs_x, &abs_y))
+        return false;
+    if (is_relative) {
+        x1 += state->cx;
+        y1 += state->cy;
+        x2 += state->cx;
+        y2 += state->cy;
+        abs_x += state->cx;
+        abs_y += state->cy;
+    }
+    /* 采样贝塞尔曲线 */
+    double x0 = state->cx, y0 = state->cy;
+    for (int i = 1; i <= SVG_PATH_SAMPLES && *out_count < max_points; i++) {
+        double t = (double) i / (double) SVG_PATH_SAMPLES;
+        double t2 = t * t, t3 = t2 * t;
+        double u = 1.0 - t, u2 = u * u, u3 = u2 * u;
+        double px = u3 * x0 + 3.0 * u2 * t * x1 + 3.0 * u * t2 * x2 + t3 * abs_x;
+        double py = u3 * y0 + 3.0 * u2 * t * y1 + 3.0 * u * t2 * y2 + t3 * abs_y;
+        out_points[(*out_count) * 2] = px;
+        out_points[(*out_count) * 2 + 1] = py;
+        (*out_count)++;
+    }
+    state->cx = abs_x;
+    state->cy = abs_y;
+    return true;
+}
+
+/** @brief quadratic Bezier: Q x1,y1 x,y（Q/q） */
+static bool svg_path_quadratic_bezier(const char **s, SvgParserState *state, double *out_points,
+                                      int max_points, int *out_count, bool is_relative) {
+    double x1, y1, abs_x, abs_y;
+    if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &abs_x, &abs_y))
+        return false;
+    if (is_relative) {
+        x1 += state->cx;
+        y1 += state->cy;
+        abs_x += state->cx;
+        abs_y += state->cy;
+    }
+    double qx0 = state->cx, qy0 = state->cy;
+    for (int i = 1; i <= SVG_PATH_SAMPLES && *out_count < max_points; i++) {
+        double t = (double) i / (double) SVG_PATH_SAMPLES;
+        double u = 1.0 - t;
+        double px = u * u * qx0 + 2.0 * u * t * x1 + t * t * abs_x;
+        double py = u * u * qy0 + 2.0 * u * t * y1 + t * t * abs_y;
+        out_points[(*out_count) * 2] = px;
+        out_points[(*out_count) * 2 + 1] = py;
+        (*out_count)++;
+    }
+    state->cx = abs_x;
+    state->cy = abs_y;
+    return true;
+}
+
+/** @brief arc: A rx,ry x-axis-rotation large-arc-flag sweep-flag x,y（A/a） */
+static bool svg_path_arc(const char **s, SvgParserState *state, double *out_points,
+                         int max_points, int *out_count, bool is_relative) {
+    double rx, ry, rot, dx, dy;
+    double laf_d, sf_d;
+    if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
+        !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
+        return false;
+    lv_UNUSED(ry);
+    lv_UNUSED(rot);
+    lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
+    int sf = (int) (sf_d + 0.5);
+    if (is_relative) {
+        dx += state->cx;
+        dy += state->cy;
+    }
+
+    /* 使用中点公式计算椭圆弧采样 */
+    double x_start = state->cx, y_start = state->cy;
+
+    /* 简化参数方程：沿椭圆弧采样 */
+    for (int i = 1; i <= SVG_PATH_SAMPLES && *out_count < max_points; i++) {
+        double t = (double) i / (double) SVG_PATH_SAMPLES;
+        /* 线性插值 + 圆弧偏移近似 */
+        double lx = lv_lerp(x_start, dx, t);
+        double ly = lv_lerp(y_start, dy, t);
+        /* 添加圆弧离差 */
+        double arc_angle = t * M_PI;
+        double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
+        double chord_len = geo_distance_2d(x_start, y_start, dx, dy);
+        double bulge_factor = (chord_len > 0.001) ? (rx / chord_len) * 0.5 : 0.0;
+        double nx = -(dy - y_start) / (chord_len > 0.001 ? chord_len : 1.0);
+        double ny = (dx - x_start) / (chord_len > 0.001 ? chord_len : 1.0);
+        lx += nx * bulge * bulge_factor * chord_len * 0.5;
+        ly += ny * bulge * bulge_factor * chord_len * 0.5;
+
+        out_points[(*out_count) * 2] = lx;
+        out_points[(*out_count) * 2 + 1] = ly;
+        (*out_count)++;
+    }
+    /* 确保最后一点是终点 */
+    if (*out_count < max_points) {
+        out_points[(*out_count) * 2] = dx;
+        out_points[(*out_count) * 2 + 1] = dy;
+        (*out_count)++;
+    }
+    state->cx = dx;
+    state->cy = dy;
+    return true;
+}
+
+/** @brief closepath：画线回到当前子路径起点（Z/z） */
+static bool svg_path_closepath(const char **s, SvgParserState *state, double *out_points,
+                               int max_points, int *out_count, bool is_relative) {
+    (void) s;
+    (void) is_relative;
+    if (*out_count < max_points) {
+        out_points[(*out_count) * 2] = state->start_x;
+        out_points[(*out_count) * 2 + 1] = state->start_y;
+        (*out_count)++;
+    }
+    state->cx = state->start_x;
+    state->cy = state->start_y;
+    return true;
+}
+
+/** @brief SVG path 命令字符→处理器 查找表（替代 12 分支 switch；大小写映射到同组处理器） */
+static const struct {
+    char cmd;              /**< 命令字符 */
+    SvgPathHandler handler; /**< 处理器 */
+} kSvgPathHandlers[] = {
+    {'M', svg_path_moveto},
+    {'m', svg_path_moveto},
+    {'L', svg_path_lineto},
+    {'l', svg_path_lineto},
+    {'C', svg_path_cubic_bezier},
+    {'c', svg_path_cubic_bezier},
+    {'Q', svg_path_quadratic_bezier},
+    {'q', svg_path_quadratic_bezier},
+    {'A', svg_path_arc},
+    {'a', svg_path_arc},
+    {'Z', svg_path_closepath},
+    {'z', svg_path_closepath},
+};
+
 static bool svg_parse_path_command(char cmd_char, const char **s, SvgParserState *state, double *out_points,
                                    int max_points, int *out_count, bool is_relative) {
     *out_count = 0;
-    double abs_x, abs_y;
-    int samples = 10; /* 贝塞尔/圆弧采样点数 */
 
-    switch (cmd_char) {
-        case 'M':
-        case 'm': {
-            /* moveto：移动到绝对位置 */
-            if (!svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
-            if (is_relative) {
-                abs_x += state->cx;
-                abs_y += state->cy;
-            }
-            if (*out_count < max_points) {
-                out_points[(*out_count) * 2] = abs_x;
-                out_points[(*out_count) * 2 + 1] = abs_y;
-                (*out_count)++;
-            }
-            state->cx = abs_x;
-            state->cy = abs_y;
-            state->start_x = abs_x;
-            state->start_y = abs_y;
-            return true;
-        }
-
-        case 'L':
-        case 'l': {
-            /* lineto：直线段 */
-            if (!svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
-            if (is_relative) {
-                abs_x += state->cx;
-                abs_y += state->cy;
-            }
-            if (*out_count < max_points) {
-                out_points[(*out_count) * 2] = abs_x;
-                out_points[(*out_count) * 2 + 1] = abs_y;
-                (*out_count)++;
-            }
-            state->cx = abs_x;
-            state->cy = abs_y;
-            return true;
-        }
-
-        case 'C':
-        case 'c': {
-            /* cubic Bezier: C x1,y1 x2,y2 x,y */
-            double x1, y1, x2, y2;
-            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &x2, &y2) || !svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
-            if (is_relative) {
-                x1 += state->cx;
-                y1 += state->cy;
-                x2 += state->cx;
-                y2 += state->cy;
-                abs_x += state->cx;
-                abs_y += state->cy;
-            }
-            /* 采样贝塞尔曲线 */
-            double x0 = state->cx, y0 = state->cy;
-            for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double) i / (double) samples;
-                double t2 = t * t, t3 = t2 * t;
-                double u = 1.0 - t, u2 = u * u, u3 = u2 * u;
-                double px = u3 * x0 + 3.0 * u2 * t * x1 + 3.0 * u * t2 * x2 + t3 * abs_x;
-                double py = u3 * y0 + 3.0 * u2 * t * y1 + 3.0 * u * t2 * y2 + t3 * abs_y;
-                out_points[(*out_count) * 2] = px;
-                out_points[(*out_count) * 2 + 1] = py;
-                (*out_count)++;
-            }
-            state->cx = abs_x;
-            state->cy = abs_y;
-            return true;
-        }
-
-        case 'Q':
-        case 'q': {
-            /* quadratic Bezier: Q x1,y1 x,y */
-            double x1, y1;
-            if (!svg_parse_coord(s, &x1, &y1) || !svg_parse_coord(s, &abs_x, &abs_y))
-                return false;
-            if (is_relative) {
-                x1 += state->cx;
-                y1 += state->cy;
-                abs_x += state->cx;
-                abs_y += state->cy;
-            }
-            double qx0 = state->cx, qy0 = state->cy;
-            for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double) i / (double) samples;
-                double u = 1.0 - t;
-                double px = u * u * qx0 + 2.0 * u * t * x1 + t * t * abs_x;
-                double py = u * u * qy0 + 2.0 * u * t * y1 + t * t * abs_y;
-                out_points[(*out_count) * 2] = px;
-                out_points[(*out_count) * 2 + 1] = py;
-                (*out_count)++;
-            }
-            state->cx = abs_x;
-            state->cy = abs_y;
-            return true;
-        }
-
-        case 'A':
-        case 'a': {
-            /* arc: A rx,ry x-axis-rotation large-arc-flag sweep-flag x,y */
-            double rx, ry, rot, dx, dy;
-            double laf_d, sf_d;
-            if (!svg_parse_double(s, &rx) || !svg_parse_double(s, &ry) || !svg_parse_double(s, &rot) ||
-                !svg_parse_double(s, &laf_d) || !svg_parse_double(s, &sf_d) || !svg_parse_coord(s, &dx, &dy))
-                return false;
-            lv_UNUSED(ry);
-            lv_UNUSED(rot);
-            lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
-            int sf = (int) (sf_d + 0.5);
-            if (is_relative) {
-                dx += state->cx;
-                dy += state->cy;
-            }
-
-            /* 使用中点公式计算椭圆弧采样 */
-            double x_start = state->cx, y_start = state->cy;
-
-            /* 简化参数方程：沿椭圆弧采样 */
-            for (int i = 1; i <= samples && *out_count < max_points; i++) {
-                double t = (double) i / (double) samples;
-                /* 线性插值 + 圆弧偏移近似 */
-                double lx = lv_lerp(x_start, dx, t);
-                double ly = lv_lerp(y_start, dy, t);
-                /* 添加圆弧离差 */
-                double arc_angle = t * M_PI;
-                double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
-                double chord_len = geo_distance_2d(x_start, y_start, dx, dy);
-                double bulge_factor = (chord_len > 0.001) ? (rx / chord_len) * 0.5 : 0.0;
-                double nx = -(dy - y_start) / (chord_len > 0.001 ? chord_len : 1.0);
-                double ny = (dx - x_start) / (chord_len > 0.001 ? chord_len : 1.0);
-                lx += nx * bulge * bulge_factor * chord_len * 0.5;
-                ly += ny * bulge * bulge_factor * chord_len * 0.5;
-
-                out_points[(*out_count) * 2] = lx;
-                out_points[(*out_count) * 2 + 1] = ly;
-                (*out_count)++;
-            }
-            /* 确保最后一点是终点 */
-            if (*out_count < max_points) {
-                out_points[(*out_count) * 2] = dx;
-                out_points[(*out_count) * 2 + 1] = dy;
-                (*out_count)++;
-            }
-            state->cx = dx;
-            state->cy = dy;
-            return true;
-        }
-
-        case 'Z':
-        case 'z': {
-            /* closepath：画线回到当前子路径起点 */
-            if (*out_count < max_points) {
-                out_points[(*out_count) * 2] = state->start_x;
-                out_points[(*out_count) * 2 + 1] = state->start_y;
-                (*out_count)++;
-            }
-            state->cx = state->start_x;
-            state->cy = state->start_y;
-            return true;
-        }
-
-        default:
-            return false;
+    /* 命令查表分发（替代 12 分支 switch；未命中返回 false，与 default 分支一致） */
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kSvgPathHandlers); i++) {
+        if (kSvgPathHandlers[i].cmd == cmd_char)
+            return kSvgPathHandlers[i].handler(s, state, out_points, max_points, out_count, is_relative);
     }
+    return false;
 }
 
 /**

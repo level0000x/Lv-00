@@ -668,6 +668,11 @@ bool lv_json_buf_init(lvJsonBuf *buf, size_t initial_size) {
     if (!buf->buffer)
         return false;
     buf->buffer[0] = '\0';
+    /* 对象级 API 状态：根容器为空、紧凑模式、无待定键 */
+    buf->depth = 0;
+    buf->has_elem = false;
+    buf->key_pending = false;
+    buf->pretty = false;
     return true;
 }
 
@@ -688,12 +693,8 @@ void lv_json_buf_ensure(lvJsonBuf *buf, size_t extra) {
     }
 }
 
-void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
-    if (!str) {
-        lv_json_buf_append_raw(buf, "null");
-        return;
-    }
-
+/* 写入带引号且已转义的 JSON 字符串（str 非 NULL；供 append_string / append_key 复用） */
+static void json_buf_append_quoted(lvJsonBuf *buf, const char *str) {
     /* 转义统一走公共 API lv_str_json_escape（两遍法；转义表唯一收敛于 lv_str_utils.c，
      * 与 lv_str_json_escape_alloc 等输出格式一致：\" \\ \n \t \r \b \f 及 \u00XX 控制字符） */
     size_t need = lv_str_json_escape(str, strlen(str), NULL, 0);
@@ -706,6 +707,16 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
     buf->pos += need;
     buf->buffer[buf->pos++] = '"';
     buf->buffer[buf->pos] = '\0';
+}
+
+void lv_json_buf_append_string(lvJsonBuf *buf, const char *str) {
+    if (buf && buf->key_pending)
+        buf->key_pending = false; /* 作为 append_key 的紧邻值：消费键状态（旧调用中恒为 false，零影响） */
+    if (!str) {
+        lv_json_buf_append_raw(buf, "null");
+        return;
+    }
+    json_buf_append_quoted(buf, str);
 }
 
 void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str) {
@@ -757,5 +768,152 @@ void lv_json_buf_free(lvJsonBuf *buf) {
         buf->buffer = NULL;
         buf->capacity = 0;
         buf->pos = 0;
+        buf->depth = 0;
+        buf->has_elem = false;
+        buf->key_pending = false;
+        buf->pretty = false;
     }
+}
+
+/* ==================================================================
+ * JSON 对象级写入 API 实现
+ *
+ * 状态机约定：
+ *   - depth      当前打开容器数（begin 增 / end 减），缩进输出上限 64 级；
+ *   - has_elem   当前容器是否已写入元素（决定元素前是否加逗号）；
+ *   - key_pending append_key 后等待值写入：值/begin 时仅清除标志，
+ *                 不再追加逗号/换行（该工作已由 append_key 完成）。
+ * 所有"值/键/begin"入口都先经 json_buf_begin_value 统一处理分隔符。
+ * ================================================================== */
+
+void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty) {
+    if (buf)
+        buf->pretty = pretty;
+}
+
+/* 按嵌套深度输出缩进（2 空格/级，超过 64 层按 64 层处理防溢出） */
+static void json_buf_write_indent(lvJsonBuf *buf, unsigned depth) {
+    if (depth > 64u)
+        depth = 64u;
+    for (unsigned i = 0; i < depth; i++)
+        lv_json_buf_append_raw(buf, "  ");
+}
+
+/* 元素写入前的分隔处理：逗号、换行、缩进与状态维护 */
+static void json_buf_begin_value(lvJsonBuf *buf) {
+    if (buf->key_pending) {
+        /* 值为 append_key 的紧邻值：分隔符已由 append_key 输出 */
+        buf->key_pending = false;
+        return;
+    }
+    if (buf->has_elem) {
+        lv_json_buf_append_char(buf, ',');
+        if (buf->pretty) {
+            lv_json_buf_append_char(buf, '\n');
+            json_buf_write_indent(buf, buf->depth);
+        }
+    } else if (buf->pretty && buf->depth > 0u) {
+        /* 容器内第一个元素：换行 + 缩进；顶层根（depth==0）不换行 */
+        lv_json_buf_append_char(buf, '\n');
+        json_buf_write_indent(buf, buf->depth);
+    }
+    buf->has_elem = true;
+}
+
+bool lv_json_buf_begin_object(lvJsonBuf *buf) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    lv_json_buf_append_char(buf, '{');
+    buf->depth++;
+    buf->has_elem = false; /* 新容器为空 */
+    return true;
+}
+
+bool lv_json_buf_end_object(lvJsonBuf *buf) {
+    if (!buf)
+        return false;
+    if (buf->pretty && buf->has_elem) {
+        lv_json_buf_append_char(buf, '\n');
+        json_buf_write_indent(buf, buf->depth > 0u ? buf->depth - 1u : 0u);
+    }
+    lv_json_buf_append_char(buf, '}');
+    if (buf->depth > 0u)
+        buf->depth--;
+    /* 回到父容器：该容器本身就是一个元素 */
+    buf->has_elem = true;
+    buf->key_pending = false;
+    return true;
+}
+
+bool lv_json_buf_begin_array(lvJsonBuf *buf) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    lv_json_buf_append_char(buf, '[');
+    buf->depth++;
+    buf->has_elem = false; /* 新容器为空 */
+    return true;
+}
+
+bool lv_json_buf_end_array(lvJsonBuf *buf) {
+    if (!buf)
+        return false;
+    if (buf->pretty && buf->has_elem) {
+        lv_json_buf_append_char(buf, '\n');
+        json_buf_write_indent(buf, buf->depth > 0u ? buf->depth - 1u : 0u);
+    }
+    lv_json_buf_append_char(buf, ']');
+    if (buf->depth > 0u)
+        buf->depth--;
+    buf->has_elem = true;
+    buf->key_pending = false;
+    return true;
+}
+
+bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key) {
+    if (!buf || !key)
+        return false;
+    json_buf_begin_value(buf);
+    json_buf_append_quoted(buf, key);
+    lv_json_buf_append_char(buf, ':');
+    buf->key_pending = true;
+    return true;
+}
+
+bool lv_json_buf_append_int(lvJsonBuf *buf, long long v) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    char num[32];
+    snprintf(num, sizeof(num), "%lld", v);
+    lv_json_buf_append_raw(buf, num);
+    return true;
+}
+
+bool lv_json_buf_append_double(lvJsonBuf *buf, double v) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    /* 与 graph_serialize.c numeric_value 序列化风格一致 */
+    char num[64];
+    snprintf(num, sizeof(num), "%.15g", v);
+    lv_json_buf_append_raw(buf, num);
+    return true;
+}
+
+bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    lv_json_buf_append_raw(buf, v ? "true" : "false");
+    return true;
+}
+
+bool lv_json_buf_append_null(lvJsonBuf *buf) {
+    if (!buf)
+        return false;
+    json_buf_begin_value(buf);
+    lv_json_buf_append_raw(buf, "null");
+    return true;
 }

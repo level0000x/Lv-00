@@ -4,13 +4,29 @@
 
 #include "lv/block_graph_view.h"
 #include "lv/func_block.h"
+#include "lv/lv_error.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/representation_converter.h"
 #include "lv/lv_strbuf.h"
 
 /* layer6 新实现接管：屏蔽 layer2 旧桩的同名直接转换 API */
 #define LV_HAS_LAYER6_CONVERTER
+
+/* SimpleBlockGraph 守卫：失败路径销毁已建函数块并释放结构（成功路径置空移交） */
+static void simple_block_graph_guard_cleanup(void *p) {
+    SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
+    SimpleBlockGraph *sg = *pp;
+    if (!sg)
+        return;
+    for (int i = 0; i < sg->count; i++) {
+        if (sg->blocks && sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
+    }
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) pp);
+}
 
 /* 内部辅助：统一使用 lvStrBuf 标准字符串构建器（原 TextBuf 手写 String Builder 已收敛至 lv/lv_strbuf.h） */
 
@@ -91,15 +107,16 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
+    /* 注册作用域守卫：失败分支直接 return，已建函数块与结构在函数出口自动释放 */
+    lv_DEFER(simple_block_graph_guard_cleanup, &sg);
     sg->cap = 16;
     sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
-        lv_free((void **) &sg);
         result.success = 0;
-        strncpy(result.error_msg, "out of memory", sizeof(result.error_msg));
+        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
         return result;
     }
 
@@ -203,6 +220,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
 
     /* 将解析结果作为输出 */
     result.output = sg;
+    sg = NULL; /* 守卫解除：结果移交调用方 */
     result.success = 1;
     return result;
 }

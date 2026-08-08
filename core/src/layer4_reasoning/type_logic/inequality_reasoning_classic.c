@@ -5,11 +5,32 @@
 
 #include "inequality_reasoning_internal.h"
 
+#include "lv/lv_lifecycle.h"
+
 
 /* 统一的临时表达式释放辅助：逆序释放表达式数组中的全部元素（lv_expr_free 容忍 NULL） */
 static void ineq_free_exprs(lvExpr **arr, int count) {
     for (int i = count - 1; i >= 0; i--)
         lv_expr_free(arr[i]);
+}
+
+/* 单个 lvExpr* 变量的 defer 清理回调（置 NULL 即解除守卫） */
+static void ineq_defer_expr_free(void *p) {
+    lvExpr **pp = (lvExpr **) p;
+    if (*pp)
+        lv_expr_free(*pp);
+}
+
+/* 固定尺寸临时表达式数组守卫（arr + 元素个数；arr 置 NULL 即解除守卫） */
+typedef struct {
+    lvExpr **arr;
+    int count;
+} IneqExprArrayGuard;
+
+static void ineq_expr_array_guard_cleanup(void *p) {
+    IneqExprArrayGuard *g = (IneqExprArrayGuard *) p;
+    if (g->arr)
+        ineq_free_exprs(g->arr, g->count);
 }
 
 bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_bound, lvExpr **out_upper_bound) {
@@ -34,46 +55,46 @@ bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_boun
     /* 算术平均: (e1 + ... + en) / n
      * 临时表达式数组: [0]=sum [1]=inv_n [2]=am [3]=prod [4]=inv_n_exp [5]=gm */
     lvExpr *tmp[6] = {0};
-    bool ok = false;
+
+    /* 注册作用域守卫：任一失败分支直接 return false，临时表达式在函数出口自动释放；
+     * 成功时结果表达式接管 tmp，守卫解除 */
+    IneqExprArrayGuard tmp_guard = {tmp, 6};
+    lv_DEFER(ineq_expr_array_guard_cleanup, &tmp_guard);
 
     tmp[0] = lv_expr_sum_n(expressions, count);
     if (!tmp[0])
-        goto cleanup;
+        return false;
 
     tmp[1] = lv_expr_create_rational(1, count);
     if (!tmp[1])
-        goto cleanup;
+        return false;
 
     /* sum * (1/n) = sum / n */
     tmp[2] = lv_expr_mul(tmp[0], tmp[1]);
     if (!tmp[2])
-        goto cleanup;
+        return false;
 
     /* 几何平均: (e1 * ... * en)^(1/n) */
     tmp[3] = lv_expr_product_n(expressions, count);
     if (!tmp[3])
-        goto cleanup;
+        return false;
 
     /* inv_n_expr = 1/n as exponent */
     tmp[4] = lv_expr_create_rational(1, count);
     if (!tmp[4])
-        goto cleanup;
+        return false;
 
     tmp[5] = lv_expr_power(tmp[3], tmp[4]);
     if (!tmp[5])
-        goto cleanup;
+        return false;
 
     if (out_lower_bound)
         *out_lower_bound = tmp[5];
     if (out_upper_bound)
         *out_upper_bound = tmp[2];
 
-    ok = true;
-
-cleanup:
-    if (!ok)
-        ineq_free_exprs(tmp, 6);
-    return ok;
+    tmp_guard.arr = NULL; /* 结果移交调用方，守卫不再释放 */
+    return true;
 }
 
 /**
@@ -112,37 +133,49 @@ bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality
     lvExpr *left = NULL;
     lvExpr *right = NULL;
 
+    /* 注册作用域守卫：任一失败分支直接 return false，临时资源在函数出口自动释放；
+     * 成功时 left/right/sum 表达式由不等式接管（置 NULL 解除守卫），two 与数组照常释放 */
+    lv_DEFER(ineq_defer_expr_free, &two);
+    lv_DEFER(lv_defer_free_ptr, &a_sq);
+    lv_DEFER(lv_defer_free_ptr, &b_sq);
+    lv_DEFER(lv_defer_free_ptr, &ab);
+    lv_DEFER(ineq_defer_expr_free, &sum_a_sq);
+    lv_DEFER(ineq_defer_expr_free, &sum_b_sq);
+    lv_DEFER(ineq_defer_expr_free, &sum_ab);
+    lv_DEFER(ineq_defer_expr_free, &left);
+    lv_DEFER(ineq_defer_expr_free, &right);
+
     two = lv_expr_create_rational(2, 1);
     if (!two)
-        goto cleanup;
+        return false;
 
     a_sq = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
     if (!a_sq)
-        goto cleanup;
+        return false;
     for (uint32_t i = 0; i < count; i++) {
         a_sq[i] = lv_expr_power(a[i], two);
         if (!a_sq[i])
-            goto cleanup;
+            return false;
     }
 
     /* 构造 b_i² 数组: b_sq[i] = b[i]^2 */
     b_sq = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
     if (!b_sq)
-        goto cleanup;
+        return false;
     for (uint32_t i = 0; i < count; i++) {
         b_sq[i] = lv_expr_power(b[i], two);
         if (!b_sq[i])
-            goto cleanup;
+            return false;
     }
 
     /* 构造 a_i·b_i 数组 */
     ab = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
     if (!ab)
-        goto cleanup;
+        return false;
     for (uint32_t i = 0; i < count; i++) {
         ab[i] = lv_expr_mul(a[i], b[i]);
         if (!ab[i])
-            goto cleanup;
+            return false;
     }
 
     /* sum_a_sq = ∑a_i², sum_b_sq = ∑b_i², sum_ab = ∑a_i·b_i */
@@ -150,36 +183,24 @@ bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality
     sum_b_sq = lv_expr_sum_n(b_sq, count);
     sum_ab = lv_expr_sum_n(ab, count);
     if (!sum_a_sq || !sum_b_sq || !sum_ab)
-        goto cleanup;
+        return false;
 
     /* left = (∑a_i²) * (∑b_i²) */
     left = lv_expr_mul(sum_a_sq, sum_b_sq);
     if (!left)
-        goto cleanup;
+        return false;
 
     /* right = (∑a_i·b_i)² */
     right = lv_expr_power(sum_ab, two);
     if (!right)
-        goto cleanup;
+        return false;
 
     *out_ineq = lv_ineq_create(left, INEQ_GREATER_EQUAL, right);
     if (*out_ineq) {
         (*out_ineq)->status = INEQ_STATUS_PROVED;
         (*out_ineq)->label = lv_strdup("Cauchy-Schwarz");
-    }
-
-cleanup:
-    /* 释放临时数组和中间表达式 */
-    lv_free((void **) &a_sq);
-    lv_free((void **) &b_sq);
-    lv_free((void **) &ab);
-    lv_expr_free(two);
-    if (*out_ineq == NULL) {
-        lv_expr_free(right);
-        lv_expr_free(left);
-        lv_expr_free(sum_ab);
-        lv_expr_free(sum_b_sq);
-        lv_expr_free(sum_a_sq);
+        /* 结果移交不等式，中间表达式归其所有，守卫解除 */
+        sum_a_sq = sum_b_sq = sum_ab = left = right = NULL;
     }
 
     return (*out_ineq != NULL);
@@ -271,13 +292,17 @@ bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **o
      * [0]=minus_one [1]=r_expr [2]=zero [3..8]=a-b/a-c/b-c/b-a/c-a/c-b
      * [9..11]=a^r/b^r/c^r [12..14]=term1..term3 [15]=left */
     lvExpr *tmp[16] = {0};
-    bool ok = false;
+
+    /* 注册作用域守卫：任一失败分支直接 return false，临时表达式在函数出口自动释放；
+     * 成功时结果表达式接管 tmp，守卫解除 */
+    IneqExprArrayGuard tmp_guard = {tmp, 16};
+    lv_DEFER(ineq_expr_array_guard_cleanup, &tmp_guard);
 
     tmp[0] = lv_expr_create_rational(-1, 1);
     tmp[1] = lv_expr_create_rational((int64_t) r, 1);
     tmp[2] = lv_expr_create_rational(0, 1);
     if (!tmp[0] || !tmp[1] || !tmp[2])
-        goto cleanup;
+        return false;
 
     /* 构造差值: a-b, a-c, b-c, b-a, c-a, c-b */
     tmp[3] = lv_expr_add(a, lv_expr_mul(b, tmp[0]));
@@ -287,31 +312,31 @@ bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **o
     tmp[7] = lv_expr_add(c, lv_expr_mul(a, tmp[0]));
     tmp[8] = lv_expr_add(c, lv_expr_mul(b, tmp[0]));
     if (!tmp[3] || !tmp[4] || !tmp[5] || !tmp[6] || !tmp[7] || !tmp[8])
-        goto cleanup;
+        return false;
 
     /* 构造三项: term1 = a^r * (a-b) * (a-c) */
     tmp[9] = lv_expr_power(a, tmp[1]);
     if (!tmp[9])
-        goto cleanup;
+        return false;
     tmp[12] = lv_expr_mul(lv_expr_mul(tmp[9], tmp[3]), tmp[4]);
     if (!tmp[12])
-        goto cleanup;
+        return false;
 
     /* term2 = b^r * (b-c) * (b-a) */
     tmp[10] = lv_expr_power(b, tmp[1]);
     if (!tmp[10])
-        goto cleanup;
+        return false;
     tmp[13] = lv_expr_mul(lv_expr_mul(tmp[10], tmp[5]), tmp[6]);
     if (!tmp[13])
-        goto cleanup;
+        return false;
 
     /* term3 = c^r * (c-a) * (c-b) */
     tmp[11] = lv_expr_power(c, tmp[1]);
     if (!tmp[11])
-        goto cleanup;
+        return false;
     tmp[14] = lv_expr_mul(lv_expr_mul(tmp[11], tmp[7]), tmp[8]);
     if (!tmp[14])
-        goto cleanup;
+        return false;
 
     /* 左端 = term1 + term2 + term3 */
     lvExpr *terms_arr[3];
@@ -320,7 +345,7 @@ bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **o
     terms_arr[2] = tmp[14];
     tmp[15] = lv_expr_sum_n(terms_arr, 3);
     if (!tmp[15])
-        goto cleanup;
+        return false;
 
     *out_ineq = lv_ineq_create(tmp[15], INEQ_GREATER_EQUAL, tmp[2]);
     if (*out_ineq) {
@@ -328,12 +353,8 @@ bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **o
         (*out_ineq)->label = lv_strdup("Schur");
     }
 
-    ok = true;
-
-cleanup:
-    if (!ok)
-        ineq_free_exprs(tmp, 16);
-    return ok;
+    tmp_guard.arr = NULL; /* 结果表达式接管 tmp（与原先 ok=true 语义一致），守卫解除 */
+    return true;
 }
 
 /**
@@ -385,96 +406,102 @@ bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights, uint32_t 
     lvExpr **w_fx = NULL;
     lvExpr **fx_arr = NULL;
     lvExpr *left = NULL; /* f(weighted_sum) */
-    bool ok = false;
+
+    /* 注册作用域守卫：任一失败分支直接 return false，临时资源在函数出口自动释放；
+     * 成功时 left / tmp 表达式由不等式接管（置 NULL 解除守卫），w_x/w_fx/fx_arr 数组照常释放 */
+    IneqExprArrayGuard tmp_guard = {tmp, 6};
+    lv_DEFER(ineq_expr_array_guard_cleanup, &tmp_guard);
+    lv_DEFER(lv_defer_free_ptr, &w_x);
+    lv_DEFER(lv_defer_free_ptr, &w_fx);
+    lv_DEFER(lv_defer_free_ptr, &fx_arr);
+    lv_DEFER(ineq_defer_expr_free, &left);
 
     if (weights) {
         /* 有自定义权重 */
         w_x = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
         w_fx = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
         if (!w_x || !w_fx)
-            goto cleanup;
+            return false;
 
         for (uint32_t i = 0; i < count; i++) {
             lvExpr *w_expr = lv_expr_create_rational_mpq(weights[i]);
             if (!w_expr)
-                goto cleanup;
+                return false;
             w_x[i] = lv_expr_mul(w_expr, points[i]);
             if (!w_x[i]) {
                 lv_expr_free(w_expr);
-                goto cleanup;
+                return false;
             }
 
             /* f(x_i) */
             lvExpr *fx = lv_expr_function(func, points[i]);
             if (!fx) {
                 lv_expr_free(w_expr);
-                goto cleanup;
+                return false;
             }
             /* 需要另一个权重表达式副本 */
             lvExpr *w_expr2 = lv_expr_create_rational_mpq(weights[i]);
             if (!w_expr2) {
                 lv_expr_free(w_expr);
                 lv_expr_free(fx);
-                goto cleanup;
+                return false;
             }
             w_fx[i] = lv_expr_mul(w_expr2, fx);
             if (!w_fx[i]) {
                 lv_expr_free(w_expr);
                 lv_expr_free(w_expr2);
                 lv_expr_free(fx);
-                goto cleanup;
+                return false;
             }
         }
 
         tmp[2] = lv_expr_sum_n(w_x, count);
         tmp[5] = lv_expr_sum_n(w_fx, count);
         if (!tmp[2] || !tmp[5])
-            goto cleanup;
+            return false;
     } else {
         /* 等权重: w_i = 1/n */
         tmp[0] = lv_expr_create_rational(1, count);
         if (!tmp[0])
-            goto cleanup;
+            return false;
 
         /* 等权和 = (x_1 + ... + x_n) / n */
         tmp[1] = lv_expr_sum_n(points, count);
         if (!tmp[1])
-            goto cleanup;
+            return false;
         tmp[2] = lv_expr_mul(tmp[1], tmp[0]);
         if (!tmp[2])
-            goto cleanup;
+            return false;
 
         /* 等权函数和 = (f(x_1) + ... + f(x_n)) / n */
         fx_arr = (lvExpr **) lv_malloc((size_t) count * sizeof(lvExpr *));
         if (!fx_arr)
-            goto cleanup;
+            return false;
         for (uint32_t i = 0; i < count; i++) {
             fx_arr[i] = lv_expr_function(func, points[i]);
             if (!fx_arr[i]) {
-                /* 释放已创建的 fx_arr 元素 */
+                /* 释放已创建的 fx_arr 元素（数组由守卫释放） */
                 for (uint32_t j = 0; j < i; j++)
                     lv_expr_free(fx_arr[j]);
-                lv_free((void **) &fx_arr);
-                goto cleanup;
+                return false;
             }
         }
         tmp[3] = lv_expr_sum_n(fx_arr, count);
-        lv_free((void **) &fx_arr);
         if (!tmp[3])
-            goto cleanup;
+            return false;
 
         tmp[4] = lv_expr_create_rational(1, count);
         if (!tmp[4])
-            goto cleanup;
+            return false;
         tmp[5] = lv_expr_mul(tmp[3], tmp[4]);
         if (!tmp[5])
-            goto cleanup;
+            return false;
     }
 
     /* 左端: f(weighted_sum) */
     left = lv_expr_function(func, tmp[2]);
     if (!left)
-        goto cleanup;
+        return false;
 
     /* 右端: weighted_func 就是 ∑ w_i f(x_i) */
     lvExpr *right = tmp[5];
@@ -489,17 +516,11 @@ bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights, uint32_t 
     if (*out_ineq) {
         (*out_ineq)->status = INEQ_STATUS_PROVED;
         (*out_ineq)->label = lv_strdup("Jensen");
+        /* 结果移交不等式（left / tmp 表达式归其所有），守卫解除 */
+        left = NULL;
+        tmp_guard.arr = NULL;
     }
 
-    ok = true;
-
-cleanup:
-    lv_free((void **) &w_x);
-    lv_free((void **) &w_fx);
-    if (!ok) {
-        lv_expr_free(left);
-        ineq_free_exprs(tmp, 6);
-    }
     return (*out_ineq != NULL);
 }
 

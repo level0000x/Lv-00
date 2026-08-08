@@ -1079,6 +1079,23 @@ static FormulaNode *parse_dsl_region(ParserContext *ctx) {
     return node;
 }
 
+/** @brief DSL 几何元素关键字→解析函数 分发表（替代 parse_dsl_atom 的 7 分支 strcmp 链，
+ *         风格与同文件 kConstraintTypes 一致） */
+typedef struct {
+    const char *name; /**< 关键字 */
+    FormulaNode *(*parse)(ParserContext *ctx); /**< 解析函数 */
+} DslGeometryEntry;
+
+static const DslGeometryEntry kDslGeometryKeywords[] = {
+    {"point", parse_dsl_point},
+    {"segment", parse_dsl_segment},
+    {"circle", parse_dsl_circle},
+    {"triangle", parse_dsl_triangle},
+    {"arc", parse_dsl_arc},
+    {"polygon", parse_dsl_polygon},
+    {"region", parse_dsl_region},
+};
+
 /* 约束名称 -> 节点类型映射条目 */
 typedef struct {
     const char *name; /**< DSL 约束名称 */
@@ -1221,15 +1238,8 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     return node;
 }
 
-/* ── 数学函数名→节点创建 分发表（formula_dsl / formula_python 共享） ── */
-
-/** @brief 数学函数分发表条目 */
-typedef struct {
-    const char *name;   /**< 函数名 */
-    int arg_count;      /**< 期望的参数个数 */
-    NodeType op;        /**< 对应运算符节点类型 */
-    bool is_binary;     /**< true=二元运算，false=一元运算 */
-} MathFuncEntry;
+/* ── 数学函数名→节点创建 分发表（formula_dsl / formula_python 共享；
+ *   MathFuncEntry 类型与 formula_apply_math_func 声明见 lv/formula_parser.h） ── */
 
 /** @brief DSL 数学函数表（含 ln/log；DSL 不识别 pow） */
 static const MathFuncEntry kDslMathFuncTable[] = {
@@ -1329,34 +1339,12 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
         formula_skip_whitespace(ctx);
 
-        /* 检查是否为关键字 */
-        if (strcmp(ident, "point") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_point(ctx);
-        }
-        if (strcmp(ident, "segment") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_segment(ctx);
-        }
-        if (strcmp(ident, "circle") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_circle(ctx);
-        }
-        if (strcmp(ident, "triangle") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_triangle(ctx);
-        }
-        if (strcmp(ident, "arc") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_arc(ctx);
-        }
-        if (strcmp(ident, "polygon") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_polygon(ctx);
-        }
-        if (strcmp(ident, "region") == 0) {
-            lv_free((void **) &ident);
-            return parse_dsl_region(ctx);
+        /* 几何元素关键字查表分发（替代 7 分支 strcmp 链） */
+        for (size_t i = 0; i < sizeof(kDslGeometryKeywords) / sizeof(kDslGeometryKeywords[0]); i++) {
+            if (strcmp(ident, kDslGeometryKeywords[i].name) == 0) {
+                lv_free((void **) &ident);
+                return kDslGeometryKeywords[i].parse(ctx);
+            }
         }
         if (is_dsl_keyword(ident)) {
             /* 其他约束关键字 */
@@ -1412,26 +1400,11 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
                 return NULL;
             }
 
-            /* 根据函数名创建对应节点 */
-            FormulaNode *node = NULL;
-            if (strcmp(ident, "sqrt") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_SQRT, args[0]);
-            } else if (strcmp(ident, "sin") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_SIN, args[0]);
-            } else if (strcmp(ident, "cos") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_COS, args[0]);
-            } else if (strcmp(ident, "tan") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_TAN, args[0]);
-            } else if (strcmp(ident, "abs") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_ABS, args[0]);
-            } else if (strcmp(ident, "ln") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_LN, args[0]);
-            } else if (strcmp(ident, "log") == 0 && arg_count == 1) {
-                node = formula_create_unary_op(NODE_UNARY_OP_LOG, args[0]);
-            } else {
-                /* 未知函数，作为标识符返回 */
-                node = formula_create_identifier(ident);
-            }
+            /* 根据函数名查表创建对应节点（替代 7 分支 strcmp 链） */
+            FormulaNode *node = formula_apply_math_func(ident, args, arg_count, kDslMathFuncTable,
+                                                        sizeof(kDslMathFuncTable) / sizeof(kDslMathFuncTable[0]));
+            if (!node)
+                node = formula_create_identifier(ident); /* 未知函数，作为标识符返回 */
 
             lv_free((void **) &ident);
             for (int i = 0; i < arg_count; i++)

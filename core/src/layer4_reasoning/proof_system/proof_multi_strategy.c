@@ -346,23 +346,29 @@ typedef struct {
  * 桥接策略把 B 的执行上下文（ProofNavigator）转交给 A 的公共入口，
  * 使 A 的 10 个策略对 B 可见，而无需改动 A 的任何策略实现。 */
 
+/** @brief 桥接枚举 → 经典引擎策略类型映射数组（按 ProofStrategyType 索引，替代 10 分支 switch；
+ *        设计指定初始化器，未列出的非桥接策略槽位保持 0 = STRATEGY_DIRECT，与越界回退一致） */
+static const lvStrategyType kLegacyToNew[PROOF_STRATEGY_COUNT] = {
+    [PROOF_STRATEGY_LEGACY_DIRECT] = STRATEGY_DIRECT,
+    [PROOF_STRATEGY_LEGACY_CONTRADICTION] = STRATEGY_CONTRADICTION,
+    [PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE] = STRATEGY_CONTRAPOSITIVE,
+    [PROOF_STRATEGY_LEGACY_INDUCTION] = STRATEGY_INDUCTION,
+    [PROOF_STRATEGY_LEGACY_CASES] = STRATEGY_CASES,
+    [PROOF_STRATEGY_LEGACY_CONSTRUCTION] = STRATEGY_CONSTRUCTION,
+    [PROOF_STRATEGY_LEGACY_UNFOLDING] = STRATEGY_UNFOLDING,
+    [PROOF_STRATEGY_LEGACY_BACKWARD] = STRATEGY_BACKWARD,
+    [PROOF_STRATEGY_LEGACY_FORWARD] = STRATEGY_FORWARD,
+    [PROOF_STRATEGY_LEGACY_HYBRID] = STRATEGY_HYBRID,
+};
+
 /**
- * @brief 桥接枚举 → 经典引擎策略类型映射
+ * @brief 桥接枚举 → 经典引擎策略类型映射（数组查表 + 边界检查，
+ *        越界回退 STRATEGY_DIRECT，与 switch 的 default 分支语义一致）
  */
 static lvStrategyType legacy_bridge_to_lv_strategy(ProofStrategyType t) {
-    switch (t) {
-    case PROOF_STRATEGY_LEGACY_DIRECT:         return STRATEGY_DIRECT;
-    case PROOF_STRATEGY_LEGACY_CONTRADICTION:  return STRATEGY_CONTRADICTION;
-    case PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE: return STRATEGY_CONTRAPOSITIVE;
-    case PROOF_STRATEGY_LEGACY_INDUCTION:      return STRATEGY_INDUCTION;
-    case PROOF_STRATEGY_LEGACY_CASES:          return STRATEGY_CASES;
-    case PROOF_STRATEGY_LEGACY_CONSTRUCTION:   return STRATEGY_CONSTRUCTION;
-    case PROOF_STRATEGY_LEGACY_UNFOLDING:      return STRATEGY_UNFOLDING;
-    case PROOF_STRATEGY_LEGACY_BACKWARD:       return STRATEGY_BACKWARD;
-    case PROOF_STRATEGY_LEGACY_FORWARD:        return STRATEGY_FORWARD;
-    case PROOF_STRATEGY_LEGACY_HYBRID:         return STRATEGY_HYBRID;
-    default:                                   return STRATEGY_DIRECT; /* 不可达 */
-    }
+    if ((int) t < 0 || (int) t >= PROOF_STRATEGY_COUNT)
+        return STRATEGY_DIRECT; /* 越界回退，与 default 分支一致 */
+    return kLegacyToNew[(int) t];
 }
 
 /**

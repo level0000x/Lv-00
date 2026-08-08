@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_storage.c
  * @brief 统一存储抽象层实现 —— 文件系统后端 + 内存缓冲区后端 + 后端注册表
  *
@@ -22,7 +22,8 @@
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_free, lv_calloc, lv_realloc */
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
-#include "lv/lv_thread.h"  /* lv_lazy_lock / lv_mutex_* */
+#include "lv/lv_thread.h"  /* lv_once_t / lv_once */
+#include "lv/lv_registry.h" /* 通用注册表（查重/扩容/删除/析构回调） */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 内部常量
@@ -436,39 +437,52 @@ static const lvStorageOps g_file_ops = {
  * 第 3 节：后端注册表
  * ═══════════════════════════════════════════════════════════════════ */
 
-/** @brief 后端注册表条目 */
+/** @brief 后端注册表条目（注册表 value，堆分配，由 destroy 回调释放） */
 typedef struct {
-    const char               *scheme;
     const lvStorageOps       *ops;
     void *(*create_ctx)(void);
     void  (*destroy_ctx)(void *ctx);
 } BackendEntry;
 
-/** @brief 后端注册表状态 */
-static struct {
-    BackendEntry entries[lv_STORAGE_MAX_BACKENDS];
-    int          count;
-    lv_lazy_lock lock;   /**< 惰性互斥锁：首次加锁时自动初始化 */
-} s_backend_registry = {0};
+/** @brief 后端注册表（通用注册表设施：key = URI scheme，value = BackendEntry*）。
+ *  文件级单例（lv_once 惰性初始化，线程安全）；strcmp 查重、尾部追加、
+ *  动态扩容与删除前移紧凑均由 lv_registry 承担。 */
+static lvRegistry g_backend_registry;
 
-/** @brief 后端注册表一次性初始化回调：初始化互斥锁并注册默认后端（首次加锁时执行一次） */
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_backend_registry_once = lv_ONCE_INIT;
+
+/** @brief BackendEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void backend_entry_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次）：初始化并注册默认后端 */
 static void backend_registry_init_once(void) {
-    lv_mutex_init(&s_backend_registry.lock.mutex);
-    s_backend_registry.count = 0;
+    lv_registry_init(&g_backend_registry, lv_STORAGE_MAX_BACKENDS);
 
     /* 注册 file:// 后端 */
-    s_backend_registry.entries[s_backend_registry.count].scheme      = "file";
-    s_backend_registry.entries[s_backend_registry.count].ops         = &g_file_ops;
-    s_backend_registry.entries[s_backend_registry.count].create_ctx  = file_create_ctx;
-    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = file_destroy_ctx;
-    s_backend_registry.count++;
+    BackendEntry *file_entry = (BackendEntry *) lv_calloc(1, sizeof(BackendEntry));
+    if (file_entry) {
+        file_entry->ops         = &g_file_ops;
+        file_entry->create_ctx  = file_create_ctx;
+        file_entry->destroy_ctx = file_destroy_ctx;
+        lv_registry_put_ex(&g_backend_registry, "file", file_entry, backend_entry_destroy);
+    }
 
     /* 注册 mem:// 后端 */
-    s_backend_registry.entries[s_backend_registry.count].scheme      = "mem";
-    s_backend_registry.entries[s_backend_registry.count].ops         = &g_mem_ops;
-    s_backend_registry.entries[s_backend_registry.count].create_ctx  = mem_create_ctx;
-    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = mem_destroy_ctx;
-    s_backend_registry.count++;
+    BackendEntry *mem_entry = (BackendEntry *) lv_calloc(1, sizeof(BackendEntry));
+    if (mem_entry) {
+        mem_entry->ops         = &g_mem_ops;
+        mem_entry->create_ctx  = mem_create_ctx;
+        mem_entry->destroy_ctx = mem_destroy_ctx;
+        lv_registry_put_ex(&g_backend_registry, "mem", mem_entry, backend_entry_destroy);
+    }
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void backend_registry_ensure(void) {
+    lv_once(&g_backend_registry_once, backend_registry_init_once);
 }
 
 /** @brief 根据 URI 提取 scheme 部分 */
@@ -488,24 +502,10 @@ static const char *extract_scheme(const char *uri, char *out, size_t out_size) {
     return out;
 }
 
-/** @brief 根据 scheme 查找后端 */
+/** @brief 根据 scheme 查找后端（无 scheme 时回退默认文件后端；委托注册表 strcmp 查找） */
 static BackendEntry *find_backend(const char *scheme) {
-    if (!scheme) {
-        /* 无 scheme 使用默认文件后端 */
-        for (int i = 0; i < s_backend_registry.count; i++) {
-            if (strcmp(s_backend_registry.entries[i].scheme, "file") == 0) {
-                return &s_backend_registry.entries[i];
-            }
-        }
-        return NULL;
-    }
-
-    for (int i = 0; i < s_backend_registry.count; i++) {
-        if (strcmp(s_backend_registry.entries[i].scheme, scheme) == 0) {
-            return &s_backend_registry.entries[i];
-        }
-    }
-    return NULL;
+    backend_registry_ensure();
+    return (BackendEntry *) lv_registry_get(&g_backend_registry, scheme ? scheme : "file");
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -513,58 +513,49 @@ static BackendEntry *find_backend(const char *scheme) {
  * ═══════════════════════════════════════════════════════════════════ */
 
 void lv_storage_system_init(void) {
-    /* 线程安全的一次性初始化：互斥锁初始化与默认后端注册仅首次执行（lv_lazy_lock 幂等） */
-    lv_lazy_lock_init(&s_backend_registry.lock, backend_registry_init_once);
+    /* 线程安全的一次性初始化：互斥锁初始化与默认后端注册仅首次执行（lv_once 幂等） */
+    backend_registry_ensure();
 }
 
 void lv_storage_system_cleanup(void) {
-    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
+    backend_registry_ensure();
 
-    /* 清理所有后端上下文 */
-    for (int i = 0; i < s_backend_registry.count; i++) {
-        /* 后端上下文由各 lvStorage 实例管理，这里只清理注册表条目 */
-        s_backend_registry.entries[i].scheme      = NULL;
-        s_backend_registry.entries[i].ops          = NULL;
-        s_backend_registry.entries[i].create_ctx   = NULL;
-        s_backend_registry.entries[i].destroy_ctx  = NULL;
-    }
-    s_backend_registry.count = 0;
-
-    lv_lazy_lock_unlock(&s_backend_registry.lock);
-    /* 注：注册表互斥锁由 lv_lazy_lock 一次性初始化，生命周期与进程一致，
-     * 不在此销毁；once 不可重置，清理后系统仍可安全继续使用。 */
+    /* 清空所有后端条目（destroy 回调释放 BackendEntry 与内部 name），
+     * 保留数组与互斥锁，后续可继续注册使用（与旧语义一致） */
+    lv_registry_clear(&g_backend_registry);
 }
 
 bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
     if (!info || !info->scheme || !info->ops) return false;
 
-    /* 延迟初始化（lv_lazy_lock 幂等，仅首次生效） */
-    lv_storage_system_init();
+    /* 延迟初始化（lv_once 幂等，仅首次生效） */
+    backend_registry_ensure();
 
-    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
-
-    /* 检查 scheme 是否已存在 */
-    for (int i = 0; i < s_backend_registry.count; i++) {
-        if (strcmp(s_backend_registry.entries[i].scheme, info->scheme) == 0) {
-            lv_WARN("存储后端 scheme 已存在: %s", info->scheme);
-            lv_lazy_lock_unlock(&s_backend_registry.lock);
-            return false;
-        }
-    }
-
-    if (s_backend_registry.count >= lv_STORAGE_MAX_BACKENDS) {
-        lv_ERROR("存储后端注册表已满 (max=%d)", lv_STORAGE_MAX_BACKENDS);
-        lv_lazy_lock_unlock(&s_backend_registry.lock);
+    /* 检查 scheme 是否已存在（委托注册表 strcmp 查重） */
+    if (lv_registry_get(&g_backend_registry, info->scheme) != NULL) {
+        lv_WARN("存储后端 scheme 已存在: %s", info->scheme);
         return false;
     }
 
-    s_backend_registry.entries[s_backend_registry.count].scheme      = info->scheme;
-    s_backend_registry.entries[s_backend_registry.count].ops         = info->ops;
-    s_backend_registry.entries[s_backend_registry.count].create_ctx  = info->create_ctx;
-    s_backend_registry.entries[s_backend_registry.count].destroy_ctx = info->destroy_ctx;
-    s_backend_registry.count++;
+    if (lv_registry_count(&g_backend_registry) >= lv_STORAGE_MAX_BACKENDS) {
+        lv_ERROR("存储后端注册表已满 (max=%d)", lv_STORAGE_MAX_BACKENDS);
+        return false;
+    }
 
-    lv_lazy_lock_unlock(&s_backend_registry.lock);
+    BackendEntry *entry = (BackendEntry *) lv_calloc(1, sizeof(BackendEntry));
+    if (!entry) {
+        lv_ERROR("存储后端注册失败：内存不足");
+        return false;
+    }
+    entry->ops         = info->ops;
+    entry->create_ctx  = info->create_ctx;
+    entry->destroy_ctx = info->destroy_ctx;
+
+    if (!lv_registry_put_ex(&g_backend_registry, info->scheme, entry, backend_entry_destroy)) {
+        lv_ERROR("存储后端注册失败：scheme=%s", info->scheme);
+        lv_free((void **) &entry);
+        return false;
+    }
     return true;
 }
 
@@ -578,24 +569,19 @@ lvStorage *lv_storage_open(const char *uri, int mode) {
     char scheme_buf[64] = {0};
     const char *scheme = extract_scheme(uri, scheme_buf, sizeof(scheme_buf));
 
-    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
     BackendEntry *entry = find_backend(scheme);
     if (!entry) {
         lv_ERROR("不支持的存储 URI scheme: %s (uri=%s)",
                   scheme ? scheme : "(null)", uri);
-        lv_lazy_lock_unlock(&s_backend_registry.lock);
         return NULL;
     }
 
     /* 创建后端上下文 */
     void *ctx = entry->create_ctx ? entry->create_ctx() : NULL;
     if (!ctx) {
-        lv_ERROR("创建存储后端上下文失败: scheme=%s", entry->scheme);
-        lv_lazy_lock_unlock(&s_backend_registry.lock);
+        lv_ERROR("创建存储后端上下文失败: scheme=%s", scheme ? scheme : "file");
         return NULL;
     }
-
-    lv_lazy_lock_unlock(&s_backend_registry.lock);
 
     /* 打开后端 */
     if (!entry->ops->open(ctx, uri, mode)) {
@@ -632,7 +618,6 @@ void lv_storage_close(lvStorage *storage) {
     char scheme_buf[64] = {0};
     const char *scheme = extract_scheme(storage->uri, scheme_buf, sizeof(scheme_buf));
 
-    lv_lazy_lock_lock(&s_backend_registry.lock, backend_registry_init_once);
     BackendEntry *entry = find_backend(scheme);
     if (entry && entry->destroy_ctx) {
         entry->destroy_ctx(storage->ctx);
@@ -640,7 +625,6 @@ void lv_storage_close(lvStorage *storage) {
         /* 兜底释放 */
         lv_free((void **)&storage->ctx);
     }
-    lv_lazy_lock_unlock(&s_backend_registry.lock);
 
     storage->ops     = NULL;
     storage->ctx     = NULL;
@@ -748,9 +732,8 @@ bool lv_storage_write_all(lvStorage *storage, const void *data, int64_t size) {
  * 第 5 节：序列化注册表
  * ═══════════════════════════════════════════════════════════════════ */
 
-/** @brief 序列化注册表条目 */
+/** @brief 序列化注册表条目（注册表 value，堆分配，由 destroy 回调释放） */
 typedef struct {
-    const char       *type_name;
     lvSerializeFunc   ser;
     lvDeserializeFunc deser;
 } SerializeEntry;
@@ -758,17 +741,26 @@ typedef struct {
 /** @brief 最大序列化器数量 */
 #define lv_SERIALIZE_MAX_ENTRIES 64
 
-/** @brief 序列化注册表状态 */
-static struct {
-    SerializeEntry entries[lv_SERIALIZE_MAX_ENTRIES];
-    int            count;
-    lv_lazy_lock   lock;   /**< 惰性互斥锁：首次加锁时自动初始化 */
-} s_serialize_registry = {0};
+/** @brief 序列化注册表（通用注册表设施：key = type_name，value = SerializeEntry*）。
+ *  文件级单例（lv_once 惰性初始化，线程安全）。 */
+static lvRegistry g_serialize_registry;
 
-/** @brief 序列化注册表一次性初始化回调（首次加锁时执行一次） */
+/** @brief 注册表一次性初始化守卫（lv_once 保证线程安全） */
+static lv_once_t g_serialize_registry_once = lv_ONCE_INIT;
+
+/** @brief SerializeEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void serialize_entry_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+/** @brief 注册表初始化回调（仅由 lv_once 调用一次） */
 static void serialize_registry_init_once(void) {
-    lv_mutex_init(&s_serialize_registry.lock.mutex);
-    s_serialize_registry.count = 0;
+    lv_registry_init(&g_serialize_registry, 16);
+}
+
+/** @brief 确保注册表已初始化 */
+static inline void serialize_registry_ensure(void) {
+    lv_once(&g_serialize_registry_once, serialize_registry_init_once);
 }
 
 bool lv_serialize_register(const char *type_name,
@@ -776,43 +768,39 @@ bool lv_serialize_register(const char *type_name,
                             lvDeserializeFunc deser) {
     if (!type_name) return false;
 
-    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
+    serialize_registry_ensure();
 
-    /* 检查类型是否已注册 */
-    for (int i = 0; i < s_serialize_registry.count; i++) {
-        if (strcmp(s_serialize_registry.entries[i].type_name, type_name) == 0) {
-            lv_WARN("序列化器已注册，覆盖: %s", type_name);
-            s_serialize_registry.entries[i].ser   = ser;
-            s_serialize_registry.entries[i].deser = deser;
-            lv_lazy_lock_unlock(&s_serialize_registry.lock);
-            return true;
-        }
+    /* 类型已注册：原地覆盖（保持注册顺序，与原实现语义一致） */
+    SerializeEntry *existing = (SerializeEntry *) lv_registry_get(&g_serialize_registry, type_name);
+    if (existing) {
+        lv_WARN("序列化器已注册，覆盖: %s", type_name);
+        existing->ser   = ser;
+        existing->deser = deser;
+        return true;
     }
 
-    if (s_serialize_registry.count >= lv_SERIALIZE_MAX_ENTRIES) {
+    if (lv_registry_count(&g_serialize_registry) >= lv_SERIALIZE_MAX_ENTRIES) {
         lv_ERROR("序列化注册表已满 (max=%d)", lv_SERIALIZE_MAX_ENTRIES);
-        lv_lazy_lock_unlock(&s_serialize_registry.lock);
         return false;
     }
 
-    s_serialize_registry.entries[s_serialize_registry.count].type_name = type_name;
-    s_serialize_registry.entries[s_serialize_registry.count].ser       = ser;
-    s_serialize_registry.entries[s_serialize_registry.count].deser     = deser;
-    s_serialize_registry.count++;
+    SerializeEntry *entry = (SerializeEntry *) lv_calloc(1, sizeof(SerializeEntry));
+    if (!entry) return false;
+    entry->ser   = ser;
+    entry->deser = deser;
 
-    lv_lazy_lock_unlock(&s_serialize_registry.lock);
+    if (!lv_registry_put_ex(&g_serialize_registry, type_name, entry, serialize_entry_destroy)) {
+        lv_free((void **) &entry);
+        return false;
+    }
     return true;
 }
 
-/** @brief 根据类型名称查找序列化器 */
+/** @brief 根据类型名称查找序列化器（委托注册表 strcmp 查找） */
 static SerializeEntry *find_serialize_entry(const char *type_name) {
     if (!type_name) return NULL;
-    for (int i = 0; i < s_serialize_registry.count; i++) {
-        if (strcmp(s_serialize_registry.entries[i].type_name, type_name) == 0) {
-            return &s_serialize_registry.entries[i];
-        }
-    }
-    return NULL;
+    serialize_registry_ensure();
+    return (SerializeEntry *) lv_registry_get(&g_serialize_registry, type_name);
 }
 
 bool lv_serialize_to_storage(const char *type_name,
@@ -820,9 +808,7 @@ bool lv_serialize_to_storage(const char *type_name,
                               lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
     SerializeEntry *entry = find_serialize_entry(type_name);
-    lv_lazy_lock_unlock(&s_serialize_registry.lock);
 
     if (!entry) {
         lv_ERROR("未注册的序列化类型: %s", type_name);
@@ -841,9 +827,7 @@ bool lv_deserialize_from_storage(const char *type_name,
                                   lvStorage *storage) {
     if (!type_name || !obj || !storage) return false;
 
-    lv_lazy_lock_lock(&s_serialize_registry.lock, serialize_registry_init_once);
     SerializeEntry *entry = find_serialize_entry(type_name);
-    lv_lazy_lock_unlock(&s_serialize_registry.lock);
 
     if (!entry) {
         lv_ERROR("未注册的反序列化类型: %s", type_name);

@@ -294,6 +294,47 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
 /* 全局量：存储 eval_state_predicate 关联的约束图，用于几何语义评估 */
 static const ConstraintGraph *eval_state_graph = NULL;
 
+/* ── 状态谓词查找表（替代 eval_state_predicate 的 10 分支 strcmp 链） ── */
+
+/** @brief 状态谓词种类 */
+typedef enum {
+    PRED_KIND_UNKNOWN = -1, /**< 未命中（表外 fallback：state_N 前缀 / 纯数字） */
+    PRED_KIND_TRUE,         /**< "true" / "1" */
+    PRED_KIND_FALSE,        /**< "false" / "0" */
+    PRED_KIND_REACHABLE,    /**< "reachable" */
+    PRED_KIND_SAFE,         /**< "safe" */
+    PRED_KIND_ERROR,        /**< "error" */
+    PRED_KIND_SATISFIED,    /**< "satisfied" */
+    PRED_KIND_VIOLATED,     /**< "violated" / "unsatisfied" / "broken" */
+} PredicateKind;
+
+/** @brief 状态谓词精确匹配表（先精确匹配；state_N 前缀与纯数字在表外 fallback） */
+static const struct {
+    const char *name; /**< 谓词名 */
+    PredicateKind kind;
+} kStatePredicateTable[] = {
+    {"true", PRED_KIND_TRUE},
+    {"1", PRED_KIND_TRUE},
+    {"false", PRED_KIND_FALSE},
+    {"0", PRED_KIND_FALSE},
+    {"reachable", PRED_KIND_REACHABLE},
+    {"safe", PRED_KIND_SAFE},
+    {"error", PRED_KIND_ERROR},
+    {"satisfied", PRED_KIND_SATISFIED},
+    {"violated", PRED_KIND_VIOLATED},
+    {"unsatisfied", PRED_KIND_VIOLATED},
+    {"broken", PRED_KIND_VIOLATED},
+};
+
+/** @brief 在精确匹配表中查找谓词种类（未命中返回 PRED_KIND_UNKNOWN） */
+static PredicateKind state_predicate_lookup(const char *predicate) {
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kStatePredicateTable); i++) {
+        if (strcmp(predicate, kStatePredicateTable[i].name) == 0)
+            return kStatePredicateTable[i].kind;
+    }
+    return PRED_KIND_UNKNOWN;
+}
+
 /**
  * @brief 设置 eval_state_predicate 使用的约束图上下文
  *
@@ -319,23 +360,26 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
     if (!predicate || predicate[0] == '\0')
         return false;
 
+    /* 精确匹配查找表（替代 strcmp 链） */
+    PredicateKind kind = state_predicate_lookup(predicate);
+
     /* "true" 或 "1" */
-    if (strcmp(predicate, "true") == 0 || strcmp(predicate, "1") == 0)
+    if (kind == PRED_KIND_TRUE)
         return true;
 
     /* "false" 或 "0" */
-    if (strcmp(predicate, "false") == 0 || strcmp(predicate, "0") == 0)
+    if (kind == PRED_KIND_FALSE)
         return false;
 
-    /* "state_N" 格式 */
-    if (strncmp(predicate, "state_", 6) == 0) {
+    /* "state_N" 格式（表外前缀 fallback；保持现有顺序：先精确后前缀） */
+    if (kind == PRED_KIND_UNKNOWN && strncmp(predicate, "state_", 6) == 0) {
         int target = 0;
         lv_parse_int(predicate + 6, &target);
         return (state_id == target);
     }
 
     /* "reachable" — 假设所有状态均可从初始状态抵达，实际由 BFS 验证 */
-    if (strcmp(predicate, "reachable") == 0)
+    if (kind == PRED_KIND_REACHABLE)
         return true;
 
     /* ---------- 几何语义谓词 ---------- */
@@ -345,14 +389,14 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
             return false;
 
         /* "safe"：状态对应的约束非违反状态 */
-        if (strcmp(predicate, "safe") == 0) {
+        if (kind == PRED_KIND_SAFE) {
             if (!con->is_active)
                 return true; /* 非活跃约束无违反 */
             return (con->satisfaction >= 0.99);
         }
 
         /* "error"：状态对应的约束处于违反状态 */
-        if (strcmp(predicate, "error") == 0) {
+        if (kind == PRED_KIND_ERROR) {
             if (!con->is_active)
                 return false;
             /* 不等/相交类约束：satisfaction < 0 标记违反 */
@@ -360,15 +404,14 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         }
 
         /* "satisfied"：与 safe 等价 */
-        if (strcmp(predicate, "satisfied") == 0) {
+        if (kind == PRED_KIND_SATISFIED) {
             if (!con->is_active)
                 return true;
             return (con->satisfaction >= 0.99);
         }
 
         /* "violated" / "unsatisfied" / "broken" */
-        if (strcmp(predicate, "violated") == 0 || strcmp(predicate, "unsatisfied") == 0 ||
-            strcmp(predicate, "broken") == 0) {
+        if (kind == PRED_KIND_VIOLATED) {
             if (!con->is_active)
                 return false;
             return (con->satisfaction < 0.05);
@@ -377,9 +420,9 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
 
     /* 回退：无约束图时保留旧启发式（向后兼容） */
     if (!eval_state_graph) {
-        if (strcmp(predicate, "safe") == 0)
+        if (kind == PRED_KIND_SAFE)
             return (state_id % 2 == 0);
-        if (strcmp(predicate, "error") == 0)
+        if (kind == PRED_KIND_ERROR)
             return (state_id % 2 == 1);
     }
 

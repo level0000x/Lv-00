@@ -460,54 +460,53 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
     if (!lv_json_buf_init(&w, 2048))
         return NULL;
 
-    lv_json_buf_append_char(&w, '{');
+    /* 对象级 API：键/标量值自动管理逗号（紧凑输出与旧手写模板字节一致） */
+    lv_json_buf_begin_object(&w);
 
     /* base_hash */
-    lv_json_buf_append_raw(&w, "\"base_hash\":\"");
+    lv_json_buf_append_key(&w, "base_hash");
     char *hash_str = u64_to_hash_string(base_hash);
     if (hash_str) {
-        lv_json_buf_append_raw(&w, hash_str);
+        lv_json_buf_append_string(&w, hash_str);
         lv_free((void **) &hash_str);
+    } else {
+        lv_json_buf_append_string(&w, "");
     }
-    lv_json_buf_append_raw(&w, "\",");
 
     /* changes */
-    lv_json_buf_append_raw(&w, "\"changes\":{");
-
-    bool has_changes = false;
+    lv_json_buf_append_key(&w, "changes");
+    lv_json_buf_begin_object(&w);
 
     /* 检查 name 变化 */
     if ((bl->name && mod->name && strcmp(bl->name, mod->name) != 0) || (bl->name && !mod->name) ||
         (!bl->name && mod->name)) {
-        if (has_changes)
-            lv_json_buf_append_char(&w, ',');
-        lv_json_buf_append_raw(&w, "\"name\":{\"old\":");
+        lv_json_buf_append_key(&w, "name");
+        lv_json_buf_begin_object(&w);
+        lv_json_buf_append_key(&w, "old");
         lv_json_buf_append_string(&w, bl->name);
-        lv_json_buf_append_raw(&w, ",\"new\":");
+        lv_json_buf_append_key(&w, "new");
         lv_json_buf_append_string(&w, mod->name);
-        lv_json_buf_append_raw(&w, "}");
-        has_changes = true;
+        lv_json_buf_end_object(&w);
     }
 
     /* 检查 version 变化 */
     if ((bl->version && mod->version && strcmp(bl->version, mod->version) != 0) || (bl->version && !mod->version) ||
         (!bl->version && mod->version)) {
-        if (has_changes)
-            lv_json_buf_append_char(&w, ',');
-        lv_json_buf_append_raw(&w, "\"version\":{\"old\":");
+        lv_json_buf_append_key(&w, "version");
+        lv_json_buf_begin_object(&w);
+        lv_json_buf_append_key(&w, "old");
         lv_json_buf_append_string(&w, bl->version);
-        lv_json_buf_append_raw(&w, ",\"new\":");
+        lv_json_buf_append_key(&w, "new");
         lv_json_buf_append_string(&w, mod->version);
-        lv_json_buf_append_raw(&w, "}");
-        has_changes = true;
+        lv_json_buf_end_object(&w);
     }
 
     /* 检查依赖变化 */
     {
         /* 找出被移除的依赖 */
-        if (has_changes)
-            lv_json_buf_append_char(&w, ',');
-        lv_json_buf_append_raw(&w, "\"dependencies_removed\":[");
+        /* dependencies_removed 为字符串数组：append_string 不管理数组内逗号，需手动 */
+        lv_json_buf_append_key(&w, "dependencies_removed");
+        lv_json_buf_begin_array(&w);
         bool first = true;
         for (int i = 0; i < bl->dep_count; i++) {
             bool found = false;
@@ -522,14 +521,13 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
                     lv_json_buf_append_char(&w, ',');
                 lv_json_buf_append_string(&w, bl->dep_names[i]);
                 first = false;
-                has_changes = true;
             }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
-        /* 找出新增的依赖 */
-        lv_json_buf_append_raw(&w, "\"dependencies_added\":[");
-        first = true;
+        /* 找出新增的依赖：对象数组，begin_object 自动管理逗号 */
+        lv_json_buf_append_key(&w, "dependencies_added");
+        lv_json_buf_begin_array(&w);
         for (int i = 0; i < mod->dependencies.count; i++) {
             bool found = false;
             for (int j = 0; j < bl->dep_count; j++) {
@@ -539,50 +537,40 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
                 }
             }
             if (!found) {
-                if (!first)
-                    lv_json_buf_append_char(&w, ',');
-                lv_json_buf_append_char(&w, '{');
-                lv_json_buf_append_raw(&w, "\"name\":");
+                lv_json_buf_begin_object(&w);
+                lv_json_buf_append_key(&w, "name");
                 lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
-                lv_json_buf_append_raw(&w, ",\"version_constraint\":");
+                lv_json_buf_append_key(&w, "version_constraint");
                 lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
-                lv_json_buf_append_char(&w, '}');
-                first = false;
-                has_changes = true;
+                lv_json_buf_end_object(&w);
             }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
-        /* 找出版本约束变化的依赖 */
-        lv_json_buf_append_raw(&w, "\"dependencies_modified\":[");
-        first = true;
+        /* 找出版本约束变化的依赖：对象数组，begin_object 自动管理逗号 */
+        lv_json_buf_append_key(&w, "dependencies_modified");
+        lv_json_buf_begin_array(&w);
         for (int i = 0; i < mod->dependencies.count; i++) {
             for (int j = 0; j < bl->dep_count; j++) {
                 if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, bl->dep_names[j]) == 0 &&
                     strcmp(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, bl->dep_versions[j]) != 0) {
-                    if (!first)
-                        lv_json_buf_append_char(&w, ',');
-                    lv_json_buf_append_char(&w, '{');
-                    lv_json_buf_append_raw(&w, "\"name\":");
+                    lv_json_buf_begin_object(&w);
+                    lv_json_buf_append_key(&w, "name");
                     lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
-                    lv_json_buf_append_raw(&w, ",\"old_version_constraint\":");
+                    lv_json_buf_append_key(&w, "old_version_constraint");
                     lv_json_buf_append_string(&w, bl->dep_versions[j]);
-                    lv_json_buf_append_raw(&w, ",\"new_version_constraint\":");
+                    lv_json_buf_append_key(&w, "new_version_constraint");
                     lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
-                    lv_json_buf_append_char(&w, '}');
-                    first = false;
-                    has_changes = true;
+                    lv_json_buf_end_object(&w);
                     break;
                 }
             }
         }
-        lv_json_buf_append_raw(&w, "]");
+        lv_json_buf_end_array(&w);
     }
 
     /* 检查图变化 */
     {
-        if (has_changes)
-            lv_json_buf_append_char(&w, ',');
         bool graph_changed = false;
 
         /* 收集当前图的节点 ID 和坐标哈希 */
@@ -622,138 +610,102 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
             }
         }
 
-        /* nodes_added: 在当前图中但不在基线中 */
-        lv_json_buf_append_raw(&w, "\"nodes_added\":[");
-        {
-            bool first = true;
-            for (int i = 0; i < cur_node_count; i++) {
-                bool found = false;
-                for (int j = 0; j < bl->graph_node_count; j++) {
-                    if (cur_node_ids[i] == bl->graph_node_ids[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (!first)
-                        lv_json_buf_append_char(&w, ',');
-                    char tmp[32];
-                    snprintf(tmp, sizeof(tmp), "%d", cur_node_ids[i]);
-                    lv_json_buf_append_raw(&w, tmp);
-                    first = false;
-                    graph_changed = true;
+        /* nodes_added: 在当前图中但不在基线中（整型数组，append_int 自动管理逗号） */
+        lv_json_buf_append_key(&w, "nodes_added");
+        lv_json_buf_begin_array(&w);
+        for (int i = 0; i < cur_node_count; i++) {
+            bool found = false;
+            for (int j = 0; j < bl->graph_node_count; j++) {
+                if (cur_node_ids[i] == bl->graph_node_ids[j]) {
+                    found = true;
+                    break;
                 }
             }
+            if (!found) {
+                lv_json_buf_append_int(&w, cur_node_ids[i]);
+                graph_changed = true;
+            }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
         /* nodes_removed: 在基线中但不在当前图中 */
-        lv_json_buf_append_raw(&w, "\"nodes_removed\":[");
-        {
-            bool first = true;
-            for (int i = 0; i < bl->graph_node_count; i++) {
-                bool found = false;
-                for (int j = 0; j < cur_node_count; j++) {
-                    if (bl->graph_node_ids[i] == cur_node_ids[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (!first)
-                        lv_json_buf_append_char(&w, ',');
-                    char tmp[32];
-                    snprintf(tmp, sizeof(tmp), "%d", bl->graph_node_ids[i]);
-                    lv_json_buf_append_raw(&w, tmp);
-                    first = false;
-                    graph_changed = true;
+        lv_json_buf_append_key(&w, "nodes_removed");
+        lv_json_buf_begin_array(&w);
+        for (int i = 0; i < bl->graph_node_count; i++) {
+            bool found = false;
+            for (int j = 0; j < cur_node_count; j++) {
+                if (bl->graph_node_ids[i] == cur_node_ids[j]) {
+                    found = true;
+                    break;
                 }
             }
+            if (!found) {
+                lv_json_buf_append_int(&w, bl->graph_node_ids[i]);
+                graph_changed = true;
+            }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
         /* nodes_modified: 相同 ID 但坐标哈希不同 */
-        lv_json_buf_append_raw(&w, "\"nodes_modified\":[");
-        {
-            bool first = true;
-            for (int i = 0; i < cur_node_count; i++) {
-                for (int j = 0; j < bl->graph_node_count; j++) {
-                    if (cur_node_ids[i] == bl->graph_node_ids[j] &&
-                        cur_node_hashes[i] != bl->graph_node_coord_hashes[j]) {
-                        if (!first)
-                            lv_json_buf_append_char(&w, ',');
-                        char tmp[32];
-                        snprintf(tmp, sizeof(tmp), "%d", cur_node_ids[i]);
-                        lv_json_buf_append_raw(&w, tmp);
-                        first = false;
-                        graph_changed = true;
-                        break;
-                    }
+        lv_json_buf_append_key(&w, "nodes_modified");
+        lv_json_buf_begin_array(&w);
+        for (int i = 0; i < cur_node_count; i++) {
+            for (int j = 0; j < bl->graph_node_count; j++) {
+                if (cur_node_ids[i] == bl->graph_node_ids[j] &&
+                    cur_node_hashes[i] != bl->graph_node_coord_hashes[j]) {
+                    lv_json_buf_append_int(&w, cur_node_ids[i]);
+                    graph_changed = true;
+                    break;
                 }
             }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
         /* constraints_added: 在当前图中但不在基线中 */
-        lv_json_buf_append_raw(&w, "\"constraints_added\":[");
-        {
-            bool first = true;
-            for (int i = 0; i < cur_constraint_count; i++) {
-                bool found = false;
-                for (int j = 0; j < bl->graph_constraint_count; j++) {
-                    if (cur_constraint_ids[i] == bl->graph_constraint_ids[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (!first)
-                        lv_json_buf_append_char(&w, ',');
-                    char tmp[32];
-                    snprintf(tmp, sizeof(tmp), "%d", cur_constraint_ids[i]);
-                    lv_json_buf_append_raw(&w, tmp);
-                    first = false;
-                    graph_changed = true;
+        lv_json_buf_append_key(&w, "constraints_added");
+        lv_json_buf_begin_array(&w);
+        for (int i = 0; i < cur_constraint_count; i++) {
+            bool found = false;
+            for (int j = 0; j < bl->graph_constraint_count; j++) {
+                if (cur_constraint_ids[i] == bl->graph_constraint_ids[j]) {
+                    found = true;
+                    break;
                 }
             }
+            if (!found) {
+                lv_json_buf_append_int(&w, cur_constraint_ids[i]);
+                graph_changed = true;
+            }
         }
-        lv_json_buf_append_raw(&w, "],");
+        lv_json_buf_end_array(&w);
 
         /* constraints_removed: 在基线中但不在当前图中 */
-        lv_json_buf_append_raw(&w, "\"constraints_removed\":[");
-        {
-            bool first = true;
-            for (int i = 0; i < bl->graph_constraint_count; i++) {
-                bool found = false;
-                for (int j = 0; j < cur_constraint_count; j++) {
-                    if (bl->graph_constraint_ids[i] == cur_constraint_ids[j]) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    if (!first)
-                        lv_json_buf_append_char(&w, ',');
-                    char tmp[32];
-                    snprintf(tmp, sizeof(tmp), "%d", bl->graph_constraint_ids[i]);
-                    lv_json_buf_append_raw(&w, tmp);
-                    first = false;
-                    graph_changed = true;
+        lv_json_buf_append_key(&w, "constraints_removed");
+        lv_json_buf_begin_array(&w);
+        for (int i = 0; i < bl->graph_constraint_count; i++) {
+            bool found = false;
+            for (int j = 0; j < cur_constraint_count; j++) {
+                if (bl->graph_constraint_ids[i] == cur_constraint_ids[j]) {
+                    found = true;
+                    break;
                 }
             }
+            if (!found) {
+                lv_json_buf_append_int(&w, bl->graph_constraint_ids[i]);
+                graph_changed = true;
+            }
         }
-        lv_json_buf_append_raw(&w, "]");
+        lv_json_buf_end_array(&w);
 
-        if (graph_changed)
-            has_changes = true;
+        (void) graph_changed; /* 逗号已由对象级 API 自动管理，不再需要 has_changes 记账 */
 
         lv_free((void **) &cur_node_ids);
         lv_free((void **) &cur_node_hashes);
         lv_free((void **) &cur_constraint_ids);
     }
 
-    lv_json_buf_append_char(&w, '}'); /* end changes */
-    lv_json_buf_append_char(&w, '}'); /* end root */
+    lv_json_buf_end_object(&w); /* end changes */
+    lv_json_buf_end_object(&w); /* end root */
 
     ModuleDelta *delta = (ModuleDelta *) lv_calloc(1, sizeof(ModuleDelta));
     if (!delta) {

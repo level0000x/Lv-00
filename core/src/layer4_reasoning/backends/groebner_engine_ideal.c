@@ -10,6 +10,7 @@
 
 #include "groebner_engine.h"
 #include "lv/lv.h"
+#include "lv/lv_lifecycle.h"
 #include "groebner_engine_internal.h"
 
 #include <float.h>
@@ -33,21 +34,88 @@
  *  内部辅助 —— 理想 / Gröbner 基构造与释放
  * ================================================================ */
 
+/* ---- lv_DEFER 作用域守卫族（本文件 goto cleanup 样板的统一替代） ---- */
+
+/* 锁守卫 defer 化：加锁后注册，函数出口（含任意 return）自动解锁 */
+static void groebner_lock_guard_defer_cleanup(void *p) {
+    lv_lock_guard_destroy((lvLockGuard *) p);
+}
+
+/* lvIdeal 守卫：释放 generators/label/外壳（生成元元素归全局多项式池所有，不在此释放）；
+ * ideal 置 NULL 即解除守卫（注册成功时移交注册表） */
+typedef struct {
+    lvIdeal *ideal;
+} GroebnerIdealGuard;
+
+static void groebner_ideal_guard_cleanup(void *p) {
+    GroebnerIdealGuard *g = (GroebnerIdealGuard *) p;
+    if (g->ideal)
+        lv_free_many((void **) &g->ideal->generators, (void **) &g->ideal->label, (void **) &g->ideal, NULL);
+}
+
+/* 单个 lvPolynomial* 变量的 defer 清理回调（置 NULL 即解除守卫） */
+static void groebner_poly_defer_destroy(void *p) {
+    lvPolynomial **pp = (lvPolynomial **) p;
+    if (*pp)
+        poly_internal_destroy(*pp);
+}
+
+/* 单个 lvGroebnerBasis* 变量的 defer 清理回调（置 NULL 即解除守卫） */
+static void groebner_basis_defer_destroy(void *p) {
+    lvGroebnerBasis **pp = (lvGroebnerBasis **) p;
+    if (*pp)
+        basis_destroy(*pp);
+}
+
+/* 多项式数组守卫：清理时读取（arr 变量当前值 / count 变量当前值），逐元素销毁后释放数组；
+ * 用于池归属逐段变化时仍能按最新状态清理；置 NULL（arr 变量）即解除守卫 */
+typedef struct {
+    lvPolynomial ***arr; /* 指向 lvPolynomial ** 指针变量的地址 */
+    int *count;          /* 指向元素个数变量的地址 */
+} GroebnerPolyArrayGuard;
+
+static void groebner_poly_array_guard_cleanup(void *p) {
+    GroebnerPolyArrayGuard *g = (GroebnerPolyArrayGuard *) p;
+    lvPolynomial **arr = g->arr ? *g->arr : NULL;
+    int n = g->count ? *g->count : 0;
+    if (arr) {
+        for (int i = 0; i < n; i++)
+            poly_internal_destroy(arr[i]);
+        lv_free((void **) g->arr);
+    }
+}
+
+/* 辅助环守卫：释放 elim_vars 与环外壳 */
+typedef struct {
+    lvPolynomialRing *ring;
+} GroebnerRingGuard;
+
+static void groebner_ring_guard_cleanup(void *p) {
+    GroebnerRingGuard *g = (GroebnerRingGuard *) p;
+    if (g->ring) {
+        lv_free((void **) &g->ring->elim_vars);
+        lv_free((void **) &g->ring);
+    }
+}
+
 lvGroebnerBasis *basis_alloc(int capacity) {
     lvGroebnerBasis *basis = (lvGroebnerBasis *) lv_calloc(1, sizeof(lvGroebnerBasis));
     if (!basis) {
         return NULL;
     }
+    /* 注册作用域守卫：basis_polys 分配失败时自动释放外壳 */
+    lv_DEFER(lv_defer_free_ptr, &basis);
     if (capacity > 0) {
         basis->basis_polys = (lvPolynomial **) lv_calloc((size_t) capacity, sizeof(lvPolynomial *));
         if (!basis->basis_polys) {
-            lv_free((void **) &basis);
             return NULL;
         }
     }
     basis->bases_capacity = capacity;
     basis->bases_count = 0;
-    return basis;
+    lvGroebnerBasis *out = basis;
+    basis = NULL; /* 守卫解除：结果移交调用方 */
+    return out;
 }
 
 void basis_destroy(lvGroebnerBasis *basis) {
@@ -79,10 +147,11 @@ static lvIdeal *ideal_alloc_locked(int ring_id, int capacity, const char *label)
     if (!ideal) {
         return NULL;
     }
+    /* 注册作用域守卫：generators 分配失败时自动释放外壳 */
+    lv_DEFER(lv_defer_free_ptr, &ideal);
     ideal->ring_id = ring_id;
     ideal->generators = (lvPolynomial **) lv_calloc((size_t) capacity, sizeof(lvPolynomial *));
     if (!ideal->generators) {
-        lv_free((void **) &ideal);
         return NULL;
     }
     ideal->generator_capacity = capacity;
@@ -90,7 +159,9 @@ static lvIdeal *ideal_alloc_locked(int ring_id, int capacity, const char *label)
     ideal->cached_basis = NULL;
     ideal->basis_valid = false;
     ideal->label = groebner_strdup_safe(label);
-    return ideal;
+    lvIdeal *out = ideal;
+    ideal = NULL; /* 守卫解除：结果移交调用方 */
+    return out;
 }
 
 /**
@@ -107,23 +178,23 @@ int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ideal_create: ideal_alloc_locked failed");
     }
 
+    /* 注册守卫：registry_data_ensure 失败时自动释放理想结构 */
+    GroebnerIdealGuard ideal_guard = {ideal};
+    lv_DEFER(groebner_ideal_guard_cleanup, &ideal_guard);
+
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+
     lvRegistryData *data = registry_data_ensure();
     if (!data) {
-        lv_set_error_ctx(lv_ERROR_INTERNAL, __FILE__, __LINE__, __func__,
-                         "ideal_create: registry_data_ensure failed");
-        goto cleanup;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
     }
 
     int result = ideal_internal_store(data, ideal);
-    lv_lock_guard_destroy(&_lg);
+    if (result >= 0)
+        ideal_guard.ideal = NULL; /* 注册成功，理想归注册表所有 */
     return result;
-
-cleanup:
-    lv_free_many((void **) &ideal->generators, (void **) &ideal->label, (void **) &ideal, NULL);
-    lv_lock_guard_destroy(&_lg);
-    lv_RETURN_ERROR(lv_ERROR_INTERNAL, "ideal_create: registry_data_ensure failed");
 }
 
 /**
@@ -131,14 +202,16 @@ cleanup:
  */
 void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     lv_UNUSED(registry);
-    GROEBNER_LOCK_GUARD_BEGIN();
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto _gcleanup;
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+        return;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        goto _gcleanup;
+        return;
     }
 
     ideal_clear_cached_basis(ideal);
@@ -146,8 +219,6 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     lv_free((void **) &ideal->label);
     lv_free((void **) &ideal);
     g_data->ideals[ideal_id] = NULL;
-
-GROEBNER_LOCK_GUARD_END();
 }
 
 /**
@@ -157,39 +228,40 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
     if (!registry)
         return -1;
 
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return -1;
+    }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto _gcleanup;
+        return -1;
     }
     if (poly_id < 0 || poly_id >= g_data->poly_count) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
     if (!ideal || !poly) {
-        goto _gcleanup;
+        return -1;
     }
 
     if (ideal->ring_id != poly->ring_id) {
-        goto _gcleanup;
+        return -1;
     }
 
     if (ideal->generator_count >= ideal->generator_capacity) {
         if (!lv_ensure_capacity((void **) &ideal->generators, ideal->generator_count, &ideal->generator_capacity,
                                 sizeof(lvPolynomial *), 1)) {
-            goto _gcleanup;
+            return -1;
         }
     }
 
     ideal->generators[ideal->generator_count++] = poly;
     ideal->basis_valid = false; /* 缓存失效 */
 
-    lv_lock_guard_destroy(&_lg);
     return 0;
-
-GROEBNER_LOCK_GUARD_END();
-    return -1;
 }
 
 /**
@@ -199,42 +271,45 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
     if (!registry)
         return -1;
 
-    int ret = -1;
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return -1;
+    }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     if (!ideal) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        goto _gcleanup;
+        return -1;
     }
 
     if (ideal->generator_count == 0) {
         /* 零理想 */
         lvGroebnerBasis *basis = basis_alloc(0);
         if (!basis) {
-            goto _gcleanup;
+            return -1;
         }
         basis->is_minimal = true;
         basis->is_reduced = true;
         basis->algorithm_used = GROEBNER_BUCHBERGER;
         ideal->cached_basis = basis;
         ideal->basis_valid = true;
-        ret = 0;
-        goto _gcleanup;
+        return 0;
     }
 
     clock_t start_clock = clock(); /* 简单计时 */
 
     lvGroebnerBasis *basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, algorithm);
     if (!basis) {
-        goto _gcleanup;
+        return -1;
     }
 
     basis->computation_time_us = (int64_t) lv_clock_elapsed_us(start_clock);
@@ -244,10 +319,7 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
 
     ideal->cached_basis = basis;
     ideal->basis_valid = true;
-    ret = 0;
-
-GROEBNER_LOCK_GUARD_END();
-    return ret;
+    return 0;
 }
 
 /**
@@ -413,29 +485,33 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     if (!registry)
         return -1;
 
-    int ret = -1;
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return -1;
+    }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto _gcleanup;
+        return -1;
     }
     if (new_poly_id < 0 || new_poly_id >= g_data->poly_count) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *new_poly = g_data->polys[new_poly_id];
     if (!ideal || !new_poly) {
-        goto _gcleanup;
+        return -1;
     }
     if (ideal->ring_id != new_poly->ring_id) {
-        goto _gcleanup;
+        return -1;
     }
 
     /* 将新多项式添加到生成元列表 */
     if (ideal->generator_count >= ideal->generator_capacity) {
         if (!lv_ensure_capacity((void **) &ideal->generators, ideal->generator_count, &ideal->generator_capacity,
                                 sizeof(lvPolynomial *), 1)) {
-            goto _gcleanup;
+            return -1;
         }
     }
     ideal->generators[ideal->generator_count++] = new_poly;
@@ -443,7 +519,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvGroebnerBasis *basis = NULL;
@@ -456,12 +532,11 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     /* 若增量扩展失败或无缓存基，回退到完全重算 */
     if (!basis) {
         if (ideal->generator_count == 0) {
-            ret = 0;
-            goto _gcleanup;
+            return 0;
         }
         basis = groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            goto _gcleanup;
+            return -1;
         }
     }
 
@@ -470,10 +545,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
 
     ideal->cached_basis = basis;
     ideal->basis_valid = true;
-    ret = 0;
-
-GROEBNER_LOCK_GUARD_END();
-    return ret;
+    return 0;
 }
 
 /**
@@ -484,27 +556,32 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
         return false;
 
     bool result = false;
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return false;
+    }
     if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
-        goto _gcleanup;
+        return false;
     }
     if (poly_id < 0 || poly_id >= g_data->poly_count) {
-        goto _gcleanup;
+        return false;
     }
 
     lvIdeal *ideal = g_data->ideals[ideal_id];
     lvPolynomial *poly = g_data->polys[poly_id];
     if (!ideal || !poly) {
-        goto _gcleanup;
+        return false;
     }
 
     if (ideal->ring_id != poly->ring_id) {
-        goto _gcleanup;
+        return false;
     }
 
     lvPolynomialRing *ring = registry->rings[ideal->ring_id];
     if (!ring) {
-        goto _gcleanup;
+        return false;
     }
 
     /* 确保 Groebner 基已计算（直接调用内部函数，已持有锁） */
@@ -512,7 +589,7 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
         lvGroebnerBasis *basis =
             groebner_internal_compute(ring, ideal->generators, ideal->generator_count, GROEBNER_BUCHBERGER);
         if (!basis) {
-            goto _gcleanup;
+            return false;
         }
         /* 释放旧缓存 */
         ideal_clear_cached_basis(ideal);
@@ -524,13 +601,12 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
     lvPolynomial *nf =
         poly_internal_reduce(poly, ideal->cached_basis->basis_polys, ideal->cached_basis->bases_count, ring);
     if (!nf) {
-        goto _gcleanup;
+        return false;
     }
 
     result = poly_internal_is_zero(nf);
     poly_internal_destroy(nf);
 
-GROEBNER_LOCK_GUARD_END();
     return result;
 }
 
@@ -805,22 +881,33 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
     aux_ring->is_commutative = true;
     /* var_names / weights / label 留空即可，计算路径不使用 */
 
+    /* 注册作用域守卫：任一失败分支直接 return NULL，辅助环资源在函数出口自动释放；
+     * 成功时 result 移交调用方（置 NULL 解除守卫） */
+    GroebnerRingGuard ring_guard = {aux_ring};
+    lv_DEFER(groebner_ring_guard_cleanup, &ring_guard);
+    GroebnerPolyArrayGuard aux_gens_guard = {&aux_gens, &aux_idx};
+    lv_DEFER(groebner_poly_array_guard_cleanup, &aux_gens_guard);
+    lv_DEFER(groebner_poly_defer_destroy, &t_poly);
+    lv_DEFER(groebner_basis_defer_destroy, &basis);
+    GroebnerPolyArrayGuard result_guard = {&result, &res_count};
+    lv_DEFER(groebner_poly_array_guard_cleanup, &result_guard);
+
     aux_gens = (lvPolynomial **) lv_calloc((size_t) gen_cap, sizeof(lvPolynomial *));
     if (!aux_gens) {
-        goto extract_fail;
+        return NULL;
     }
 
     /* 单项式 t = x_{vc_orig}^1 */
     {
         int *t_powers = (int *) lv_calloc((size_t) vc_aux, sizeof(int));
         if (!t_powers) {
-            goto extract_fail;
+            return NULL;
         }
         t_powers[vc_orig] = 1;
         t_poly = poly_make_monomial(aux_ring, t_powers, 1.0);
         lv_free((void **) &t_powers);
         if (!t_poly) {
-            goto extract_fail;
+            return NULL;
         }
     }
 
@@ -831,12 +918,12 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
         }
         lvPolynomial *ef = poly_embed_aux(aux_ring, orig_ring, gens_a[i]);
         if (!ef) {
-            goto extract_fail;
+            return NULL;
         }
         lvPolynomial *tf = poly_internal_multiply(t_poly, ef, aux_ring);
         poly_internal_destroy(ef);
         if (!tf) {
-            goto extract_fail;
+            return NULL;
         }
         aux_gens[aux_idx++] = tf;
     }
@@ -848,30 +935,27 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
         }
         lvPolynomial *eg = poly_embed_aux(aux_ring, orig_ring, gens_b[i]);
         if (!eg) {
-            goto extract_fail;
+            return NULL;
         }
         lvPolynomial *tg = poly_internal_multiply(t_poly, eg, aux_ring);
         if (!tg) {
             poly_internal_destroy(eg);
-            goto extract_fail;
+            return NULL;
         }
         poly_internal_scale(tg, -1.0);
         lvPolynomial *one_minus_t_g = poly_internal_add(eg, tg, aux_ring);
         poly_internal_destroy(eg);
         poly_internal_destroy(tg);
         if (!one_minus_t_g) {
-            goto extract_fail;
+            return NULL;
         }
         aux_gens[aux_idx++] = one_minus_t_g;
     }
 
-    poly_internal_destroy(t_poly);
-    t_poly = NULL;
-
     /* 在辅助环上计算 tI + (1-t)J 的 Gröbner 基 */
     basis = groebner_internal_compute(aux_ring, aux_gens, aux_idx, GROEBNER_BUCHBERGER);
     if (!basis) {
-        goto extract_fail;
+        return NULL;
     }
 
     /* 从基中取出不含 t 的多项式并转换回原环 */
@@ -896,11 +980,11 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
         /* 转换：指数截取前 vc_orig 维，系数不变 */
         lvPolynomial *ep = poly_internal_create(orig_ring, p->term_count, NULL);
         if (!ep) {
-            goto extract_fail;
+            return NULL;
         }
         if (!poly_ensure_capacity_ex(ep, p->term_count, vc_orig)) {
             poly_internal_destroy(ep);
-            goto extract_fail;
+            return NULL;
         }
         ep->term_count = p->term_count;
         for (int j = 0; j < p->term_count; j++) {
@@ -914,43 +998,16 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
 
         if (!lv_ensure_capacity((void **) &result, res_count, &res_cap, sizeof(lvPolynomial *), 0)) {
             poly_internal_destroy(ep);
-            goto extract_fail;
+            return NULL;
         }
         result[res_count++] = ep;
     }
 
-    /* 成功：释放辅助环资源，结果所有权转移给调用者 */
-    for (int k = 0; k < aux_idx; k++) {
-        poly_internal_destroy(aux_gens[k]);
-    }
-    lv_free((void **) &aux_gens);
-    basis_destroy(basis);
-    lv_free((void **) &aux_ring->elim_vars);
-    lv_free((void **) &aux_ring);
-
+    /* 成功：辅助环资源已由守卫在函数出口释放，结果所有权转移给调用者 */
     *out_count = res_count;
-    return result;
-
-extract_fail:
-    for (int k = 0; k < res_count; k++) {
-        poly_internal_destroy(result[k]);
-    }
-    lv_free((void **) &result);
-    for (int k = 0; k < aux_idx; k++) {
-        poly_internal_destroy(aux_gens[k]);
-    }
-    lv_free((void **) &aux_gens);
-    if (t_poly) {
-        poly_internal_destroy(t_poly);
-    }
-    if (basis) {
-        basis_destroy(basis);
-    }
-    if (aux_ring) {
-        lv_free((void **) &aux_ring->elim_vars);
-        lv_free((void **) &aux_ring);
-    }
-    return NULL;
+    lvPolynomial **out_result = result;
+    result = NULL; /* 守卫解除：结果移交调用方 */
+    return out_result;
 }
 
 /**
@@ -962,72 +1019,75 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
     if (!registry)
         return -1;
 
-    int ret = -1;
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return -1;
+    }
     if (ideal_id_a < 0 || ideal_id_b < 0) {
-        goto _gcleanup;
+        return -1;
     }
     if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
     if (!ia || !ib) {
-        goto _gcleanup;
+        return -1;
     }
     if (ia->ring_id != ib->ring_id) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvPolynomialRing *ring = registry->rings[ia->ring_id];
     if (!ring) {
-        goto _gcleanup;
+        return -1;
     }
 
     /* 消去算法提取交集生成元（inter_count < 0 失败；== 0 表示零理想） */
     int inter_count = 0;
-    lvPolynomial **inter_gens =
+    lvPolynomial **inter_gens = NULL;
+    /* 守卫：inter_gens 数组在函数出口自动释放（元素按池归属情况手动处理） */
+    lv_DEFER(lv_defer_free_ptr, &inter_gens);
+    inter_gens =
         ideal_intersection_extract(ring, ia->generators, ia->generator_count, ib->generators, ib->generator_count,
                                    &inter_count);
     if (inter_count < 0) {
-        goto _gcleanup;
+        return -1;
     }
 
     /* 创建结果理想（已持有锁，直接分配） */
     lvIdeal *result_ideal =
         ideal_alloc_locked(ia->ring_id, inter_count > 0 ? inter_count : GROEBNER_IDEAL_INIT_GEN_CAPACITY, NULL);
+    GroebnerIdealGuard ideal_guard = {result_ideal};
+    lv_DEFER(groebner_ideal_guard_cleanup, &ideal_guard);
     if (!result_ideal) {
+        /* 未入池的生成元元素释放后由守卫释放数组 */
         for (int k = 0; k < inter_count; k++) {
             poly_internal_destroy(inter_gens[k]);
         }
-        lv_free((void **) &inter_gens);
-        goto _gcleanup;
+        return -1;
     }
 
     /* 生成元注册进全局多项式池（遵循理想持有池内指针的约定） */
     for (int k = 0; k < inter_count; k++) {
         if (poly_internal_store(g_data, inter_gens[k]) < 0) {
+            /* 前 k 个已入池（归池所有），剩余元素在此释放，数组与理想结构由守卫释放 */
             for (int j = k; j < inter_count; j++) {
                 poly_internal_destroy(inter_gens[j]);
             }
-            lv_free((void **) &inter_gens);
-            lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
-                         (void **) &result_ideal, NULL);
-            goto _gcleanup;
+            return -1;
         }
         result_ideal->generators[result_ideal->generator_count++] = inter_gens[k];
     }
-    lv_free((void **) &inter_gens);
 
-    ret = ideal_internal_store(g_data, result_ideal);
-    if (ret < 0) {
-        /* 注册失败：释放理想结构（已注册的生成元由池持有并负责释放） */
-        lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
-                     (void **) &result_ideal, NULL);
+    int ret = ideal_internal_store(g_data, result_ideal);
+    if (ret >= 0) {
+        ideal_guard.ideal = NULL; /* 注册成功，理想归注册表所有 */
     }
-
-GROEBNER_LOCK_GUARD_END();
+    /* 注册失败时理想结构由守卫释放（已入池的生成元由池持有并负责释放） */
     return ret;
 }
 
@@ -1041,33 +1101,42 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     if (!registry)
         return -1;
 
-    int ret = -1;
-    GROEBNER_LOCK_GUARD_BEGIN();
+    lvLockGuard _lg;
+    groebner_lock_guard_init(&_lg);
+    lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    if (!g_data) {
+        return -1;
+    }
     if (ideal_id_a < 0 || ideal_id_b < 0) {
-        goto _gcleanup;
+        return -1;
     }
     if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvIdeal *ia = g_data->ideals[ideal_id_a];
     lvIdeal *ib = g_data->ideals[ideal_id_b];
     if (!ia || !ib) {
-        goto _gcleanup;
+        return -1;
     }
     if (ia->ring_id != ib->ring_id) {
-        goto _gcleanup;
+        return -1;
     }
 
     lvPolynomialRing *ring = registry->rings[ia->ring_id];
     if (!ring) {
-        goto _gcleanup;
+        return -1;
     }
 
     /* 当前求交结果的生成元（尚未入池，由本函数持有，成功时转移给结果理想） */
     lvPolynomial **cur_gens = NULL;
     int cur_count = 0;
     bool first = true; /* 尚未处理过任何非零生成元 */
+
+    /* 守卫：失败路径在函数出口统一释放 cur_gens（元素 [0..cur_count) + 数组）；
+     * 元素入池后按池归属手动处理并置空解除守卫 */
+    GroebnerPolyArrayGuard cur_guard = {&cur_gens, &cur_count};
+    lv_DEFER(groebner_poly_array_guard_cleanup, &cur_guard);
 
     for (int gi = 0; gi < ib->generator_count; gi++) {
         lvPolynomial *g = ib->generators[gi];
@@ -1081,7 +1150,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
         lvPolynomial **inter_gens =
             ideal_intersection_extract(ring, ia->generators, ia->generator_count, &g, 1, &inter_count);
         if (inter_count < 0) {
-            goto quotient_cleanup;
+            return -1;
         }
 
         /* 每个 h ∈ I∩⟨g⟩ 都满足 h = q·g（I∩⟨g⟩ ⊆ ⟨g⟩），作除法得 q ∈ I : ⟨g⟩ */
@@ -1093,7 +1162,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
                 poly_internal_destroy(inter_gens[k]);
             }
             lv_free((void **) &inter_gens);
-            goto quotient_cleanup;
+            return -1;
         }
 
         for (int hi = 0; hi < inter_count; hi++) {
@@ -1107,7 +1176,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
                     poly_internal_destroy(inter_gens[k]);
                 }
                 lv_free((void **) &inter_gens);
-                goto quotient_cleanup;
+                return -1;
             }
             if (poly_internal_is_zero(q)) {
                 poly_internal_destroy(q);
@@ -1134,7 +1203,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
             }
             lv_free((void **) &q_gens);
             if (new_count < 0) {
-                goto quotient_cleanup;
+                return -1;
             }
         }
 
@@ -1153,7 +1222,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     if (first) {
         lvPolynomial *one = poly_internal_create(ring, 1, NULL);
         if (!one) {
-            goto quotient_cleanup;
+            return -1;
         }
         one->term_count = 1;
         ((double *) one->coeffs)[0] = 1.0;
@@ -1161,7 +1230,7 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
         cur_gens = (lvPolynomial **) lv_calloc(1, sizeof(lvPolynomial *));
         if (!cur_gens) {
             poly_internal_destroy(one);
-            goto quotient_cleanup;
+            return -1;
         }
         cur_gens[0] = one;
         cur_count = 1;
@@ -1170,42 +1239,31 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     /* 创建结果理想（已持有锁，直接分配） */
     lvIdeal *result_ideal =
         ideal_alloc_locked(ia->ring_id, cur_count > 0 ? cur_count : GROEBNER_IDEAL_INIT_GEN_CAPACITY, result_label);
+    GroebnerIdealGuard ideal_guard = {result_ideal};
+    lv_DEFER(groebner_ideal_guard_cleanup, &ideal_guard);
     if (!result_ideal) {
-        goto quotient_cleanup;
+        return -1; /* cur_gens 由守卫释放 */
     }
 
     /* 生成元注册进全局多项式池（遵循理想持有池内指针的约定） */
     for (int k = 0; k < cur_count; k++) {
         if (poly_internal_store(g_data, cur_gens[k]) < 0) {
+            /* 前 k 个已入池（归池所有），剩余元素在此释放，数组与理想结构由守卫释放 */
             for (int j = k; j < cur_count; j++) {
                 poly_internal_destroy(cur_gens[j]);
             }
-            lv_free((void **) &cur_gens);
-            lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
-                         (void **) &result_ideal, NULL);
-            goto _gcleanup;
+            lv_free((void **) &cur_gens); /* 置空以解除守卫（数组由池外元素处理完成） */
+            return -1;
         }
         result_ideal->generators[result_ideal->generator_count++] = cur_gens[k];
     }
-    lv_free((void **) &cur_gens);
+    lv_free((void **) &cur_gens); /* 元素已全部入池，仅释放数组并解除守卫 */
 
-    ret = ideal_internal_store(g_data, result_ideal);
-    if (ret < 0) {
-        /* 注册失败：释放理想结构（已注册的生成元由池持有并负责释放） */
-        lv_free_many((void **) &result_ideal->generators, (void **) &result_ideal->label,
-                     (void **) &result_ideal, NULL);
+    int ret = ideal_internal_store(g_data, result_ideal);
+    if (ret >= 0) {
+        ideal_guard.ideal = NULL; /* 注册成功，理想归注册表所有 */
     }
-    goto _gcleanup;
-
-quotient_cleanup:
-    if (cur_gens) {
-        for (int k = 0; k < cur_count; k++) {
-            poly_internal_destroy(cur_gens[k]);
-        }
-        lv_free((void **) &cur_gens);
-    }
-
-GROEBNER_LOCK_GUARD_END();
+    /* 注册失败时理想结构由守卫释放（已入池的生成元由池持有并负责释放） */
     return ret;
 }
 
