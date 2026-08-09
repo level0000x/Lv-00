@@ -43,54 +43,91 @@
 /* 函数指针类型：process_statement 分派 */
 typedef bool (*ProcessStmtFunc)(const FormulaNode *stmt, ConstraintGraph *graph, FormulaToGraphResult *result);
 
+/* 创建节点/约束的初始数组容量（首次分配大小；追加时动态增长，非硬上限） */
+#define MAX_CREATED_NODES 256
+#define MAX_CREATED_CONSTRAINTS 64
+
+/* ---- 动态追加辅助（消除固定容量静默截断）----
+ * 原实现用 `if (created_node_count < 256)` / `if (created_constraint_count < 64)`
+ * 固定容量上限，超限条目被静默丢弃（大公式下节点/约束 ID 丢失）。
+ * FormulaToGraphResult 结构体定义于头文件（不在本次改动范围）中无 capacity
+ * 字段，无法直接套用 lv_ensure_capacity 的倍增（其需要 capacity 槽位）；此处用
+ * lv_realloc 精确扩到 count+1（统一内存追踪，默认分配器 realloc 操作等价标准
+ * realloc）。数组在初次分配 MAX_CREATED_NODES/MAX_CREATED_CONSTRAINTS 容量内
+ * 直接写入，超出后只增不减、按需扩容，因此无静默截断；仅 OOM 时放弃记录（优于
+ * 原先的固定上限丢弃）。成功路径下数组内容与追加顺序不变，输出语义保持一致。 */
+static void result_append_node(FormulaToGraphResult *r, int nid) {
+    int n = r->created_node_count;
+    if (n >= MAX_CREATED_NODES) {
+        int *tmp = (int *) lv_realloc(r->created_node_ids, ((size_t) n + 1) * sizeof(int));
+        if (!tmp)
+            return;
+        r->created_node_ids = tmp;
+    }
+    r->created_node_ids[n] = nid;
+    r->created_node_count = n + 1;
+}
+
+static void result_append_constraint(FormulaToGraphResult *r, int cid) {
+    int n = r->created_constraint_count;
+    if (n >= MAX_CREATED_CONSTRAINTS) {
+        int *tmp = (int *) lv_realloc(r->created_constraint_ids, ((size_t) n + 1) * sizeof(int));
+        if (!tmp)
+            return;
+        r->created_constraint_ids = tmp;
+    }
+    r->created_constraint_ids[n] = cid;
+    r->created_constraint_count = n + 1;
+}
+
 static bool pstmt_p(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_point(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_point(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_s(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_segment(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_segment(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_c(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_circle(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_circle(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_perp(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int cid = -1;
-    if (formula_convert_perpendicular(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    if (formula_convert_perpendicular(s, g, &cid)) { result_append_constraint(r, cid); }
     return true; }
 static bool pstmt_par(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int cid = -1;
-    if (formula_convert_parallel(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    if (formula_convert_parallel(s, g, &cid)) { result_append_constraint(r, cid); }
     return true; }
 static bool pstmt_mid(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_midpoint(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_midpoint(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_ang(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int cid = -1;
-    if (formula_convert_angle(s, g, &cid)) { if (r->created_constraint_count < 64) r->created_constraint_ids[r->created_constraint_count++] = cid; }
+    if (formula_convert_angle(s, g, &cid)) { result_append_constraint(r, cid); }
     return true; }
 static bool pstmt_eq(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_equation(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_equation(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_poly(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int ids[64]; int cnt = 0;
     if (formula_convert_polygon(s, g, ids, &cnt)) {
         if (cnt > 64) cnt = 64;
-        for (int j = 0; j < cnt && r->created_node_count < 256; j++) r->created_node_ids[r->created_node_count++] = ids[j];
+        for (int j = 0; j < cnt; j++) result_append_node(r, ids[j]);
     }
     return true; }
 static bool pstmt_reg(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int nid = -1;
-    if (formula_convert_region(s, g, &nid)) { if (r->created_node_count < 256) r->created_node_ids[r->created_node_count++] = nid; }
+    if (formula_convert_region(s, g, &nid)) { result_append_node(r, nid); }
     return true; }
 static bool pstmt_arc(const FormulaNode *s, ConstraintGraph *g, FormulaToGraphResult *r) {
     int ids[10]; int cnt = 0;
     if (formula_convert_arc(s, g, ids, &cnt)) {
         if (cnt > 10) cnt = 10;
-        for (int j = 0; j < cnt && r->created_node_count < 256; j++) r->created_node_ids[r->created_node_count++] = ids[j];
+        for (int j = 0; j < cnt; j++) result_append_node(r, ids[j]);
     }
     return true; }
 
@@ -109,8 +146,6 @@ static const ProcessStmtFunc s_stmt_funcs[] = {
 };
 
 /* 创建节点/约束的最大数量限制 */
-#define MAX_CREATED_NODES 256
-#define MAX_CREATED_CONSTRAINTS 64
 
 static bool formula_to_graph_process_statement(const FormulaNode *stmt, ConstraintGraph *graph,
                                                FormulaToGraphResult *result) {

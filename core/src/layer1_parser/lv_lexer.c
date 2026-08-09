@@ -120,6 +120,28 @@ static LvTokenType lookup_keyword(const char *word, size_t len) {
     return LV_TOKEN_IDENTIFIER;
 }
 
+/* ── 共享几何关键词表 ── */
+
+/**
+ * @brief 几何关系关键词表（parser/sema 单一事实源）
+ *
+ * 供 lv_parser.c（is_relation_func）与 lv_sema.c（check_call 关系分支）
+ * 线性 strcmp 精确匹配使用；NULL 结尾终止扫描。
+ */
+const char *const lv_geometry_relation_keywords[] = {
+    "collinear", "parallel", "perpendicular", "congruent", "tangent", NULL
+};
+
+/**
+ * @brief 几何度量关键词表（parser/sema 单一事实源）
+ *
+ * 供 lv_parser.c（is_measure_func）与 lv_sema.c（check_call 度量分支）
+ * 线性 strcmp 精确匹配使用；NULL 结尾终止扫描。
+ */
+const char *const lv_measurement_keywords[] = {
+    "length", "distance", "angle", "measure", "area", "radius", NULL
+};
+
 /* ── 单字符运算符查找表 ── */
 
 /** 单字符运算符映射条目 */

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * @file high_dim_project.c
  * @brief High-dim module - coordinate projection and 3d projection
  * @details Split from high_dim.c
@@ -297,8 +297,8 @@ static int project_to_3d_perspective(ProjectTo3dContext *ctx) {
         return lv_ERROR_INVALID_PARAM;
     }
     double denominator = ctx->camera_distance - ctx->pw;
-    if (fabs(denominator) < ctx->camera_distance * 1e-6 + 1e-12) {
-        double min_denom = ctx->camera_distance * 1e-6 + 1e-12;
+    if (fabs(denominator) < ctx->camera_distance * lv_EPSILON_LOW + 1e-12) {
+        double min_denom = ctx->camera_distance * lv_EPSILON_LOW + 1e-12;
         denominator = (denominator >= 0) ? min_denom : -min_denom;
         lv_set_error(lv_OK,
                      "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
@@ -345,8 +345,8 @@ static int project_to_3d_stereographic(ProjectTo3dContext *ctx) {
      * 使用最小阈值做奇点保护。
      */
     double denom = 1.0 - ctx->pw;
-    if (lv_is_zero(denom, 1e-12)) {
-        denom = (denom >= 0) ? 1e-12 : -1e-12;
+    if (lv_is_zero(denom, lv_EPSILON_ULTRA)) {
+        denom = (denom >= 0) ? lv_EPSILON_ULTRA : -lv_EPSILON_ULTRA;
         lv_set_error(lv_OK, "4D立体投影：w=%.4f接近极点，已应用奇点保护。", ctx->pw);
     }
     ctx->factor = 1.0 / denom;

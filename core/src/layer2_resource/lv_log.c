@@ -12,6 +12,23 @@
 /** 当前日志级别，低于此级别的不输出 */
 static lvLogLevel g_min_level = lv_LOG_INFO;
 
+/* ------------------------------------------------------------------
+ * 输出定制状态（由 lv_log_set_output / lv_log_enable_timestamp /
+ * lv_log_enable_source 控制，均受 g_log_state_lock 保护）
+ * ------------------------------------------------------------------ */
+
+/** 日志输出目标（NULL = 使用默认 stderr） */
+static FILE *g_output_fp = NULL;
+
+/** 是否已显式调用过 lv_log_set_output（区分"默认"与"显式重定向到 stderr"） */
+static bool g_output_configured = false;
+
+/** 是否在输出前缀追加时间戳 [HH:MM:SS] */
+static bool g_timestamp_enabled = false;
+
+/** 是否在输出前缀追加源文件:行号 */
+static bool g_source_enabled = false;
+
 /** 全局状态互斥锁：保护上述配置项的并发读写（惰性初始化，首次加锁时自动完成） */
 lv_LAZY_LOCK_DEFINE(g_log_state_lock);
 
@@ -46,6 +63,12 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
         return;
     }
 
+    /* 锁内快照输出定制状态，避免后续读取期间被其它线程修改 */
+    const bool customized = g_output_configured || g_timestamp_enabled || g_source_enabled;
+    const bool with_ts = g_timestamp_enabled;
+    const bool with_src = g_source_enabled;
+    FILE *out = g_output_fp != NULL ? g_output_fp : stderr;
+
     lv_lazy_lock_unlock(&g_log_state_lock);
 
     /* 格式化消息后委托统一日志主管道（lv_log_message -> debug_log）：
@@ -57,7 +80,29 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
-    lv_log_message(g_lvlog_level_map[level], __FILE__, __LINE__, "%s", buf);
+    /* 未显式定制输出时保持默认行为：委托统一日志主管道 */
+    if (!customized) {
+        lv_log_message(g_lvlog_level_map[level], __FILE__, __LINE__, "%s", buf);
+        return;
+    }
+
+    /* 显式定制路径：按开关构造前缀（[HH:MM:SS] 与 源文件:行号），
+     * 一次性 fprintf 输出（stdio 对同一 FILE 的整次调用原子化，多线程安全） */
+    char prefix[lv_LOG_MSG_MAX_LEN];
+    prefix[0] = '\0';
+    size_t pos = 0;
+    if (with_ts) {
+        time_t now = time(NULL);
+        struct tm tmv;
+        lv_LOCALTIME(&now, &tmv);
+        strftime(prefix, sizeof(prefix), "[%H:%M:%S] ", &tmv);
+        pos = strlen(prefix);
+    }
+    if (with_src) {
+        snprintf(prefix + pos, sizeof(prefix) - pos, "%s:%d ", __FILE__, __LINE__);
+    }
+    fprintf(out, "%s%s\n", prefix, buf);
+    fflush(out);
 }
 
 lvLogLevel lv_log_get_level(void) {
@@ -69,17 +114,24 @@ lvLogLevel lv_log_get_level(void) {
 }
 
 void lv_log_set_output(FILE *fp) {
-    /* 已委托统一日志主管道（lv_log_message -> debug_log），
-     * 输出目标配置不再实际生效，保留空实现以兼容旧 API。 */
-    (void) fp;
+    /* 替换/关闭日志输出目标：非 NULL 时 lv_log 直接输出到 fp；
+     * NULL 时恢复到默认 stderr（与头文件注释一致）。 */
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
+    g_output_fp = fp;
+    g_output_configured = true;
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }
 
 void lv_log_enable_timestamp(bool enable) {
-    /* 已委托统一日志主管道，时间戳配置不再实际生效，保留空实现以兼容旧 API。 */
-    (void) enable;
+    /* 开启后在输出前缀追加 [HH:MM:SS] 时间戳 */
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
+    g_timestamp_enabled = enable;
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }
 
 void lv_log_enable_source(bool enable) {
-    /* 已委托统一日志主管道，源位置配置不再实际生效，保留空实现以兼容旧 API。 */
-    (void) enable;
+    /* 开启后在输出前缀追加 源文件:行号（__FILE__/__LINE__ 在记录点展开） */
+    lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
+    g_source_enabled = enable;
+    lv_lazy_lock_unlock(&g_log_state_lock);
 }

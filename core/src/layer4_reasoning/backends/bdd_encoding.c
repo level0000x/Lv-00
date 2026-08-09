@@ -835,9 +835,58 @@ static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, 
 }
 
 static BDDNode *bdd_encode_connection(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
-    (void)mgr; (void)con; (void)n; (void)node_base_var; (void)graph;
-    /* 连接: 端口连接 —— 此处跳过（端口编码需单独处理） */
-    return NULL;
+    (void)n;
+    if (!mgr || !con || !graph || con->participant_count < 2)
+        return NULL;
+    int p1_id = con->participants[0];
+    int p2_id = con->participants[1];
+    GeomNode *p1 = graph_get_node(graph, p1_id);
+    GeomNode *p2 = graph_get_node(graph, p2_id);
+    if (!p1 || !p2 || p1->type != GEOM_PORT || p2->type != GEOM_PORT)
+        return NULL;
+
+    /* 端口连接 = 数据流等值：两个端口各占用 64 位坐标/数据 bit-blast 变量。
+     * 优先复用节点坐标变量（node_base_var），端口缺坐标（默认 -1）时动态分配
+     * 数据位变量组，分配模式与 bdd_encode_angle 的动态位变量一致。 */
+    int base1 = (p1_id >= 0) ? lookup_node_base_var(p1_id, n, node_base_var, graph) : -1;
+    int base2 = (p2_id >= 0) ? lookup_node_base_var(p2_id, n, node_base_var, graph) : -1;
+
+    if (base1 < 0) {
+        base1 = mgr->var_count;
+        for (int bit = 0; bit < 64; bit++) {
+            char var_name[48];
+            snprintf(var_name, sizeof(var_name), "conn_%d_src_bit%d", con->id, bit);
+            if (bdd_new_var(mgr, var_name, BDD_BOOLEAN) < 0)
+                return NULL;
+        }
+    }
+    if (base2 < 0) {
+        base2 = mgr->var_count;
+        for (int bit = 0; bit < 64; bit++) {
+            char var_name[48];
+            snprintf(var_name, sizeof(var_name), "conn_%d_dst_bit%d", con->id, bit);
+            if (bdd_new_var(mgr, var_name, BDD_BOOLEAN) < 0)
+                return NULL;
+        }
+    }
+
+    /* 逐位等值编码：bit_eq = (a∧b)∨(¬a∧¬b)（XNOR），64 位全部相等
+     * → 两端口坐标/数据相等，结果非空（不返回 NULL）。 */
+    BDDNode *acc = bdd_true(mgr);
+    for (int bit = 0; bit < 64; bit++) {
+        BDDNode *a = bdd_literal(mgr, base1 + bit + 1);
+        BDDNode *b = bdd_literal(mgr, base2 + bit + 1);
+        BDDNode *not_b = bdd_not(mgr, b);
+        BDDNode *eq = bdd_ite(mgr, a, b, not_b);
+        BDDNode *and1 = bdd_and(mgr, acc, eq);
+        bdd_deref(mgr, a);
+        bdd_deref(mgr, b);
+        bdd_deref(mgr, not_b);
+        bdd_deref(mgr, eq);
+        bdd_deref(mgr, acc);
+        acc = and1;
+    }
+    return acc;
 }
 
 static const BDDEncodeFn kBddEncodeTable[] = {

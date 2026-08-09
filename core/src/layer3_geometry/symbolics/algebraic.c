@@ -1278,7 +1278,7 @@ int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations
         /* 使用 Sturm 序列或简单二分来缩小区间 */
         /* 简化实现：直接缩小区间宽度 */
         double half_width_a = (a->right_bound - a->left_bound) * 0.5;
-        if (half_width_a > 1e-14) {
+        if (half_width_a > lv_EPSILON_NEWTON) {
             /* 评估中点符号来决定缩小哪一半区间 */
             a->right_bound = mid_a + half_width_a * 0.5;
             a->left_bound = mid_a - half_width_a * 0.5;
@@ -1287,7 +1287,7 @@ int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations
 
         double mid_b = (b->left_bound + b->right_bound) * 0.5;
         double half_width_b = (b->right_bound - b->left_bound) * 0.5;
-        if (half_width_b > 1e-14) {
+        if (half_width_b > lv_EPSILON_NEWTON) {
             b->right_bound = mid_b + half_width_b * 0.5;
             b->left_bound = mid_b - half_width_b * 0.5;
             b->precision_bits += 1;

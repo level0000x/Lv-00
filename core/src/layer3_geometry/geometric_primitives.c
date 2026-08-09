@@ -105,8 +105,13 @@ static GeoResult geo_create_node_port(ConstraintGraph *graph, const int *ids, in
 }
 
 static GeoResult geo_create_node_function_block(ConstraintGraph *graph, const int *ids, int count) {
-    (void)graph; (void)ids; (void)count;
-    return geo_err(GEO_STATUS_UNSUPPORTED, "函数块请使用 geo_pack");
+    if (!ids || count < 1)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "函数块需至少1个内部节点");
+    /* 与 geo_create_node_region 等一致的创建模式：委托图级 graph_add_function_block
+     * 分配 GeoNode（graph_alloc_node(graph, GEOM_FUNCTION_BLOCK)）、设置类型并初始化
+     * 函数块字段（内部节点数组由 ids 解析填充）；输入/输出端口数组以占位默认
+     * （NULL/0）创建，后续可经 geo_pack 或 graph_add_* 补充端口信息。 */
+    return geo_create_node_finish(graph_add_function_block(graph, ids, count, NULL, 0, NULL, 0), graph);
 }
 
 /** @brief 节点类型 → 创建处理函数 查找表 */

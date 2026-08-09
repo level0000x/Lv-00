@@ -163,7 +163,7 @@ bool geo_invariant_check_consistency(const GeoInvariant *inv) {
     double min_val, max_val;
     get_invariant_range(inv->kind, &min_val, &max_val);
 
-    if (inv->value < min_val - 1e-10 || inv->value > max_val + 1e-10) {
+    if (inv->value < min_val - lv_EPSILON_HIGH || inv->value > max_val + lv_EPSILON_HIGH) {
         return false;
     }
 

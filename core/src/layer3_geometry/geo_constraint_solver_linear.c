@@ -49,7 +49,7 @@ int gauss_eliminate(double *A, double *b, int n) {
             if (av > col_norm)
                 col_norm = av;
         }
-        double singular_tol = 1e-14 * fmax(1.0, col_norm);
+        double singular_tol = lv_EPSILON_NEWTON * fmax(1.0, col_norm);
         if (max_val < singular_tol)
             return -1;
 

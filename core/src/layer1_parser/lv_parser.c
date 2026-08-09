@@ -166,7 +166,7 @@ static const int s_is_entity_type_tokens[LV_TOKEN_COUNT] = {
     [LV_TOKEN_KW_PROOF] = 1,
 };
 
-/** token → 比较运算符字符串 查找表 */
+/** token → 比较运算符字符串 查找表（EQEQ/NEQ/LT/LE/GT/GE/EQUALS 单一事实源） */
 static const char *const s_compare_op_strings[LV_TOKEN_COUNT] = {
     [LV_TOKEN_EQEQ] = "==",
     [LV_TOKEN_NEQ] = "!=",
@@ -174,10 +174,12 @@ static const char *const s_compare_op_strings[LV_TOKEN_COUNT] = {
     [LV_TOKEN_LE] = "<=",
     [LV_TOKEN_GT] = ">",
     [LV_TOKEN_GE] = ">=",
+    [LV_TOKEN_EQUALS] = "=", /* 命题相等（规格写法），如 verify(o,s,v) = Pass(_) */
 };
 
-/** token → 关键字名称 查找表 */
+/** token → 关键字名称 查找表（与共享关系词表 lv_geometry_relation_keywords 对齐） */
 static const char *const s_keyword_name_strings[LV_TOKEN_COUNT] = {
+    [LV_TOKEN_KW_COLLINEAR] = "collinear",
     [LV_TOKEN_KW_PARALLEL] = "parallel",
     [LV_TOKEN_KW_PERPENDICULAR] = "perpendicular",
     [LV_TOKEN_KW_CONGRUENT] = "congruent",
@@ -1014,16 +1016,7 @@ static LvAstNode *parse_predicate_expr(LvParser *p) {
 }
 
 /** CompareExpr ::= AddExpr (("==" | "!=" | "<" | "<=" | ">" | ">=") AddExpr)? */
-static const char *kCompareOpNames[] = {
-    [LV_TOKEN_EQEQ] = "==",
-    [LV_TOKEN_NEQ]  = "!=",
-    [LV_TOKEN_LT]   = "<",
-    [LV_TOKEN_LE]   = "<=",
-    [LV_TOKEN_GT]   = ">",
-    [LV_TOKEN_GE]   = ">=",
-    [LV_TOKEN_EQUALS] = "=",  /* 命题相等（规格写法），如 verify(o,s,v) = Pass(_) */
-};
-
+/* 比较运算符字符串统一查上表 s_compare_op_strings（EQUALS 为表尾附加项）。 */
 static LvAstNode *parse_compare_expr(LvParser *p) {
     LvAstNode *left = parse_add_expr(p);
     if (!left)
@@ -1032,8 +1025,8 @@ static LvAstNode *parse_compare_expr(LvParser *p) {
     LvSourceLoc op_loc = p->current.loc;
 
     const char *op = NULL;
-    if (p->current.type >= 0 && p->current.type < (int)(sizeof(kCompareOpNames)/sizeof(kCompareOpNames[0])))
-        op = kCompareOpNames[p->current.type];
+    if (p->current.type >= 0 && p->current.type < LV_TOKEN_COUNT)
+        op = s_compare_op_strings[p->current.type];
     if (!op) return left;
 
     advance(p); /* consume operator */
@@ -1103,15 +1096,9 @@ static LvAstNode *parse_unary_expr(LvParser *p) {
     return parse_primary_expr(p);
 }
 
-/* 几何关系函数名查找表（精确匹配，strcmp 语义） */
-static const char *const kGeometryRelations[] = {
-    "collinear", "parallel", "perpendicular", "congruent", "tangent"
-};
-
-/* 几何度量函数名查找表（精确匹配，strcmp 语义） */
-static const char *const kMeasureFuncs[] = {
-    "length", "distance", "angle", "measure", "area", "radius"
-};
+/* 几何关系/度量函数名查找表（精确匹配，strcmp 语义）。
+ * 词表收敛：由 lv_lexer.h 共享表 lv_geometry_relation_keywords /
+ * lv_measurement_keywords（NULL 结尾）提供，与 lv_sema.c 共用单一事实源。 */
 
 /* 几何对象构造函数名查找表（精确匹配，strcmp 语义） */
 static const char *const kGeometryFuncs[] = {
@@ -1120,16 +1107,16 @@ static const char *const kGeometryFuncs[] = {
 
 /** 检查 identifier 是否为关系/度量/几何函数名 */
 static int is_relation_func(const char *name) {
-    for (size_t i = 0; i < sizeof(kGeometryRelations) / sizeof(kGeometryRelations[0]); i++) {
-        if (strcmp(name, kGeometryRelations[i]) == 0)
+    for (size_t i = 0; lv_geometry_relation_keywords[i] != NULL; i++) {
+        if (strcmp(name, lv_geometry_relation_keywords[i]) == 0)
             return 1;
     }
     return 0;
 }
 
 static int is_measure_func(const char *name) {
-    for (size_t i = 0; i < sizeof(kMeasureFuncs) / sizeof(kMeasureFuncs[0]); i++) {
-        if (strcmp(name, kMeasureFuncs[i]) == 0)
+    for (size_t i = 0; lv_measurement_keywords[i] != NULL; i++) {
+        if (strcmp(name, lv_measurement_keywords[i]) == 0)
             return 1;
     }
     return 0;

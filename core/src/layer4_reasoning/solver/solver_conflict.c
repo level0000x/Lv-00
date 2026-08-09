@@ -50,13 +50,10 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
     PolyEquation *const eqs_arr = (PolyEquation *)sys.eqs.data;
     const int eqs_count = sys.eqs.count;
 
-    /* Check for 0 = nonzero (constant contradictions) */
-    for (int i = 0; i < eqs_count; i++) {
-        mpz_poly_t *p = &eqs_arr[i].poly;
-        if (p->degree == 0 && mpz_cmp_si(p->coeffs[0], 0) != 0) {
-            equation_system_clear(&sys);
-            return true;
-        }
+    /* Check 2: 0 = nonzero (constant contradictions) — 复用 solver_symbolic.c 的公共检测 */
+    if (check_contradiction_after_substitution(&sys)) {
+        equation_system_clear(&sys);
+        return true;
     }
 
     /* Check 3: Leading coefficient zero contradiction for degree-1 equations */

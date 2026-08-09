@@ -115,16 +115,13 @@ bool lv_heap_push(lvHeap *heap, const void *elem) {
     if (!heap || !elem)
         return false;
 
-    /* 扩容 */
+    /* 扩容（收敛到 lv_ensure_capacity：溢出检查 + 倍增，消除手写
+     * capacity*2 在容量逼近 INT_MAX 时的乘法溢出隐患；count/capacity 为
+     * size_t，按既有惯例（如 geo_topology.c）强转为 int 传入） */
     if (heap->count >= heap->capacity) {
-        size_t new_cap = (heap->capacity == 0)
-                             ? lv_HEAP_DEFAULT_CAPACITY
-                             : heap->capacity * 2;
-        char *new_data = (char *)lv_realloc(heap->data, new_cap * heap->elem_size);
-        if (!new_data)
+        if (!lv_ensure_capacity((void **) &heap->data, (int) heap->count,
+                                (int *) &heap->capacity, heap->elem_size, 1))
             return false;
-        heap->data = new_data;
-        heap->capacity = new_cap;
     }
 
     /* 在末尾放入元素 */

@@ -703,7 +703,7 @@ SolverStatus groebner_basis_compute(EquationSystem *system) {
     /* Step 1: Check degree limit first (fast path) */
     for (int i = 0; i < system->eqs.count; i++) {
         PolyEquation *eq = (PolyEquation *)lv_darray_get(&system->eqs, i);
-        if (eq && eq->poly.degree > 4) {
+        if (eq && is_out_of_scope(&eq->poly)) {
             return SOLVER_STATUS_OUT_OF_SCOPE;
         }
     }

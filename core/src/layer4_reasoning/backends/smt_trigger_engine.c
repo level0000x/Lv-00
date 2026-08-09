@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_hashtable.h"
 #include "lv/lv_utils.h"
 
 /* ========================================================================
@@ -53,6 +54,21 @@ static uint64_t combine_cache_key(int quantifier_id, uint64_t term_hash) {
     return key;
 }
 
+/* ---- 实例缓存查找索引 ----
+ * cache_contains 由对 instance_cache 的 O(n) 线性扫收敛为 lvHashtable_i64 索引
+ * 查找（参照 prop_verifier_memo.c 的 memo_index 模式，索引键为 combine_cache_key
+ * 产出的 64 位哈希）。lvTriggerEngine 结构体定义于头文件（不在本次改动范围），
+ * 索引无法内嵌，故以文件内静态句柄持有。多引擎隔离：键混入引擎指针
+ * （combine_cache_key ^ engine 指针），值记录引擎指针做二次校验——值非 NULL
+ * 即"键存在"（与"值为 NULL=键不存在"约定一致），且不同引擎的同名
+ * (quantifier_id, binding_hash) 不会相互污染。clear_cache / destroy 时经 foreach
+ * （i64 形态允许遍历中删除）按 value==engine 移除本引擎全部条目。 */
+static lvHashtable *s_instance_index = NULL;
+
+static uint64_t cache_index_key(const lvTriggerEngine *engine, int quantifier_id, uint64_t binding_hash) {
+    return combine_cache_key(quantifier_id, binding_hash) ^ ((uint64_t) (uintptr_t) engine);
+}
+
 /**
  * @brief Check if an instance is already in the cache
  *
@@ -62,12 +78,8 @@ static bool cache_contains(const lvTriggerEngine *engine, int quantifier_id, uin
     if (!engine)
         return false;
 
-    uint64_t key = combine_cache_key(quantifier_id, binding_hash);
-    for (int i = 0; i < engine->cache_count; i++) {
-        if (engine->instance_cache[i].binding_hash == key)
-            return true;
-    }
-    return false;
+    uint64_t key = cache_index_key(engine, quantifier_id, binding_hash);
+    return lv_hashtable_i64_get(s_instance_index, (int64_t) key) == (void *) engine;
 }
 
 /**
@@ -83,6 +95,25 @@ static int count_instances_for_quantifier(const lvTriggerEngine *engine, int qua
             count++;
     }
     return count;
+}
+
+/* 按引擎指针从全局索引移除条目（i64 foreach 允许回调中删除当前条目） */
+typedef struct {
+    const lvTriggerEngine *engine;
+} CacheIndexClearCtx;
+
+static void cache_index_clear_visitor(int64_t key, void *value, void *ctx) {
+    CacheIndexClearCtx *c = (CacheIndexClearCtx *) ctx;
+    if (value == (void *) c->engine)
+        lv_hashtable_i64_remove(s_instance_index, key);
+}
+
+static void cache_index_remove_engine(lvTriggerEngine *engine) {
+    if (!s_instance_index || !engine)
+        return;
+    CacheIndexClearCtx ctx;
+    ctx.engine = engine;
+    lv_hashtable_i64_foreach(s_instance_index, cache_index_clear_visitor, &ctx);
 }
 
 /**
@@ -151,6 +182,9 @@ lvTriggerEngine *trigger_engine_create(int initial_trigger_count, int initial_ca
 void trigger_engine_destroy(lvTriggerEngine *engine) {
     if (!engine)
         return;
+
+    /* 移除本引擎在全局索引中的条目，避免引擎地址被复用后残留陈旧命中 */
+    cache_index_remove_engine(engine);
 
     lv_free((void **) &engine->triggers);
     engine->triggers = NULL;
@@ -291,6 +325,13 @@ bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, con
         engine->instance_cache[engine->cache_count].quantifier_id = quantifier_id;
         engine->instance_cache[engine->cache_count].binding_hash = combined;
         engine->cache_count++;
+        /* 同步维护哈希索引（创建为尽力而为：失败仅退化为后续查找线性扫缺失，
+         * 由 max_instances 计数兜底限制重复实例化） */
+        if (!s_instance_index)
+            s_instance_index = lv_hashtable_i64_create(0);
+        if (s_instance_index)
+            lv_hashtable_i64_insert(s_instance_index, (int64_t) cache_index_key(engine, quantifier_id, combined),
+                                    (void *) engine);
         engine->total_instantiations++;
         new_matches++;
         found_any = true;
@@ -306,6 +347,8 @@ void trigger_engine_clear_cache(lvTriggerEngine *engine) {
     if (!engine)
         return;
 
+    /* 同步清空该引擎在全局索引中的条目，保证 clear 后可重新实例化同一实例 */
+    cache_index_remove_engine(engine);
     engine->cache_count = 0;
     /* Note: total_instantiations is NOT reset; it tracks the lifetime total */
 }

@@ -140,13 +140,13 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
     cm->constraint_subjects = (int *) lv_calloc(lv_GEO_MAX_CONSTRAINTS, sizeof(int));
     cm->affected_objects = (int *) lv_calloc(lv_GEO_MAX_DRAG_CHAIN, sizeof(int));
     cm->use_projective_method = true;
-    cm->convergence_epsilon = 1e-10;
+    cm->convergence_epsilon = lv_EPSILON_HIGH;
     cm->max_iterations = 100;
 
     g->continuity.current_config = CONFIG_NORMAL;
     g->continuity.previous_config = CONFIG_NORMAL;
     g->continuity.singular_threshold = 1e-12;
-    g->continuity.degenerate_threshold = 1e-10;
+    g->continuity.degenerate_threshold = lv_EPSILON_HIGH;
 
     lvGeoScriptBinding *sb = &g->script_binding;
     sb->object_ids = (int *) lv_calloc(lv_GEO_MAX_OBJECTS, sizeof(int));

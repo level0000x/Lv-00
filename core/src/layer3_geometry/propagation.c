@@ -704,7 +704,7 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord, const G
      * 行列式量级正比于坐标乘积 O(coord²)，对于大坐标（如 1e6），
      * 绝对容差 1e-9 过于严格，会误判实际上在线上的点。 */
     double max_coord = fmax(fmax(fabs(px), fabs(py)), fmax(fmax(fabs(ax_d), fabs(ay_d)), fmax(fabs(bx_d), fabs(by_d))));
-    double tol = 1e-9 * fmax(1.0, max_coord * max_coord);
+    double tol = lv_GEO_COLLINEAR_EPSILON * fmax(1.0, max_coord * max_coord);
     return (fabs(det) < tol);
 }
 

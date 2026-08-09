@@ -117,7 +117,7 @@ void substitute_solved(EquationSystem *sys, int var_node_id, int coord_index, do
                 double coeff = mpz_get_d(p->coeffs[d]);
                 val += coeff * pow(value, d);
             }
-            if (fabs(val) < 1e-6 * (fabs(value) + 1.0)) {
+            if (fabs(val) < lv_EPSILON_LOW * (fabs(value) + 1.0)) {
                 mpz_poly_clear(&pe->poly);
                 mpz_poly_init(&pe->poly);
             }
@@ -571,7 +571,7 @@ static void substitute_solved_symbolic(EquationSystem *sys, int var_node_id, int
             if (eval_result) {
                 double d;
                 if (coord_to_double(eval_result, &d)) {
-                    if (fabs(d) < 1e-6 * (fabs(d) + 1.0)) {
+                    if (fabs(d) < lv_EPSILON_LOW * (fabs(d) + 1.0)) {
                         mpz_poly_clear(&pe->poly);
                         mpz_poly_init(&pe->poly);
                     }

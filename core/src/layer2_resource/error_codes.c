@@ -65,7 +65,7 @@ typedef struct {
  * 按枚举值升序追加一条，本表自动同步。
  */
 #define LV_X_EC_TABLE_ENTRY(name, value, name_str, msg, category) \
-    {name, name_str, msg, category},
+    {name, name_str, msg, LV_EC_CAT_SHORT(category)},
 
 static const ErrorInfo g_error_table[] = {
     LV_ERROR_CODES_X(LV_X_EC_TABLE_ENTRY)
@@ -127,6 +127,23 @@ const char *lv_error_category(lvErrorCode code) {
         return info->category;
     }
     return "未知";
+}
+
+bool lv_error_is_unknown(lvErrorCode code) {
+    int left = 0;
+    int right = (int) ERROR_TABLE_SIZE - 1;
+
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (g_error_table[mid].code == code) {
+            return false;
+        } else if (g_error_table[mid].code < code) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return true;
 }
 
 /**

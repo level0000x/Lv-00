@@ -49,6 +49,31 @@ bool lv_str_nonempty(const char *s);
 int lv_str_icmp(const char *a, const char *b);
 
 /**
+ * @brief 大小写不敏感 + 长度限制的 ASCII 比较（lv_str_icmp 的定长变体）
+ *
+ * 【语义契约】逐字节比较 a 与 b 的前 n 个字节（ASCII 'A'..'Z' 折叠为 +32 的
+ *             小写，其余字节原样比较），返回与 strncmp 同符号：前 n 字节内首个
+ *             不同字节处 a<b 为负、a>b 为正；前 n 字节全部相等返回 0。遇到 NUL
+ *             提前终止：NUL 视为小于任何非 NUL 字节（与 strncmp 一致），因此
+ *             短于 n 的字符串收敛为"短者更小"，或双方恰好同位置 NUL 则视为相等。
+ *             折叠语义与 ws_header_equals/ws_header_contains_token 既有手写
+ *             折叠（'A'..'Z' → +32）完全一致，替换调用点后行为不变。
+ * 【前置条件】a、b 指向的缓冲区长度均至少为 n 字节（n==0 时不访问缓冲区；
+ *             恰好 n 字节场景由调用方保证缓冲区有效）。
+ * 【NULL 与 n 边界】a==b（含均 NULL）返回 0；a 为 NULL 返回 -1、b 为 NULL
+ *             返回 1（与 lv_str_icmp 的 NULL 处理一致）；n==0 返回 0。
+ * 【失败语义】纯比较函数，无分配、无失败通道。
+ * 【扩展点】如需 locale 感知折叠，可在此替换折叠实现；当前保持 ASCII 折叠
+ *             与既有调用点语义一致。
+ *
+ * @param a 缓冲区（可为 NULL）
+ * @param b 缓冲区（可为 NULL）
+ * @param n 最多比较的字节数
+ * @return 与 strncmp 同符号的比较结果
+ */
+int lv_str_icmp_n(const char *a, const char *b, size_t n);
+
+/**
  * @brief 在关键字表中查找第一个 strstr 命中的索引
  * @param input    输入字符串
  * @param keywords NULL 结尾的关键字数组

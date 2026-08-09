@@ -257,7 +257,7 @@ char *ga_render_latex(const lvMultiVector *mv) {
     /* 逐分量遍历，输出每个非零基元素的系数与基名称 */
     for (int i = 0; i < GA_MV_DIM; i++) {
         double c = ga_mv_get(mv, i);
-        if (lv_is_zero(c, 1e-12))
+        if (lv_is_zero(c, lv_EPSILON_ULTRA))
             continue;
         double a = fabs(c);
         int neg = (c < 0.0);
@@ -274,11 +274,11 @@ char *ga_render_latex(const lvMultiVector *mv) {
         /* 写入单项式：系数绝对值（为 1 时省略）+ 基元素名称 */
         if (i == 0) {
             /* 标量分量直接输出数值 */
-            if (lv_is_equal(a, 1.0, 1e-12))
+            if (lv_is_equal(a, 1.0, lv_EPSILON_ULTRA))
                 lv_strbuf_printf(&sb, "1");
             else
                 lv_strbuf_printf(&sb, "%.12g", a);
-        } else if (lv_is_equal(a, 1.0, 1e-12)) {
+        } else if (lv_is_equal(a, 1.0, lv_EPSILON_ULTRA)) {
             lv_strbuf_printf(&sb, "\\mathbf{%s}", blade_names[i]);
         } else {
             lv_strbuf_printf(&sb, "%.12g\\mathbf{%s}", a, blade_names[i]);

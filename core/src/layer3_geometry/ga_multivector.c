@@ -135,7 +135,7 @@ int ga_mv_grade(const lvMultiVector *mv) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "ga_mv_grade: mv is NULL");
 
     int max_grade = -1;
-    double eps = 1e-10;
+    double eps = lv_EPSILON_HIGH;
 
     /* Grade 0: scalar */
     if (fabs(mv->c[GA_S]) > eps)
@@ -425,11 +425,11 @@ lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a, const lvMultiVect
 
     for (int i = 0; i < 16; i++) {
         double ai = a->c[i];
-        if (fabs(ai) < 1e-14)
+        if (fabs(ai) < lv_EPSILON_NEWTON)
             continue;
         for (int j = 0; j < 16; j++) {
             double bj = b->c[j];
-            if (fabs(bj) < 1e-14)
+            if (fabs(bj) < lv_EPSILON_NEWTON)
                 continue;
 
             int blade;
@@ -613,7 +613,7 @@ lvMultiVector *ga_mv_normalize(const lvMultiVector *mv) {
         return NULL;
 
     double norm = ga_mv_norm(mv);
-    if (fabs(norm) < 1e-10)
+    if (fabs(norm) < lv_EPSILON_HIGH)
         return NULL;
 
     return ga_mv_scale(mv, 1.0 / norm);

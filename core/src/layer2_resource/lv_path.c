@@ -162,9 +162,13 @@ int lv_path_remove(const char *path) {
             }
             size_t need = strlen(path) + strlen(entry->d_name) + 2;
             if (need > child_cap) {
-                char *tmp = realloc(child, need);
+                /* 收敛到 lv_realloc/lv_free 以纳入统一内存追踪，保持"恰好扩到
+                 * need"语义不变（不复用 lv_ensure_capacity 的倍增）。lv_realloc
+                 * 失败时保留原指针，与 realloc 语义等价；此处 need >= 2 恒成立，
+                 * 不会触发 lv_realloc 的 size==0 分支。 */
+                char *tmp = lv_realloc(child, need);
                 if (!tmp) {
-                    free(child);
+                    lv_free(&child);
                     closedir(d);
                     return -1;
                 }
@@ -174,7 +178,7 @@ int lv_path_remove(const char *path) {
             snprintf(child, need, "%s/%s", path, entry->d_name);
             (void) lv_path_remove(child);
         }
-        free(child);
+        lv_free(&child);
         closedir(d);
         return rmdir(path) == 0 ? 0 : -1;
     }

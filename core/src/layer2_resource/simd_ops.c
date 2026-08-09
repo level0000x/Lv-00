@@ -1038,7 +1038,7 @@ lvVec4d lv_vec4d_normalize(lvVec4d a) {
     __m256d vsum = _mm256_hadd_pd(vsq, _mm256_setzero_pd());
     double sum = ((double*)&vsum)[0] + ((double*)&vsum)[2];
     double norm = sqrt(sum);
-    if (norm > 1e-15) {
+    if (norm > lv_NORMALIZATION_THRESHOLD) {
         __m256d vnorm = _mm256_set1_pd(1.0 / norm);
         __m256d vr = _mm256_mul_pd(va, vnorm);
         _mm256_storeu_pd(r.v, vr);
@@ -1053,7 +1053,7 @@ lvVec4d lv_vec4d_normalize(lvVec4d a) {
     __m128d vsum = _mm_add_pd(vsq_lo, vsq_hi);
     vsum = _mm_add_pd(vsum, _mm_shuffle_pd(vsum, vsum, 1));
     double norm = sqrt(_mm_cvtsd_f64(vsum));
-    if (norm > 1e-15) {
+    if (norm > lv_NORMALIZATION_THRESHOLD) {
         double inv_norm = 1.0 / norm;
         __m128d vinv = _mm_set1_pd(inv_norm);
         __m128d vr_lo = _mm_mul_pd(va_lo, vinv);
@@ -1071,7 +1071,7 @@ lvVec4d lv_vec4d_normalize(lvVec4d a) {
     float64x2_t vsq_hi = vmulq_f64(va_hi, va_hi);
     float64x2_t vsum = vaddq_f64(vsq_lo, vsq_hi);
     double norm = sqrt(vgetq_lane_f64(vsum, 0) + vgetq_lane_f64(vsum, 1));
-    if (norm > 1e-15) {
+    if (norm > lv_NORMALIZATION_THRESHOLD) {
         double inv_norm = 1.0 / norm;
         float64x2_t vinv = vdupq_n_f64(inv_norm);
         vst1q_f64(r.v, vmulq_f64(va_lo, vinv));
@@ -1082,7 +1082,7 @@ lvVec4d lv_vec4d_normalize(lvVec4d a) {
     }
 #else
     double norm = sqrt(a.v[0] * a.v[0] + a.v[1] * a.v[1] + a.v[2] * a.v[2] + a.v[3] * a.v[3]);
-    if (norm > 1e-15) {
+    if (norm > lv_NORMALIZATION_THRESHOLD) {
         r.v[0] = a.v[0] / norm;
         r.v[1] = a.v[1] / norm;
         r.v[2] = a.v[2] / norm;

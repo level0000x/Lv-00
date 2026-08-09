@@ -260,7 +260,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                                     /* 检查求值结果是否为零 */
                                     double eval_d = 0.0;
                                     if (coord_to_double(poly_val, &eval_d)) {
-                                        equation_satisfied = (fabs(eval_d) < 1e-6);
+                                        equation_satisfied = (fabs(eval_d) < lv_EPSILON_LOW);
                                     }
                                     symbolic_coord_destroy(poly_val);
                                 }
@@ -275,7 +275,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                     double a_coeff = mpz_get_d(pe_eq->poly.coeffs[1]) / lv_SOLVER_SCALE_FACTOR;
                     double c_coeff = mpz_get_d(pe_eq->poly.coeffs[0]) / lv_SOLVER_SCALE_FACTOR;
                     double lhs = a_coeff * branch_val + c_coeff;
-                    equation_satisfied = (fabs(lhs) < 1e-6);
+                    equation_satisfied = (fabs(lhs) < lv_EPSILON_LOW);
                 }
 
                 if (!equation_satisfied) {

@@ -18,8 +18,10 @@
  * 语义与访问模式不同（A 为标量字段 + 字符串键分发；本模块为结构体整体
  * 读写 + 线程本地快照），并入 A 需把整个结构体嵌进 lvConfig 并迁移全部
  * lv_geometry_get_config() 调用点，收益低、风险高，故保持独立。
- * 如需在 A 的 JSON 配置中覆盖几何参数，可经 lv_geometry_set_config()
- * 在加载配置后显式同步（未实现，属已知差异）。
+ * 如需在 A 的 JSON 配置中覆盖几何参数，可经 lv_geometry_sync_config()
+ * 在加载配置后显式同步（由 lv_config.c 的 lv_config_apply 统一触发，
+ * 本文件下方实现；geo_predicate.c 等消费方经 lv_geometry_get_config()
+ * 读取同步后的容差，配置真实生效）。
  * ============================================================ */
 
 static lvGeometryConfig g_geometry_config;
@@ -69,4 +71,16 @@ void lv_geometry_set_config(const lvGeometryConfig *cfg) {
         g_geometry_config = *cfg;
         lv_lazy_lock_unlock(&g_geometry_lock);
     }
+}
+
+void lv_geometry_sync_config(void) {
+    /* 以当前全局几何配置为基，仅覆盖系统 A（lvConfig）中语义匹配的键：
+     *  geometry.geo_sym_coord_eps（符号坐标计算容差，默认 1e-8）
+     *  -> lvGeometryConfig.distance_epsilon（通用距离容差，默认同 1e-8），
+     *  默认值一致故无行为变更；其余 epsilon / tolerance / precision 无对应
+     *  A 键，保持各自权威默认（config.h / lv_geometry_config_default()）。 */
+    const lvConfig *c = lv_config_current();
+    lvGeometryConfig cfg = *lv_geometry_get_config();
+    cfg.distance_epsilon = c->geometry.geo_sym_coord_eps;
+    lv_geometry_set_config(&cfg);
 }

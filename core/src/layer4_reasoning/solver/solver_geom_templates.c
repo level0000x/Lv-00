@@ -20,38 +20,30 @@ bool point_coord(const GeomNode *pt, int idx, double *out);
 int count_point_variables(const ConstraintGraph *graph, int **out_ids);
 
 /* ================================================================== */
-/*  内部: 几何推理消元模板 - 相似三角形                                 */
+/*  内部: 线段收集骨架（相似三角形/勾股/平行截割三模板共用）           */
 /* ================================================================== */
 
-int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
-    if (!graph || !sys)
-        return 0;
-    int added = 0;
-    int *point_ids = NULL;
-    int pt_count = count_point_variables(graph, &point_ids);
+typedef struct {
+    int id;
+    int p1, p2;
+    double dx, dy;
+} SegInfo;
 
-    typedef struct {
-        int id;
-        int p1;
-        int p2;
-    } SegInfo;
-    SegInfo *segs = lv_calloc((size_t) graph->node_count, sizeof(SegInfo));
-    if (!segs) {
-        lv_free((void **) &point_ids);
-        return 0;
-    }
+static void collect_segment_incidence(const ConstraintGraph *graph, SegInfo *segs, int *count, bool with_direction) {
     int seg_count = 0;
-
     for (int i = 0; i < graph->node_count; i++) {
         GeomNode *n = graph->nodes[i];
         if (n && n->type == GEOM_LINE_SEGMENT && n->coord_count >= 4) {
             segs[seg_count].id = n->id;
             segs[seg_count].p1 = -1;
             segs[seg_count].p2 = -1;
+            if (with_direction) {
+                segs[seg_count].dx = 0;
+                segs[seg_count].dy = 0;
+            }
             seg_count++;
         }
     }
-
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];
         if (c->type != INCIDENCE || c->participant_count < 2)
@@ -68,6 +60,27 @@ int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
             }
         }
     }
+    *count = seg_count;
+}
+
+/* ================================================================== */
+/*  内部: 几何推理消元模板 - 相似三角形                                 */
+/* ================================================================== */
+
+int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
+    if (!graph || !sys)
+        return 0;
+    int added = 0;
+    int *point_ids = NULL;
+    int pt_count = count_point_variables(graph, &point_ids);
+
+    SegInfo *segs = lv_calloc((size_t) graph->node_count, sizeof(SegInfo));
+    if (!segs) {
+        lv_free((void **) &point_ids);
+        return 0;
+    }
+    int seg_count = 0;
+    collect_segment_incidence(graph, segs, &seg_count, false);
 
     for (int a = 0; a < pt_count && added < 10; a++) {
         for (int b = a + 1; b < pt_count && added < 10; b++) {
@@ -135,44 +148,13 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
     int *point_ids = NULL;
     int pt_count = count_point_variables(graph, &point_ids);
 
-    typedef struct {
-        int id;
-        int p1;
-        int p2;
-    } SegInfo;
     SegInfo *segs = lv_calloc((size_t) graph->node_count, sizeof(SegInfo));
     if (!segs) {
         lv_free((void **) &point_ids);
         return 0;
     }
     int seg_count = 0;
-
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *n = graph->nodes[i];
-        if (n && n->type == GEOM_LINE_SEGMENT && n->coord_count >= 4) {
-            segs[seg_count].id = n->id;
-            segs[seg_count].p1 = -1;
-            segs[seg_count].p2 = -1;
-            seg_count++;
-        }
-    }
-
-    for (int ci = 0; ci < graph->constraint_count; ci++) {
-        Constraint *c = graph->constraints[ci];
-        if (c->type != INCIDENCE || c->participant_count < 2)
-            continue;
-        int pt_id = c->participants[0];
-        int seg_id = c->participants[1];
-        for (int s = 0; s < seg_count; s++) {
-            if (segs[s].id == seg_id) {
-                if (segs[s].p1 < 0)
-                    segs[s].p1 = pt_id;
-                else if (segs[s].p2 < 0)
-                    segs[s].p2 = pt_id;
-                break;
-            }
-        }
-    }
+    collect_segment_incidence(graph, segs, &seg_count, false);
 
     for (int a = 0; a < pt_count && added < 10; a++) {
         for (int b = a + 1; b < pt_count && added < 10; b++) {
@@ -207,7 +189,7 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                 double cbx = xb - xc, cby = yb - yc;
                 double dot = cax * cbx + cay * cby;
 
-                if (fabs(dot) < 1e-6 * (sqrt(cax * cax + cay * cay) * sqrt(cbx * cbx + cby * cby) + 1.0)) {
+                if (fabs(dot) < lv_EPSILON_LOW * (sqrt(cax * cax + cay * cay) * sqrt(cbx * cbx + cby * cby) + 1.0)) {
                     int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     mpz_t ab2_x_mpz, ab2_y_mpz;
                     mpz_init(ab2_x_mpz);
@@ -313,7 +295,7 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
             double nx_j = dx_j / len_j, ny_j = dy_j / len_j;
 
             double cross = nx_i * ny_j - ny_i * nx_j;
-            if (fabs(cross) > 1e-6)
+            if (fabs(cross) > lv_EPSILON_LOW)
                 continue;
 
             for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -398,44 +380,11 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         return 0;
     int added = 0;
 
-    typedef struct {
-        int id;
-        int p1, p2;
-        double dx, dy;
-    } SegInfo;
     SegInfo *segs = lv_calloc((size_t) graph->node_count, sizeof(SegInfo));
     if (!segs)
         return 0;
     int seg_count = 0;
-
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *n = graph->nodes[i];
-        if (n && n->type == GEOM_LINE_SEGMENT && n->coord_count >= 4) {
-            segs[seg_count].id = n->id;
-            segs[seg_count].p1 = -1;
-            segs[seg_count].p2 = -1;
-            segs[seg_count].dx = 0;
-            segs[seg_count].dy = 0;
-            seg_count++;
-        }
-    }
-
-    for (int ci = 0; ci < graph->constraint_count; ci++) {
-        Constraint *c = graph->constraints[ci];
-        if (c->type != INCIDENCE || c->participant_count < 2)
-            continue;
-        int pt_id = c->participants[0];
-        int seg_id = c->participants[1];
-        for (int s = 0; s < seg_count; s++) {
-            if (segs[s].id == seg_id) {
-                if (segs[s].p1 < 0)
-                    segs[s].p1 = pt_id;
-                else if (segs[s].p2 < 0)
-                    segs[s].p2 = pt_id;
-                break;
-            }
-        }
-    }
+    collect_segment_incidence(graph, segs, &seg_count, true);
 
     for (int s = 0; s < seg_count; s++) {
         if (segs[s].p1 < 0 || segs[s].p2 < 0)
@@ -460,7 +409,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
             double cross = segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx;
             double len_i = geo_norm_2d(segs[i].dx, segs[i].dy);
             double len_j = geo_norm_2d(segs[j].dx, segs[j].dy);
-            if (fabs(cross) < 1e-6 * (len_i * len_j + 1.0)) {
+            if (fabs(cross) < lv_EPSILON_LOW * (len_i * len_j + 1.0)) {
                 for (int k = 0; k < seg_count && added < 10; k++) {
                     if (k == i || k == j)
                         continue;

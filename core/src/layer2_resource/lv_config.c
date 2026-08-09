@@ -30,6 +30,7 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
+#include "lv/geometry_config.h"
 
 
 static lvConfig g_active_config;
@@ -106,6 +107,10 @@ int lv_config_apply(const lvConfig *cfg) {
     g_active_config = *cfg;
     g_config_applied = 1;
     lv_lazy_lock_unlock(&g_config_lock);
+    /* 配置应用后显式同步几何配置（lv_geometry_sync_config 读取
+     * 当前 lvConfig 的几何键并写入全局几何配置；lv_config_load_json
+     * 经 lv_config_apply 一并覆盖）。 */
+    lv_geometry_sync_config();
     return 0;
 }
 

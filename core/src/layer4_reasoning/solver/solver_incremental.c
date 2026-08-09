@@ -102,6 +102,14 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
     (void) lv_bfs_run(&spec);
 }
 
+/* 从 ID 数组初始化脏变量集合（等价于 dirty_set_init + 逐项 dirty_set_add） */
+static void dirty_set_init_from_ids(DirtyVariableSet *ds, const int *ids, int count) {
+    dirty_set_init(ds);
+    for (int i = 0; i < count; i++) {
+        dirty_set_add(ds, ids[i]);
+    }
+}
+
 /* ================================================================== */
 /*  PUBLIC API: solver_incremental_solve                               */
 /* ================================================================== */
@@ -179,16 +187,10 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
     extract_equations_from_constraints(graph, &full_sys);
 
     DirtyVariableSet ds;
-    dirty_set_init(&ds);
-    for (int i = 0; i < affected_count; i++) {
-        dirty_set_add(&ds, affected_ids[i]);
-    }
+    dirty_set_init_from_ids(&ds, affected_ids, affected_count);
 
     DirtyVariableSet expanded;
-    dirty_set_init(&expanded);
-    for (int i = 0; i < affected_count; i++) {
-        dirty_set_add(&expanded, affected_ids[i]);
-    }
+    dirty_set_init_from_ids(&expanded, affected_ids, affected_count);
 
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *c = graph->constraints[ci];

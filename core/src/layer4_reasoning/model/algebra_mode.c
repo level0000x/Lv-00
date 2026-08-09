@@ -345,7 +345,7 @@ static int apply_rotate(double m[16], const double *params, int param_count) {
     c = cos(rad);
     s = sin(rad);
     len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
-    if (len < 1e-15)
+    if (len < lv_NORMALIZATION_THRESHOLD)
         return 0;
     ux = ax / len;
     uy = ay / len;
@@ -383,7 +383,7 @@ static int apply_mirror(double m[16], const double *params, int param_count) {
     d = params[3];
     /* 平面反射矩阵：reflect through plane nx*x + ny*y + nz*z = d */
     double nlen = sqrt(nx * nx + ny * ny + nz * nz);
-    if (nlen < 1e-15)
+    if (nlen < lv_NORMALIZATION_THRESHOLD)
         return 0;
     nx /= nlen;
     ny /= nlen;
@@ -413,7 +413,7 @@ static int apply_project(double m[16], const double *params, int param_count) {
     pz = params[2];
     /* 正交投影到指定平面（通过原点，法向量为 (px,py,pz)） */
     double plen = sqrt(px * px + py * py + pz * pz);
-    if (plen < 1e-15)
+    if (plen < lv_NORMALIZATION_THRESHOLD)
         return 0;
     px /= plen;
     py /= plen;

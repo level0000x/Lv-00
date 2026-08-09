@@ -552,7 +552,7 @@ lvFace lv_he_mesh_add_face_triangle(lvHeMesh *mesh, lvVertex v1, lvVertex v2, lv
     double len = geo_distance_3d(0.0, 0.0, 0.0, nx, ny, nz);
 
     /* [安全] 防止零向量导致除零 */
-    if (len > 1e-12) {
+    if (len > lv_EPSILON_ULTRA) {
         mesh->face_data[f].normal.x = nx / len;
         mesh->face_data[f].normal.y = ny / len;
         mesh->face_data[f].normal.z = nz / len;
@@ -883,7 +883,7 @@ void lv_he_mesh_update_geometry(lvHeMesh *mesh) {
 
         /* 使用相对 epsilon 防止零面积面产生未归一化法线：
          * area 较小时，用 |cross|^(1/2) 的量级缩放 epsilon */
-        double area_eps = 1e-12 * (1.0 + fabs(cross.x) + fabs(cross.y) + fabs(cross.z));
+        double area_eps = lv_EPSILON_ULTRA * (1.0 + fabs(cross.x) + fabs(cross.y) + fabs(cross.z));
         mesh->face_data[f].normal.x = cross.x / (2 * area + area_eps);
         mesh->face_data[f].normal.y = cross.y / (2 * area + area_eps);
         mesh->face_data[f].normal.z = cross.z / (2 * area + area_eps);

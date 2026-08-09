@@ -203,7 +203,7 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
 
     /* Jacobi 迭代法（简单且适合稀疏矩阵）*/
     const int max_iter = 100;
-    const double tol = 1e-6;
+    const double tol = lv_EPSILON_LOW;
 
     double *x_next = lv_malloc(sizeof(double) * n);
     if (!x_next)
@@ -221,7 +221,7 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
         if (d > max_val)
             max_val = d;
     }
-    double diag_tol = 1e-12 * (1.0 + max_val);
+    double diag_tol = lv_EPSILON_ULTRA * (1.0 + max_val);
     for (iter = 0; iter < max_iter; iter++) {
         double max_diff = 0.0;
 

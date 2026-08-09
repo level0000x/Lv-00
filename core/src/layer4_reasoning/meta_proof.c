@@ -127,13 +127,13 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
     /* 叉积 = (x2-x1)*(yp-y1) - (y2-y1)*(xp-x1) */
     double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
 
-    return fabs(cross) > 1e-10; /* 叉积非零 → 不在线上 */
+    return fabs(cross) > lv_EPSILON_HIGH; /* 叉积非零 → 不在线上 */
 }
 
 /* ── L1 约束真实求值辅助函数 ── */
 
 /* 几何判定容差 */
-#define META_PROOF_GEOM_EPS 1e-9
+#define META_PROOF_GEOM_EPS lv_GEO_COLLINEAR_EPSILON
 #define META_PROOF_ANGLE_EPS 1e-6
 #define META_PROOF_PI 3.14159265358979323846
 

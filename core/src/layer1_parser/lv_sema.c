@@ -198,15 +198,11 @@ static bool lv_sema_match_name(const char *fname, const char *const *names) {
     return false;
 }
 
-/** @brief 关系调用函数名表（collinear 等，参数须为 Point 类型） */
-static const char *const kRelationCallNames[] = {
-    "collinear", "parallel", "perpendicular", "congruent", "tangent", NULL
-};
-
-/** @brief 度量调用函数名表（length 等，参数须为 Point 类型） */
-static const char *const kMeasureCallNames[] = {
-    "length", "distance", "angle", "measure", "area", "radius", NULL
-};
+/** @brief 关系/度量调用函数名表
+ *
+ * 词表收敛：由 lv_lexer.h 共享表 lv_geometry_relation_keywords /
+ * lv_measurement_keywords（NULL 结尾）提供，与 lv_parser.c 共用单一事实源，
+ * 下方 check_call 直接引用。 */
 
 typedef LvSemanticType (*GeomCallCheckFn)(LvSemaContext *ctx, LvAstNode *node);
 
@@ -289,7 +285,7 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
         return LV_TYPE_ERROR;
 
     /* 关系调用：collinear, parallel, perpendicular, congruent, tangent */
-    if (lv_sema_match_name(fname, kRelationCallNames)) {
+    if (lv_sema_match_name(fname, lv_geometry_relation_keywords)) {
         /* 参数必须是 Point 类型 */
         for (LvAstNode *a = node->data.call.args; a; a = a->next) {
             LvSemanticType at = check_expr(ctx, a);
@@ -301,7 +297,7 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
     }
 
     /* 度量调用：length, distance, angle, measure, area, radius */
-    if (lv_sema_match_name(fname, kMeasureCallNames)) {
+    if (lv_sema_match_name(fname, lv_measurement_keywords)) {
         for (LvAstNode *a = node->data.call.args; a; a = a->next) {
             LvSemanticType at = check_expr(ctx, a);
             if (at != LV_TYPE_POINT && at != LV_TYPE_ERROR) {

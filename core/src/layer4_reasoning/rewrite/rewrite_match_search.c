@@ -23,6 +23,8 @@
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
+#include "rewrite_common.h"
+
 /* 前向声明 */
 extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, RewriteMatch *match);
 /* ---- 模式匹配辅助函数 ---- */
@@ -36,11 +38,10 @@ extern bool evaluate_precondition(ConstraintGraph *graph, RewriteRule *rule, Rew
  *   CONTAINMENT:  [0]=POINT/REGION, [1]=REGION/CIRCLE
  *   CONNECTION:   全部为 PORT
  *   ANGLE:        全部为 LINE_SEGMENT
+ * 实现见 rewrite_common.h 的共享函数（标准匹配器与 VF2 匹配器共用）。
  */
 
-#define REWRITE_GEOM_TYPE_COUNT 6
-
-static unsigned rewrite_constraint_participant_type_mask(ConstraintType type, int position) {
+unsigned rewrite_participant_type_mask(ConstraintType type, int position) {
     static const unsigned kConstraintTypeMasks[][3] = {
         [INCIDENCE]    = {1u << GEOM_POINT, (1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
         [BETWEENNESS]  = {1u << GEOM_POINT, 1u << GEOM_POINT, 1u << GEOM_POINT},
@@ -53,13 +54,12 @@ static unsigned rewrite_constraint_participant_type_mask(ConstraintType type, in
         unsigned mask = kConstraintTypeMasks[type][position];
         if (mask != 0) return mask;
     }
-    return (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
+    return REWRITE_ALL_GEOM_TYPES_MASK;
 }
 
-static void rewrite_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {
-    const unsigned all_types = (1u << REWRITE_GEOM_TYPE_COUNT) - 1u;
+void rewrite_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {
     for (int j = 0; j < var_count; j++)
-        masks[j] = all_types;
+        masks[j] = REWRITE_ALL_GEOM_TYPES_MASK;
     for (int c = 0; c < pat->pattern_constraint_count; c++) {
         Constraint *pc = pat->pattern_constraints[c];
         if (!pc)
@@ -77,7 +77,7 @@ static void rewrite_pattern_var_type_masks(const RewritePattern *pat, unsigned *
             }
             if (slot < 0)
                 continue;
-            masks[slot] &= rewrite_constraint_participant_type_mask(pc->type, p);
+            masks[slot] &= rewrite_participant_type_mask(pc->type, p);
         }
     }
 }

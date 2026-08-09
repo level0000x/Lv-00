@@ -138,6 +138,14 @@ const char *lv_token_type_name(LvTokenType type);
 /** 将 token 的文本提取到缓冲区（安全） */
 size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size);
 
+/* ── 共享几何关键词表（parser/sema 单一事实源，定义见 lv_lexer.c） ── */
+
+/** 几何关系关键词表（collinear/parallel/perpendicular/congruent/tangent，NULL 结尾） */
+extern const char *const lv_geometry_relation_keywords[];
+
+/** 几何度量关键词表（length/distance/angle/measure/area/radius，NULL 结尾） */
+extern const char *const lv_measurement_keywords[];
+
 #ifdef __cplusplus
 }
 #endif

@@ -323,28 +323,114 @@ static lvExportResult *export_latex(const lvProof *proof, const lvExportConfig *
  * Coq 导出
  * ================================================================ */
 
+/**
+ * @brief 判断规则字符串是否为无参 Coq tactic 关键字
+ * @param rule 规则字符串
+ * @return true 表示无参 tactic（直接输出 `rule.`）
+ */
+static bool is_zero_arg_coq_tactic(const char *rule) {
+    static const char *const kZeroArg[] = {
+        "reflexivity", "assumption", "trivial", "auto", "congruence", "tauto",
+        "contradiction", "exfalso", "simpl", "compute", "symmetry", "split",
+        "constructor", "now", "intuition", "omega", "lia"
+    };
+    for (size_t i = 0; i < sizeof(kZeroArg) / sizeof(kZeroArg[0]); i++) {
+        if (strcmp(rule, kZeroArg[i]) == 0)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 判断规则字符串是否为带单参的 Coq tactic 关键字
+ * @param rule 规则字符串
+ * @return true 表示单参 tactic（输出 `rule conclusion.`）
+ */
+static bool is_one_arg_coq_tactic(const char *rule) {
+    static const char *const kOneArg[] = {
+        "exact", "apply", "rewrite", "destruct", "induction", "exists", "unfold",
+        "specialize", "pose", "injection", "discriminate", "subst", "clear", "rename"
+    };
+    for (size_t i = 0; i < sizeof(kOneArg) / sizeof(kOneArg[0]); i++) {
+        if (strcmp(rule, kOneArg[i]) == 0)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 判断规则字符串是否以已知 Coq tactic 关键字开头（形如 "apply thm"）
+ * @param rule 规则字符串
+ * @return true 表示整行可直接作为 tactic 字符串直译
+ */
+static bool is_coq_tactic_prefix(const char *rule) {
+    static const char *const kPrefixes[] = { "exact ", "apply ", "rewrite ", "pose ", "assert " };
+    for (size_t i = 0; i < sizeof(kPrefixes) / sizeof(kPrefixes[0]); i++) {
+        if (strncmp(rule, kPrefixes[i], strlen(kPrefixes[i])) == 0)
+            return true;
+    }
+    return false;
+}
+
 static lvExportResult *export_coq(const lvProof *proof, const lvExportConfig *config) {
     lvStrBuf d;
     lv_strbuf_init(&d);
 
-    (void) config;
+    /* tactic 行必须换行分隔；pretty_print 额外在步骤间插入空行 */
+    const char *nl = "\n";
+    const char *blank = config->pretty_print ? "\n" : "";
 
     char id[256];
     sanitize_id(id, sizeof(id), proof->theorem);
 
-    lv_strbuf_printf(&d, "(* Proof: %s *)%s", safe_str(proof->theorem), "\n");
-    lv_strbuf_printf(&d, "%s", "\n");
-    lv_strbuf_printf(&d, "Theorem %s : True.%s", id, "\n");
-    lv_strbuf_printf(&d, "Proof.%s", "\n");
+    /* 定理目标：取最后一个证明步骤的结论（无步骤时回退 True，避免恒真占位） */
+    const char *goal = "True";
+    if (proof->n_steps > 0 && proof->steps[proof->n_steps - 1].conclusion)
+        goal = proof->steps[proof->n_steps - 1].conclusion;
+
+    lv_strbuf_printf(&d, "(* Proof: %s *)%s", safe_str(proof->theorem), nl);
+    if (config->include_geometry)
+        lv_strbuf_printf(&d, "(* Geometry: %d steps, %d depth *)%s", proof->n_steps,
+                         proof->n_steps > 0 ? proof->steps[proof->n_steps - 1].depth : 0, nl);
+    lv_strbuf_printf(&d, "%s", nl);
+    lv_strbuf_printf(&d, "Theorem %s : %s.%s", id, goal, nl);
+    lv_strbuf_printf(&d, "Proof.%s", nl);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        lv_strbuf_printf(&d, "  (* Step %d: %s", s->step_id, safe_str(s->rule));
-        if (s->premise)
-            lv_strbuf_printf(&d, " (premise: %s)", s->premise);
-        lv_strbuf_printf(&d, " → %s *)%s", safe_str(s->conclusion), "\n");
-        lv_strbuf_printf(&d, "  %s. (* %s *)%s", "exact I", safe_str(s->rule), "\n");
+        if (config->include_proof_trace) {
+            lv_strbuf_printf(&d, "  (* Step %d: %s", s->step_id, safe_str(s->rule));
+            if (s->premise)
+                lv_strbuf_printf(&d, " (premise: %s)", s->premise);
+            lv_strbuf_printf(&d, " → %s *)%s", safe_str(s->conclusion), nl);
+        }
+        /* 根据规则字符串翻译为真实 Coq tactic（exact/apply/assert/tactic 字符串） */
+        const char *rule = safe_str(s->rule);
+        if (strcmp(rule, "assert") == 0 || strcmp(rule, "have") == 0) {
+            lv_strbuf_printf(&d, "  assert (step_%d : %s).%s", s->step_id, safe_str(s->conclusion), nl);
+            if (s->premise && s->premise[0])
+                lv_strbuf_printf(&d, "  { exact %s. }%s", s->premise, nl);
+            else
+                lv_strbuf_printf(&d, "  { admit. }%s", nl);
+        } else if (is_zero_arg_coq_tactic(rule)) {
+            lv_strbuf_printf(&d, "  %s.%s", rule, nl);
+        } else if (is_one_arg_coq_tactic(rule)) {
+            lv_strbuf_printf(&d, "  %s %s.%s", rule, safe_str(s->conclusion), nl);
+        } else if (is_coq_tactic_prefix(rule)) {
+            /* 完整 tactic 字符串直译（如 "apply lv_func_3"） */
+            lv_strbuf_printf(&d, "  %s.%s", rule, nl);
+        } else {
+            /* 默认：有前提则用前提 exact，否则断言待补 */
+            if (s->premise && s->premise[0]) {
+                lv_strbuf_printf(&d, "  exact %s.%s", s->premise, nl);
+            } else {
+                lv_strbuf_printf(&d, "  assert (step_%d : %s).%s", s->step_id, safe_str(s->conclusion), nl);
+                lv_strbuf_printf(&d, "  { admit. }%s", nl);
+            }
+        }
+        if (config->pretty_print)
+            lv_strbuf_printf(&d, "%s", blank);
     }
-    lv_strbuf_printf(&d, "Qed.%s", "\n");
+    lv_strbuf_printf(&d, "Qed.%s", nl);
 
     return make_success(&d);
 }
@@ -357,24 +443,62 @@ static lvExportResult *export_lean4(const lvProof *proof, const lvExportConfig *
     lvStrBuf d;
     lv_strbuf_init(&d);
 
-    (void) config;
+    /* tactic 行必须换行分隔；pretty_print 额外在步骤间插入空行 */
+    const char *nl = "\n";
+    const char *blank = config->pretty_print ? "\n" : "";
 
     char id[256];
     sanitize_id(id, sizeof(id), proof->theorem);
 
-    lv_strbuf_printf(&d, "import Mathlib%s", "\n");
-    lv_strbuf_printf(&d, "%s", "\n");
-    lv_strbuf_printf(&d, "/- Proof: %s -/%s", safe_str(proof->theorem), "\n");
-    lv_strbuf_printf(&d, "theorem %s : True := by%s", id, "\n");
+    /* 定理目标：取最后一个证明步骤的结论（无步骤时回退 True，避免恒真占位） */
+    const char *goal = "True";
+    if (proof->n_steps > 0 && proof->steps[proof->n_steps - 1].conclusion)
+        goal = proof->steps[proof->n_steps - 1].conclusion;
+
+    lv_strbuf_printf(&d, "import Mathlib%s", nl);
+    lv_strbuf_printf(&d, "%s", nl);
+    lv_strbuf_printf(&d, "/- Proof: %s -/%s", safe_str(proof->theorem), nl);
+    if (config->include_geometry)
+        lv_strbuf_printf(&d, "/- Geometry: %d steps -/%s", proof->n_steps, nl);
+    lv_strbuf_printf(&d, "theorem %s : %s := by%s", id, goal, nl);
     for (int i = 0; i < proof->n_steps; i++) {
         const lvProofStep *s = &proof->steps[i];
-        lv_strbuf_printf(&d, "  -- Step %d: %s", s->step_id, safe_str(s->rule));
-        if (s->premise)
-            lv_strbuf_printf(&d, " (from %s)", s->premise);
-        lv_strbuf_printf(&d, " → %s%s", safe_str(s->conclusion), "\n");
-        lv_strbuf_printf(&d, "  have h%d : True := by trivial%s", s->step_id, "\n");
+        if (config->include_proof_trace) {
+            lv_strbuf_printf(&d, "  -- Step %d: %s", s->step_id, safe_str(s->rule));
+            if (s->premise)
+                lv_strbuf_printf(&d, " (from %s)", s->premise);
+            lv_strbuf_printf(&d, " → %s%s", safe_str(s->conclusion), nl);
+        }
+        /* 每步翻译为 have 中间假设，证明体用 by/exact/apply/calc/tactic 字符串 */
+        const char *rule = safe_str(s->rule);
+        lv_strbuf_printf(&d, "  have h%d : %s := by%s", s->step_id, safe_str(s->conclusion), nl);
+        if (strcmp(rule, "exact") == 0) {
+            lv_strbuf_printf(&d, "    exact %s%s", safe_str(s->premise ? s->premise : s->conclusion), nl);
+        } else if (strcmp(rule, "apply") == 0) {
+            lv_strbuf_printf(&d, "    apply %s%s", safe_str(s->premise ? s->premise : s->conclusion), nl);
+        } else if (strcmp(rule, "rewrite") == 0) {
+            lv_strbuf_printf(&d, "    rw [%s]%s", safe_str(s->conclusion), nl);
+        } else if (strcmp(rule, "calc") == 0) {
+            lv_strbuf_printf(&d, "    calc%s", nl);
+            lv_strbuf_printf(&d, "      %s := by trivial%s", safe_str(s->conclusion), nl);
+        } else if (strcmp(rule, "assumption") == 0 || strcmp(rule, "trivial") == 0 ||
+                   strcmp(rule, "rfl") == 0) {
+            lv_strbuf_printf(&d, "    %s%s", rule, nl);
+        } else if (s->premise && s->premise[0]) {
+            /* 默认：前提即结论的证明 */
+            lv_strbuf_printf(&d, "    exact %s%s", s->premise, nl);
+        } else {
+            lv_strbuf_printf(&d, "    trivial%s", nl);
+        }
+        if (config->pretty_print)
+            lv_strbuf_printf(&d, "%s", blank);
     }
-    lv_strbuf_printf(&d, "  exact h%d%s", proof->steps[proof->n_steps - 1].step_id, "\n");
+    if (proof->n_steps > 0) {
+        const lvProofStep *last = &proof->steps[proof->n_steps - 1];
+        lv_strbuf_printf(&d, "  exact h%d%s", last->step_id, nl);
+    } else {
+        lv_strbuf_printf(&d, "  trivial%s", nl);
+    }
 
     return make_success(&d);
 }

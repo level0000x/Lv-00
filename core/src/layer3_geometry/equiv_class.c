@@ -595,7 +595,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             /* 比较排序后的距离向量（容差 1e-9） */
             bool distance_match = true;
             for (int k = 0; k < point_count; k++) {
-                if (fabs(dists_i[k] - dists_j[k]) > 1e-9) {
+                if (fabs(dists_i[k] - dists_j[k]) > lv_GEO_COLLINEAR_EPSILON) {
                     distance_match = false;
                     break;
                 }

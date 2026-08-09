@@ -22,6 +22,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
+#include "rewrite_common.h"
 
 /* ── 前向声明 ── */
 uint32_t compute_graph_hash(ConstraintGraph *graph);
@@ -105,9 +106,10 @@ static void vf2_state_destroy(VF2State *state) {
     state->in_set = state->out_set = NULL;
 }
 
-/* 模式变量节点类型推导：与标准匹配器（rewrite_match_search.c 的
- * rewrite_pattern_var_type_masks）保持同一约定，依据模式约束的
- * 参与者槽位推导每个模式变量可绑定的 GeomType 集合：
+/* 模式变量节点类型推导：与标准匹配器（rewrite_match_search.c）共用
+ * rewrite_common.h 的共享实现（rewrite_participant_type_mask /
+ * rewrite_pattern_var_type_masks），依据模式约束的参与者槽位推导每个
+ * 模式变量可绑定的 GeomType 集合：
  *   INCIDENCE:    [0]=POINT, [1]=LINE_SEGMENT/REGION/CIRCLE
  *   BETWEENNESS:  全部为 POINT
  *   INTERSECTION: [0][1]=LINE_SEGMENT, [2]=POINT
@@ -116,50 +118,6 @@ static void vf2_state_destroy(VF2State *state) {
  *   ANGLE:        全部为 LINE_SEGMENT
  * 类型约束与 graph_index.c 中 typed add_* 系列的类型校验保持一致。
  */
-#define VF2_GEOM_TYPE_COUNT 6
-#define VF2_ALL_GEOM_TYPES_MASK ((1u << VF2_GEOM_TYPE_COUNT) - 1u)
-
-static unsigned vf2_participant_type_mask(ConstraintType type, int position) {
-    static const unsigned kMasks[][3] = {
-        [INCIDENCE]    = {1u << GEOM_POINT, (1u << GEOM_LINE_SEGMENT) | (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
-        [BETWEENNESS]  = {1u << GEOM_POINT, 1u << GEOM_POINT, 1u << GEOM_POINT},
-        [INTERSECTION] = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 1u << GEOM_POINT},
-        [CONTAINMENT]  = {(1u << GEOM_POINT) | (1u << GEOM_REGION), (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
-        [CONNECTION]   = {1u << GEOM_PORT, 1u << GEOM_PORT, 0},
-        [ANGLE]        = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 0},
-    };
-    if ((unsigned) type < sizeof(kMasks) / sizeof(kMasks[0]) && (unsigned) position < 3) {
-        unsigned mask = kMasks[type][position];
-        if (mask != 0)
-            return mask;
-    }
-    return VF2_ALL_GEOM_TYPES_MASK;
-}
-
-static void vf2_pattern_var_type_masks(const RewritePattern *pat, unsigned *masks, int var_count) {
-    for (int j = 0; j < var_count; j++)
-        masks[j] = VF2_ALL_GEOM_TYPES_MASK;
-    for (int c = 0; c < pat->pattern_constraint_count; c++) {
-        Constraint *pc = pat->pattern_constraints[c];
-        if (!pc)
-            continue;
-        for (int p = 0; p < pc->participant_count; p++) {
-            int pid = pc->participants[p];
-            if (pid >= 0)
-                continue; /* 固定节点（非模式变量）：不参与类型推导 */
-            int slot = -1;
-            for (int j = 0; j < var_count; j++) {
-                if (pat->variable_node_ids[j] == pid) {
-                    slot = j;
-                    break;
-                }
-            }
-            if (slot < 0)
-                continue;
-            masks[slot] &= vf2_participant_type_mask(pc->type, p);
-        }
-    }
-}
 
 /* ── 目标图节点 ID → 数组下标 ─────────────────────────────────
  * 目标约束的参与者字段保存的是节点 ID，而 VF2 内部 core_2 / nodes[]
@@ -201,7 +159,7 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
     int t_id = tn->id; /* 约束参与者保存节点 ID，与数组下标 t 区分 */
 
     /* 节点类型必须匹配：模式变量的允许类型集合（由模式约束参与者槽位
-     * 推导，见 vf2_participant_type_mask）须包含目标节点类型。
+     * 推导，见 rewrite_participant_type_mask）须包含目标节点类型。
      * 例如 INCIDENCE 的 participants[1] 槽位只接受
      * LINE_SEGMENT/REGION/CIRCLE，避免把线段变量绑定到 POINT 节点。 */
     if (!(var_type_masks[p] & (1u << (unsigned) tn->type)))
@@ -911,7 +869,7 @@ RewriteMatch *vf2_find_match(ConstraintGraph *target_graph, RewritePattern *patt
         graph_destroy(pattern_graph);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "vf2_find_match: lv_malloc for var_type_masks failed");
     }
-    vf2_pattern_var_type_masks(pattern, var_type_masks, pattern->var_count);
+    rewrite_pattern_var_type_masks(pattern, var_type_masks, pattern->var_count);
 
     /* 初始化 VF2 匹配状态 */
     VF2State state;

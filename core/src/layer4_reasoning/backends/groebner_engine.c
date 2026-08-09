@@ -379,8 +379,244 @@ static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx,
     }
 }
 
-static void groebner_engine_encode_skip(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    (void) ctx; (void) con;
+/* 编码辅助：将多项式追加到理想生成元列表（所有权转移，失败时释放 poly） */
+static void groebner_engine_ideal_append(const GroebnerEngineEncodeCtx *ctx, lvPolynomial *poly) {
+    if (!poly) return;
+    if (!ctx || !ctx->ideal) {
+        poly_internal_destroy(poly);
+        return;
+    }
+    if (ctx->ideal->generator_count >= ctx->ideal->generator_capacity) {
+        if (!lv_ensure_capacity((void **) &ctx->ideal->generators, ctx->ideal->generator_count,
+                                &ctx->ideal->generator_capacity, sizeof(lvPolynomial *), 1)) {
+            poly_internal_destroy(poly);
+            return;
+        }
+    }
+    ctx->ideal->generators[ctx->ideal->generator_count++] = poly;
+}
+
+/* 编码辅助：取节点 id 的 (x, y) 变量索引；节点无变量映射返回 -1 */
+static int groebner_engine_var_xy(const GroebnerEngineEncodeCtx *ctx, int node_id, int *xv, int *yv) {
+    if (!ctx || !xv || !yv || node_id < 0 || node_id >= ctx->map_size) return -1;
+    if (ctx->var_x[node_id] < 0 || ctx->var_y[node_id] < 0) return -1;
+    *xv = ctx->var_x[node_id];
+    *yv = ctx->var_y[node_id];
+    return 0;
+}
+
+/* 编码辅助：提取线段端点坐标（标准布局 [Ax,Ay,Bx,By]，graph_add_line_segment 约定），
+ * 任一端点坐标缺失返回 false */
+static bool groebner_engine_segment_coords(const ConstraintGraph *graph, int seg_id,
+                                           double *ax, double *ay, double *bx, double *by) {
+    if (!graph || seg_id < 0) return false;
+    GeomNode *seg = graph_get_node(graph, seg_id);
+    if (!seg || seg->type != GEOM_LINE_SEGMENT) return false;
+    if (!seg->symbolic_coords || seg->coord_count < 4) return false;
+    if (!seg->symbolic_coords[0] || !seg->symbolic_coords[1] ||
+        !seg->symbolic_coords[2] || !seg->symbolic_coords[3]) return false;
+    *ax = symbolic_coord_to_double(seg->symbolic_coords[0]);
+    *ay = symbolic_coord_to_double(seg->symbolic_coords[1]);
+    *bx = symbolic_coord_to_double(seg->symbolic_coords[2]);
+    *by = symbolic_coord_to_double(seg->symbolic_coords[3]);
+    return true;
+}
+
+/* 编码辅助：构造线性方程 cx*x + cy*y + c0 = 0（近零系数由 add_term 自动剔除） */
+static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, int xv, int yv,
+                                                 double cx, double cy, double c0) {
+    if (!ring || xv < 0 || xv >= ring->var_count || yv < 0 || yv >= ring->var_count) return NULL;
+    lvPolynomial *poly = poly_internal_create(ring, 4, NULL);
+    if (!poly) return NULL;
+    poly_internal_add_term(poly, ring, xv, 1, cx);
+    poly_internal_add_term(poly, ring, yv, 1, cy);
+    poly_internal_add_term(poly, ring, -1, 0, c0);
+    return poly;
+}
+
+/* BETWEENNESS(A,B,C)：点 B 在 A 与 C 之间 → 三点共线（组合方程）。
+ * 编码：叉积 cross = (B-A)×(C-A) = (x_B-x_A)(y_C-y_A) - (y_B-y_A)(x_C-x_A) = 0，
+ * 展开为两个双线性因子之差，用乘法构造后合并。 */
+static void groebner_engine_encode_betweenness(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (con->participant_count < 3) return;
+    int xa = -1, ya = -1, xb = -1, yb = -1, xc = -1, yc = -1;
+    if (groebner_engine_var_xy(ctx, con->participants[0], &xa, &ya) < 0) return;
+    if (groebner_engine_var_xy(ctx, con->participants[1], &xb, &yb) < 0) return;
+    if (groebner_engine_var_xy(ctx, con->participants[2], &xc, &yc) < 0) return;
+
+    lvPolynomial *ux = poly_internal_make_term(ctx->ring, xb, 1, 1.0, NULL);
+    if (ux) poly_internal_add_term(ux, ctx->ring, xa, 1, -1.0);
+    if (!ux) return;
+
+    lvPolynomial *uy = poly_internal_make_term(ctx->ring, yb, 1, 1.0, NULL);
+    if (uy) poly_internal_add_term(uy, ctx->ring, ya, 1, -1.0);
+    if (!uy) { poly_internal_destroy(ux); return; }
+
+    lvPolynomial *vx = poly_internal_make_term(ctx->ring, xc, 1, 1.0, NULL);
+    if (vx) poly_internal_add_term(vx, ctx->ring, xa, 1, -1.0);
+    if (!vx) { poly_internal_destroy(ux); poly_internal_destroy(uy); return; }
+
+    lvPolynomial *vy = poly_internal_make_term(ctx->ring, yc, 1, 1.0, NULL);
+    if (vy) poly_internal_add_term(vy, ctx->ring, ya, 1, -1.0);
+    if (!vy) { poly_internal_destroy(ux); poly_internal_destroy(uy); poly_internal_destroy(vx); return; }
+
+    lvPolynomial *p1 = poly_internal_multiply(ux, vy, ctx->ring);
+    lvPolynomial *p2 = poly_internal_multiply(uy, vx, ctx->ring);
+    if (p2) poly_internal_scale(p2, -1.0);
+    lvPolynomial *cross = (p1 && p2) ? poly_internal_add(p1, p2, ctx->ring) : NULL;
+
+    poly_internal_destroy(ux);
+    poly_internal_destroy(uy);
+    poly_internal_destroy(vx);
+    poly_internal_destroy(vy);
+    poly_internal_destroy(p1);
+    poly_internal_destroy(p2);
+
+    groebner_engine_ideal_append(ctx, cross);
+}
+
+/* INTERSECTION(AB,CD)→E：两线段交于 E。线段端点坐标为常量（线段 symbolic_coords
+ * 布局 [Ax,Ay,Bx,By]），交点 E 为变量。参数方程消元 → E 同时满足两条线的
+ * 共线（线性）方程：
+ *   cross(E-A, B-A) = dy1*Ex - dx1*Ey + (ay*dx1 - ax*dy1) = 0
+ *   cross(E-C, D-C) = dy2*Ex - dx2*Ey + (cy*dx2 - cx*dy2) = 0 */
+static void groebner_engine_encode_intersection(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (con->participant_count < 3) return;
+    double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
+    double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) return;
+    int xe = -1, ye = -1;
+    if (groebner_engine_var_xy(ctx, con->participants[2], &xe, &ye) < 0) return;
+
+    double dx1 = bx - ax, dy1 = by - ay;
+    double dx2 = dx - cx, dy2 = dy - cy;
+
+    groebner_engine_ideal_append(ctx,
+        groebner_engine_make_linear(ctx->ring, xe, ye, dy1, -dx1, ay * dx1 - ax * dy1));
+    groebner_engine_ideal_append(ctx,
+        groebner_engine_make_linear(ctx->ring, xe, ye, dy2, -dx2, cy * dx2 - cx * dy2));
+}
+
+/* CONTAINMENT(inner, outer)：inner 点被 outer 区域/圆包含 → 坐标方程。
+ *  - outer=CIRCLE：点 P 在圆上（包含边界）：(Px-Ox)^2 + (Py-Oy)^2 - r^2 = 0，
+ *    r^2 由圆心节点与半径端点节点坐标计算；
+ *  - outer=REGION：点 P 在区域首条边界线段上的共线方程（包含的边界退化编码）。
+ *  其余组合（inner 非 POINT 等）缺数据，记录诊断并跳过。 */
+static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (con->participant_count < 2) return;
+    int inner_id = con->participants[0];
+    int outer_id = con->participants[1];
+
+    GeomNode *inner = graph_get_node(ctx->graph, inner_id);
+    GeomNode *outer = graph_get_node(ctx->graph, outer_id);
+    if (!inner || !outer) return;
+    if (inner->type != GEOM_POINT) {
+        LOG_ERROR("groebner", "CONTAINMENT 约束 %d: inner 节点 %d 非 POINT，无坐标变量，跳过",
+                  con->id, inner_id);
+        return;
+    }
+    int xp = -1, yp = -1;
+    if (groebner_engine_var_xy(ctx, inner_id, &xp, &yp) < 0) return;
+
+    if (outer->type == GEOM_CIRCLE) {
+        GeomNode *center = graph_get_node(ctx->graph, outer->data.circle.center_node_id);
+        GeomNode *radius_pt = graph_get_node(ctx->graph, outer->data.circle.radius_node_id);
+        if (!center || !radius_pt || !center->symbolic_coords || center->coord_count < 2 ||
+            !radius_pt->symbolic_coords || radius_pt->coord_count < 2 ||
+            !center->symbolic_coords[0] || !center->symbolic_coords[1] ||
+            !radius_pt->symbolic_coords[0] || !radius_pt->symbolic_coords[1]) {
+            LOG_ERROR("groebner", "CONTAINMENT 约束 %d: 圆 %d 的圆心/半径端点坐标缺失，跳过",
+                      con->id, outer_id);
+            return;
+        }
+        double ox = symbolic_coord_to_double(center->symbolic_coords[0]);
+        double oy = symbolic_coord_to_double(center->symbolic_coords[1]);
+        double rx = symbolic_coord_to_double(radius_pt->symbolic_coords[0]);
+        double ry = symbolic_coord_to_double(radius_pt->symbolic_coords[1]);
+        double r2 = (rx - ox) * (rx - ox) + (ry - oy) * (ry - oy);
+
+        lvPolynomial *poly = poly_internal_make_term(ctx->ring, xp, 2, 1.0, NULL);
+        if (!poly) return;
+        poly_internal_add_term(poly, ctx->ring, xp, 1, -2.0 * ox);
+        poly_internal_add_term(poly, ctx->ring, yp, 2, 1.0);
+        poly_internal_add_term(poly, ctx->ring, yp, 1, -2.0 * oy);
+        poly_internal_add_term(poly, ctx->ring, -1, 0, ox * ox + oy * oy - r2);
+        groebner_engine_ideal_append(ctx, poly);
+        return;
+    }
+
+    if (outer->type == GEOM_REGION) {
+        GeomNode **segs = outer->data.region.boundary_segments;
+        int seg_count = outer->data.region.segment_count;
+        if (!segs || seg_count <= 0) {
+            LOG_ERROR("groebner", "CONTAINMENT 约束 %d: 区域 %d 无边界线段，跳过",
+                      con->id, outer_id);
+            return;
+        }
+        double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
+        if (!groebner_engine_segment_coords(ctx->graph, segs[0]->id, &ax, &ay, &bx, &by)) return;
+        double dx = bx - ax, dy = by - ay;
+        groebner_engine_ideal_append(ctx,
+            groebner_engine_make_linear(ctx->ring, xp, yp, dy, -dx, ay * dx - ax * dy));
+        return;
+    }
+
+    LOG_ERROR("groebner", "CONTAINMENT 约束 %d: outer 节点 %d 类型不支持（仅 CIRCLE/REGION），跳过",
+              con->id, outer_id);
+}
+
+/* CONNECTION(src_port, dst_port)：端口连接 = 数据流等值 → 两端口坐标相等方程
+ *   x_src - x_dst = 0、y_src - y_dst = 0。
+ * 端口节点默认无坐标（graph_add_port 置 coord_count=0），缺坐标变量时记录诊断并跳过。 */
+static void groebner_engine_encode_connection(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (con->participant_count < 2) return;
+    int src_id = con->participants[0];
+    int dst_id = con->participants[1];
+    GeomNode *src = graph_get_node(ctx->graph, src_id);
+    GeomNode *dst = graph_get_node(ctx->graph, dst_id);
+    if (!src || !dst || src->type != GEOM_PORT || dst->type != GEOM_PORT) return;
+
+    int xs = -1, ys = -1, xd = -1, yd = -1;
+    if (groebner_engine_var_xy(ctx, src_id, &xs, &ys) < 0 ||
+        groebner_engine_var_xy(ctx, dst_id, &xd, &yd) < 0) {
+        LOG_ERROR("groebner", "CONNECTION 约束 %d: 端口 %d/%d 无坐标变量，无法构造坐标相等方程，跳过",
+                  con->id, src_id, dst_id);
+        return;
+    }
+    groebner_engine_ideal_append(ctx, groebner_engine_make_linear(ctx->ring, xs, xd, 1.0, -1.0, 0.0));
+    groebner_engine_ideal_append(ctx, groebner_engine_make_linear(ctx->ring, ys, yd, 1.0, -1.0, 0.0));
+}
+
+/* ANGLE(line1, line2)：两条线段夹角等于约束角度（度）。
+ * 方向向量 u = B-A、v = D-C（端点坐标为常量），夹角 θ 的余弦等式：
+ *   (u·v)^2 - cos^2θ · |u|^2 · |v|^2 = 0（平方消除根号，等价于余弦/斜率判据）。
+ * 结果为常量多项式：角度匹配时近零（跳过），否则作为一致性方程加入理想。 */
+static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (con->participant_count < 2) return;
+    double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
+    double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) return;
+
+    double ux = bx - ax, uy = by - ay;
+    double vx = dx - cx, vy = dy - cy;
+    double theta = con->numeric_value * M_PI / 180.0;
+    double cos_sq = cos(theta) * cos(theta);
+    double dot = ux * vx + uy * vy;
+    double norm_u_sq = ux * ux + uy * uy;
+    double norm_v_sq = vx * vx + vy * vy;
+    double lhs = dot * dot - cos_sq * norm_u_sq * norm_v_sq;
+
+    if (fabs(lhs) < GROEBNER_ZERO_THRESHOLD) return;
+    lvPolynomial *poly = poly_internal_create(ctx->ring, 1, NULL);
+    if (!poly) return;
+    poly_internal_add_term(poly, ctx->ring, -1, 0, lhs);
+    if (poly->term_count <= 0) {
+        poly_internal_destroy(poly);
+        return;
+    }
+    groebner_engine_ideal_append(ctx, poly);
 }
 
 /* ── Groebner 引擎编码函数查找表 ── */
@@ -391,11 +627,11 @@ typedef struct {
 } GroebnerEngineEncodeEntry;
 static const GroebnerEngineEncodeEntry kGroebnerEngineEncodeTable[] = {
     {INCIDENCE,    groebner_engine_encode_incidence},
-    {BETWEENNESS,  groebner_engine_encode_skip},
-    {INTERSECTION, groebner_engine_encode_skip},
-    {CONTAINMENT,  groebner_engine_encode_skip},
-    {CONNECTION,   groebner_engine_encode_skip},
-    {ANGLE,        groebner_engine_encode_skip}
+    {BETWEENNESS,  groebner_engine_encode_betweenness},
+    {INTERSECTION, groebner_engine_encode_intersection},
+    {CONTAINMENT,  groebner_engine_encode_containment},
+    {CONNECTION,   groebner_engine_encode_connection},
+    {ANGLE,        groebner_engine_encode_angle}
 };
 static const int kGroebnerEngineEncodeTableCount =
     (int)(sizeof(kGroebnerEngineEncodeTable) / sizeof(kGroebnerEngineEncodeTable[0]));

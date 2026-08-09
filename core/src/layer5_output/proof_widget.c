@@ -182,6 +182,70 @@ int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active, b
  * ================================================================ */
 
 /**
+ * @brief 生成命题的可显示文本（label > name > description）
+ * @param prop 命题（可为 NULL）
+ * @return lv_malloc 分配的字符串，无可用文本时为空串；失败返回 NULL
+ */
+static char *widget_proposition_text(const Proposition *prop) {
+    const char *text = NULL;
+    if (prop) {
+        if (prop->label && prop->label[0] != '\0')
+            text = prop->label;
+        else if (prop->name && prop->name[0] != '\0')
+            text = prop->name;
+        else if (prop->description && prop->description[0] != '\0')
+            text = prop->description;
+    }
+    return lv_strdup(text ? text : "");
+}
+
+/**
+ * @brief 从导航器的假设集合（激活的假设作用域）构造假设条目
+ * @param navigator 证明导航器指针
+ * @param out_hypotheses 输出假设条目数组
+ * @param max_count 数组最大容量
+ * @return 写入的条目数量（>=0）
+ */
+static int widget_collect_hypotheses(const ProofNavigator *navigator, lvHypothesisEntry *out_hypotheses,
+                                     int max_count) {
+    int written = 0;
+    if (!navigator->scope_assumptions || !navigator->scope_active)
+        return 0;
+
+    for (int i = 0; i < navigator->scope_count && written < max_count; i++) {
+        if (!navigator->scope_active[i] || !navigator->scope_assumptions[i])
+            continue;
+
+        lvHypothesisEntry *he = &out_hypotheses[written];
+        memset(he, 0, sizeof(*he));
+        he->hyp_id = i;
+        he->name = widget_proposition_text(navigator->scope_assumptions[i]);
+        he->type_text = lv_strdup(proposition_type_to_string(navigator->scope_assumptions[i]->type));
+        he->value_text = NULL;
+        he->source_step = -1;
+        he->is_selected = false;
+        written++;
+    }
+    return written;
+}
+
+/**
+ * @brief 释放由 widget_collect_hypotheses 填充的假设条目字符串
+ * @param entries 假设条目数组
+ * @param count   条目数量
+ */
+static void widget_free_hypotheses(lvHypothesisEntry *entries, int count) {
+    for (int i = 0; i < count; i++) {
+        if (entries[i].name)
+            lv_free_ptr(entries[i].name);
+        if (entries[i].type_text)
+            lv_free_ptr(entries[i].type_text);
+        if (entries[i].value_text)
+            lv_free_ptr(entries[i].value_text);
+    }
+}
+
+/**
  * @brief 从 ProofNavigator 获取当前证明目标
  * @param navigator 证明导航器指针
  * @param out_goal  输出参数，填充目标显示结构
@@ -193,14 +257,35 @@ int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_go
 
     /* 初始化输出结构 */
     memset(out_goal, 0, sizeof(lvGoalDisplay));
-    out_goal->is_solved = false;
-    out_goal->depth = 0;
+    out_goal->is_solved = navigator->is_complete;
+    out_goal->depth = navigator->step_count;
 
-    /* 实际项目中应从 navigator 查询当前目标；
-     * 此处分配默认文本作为桩实现 */
-    out_goal->goal_text = lv_strdup("no goal available");
+    /* 从 navigator 查询当前目标的真实文本（无目标时返回空串） */
+    out_goal->goal_text = widget_proposition_text(navigator->target_prop);
     if (!out_goal->goal_text)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "proof_widget_get_goal: strdup failed");
+
+    /* 附带当前假设列表 */
+    if (navigator->scope_count > 0) {
+        out_goal->hypotheses = (lvHypothesisEntry *) lv_calloc((size_t) navigator->scope_count,
+                                                               sizeof(lvHypothesisEntry));
+        if (out_goal->hypotheses)
+            out_goal->hyp_count = widget_collect_hypotheses(navigator, out_goal->hypotheses,
+                                                            navigator->scope_count);
+    }
+
+    /* 附带上下文项（假设类型文本） */
+    if (out_goal->hyp_count > 0) {
+        out_goal->context_terms = (char **) lv_calloc((size_t) out_goal->hyp_count, sizeof(char *));
+        if (out_goal->context_terms) {
+            for (int i = 0; i < out_goal->hyp_count; i++) {
+                out_goal->context_terms[i] = lv_strdup(out_goal->hypotheses[i].type_text
+                                                           ? out_goal->hypotheses[i].type_text
+                                                           : "");
+            }
+            out_goal->context_count = out_goal->hyp_count;
+        }
+    }
 
     return 0;
 }
@@ -219,9 +304,8 @@ int proof_widget_get_hypotheses(const ProofNavigator *navigator, lvHypothesisEnt
     /* 清零输出数组 */
     memset(out_hypotheses, 0, (size_t) max_count * sizeof(lvHypothesisEntry));
 
-    /* 实际项目中应遍历 navigator 的假设集合；
-     * 此处返回 0 条假设（由上层根据实际数据填充） */
-    return 0;
+    /* 从导航器的假设集合构造假设列表 */
+    return widget_collect_hypotheses(navigator, out_hypotheses, max_count);
 }
 
 /**
@@ -277,7 +361,7 @@ void goal_display_free(lvGoalDisplay *goal) {
  * @param out_suggestions 输出策略名称字符串数组（各条目调用者需释放）
  * @param out_confidences 输出对应置信度数组
  * @param max_count       数组最大容量
- * @return 0 成功，-1 参数无效
+ * @return 实际建议数量（>=0），-1 参数无效
  */
 int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_suggestions, double *out_confidences,
                                 int max_count) {
@@ -290,22 +374,102 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_sugg
         out_confidences[i] = 0.0;
     }
 
-    /* 实际项目中应调用策略推荐引擎；
-     * 此处提供示例建议 */
-    if (max_count >= 1) {
-        out_suggestions[0] = lv_strdup("reflexivity");
-        out_confidences[0] = 0.9;
-    }
-    if (max_count >= 2) {
-        out_suggestions[1] = lv_strdup("congruence");
-        out_confidences[1] = 0.7;
-    }
-    if (max_count >= 3) {
-        out_suggestions[2] = lv_strdup("angle_bisector");
-        out_confidences[2] = 0.5;
+    /* 无目标（目标文本为空）时不作任何推荐 */
+    char *goal_text = widget_proposition_text(navigator->target_prop);
+    if (!goal_text)
+        return 0;
+    if (goal_text[0] == '\0') {
+        lv_free_ptr(goal_text);
+        return 0;
     }
 
-    return 0;
+    /* 收集当前假设（临时缓冲） */
+    enum { MAX_HYP_BUFFER = 64 };
+    lvHypothesisEntry hyp_buffer[MAX_HYP_BUFFER];
+    int hyp_count = widget_collect_hypotheses(navigator, hyp_buffer, MAX_HYP_BUFFER);
+
+    int n = 0;
+
+    /* 目标含等号 → 反射性 / 重写 */
+    bool goal_has_equal = (strchr(goal_text, '=') != NULL) || strstr(goal_text, "equal") != NULL ||
+                          strstr(goal_text, "congruent") != NULL || strstr(goal_text, "等于") != NULL;
+    if (goal_has_equal) {
+        out_suggestions[n] = lv_strdup("reflexivity");
+        out_confidences[n] = 0.9;
+        n++;
+        if (n < max_count) {
+            out_suggestions[n] = lv_strdup("rewrite");
+            out_confidences[n] = 0.6;
+            n++;
+        }
+    }
+
+    /* 从假设中查找：假设包含完整目标 → exact；假设包含目标前提 → apply */
+    int exact_hyp = -1;
+    int premise_hyp = -1;
+    const char *arrow = strstr(goal_text, "->");
+    if (!arrow)
+        arrow = strstr(goal_text, "→");
+    char premise_buf[129];
+    const char *premise = NULL;
+    if (arrow && arrow != goal_text) {
+        size_t premise_len = (size_t) (arrow - goal_text);
+        if (premise_len > 0 && premise_len < sizeof(premise_buf)) {
+            memcpy(premise_buf, goal_text, premise_len);
+            premise_buf[premise_len] = '\0';
+            premise = premise_buf;
+        }
+    }
+    for (int i = 0; i < hyp_count; i++) {
+        const char *hyp_text = hyp_buffer[i].name ? hyp_buffer[i].name : "";
+        if (hyp_text[0] == '\0')
+            continue;
+        if (strstr(hyp_text, goal_text)) {
+            exact_hyp = i;
+            break;
+        }
+        if (premise && premise[0] != '\0' && strstr(hyp_text, premise))
+            premise_hyp = i;
+    }
+
+    if (n < max_count && exact_hyp >= 0) {
+        const char *hyp_name = hyp_buffer[exact_hyp].name ? hyp_buffer[exact_hyp].name : "";
+        out_suggestions[n] = lv_asprintf("exact %s", hyp_name);
+        out_confidences[n] = 0.95;
+        n++;
+    }
+    if (n < max_count && premise_hyp >= 0) {
+        const char *hyp_name = hyp_buffer[premise_hyp].name ? hyp_buffer[premise_hyp].name : "";
+        out_suggestions[n] = lv_asprintf("apply %s", hyp_name);
+        out_confidences[n] = 0.85;
+        n++;
+    }
+
+    /* 无匹配假设：先 intro，再按假设引用给出建议 */
+    if (exact_hyp < 0 && premise_hyp < 0) {
+        if (n < max_count && arrow != NULL) {
+            out_suggestions[n] = lv_strdup("intro");
+            out_confidences[n] = 0.6;
+            n++;
+        }
+        for (int i = 0; i < hyp_count && n < max_count; i++) {
+            const char *hyp_name = hyp_buffer[i].name ? hyp_buffer[i].name : "";
+            if (hyp_name[0] == '\0')
+                continue;
+            out_suggestions[n] = lv_asprintf("apply %s", hyp_name);
+            out_confidences[n] = 0.4;
+            n++;
+        }
+        if (n < max_count) {
+            out_suggestions[n] = lv_strdup("auto");
+            out_confidences[n] = 0.3;
+            n++;
+        }
+    }
+
+    widget_free_hypotheses(hyp_buffer, hyp_count);
+    lv_free_ptr(goal_text);
+    return n;
 }
 
 /**

@@ -718,12 +718,23 @@ void lv_dyn_graph_mark_dirty(lvDynGraph *graph, int node_id) {
 
     node->state = lv_DYN_STATE_DIRTY;
 
-    /* 递归标记所有子节点 */
-    int stack[256];
+    /* 递归标记所有子节点。
+     * 【修复】原固定 stack[256] + `top < 256` 在子节点数 >256 时静默截断
+     * （宽图下靠后的子节点不会被标记）。改用与 update_cascade 相同的动态扩容
+     * 栈（dyn_int_stack_push 内部经 lv_ensure_capacity 增长）；栈中每节点只会
+     * 入栈一次（入栈前 state 即置 DIRTY 去重），互异节点数不可能超过 node_count，
+     * 故以 node_count 为初始容量。OOM 时提前终止（mark_dirty 无错误通道）。 */
+    int stack_cap = graph->node_count > 16 ? graph->node_count : 16;
+    int *stack = (int *) lv_malloc((size_t) stack_cap * sizeof(int));
+    if (!stack)
+        return;
     int top = 0;
-    stack[top++] = node_id;
+    bool oom = false;
 
-    while (top > 0 && top < 256) {
+    if (!dyn_int_stack_push(&stack, &top, &stack_cap, node_id))
+        oom = true;
+
+    while (!oom && top > 0) {
         int current = stack[--top];
         lvDynNode *current_node = lv_dyn_graph_get_node(graph, current);
         if (!current_node)
@@ -733,10 +744,15 @@ void lv_dyn_graph_mark_dirty(lvDynGraph *graph, int node_id) {
             lvDynNode *child = lv_dyn_graph_get_node(graph, current_node->child_ids[i]);
             if (child && child->state != lv_DYN_STATE_DIRTY) {
                 child->state = lv_DYN_STATE_DIRTY;
-                stack[top++] = current_node->child_ids[i];
+                if (!dyn_int_stack_push(&stack, &top, &stack_cap, current_node->child_ids[i])) {
+                    oom = true;
+                    break;
+                }
             }
         }
     }
+
+    lv_free((void **) &stack);
 }
 
 int lv_dyn_graph_update_all(lvDynGraph *graph) {
@@ -763,15 +779,33 @@ bool lv_dyn_graph_has_path(const lvDynGraph *graph, int start_id, int target_id)
     if (!graph || start_id == target_id)
         return false;
 
-    bool visited[256] = {false};
-    int queue[256];
+    /* 【修复】原实现 `bool visited[256]` + `id % 256` 在节点 id >= 256 时
+     * 发生碰撞（不同节点共用同一 visited 槽位导致误判已访问、链中断），且
+     * `queue[256] + rear < 256` 在路径节点数 >256 时静默截断（has_path 误报
+     * false，进而 would_create_cycle 漏检）。参照 lv_dyn_graph_update_chain
+     * 的既有模式：visited 改为按实际 node_count 动态分配并以 visited_count
+     * 线性查重；队列经 dyn_int_stack_push（内部 lv_ensure_capacity）动态增长。
+     * 每个节点只会入队一次，互异节点数不可能超过 node_count。 */
+    int cap = graph->node_count > 0 ? graph->node_count : 1;
+    int *visited = (int *) lv_malloc((size_t) cap * sizeof(int));
+    if (!visited)
+        return false;
+    int visited_count = 0;
+
+    int queue_cap = cap;
+    int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
+    if (!queue) {
+        lv_free((void **) &visited);
+        return false;
+    }
     int front = 0, rear = 0;
+    bool oom = false;
 
-    queue[rear++] = start_id;
-    /* 使用 unsigned 类型取模确保下标非负（C 中负数取模结果为负） */
-    visited[(unsigned int) start_id % 256] = true;
+    if (!dyn_int_stack_push(&queue, &rear, &queue_cap, start_id))
+        oom = true;
+    visited[visited_count++] = start_id;
 
-    while (front < rear && rear < 256) {
+    while (!oom && front < rear) {
         int current = queue[front++];
         lvDynNode *node = lv_dyn_graph_get_node((lvDynGraph *) graph, current);
         if (!node)
@@ -779,16 +813,38 @@ bool lv_dyn_graph_has_path(const lvDynGraph *graph, int start_id, int target_id)
 
         for (int i = 0; i < node->child_count; i++) {
             int child_id = node->child_ids[i];
-            if (child_id == target_id)
+            if (child_id == target_id) {
+                lv_free((void **) &visited);
+                lv_free((void **) &queue);
                 return true;
+            }
 
-            if (!visited[(unsigned int) child_id % 256]) {
-                visited[(unsigned int) child_id % 256] = true;
-                queue[rear++] = child_id;
+            /* 线性查重（visited_count 不可能超过 node_count，此处为防御性扩容） */
+            bool seen = false;
+            for (int j = 0; j < visited_count; j++) {
+                if (visited[j] == child_id) {
+                    seen = true;
+                    break;
+                }
+            }
+            if (seen)
+                continue;
+            if (visited_count >= cap) {
+                if (!lv_ensure_capacity((void **) &visited, visited_count, &cap, sizeof(int), 1)) {
+                    oom = true;
+                    break;
+                }
+            }
+            visited[visited_count++] = child_id;
+            if (!dyn_int_stack_push(&queue, &rear, &queue_cap, child_id)) {
+                oom = true;
+                break;
             }
         }
     }
 
+    lv_free((void **) &visited);
+    lv_free((void **) &queue);
     return false;
 }
 

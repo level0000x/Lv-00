@@ -60,6 +60,31 @@ int lv_str_icmp(const char *a, const char *b) {
 #endif
 }
 
+int lv_str_icmp_n(const char *a, const char *b, size_t n) {
+    if (a == b)
+        return 0;
+    if (!a)
+        return -1;
+    if (!b)
+        return 1;
+    /* 与既有 ws_header_equals/ws_header_contains_token 的手写折叠一致：
+     * 仅折叠 ASCII 'A'..'Z'（+32），其余字节（含非 ASCII 高位字节）原样比较；
+     * 用 unsigned char 避免有符号 char 的平台差异。 */
+    for (size_t i = 0; i < n; i++) {
+        unsigned char ca = (unsigned char) a[i];
+        unsigned char cb = (unsigned char) b[i];
+        if (ca >= 'A' && ca <= 'Z')
+            ca = (unsigned char) (ca + 32);
+        if (cb >= 'A' && cb <= 'Z')
+            cb = (unsigned char) (cb + 32);
+        if (ca != cb)
+            return ca < cb ? -1 : 1;
+        if (ca == '\0')
+            return 0; /* 双方同位置 NUL，剩余视为相等（strncmp 语义） */
+    }
+    return 0;
+}
+
 /* ===== 关键字表匹配 ===== */
 
 int lv_str_match_any(const char *input, const char *const *keywords) {

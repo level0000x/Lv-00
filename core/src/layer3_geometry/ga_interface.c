@@ -73,7 +73,7 @@ int ga_extract_point(const lvMultiVector *mv, double *out_x, double *out_y, doub
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "ga_extract_point: NULL parameter");
 
     double w = ga_mv_get(mv, GA_E123);
-    if (fabs(w) < 1e-10)
+    if (fabs(w) < lv_EPSILON_HIGH)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "ga_extract_point: w is zero, not a valid point");
 
     *out_x = ga_mv_get(mv, GA_E023) / w;
@@ -232,7 +232,7 @@ int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiV
 lvMultiVector *ga_embed_rotation(double ax, double ay, double az, double angle) {
     /* Normalize axis */
     double len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
-    if (len < 1e-10)
+    if (len < lv_EPSILON_HIGH)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "ga_embed_rotation: zero-length rotation axis");
 
     ax /= len;
@@ -277,7 +277,7 @@ int ga_extract_rotation(const lvMultiVector *rotor, double *out_ax, double *out_
 
     /* Extract axis */
     double s = sin(*out_angle / 2.0);
-    if (fabs(s) < 1e-10) {
+    if (fabs(s) < lv_EPSILON_HIGH) {
         *out_ax = 1.0;
         *out_ay = 0.0;
         *out_az = 0.0;
@@ -351,7 +351,7 @@ bool ga_three_points_collinear(const lvMultiVector *p1, const lvMultiVector *p2,
 
     /* 3x3 determinant (last column is all 1s for homogeneous) */
     double det = x1 * (y2 - y3) - y1 * (x2 - x3) + (x2 * y3 - x3 * y2);
-    return fabs(det) < 1e-6;
+    return fabs(det) < lv_EPSILON_LOW;
 }
 
 /**
@@ -379,7 +379,7 @@ bool ga_four_points_coplanar(const lvMultiVector *p1, const lvMultiVector *p2, c
                  y1 * (x2 * (z3 - z4) - x3 * (z2 - z4) + x4 * (z2 - z3)) +
                  z1 * (x2 * (y3 - y4) - x3 * (y2 - y4) + x4 * (y2 - y3)) -
                  (x2 * (y3 * z4 - y4 * z3) - x3 * (y2 * z4 - y4 * z2) + x4 * (y2 * z3 - y3 * z2));
-    return fabs(det) < 1e-6;
+    return fabs(det) < lv_EPSILON_LOW;
 }
 
 /**

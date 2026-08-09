@@ -38,6 +38,7 @@
  * WebSocket 服务器支持，功能等级与 Windows Winsock2 实现相同。
  */
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #if defined(_WIN32) || defined(_WIN64)
 /* 尝试包含Winsock2头文件用于套接字初始化 */
 #if __has_include(<winsock2.h>)
@@ -832,20 +833,9 @@ static bool ws_header_equals(const char *name, size_t len, const char *target) {
     if (len != tlen) {
         return false;
     }
-    for (size_t i = 0; i < len; i++) {
-        char a = name[i];
-        char b = target[i];
-        if (a >= 'A' && a <= 'Z') {
-            a = (char) (a + 32);
-        }
-        if (b >= 'A' && b <= 'Z') {
-            b = (char) (b + 32);
-        }
-        if (a != b) {
-            return false;
-        }
-    }
-    return true;
+    /* lv_str_icmp_n：恰好 len 字节的 ASCII 大小写不敏感比较（'A'..'Z'→+32），
+     * 与原先手写折叠语义一致；len==tlen 保证两者恰好 n 字节且缓冲区有效。 */
+    return lv_str_icmp_n(name, target, len) == 0;
 }
 
 /** 判断逗号分隔的头部值中是否包含指定 token（不区分大小写） */
@@ -861,22 +851,7 @@ static bool ws_header_contains_token(const char *value, size_t len, const char *
             i++;
         }
         if (i - start == tlen) {
-            bool match = true;
-            for (size_t k = 0; k < tlen; k++) {
-                char a = value[start + k];
-                char b = token[k];
-                if (a >= 'A' && a <= 'Z') {
-                    a = (char) (a + 32);
-                }
-                if (b >= 'A' && b <= 'Z') {
-                    b = (char) (b + 32);
-                }
-                if (a != b) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
+            if (lv_str_icmp_n(value + start, token, tlen) == 0) {
                 return true;
             }
         }

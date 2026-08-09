@@ -809,7 +809,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
                 }
 
                 /* If different distances and could be same segment pair */
-                if (fabs(dist1 - dist2) > 1e-9 && share_endpoints) {
+                if (fabs(dist1 - dist2) > lv_GEO_COLLINEAR_EPSILON && share_endpoints) {
                     int conflict_nodes[4];
                     conflict_nodes[0] = seg1->id;
                     conflict_nodes[1] = seg2->id;

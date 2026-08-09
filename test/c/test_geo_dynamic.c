@@ -415,5 +415,150 @@ TEST_MAIN_BEGIN("geo_dynamic 模块测试")
         }
         lv_dyn_graph_destroy(graph);
     }
+    /* 11. 大图路径/循环检测回归测试（>256 节点，验证 has_path 的 visited 碰撞
+     * 与队列截断修复、mark_dirty 的栈截断修复） */
+    printf("\n[组 11] 大图路径与循环检测（>256 节点）\n");
+    {
+        /* 深链：p0 -> D1 -> D2 -> ... -> D300（301 节点）。
+         * 原实现 visited[256]+id%256：D128 与 D1 的 id 对 256 取模碰撞导致链
+         * 中断；queue[256]+rear<256 静默截断。两者均使 has_path(p0, D300)
+         * 误报 false，would_create_cycle 随之漏检。 */
+        lvDynGraph *graph = lv_dyn_graph_create(NULL);
+        int chain_ids[301];
+        int p0 = lv_dyn_create_point(graph, 0, 0);
+        chain_ids[0] = p0;
+        int prev = p0;
+        for (int i = 1; i <= 300; i++) {
+            int pi = lv_dyn_create_point(graph, (double) i, 0.0);
+            prev = lv_dyn_create_midpoint(graph, prev, pi);
+            chain_ids[i] = prev;
+        }
+        int leaf = prev; /* D300 */
+        TEST("has_path: 长链（301 节点）头到尾存在路径");
+        if (lv_dyn_graph_has_path(graph, p0, leaf)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("应检测到长链路径（原 visited 碰撞/队列截断误报 false）");
+            g_fail_count++;
+        }
+        TEST("has_path: 长链反向不存在路径");
+        if (!lv_dyn_graph_has_path(graph, leaf, p0)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("反向不应存在路径");
+            g_fail_count++;
+        }
+        TEST("would_create_cycle: 长链尾部连回头部会形成循环");
+        if (lv_dyn_graph_would_create_cycle(graph, leaf, p0)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("应检测到循环（原队列截断导致漏检）");
+            g_fail_count++;
+        }
+        TEST("would_create_cycle: 长链顺向添加边不形成循环");
+        if (!lv_dyn_graph_would_create_cycle(graph, p0, leaf)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("顺向添加边不应形成循环");
+            g_fail_count++;
+        }
+        TEST("mark_dirty: 长链 301 个链节点全部标记 DIRTY");
+        lv_dyn_graph_mark_dirty(graph, p0);
+        bool chain_all_dirty = true;
+        for (int i = 0; i < 301; i++) {
+            lvDynNode *n = lv_dyn_graph_get_node(graph, chain_ids[i]);
+            if (!n || n->state != lv_DYN_STATE_DIRTY) {
+                chain_all_dirty = false;
+                break;
+            }
+        }
+        if (chain_all_dirty) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("存在未标记 DIRTY 的链节点");
+            g_fail_count++;
+        }
+        lv_dyn_graph_destroy(graph);
+    }
+    {
+        /* 宽树：p0 → 16 个 L1 → 每个 16 个 L2 → 每个 16 个 L3（共
+         * 1+16+256+4096 = 4369 节点，每节点子数 ≤ 默认 max_children=16，
+         * 符合 lv_dyn_graph_default_config 的公开契约）。
+         * BFS 前沿在 L3 层峰值达 ~4096 个待处理节点，超过原 queue[256]
+         * 上限（原实现静默截断，has_path 对靠后节点误报 false）；visited
+         * 亦超 256（原 id%256 碰撞导致误判已访问）。 */
+        lvDynGraph *graph = lv_dyn_graph_create(NULL);
+        int p0 = lv_dyn_create_point(graph, 0, 0);
+        int l1_ids[16];
+        int l2_ids[16][16];
+        int l3_last = -1;
+        for (int i = 0; i < 16; i++) {
+            int q = lv_dyn_create_point(graph, (double) i, 1.0);
+            l1_ids[i] = lv_dyn_create_midpoint(graph, p0, q);
+            for (int j = 0; j < 16; j++) {
+                int r = lv_dyn_create_point(graph, (double) (i * 16 + j), 2.0);
+                l2_ids[i][j] = lv_dyn_create_midpoint(graph, l1_ids[i], r);
+                for (int k = 0; k < 16; k++) {
+                    int s = lv_dyn_create_point(graph, (double) (i * 256 + j * 16 + k), 3.0);
+                    l3_last = lv_dyn_create_midpoint(graph, l2_ids[i][j], s);
+                }
+            }
+        }
+        TEST("has_path: 宽树（4369 节点）根到最末叶子存在路径");
+        if (lv_dyn_graph_has_path(graph, p0, l3_last)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("应检测到最末叶子的路径（原队列截断误报 false）");
+            g_fail_count++;
+        }
+        TEST("has_path: 宽树反向不存在路径");
+        if (!lv_dyn_graph_has_path(graph, l3_last, p0)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("反向不应存在路径");
+            g_fail_count++;
+        }
+        TEST("would_create_cycle: 宽树最末叶子连回根会形成循环");
+        if (lv_dyn_graph_would_create_cycle(graph, l3_last, p0)) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("应检测到循环（原队列截断导致漏检）");
+            g_fail_count++;
+        }
+        TEST("mark_dirty: 宽树全部 4369 节点标记 DIRTY");
+        lv_dyn_graph_mark_dirty(graph, p0);
+        bool wide_all_dirty = true;
+        for (int i = 0; i < 16; i++) {
+            lvDynNode *n = lv_dyn_graph_get_node(graph, l1_ids[i]);
+            if (!n || n->state != lv_DYN_STATE_DIRTY) {
+                wide_all_dirty = false;
+                break;
+            }
+            for (int j = 0; j < 16; j++) {
+                lvDynNode *n2 = lv_dyn_graph_get_node(graph, l2_ids[i][j]);
+                if (!n2 || n2->state != lv_DYN_STATE_DIRTY) {
+                    wide_all_dirty = false;
+                    break;
+                }
+            }
+        }
+        lvDynNode *leaf_node = lv_dyn_graph_get_node(graph, l3_last);
+        if (wide_all_dirty && leaf_node && leaf_node->state == lv_DYN_STATE_DIRTY) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("存在未标记 DIRTY 的宽树节点");
+            g_fail_count++;
+        }
+        lv_dyn_graph_destroy(graph);
+    }
         
 TEST_MAIN_END()
