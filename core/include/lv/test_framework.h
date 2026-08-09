@@ -153,6 +153,13 @@ void lv_test_report_print(const lvTestReport *report, FILE *stream);
 char *lv_test_report_to_json(const lvTestReport *report);
 bool lv_test_report_write_file(const lvTestReport *report, const char *path, const char *format);
 
+/*
+ * 基准统计口径豁免约定（P2-1）：
+ * 本组基准 API 采用「固定迭代次数 + 逐次计时 + 简单均值/标准差」口径，
+ * 与 performance_profiler.c 的 lv_perf_benchmark_run（预热 + 100ms 校准 +
+ * Welford 在线统计）统计口径不同，二者刻意保持独立、不做收敛复用；
+ * 如需统一口径，应先评审两侧消费方对计时确定性与采样方法的依赖。
+ */
 bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iterations);
 lvBenchmark *lv_benchmark_run(const char *name);
 void lv_benchmark_destroy(lvBenchmark *bench);

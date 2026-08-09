@@ -43,6 +43,7 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
+#include "lv/lv.h" /* lv_config_get_int / lv_config_get_double 字符串键桥接声明 */
 
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -53,14 +54,24 @@
  * 模块级常量
  * ============================================================ */
 
+/* 收敛说明：此前的函数式宏
+ *   #define lv_config_get_double(LV_CFG_ATP_DEFAULT_TIMEOUT, ATP_DEFAULT_TIMEOUT) 30.0
+ * （以及两个 lv_config_get_int 变体）在预处理阶段遮蔽了 lv.h 声明的真实字符串键
+ * 桥接 lv_config_get_int(key, dflt) / lv_config_get_double(key, dflt)（lv.c：
+ * 系统 A lvConfig 优先、系统 B ConfigManager 回落）。由于宏参数名恰与调用处
+ * 实参名相同，调用点 L122-123/169/175 实际被替换为编译期常量，导致 JSON /
+ * 环境变量 / 命令行对 atp_default_timeout / atp_default_memory_mb /
+ * atp_tptp_buffer_size 三项配置全部失效。处置：删除宏遮蔽，默认值改为模块级
+ * static const，调用真实 lv_config_get_*() 读取（lv.c 桥接保证可被覆盖）。 */
+
 /** @brief 默认求解超时（秒） */
-#define lv_config_get_double(LV_CFG_ATP_DEFAULT_TIMEOUT, ATP_DEFAULT_TIMEOUT) 30.0
+static const double ATP_DEFAULT_TIMEOUT = 30.0;
 
 /** @brief 默认内存限制（MB） */
-#define lv_config_get_int(LV_CFG_ATP_DEFAULT_MEMORY_MB, ATP_DEFAULT_MEMORY_MB) 1024
+static const int ATP_DEFAULT_MEMORY_MB = 1024;
 
 /** @brief TPTP 编码缓冲区默认大小 */
-#define lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE) 65536
+static const int ATP_TPTP_BUFFER_SIZE = 65536;
 
 /* ============================================================
  * 不透明结构：ATPBackendSolver 内部实现

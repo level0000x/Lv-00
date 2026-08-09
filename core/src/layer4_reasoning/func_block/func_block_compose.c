@@ -15,9 +15,15 @@
 
 #include "error_codes.h"
 #include "func_block.h"
+#include "lv/lv_lifecycle.h"
 #include "lv_utils.h"
 
 /* ============== 函数块组合子 ============== */
+
+/** @brief 作用域守卫清理回调：销毁 FuncBlock 指针变量（配合 lv_DEFER 使用） */
+static void defer_func_block_destroy(void *arg) {
+    func_block_destroy(*(FuncBlock **) arg);
+}
 
 /**
  * @brief 顺序组合两个函数块：g o f
@@ -49,8 +55,13 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     bool success = false;
 
     FuncBlock *composed = func_block_create(composed_id);
-    if (!composed)
-        goto compose_cleanup;
+    if (!composed) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    /* composed 创建后立即注册作用域守卫：失败路径直接 return，
+     * 出口自动销毁 composed，无需手写 compose_cleanup 标签。 */
+    lv_DEFER(defer_func_block_destroy, &composed);
 
     /*
      * 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ f 的输出端口 ∪ g 的输入端口
@@ -60,8 +71,11 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
      */
     int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;
     int *internal_ids = lv_malloc((size_t) total_internal * sizeof(int));
-    if (!internal_ids)
-        goto compose_cleanup;
+    if (!internal_ids) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER_FREE(internal_ids);
     int idx = 0;
     for (int i = 0; i < f->internal_node_count; i++)
         internal_ids[idx++] = f->internal_node_ids[i];
@@ -73,19 +87,20 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
         internal_ids[idx++] = g->input_port_ids[i];
 
     if (!func_block_set_internal_nodes(composed, internal_ids, idx)) {
-        lv_free((void **) &internal_ids);
-        goto compose_cleanup;
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
     }
-    lv_free((void **) &internal_ids);
 
     /* 输入端口 = f 的输入端口（组合后的外部输入来自 f） */
     if (!func_block_set_input_ports(composed, f->input_port_ids, f->input_count)) {
-        goto compose_cleanup;
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
     }
 
     /* 输出端口 = g 的输出端口（组合后的外部输出来自 g） */
     if (!func_block_set_output_ports(composed, g->output_port_ids, g->output_count)) {
-        goto compose_cleanup;
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
     }
 
     /*
@@ -112,17 +127,10 @@ bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     }
 
     composed->determinism = DETERMINISM_UNVERIFIED;
+    /* 成功路径：composed 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    *out_composed = composed;
+    composed = NULL;
     success = true;
-
-compose_cleanup:
-    if (!success) {
-        graph->next_node_id--; /* 回滚 ID */
-        if (composed)
-            func_block_destroy(composed);
-    }
-    if (success) {
-        *out_composed = composed;
-    }
     return success;
 }
 
@@ -151,8 +159,13 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     bool success = false;
 
     FuncBlock *product = func_block_create(product_id);
-    if (!product)
-        goto product_cleanup;
+    if (!product) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    /* product 创建后立即注册作用域守卫：失败路径直接 return，
+     * 出口自动销毁 product，无需手写 product_cleanup 标签。 */
+    lv_DEFER(defer_func_block_destroy, &product);
 
     /*
      * 内部节点 = f 的内部节点 ∪ g 的内部节点
@@ -163,40 +176,40 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     int total_internal = 0;
     int *internal_ids = merge_int_arrays(f->internal_node_ids, f->internal_node_count, g->internal_node_ids,
                                          g->internal_node_count, &total_internal);
+    lv_DEFER_FREE(internal_ids); /* NULL 也安全，作用域守卫自动释放 */
 
     if (total_internal > 0) {
         if (!internal_ids || !func_block_set_internal_nodes(product, internal_ids, total_internal)) {
-            lv_free((void **) &internal_ids);
-            goto product_cleanup;
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
         }
     }
-    lv_free((void **) &internal_ids);
 
     /* 输入端口 = f 的输入端口 ∪ g 的输入端口 */
     int total_input = 0;
     int *input_ids =
         merge_int_arrays(f->input_port_ids, f->input_count, g->input_port_ids, g->input_count, &total_input);
+    lv_DEFER_FREE(input_ids);
 
     if (total_input > 0) {
         if (!input_ids || !func_block_set_input_ports(product, input_ids, total_input)) {
-            lv_free((void **) &input_ids);
-            goto product_cleanup;
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
         }
     }
-    lv_free((void **) &input_ids);
 
     /* 输出端口 = f 的输出端口 ∪ g 的输出端口 */
     int total_output = 0;
     int *output_ids =
         merge_int_arrays(f->output_port_ids, f->output_count, g->output_port_ids, g->output_count, &total_output);
+    lv_DEFER_FREE(output_ids);
 
     if (total_output > 0) {
         if (!output_ids || !func_block_set_output_ports(product, output_ids, total_output)) {
-            lv_free((void **) &output_ids);
-            goto product_cleanup;
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
         }
     }
-    lv_free((void **) &output_ids);
 
     /* 设置乘积函数块的名称，格式为 "(f_name * g_name)" */
     if (f->name && g->name) {
@@ -205,16 +218,9 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     }
 
     product->determinism = DETERMINISM_UNVERIFIED;
+    /* 成功路径：product 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    *out_product = product;
+    product = NULL;
     success = true;
-
-product_cleanup:
-    if (!success) {
-        graph->next_node_id--; /* 回滚 ID */
-        if (product)
-            func_block_destroy(product);
-    }
-    if (success) {
-        *out_product = product;
-    }
     return success;
 }

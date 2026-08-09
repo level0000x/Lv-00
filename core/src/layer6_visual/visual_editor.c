@@ -15,9 +15,26 @@
 #include <string.h>
 
 #include "lv/block_scheduler.h"
+#include "lv/lv_error.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_check.h"
+
+/* ============ 实例错误缓冲统一写入口 ============ */
+
+/** @brief 写错误消息到编辑器实例错误缓冲（公共写入口 lv_ERROR_SLOT_COPY） */
+static void editor_set_error(lvVisualEditor *editor, const char *msg) {
+    if (!editor)
+        return;
+    lv_ERROR_SLOT_COPY(editor->last_error, sizeof(editor->last_error), msg);
+}
+
+/** @brief 清空编辑器实例错误缓冲（公共写入口 lv_ERROR_SLOT_CLEAR） */
+static void editor_clear_error(lvVisualEditor *editor) {
+    if (!editor)
+        return;
+    lv_ERROR_SLOT_CLEAR(editor->last_error);
+}
 
 /**
  * @brief 创建可视化编辑器实例
@@ -62,7 +79,7 @@ int lv_visual_editor_reset(lvVisualEditor *editor) {
     lv_CHECK_NOT_NULL(editor);
     editor->state = lv_EDITOR_IDLE;
     editor->error_count = 0;
-    memset(editor->last_error, 0, sizeof(editor->last_error));
+    editor_clear_error(editor);
     return 0;
 }
 
@@ -108,8 +125,7 @@ static int editor_run(lvVisualEditor *editor, lvSchedStrategy strategy, bool mar
     lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {
         editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "no block graph loaded", sizeof(editor->last_error) - 1);
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
+        editor_set_error(editor, "no block graph loaded");
         editor->error_count++;
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "no block graph loaded");
     }
@@ -121,8 +137,7 @@ static int editor_run(lvVisualEditor *editor, lvSchedStrategy strategy, bool mar
     lvBlockScheduler *sched = lv_block_scheduler_create(editor->block_graph);
     if (!sched) {
         editor->state = lv_EDITOR_ERROR;
-        strncpy(editor->last_error, "failed to create scheduler", sizeof(editor->last_error));
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
+        editor_set_error(editor, "failed to create scheduler");
         editor->error_count++;
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to create scheduler");
     }
@@ -143,13 +158,11 @@ static int editor_run(lvVisualEditor *editor, lvSchedStrategy strategy, bool mar
         editor->state = lv_EDITOR_IDLE;
         /* 执行成功，清除错误状态 */
         editor->error_count = 0;
-        memset(editor->last_error, 0, sizeof(editor->last_error));
+        editor_clear_error(editor);
     } else {
         editor->state = lv_EDITOR_ERROR;
         /* [安全] 防止 exec_result.error_msg 过长导致缓冲区问题 */
-        strncpy(editor->last_error, exec_result.error_msg[0] ? exec_result.error_msg : "unknown error",
-                sizeof(editor->last_error) - 1);
-        editor->last_error[sizeof(editor->last_error) - 1] = '\0';
+        editor_set_error(editor, exec_result.error_msg[0] ? exec_result.error_msg : "unknown error");
         editor->error_count++;
     }
 

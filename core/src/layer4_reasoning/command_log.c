@@ -967,19 +967,13 @@ static void json_parse_params(lvJsonParser *j, CommandEntry *e) {
     if (lv_json_peek(j) == '{') {
         lv_json_next(j); /* 消费 '{' */
 
-        while (lv_json_peek(j) != '}') {
-            char k[64];
-            if (!json_parse_string(j, k, sizeof(k)))
-                break;
-            if (!lv_json_expect(j, ':'))
-                break;
-
+        char *k = NULL;
+        while (lv_json_parse_field(j, &k)) {
             JsonParseHandler h = json_parse_table[e->type];
             if (h) h(j, e, k);
             else lv_json_skip_value(j);
 
-            if (lv_json_peek(j) == ',')
-                lv_json_next(j);
+            lv_free((void **) &k);
         }
         lv_json_expect(j, '}'); /* 消费 '}' */
     }
@@ -1056,20 +1050,17 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
         return log;
     }
 
-    while (lv_json_peek(&j) != '}') {
-        char key[64];
-        if (!json_parse_string(&j, key, sizeof(key)))
-            break;
-        if (!lv_json_expect(&j, ':'))
-            break;
-
+    char *key = NULL;
+    while (lv_json_parse_field(&j, &key)) {
         if (strcmp(key, "version") == 0) {
             int ver;
             lv_json_parse_int(&j, &ver);
         } else if (strcmp(key, "entries") == 0) {
             /* 解析 entries 数组 */
-            if (!lv_json_expect(&j, '['))
+            if (!lv_json_expect(&j, '[')) {
+                lv_free((void **) &key);
                 break;
+            }
 
             while (lv_json_peek(&j) != ']') {
                 if (!lv_json_expect(&j, '{'))
@@ -1079,13 +1070,8 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
                 if (!e)
                     break;
 
-                while (lv_json_peek(&j) != '}') {
-                    char k[64];
-                    if (!json_parse_string(&j, k, sizeof(k)))
-                        break;
-                    if (!lv_json_expect(&j, ':'))
-                        break;
-
+                char *k = NULL;
+                while (lv_json_parse_field(&j, &k)) {
                     /* 条目字段查表分发（替代 4 分支 strcmp 链） */
                     EntryFieldHandler eh = NULL;
                     for (size_t fi = 0; fi < lv_ARRAY_SIZE(kEntryFieldTable); fi++) {
@@ -1099,8 +1085,7 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
                     else
                         lv_json_skip_value(&j);
 
-                    if (lv_json_peek(&j) == ',')
-                        lv_json_next(&j);
+                    lv_free((void **) &k);
                 }
                 lv_json_expect(&j, '}'); /* 消费 '}' */
 
@@ -1117,8 +1102,7 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
             lv_json_skip_value(&j);
         }
 
-        if (lv_json_peek(&j) == ',')
-            lv_json_next(&j);
+        lv_free((void **) &key);
     }
 
     lv_free((void **) &buf);

@@ -16,6 +16,8 @@
 #include "lv_utils.h"
 #include "lv/lv_xmacro.h"
 
+#include "engine_internal.h"
+
 /**
  * @brief 引擎状态转移表
  *
@@ -110,9 +112,8 @@ EngineStatus lv_engine_transition_state(lvEngine *engine, EngineState new_state)
 
     /* 边界检查：防止无效状态枚举值 */
     if (new_state < ENGINE_STATE_IDLE || new_state > ENGINE_STATE_COMPLETE) {
-        engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error), "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
-                 (int) new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "状态转移失败: 无效的目标状态 %d（合法范围: %d-%d）",
+                         (int) new_state, ENGINE_STATE_IDLE, ENGINE_STATE_COMPLETE);
         return ENGINE_STATUS_INVALID_STATE;
     }
 
@@ -125,10 +126,9 @@ EngineStatus lv_engine_transition_state(lvEngine *engine, EngineState new_state)
 
     /* 查转移表验证合法性 */
     if (!engine_is_valid_transition(current, new_state)) {
-        engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error),
-                 "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）", engine_state_name(current),
-                 engine_state_name(new_state), engine->state_transition_count);
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE,
+                         "状态转移非法: 不能从 \"%s\" 转移到 \"%s\"（转移次数: %d）", engine_state_name(current),
+                         engine_state_name(new_state), engine->state_transition_count);
         return ENGINE_STATUS_INVALID_STATE;
     }
 

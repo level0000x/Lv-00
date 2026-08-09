@@ -749,14 +749,12 @@ lvHealthReport *lv_runtime_health_check(void) {
     /* 线程检查 */
     check = &report->checks[2];
     strncpy(check->name, "Thread Count", sizeof(check->name) - 1);
-    /* 线程检查：通过环境变量 lv_MONITOR_THREADS 配置，默认 1，范围 [1, 64] */
-    int monitor_threads = 1;
-    const char *env_threads = getenv("lv_MONITOR_THREADS");
-    if (env_threads && env_threads[0] != '\0') {
-        long parsed = strtol(env_threads, NULL, 10);
-        parsed = lv_CLAMP(parsed, 1, 64);
-        monitor_threads = (int) parsed;
-    }
+    /* 线程检查：通过环境变量 lv_MONITOR_THREADS 配置，默认 1，范围 [1, 64]。
+     * 收敛至 lv_env_get_int（严格解析 + clamp），空/非法值回落默认 1。
+     * 命名说明（P2-2）：lv_ 小写前缀为全仓库唯一的环境变量命名，与 LV_ 前缀
+     * 惯例（如 solver_groebner.c 的 LV_GROEBNER_PARALLEL）不一致；因环境变量名
+     * 属进程外部运行时契约，改名会使既有部署设置静默失效，故保持原名。 */
+    int monitor_threads = lv_env_get_int("lv_MONITOR_THREADS", 1, 1, 64);
     check->value = (double) monitor_threads;
     check->status = HEALTH_OK;
     snprintf(check->message, sizeof(check->message), "Thread count: %d (configurable via lv_MONITOR_THREADS)",

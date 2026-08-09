@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_check.h"
+#include "lv/lv_error.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 
@@ -35,10 +36,8 @@ void set_error(lvPluginSystem *system, const char *format, ...) {
     if (!internal)
         return;
 
-    va_list args;
-    va_start(args, format);
-    vsnprintf(internal->last_error, sizeof(internal->last_error), format, args);
-    va_end(args);
+    /* 公共写入口：模块级 last_error 通道统一走 lv_error.h 的 lv_ERROR_SLOT_SET */
+    lv_ERROR_SLOT_SET(internal->last_error, sizeof(internal->last_error), format);
 }
 
 /* ============ 生命周期管理 ============ */

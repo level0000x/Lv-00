@@ -28,6 +28,7 @@
 #include "geo_utils.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "union_find_util.h"
 
 /* ================================================================
  * 内部常量
@@ -753,36 +754,13 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
     if (max_node_id <= 0)
         return 0;
 
-    /* 分配并查集数组（parent[i] 表示节点 i 的父节点） */
+    /* 分配并查集数组（共享工具 uf_create：parent[i] = i，rank 按秩合并；
+     * 原宏版无秩合并，仅用于等价类判定，语义一致） */
     int uf_size = max_node_id + 1;
-    int *parent = (int *) lv_calloc((size_t) uf_size, sizeof(int));
+    int *rank = NULL;
+    int *parent = uf_create(uf_size, &rank);
     if (!parent)
         return lv_ERROR_NULL_POINTER;
-
-    /* 初始化：每个节点的父节点是自己 */
-    for (int i = 0; i < uf_size; i++) {
-        parent[i] = i;
-    }
-
-/* 并查集：查找根节点（带路径压缩） */
-/* 使用函数指针宏模拟内联函数 */
-#define UF_FIND(x)                                            \
-    do {                                                      \
-        while (parent[(x)] != (x)) {                          \
-            parent[(x)] = parent[parent[(x)]]; /* 路径压缩 */ \
-            (x) = parent[(x)];                                \
-        }                                                     \
-    } while (0)
-
-#define UF_UNION(a, b)            \
-    do {                          \
-        int _ra = (a), _rb = (b); \
-        UF_FIND(_ra);             \
-        UF_FIND(_rb);             \
-        if (_ra != _rb) {         \
-            parent[_ra] = _rb;    \
-        }                         \
-    } while (0)
 
     /* 步骤 1：遍历所有 COINCIDENT 约束，合并实体 */
     for (int i = 0; i < graph->constraint_count; i++) {
@@ -795,7 +773,7 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
         int a = cons->participants[0];
         int b = cons->participants[1];
         if (a >= 0 && a < uf_size && b >= 0 && b < uf_size) {
-            UF_UNION(a, b);
+            uf_union(parent, rank, a, b);
         }
     }
 
@@ -817,9 +795,8 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
             continue;
 
         /* 检查两个实体是否在同一个等价类中 */
-        int ra = a, rb = b;
-        UF_FIND(ra);
-        UF_FIND(rb);
+        int ra = uf_find(parent, a);
+        int rb = uf_find(parent, b);
 
         if (ra == rb) {
             /* 同一等价类中的两个实体有非零距离约束 —— 矛盾 */
@@ -835,10 +812,7 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
         }
     }
 
-#undef UF_FIND
-#undef UF_UNION
-
-    lv_free((void **) &parent);
+    uf_destroy(parent, rank);
     return 0;
 }
 

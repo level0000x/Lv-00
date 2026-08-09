@@ -21,6 +21,8 @@
 
 #include "lv_utils.h"
 
+#include "engine_internal.h"
+
 /** 模块名称最大长度（用于 engine_extract_module_name 静态缓冲区） */
 #define lv_MAX_NAME_LENGTH 256
 
@@ -104,22 +106,20 @@ ModuleLoadStatus engine_load_module(lvEngine *engine, const char *filepath) {
     const char *module_name = engine_extract_module_name(filepath);
     Module *mod = module_create(module_name, "0.0.0");
     if (!mod) {
-        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
-        snprintf(engine->last_error, sizeof(engine->last_error), "模块创建失败");
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "模块创建失败");
         return MODULE_LOAD_MEMORY_ERROR;
     }
     ModuleLoadStatus status = module_load(mod, filepath, engine->loaded_modules, engine->module_count);
     if (status != MODULE_LOAD_OK) {
         module_destroy(mod);
-        engine->last_status = ENGINE_STATUS_MODULE_ERROR;
-        snprintf(engine->last_error, sizeof(engine->last_error), "模块加载失败 [文件=%s, 状态码=%d]", filepath, status);
+        engine_set_error(engine, ENGINE_STATUS_MODULE_ERROR, "模块加载失败 [文件=%s, 状态码=%d]", filepath, status);
         return status;
     }
     /* 指数增长策略：使用通用扩容辅助函数 */
     if (!engine_ensure_capacity((void **) &engine->loaded_modules, engine->module_count, &engine->module_capacity,
                                 sizeof(Module *))) {
         module_destroy(mod);
-        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "模块数组扩容失败");
         return MODULE_LOAD_MEMORY_ERROR;
     }
     engine->loaded_modules[engine->module_count++] = mod;
@@ -142,23 +142,20 @@ AxiomLoadStatus engine_load_axiom_package(lvEngine *engine, const char *filepath
         return AXIOM_LOAD_NULL_POINTER;
     AxiomPackage *pkg = lv_axiom_package_create("temp", "0.0.0");
     if (!pkg) {
-        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
-        snprintf(engine->last_error, sizeof(engine->last_error), "公理包创建失败");
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "公理包创建失败");
         return AXIOM_LOAD_MEMORY_ERROR;
     }
     AxiomLoadStatus status = axiom_package_load(pkg, filepath);
     if (status != AXIOM_LOAD_OK) {
         axiom_package_destroy(pkg);
-        engine->last_status = ENGINE_STATUS_MODULE_ERROR;
-        snprintf(engine->last_error, sizeof(engine->last_error), "公理包加载失败 [文件=%s, 状态码=%d]", filepath,
-                 status);
+        engine_set_error(engine, ENGINE_STATUS_MODULE_ERROR, "公理包加载失败 [文件=%s, 状态码=%d]", filepath, status);
         return status;
     }
     /* 指数增长策略：使用通用扩容辅助函数 */
     if (!engine_ensure_capacity((void **) &engine->axiom_packages, engine->axiom_package_count,
                                 &engine->axiom_package_capacity, sizeof(AxiomPackage *))) {
         axiom_package_destroy(pkg);
-        engine->last_status = ENGINE_STATUS_OUT_OF_MEMORY;
+        engine_set_error(engine, ENGINE_STATUS_OUT_OF_MEMORY, "公理包数组扩容失败");
         return AXIOM_LOAD_MEMORY_ERROR;
     }
     engine->axiom_packages[engine->axiom_package_count++] = pkg;

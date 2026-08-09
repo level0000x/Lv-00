@@ -20,6 +20,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include "error_codes.h"
 
 /* 确保 lv_FORMAT_PRINTF（权威定义位于 cross_platform.h）与 lv_PUBLIC_API 可用 */
@@ -256,6 +258,42 @@ lv_PUBLIC_API const char *lv_error_func(lvErrorContext *ctx);
  * @return 行号，无错误时返回 0
  */
 lv_PUBLIC_API int lv_error_line(lvErrorContext *ctx);
+
+/* ============================================================
+ * 模块级 last_error 通道 —— 公共写入口宏
+ *
+ * 收敛 engine_error.c / plugin_system_core.c / visual_editor.c /
+ * smt_backend_impl.c 四处各自手写的 "实例错误缓冲 + 格式化写入 + getter"
+ * 样板（各模块 getter 保留为返回实例缓冲的薄读取，写入口统一走本组宏）。
+ *
+ * 采用"函数级收敛"：各模块保留自己的 setter 函数（不改任何公共结构体
+ * 字段 / ABI），setter 内部通过本组宏完成写入；错误缓冲的归属实例、
+ * 字段名与大小由调用方显式给出。
+ * ============================================================ */
+
+/** @brief 格式化写入实例错误缓冲（自管理 va_list；format 须为调用函数的最后一个命名参数） */
+#define lv_ERROR_SLOT_SET(dst_buf, dst_size, format) \
+    do { \
+        va_list lv_slot_args; \
+        va_start(lv_slot_args, (format)); \
+        vsnprintf((dst_buf), (dst_size), (format), lv_slot_args); \
+        va_end(lv_slot_args); \
+    } while (0)
+
+/** @brief 格式化写入实例错误缓冲（复用既有 va_list；供需要二次处理的 setter 使用） */
+#define lv_ERROR_SLOT_WRITE(dst_buf, dst_size, format, args) \
+    vsnprintf((dst_buf), (dst_size), (format), (args))
+
+/** @brief 字符串复制写入实例错误缓冲（无格式化写入点使用；保证 NUL 终止） */
+#define lv_ERROR_SLOT_COPY(dst_buf, dst_size, src) \
+    do { \
+        strncpy((dst_buf), (src) ? (src) : "", (dst_size) - 1); \
+        (dst_buf)[(dst_size) - 1] = '\0'; \
+    } while (0)
+
+/** @brief 清空实例错误缓冲 */
+#define lv_ERROR_SLOT_CLEAR(dst_buf) \
+    ((dst_buf)[0] = '\0')
 
 /* ============================================================
  * 便利宏

@@ -10,6 +10,7 @@
 #include "lv/config.h"      /* lv_PATH_SEPARATOR（唯一权威来源）、lv_PATH_BUF_SIZE */
 #include "lv/lv_platform.h" /* lv_mkdir */
 #include "lv/lv_utils.h"    /* lv_strlcpy */
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 
 #include <errno.h>
 #include <stdio.h>
@@ -261,5 +262,31 @@ bool lv_temp_path(char *out, size_t out_size) {
                            (unsigned long long) lv_get_time_ns(),
                            (unsigned long) s_temp_counter);
     return (written >= 0 && (size_t) written < out_size);
+#endif
+}
+
+const char *lv_path_home_dir(void) {
+    /* 收敛说明：由 debug_state.c 的 get_home_dir（#ifdef 双平台镜像）收敛而来，
+     * 环境变量空值处理统一在此收敛（与 lv_temp_path 的 TMPDIR 空值回落模式一致）。
+     * Windows：USERPROFILE → HOMEDRIVE+HOMEPATH → 空串；
+     * POSIX：HOME 缺失/为空回落 "/tmp"。 */
+#ifdef _WIN32
+    static lv_THREAD_LOCAL char home_path[MAX_PATH] = {0};
+    if (home_path[0] == '\0') {
+        const char *up = getenv("USERPROFILE");
+        if (up && up[0]) {
+            lv_strlcpy(home_path, up, sizeof(home_path));
+        } else {
+            const char *hd = getenv("HOMEDRIVE");
+            const char *hp = getenv("HOMEPATH");
+            if (hd && hp && hd[0] && hp[0]) {
+                snprintf(home_path, MAX_PATH, "%s%s", hd, hp);
+            }
+        }
+    }
+    return home_path;
+#else
+    const char *home = getenv("HOME");
+    return (home && home[0]) ? home : "/tmp";
 #endif
 }

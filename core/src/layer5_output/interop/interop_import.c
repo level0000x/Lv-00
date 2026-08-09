@@ -325,14 +325,8 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
     const char *coords_val = NULL;
 
     /* 遍历 geometry 对象字段（键序无关：先收集 type，再记录 coordinates 值位置） */
-    while (lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
-        char *key = lv_json_parse_string(p);
-        if (!key)
-            break;
-        if (!lv_json_expect(p, ':')) {
-            lv_free((void **) &key);
-            break;
-        }
+    char *key = NULL;
+    while (lv_json_parse_field(p, &key)) {
         if (strcmp(key, "type") == 0 && lv_json_peek(p) == '"') {
             char *t = lv_json_parse_string(p);
             if (t) {
@@ -355,8 +349,6 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
             lv_json_skip_value(p);
         }
         lv_free((void **) &key);
-        if (lv_json_peek(p) == ',')
-            lv_json_next(p);
     }
     if (lv_json_peek(p) == '}')
         lv_json_next(p);
@@ -548,22 +540,14 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         lv_json_next(&p);
 
         /* 遍历 feature 对象字段，处理 geometry 子对象 */
-        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-            char *key = lv_json_parse_string(&p);
-            if (!key)
-                break;
-            if (!lv_json_expect(&p, ':')) {
-                lv_free((void **) &key);
-                break;
-            }
+        char *key = NULL;
+        while (lv_json_parse_field(&p, &key)) {
             if (strcmp(key, "geometry") == 0) {
                 gj_import_geometry(&p, graph, &imported_count, &prev_node_id, coords_x, coords_y);
             } else {
                 lv_json_skip_value(&p);
             }
             lv_free((void **) &key);
-            if (lv_json_peek(&p) == ',')
-                lv_json_next(&p);
         }
         if (lv_json_peek(&p) == '}')
             lv_json_next(&p);

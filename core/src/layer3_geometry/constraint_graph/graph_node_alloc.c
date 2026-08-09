@@ -1121,50 +1121,6 @@ static int func_block_compare(const GeomNode *a, const GeomNode *b) {
     }
     return 0;
 }
-/* ── 类型特定的 deserialize（存根） ── */
-
-static bool point_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* GEOM_POINT: 无类型特定数据 */
-}
-
-static bool line_segment_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* 存根 */
-}
-
-static bool region_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* 存根 */
-}
-
-static bool circle_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* 存根 */
-}
-
-static bool port_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* 存根 */
-}
-
-static bool func_block_deserialize(GeomNode *node, const uint8_t *data, size_t size) {
-    (void)node;
-    (void)data;
-    (void)size;
-    return true; /* 存根 */
-}
-
 /* ── 类型特定的 fixup_refs（深拷贝后修复交叉引用） ── */
 
 static void point_fixup_refs(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph) {
@@ -1288,7 +1244,6 @@ static const GeomNodeVTable kPointVTable = {
     .detect_conflict = point_detect_conflict,
     .hash = point_hash,
     .compare = point_compare,
-    .deserialize = point_deserialize,
     .fixup_refs = point_fixup_refs,
     .get_trust_coord_count = point_get_trust_coord_count,
 };
@@ -1302,7 +1257,6 @@ static const GeomNodeVTable kLineSegmentVTable = {
     .detect_conflict = line_segment_detect_conflict,
     .hash = line_segment_hash,
     .compare = line_segment_compare,
-    .deserialize = line_segment_deserialize,
     .fixup_refs = line_segment_fixup_refs,
     .get_trust_coord_count = line_segment_get_trust_coord_count,
 };
@@ -1316,7 +1270,6 @@ static const GeomNodeVTable kRegionVTable = {
     .detect_conflict = region_detect_conflict,
     .hash = region_hash,
     .compare = region_compare,
-    .deserialize = region_deserialize,
     .fixup_refs = region_fixup_refs,
     .get_trust_coord_count = region_get_trust_coord_count,
 };
@@ -1330,7 +1283,6 @@ static const GeomNodeVTable kCircleVTable = {
     .detect_conflict = circle_detect_conflict,
     .hash = circle_hash,
     .compare = circle_compare,
-    .deserialize = circle_deserialize,
     .fixup_refs = circle_fixup_refs,
     .get_trust_coord_count = circle_get_trust_coord_count,
 };
@@ -1344,7 +1296,6 @@ static const GeomNodeVTable kPortVTable = {
     .detect_conflict = port_detect_conflict,
     .hash = port_hash,
     .compare = port_compare,
-    .deserialize = port_deserialize,
     .fixup_refs = port_fixup_refs,
     .get_trust_coord_count = port_get_trust_coord_count,
 };
@@ -1358,7 +1309,6 @@ static const GeomNodeVTable kFuncBlockVTable = {
     .detect_conflict = func_block_detect_conflict,
     .hash = func_block_hash,
     .compare = func_block_compare,
-    .deserialize = func_block_deserialize,
     .fixup_refs = func_block_fixup_refs,
     .get_trust_coord_count = func_block_get_trust_coord_count,
 };

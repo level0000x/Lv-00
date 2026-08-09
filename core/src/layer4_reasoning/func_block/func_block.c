@@ -29,6 +29,7 @@
 
 #include "func_block_internal.h"
 #include "lv_internal.h"
+#include "lv/lv_lifecycle.h"
 #include "lv_utils.h"
 #include "stream_context_util.h"
 
@@ -1237,6 +1238,11 @@ PackResult func_block_pack_ex(ConstraintGraph *graph, const PackConfig *config, 
  * @param src 源函数块
  * @return 新创建的函数块副本，失败返回 NULL
  */
+/** @brief 作用域守卫清理回调：销毁 FuncBlock 指针变量（配合 lv_DEFER 使用） */
+static void defer_func_block_destroy(void *arg) {
+    func_block_destroy(*(FuncBlock **) arg);
+}
+
 FuncBlock *func_block_copy(const FuncBlock *src) {
     if (!src)
         return NULL;
@@ -1246,11 +1252,15 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (!dst)
         return NULL;
 
+    /* dst 创建后立即注册作用域守卫：任何一步失败直接 return，
+     * 出口按注册逆序自动销毁 dst，无需手写 goto fail 标签。 */
+    lv_DEFER(defer_func_block_destroy, &dst);
+
     /* 深拷贝内部节点 ID 数组 —— 收敛至公共 lv_copy_int_array */
     if (src->internal_node_count > 0 && src->internal_node_ids) {
         dst->internal_node_ids = lv_copy_int_array(src->internal_node_ids, src->internal_node_count);
         if (!dst->internal_node_ids)
-            goto fail;
+            return NULL;
     }
     dst->internal_node_count = src->internal_node_count;
 
@@ -1258,7 +1268,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (src->input_count > 0 && src->input_port_ids) {
         dst->input_port_ids = lv_copy_int_array(src->input_port_ids, src->input_count);
         if (!dst->input_port_ids)
-            goto fail;
+            return NULL;
     }
     dst->input_count = src->input_count;
 
@@ -1266,7 +1276,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (src->output_count > 0 && src->output_port_ids) {
         dst->output_port_ids = lv_copy_int_array(src->output_port_ids, src->output_count);
         if (!dst->output_port_ids)
-            goto fail;
+            return NULL;
     }
     dst->output_count = src->output_count;
 
@@ -1274,7 +1284,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (src->port_dep_count > 0 && src->port_deps) {
         dst->port_deps = lv_calloc((size_t) src->port_dep_count, sizeof(PortDependency));
         if (!dst->port_deps)
-            goto fail;
+            return NULL;
         memcpy(dst->port_deps, src->port_deps, (size_t) src->port_dep_count * sizeof(PortDependency));
     }
     dst->port_dep_count = src->port_dep_count;
@@ -1284,7 +1294,7 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (src->selector) {
         dst->selector = lv_calloc(1, sizeof(SolutionSelector));
         if (!dst->selector)
-            goto fail;
+            return NULL;
 
         /* 复制基本字段 */
         dst->selector->type = src->selector->type;
@@ -1301,14 +1311,14 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
         if (src->selector->name) {
             dst->selector->name = lv_strdup(src->selector->name);
             if (!dst->selector->name)
-                goto fail; /* 统一清理：func_block_destroy → selector_destroy 释放子字段 */
+                return NULL; /* 统一清理：func_block_destroy → selector_destroy 释放子字段 */
         }
 
         /* 深拷贝 solution_values 数组 */
         if (src->selector->solution_count > 0 && src->selector->solution_values) {
             dst->selector->solution_values = lv_malloc((size_t) src->selector->solution_count * sizeof(double));
             if (!dst->selector->solution_values)
-                goto fail; /* 统一清理：selector_destroy 释放 name/solution_values/外壳 */
+                return NULL; /* 统一清理：selector_destroy 释放 name/solution_values/外壳 */
             memcpy(dst->selector->solution_values, src->selector->solution_values,
                    (size_t) src->selector->solution_count * sizeof(double));
         } else {
@@ -1334,21 +1344,21 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     if (src->name) {
         dst->name = lv_strdup(src->name);
         if (!dst->name)
-            goto fail;
+            return NULL;
     }
 
     /* 深拷贝描述字符串 */
     if (src->description) {
         dst->description = lv_strdup(src->description);
         if (!dst->description)
-            goto fail;
+            return NULL;
     }
 
     /* 深拷贝前置条件区域 ID 数组 —— 收敛至公共 lv_copy_int_array */
     if (src->precondition_count > 0 && src->precondition_region_ids) {
         dst->precondition_region_ids = lv_copy_int_array(src->precondition_region_ids, src->precondition_count);
         if (!dst->precondition_region_ids)
-            goto fail;
+            return NULL;
     }
     dst->precondition_count = src->precondition_count;
 
@@ -1359,12 +1369,10 @@ FuncBlock *func_block_copy(const FuncBlock *src) {
     dst->measure_compare = src->measure_compare;
     dst->view_state = src->view_state;
 
-    return dst;
-
-fail:
-    /* 清理已分配的部分资源 */
-    func_block_destroy(dst);
-    return NULL;
+    /* 成功路径：dst 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    FuncBlock *result = dst;
+    dst = NULL;
+    return result;
 }
 
 /* ==================== 内部共享函数 ==================== */

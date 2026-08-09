@@ -4,10 +4,10 @@
  *
  * @details 拆分子模块（Lv-00 v3.3.0+）。
  *
- * @todo 待迁移：module_apply_delta（L759 起，嵌套最深 4 层的对象字段遍历，
- *       ~25 处 lv_json_peek 手写循环）与 lv/lv_json.h 新增的 lv_json_parse_field
- *       公共辅助同构；因"name/version 字段嵌套对象取 new 键、图增量字段跳过
- *       数组计数"等专用容错逻辑，暂保留现状，后续统一迁移。
+ * module_apply_delta 读端对象字段遍历已统一迁移为 lv_json_parse_field 模式
+ * （顶层、changes 内层、name/version 嵌套对象、dependencies_added/modified
+ * 数组内对象），未知键值统一经 lv_json_skip_value 跳过；数组类字段
+ * （dependencies_*）保留手写数组遍历，无对应公共辅助。
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -795,15 +795,8 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
     }
     lv_json_next(&p);
 
-    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-        char *key = lv_json_parse_string(&p);
-        if (!key)
-            break;
-        if (!lv_json_expect(&p, ':')) {
-            lv_free((void **) &key);
-            break;
-        }
-
+    char *key = NULL;
+    while (lv_json_parse_field(&p, &key)) {
         if (strcmp(key, "changes") == 0) {
             if (lv_json_peek(&p) != '{') {
                 lv_free((void **) &key);
@@ -811,27 +804,15 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
             }
             lv_json_next(&p);
 
-            while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                char *ck = lv_json_parse_string(&p);
-                if (!ck)
-                    break;
-                if (!lv_json_expect(&p, ':')) {
-                    lv_free((void **) &ck);
-                    break;
-                }
+            char *ck = NULL;
+            while (lv_json_parse_field(&p, &ck)) {
 
                 if (strcmp(ck, "name") == 0) {
                     /* 应用名称变更 */
                     if (lv_json_peek(&p) == '{') {
                         lv_json_next(&p);
-                        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                            char *fk = lv_json_parse_string(&p);
-                            if (!fk)
-                                break;
-                            if (!lv_json_expect(&p, ':')) {
-                                lv_free((void **) &fk);
-                                break;
-                            }
+                        char *fk = NULL;
+                        while (lv_json_parse_field(&p, &fk)) {
                             char *val = lv_json_parse_string(&p);
                             if (strcmp(fk, "new") == 0 && val) {
                                 lv_free((void **) &mod->name);
@@ -840,8 +821,6 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             }
                             lv_free((void **) &val);
                             lv_free((void **) &fk);
-                            if (lv_json_peek(&p) == ',')
-                                lv_json_next(&p);
                         }
                         if (lv_json_peek(&p) == '}')
                             lv_json_next(&p);
@@ -849,14 +828,8 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                 } else if (strcmp(ck, "version") == 0) {
                     if (lv_json_peek(&p) == '{') {
                         lv_json_next(&p);
-                        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                            char *fk = lv_json_parse_string(&p);
-                            if (!fk)
-                                break;
-                            if (!lv_json_expect(&p, ':')) {
-                                lv_free((void **) &fk);
-                                break;
-                            }
+                        char *fk = NULL;
+                        while (lv_json_parse_field(&p, &fk)) {
                             char *val = lv_json_parse_string(&p);
                             if (strcmp(fk, "new") == 0 && val) {
                                 lv_free((void **) &mod->version);
@@ -865,8 +838,6 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             }
                             lv_free((void **) &val);
                             lv_free((void **) &fk);
-                            if (lv_json_peek(&p) == ',')
-                                lv_json_next(&p);
                         }
                         if (lv_json_peek(&p) == '}')
                             lv_json_next(&p);
@@ -882,14 +853,8 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             if (lv_json_peek(&p) == '{') {
                                 lv_json_next(&p);
                                 char *dn = NULL, *dv = NULL;
-                                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                                    char *fk = lv_json_parse_string(&p);
-                                    if (!fk)
-                                        break;
-                                    if (!lv_json_expect(&p, ':')) {
-                                        lv_free((void **) &fk);
-                                        break;
-                                    }
+                                char *fk = NULL;
+                                while (lv_json_parse_field(&p, &fk)) {
                                     char *val = lv_json_parse_string(&p);
                                     if (strcmp(fk, "name") == 0) {
                                         lv_free((void **) &dn);
@@ -900,8 +865,6 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                     } else
                                         lv_free((void **) &val);
                                     lv_free((void **) &fk);
-                                    if (lv_json_peek(&p) == ',')
-                                        lv_json_next(&p);
                                 }
                                 if (lv_json_peek(&p) == '}')
                                     lv_json_next(&p);
@@ -957,14 +920,8 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             if (lv_json_peek(&p) == '{') {
                                 lv_json_next(&p);
                                 char *dn = NULL, *nv = NULL;
-                                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                                    char *fk = lv_json_parse_string(&p);
-                                    if (!fk)
-                                        break;
-                                    if (!lv_json_expect(&p, ':')) {
-                                        lv_free((void **) &fk);
-                                        break;
-                                    }
+                                char *fk = NULL;
+                                while (lv_json_parse_field(&p, &fk)) {
                                     char *val = lv_json_parse_string(&p);
                                     if (strcmp(fk, "name") == 0) {
                                         lv_free((void **) &dn);
@@ -975,8 +932,6 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                     } else
                                         lv_free((void **) &val);
                                     lv_free((void **) &fk);
-                                    if (lv_json_peek(&p) == ',')
-                                        lv_json_next(&p);
                                 }
                                 if (lv_json_peek(&p) == '}')
                                     lv_json_next(&p);
@@ -1024,89 +979,19 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                     }
                 } else {
                     /* 跳过未知字段 */
-                    if (lv_json_peek(&p) == '"') {
-                        char *tmp = lv_json_parse_string(&p);
-                        lv_free((void **) &tmp);
-                    } else if (lv_json_peek(&p) == '[') {
-                        lv_json_skip_value(&p);
-                    } else if (lv_json_peek(&p) == '{') {
-                        /* 逐字符扫描（保留空白），不能用 lv_json_next 替代 */
-                        lv_json_next(&p);
-                        int depth = 1;
-                        while (p.pos < p.size && depth > 0) {
-                            char c = p.data[p.pos];
-                            if (c == '"') {
-                                p.pos++;
-                                while (p.pos < p.size && p.data[p.pos] != '"') {
-                                    if (p.data[p.pos] == '\\')
-                                        p.pos++;
-                                    p.pos++;
-                                }
-                                if (p.pos < p.size)
-                                    p.pos++;
-                            } else if (c == '{') {
-                                depth++;
-                                p.pos++;
-                            } else if (c == '}') {
-                                depth--;
-                                p.pos++;
-                            } else {
-                                p.pos++;
-                            }
-                        }
-                    } else {
-                        while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                            lv_json_next(&p);
-                        }
-                    }
+                    lv_json_skip_value(&p);
                 }
 
                 lv_free((void **) &ck);
-                if (lv_json_peek(&p) == ',')
-                    lv_json_next(&p);
             }
             if (lv_json_peek(&p) == '}')
                 lv_json_next(&p);
         } else {
             /* 跳过 base_hash 等其他字段 */
-            if (lv_json_peek(&p) == '"') {
-                char *tmp = lv_json_parse_string(&p);
-                lv_free((void **) &tmp);
-            } else if (lv_json_peek(&p) == '{') {
-                /* 逐字符扫描（保留空白），不能用 lv_json_next 替代 */
-                lv_json_next(&p);
-                int depth = 1;
-                while (p.pos < p.size && depth > 0) {
-                    char c = p.data[p.pos];
-                    if (c == '"') {
-                        p.pos++;
-                        while (p.pos < p.size && p.data[p.pos] != '"') {
-                            if (p.data[p.pos] == '\\')
-                                p.pos++;
-                            p.pos++;
-                        }
-                        if (p.pos < p.size)
-                            p.pos++;
-                    } else if (c == '{') {
-                        depth++;
-                        p.pos++;
-                    } else if (c == '}') {
-                        depth--;
-                        p.pos++;
-                    } else {
-                        p.pos++;
-                    }
-                }
-            } else {
-                while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                    lv_json_next(&p);
-                }
-            }
+            lv_json_skip_value(&p);
         }
 
         lv_free((void **) &key);
-        if (lv_json_peek(&p) == ',')
-            lv_json_next(&p);
     }
 
     return true;

@@ -267,8 +267,9 @@ struct GeomNodeVTable {
     /** 比较：比较两个节点的类型特定数据是否相等 */
     int (*compare)(const GeomNode *a, const GeomNode *b);
 
-    /** 反序列化：从二进制数据恢复类型特定的节点数据 */
-    bool (*deserialize)(GeomNode *node, const uint8_t *data, size_t size);
+    /* 写实读虚：类型特定数据的写端走 serialize（JSON/lvJsonBuf），
+     * 读端统一由 clone（深拷贝 JSON 反序列化后的节点）承担，
+     * 不再保留独立的 deserialize 槽（避免二进制 data/size 签名与 JSON 写端不对偶）。 */
 
     /** 交叉引用修复：深拷贝后修复节点内部的指针引用（如 region->boundary_segments 等） */
     void (*fixup_refs)(GeomNode *node, const int *id_map, int max_id, ConstraintGraph *dst_graph);

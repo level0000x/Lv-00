@@ -16,6 +16,111 @@
 /*  内部: 基于约束图拓扑排序的变量消元顺序                               */
 /* ================================================================== */
 
+/* 共享 Kahn 拓扑排序（按优先级逐轮选择）的优先级回调：
+ * 返回节点 idx 的排序优先级（越大越先选）；返回 -1 表示该节点本轮不可选
+ * （由子集/窗口限制等调用方规则决定）。 */
+typedef int (*kahn_priority_fn)(void *ctx, int idx, int order_count);
+
+/* 共享 Kahn 主循环：入度统计 + 逐轮按优先级选择 + 环回退（剩余未访问节点
+ * 全部输出）。邻接矩阵 adj 由调用方按各自规则构建；var_ids 为节点 id
+ * （优先级平局时按 id 小者优先，与原实现一致）。成功返回 calloc 的 order
+ * 数组并通过 *out_count 输出长度；失败返回 NULL。 */
+static int *kahn_priority_order(const int *var_ids, int var_count,
+                                const bool *const *adj,
+                                kahn_priority_fn priority_cb, void *ctx,
+                                const char *log_prefix, int *out_count) {
+    *out_count = 0;
+    if (!var_ids || var_count <= 0 || !adj || !priority_cb || !log_prefix)
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "kahn_priority_order: invalid param");
+
+    int *in_degree = lv_calloc((size_t) var_count, sizeof(int));
+    bool *visited = lv_calloc((size_t) var_count, sizeof(bool));
+    int *order = lv_calloc((size_t) var_count, sizeof(int));
+    if (!in_degree || !visited || !order) {
+        lv_free((void **) &in_degree);
+        lv_free((void **) &visited);
+        lv_free((void **) &order);
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "kahn_priority_order: allocation failed");
+    }
+
+    for (int i = 0; i < var_count; i++) {
+        for (int j = 0; j < var_count; j++) {
+            if (adj[i][j])
+                in_degree[j]++;
+        }
+    }
+
+    int order_count = 0;
+    while (order_count < var_count) {
+        int best = -1;
+        int best_priority = -1;
+
+        for (int i = 0; i < var_count; i++) {
+            if (visited[i])
+                continue;
+            if (in_degree[i] > 0)
+                continue;
+            int prio = priority_cb(ctx, i, order_count);
+            if (prio < 0)
+                continue;
+            if (prio > best_priority ||
+                (prio == best_priority && var_ids[i] < var_ids[best])) {
+                best = i;
+                best_priority = prio;
+            }
+        }
+
+        if (best < 0) {
+            int unvisited = 0;
+            for (int i = 0; i < var_count; i++) {
+                if (!visited[i])
+                    unvisited++;
+            }
+            lv_log(lv_LOG_WARN,
+                   "%s: cycle detected in constraint graph, "
+                   "%d variables remain unscheduled\n",
+                   log_prefix, unvisited);
+            for (int i = 0; i < var_count; i++) {
+                if (!visited[i]) {
+                    order[order_count++] = var_ids[i];
+                    visited[i] = true;
+                }
+            }
+            break;
+        }
+
+        order[order_count++] = var_ids[best];
+        visited[best] = true;
+
+        for (int j = 0; j < var_count; j++) {
+            if (adj[best][j]) {
+                in_degree[j]--;
+            }
+        }
+    }
+
+    lv_free((void **) &in_degree);
+    lv_free((void **) &visited);
+
+    *out_count = order_count;
+    return order;
+}
+
+/* order_variables_by_dependency 的优先级上下文：participation 为主键，in_subset
+ * 限定窗口（前 subset_limit 个位置仅允许子集内节点，即 dirty 变量）。 */
+typedef struct {
+    const int *participation;
+    const bool *in_subset;
+    int subset_limit;
+} DependencyOrderCtx;
+
+static int dependency_order_priority(void *ctx, int idx, int order_count) {
+    DependencyOrderCtx *c = (DependencyOrderCtx *) ctx;
+    if (!c->in_subset[idx] && order_count < c->subset_limit)
+        return -1;
+    return c->participation[idx];
+}
+
 int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_ids, int var_count,
                                           const int *dirty_var_ids, int dirty_count, int *out_count) {
     *out_count = 0;
@@ -66,14 +171,6 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
         }
     }
 
-    int *in_degree = lv_calloc((size_t) var_count, sizeof(int));
-    for (int i = 0; i < var_count; i++) {
-        for (int j = 0; j < var_count; j++) {
-            if (adj[i][j])
-                in_degree[j]++;
-        }
-    }
-
     bool *in_subset = lv_calloc((size_t) var_count, sizeof(bool));
     bool use_subset = (dirty_var_ids != NULL && dirty_count > 0);
     if (use_subset) {
@@ -87,80 +184,46 @@ int *order_variables_by_dependency(const ConstraintGraph *graph, const int *var_
             in_subset[i] = true;
     }
 
-    int *order = lv_calloc((size_t) var_count, sizeof(int));
+    /* 共享 Kahn 主循环：入度统计、逐轮按 participation（子集窗口限制）选择、
+     * 环回退输出剩余变量 */
+    DependencyOrderCtx dep_ctx;
+    dep_ctx.participation = participation;
+    dep_ctx.in_subset = in_subset;
+    dep_ctx.subset_limit = var_count - (use_subset ? (var_count - dirty_count) : 0);
+
+    int order_count = 0;
+    int *order = kahn_priority_order(var_ids, var_count, adj,
+                                     dependency_order_priority, &dep_ctx,
+                                     "order_variables_by_dependency", &order_count);
     if (!order) {
         for (int i = 0; i < var_count; i++)
             lv_free((void **) &adj[i]);
         lv_free((void **) &adj);
         lv_free((void **) &participation);
-        lv_free((void **) &in_degree);
         lv_free((void **) &in_subset);
         lv_hashtable_int_destroy(id_to_idx);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: lv_calloc for order failed (count=%d)", var_count);
-    }
-    int order_count = 0;
-    bool *visited = lv_calloc((size_t) var_count, sizeof(bool));
-
-    while (order_count < var_count) {
-        int best = -1;
-        int best_participation = -1;
-
-        for (int i = 0; i < var_count; i++) {
-            if (visited[i])
-                continue;
-            if (!in_subset[i] && order_count < var_count - (use_subset ? (var_count - dirty_count) : 0)) {
-                continue;
-            }
-            if (in_degree[i] > 0)
-                continue;
-
-            if (participation[i] > best_participation ||
-                (participation[i] == best_participation && var_ids[i] < var_ids[best])) {
-                best = i;
-                best_participation = participation[i];
-            }
-        }
-
-        if (best < 0) {
-            int unvisited = 0;
-            for (int i = 0; i < var_count; i++) {
-                if (!visited[i])
-                    unvisited++;
-            }
-            lv_log(lv_LOG_WARN,
-                   "order_variables_by_dependency: cycle detected in constraint graph, "
-                   "%d variables remain unscheduled\n",
-                   unvisited);
-            for (int i = 0; i < var_count; i++) {
-                if (!visited[i]) {
-                    order[order_count++] = var_ids[i];
-                    visited[i] = true;
-                }
-            }
-            break;
-        }
-
-        order[order_count++] = var_ids[best];
-        visited[best] = true;
-
-        for (int j = 0; j < var_count; j++) {
-            if (adj[best][j]) {
-                in_degree[j]--;
-            }
-        }
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "order_variables_by_dependency: kahn_priority_order failed (count=%d)", var_count);
     }
 
     for (int i = 0; i < var_count; i++)
         lv_free((void **) &adj[i]);
     lv_free((void **) &adj);
     lv_free((void **) &participation);
-    lv_free((void **) &in_degree);
-    lv_free((void **) &visited);
     lv_free((void **) &in_subset);
     lv_hashtable_int_destroy(id_to_idx);
 
     *out_count = order_count;
     return order;
+}
+
+/* compute_elimination_order 的优先级上下文：weight 越大越先消元 */
+typedef struct {
+    const int *weight;
+} EliminationOrderCtx;
+
+static int elimination_order_priority(void *ctx, int idx, int order_count) {
+    (void) order_count;
+    return ((EliminationOrderCtx *) ctx)->weight[idx];
 }
 
 static int *compute_elimination_order(const ConstraintGraph *graph, EquationSystem *sys, int *out_order_count) {
@@ -263,15 +326,14 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         lv_free((void **) &participants);
     }
 
-    int *in_degree = lv_calloc((size_t) var_count, sizeof(int));
-    for (int i = 0; i < var_count; i++) {
-        for (int j = 0; j < var_count; j++) {
-            if (adj[i][j])
-                in_degree[j]++;
-        }
-    }
+    /* 共享 Kahn 主循环：入度统计、逐轮按 weight 选择、环回退输出剩余变量 */
+    EliminationOrderCtx elim_ctx;
+    elim_ctx.weight = weight;
 
-    int *order = lv_calloc((size_t) var_count, sizeof(int));
+    int order_count = 0;
+    int *order = kahn_priority_order(var_ids, var_count, adj,
+                                     elimination_order_priority, &elim_ctx,
+                                     "compute_elimination_order", &order_count);
     if (!order) {
         for (int i = 0; i < var_count; i++)
             lv_free((void **) &adj[i]);
@@ -279,56 +341,8 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
         lv_free((void **) &eq_count);
         lv_free((void **) &constraint_count);
         lv_free((void **) &weight);
-        lv_free((void **) &in_degree);
         lv_free((void **) &var_ids);
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: lv_calloc for order failed (count=%d)", var_count);
-    }
-    int order_count = 0;
-    bool *visited = lv_calloc((size_t) var_count, sizeof(bool));
-
-    while (order_count < var_count) {
-        int best = -1;
-        int best_weight = -1;
-
-        for (int i = 0; i < var_count; i++) {
-            if (visited[i])
-                continue;
-            if (in_degree[i] > 0)
-                continue;
-
-            if (weight[i] > best_weight || (weight[i] == best_weight && var_ids[i] < var_ids[best])) {
-                best = i;
-                best_weight = weight[i];
-            }
-        }
-
-        if (best < 0) {
-            int unvisited = 0;
-            for (int i = 0; i < var_count; i++) {
-                if (!visited[i])
-                    unvisited++;
-            }
-            lv_log(lv_LOG_WARN,
-                   "compute_elimination_order: cycle detected in constraint graph, "
-                   "%d variables remain unscheduled\n",
-                   unvisited);
-            for (int i = 0; i < var_count; i++) {
-                if (!visited[i]) {
-                    order[order_count++] = var_ids[i];
-                    visited[i] = true;
-                }
-            }
-            break;
-        }
-
-        order[order_count++] = var_ids[best];
-        visited[best] = true;
-
-        for (int j = 0; j < var_count; j++) {
-            if (adj[best][j]) {
-                in_degree[j]--;
-            }
-        }
+        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "compute_elimination_order: kahn_priority_order failed (count=%d)", var_count);
     }
 
     for (int i = 0; i < var_count; i++) {
@@ -338,8 +352,6 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     lv_free((void **) &eq_count);
     lv_free((void **) &constraint_count);
     lv_free((void **) &weight);
-    lv_free((void **) &in_degree);
-    lv_free((void **) &visited);
     lv_free((void **) &var_ids);
 
     *out_order_count = order_count;

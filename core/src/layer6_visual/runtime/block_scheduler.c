@@ -54,7 +54,7 @@ static int build_block_adjacency(BlockGraphView *bg, int n, int *in_degree, int 
     return 0;
 }
 
-/* 增量执行 BFS 的邻接表访问上下文（统一遍历设施 lv_bfs_run） */
+/* 邻接表访问上下文（BFS 与 lv_topo_run 拓扑排序共用） */
 typedef struct {
     int **adj;       /* 邻接表（块索引 -> 下游块索引） */
     int *adj_count;  /* 每块下游邻居数 */
@@ -122,45 +122,41 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     int n = bg->count;
 
     /* 分配工作数组 */
-    int *in_degree = lv_calloc(n, sizeof(int));
     int *adj_count = lv_calloc(n, sizeof(int));  /* 每个块的下游邻居数 */
     int *adj_cap = lv_calloc(n, sizeof(int));    /* 每行邻接表容量 */
     int **adj = lv_calloc(n, sizeof(int *));     /* 邻接表 */
-    int *queue_buf = lv_calloc(n, sizeof(int));  /* 拓扑排序队列 */
     int *topo_order = lv_calloc(n, sizeof(int)); /* 拓扑排序结果 */
 
-    if (!in_degree || !adj_count || !adj_cap || !adj || !queue_buf || !topo_order) {
-        lv_free_many(&in_degree, &adj_count, &adj_cap, &adj, &queue_buf, &topo_order, NULL);
+    if (!adj_count || !adj_cap || !adj || !topo_order) {
+        lv_free_many(&adj_count, &adj_cap, &adj, &topo_order, NULL);
         result.success = 0;
         strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
         return result;
     }
 
     /* 构建邻接表：根据输出端口和输入端口的连接关系确定依赖 */
-    /* 通过端口 ID 匹配确定块间依赖 */
-    build_block_adjacency(bg, n, in_degree, &adj, &adj_count, &adj_cap);
+    /* 通过端口 ID 匹配确定块间依赖（入度由 lv_topo_run 内部统计） */
+    build_block_adjacency(bg, n, NULL, &adj, &adj_count, &adj_cap);
 
-    /* Kahn 算法：将入度为0的节点入队 */
-    int front = 0, back = 0;
-    for (int i = 0; i < n; i++) {
-        if (in_degree[i] == 0) {
-            queue_buf[back++] = i;
-        }
-    }
-
-    int topo_count = 0;
-    while (front < back) {
-        int cur = queue_buf[front++];
-        topo_order[topo_count++] = cur;
-
-        /* 遍历下游邻居，减少入度 */
-        for (int k = 0; k < adj_count[cur]; k++) {
-            int next = adj[cur][k];
-            in_degree[next]--;
-            if (in_degree[next] == 0) {
-                queue_buf[back++] = next;
-            }
-        }
+    /* Kahn 拓扑排序（统一遍历设施 lv_topo_run：全部块索引为节点空间，后继读邻接表） */
+    BlockBfsCtx topo_ctx = { adj, adj_count };
+    lvTopoSpec topo_spec = {
+        .node_count = n,
+        .nodes = NULL,
+        .nodes_count = 0,
+        .out_order = topo_order,
+        .successors = block_adj_neighbors_cb,
+        .ctx = &topo_ctx,
+    };
+    int topo_count = lv_topo_run(&topo_spec);
+    if (topo_count < 0) {
+        lv_free((void **) &topo_order);
+        for (int i = 0; i < n; i++)
+            lv_free((void **) &adj[i]);
+        lv_free_many(&adj, &adj_cap, &adj_count, NULL);
+        result.success = 0;
+        strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
+        return result;
     }
 
     /* 检测环 */
@@ -194,7 +190,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     /* 清理 */
     for (int i = 0; i < n; i++)
         lv_free((void **) &adj[i]);
-    lv_free_many(&adj, &adj_cap, &adj_count, &in_degree, &queue_buf, &topo_order, NULL);
+    lv_free_many(&adj, &adj_cap, &adj_count, &topo_order, NULL);
 
     return result;
 }

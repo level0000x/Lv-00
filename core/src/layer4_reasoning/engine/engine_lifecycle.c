@@ -77,8 +77,8 @@ lvEngine *engine_create(void) {
         lv_free((void **) &engine);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "engine_create: main_graph creation failed");
     }
-    engine->last_status = ENGINE_STATUS_OK;
-    engine->last_error[0] = '\0';
+    /* 成功初始化：统一走 engine_set_error 成功通道（清空 last_error，不落错误日志） */
+    engine_set_error(engine, ENGINE_STATUS_OK, "");
     return engine;
 }
 

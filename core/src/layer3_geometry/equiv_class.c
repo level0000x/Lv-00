@@ -21,6 +21,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/geo_utils.h"
+#include "union_find_util.h"
 
 /* Missing enum/field aliases */
 #define EQUIV_MERGE_INVALID EQUIV_MERGE_ERROR
@@ -30,69 +31,26 @@
 
 
 /* ================================================================
- * 并查集内部实现
+ * 并查集内部实现（统一走共享工具 union_find_util.h）
+ *
+ * manager 的 uf_parent / uf_rank / uf_capacity 字段布局是公共 ABI（见
+ * equiv_class.h），保持不变；uf_create/uf_find/uf_union/uf_destroy 均改由
+ * union_find_util.h 提供。原静态实现的越界防御（越界返回 -1 / 静默忽略）
+ * 保留在以下两个包装中（共享 uf_* 不做边界检查），等价语义不变。
  * ================================================================ */
 
-/**
- * @brief 初始化并查集
- * @param mgr      等价类管理器
- * @param capacity 初始容量
- * @return 成功返回 0，失败返回 -1
- */
-static int uf_create(EquivClassManager *mgr, int capacity) {
-    mgr->uf_capacity = capacity;
-    mgr->uf_parent = (int *) lv_calloc((size_t) capacity, sizeof(int));
-    mgr->uf_rank = (int *) lv_calloc((size_t) capacity, sizeof(int));
-    if (!mgr->uf_parent || !mgr->uf_rank) {
-        lv_free((void **) &mgr->uf_parent);
-        lv_free((void **) &mgr->uf_rank);
-        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "uf_create: calloc parent/rank failed");
-    }
-    for (int i = 0; i < capacity; i++) {
-        mgr->uf_parent[i] = i;
-        mgr->uf_rank[i] = 0;
-    }
-    return 0;
-}
-
-static void uf_destroy(EquivClassManager *mgr) {
-    lv_free((void **) &mgr->uf_parent);
-    mgr->uf_parent = NULL;
-    lv_free((void **) &mgr->uf_rank);
-    mgr->uf_rank = NULL;
-    mgr->uf_capacity = 0;
-}
-
-static int uf_find(EquivClassManager *mgr, int x) {
+/* 查找节点根（越界返回 -1，与原静态实现语义一致） */
+static int equiv_uf_find(const EquivClassManager *mgr, int x) {
     if (x < 0 || x >= mgr->uf_capacity)
         return -1;
-    /* Path splitting */
-    while (mgr->uf_parent[x] != x) {
-        int parent = mgr->uf_parent[x];
-        mgr->uf_parent[x] = mgr->uf_parent[parent];
-        x = parent;
-    }
-    return x;
+    return uf_find(mgr->uf_parent, x);
 }
 
-static void uf_union(EquivClassManager *mgr, int x, int y) {
+/* 合并两个节点所在集合（越界静默忽略，与原静态实现语义一致） */
+static void equiv_uf_union(EquivClassManager *mgr, int x, int y) {
     if (x < 0 || y < 0 || x >= mgr->uf_capacity || y >= mgr->uf_capacity)
         return;
-    int rx = uf_find(mgr, x);
-    int ry = uf_find(mgr, y);
-    if (rx == ry)
-        return;
-
-    /* Union by rank */
-    if (mgr->uf_rank[rx] < mgr->uf_rank[ry]) {
-        int tmp = rx;
-        rx = ry;
-        ry = tmp;
-    }
-    mgr->uf_parent[ry] = rx;
-    if (mgr->uf_rank[rx] == mgr->uf_rank[ry]) {
-        mgr->uf_rank[rx]++;
-    }
+    uf_union(mgr->uf_parent, mgr->uf_rank, x, y);
 }
 
 /* ================================================================
@@ -205,9 +163,11 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
 
     mgr->graph = graph;
 
-    /* 初始化并查集 */
+    /* 初始化并查集（共享工具 uf_create：parent[i]=i，rank 按秩合并） */
     int capacity = graph->node_count > 0 ? graph->node_count : 16;
-    if (uf_create(mgr, capacity) != 0) {
+    mgr->uf_capacity = capacity;
+    mgr->uf_parent = uf_create(capacity, &mgr->uf_rank);
+    if (!mgr->uf_parent) {
         lv_free((void **) &mgr);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: uf_create failed");
     }
@@ -216,7 +176,10 @@ EquivClassManager *equiv_manager_create(ConstraintGraph *graph) {
     mgr->node_to_class_capacity = capacity;
     mgr->node_to_class = (int *) lv_calloc((size_t) capacity, sizeof(int));
     if (!mgr->node_to_class) {
-        uf_destroy(mgr);
+        uf_destroy(mgr->uf_parent, mgr->uf_rank);
+        mgr->uf_parent = NULL;
+        mgr->uf_rank = NULL;
+        mgr->uf_capacity = 0;
         lv_free((void **) &mgr);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "equiv_manager_create: calloc node_to_class failed");
     }
@@ -243,8 +206,11 @@ void equiv_manager_destroy(EquivClassManager *mgr) {
     }
     lv_free((void **) &mgr->classes);
 
-    /* 销毁并查集 */
-    uf_destroy(mgr);
+    /* 销毁并查集（共享工具 uf_destroy） */
+    uf_destroy(mgr->uf_parent, mgr->uf_rank);
+    mgr->uf_parent = NULL;
+    mgr->uf_rank = NULL;
+    mgr->uf_capacity = 0;
 
     /* 销毁节点映射 */
     lv_free((void **) &mgr->node_to_class);
@@ -270,7 +236,7 @@ EquivMergeResult equiv_merge_classes(EquivClassManager *mgr, int node_a, int nod
         return EQUIV_MERGE_ALREADY_EQUIV;
 
     /* 检查是否已在同一等价类 */
-    if (uf_find(mgr, node_a) == uf_find(mgr, node_b)) {
+    if (equiv_uf_find(mgr, node_a) == equiv_uf_find(mgr, node_b)) {
         return EQUIV_MERGE_ALREADY_EQUIV;
     }
 
@@ -278,7 +244,7 @@ EquivMergeResult equiv_merge_classes(EquivClassManager *mgr, int node_a, int nod
     equiv_log_proof(mgr, source, node_a, node_b, constraint_id, trust);
 
     /* 并查集合并 */
-    uf_union(mgr, node_a, node_b);
+    equiv_uf_union(mgr, node_a, node_b);
 
     /* 获取两个节点的等价类索引 */
     int class_a = equiv_find_or_create_class(mgr, node_a);
@@ -713,7 +679,7 @@ const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id) {
 int equiv_find(const EquivClassManager *mgr, int node_id) {
     if (!mgr || node_id < 0 || node_id >= mgr->uf_capacity)
         return -1;
-    int root = uf_find((EquivClassManager *) mgr, node_id); /* const cast for find */
+    int root = equiv_uf_find(mgr, node_id);
     return root;
 }
 
@@ -722,7 +688,7 @@ bool equiv_are_equivalent(const EquivClassManager *mgr, int node_a, int node_b) 
         return false;
     if (node_a >= mgr->uf_capacity || node_b >= mgr->uf_capacity)
         return false;
-    return uf_find((EquivClassManager *) mgr, node_a) == uf_find((EquivClassManager *) mgr, node_b);
+    return equiv_uf_find(mgr, node_a) == equiv_uf_find(mgr, node_b);
 }
 
 bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b) {

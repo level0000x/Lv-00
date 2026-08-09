@@ -4,11 +4,10 @@
  *
  * @details 从 module_serialize.c 拆分的子模块（Lv-00 项目 v3.3.0+）。
  *
- * @todo 待迁移：module_deserialize_from_json（L471-542）、json_parse_dependencies
- *       （L251-280）、json_parse_exports（L302-363）仍为手写"parse_string →
- *       expect(':') → 值 → 逗号"对象字段遍历循环，与 lv/lv_json.h 新增的
- *       lv_json_parse_field 公共辅助同构；因各字段值解析容错（未知键跳过/
- *       嵌套对象逐字符扫描）互有差异，暂保留现状，后续统一迁移。
+ * 读端对象字段遍历已统一迁移为 lv_json_parse_field 模式（module_deserialize_from_json
+ * 顶层、json_parse_dependencies/json_parse_exports 内层），未知键值统一经
+ * lv_json_skip_value 跳过；数组类字段（dependencies/function_blocks/type_regions/
+ * axiom_packages）保留手写数组遍历，无对应公共辅助。
  *
  * @author Lv-00 Project
  * @version 3.3.0
@@ -254,15 +253,8 @@ static bool json_parse_dependencies(lvJsonParser *p, Module **mod, char **name, 
             char *dep_name = NULL;
             char *dep_ver = NULL;
 
-            while (lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
-                char *dk = lv_json_parse_string(p);
-                if (!dk)
-                    break;
-                if (!lv_json_expect(p, ':')) {
-                    lv_free((void **) &dk);
-                    break;
-                }
-
+            char *dk = NULL;
+            while (lv_json_parse_field(p, &dk)) {
                 if (strcmp(dk, "name") == 0) {
                     lv_free((void **) &dep_name);
                     dep_name = lv_json_parse_string(p);
@@ -271,18 +263,9 @@ static bool json_parse_dependencies(lvJsonParser *p, Module **mod, char **name, 
                     dep_ver = lv_json_parse_string(p);
                 } else {
                     /* 跳过未知值 */
-                    if (lv_json_peek(p) == '"') {
-                        char *tmp = lv_json_parse_string(p);
-                        lv_free((void **) &tmp);
-                    } else {
-                        while (lv_json_peek(p) != ',' && lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
-                            lv_json_next(p);
-                        }
-                    }
+                    lv_json_skip_value(p);
                 }
                 lv_free((void **) &dk);
-                if (lv_json_peek(p) == ',')
-                    lv_json_next(p);
             }
             if (lv_json_peek(p) == '}')
                 lv_json_next(p);
@@ -305,15 +288,8 @@ static bool json_parse_exports(lvJsonParser *p, Module **mod, char **name, char 
     if (lv_json_peek(p) == '{') {
         lv_json_next(p); /* 跳过 '{' */
 
-        while (lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
-            char *ek = lv_json_parse_string(p);
-            if (!ek)
-                break;
-            if (!lv_json_expect(p, ':')) {
-                lv_free((void **) &ek);
-                break;
-            }
-
+        char *ek = NULL;
+        while (lv_json_parse_field(p, &ek)) {
             if (strcmp(ek, "function_blocks") == 0 && *mod) {
                 if (lv_json_peek(p) == '[') {
                     lv_json_next(p);
@@ -352,20 +328,9 @@ static bool json_parse_exports(lvJsonParser *p, Module **mod, char **name, char 
                 }
             } else {
                 /* 跳过未知值 */
-                if (lv_json_peek(p) == '"') {
-                    char *tmp = lv_json_parse_string(p);
-                    lv_free((void **) &tmp);
-                } else if (lv_json_peek(p) == '[') {
-                    lv_json_skip_value(p);
-                } else {
-                    while (lv_json_peek(p) != ',' && lv_json_peek(p) != '}' && lv_json_peek(p) != '\0') {
-                        lv_json_next(p);
-                    }
-                }
+                lv_json_skip_value(p);
             }
             lv_free((void **) &ek);
-            if (lv_json_peek(p) == ',')
-                lv_json_next(p);
         }
         if (lv_json_peek(p) == '}')
             lv_json_next(p);
@@ -474,17 +439,8 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
     char *version = NULL;
     Module *mod = NULL;
 
-    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-        /* 读取键 */
-        char *key = lv_json_parse_string(&p);
-        if (!key)
-            break;
-
-        if (!lv_json_expect(&p, ':')) {
-            lv_free((void **) &key);
-            break;
-        }
-
+    char *key = NULL;
+    while (lv_json_parse_field(&p, &key)) {
         /* 键分发：查 X-macro 生成的字段处理表（替代 6 分支 strcmp 链） */
         bool matched = false;
         bool parse_failed = false;
@@ -503,48 +459,10 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
         }
         if (!matched) {
             /* 跳过未知键的值 */
-            if (lv_json_peek(&p) == '"') {
-                char *tmp = lv_json_parse_string(&p);
-                lv_free((void **) &tmp);
-            } else if (lv_json_peek(&p) == '[') {
-                lv_json_skip_value(&p);
-            } else if (lv_json_peek(&p) == '{') {
-                /* 跳过嵌套对象（逐字符扫描，保留空白） */
-                lv_json_next(&p);
-                int depth = 1;
-                while (p.pos < p.size && depth > 0) {
-                    char c = p.data[p.pos];
-                    if (c == '"') {
-                        p.pos++;
-                        while (p.pos < p.size && p.data[p.pos] != '"') {
-                            if (p.data[p.pos] == '\\')
-                                p.pos++;
-                            p.pos++;
-                        }
-                        if (p.pos < p.size)
-                            p.pos++;
-                    } else if (c == '{') {
-                        depth++;
-                        p.pos++;
-                    } else if (c == '}') {
-                        depth--;
-                        p.pos++;
-                    } else {
-                        p.pos++;
-                    }
-                }
-            } else {
-                /* 跳过数字/布尔/null */
-                while (lv_json_peek(&p) != ',' && lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                    lv_json_next(&p);
-                }
-            }
+            lv_json_skip_value(&p);
         }
 
         lv_free((void **) &key);
-
-        if (lv_json_peek(&p) == ',')
-            lv_json_next(&p);
     }
 
     /* 创建模块 */

@@ -172,22 +172,10 @@ const char *log_level_string(LogLevel level) {
     return "UNKNOWN";
 }
 
-/* 获取主目录 */
+/* 获取主目录：薄包装，实现已收敛至 lv_path_home_dir()
+ * （lv_path.c：跨平台 USERPROFILE/HOMEDRIVE+HOMEPATH 与 HOME 空值回落统一处理） */
 const char *get_home_dir(void) {
-#ifdef _WIN32
-    static lv_THREAD_LOCAL char home_path[MAX_PATH] = {0};
-    if (home_path[0] == '\0') {
-        if (getenv("USERPROFILE")) {
-            /* strncpy 不安全使用 → lv_strlcpy，自动保证零终止 */
-            lv_strlcpy(home_path, getenv("USERPROFILE"), sizeof(home_path));
-        } else if (getenv("HOMEDRIVE") && getenv("HOMEPATH")) {
-            snprintf(home_path, MAX_PATH, "%s%s", getenv("HOMEDRIVE"), getenv("HOMEPATH"));
-        }
-    }
-    return home_path;
-#else
-    return getenv("HOME") ? getenv("HOME") : "/tmp";
-#endif
+    return lv_path_home_dir();
 }
 
 /**

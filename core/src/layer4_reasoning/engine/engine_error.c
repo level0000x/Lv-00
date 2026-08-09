@@ -19,6 +19,8 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_error.h"
+#include "lv/lv_log.h"
 
 #include "engine_internal.h"
 
@@ -26,15 +28,23 @@
 #define lv_ENGINE_ERROR_SIZE 512
 
 void engine_set_error(lvEngine *engine, EngineStatus status, const char *fmt, ...) {
+    char buf[lv_ENGINE_ERROR_SIZE];
     va_list args;
     va_start(args, fmt);
+    /* 公共写入口：模块级 last_error 通道统一走 lv_error.h 的 lv_ERROR_SLOT_WRITE */
+    lv_ERROR_SLOT_WRITE(buf, sizeof(buf), fmt, args);
+    va_end(args);
 
     if (engine) {
         engine->last_status = status;
-        vsnprintf(engine->last_error, sizeof(engine->last_error), fmt, args);
+        lv_strlcpy(engine->last_error, buf, sizeof(engine->last_error));
     }
 
-    va_end(args);
+    /* 统一日志：非成功状态统一落 ERROR 级日志（收敛后所有写入点经本函数，
+     * 不再存在不落日志的绕过路径）；ENGINE_STATUS_OK 的说明文字（成功路径
+     * 写入的说明/警告）不记错误日志。 */
+    if (status != ENGINE_STATUS_OK)
+        lv_ERROR("%s", buf);
 }
 
 /**

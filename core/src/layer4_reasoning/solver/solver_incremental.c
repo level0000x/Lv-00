@@ -9,6 +9,7 @@
 
 #include "solver_common.h"
 #include "lv/solver_dirty_set.h"
+#include "lv/lv_graph_traversal.h"
 
 /* 前向声明（实现在其他 solver 子模块中） */
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
@@ -20,16 +21,58 @@ void cleanup_groebner_result(GroebnerResult *result);
 /*  内部: 依赖传播 (增量求解支持)                                       */
 /* ================================================================== */
 
+/* 依赖传播 BFS 的邻居枚举上下文（统一遍历设施 lv_bfs_run） */
+typedef struct {
+    const ConstraintGraph *graph;
+} DependencyPropagateCtx;
+
+/* BFS 邻居回调：产出与 node_id（节点索引）共享任一约束的所有节点索引
+ * （含自身；visited 由驱动入队时去重，与原手写实现语义一致） */
+static int dependency_propagate_neighbors_cb(void *ctx, int node_id, int batch_index,
+                                             int *out_neighbors, void **out_edge_infos,
+                                             int max_neighbors) {
+    DependencyPropagateCtx *c = (DependencyPropagateCtx *) ctx;
+    (void) batch_index;
+    (void) out_edge_infos;
+    if (!out_neighbors || max_neighbors <= 0)
+        return 0;
+    const ConstraintGraph *graph = c->graph;
+    if (node_id < 0 || node_id >= graph->node_count)
+        return 0;
+
+    int cur_id = graph->nodes[node_id]->id;
+    int count = 0;
+    for (int ci = 0; ci < graph->constraint_count; ci++) {
+        const Constraint *con = graph->constraints[ci];
+        if (!con)
+            continue;
+        bool participates = false;
+        for (int p = 0; p < con->participant_count; p++) {
+            if (con->participants[p] == cur_id) {
+                participates = true;
+                break;
+            }
+        }
+        if (!participates)
+            continue;
+        for (int p = 0; p < con->participant_count; p++) {
+            int pid = con->participants[p];
+            for (int ni = 0; ni < graph->node_count; ni++) {
+                if (graph->nodes[ni]->id == pid) {
+                    if (count < max_neighbors)
+                        out_neighbors[count] = ni;
+                    count++;
+                    break;
+                }
+            }
+        }
+    }
+    return count < max_neighbors ? count : max_neighbors;
+}
+
 static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool *affected) {
     if (!graph || !affected || var_id < 0)
         return;
-
-    int alloc_size = graph->node_count;
-    int *queue = lv_calloc((size_t) alloc_size, sizeof(int));
-    if (!queue) {
-        return;
-    }
-    int queue_head = 0, queue_tail = 0;
 
     int start_idx = -1;
     for (int i = 0; i < graph->node_count; i++) {
@@ -38,49 +81,25 @@ static void propagate_dependency(const ConstraintGraph *graph, int var_id, bool 
             break;
         }
     }
-    if (start_idx < 0) {
-        lv_free((void **) &queue);
+    if (start_idx < 0)
         return;
-    }
 
-    affected[start_idx] = true;
-    queue[queue_tail++] = start_idx;
-
-    while (queue_head < queue_tail) {
-        int cur_idx = queue[queue_head++];
-        int cur_id = graph->nodes[cur_idx]->id;
-
-        for (int ci = 0; ci < graph->constraint_count; ci++) {
-            const Constraint *c = graph->constraints[ci];
-            if (!c)
-                continue;
-
-            bool participates = false;
-            for (int p = 0; p < c->participant_count; p++) {
-                if (c->participants[p] == cur_id) {
-                    participates = true;
-                    break;
-                }
-            }
-            if (!participates)
-                continue;
-
-            for (int p = 0; p < c->participant_count; p++) {
-                int pid = c->participants[p];
-                for (int ni = 0; ni < graph->node_count; ni++) {
-                    if (graph->nodes[ni]->id == pid && !affected[ni]) {
-                        affected[ni] = true;
-                        if (queue_tail < alloc_size) {
-                            queue[queue_tail++] = ni;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    lv_free((void **) &queue);
+    /* 统一遍历设施 lv_bfs_run：seeds = {start_idx}，visited = affected
+     * （mark_on_enqueue：入队时标记，避免重复入队；seed 即使已标记也重新入队，
+     * 与原手写实现逐次独立传播的语义一致），邻居 = 共享任一约束的节点索引 */
+    DependencyPropagateCtx bfs_ctx = { graph };
+    lvBfsSpec spec = {
+        .node_count = graph->node_count,
+        .seeds = &start_idx,
+        .seed_count = 1,
+        .visited = affected,
+        .mark_on_enqueue = true,
+        .max_queue = 0,
+        .neighbors = dependency_propagate_neighbors_cb,
+        .visit = NULL,
+        .ctx = &bfs_ctx,
+    };
+    (void) lv_bfs_run(&spec);
 }
 
 /* ================================================================== */

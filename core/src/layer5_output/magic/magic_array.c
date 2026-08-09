@@ -509,18 +509,27 @@ char *magic_array_serialize(const MagicArray *array) {
     if (!lv_json_buf_init(&buf, MAGIC_SERIALIZE_JSON_BASE_SIZE + (size_t) rune_count * MAGIC_SERIALIZE_PER_RUNE_SIZE))
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "magic_array_serialize: json_buf_init failed");
 
-    lv_json_buf_append_fmt(&buf, "{\"rune_count\":%d,\"constraint_count\":%d,\"runes\":[",
-                           rune_count, constraint_count);
+    lv_json_buf_begin_object(&buf);
+    lv_json_buf_append_key(&buf, "rune_count");
+    lv_json_buf_append_int(&buf, rune_count);
+    lv_json_buf_append_key(&buf, "constraint_count");
+    lv_json_buf_append_int(&buf, constraint_count);
+    lv_json_buf_append_key(&buf, "runes");
+    lv_json_buf_begin_array(&buf);
 
     for (int i = 0; i < rune_count; i++) {
         Rune *rune = array->runes->runes[i];
         const char *elem_str = element_to_string(rune->element);
-        if (i > 0)
-            lv_json_buf_append_char(&buf, ',');
-        lv_json_buf_append_fmt(&buf, "{\"element\":\"%s\",\"power\":%d}", elem_str, rune->power_level);
+        lv_json_buf_begin_object(&buf);
+        lv_json_buf_append_key(&buf, "element");
+        lv_json_buf_append_string(&buf, elem_str);
+        lv_json_buf_append_key(&buf, "power");
+        lv_json_buf_append_int(&buf, rune->power_level);
+        lv_json_buf_end_object(&buf);
     }
 
-    lv_json_buf_append_raw(&buf, "]}");
+    lv_json_buf_end_array(&buf);
+    lv_json_buf_end_object(&buf);
 
     return lv_json_buf_finalize(&buf);
 }
@@ -624,34 +633,15 @@ MagicArray *magic_array_deserialize(const char *json) {
                                 lv_free((void **) &s);
                             }
                         } else if (strcmp(fk, "num") == 0) {
-                            /* lv_json.h 仅提供 int 解析，num 为 int64_t，
-                             * 此处提取数字文本用 strtoll 解析（保持与原实现精度一致） */
-                            lv_json_skip_ws(&p);
-                            const char *tok = p.data + p.pos;
-                            const char *scan = tok;
-                            if (scan < p.data + p.size && *scan == '-')
-                                scan++;
-                            while (scan < p.data + p.size && *scan >= '0' && *scan <= '9')
-                                scan++;
-                            if (scan != tok) {
-                                num = strtoll(tok, NULL, 10);
-                                p.pos = (size_t) (scan - p.data);
-                            } else {
-                                /* 值不是数字，跳过（与 strtoll 对非法输入返回 0 的语义对齐） */
+                            /* num 为 int64_t：统一经 lv_json_parse_int64 解析
+                             * （支持负号与溢出检测）；非数字/溢出时跳过该值 */
+                            if (!lv_json_parse_int64(&p, &num))
                                 lv_json_skip_value(&p);
-                            }
                         } else if (strcmp(fk, "denom") == 0) {
-                            lv_json_skip_ws(&p);
-                            const char *tok = p.data + p.pos;
-                            const char *scan = tok;
-                            while (scan < p.data + p.size && *scan >= '0' && *scan <= '9')
-                                scan++;
-                            if (scan != tok) {
-                                denom = strtoull(tok, NULL, 10);
-                                p.pos = (size_t) (scan - p.data);
-                            } else {
+                            /* denom 为 uint64_t：统一经 lv_json_parse_uint64 解析
+                             * （不接受负号）；非数字/溢出时跳过该值 */
+                            if (!lv_json_parse_uint64(&p, &denom))
                                 lv_json_skip_value(&p);
-                            }
                         } else if (strcmp(fk, "value") == 0) {
                             lv_json_parse_double(&p, &value);
                         } else if (strcmp(fk, "element") == 0) {

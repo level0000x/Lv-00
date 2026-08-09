@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file streaming_demo.c
  * @brief Lv-00 流式输出端到端演示
  *
@@ -24,6 +24,7 @@
 #include "error_codes.h"
 #include "interop.h"
 #include "lv.h"
+#include "lv_parse_utils.h" /* lv_parse_int_default */
 #include "stream.h"
 #include "symbolic_coord.h"
 
@@ -371,7 +372,7 @@ int main(int argc, char *argv[]) {
 
     int demo = 0;
     if (argc > 1) {
-        demo = atoi(argv[1]);
+        demo = lv_parse_int_default(argv[1], 0); /* 严格解析：非法输入回落 0（运行全部演示） */
     }
 
     if (demo == 0 || demo == 1)

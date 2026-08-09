@@ -114,9 +114,10 @@ const char *lv_traversal_result_to_string(lvTraversalResult result);
 
 // ---- 通用图算法核心（任意整数 id 图：回调驱动，供各模块复用） ----
 //
-// lv_bfs_run / lv_cycle_detect 面向"节点为 0..node_count-1 的整数 id、出边由
-// 回调枚举"的任意图结构，消除各模块手写 BFS / 三色环检测的重复实现
-// （block_scheduler、meta_verify、probabilistic_constraint、conflict_detector 等）。
+// lv_bfs_run / lv_cycle_detect / lv_topo_run 面向"节点为 0..node_count-1 的
+// 整数 id、出边由回调枚举"的任意图结构，消除各模块手写 BFS / 三色环检测 /
+// Kahn 拓扑排序的重复实现（block_scheduler、solver_order、meta_verify、
+// probabilistic_constraint、conflict_detector 等）。
 // ConstraintGraph 专用遍历（lv_graph_traverse 等）保持原 API 不变。
 
 /**
@@ -169,6 +170,28 @@ typedef struct lvBfsSpec {
 
 /** @brief 通用 BFS：返回出队节点数；内存不足返回 -1（visited 状态不可靠，调用方应中止） */
 int lv_bfs_run(const lvBfsSpec *spec);
+
+/** @brief 通用 Kahn 拓扑排序配置（节点空间 0..node_count-1，后继由回调枚举） */
+typedef struct lvTopoSpec {
+    int node_count;              /**< 节点 id 空间 0..node_count-1 */
+    const int *nodes;            /**< 待排序节点 id 数组（重复 id 去重，按首次出现顺序）；NULL 时使用 0..node_count-1 全部 */
+    int nodes_count;             /**< nodes 数组长度（nodes 为 NULL 时忽略） */
+    int *out_order;              /**< 输出：拓扑序（长度须 >= 去重后的节点数；可为 NULL 仅统计数量） */
+    lvGraphNeighborFunc successors; /**< 后继（出边）枚举回调（语义同 lv_bfs_run.neighbors，全部后继按批次输出） */
+    void *ctx;
+} lvTopoSpec;
+
+/**
+ * @brief 通用 Kahn 拓扑排序：对 0..node_count-1 的整数 id 数组做拓扑排序
+ *
+ * 与 lv_bfs_run / lv_cycle_detect 同级的通用设施，消除各模块手写 Kahn 排序。
+ * 入度在驱动内部由 successors 回调逐节点枚举后继统计（含重复边重复计数，
+ * 与各调用方手写实现一致）；初始入队顺序 = nodes 数组序（NULL 时按 id 升序）。
+ *
+ * @return 已排序节点数；小于去重后的待排序节点数表示存在环（仅输出无环部分）；
+ *         内存不足返回 -1
+ */
+int lv_topo_run(const lvTopoSpec *spec);
 
 /**
  * @brief 三色环检测：发现 from_id → to_id 反向边（to_id 为 GRAY）时回调

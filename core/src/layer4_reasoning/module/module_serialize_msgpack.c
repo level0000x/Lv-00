@@ -61,11 +61,9 @@ typedef struct {
     bool error;     /* 编码错误标志：写失败时设置 */
 } MsgPackEncoder;
 
-/* 解码器 */
+/* 解码器：构建在公共字节流设施 lvByteReader 之上（消除手写 {data,size,pos} 游标） */
 typedef struct {
-    const uint8_t *data;
-    size_t size;
-    size_t pos;
+    lvByteReader r; /* 有界只读游标（内部 buf/size/pos） */
 } MsgPackDecoder;
 
 /* ---------- 编码器辅助函数 ---------- */
@@ -235,46 +233,45 @@ static void mp_encoder_destroy(MsgPackEncoder *enc) {
 /* ---------- 解码器辅助函数 ---------- */
 
 static bool mp_decoder_init(MsgPackDecoder *dec, const uint8_t *data, size_t size) {
-    dec->data = data;
-    dec->size = size;
-    dec->pos = 0;
+    lv_byte_reader_init(&dec->r, data, size);
     return data != NULL && size > 0;
 }
 
 static bool mp_decoder_has_data(MsgPackDecoder *dec) {
-    return dec->pos < dec->size;
+    return lv_byte_reader_remaining(&dec->r) > 0;
 }
 
+/* 只读窥探当前字节（不推进游标） */
 static uint8_t mp_decoder_peek(MsgPackDecoder *dec) {
-    return dec->pos < dec->size ? dec->data[dec->pos] : 0;
+    return dec->r.pos < dec->r.size ? dec->r.buf[dec->r.pos] : 0;
 }
 
 static uint8_t mp_decoder_read_byte(MsgPackDecoder *dec) {
-    return dec->pos < dec->size ? dec->data[dec->pos++] : 0;
+    uint8_t b = 0;
+    if (!lv_byte_reader_read_u8(&dec->r, &b))
+        return 0;
+    return b;
 }
 
 static uint16_t mp_decoder_read_u16(MsgPackDecoder *dec) {
-    /* 大端序，与写端一致（复用公共 lv_load_be16，替换手写位移拼装） */
-    if (dec->size - dec->pos < 2)
+    /* 大端序，与写端一致（复用公共 lv_byte_reader_read_u16_be，替换手写剩余检查+位移拼装） */
+    uint16_t v = 0;
+    if (!lv_byte_reader_read_u16_be(&dec->r, &v))
         return 0;
-    uint16_t v = lv_load_be16(dec->data + dec->pos);
-    dec->pos += 2;
     return v;
 }
 
 static uint32_t mp_decoder_read_u32(MsgPackDecoder *dec) {
-    if (dec->size - dec->pos < 4)
+    uint32_t v = 0;
+    if (!lv_byte_reader_read_u32_be(&dec->r, &v))
         return 0;
-    uint32_t v = lv_load_be32(dec->data + dec->pos);
-    dec->pos += 4;
     return v;
 }
 
 static uint64_t mp_decoder_read_u64(MsgPackDecoder *dec) {
-    if (dec->size - dec->pos < 8)
+    uint64_t v = 0;
+    if (!lv_byte_reader_read_u64_be(&dec->r, &v))
         return 0;
-    uint64_t v = lv_load_be64(dec->data + dec->pos);
-    dec->pos += 8;
     return v;
 }
 
@@ -440,15 +437,15 @@ static bool mp_decoder_read_str(MsgPackDecoder *dec, char **out) {
         len = raw_len;
     }
 
-    if (dec->pos + len > dec->size)
+    if (lv_byte_reader_remaining(&dec->r) < len)
         return false;
 
     char *str = (char *) lv_calloc(len + 1, 1);
     if (!str)
         return false;
-    memcpy(str, dec->data + dec->pos, len);
+    memcpy(str, dec->r.buf + dec->r.pos, len);
     str[len] = '\0';
-    dec->pos += len;
+    dec->r.pos += len;
     *out = str;
     return true;
 }
@@ -469,14 +466,14 @@ static bool mp_decoder_read_bin(MsgPackDecoder *dec, uint8_t **out, size_t *out_
         return false;
     len = raw_len;
 
-    if (dec->pos + len > dec->size)
+    if (lv_byte_reader_remaining(&dec->r) < len)
         return false;
 
     uint8_t *buf = (uint8_t *) lv_calloc(len, 1);
     if (!buf)
         return false;
-    memcpy(buf, dec->data + dec->pos, len);
-    dec->pos += len;
+    memcpy(buf, dec->r.buf + dec->r.pos, len);
+    dec->r.pos += len;
     *out = buf;
     *out_len = len;
     return true;
@@ -570,9 +567,9 @@ static bool mp_skip_none(MsgPackDecoder *dec, uint8_t type, uint8_t len_bytes) {
 /* 固定长度负载：跳 len_bytes 字节（uint/int/float 系列） */
 static bool mp_skip_fixed_payload(MsgPackDecoder *dec, uint8_t type, uint8_t len_bytes) {
     (void) type;
-    if (dec->size - dec->pos < len_bytes)
+    if (lv_byte_reader_remaining(&dec->r) < len_bytes)
         return false;
-    dec->pos += len_bytes;
+    dec->r.pos += len_bytes;
     return true;
 }
 
@@ -582,13 +579,13 @@ static bool mp_skip_str_value(MsgPackDecoder *dec, uint8_t type, uint8_t len_byt
     if (len_bytes == 0) {
         len = type & 0x1f; /* fixstr: 101xxxxx */
     } else {
-        if (dec->size - dec->pos < len_bytes)
+        if (lv_byte_reader_remaining(&dec->r) < len_bytes)
             return false;
         mp_decoder_read_len_field(dec, len_bytes, &len);
     }
-    if (dec->size - dec->pos < len)
+    if (lv_byte_reader_remaining(&dec->r) < len)
         return false;
-    dec->pos += len;
+    dec->r.pos += len;
     return true;
 }
 
@@ -596,12 +593,12 @@ static bool mp_skip_str_value(MsgPackDecoder *dec, uint8_t type, uint8_t len_byt
 static bool mp_skip_bin_value(MsgPackDecoder *dec, uint8_t type, uint8_t len_bytes) {
     (void) type;
     uint32_t len;
-    if (dec->size - dec->pos < len_bytes)
+    if (lv_byte_reader_remaining(&dec->r) < len_bytes)
         return false;
     mp_decoder_read_len_field(dec, len_bytes, &len);
-    if (dec->size - dec->pos < len)
+    if (lv_byte_reader_remaining(&dec->r) < len)
         return false;
-    dec->pos += len;
+    dec->r.pos += len;
     return true;
 }
 
@@ -611,7 +608,7 @@ static bool mp_skip_array_value(MsgPackDecoder *dec, uint8_t type, uint8_t len_b
     if (len_bytes == 0) {
         count = type & 0x0f; /* fixarray: 1001xxxx */
     } else {
-        if (dec->size - dec->pos < len_bytes)
+        if (lv_byte_reader_remaining(&dec->r) < len_bytes)
             return false;
         mp_decoder_read_len_field(dec, len_bytes, &count);
     }
@@ -628,7 +625,7 @@ static bool mp_skip_map_value(MsgPackDecoder *dec, uint8_t type, uint8_t len_byt
     if (len_bytes == 0) {
         count = type & 0x0f; /* fixmap: 1000xxxx */
     } else {
-        if (dec->size - dec->pos < len_bytes)
+        if (lv_byte_reader_remaining(&dec->r) < len_bytes)
             return false;
         mp_decoder_read_len_field(dec, len_bytes, &count);
     }

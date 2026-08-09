@@ -115,7 +115,7 @@ lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) 
     node->status = TRACE_STATUS_UNEXPLORED;
     node->trust_color = TRUST_GREEN;
     node->depth = 0;
-    node->create_time_ns = get_time_ns();
+    node->create_time_ns = (int64_t) lv_get_time_ns();
     node->complete_time_ns = 0;
     node->elapsed_ms = 0.0;
 
@@ -214,7 +214,7 @@ void lv_trace_node_set_status(lvProofTraceNode *node, lvTraceNodeStatus status) 
 
     /* 终态时记录完成时间 */
     if (status == TRACE_STATUS_PROVED || status == TRACE_STATUS_DISPROVED || status == TRACE_STATUS_BLOCKED) {
-        node->complete_time_ns = get_time_ns();
+        node->complete_time_ns = (int64_t) lv_get_time_ns();
         if (node->create_time_ns > 0) {
             node->elapsed_ms = (double) (node->complete_time_ns - node->create_time_ns) / 1e6;
         }

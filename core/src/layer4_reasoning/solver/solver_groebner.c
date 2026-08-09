@@ -11,6 +11,7 @@
 
 #include "solver_common.h"
 #include "lv/solver_dirty_set.h"
+#include "lv/lv_parse_utils.h" /* lv_env_get_bool */
 #include "../mv_polynomial.h"
 
 /* 流式上下文（定义在 solver_engine.c，通过 solver_types.h 的 extern 引用） */
@@ -209,12 +210,13 @@ static void polynomial_reduce(const MVPolynomial *p, MVPolynomial **G, int g_cou
 /*  待并行引擎提供通用多项式输入/输出 API 后在此补齐）。               */
 /* ================================================================== */
 
-/* 并行路径开关：内部静态，默认关闭；最小侵入，不动 config.h / lvConfig */
+/* 并行路径开关：内部静态，默认关闭；最小侵入，不动 config.h / lvConfig。
+ * 命名说明（P2-2）：环境变量统一采用 LV_ 前缀（与 lv_MONITOR_THREADS 相对照
+ * 的全局统一基准），本变量命名即为惯例标准。 */
 static bool groebner_parallel_path_enabled(void) {
-    static int enabled = -1;
+    static int enabled = -1; /* 静态缓存语义保持：环境变量只读一次 */
     if (enabled < 0) {
-        const char *e = getenv("LV_GROEBNER_PARALLEL");
-        enabled = (e && e[0] == '1') ? 1 : 0;
+        enabled = lv_env_get_bool("LV_GROEBNER_PARALLEL", false) ? 1 : 0;
     }
     return enabled != 0;
 }

@@ -122,20 +122,15 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
             lvJsonParser p;
             lv_json_parser_init(&p, mappings_val, strlen(mappings_val));
             if (lv_json_peek(&p) == '[') {
-                p.pos++; /* 跳过 '[' */
+                lv_json_next(&p); /* 跳过 '[' */
                 int idx = 0;
 
-                int loop_count = 0;
                 while (idx < HIGH_DIM_MAX_DIMENSIONS) {
-                    loop_count++;
-                    if (loop_count > 100) {
-                        break;
-                    }
                     lv_json_skip_ws(&p);
                     if (lv_json_peek(&p) == ']')
                         break;
                     if (lv_json_peek(&p) == ',') {
-                        p.pos++;
+                        lv_json_next(&p);
                         continue;
                     }
                     if (lv_json_peek(&p) != '{') {
@@ -149,7 +144,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                     }
 
                     /* 解析单个 mapping 对象 */
-                    p.pos++; /* 跳过 '{' */
+                    lv_json_next(&p); /* 跳过 '{' */
 
                     int axis_index = 0;
                     double scale = 1.0;
@@ -157,15 +152,8 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                     char type_str[32] = "";
 
                     /* 遍历对象字段，逐一提取 */
-                    while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                        char *k = lv_json_parse_string(&p);
-                        if (!k)
-                            break;
-                        bool colon_ok = lv_json_expect(&p, ':');
-                        if (!colon_ok) {
-                            lv_free((void **) &k);
-                            break;
-                        }
+                    char *k = NULL;
+                    while (lv_json_parse_field(&p, &k)) {
                         if (strcmp(k, "axis_index") == 0) {
                             lv_json_parse_int(&p, &axis_index);
                         } else if (strcmp(k, "mapping_type") == 0) {
@@ -183,11 +171,9 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                             lv_json_skip_value(&p);
                         }
                         lv_free((void **) &k);
-                        if (lv_json_peek(&p) == ',')
-                            p.pos++;
                     }
                     if (lv_json_peek(&p) == '}')
-                        p.pos++;
+                        lv_json_next(&p);
 
                     /* 填充映射结构 */
                     preset->mappings[idx].axis_index = axis_index;
@@ -212,42 +198,35 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
             lvJsonParser p;
             lv_json_parser_init(&p, transform_val, strlen(transform_val));
             if (lv_json_peek(&p) == '{') {
-                p.pos++; /* 跳过 '{' */
+                lv_json_next(&p); /* 跳过 '{' */
 
                 /* 遍历对象字段，查找 "m" 字段 */
-                while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-                    char *k = lv_json_parse_string(&p);
-                    if (!k)
-                        break;
+                char *k = NULL;
+                while (lv_json_parse_field(&p, &k)) {
                     bool is_m = (strcmp(k, "m") == 0);
                     lv_free((void **) &k);
-                    if (!lv_json_expect(&p, ':')) {
-                        break;
-                    }
                     if (!is_m) {
                         lv_json_skip_value(&p);
-                        if (lv_json_peek(&p) == ',')
-                            p.pos++;
                         continue;
                     }
 
                     if (lv_json_peek(&p) == '[') {
-                        p.pos++; /* 跳过 '[' */
+                        lv_json_next(&p); /* 跳过 '[' */
 
                         /* 解析 2x2 矩阵 [[m00, m01], [m10, m11]] */
                         for (int row = 0; row < 2; row++) {
                             lv_json_skip_ws(&p);
                             if (lv_json_peek(&p) == ',') {
-                                p.pos++;
+                                lv_json_next(&p);
                                 lv_json_skip_ws(&p);
                             }
                             if (lv_json_peek(&p) == '[') {
-                                p.pos++; /* 跳过行 '[' */
+                                lv_json_next(&p); /* 跳过行 '[' */
 
                                 for (int col = 0; col < 2; col++) {
                                     lv_json_skip_ws(&p);
                                     if (lv_json_peek(&p) == ',') {
-                                        p.pos++;
+                                        lv_json_next(&p);
                                         lv_json_skip_ws(&p);
                                     }
                                     lv_json_parse_double(&p, &preset->transform.m[row][col]);
@@ -257,7 +236,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
 
                                 lv_json_skip_ws(&p);
                                 if (lv_json_peek(&p) == ']')
-                                    p.pos++; /* 跳过行 ']' */
+                                    lv_json_next(&p); /* 跳过行 ']' */
                             }
                         }
                     }

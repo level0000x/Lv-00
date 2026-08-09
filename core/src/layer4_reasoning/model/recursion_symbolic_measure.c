@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
 #include "lv_utils.h"
 #include "stream.h"
@@ -141,6 +142,11 @@ static SymbolicCoord *measure_symbolic_area(Measure *m, GeomNode *node, Constrai
     return NULL;
 }
 
+/** @brief 作用域守卫清理回调：销毁 SymbolicCoord 指针变量（配合 lv_DEFER 使用） */
+static void defer_symbolic_coord_destroy(void *arg) {
+    symbolic_coord_destroy(*(SymbolicCoord **) arg);
+}
+
 static SymbolicCoord *measure_symbolic_length(Measure *m, GeomNode *node, ConstraintGraph *graph) {
     (void) m;
     (void) graph;
@@ -149,8 +155,9 @@ static SymbolicCoord *measure_symbolic_length(Measure *m, GeomNode *node, Constr
      * 计算过程：dx = x2 - x1, dy = y2 - y1
      *           result = dx^2 + dy^2
      *
-     * 使用 goto cleanup 模式确保所有中间 SymbolicCoord 对象
-     * 在运算失败时被正确销毁，避免资源泄漏。
+     * 中间 SymbolicCoord 对象在创建前即注册 lv_DEFER 作用域守卫，
+     * 任意一步失败直接 return，出口按注册逆序自动销毁，无需手写
+     * goto cleanup 标签。
      */
     if (!node->symbolic_coords)
         return NULL;
@@ -164,37 +171,27 @@ static SymbolicCoord *measure_symbolic_length(Measure *m, GeomNode *node, Constr
         SymbolicCoord *dy = NULL;
         SymbolicCoord *dx2 = NULL;
         SymbolicCoord *dy2 = NULL;
-        SymbolicCoord *sum = NULL;
+        lv_DEFER(defer_symbolic_coord_destroy, &dx);
+        lv_DEFER(defer_symbolic_coord_destroy, &dy);
+        lv_DEFER(defer_symbolic_coord_destroy, &dx2);
+        lv_DEFER(defer_symbolic_coord_destroy, &dy2);
 
         dx = symbolic_coord_subtract(x2, x1);
         dy = symbolic_coord_subtract(y2, y1);
         if (!dx || !dy)
-            goto length_cleanup;
+            return NULL;
 
         dx2 = symbolic_coord_multiply(dx, dx);
         dy2 = symbolic_coord_multiply(dy, dy);
         if (!dx2 || !dy2)
-            goto length_cleanup;
+            return NULL;
 
-        sum = symbolic_coord_add(dx2, dy2);
+        SymbolicCoord *sum = symbolic_coord_add(dx2, dy2);
         if (!sum)
-            goto length_cleanup;
+            return NULL;
 
-        /* 计算成功，只释放中间变量，返回 sum */
-        symbolic_coord_destroy(dx);
-        symbolic_coord_destroy(dy);
-        symbolic_coord_destroy(dx2);
-        symbolic_coord_destroy(dy2);
+        /* 计算成功：dx/dy/dx2/dy2 由作用域守卫自动释放，sum 返回给调用者 */
         return sum;
-
-    length_cleanup:
-        /* 统一清理所有已创建的非 NULL 中间变量 */
-        symbolic_coord_destroy(dx);
-        symbolic_coord_destroy(dy);
-        symbolic_coord_destroy(dx2);
-        symbolic_coord_destroy(dy2);
-        symbolic_coord_destroy(sum);
-        return NULL;
     }
     return NULL;
 }

@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_error.h"
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
@@ -159,9 +160,9 @@ SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *confi
 
     /* 检查后端可用性 */
     if (!smtsolver_is_backend_available(type)) {
-        solver->last_error = SMT_ERROR_BACKEND_UNAVAILABLE;
-        snprintf(solver->last_error_msg, sizeof(solver->last_error_msg), "Backend '%s' is not available (not linked)",
-                 smtsolver_backend_type_name(type));
+        char msg[512];
+        snprintf(msg, sizeof(msg), "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(type));
+        smtsolver_set_error(solver, SMT_ERROR_BACKEND_UNAVAILABLE, msg);
     }
 
     return solver;
@@ -233,7 +234,8 @@ void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg) 
         return;
     solver->last_error = code;
     if (msg) {
-        snprintf(solver->last_error_msg, sizeof(solver->last_error_msg), "%s", msg);
+        /* 公共写入口：模块级 last_error 通道统一走 lv_error.h 的 lv_ERROR_SLOT_COPY */
+        lv_ERROR_SLOT_COPY(solver->last_error_msg, sizeof(solver->last_error_msg), msg);
     }
 }
 

@@ -393,14 +393,8 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
         step->id = proof->step_count;
 
         /* 遍历 step 对象字段（键序无关） */
-        while (lv_json_peek(&p) != '}' && lv_json_peek(&p) != '\0') {
-            char *key = lv_json_parse_string(&p);
-            if (!key)
-                break;
-            if (!lv_json_expect(&p, ':')) {
-                lv_free((void **) &key);
-                break;
-            }
+        char *key = NULL;
+        while (lv_json_parse_field(&p, &key)) {
             if (strcmp(key, "name") == 0 && lv_json_peek(&p) == '"') {
                 char *val = lv_json_parse_string(&p);
                 if (val) {
@@ -420,8 +414,6 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
                 lv_json_skip_value(&p);
             }
             lv_free((void **) &key);
-            if (lv_json_peek(&p) == ',')
-                lv_json_next(&p);
         }
         if (lv_json_peek(&p) == '}')
             lv_json_next(&p);

@@ -330,19 +330,11 @@ int geo_simplicial_connected_components(const lvSimplicialComplex *sc) {
 
     int n = sc->n_vertices;
 
-    /* Initialize union-find */
-    int *parent = (int *) lv_calloc((size_t) n, sizeof(int));
-    int *rank = (int *) lv_calloc((size_t) n, sizeof(int));
-    if (!parent || !rank) {
-        lv_free((void **) &(parent));
-        lv_free((void **) &(rank));
+    /* Initialize union-find（共享工具 uf_create：parent[i]=i，rank 按秩合并） */
+    int *rank = NULL;
+    int *parent = uf_create(n, &rank);
+    if (!parent)
         return 0;
-    }
-
-    for (int i = 0; i < n; i++) {
-        parent[i] = i;
-        rank[i] = 0;
-    }
 
     /* Union all edges */
     for (size_t i = 0; i < sc->n_edges; i++) {
@@ -357,8 +349,7 @@ int geo_simplicial_connected_components(const lvSimplicialComplex *sc) {
         }
     }
 
-    lv_free((void **) &(parent));
-    lv_free((void **) &(rank));
+    uf_destroy(parent, rank);
     return components;
 }
 

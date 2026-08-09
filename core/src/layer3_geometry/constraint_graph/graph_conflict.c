@@ -464,6 +464,16 @@ typedef struct {
  *
  * @note 最大遍历深度由 lv_MAX_TRAVERSAL_DEPTH 限制。
  *       超过深度时遍历终止但不报错（视为无环路）。
+ *
+ * @note 评估（不迁移）：本函数是"有向 CONNECTION 边 + 三色 DFS 状态机"，与
+ *       lv_cycle_detect（lv_graph_traversal.h）相比存在以下不可直接替代点：
+ *       1) 需输出环路径并逐组上报（add_conflict_group / conflict_sizes），
+ *          lv_cycle_detect 仅通过回调报告"检测到环"，不携带环路径；
+ *       2) 深度上限 lv_MAX_TRAVERSAL_DEPTH 截断语义（截断分支视为死胡同）；
+ *       3) 显式堆分配 DFS 栈及分配失败回退到"仅自环快速路径"；
+ *       4) 有向语义：仅沿 participants[0] → participants[1] 追踪，反向边跳过。
+ *       未来若 lv_cycle_detect 扩展为"on_cycle 回调携带环路径 + 可选深度上限 +
+ *       有向性开关"，可考虑迁移，当前保持本地实现。
  */
 static bool has_connection_cycle(ConstraintGraph *graph, int start_port_id, bool *visited, bool *rec_stack, int *path,
                                  int path_len, int **conflicts, int *conflict_count, int **conflict_sizes,

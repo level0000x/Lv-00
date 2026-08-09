@@ -7,6 +7,9 @@
 #include <string.h>
 #include <gmp.h>
 #include "primitive_runtime.h"
+/* 独立归档程序：经相对路径复用 core 的 header-only 解析工具（lv_parse_int_default），
+ * 保持自包含可编译，不引入构建依赖。 */
+#include "../../core/include/lv/lv_parse_utils.h"
 
 /* ================================================================
  * 生命周期：初始化 / 销毁图中全部 mpq_t 成员
@@ -434,18 +437,18 @@ int main(int argc, char *argv[]) {
         kg_clear_graph(&g); return 1;
     }
 
-    op = atoi(argv[1]);
+    op = lv_parse_int_default(argv[1], 0);
     switch (op) {
-    case 0: if (argc >= 7) { int r = kg_create_node(&g, atoi(argv[2]), argv[3], argv[4], argv[5], argv[6]); printf("create_node -> %d\n", r); } break;
-    case 1: if (argc >= 8) { int r = kg_create_constraint(&g, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), argv[5], atoi(argv[6])); printf("create_constraint -> %d\n", r); } break;
+    case 0: if (argc >= 7) { int r = kg_create_node(&g, lv_parse_int_default(argv[2], 0), argv[3], argv[4], argv[5], argv[6]); printf("create_node -> %d\n", r); } break;
+    case 1: if (argc >= 8) { int r = kg_create_constraint(&g, lv_parse_int_default(argv[2], 0), lv_parse_int_default(argv[3], 0), lv_parse_int_default(argv[4], 0), argv[5], lv_parse_int_default(argv[6], 0)); printf("create_constraint -> %d\n", r); } break;
     case 2: { const char *e = (argc >= 3) ? argv[2] : "1/1000000"; printf("solve -> %d violations (eps=%s)\n", kg_solve(&g, e), e); } break;
     case 3: printf("normalize -> %d\n", kg_normalize(&g)); break;
     case 4: printf("rewrite -> 0\n"); break;
-    case 5: if (argc >= 4) printf("unify -> %d\n", kg_unify(&g, atoi(argv[2]), atoi(argv[3]))); break;
+    case 5: if (argc >= 4) printf("unify -> %d\n", kg_unify(&g, lv_parse_int_default(argv[2], 0), lv_parse_int_default(argv[3], 0))); break;
     case 6: printf("pack -> %d\n", kg_pack(&g)); break;
     case 7: { KGraph d; KBlock b = {{0}, 0}; kg_instantiate(&d, &g, &b); printf("instantiate -> %d nodes, %d constraints\n", d.node_count, d.constraint_count); kg_clear_graph(&d); } break;
     case 8: { const char *s = (argc >= 3) ? argv[2] : "ok"; printf("prove -> %s\n", kg_prove(&g, s) == 0 ? "PASS" : "FAIL"); } break;
-    case 9: if (argc >= 4) { int r = kg_export(&g, (KExportFormat)atoi(argv[2]), argv[3]); printf("export -> %d (%s)\n", r, argv[3]); } break;
+    case 9: if (argc >= 4) { int r = kg_export(&g, (KExportFormat)lv_parse_int_default(argv[2], 0), argv[3]); printf("export -> %d (%s)\n", r, argv[3]); } break;
     case 10: { char b[64*1024]; if (kg_serialize(&g, b, sizeof(b)) == 0) fputs(b, stdout); } break;
     case 11: { char b[64*1024]; size_t t = 0; while (t < sizeof(b)-1) { int c = getchar(); if (c == EOF) break; b[t++] = (char)c; } b[t] = '\0'; printf("deserialize -> %d\n", kg_deserialize(&g, b)); } break;
     case 12: { char b[1024]; kg_query(&g, b, sizeof(b)); fputs(b, stdout); } break;

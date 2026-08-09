@@ -31,7 +31,23 @@
 
 #include "engine_internal.h"
 
-/** @brief 重写-求解协作最大迭代次数（已迁移至 lvConfig 运行时配置） */
+/** @brief 求解器冲突统一消息（GROEBNER/非 GROEBNER 两条分支共用，防改一漏一） */
+static const char kMsgSolverConflict[] = "%s: 求解器检测到冲突";
+
+/** @brief 求解器超时统一消息（GROEBNER/非 GROEBNER 两条分支共用，防改一漏一） */
+static const char kMsgSolverTimeout[] = "%s: 求解器超时";
+
+/** @brief 位数熔断降级说明统一消息（engine_solve 步骤2b 与协作流程复用） */
+static const char kMsgBitBurningDowngrade[] = "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级";
+
+/** @brief 重写-求解协作总迭代超限消息 */
+static const char kMsgCollabIterationLimit[] = "engine_rewrite_and_solve: 总迭代次数超过上限 %d，终止执行";
+
+/** @brief 重写终止（存在循环）消息 */
+static const char kMsgRewriteTerminatedLoop[] = "engine_rewrite_and_solve: 重写终止（存在循环）";
+
+/** @brief WL 哈希重写循环检测消息 */
+static const char kMsgWlLoopDetected[] = "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环";
 
 /**
  * @brief 检查约束图中的冲突
@@ -101,13 +117,11 @@ static EngineSolveResult run_solver_on_graph(lvEngine *engine, const char *conte
                  * 其余（SAT/UNKNOWN 非超时/ERROR）→ 成功。 */
                 EngineSolveResult eresult = ENGINE_SOLVE_OK;
                 if (sresult.sat_result == SMT_RESULT_UNSAT) {
-                    engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                    snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器检测到冲突", context);
+                    engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSolverConflict, context);
                     eresult = ENGINE_SOLVE_CONFLICT;
                 } else if (sresult.sat_result == SMT_RESULT_UNKNOWN &&
                            sresult.error_code == SMT_ERROR_TIMEOUT_REACHED) {
-                    engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                    snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器超时", context);
+                    engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSolverTimeout, context);
                     eresult = ENGINE_SOLVE_TIMEOUT;
                 }
                 smtsolver_result_clear(&sresult);
@@ -124,13 +138,11 @@ static EngineSolveResult run_solver_on_graph(lvEngine *engine, const char *conte
         lv_free((void **) &dirty_ids);
 
         if (sstatus == SOLVER_STATUS_NO_SOLUTION || sstatus == SOLVER_STATUS_OVERCONSTRAINED) {
-            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-            snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器检测到冲突", context);
+            engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSolverConflict, context);
             return ENGINE_SOLVE_CONFLICT;
         }
         if (sstatus == SOLVER_STATUS_TIMEOUT) {
-            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-            snprintf(engine->last_error, sizeof(engine->last_error), "%s: 求解器超时", context);
+            engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSolverTimeout, context);
             return ENGINE_SOLVE_TIMEOUT;
         }
         return ENGINE_SOLVE_OK;
@@ -154,8 +166,7 @@ EngineSolveResult engine_solve(lvEngine *engine) {
     if (!engine)
         return ENGINE_SOLVE_ERROR;
     if (!engine->main_graph) {
-        engine->last_status = ENGINE_STATUS_INVALID_STATE;
-        snprintf(engine->last_error, sizeof(engine->last_error), "求解失败: 约束图为空");
+        engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "求解失败: 约束图为空");
         return ENGINE_SOLVE_ERROR;
     }
 
@@ -178,9 +189,10 @@ EngineSolveResult engine_solve(lvEngine *engine) {
         NormalizationResult *norm = graph_normalize(engine->main_graph, false);
         if (!norm) {
             /* 归一化失败（可能内存不足或图状态异常），记录警告继续执行。
-             * 求解器将在未归一化的图上运行，结果可能不如预期。 */
-            snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_solve: graph_normalize 返回 NULL，将继续在未规范化的图上求解");
+             * 求解器将在未归一化的图上运行，结果可能不如预期。
+             * 警告说明文字：ENGINE_STATUS_OK 语义下不落错误日志。 */
+            engine_set_error(engine, ENGINE_STATUS_OK,
+                             "engine_solve: graph_normalize 返回 NULL，将继续在未规范化的图上求解");
             engine_emit_stream_event(engine, STREAM_EVENT_WARNING, "图规范化失败，将继续在未规范化的图上求解", 0, -1,
                                      -1);
         } else {
@@ -214,8 +226,7 @@ EngineSolveResult engine_solve(lvEngine *engine) {
 
         if (rstatus == REWRITE_STATUS_TERMINATED) {
             engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写终止（可能循环）", 1, -1, -1);
-            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-            snprintf(engine->last_error, sizeof(engine->last_error), "engine_solve: 重写终止（可能存在循环）");
+            engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, "engine_solve: 重写终止（可能存在循环）");
             return ENGINE_SOLVE_TIMEOUT;
         }
         engine_emit_stream_event(engine, STREAM_EVENT_REWRITE_DONE, "重写阶段完成", 1, -1, -1);
@@ -243,10 +254,10 @@ EngineSolveResult engine_solve(lvEngine *engine) {
                 if (bb_state->consecutive_trips >= lv_config_current()->health.max_consecutive_trips) {
                     engine_emit_stream_event(engine, STREAM_EVENT_WARNING,
                                              "位数熔断: 连续触发达到阈值，自动降级为数值假设", 2, -1, -1);
-                    /* 标记引擎状态，信任颜色传播会在步骤5中处理 */
-                    snprintf(engine->last_error, sizeof(engine->last_error),
-                             "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
-                             bb_state->consecutive_trips, bb_state->bit_count);
+                    /* 标记引擎状态，信任颜色传播会在步骤5中处理。
+                     * 说明文字：ENGINE_STATUS_OK 语义下不落错误日志。 */
+                    engine_set_error(engine, ENGINE_STATUS_OK, kMsgBitBurningDowngrade, bb_state->consecutive_trips,
+                                     bb_state->bit_count);
                 } else {
                     engine_emit_stream_event(engine, STREAM_EVENT_INFO, "位数熔断: 检测到位数溢出，继续求解", 2, -1,
                                              -1);
@@ -317,8 +328,7 @@ EngineSolveResult engine_solve(lvEngine *engine) {
         stream_emit(engine->stream_ctx, &ev);
     }
 
-    engine->last_status = ENGINE_STATUS_OK;
-    engine->last_error[0] = '\0';
+    engine_set_error(engine, ENGINE_STATUS_OK, "");
     return ENGINE_SOLVE_OK;
 }
 
@@ -379,9 +389,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
                 engine, STREAM_EVENT_ERROR,
                 "重写-求解协作超过最大迭代次数限制 (%d)", iteration,
                 max_collab, -1);
-            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-            snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_rewrite_and_solve: 总迭代次数超过上限 %d，终止执行", max_collab);
+            engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgCollabIterationLimit, max_collab);
             wl_history_destroy(&wl_history);
             return -2;
         }
@@ -416,9 +424,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
 
             if (rstatus == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "重写终止（循环）", iteration, -1, -1);
-                engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                snprintf(engine->last_error, sizeof(engine->last_error),
-                         "engine_rewrite_and_solve: 重写终止（存在循环）");
+                engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgRewriteTerminatedLoop);
                 wl_history_destroy(&wl_history);
                 return -2;
             }
@@ -441,9 +447,7 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
             RewriteStatus loop_status = detect_rewrite_loop_wl(engine->main_graph, &wl_history);
             if (loop_status == REWRITE_STATUS_TERMINATED) {
                 engine_emit_stream_event(engine, STREAM_EVENT_ERROR, "WL哈希循环检测触发", iteration, -1, -1);
-                engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-                snprintf(engine->last_error, sizeof(engine->last_error),
-                         "engine_rewrite_and_solve: 在第 %d 步通过WL哈希检测到重写循环", total_steps);
+                engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgWlLoopDetected, total_steps);
                 wl_history_destroy(&wl_history);
                 return -2;
             }
@@ -489,9 +493,9 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
                     if (bb_state->consecutive_trips >= lv_config_current()->health.max_consecutive_trips) {
                         engine_emit_stream_event(engine, STREAM_EVENT_WARNING, "位数熔断: 连续触发达到阈值，自动降级",
                                                  iteration, -1, -1);
-                        snprintf(engine->last_error, sizeof(engine->last_error),
-                                 "位数熔断: 求解器产生 %d 次位数溢出（最大位数 %" PRIu64 "），已自动降级",
-                                 bb_state->consecutive_trips, bb_state->bit_count);
+                        /* 说明文字：ENGINE_STATUS_OK 语义下不落错误日志 */
+                        engine_set_error(engine, ENGINE_STATUS_OK, kMsgBitBurningDowngrade,
+                                         bb_state->consecutive_trips, bb_state->bit_count);
                     } else {
                         engine_emit_stream_event(engine, STREAM_EVENT_INFO, "位数熔断: 检测到位数溢出，继续求解",
                                                  iteration, -1, -1);
@@ -529,7 +533,6 @@ int engine_rewrite_and_solve(lvEngine *engine, int max_rewrite_steps, int max_so
         stream_emit(engine->stream_ctx, &ev);
     }
 
-    engine->last_status = ENGINE_STATUS_OK;
-    engine->last_error[0] = '\0';
+    engine_set_error(engine, ENGINE_STATUS_OK, "");
     return total_steps;
 }

@@ -1274,6 +1274,145 @@ bool lv_cycle_detect(const lvCycleDetectSpec *spec) {
     return detected;
 }
 
+/**
+ * @brief 通用 Kahn 拓扑排序（任意整数 id 图：回调提供后继）
+ *
+ * 与 lv_bfs_run / lv_cycle_detect 同级的通用设施：
+ *  - 节点空间 0..node_count-1，待排序集合由 nodes 数组指定（NULL = 全部，按 id 升序）；
+ *  - 入度在驱动内部由 successors 回调逐节点枚举全部批次后继统计（含重复边
+ *    重复计数，与各调用方手写实现一致）；
+ *  - 初始入队顺序 = nodes 数组序（NULL 时按 id 升序）；队列 FIFO 出队，输出到
+ *    out_order；返回已排序节点数，小于去重节点数表示存在环（仅输出无环部分，
+ *    由调用方据返回值判定环）。
+ */
+int lv_topo_run(const lvTopoSpec *spec) {
+    if (!spec || !spec->successors || spec->node_count <= 0)
+        return -1;
+
+    int n = spec->node_count;
+
+    /* 待排序集合（in_set 后半程复用为"已入队"标记） */
+    bool *in_set = (bool *)lv_calloc((size_t)n, sizeof(bool));
+    if (!in_set)
+        return -1;
+    int set_size = 0;
+    if (spec->nodes) {
+        for (int i = 0; i < spec->nodes_count; i++) {
+            int id = spec->nodes[i];
+            if (id < 0 || id >= n)
+                continue;
+            if (!in_set[id]) {
+                in_set[id] = true;
+                set_size++;
+            }
+        }
+    } else {
+        for (int i = 0; i < n; i++) {
+            in_set[i] = true;
+        }
+        set_size = n;
+    }
+    if (set_size == 0) {
+        lv_free((void **)&in_set);
+        return 0;
+    }
+
+    /* 入度统计（逐节点枚举全部批次后继；重复后继重复计数） */
+    int *in_degree = (int *)lv_calloc((size_t)n, sizeof(int));
+    if (!in_degree) {
+        lv_free((void **)&in_set);
+        return -1;
+    }
+    int buf_cap = 0;
+    int *succ_ids = NULL;
+    for (int i = 0; i < n; i++) {
+        if (!in_set[i])
+            continue;
+        int bi = 0;
+        for (;;) {
+            int cnt = collect_neighbor_batch(spec->successors, spec->ctx, i, bi,
+                                             &succ_ids, NULL, &buf_cap, false);
+            if (cnt == 0)
+                break;
+            if (cnt < 0)
+                goto lv_topo_run_oom;
+            for (int j = 0; j < cnt; j++) {
+                int nb = succ_ids[j];
+                if (nb >= 0 && nb < n && in_set[nb])
+                    in_degree[nb]++;
+            }
+            bi++;
+        }
+    }
+
+    /* 初始入队：入度为 0 的待排序节点（按 nodes 序 / id 升序） */
+    int *queue = (int *)lv_malloc((size_t)set_size * sizeof(int));
+    if (!queue)
+        goto lv_topo_run_oom;
+    int head = 0, tail = 0;
+    if (spec->nodes) {
+        for (int i = 0; i < spec->nodes_count; i++) {
+            int id = spec->nodes[i];
+            if (id < 0 || id >= n)
+                continue;
+            if (in_set[id] && in_degree[id] == 0) {
+                in_set[id] = false; /* 标记已入队 */
+                queue[tail++] = id;
+            }
+        }
+    } else {
+        for (int i = 0; i < n; i++) {
+            if (in_set[i] && in_degree[i] == 0) {
+                in_set[i] = false;
+                queue[tail++] = i;
+            }
+        }
+    }
+
+    /* Kahn 主循环（FIFO 队列） */
+    int topo_count = 0;
+    while (head < tail) {
+        int cur = queue[head++];
+        if (spec->out_order)
+            spec->out_order[topo_count] = cur;
+        topo_count++;
+
+        int bi = 0;
+        for (;;) {
+            int cnt = collect_neighbor_batch(spec->successors, spec->ctx, cur, bi,
+                                             &succ_ids, NULL, &buf_cap, false);
+            if (cnt == 0)
+                break;
+            if (cnt < 0)
+                goto lv_topo_run_oom;
+            for (int j = 0; j < cnt; j++) {
+                int nb = succ_ids[j];
+                if (nb < 0 || nb >= n || !in_set[nb])
+                    continue;
+                in_degree[nb]--;
+                if (in_degree[nb] == 0) {
+                    in_set[nb] = false;
+                    queue[tail++] = nb;
+                }
+            }
+            bi++;
+        }
+    }
+
+    lv_free((void **)&in_set);
+    lv_free((void **)&in_degree);
+    lv_free((void **)&succ_ids);
+    lv_free((void **)&queue);
+    return topo_count;
+
+lv_topo_run_oom:
+    lv_free((void **)&in_set);
+    lv_free((void **)&in_degree);
+    lv_free((void **)&succ_ids);
+    lv_free((void **)&queue);
+    return -1;
+}
+
 /* ============================================================
  * 便利函数实现
  * ============================================================ */

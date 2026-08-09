@@ -102,6 +102,18 @@ int lv_dir_foreach(const char *dir, lv_dir_entry_fn fn, void *ctx);
  */
 bool lv_temp_path(char *out, size_t out_size);
 
+/**
+ * @brief 获取用户主目录（跨平台，环境变量空值统一处理）
+ * @return 主目录路径字符串（始终非 NULL）
+ * @note 收敛 debug_state.c 手写 get_home_dir 的 #ifdef 双平台样板与
+ *       lv_temp_path 中"env 空值回落默认"的重复模式。
+ *       Windows：USERPROFILE，缺失回落 HOMEDRIVE+HOMEPATH，均缺失返回空串；
+ *       POSIX：HOME，缺失或为空回落 "/tmp"。
+ *       返回指向内部静态缓冲区（Windows）或环境变量视图（POSIX）的指针，
+ *       调用方不得修改，且 Windows 路径不得跨线程使用。
+ */
+const char *lv_path_home_dir(void);
+
 #ifdef __cplusplus
 }
 #endif

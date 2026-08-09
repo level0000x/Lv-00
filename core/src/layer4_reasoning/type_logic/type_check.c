@@ -834,6 +834,16 @@ TypeCheckResult type_check_port_compatibility(TypeSystem *ts, TypeRegion *source
  * @param visited 已访问标记数组
  * @param on_stack 当前DFS路径上的类型（用于检测回边）
  * @return 是否检测到循环
+ *
+ * @note 评估（不迁移）：本函数是递归三色 DFS（visited / on_stack 分离），但与
+ *       lv_cycle_detect（lv_graph_traversal.h）不可直接替代：
+ *       1) 节点是 TypeRegion* 指针而非整数 id，visited/on_stack 按 current->id
+ *          索引，且 id 有越界防御；
+ *       2) 出边集合不是统一的"后继枚举"，而是经 VTable（s_cycle_detect_handlers）
+ *          按类型种类分发的递归 handler，由各 handler 决定子类型引用；
+ *       3) visited 语义含"已验证子图剪枝"（visited 且不在 on_stack 即返回 false）。
+ *       若未来在 lv_cycle_detect 上封装"节点 id + 出边回调"的薄层且 TypeRegion
+ *       循环检测改为显式栈 + 邻接回调，方可迁移；当前保持递归实现。
  */
 static bool type_detect_cycle_dfs(TypeSystem *ts, TypeRegion *current, bool *visited, bool *on_stack) {
     if (!current)

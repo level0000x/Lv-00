@@ -20,6 +20,11 @@
 #include "lv/lv_internal.h" /* lv_LOG_WARNING */
 #include "lv/symbolic_coord.h"
 
+#include "engine_internal.h"
+
+/** @brief 建议永久降级统一消息（有无冻结点两条分支共用，防改一漏一） */
+static const char kMsgSuggestDowngrade[] = "engine_handle_circuit_trip: 溢出计数 %d >= %d，建议永久降级为琥珀色";
+
 /**
  * @brief 位电路跳闸处理器
  *
@@ -45,20 +50,13 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
         /* 步骤2：若 overflow_count >= 阈值，建议永久降级 */
         int threshold = lv_config_get_int(LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD, 3);
         if (overflow >= threshold) {
-            snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
-                     "建议永久降级为琥珀色",
-                     overflow, threshold);
-            engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+            engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSuggestDowngrade, overflow, threshold);
             return ENGINE_CIRCUIT_DOWNGRADE;
         }
 
-        /* 存在冻结点但溢出计数可控，建议回滚 */
-        snprintf(engine->last_error, sizeof(engine->last_error),
-                 "engine_handle_circuit_trip: 存在冻结点，"
-                 "溢出计数 %d，建议回滚",
-                 overflow);
-        engine->last_status = ENGINE_STATUS_OK;
+        /* 存在冻结点但溢出计数可控，建议回滚（成功说明文字：ENGINE_STATUS_OK 语义下不落错误日志） */
+        engine_set_error(engine, ENGINE_STATUS_OK, "engine_handle_circuit_trip: 存在冻结点，溢出计数 %d，建议回滚",
+                         overflow);
         return ENGINE_CIRCUIT_ROLLBACK;
     }
 
@@ -67,17 +65,11 @@ EngineCircuitResult engine_handle_circuit_trip(lvEngine *engine) {
     int threshold = lv_config_get_int(LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD, 3);
     if (overflow >= threshold) {
         /* 即使没有冻结点，反复溢出也建议降级 */
-        snprintf(engine->last_error, sizeof(engine->last_error),
-                 "engine_handle_circuit_trip: 溢出计数 %d >= %d，"
-                 "建议永久降级为琥珀色",
-                 overflow, threshold);
-        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
+        engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, kMsgSuggestDowngrade, overflow, threshold);
         return ENGINE_CIRCUIT_DOWNGRADE;
     }
 
-    snprintf(engine->last_error, sizeof(engine->last_error), "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）",
-             overflow);
-    engine->last_status = ENGINE_STATUS_OK;
+    engine_set_error(engine, ENGINE_STATUS_OK, "engine_handle_circuit_trip: 溢出计数 %d，已处理（忽略）", overflow);
     return ENGINE_CIRCUIT_IGNORE;
 }
 
@@ -133,8 +125,7 @@ static EngineCircuitResult handle_action_ignore(lvEngine *engine, SymbolicCoord 
         symbolic_coord_set_trust(overflow_coord, TRUST_AMBER);
     }
     circuit_handle_overflow();
-    engine->last_status = ENGINE_STATUS_OK;
-    engine->last_error[0] = '\0';
+    engine_set_error(engine, ENGINE_STATUS_OK, "");
     return ENGINE_CIRCUIT_IGNORE;
 }
 
@@ -153,8 +144,8 @@ static EngineCircuitResult handle_action_rollback(lvEngine *engine, SymbolicCoor
         lv_LOG_WARNING("engine: 电路跳闸但无可用冻结点，跳过回滚，引擎状态可能不一致");
     }
     circuit_reset_context();
-    engine->last_status = ENGINE_STATUS_OK;
-    snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过回滚到冻结点处理了电路跳闸");
+    /* 成功说明文字：写入 ROLLBACK 已处理说明（ENGINE_STATUS_OK 语义下不落错误日志） */
+    engine_set_error(engine, ENGINE_STATUS_OK, "engine: 通过回滚到冻结点处理了电路跳闸");
     return ENGINE_CIRCUIT_ROLLBACK;
 }
 
@@ -180,8 +171,8 @@ static EngineCircuitResult handle_action_downgrade(lvEngine *engine, SymbolicCoo
         }
     }
     circuit_handle_overflow();
-    engine->last_status = ENGINE_STATUS_OK;
-    snprintf(engine->last_error, sizeof(engine->last_error), "engine: 通过永久降级为琥珀色处理了电路跳闸");
+    /* 成功说明文字：写入 DOWNGRADE 已处理说明（ENGINE_STATUS_OK 语义下不落错误日志） */
+    engine_set_error(engine, ENGINE_STATUS_OK, "engine: 通过永久降级为琥珀色处理了电路跳闸");
     return ENGINE_CIRCUIT_DOWNGRADE;
 }
 
@@ -221,8 +212,7 @@ EngineCircuitResult engine_handle_circuit_trip_with_action(lvEngine *engine, Eng
         return s_circuit_action_handlers[action](engine, overflow_coord);
     }
 
-    engine->last_status = ENGINE_STATUS_INVALID_STATE;
-    snprintf(engine->last_error, sizeof(engine->last_error),
-             "engine_handle_circuit_trip_with_action: 无效的动作 %d", action);
+    engine_set_error(engine, ENGINE_STATUS_INVALID_STATE, "engine_handle_circuit_trip_with_action: 无效的动作 %d",
+                     action);
     return ENGINE_CIRCUIT_ERROR;
 }

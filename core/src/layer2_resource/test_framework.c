@@ -32,10 +32,6 @@
 #include "lv/lv_registry.h"
 
 
-static int64_t get_time_ns(void) {
-    return (int64_t) lv_get_time_ns();
-}
-
 /* ============== 内部常量 ============== */
 
 /** 初始测试套件容量 */
@@ -326,7 +322,7 @@ static lvTestResult *run_single_test(lvTestCase *test_case, lvTestSuite *suite) 
     g_test_system.current_test = test_case;
     g_test_system.current_result = result;
 
-    int64_t start_time = get_time_ns();
+    int64_t start_time = (int64_t) lv_get_time_ns();
 
     /* 执行 setup */
     if (test_case->setup) {
@@ -346,7 +342,7 @@ static lvTestResult *run_single_test(lvTestCase *test_case, lvTestSuite *suite) 
         test_case->teardown();
     }
 
-    int64_t end_time = get_time_ns();
+    int64_t end_time = (int64_t) lv_get_time_ns();
     test_case->elapsed_ns = end_time - start_time;
     result->elapsed_ns = test_case->elapsed_ns;
 
@@ -374,7 +370,7 @@ lvTestReport *lv_test_run_all(void) {
         return NULL;
     }
 
-    report->start_time_ns = get_time_ns();
+    report->start_time_ns = (int64_t) lv_get_time_ns();
 
     lv_mutex_lock(&g_test_system.mutex);
 
@@ -431,7 +427,7 @@ lvTestReport *lv_test_run_all(void) {
 
     lv_mutex_unlock(&g_test_system.mutex);
 
-    report->end_time_ns = get_time_ns();
+    report->end_time_ns = (int64_t) lv_get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
 
     return report;
@@ -459,7 +455,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
         return NULL;
     }
 
-    report->start_time_ns = get_time_ns();
+    report->start_time_ns = (int64_t) lv_get_time_ns();
     report->suites = (lvTestSuite *) lv_calloc(1, sizeof(lvTestSuite));
     if (!report->suites) {
         lv_free((void **) &report);
@@ -499,7 +495,7 @@ lvTestReport *lv_test_run_suite(const char *suite_name) {
 
     lv_mutex_unlock(&g_test_system.mutex);
 
-    report->end_time_ns = get_time_ns();
+    report->end_time_ns = (int64_t) lv_get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
 
     return report;
@@ -546,7 +542,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
         return NULL;
     }
 
-    report->start_time_ns = get_time_ns();
+    report->start_time_ns = (int64_t) lv_get_time_ns();
 
     lv_mutex_lock(&g_test_system.mutex);
 
@@ -585,7 +581,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
 
     lv_mutex_unlock(&g_test_system.mutex);
 
-    report->end_time_ns = get_time_ns();
+    report->end_time_ns = (int64_t) lv_get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
 
     return report;
@@ -603,7 +599,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
         return NULL;
     }
 
-    report->start_time_ns = get_time_ns();
+    report->start_time_ns = (int64_t) lv_get_time_ns();
 
     lv_mutex_lock(&g_test_system.mutex);
 
@@ -650,7 +646,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
 
     lv_mutex_unlock(&g_test_system.mutex);
 
-    report->end_time_ns = get_time_ns();
+    report->end_time_ns = (int64_t) lv_get_time_ns();
     report->total_time_ns = report->end_time_ns - report->start_time_ns;
 
     return report;
@@ -745,9 +741,9 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     double max_ns = 0;
 
     for (uint64_t i = 0; i < iterations; i++) {
-        int64_t start = get_time_ns();
+        int64_t start = (int64_t) lv_get_time_ns();
         func();
-        int64_t end = get_time_ns();
+        int64_t end = (int64_t) lv_get_time_ns();
         times[i] = end - start;
         total_ns += times[i];
 

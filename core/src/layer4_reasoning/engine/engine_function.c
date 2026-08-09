@@ -222,10 +222,9 @@ UnifyStatus engine_unify(lvEngine *engine, ConstraintGraph *construction, Constr
     if (!engine || !construction || !proposition) {
         if (engine) {
             engine->last_unify_status = lv_ERROR_INVALID_PARAM;
-            engine->last_status = ENGINE_STATUS_INVALID_ARGUMENT;
-            snprintf(engine->last_error, sizeof(engine->last_error),
-                     "engine_unify: 空指针参数 (engine=%p, construction=%p, proposition=%p)", (void *) engine,
-                     (void *) construction, (void *) proposition);
+            engine_set_error(engine, ENGINE_STATUS_INVALID_ARGUMENT,
+                             "engine_unify: 空指针参数 (engine=%p, construction=%p, proposition=%p)", (void *) engine,
+                             (void *) construction, (void *) proposition);
         }
         lv_set_error(lv_ERROR_INVALID_PARAM, "engine_unify: 空指针参数");
         return UNIFY_STATUS_FAILED;
@@ -236,16 +235,14 @@ UnifyStatus engine_unify(lvEngine *engine, ConstraintGraph *construction, Constr
 
     /* 同步错误状态到引擎实例 */
     engine->last_unify_status = status;
-    engine->last_status = ENGINE_STATUS_OK;
 
     if (status == UNIFY_STATUS_OK) {
         /* 合一成功：构造图满足命题模式 */
-        engine->last_error[0] = '\0';
+        engine_set_error(engine, ENGINE_STATUS_OK, "");
     } else {
         /* 合一失败：中文文案统一取自 unify 公共模块（unify_status_reason_zh） */
         const char *reason = unify_status_reason_zh(status);
-        engine->last_status = ENGINE_STATUS_CONSTRAINT_CONFLICT;
-        snprintf(engine->last_error, sizeof(engine->last_error), "合一失败 [状态码=%d]: %s", (int) status, reason);
+        engine_set_error(engine, ENGINE_STATUS_CONSTRAINT_CONFLICT, "合一失败 [状态码=%d]: %s", (int) status, reason);
         lv_set_error(lv_ERROR_UNIFY_FAILED, reason);
     }
 

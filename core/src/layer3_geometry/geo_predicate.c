@@ -359,7 +359,7 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
     double d23_sq = (p3x - p2x) * (p3x - p2x) + (p3y - p2y) * (p3y - p2y);
 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->collinear_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     /*
      * 检查 p1 与 p2 或 p1 与 p3 是否重合：
@@ -507,7 +507,7 @@ lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, 
     double d14_sq = (p4x - p1x) * (p4x - p1x) + (p4y - p1y) * (p4y - p1y) + (p4z - p1z) * (p4z - p1z);
 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->collinear_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     if (d12_sq < eps * eps || d13_sq < eps * eps || d14_sq < eps * eps) {
         return lv_ORIENTATION_DEGENERATE;
@@ -580,7 +580,7 @@ static lvLineSide side_of_line_impl(double px, double py, double x1, double y1, 
                                     lvPredicateMode mode) {
     /* 检查退化情况：定义直线/线段的两个点重合 */
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->distance_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     double d_sq = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
     if (d_sq < eps * eps) {
@@ -701,7 +701,7 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
     }
 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->distance_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->distance_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
@@ -1069,7 +1069,7 @@ static const FourPointsConcyclicImplFn s_four_points_concyclic_impls[] = {
 lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, double by, double cx, double cy, double dx,
                                             double dy, lvPredicateMode mode) {
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->collinear_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
@@ -1273,7 +1273,7 @@ lv_PUBLIC_API bool lv_point_in_polygon(double px, double py, const double *xs, c
     }
 
     const lvGeometryConfig *cfg = lv_geometry_get_config();
-    double eps = cfg ? cfg->collinear_epsilon : lv_GEO_COLLINEAR_EPSILON;
+    double eps = cfg->collinear_epsilon; /* lv_geometry_get_config() 恒返回内部快照指针，非 NULL */
 
     int crossings = 0;
 

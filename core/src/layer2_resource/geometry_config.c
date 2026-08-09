@@ -4,6 +4,7 @@
 
 #include "lv/lv_thread.h"
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
+#include "lv/config.h"         /* lv_GEO_*_EPSILON / lv_SINGULARITY_THRESHOLD 权威值 */
 
 /* ============================================================
  * 与配置系统 A（lvConfig，config.h / lv_config.c）的关系
@@ -32,14 +33,19 @@ lv_LAZY_LOCK_DEFINE(g_geometry_lock);
 lvGeometryConfig lv_geometry_config_default(void) {
     lvGeometryConfig cfg;
     cfg.precision = lv_GEO_DOUBLE;
-    cfg.tolerance = 1e-9;
+    cfg.tolerance = 1e-9; /* 通用容差：config.h 无对应常量，保持历史值（数值与 lv_GEO_COLLINEAR_EPSILON 一致） */
     cfg.dimensions = 3;
-    cfg.collinear_epsilon = 1e-9;
-    cfg.distance_epsilon = 1e-9;
-    cfg.perpendicular_epsilon = 1e-8;
-    cfg.parallel_epsilon = 1e-8;
-    cfg.angle_epsilon = 1e-6;
-    cfg.singular_threshold = 1e-12;
+    /* 收敛说明（P0-2）：epsilon 默认值全部改为引用 config.h 权威常量，config.h 成为
+     * 唯一默认值权威源。行为变更：distance_epsilon 由 1e-9 → lv_GEO_DISTANCE_EPSILON
+     * （1e-8，差 10 倍）、angle_epsilon 由 1e-6 → lv_GEO_ANGLE_EPSILON（1e-10，
+     * 差 1e4 倍），均对齐 config.h 权威值；perpendicular/parallel 历史上即为 1e-8，
+     * config.h 无专用常量，借用 lv_GEO_DISTANCE_EPSILON（1e-8）保持数值不变。 */
+    cfg.collinear_epsilon = lv_GEO_COLLINEAR_EPSILON;    /* 对齐 config.h 权威值（1e-9，与历史一致） */
+    cfg.distance_epsilon = lv_GEO_DISTANCE_EPSILON;      /* 对齐 config.h 权威值（1e-8，行为变更：原 1e-9） */
+    cfg.perpendicular_epsilon = lv_GEO_DISTANCE_EPSILON; /* 对齐 config.h 权威值（1e-8，与历史一致） */
+    cfg.parallel_epsilon = lv_GEO_DISTANCE_EPSILON;      /* 对齐 config.h 权威值（1e-8，与历史一致） */
+    cfg.angle_epsilon = lv_GEO_ANGLE_EPSILON;            /* 对齐 config.h 权威值（1e-10，行为变更：原 1e-6） */
+    cfg.singular_threshold = lv_SINGULARITY_THRESHOLD;   /* 对齐 config.h 权威值（1e-12，与历史一致） */
     return cfg;
 }
 

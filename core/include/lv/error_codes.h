@@ -157,6 +157,40 @@ extern "C" {
     x(lv_ERROR_PROOF_VERIFICATION_FAILED, 902, "lv_ERROR_PROOF_VERIFICATION_FAILED", "证明验证失败", "证明系统") \
     x(lv_ERROR_CIRCUIT_OPEN, 903, "lv_ERROR_CIRCUIT_OPEN", "熔断器已跳闸（OPEN态）", "证明系统")
 
+/**
+ * @brief 状态码类别区间 X-macro —— 粗粒度类别区间的单一事实来源
+ *
+ * 条目形态：x(min, max, 类别名)
+ *
+ * 供 layer2_resource/status_codes.c 的 kStatusCategoryRanges 宏展开生成
+ * （区间表不再在 status_codes.c 手写），与每码级别的 LV_ERROR_CODES_X
+ * 第 5 字段（每码类别短名，lv_error_category 返回）共同构成分类体系。
+ *
+ * 【两侧必须同步】修改任一侧的类别名称时，必须同步另一侧，对应关系：
+ *   成功 ↔ 成功；系统 ↔ 通用系统错误；内存 ↔ 内存与资源错误；
+ *   解析器 ↔ 解析器安全错误；约束图 ↔ 约束图错误；符号坐标 ↔ 符号坐标错误；
+ *   求解器 ↔ 求解器错误；重写引擎 ↔ 重写引擎错误；合一检查 ↔ 合一检查错误；
+ *   函数块 ↔ 函数块错误；预设系统 ↔ 预设系统错误；类型系统 ↔ 类型系统错误；
+ *   证明系统 ↔ 证明系统错误
+ *
+ * 注：负码警告区间（INT_MIN..-1 → "警告"）是 status_codes 模块的语义，
+ * 不属于错误码体系，不在本宏中定义。
+ */
+#define LV_ERROR_CATEGORY_RANGES_X(x) \
+    x(0, 0, "成功") \
+    x(1, 99, "通用系统错误") \
+    x(100, 129, "内存与资源错误") \
+    x(130, 139, "解析器安全错误") \
+    x(200, 299, "约束图错误") \
+    x(300, 399, "符号坐标错误") \
+    x(400, 499, "求解器错误") \
+    x(500, 599, "重写引擎错误") \
+    x(600, 699, "合一检查错误") \
+    x(700, 749, "函数块错误") \
+    x(750, 799, "预设系统错误") \
+    x(800, 899, "类型系统错误") \
+    x(900, 999, "证明系统错误")
+
 /** @brief 枚举生成辅助宏（LV_ERROR_CODES_X → `枚举名 = 数值,`） */
 #define LV_X_EC_ENUM_ITEM(name, value, name_str, msg, category) name = value,
 
