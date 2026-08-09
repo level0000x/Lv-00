@@ -127,8 +127,7 @@ uint64_t stream_parse_filter_mask(const char *str) {
         return STREAM_FILTER_NONE;
 
     /* 去除首尾空白 */
-    while (*str == ' ' || *str == '\t' || *str == '\r' || *str == '\n')
-        str++;
+    str = lv_str_ltrim((char *) str); /* lv_str_ltrim 不修改原串，仅返回首非空白指针 */
     if (*str == '\0')
         return STREAM_FILTER_NONE;
 
@@ -156,22 +155,12 @@ uint64_t stream_parse_filter_mask(const char *str) {
 
     while (token) {
         /* 去除 token 首尾空白 */
-        while (*token == ' ' || *token == '\t')
-            token++;
+        token = lv_str_ltrim(token);
         if (*token == '\0') {
             token = lv_strtok_r(NULL, ",", &saveptr);
             continue; /* 空 token，跳过 */
         }
-        size_t tok_len = strlen(token);
-        if (tok_len == 0) {
-            token = lv_strtok_r(NULL, ",", &saveptr);
-            continue;
-        }
-        char *end = token + tok_len - 1;
-        while (end > token && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n')) {
-            *end = '\0';
-            end--;
-        }
+        lv_str_rtrim(token);
 
         if (*token != '\0') {
             /* 先尝试按类别名解析 */

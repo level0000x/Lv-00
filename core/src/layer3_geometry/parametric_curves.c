@@ -190,7 +190,7 @@ bool lv_curve_evaluate(const lvParametricCurve *curve, double t, lvPoint2D *out)
         return false;
     }
     /* 域边界检查：禁止在定义域外静默外推 */
-    if (t < curve->domain.t_min - 1e-12 || t > curve->domain.t_max + 1e-12) {
+    if (t < curve->domain.t_min - lv_EPSILON_ULTRA || t > curve->domain.t_max + lv_EPSILON_ULTRA) {
         return false;
     }
     /* 将 t 钳制到边界（允许微小浮点误差越过边界） */
@@ -217,7 +217,7 @@ bool lv_curve_tangent(const lvParametricCurve *curve, double t, double *out_dx, 
         return false;
     }
     /* 域边界检查：禁止在定义域外静默外推 */
-    if (t < curve->domain.t_min - 1e-12 || t > curve->domain.t_max + 1e-12) {
+    if (t < curve->domain.t_min - lv_EPSILON_ULTRA || t > curve->domain.t_max + lv_EPSILON_ULTRA) {
         return false;
     }
     if (t < curve->domain.t_min)

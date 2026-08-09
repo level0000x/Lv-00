@@ -10,6 +10,7 @@
 
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_parse_utils.h"
 
 #include "lv/lv_file.h"
 
@@ -362,10 +363,9 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
     }
 
     /* 尝试解析为整数 */
-    char *endptr;
-    long int_val = strtol(trimmed_val, &endptr, 10);
-    if (*endptr == '\0') {
-        config_set_int(mgr, full_key, (int) int_val);
+    int int_val = 0;
+    if (lv_parse_int(trimmed_val, &int_val) == 0) {
+        config_set_int(mgr, full_key, int_val);
         return true;
     }
 
@@ -380,8 +380,8 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
     }
 
     /* 尝试解析为浮点数 */
-    double double_val = strtod(trimmed_val, &endptr);
-    if (*endptr == '\0') {
+    double double_val = 0.0;
+    if (lv_parse_double_strict(trimmed_val, &double_val) == 0) {
         config_set_double(mgr, full_key, double_val);
         return true;
     }

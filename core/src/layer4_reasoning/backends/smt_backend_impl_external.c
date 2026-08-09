@@ -103,12 +103,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
 
     /* 解析求解器输出 */
     /* 去除首尾空白 */
-    char *trimmed = output;
-    while (*trimmed == ' ' || *trimmed == '\t' || *trimmed == '\r' || *trimmed == '\n')
-        trimmed++;
-    char *end = trimmed + strlen(trimmed) - 1;
-    while (end > trimmed && (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n'))
-        *end-- = '\0';
+    char *trimmed = lv_str_trim(output);
 
     SMTSatResult result;
     if (lv_str_startswith(trimmed, "sat")) {

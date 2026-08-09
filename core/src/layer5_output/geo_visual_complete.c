@@ -238,6 +238,7 @@ lvVisualScene *lv_visual_scene_create(void) {
 
     scene->objects = NULL;
     scene->object_count = 0;
+    scene->object_capacity = 0;
     scene->camera_center[0] = 0.0f;
     scene->camera_center[1] = 0.0f;
     scene->camera_center[2] = 0.0f;
@@ -253,14 +254,11 @@ void lv_visual_scene_add(lvVisualScene *scene, lvVisualObject *obj) {
     if (scene == NULL || obj == NULL)
         return;
 
-    size_t new_count = scene->object_count + 1;
-    lvVisualObject **new_arr = (lvVisualObject **) lv_realloc(scene->objects, new_count * sizeof(lvVisualObject *));
-    if (new_arr == NULL)
+    if (!lv_ensure_capacity((void **) &scene->objects, (int) scene->object_count, (int *) &scene->object_capacity,
+                            sizeof(lvVisualObject *), 0))
         return;
 
-    new_arr[scene->object_count] = obj;
-    scene->objects = new_arr;
-    scene->object_count = new_count;
+    scene->objects[scene->object_count++] = obj;
 }
 
 void lv_visual_scene_clear(lvVisualScene *scene) {
@@ -271,6 +269,7 @@ void lv_visual_scene_clear(lvVisualScene *scene) {
     }
     lv_free((void **) &scene->objects);
     scene->object_count = 0;
+    scene->object_capacity = 0;
 }
 
 void lv_visual_scene_set_camera(lvVisualScene *scene, float cx, float cy, float cz, float zoom) {

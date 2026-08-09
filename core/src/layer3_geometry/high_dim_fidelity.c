@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "lv/config.h"
+#include "lv/geo_utils.h" /* geo_norm_2d（2D 向量模长统一工具） */
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
@@ -383,12 +384,12 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
                 sum_sq += diff * diff;
             }
             double hi_dist = sqrt(sum_sq);
-            if (hi_dist < 1e-9) {
+            if (hi_dist < lv_GEO_COLLINEAR_EPSILON) {
                 continue; /* 高维退化点对，跳过 */
             }
             double dx = lo[i][0] - lo[j][0];
             double dy = lo[i][1] - lo[j][1];
-            double lo_dist = sqrt(dx * dx + dy * dy);
+            double lo_dist = geo_norm_2d(dx, dy);
 
             double ratio = lo_dist / hi_dist;
             ratios[ratio_count++] = ratio;
@@ -399,7 +400,7 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
     double distance_distortion = 0.0;
     if (ratio_count > 0) {
         double mean_ratio = sum_ratio / ratio_count;
-        if (mean_ratio < 1e-9) {
+        if (mean_ratio < lv_GEO_COLLINEAR_EPSILON) {
             distance_distortion = 1.0; /* 所有低维距离为零：完全坍缩 */
         } else {
             double var = 0.0;
@@ -433,7 +434,7 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
                     n_hi_b += b * b;
                 }
                 double norm_hi = sqrt(n_hi_a) * sqrt(n_hi_b);
-                if (norm_hi < 1e-9) {
+                if (norm_hi < lv_GEO_COLLINEAR_EPSILON) {
                     continue;
                 }
                 cos_hi /= norm_hi;
@@ -444,9 +445,9 @@ static double high_dim_geometric_distortion(HighDimManager *manager, int block_i
                 double a_lo_y = lo[i][1] - lo[j][1];
                 double b_lo_x = lo[k][0] - lo[j][0];
                 double b_lo_y = lo[k][1] - lo[j][1];
-                double n_lo_a = sqrt(a_lo_x * a_lo_x + a_lo_y * a_lo_y);
-                double n_lo_b = sqrt(b_lo_x * b_lo_x + b_lo_y * b_lo_y);
-                if (n_lo_a < 1e-9 || n_lo_b < 1e-9) {
+                double n_lo_a = geo_norm_2d(a_lo_x, a_lo_y);
+                double n_lo_b = geo_norm_2d(b_lo_x, b_lo_y);
+                if (n_lo_a < lv_GEO_COLLINEAR_EPSILON || n_lo_b < lv_GEO_COLLINEAR_EPSILON) {
                     continue;
                 }
                 double cos_lo = (a_lo_x * b_lo_x + a_lo_y * b_lo_y) / (n_lo_a * n_lo_b);
@@ -521,8 +522,8 @@ static void high_dim_local_fidelity_heatmap(HighDimManager *manager, int block_i
 
     double span_x = max_x - min_x;
     double span_y = max_y - min_y;
-    if (span_x < 1e-9) span_x = 1.0;
-    if (span_y < 1e-9) span_y = 1.0;
+    if (span_x < lv_GEO_COLLINEAR_EPSILON) span_x = 1.0;
+    if (span_y < lv_GEO_COLLINEAR_EPSILON) span_y = 1.0;
 
     /* 每格累计权重（分母）与可见权重（分子） */
     double weight_total[HIGH_DIM_HEATMAP_GRID][HIGH_DIM_HEATMAP_GRID];
@@ -568,9 +569,9 @@ static void high_dim_local_fidelity_heatmap(HighDimManager *manager, int block_i
         double ux = (cx - min_x) / span_x;
         double uy = (cy - min_y) / span_y;
         if (ux < 0.0) ux = 0.0;
-        if (ux >= 1.0) ux = 1.0 - 1e-9;
+        if (ux >= 1.0) ux = 1.0 - lv_GEO_COLLINEAR_EPSILON;
         if (uy < 0.0) uy = 0.0;
-        if (uy >= 1.0) uy = 1.0 - 1e-9;
+        if (uy >= 1.0) uy = 1.0 - lv_GEO_COLLINEAR_EPSILON;
         int c = (int) (ux * HIGH_DIM_HEATMAP_GRID);
         int r = (int) (uy * HIGH_DIM_HEATMAP_GRID);
 
@@ -712,13 +713,13 @@ static double high_dim_mds_stress(HighDimManager *manager, int block_id, const C
                 sum_sq += diff * diff;
             }
             double hi_dist = sqrt(sum_sq);
-            if (hi_dist < 1e-9) {
+            if (hi_dist < lv_GEO_COLLINEAR_EPSILON) {
                 continue; /* 高维退化点对，不参与应力计算 */
             }
             double dx = lo[i][0] - lo[j][0];
             double dy = lo[i][1] - lo[j][1];
             d_hi[pair_count] = hi_dist;
-            d_lo[pair_count] = sqrt(dx * dx + dy * dy);
+            d_lo[pair_count] = geo_norm_2d(dx, dy);
             pair_count++;
         }
     }
@@ -734,10 +735,10 @@ static double high_dim_mds_stress(HighDimManager *manager, int block_id, const C
         sum_lo2 += d_lo[k] * d_lo[k];
     }
 
-    if (sum_hi2 < 1e-12) {
+    if (sum_hi2 < lv_EPSILON_ULTRA) {
         return 0.0;
     }
-    if (sum_lo2 < 1e-12) {
+    if (sum_lo2 < lv_EPSILON_ULTRA) {
         return 1.0; /* 所有低维距离为零：投影完全坍缩 */
     }
 
@@ -823,7 +824,7 @@ static double high_dim_topology_preservation(HighDimManager *manager, int block_
             hi_dist[q] = sqrt(sum_sq);
             double dx = lo[p][0] - lo[q][0];
             double dy = lo[p][1] - lo[q][1];
-            lo_dist[q] = sqrt(dx * dx + dy * dy);
+            lo_dist[q] = geo_norm_2d(dx, dy);
         }
 
         int hi_nn[MAX_TOP_NODES];

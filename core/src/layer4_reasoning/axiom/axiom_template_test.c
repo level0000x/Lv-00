@@ -71,7 +71,7 @@ static bool graph_structure_match(const ConstraintGraph *a, const ConstraintGrap
  * 用于烟测超时检测。
  */
 static uint64_t get_current_time_ms(void) {
-    return lv_get_time_ns() / 1000000;
+    return lv_get_time_ms();
 }
 
 /* ============== 模板测试执行器 ============== */

@@ -25,6 +25,7 @@ extern "C" {
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 #ifndef MPZ_POLY_T_DEFINED
 #define MPZ_POLY_T_DEFINED
@@ -237,18 +238,10 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     }
     size_t coeff_count = (size_t) (p->degree + 1);
     char **coeff_strs = lv_malloc(coeff_count * sizeof(char *));
-    size_t total_len = 0;
     for (int i = 0; i <= p->degree; i++) {
         coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);
-        total_len += strlen(coeff_strs[i]) + 2;
     }
-    char *result = lv_malloc(total_len + 1);
-    result[0] = '\0';
-    for (int i = 0; i <= p->degree; i++) {
-        if (i > 0)
-            strcat(result, ",");
-        strcat(result, coeff_strs[i]);
-    }
+    char *result = lv_str_join((const char **) coeff_strs, coeff_count, ",");
     for (int i = 0; i <= p->degree; i++) {
         lv_free_external((void **) &(coeff_strs[i])); /* GMP 分配（mpz_get_str），须用系统 free 释放 */
     }

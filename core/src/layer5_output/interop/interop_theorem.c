@@ -201,18 +201,18 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
 
         /* 按行分割 */
         char *save_ptr_line = NULL;
-        char *line = strtok_s(buf, "\n", &save_ptr_line);
+        char *line = lv_strtok_r(buf, "\n", &save_ptr_line);
         int call_index = 0;
         while (line) {
             /* 每行格式: theorem_name;param1;param2;...; */
             char *field_ctx = NULL;
-            char *name = strtok_s(line, ";", &field_ctx);
+            char *name = lv_strtok_r(line, ";", &field_ctx);
             if (lv_str_nonempty(name)) {
                 /* 生成 apply 语句 */
                 lv_strbuf_printf(&sb, "%s%s", apply_prefix, name);
 
                 /* 处理参数 */
-                char *param = strtok_s(NULL, ";", &save_ptr_line);
+                char *param = lv_strtok_r(NULL, ";", &save_ptr_line);
                 int pidx = 0;
                 while (param) {
                     if (lean_style_params) {
@@ -222,7 +222,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                         /* Coq 风格：apply theorem_name with (A := param1) (B := param2) */
                         lv_strbuf_printf(&sb, " with (%c := %s)", (char) ('A' + pidx), param);
                     }
-                    param = strtok_s(NULL, ";", &field_ctx);
+                    param = lv_strtok_r(NULL, ";", &field_ctx);
                     pidx++;
                 }
 
@@ -230,7 +230,7 @@ int interop_theorem_export_calls(const InteropTheoremContext *ctx, InteropExport
                 lv_strbuf_printf(&sb, "%s\n", line_end);
                 call_index++;
             }
-            line = strtok_s(NULL, "\n", &save_ptr_line);
+            line = lv_strtok_r(NULL, "\n", &save_ptr_line);
         }
         lv_free((void **) &buf);
 
@@ -427,13 +427,6 @@ const char *interop_get_file_extension(const char *path) {
 /* 内置命令列表已统一到 lv_builtin_commands（见 lv_builtin_commands.h，
    定义于 lv_protocol.c），与 lv_proto_completions 共用一份。 */
 
-static int str_prefix_match(const char *str, const char *prefix) {
-    size_t plen = strlen(prefix);
-    if (plen == 0)
-        return 1;
-    return strncmp(str, prefix, plen) == 0;
-}
-
 char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count) {
     if (!out_count)
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "interop_get_command_completions: out_count is NULL");
@@ -451,7 +444,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
     for (int i = 0; lv_builtin_commands[i] != NULL; i++) {
         if (count >= capacity - 1)
             break;
-        if (str_prefix_match(lv_builtin_commands[i], p)) {
+        if (lv_str_startswith(lv_builtin_commands[i], p)) {
             result[count] = lv_strdup_safe(lv_builtin_commands[i]);
             if (result[count])
                 count++;
@@ -472,7 +465,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             lvStrBuf sb_5 = {0};
             lv_strbuf_printf(&sb_5, "%s_%d",
                      interop_geom_type_name(node->type), node->id);
-            if (str_prefix_match(sb_5.data, p)) {
+            if (lv_str_startswith(sb_5.data, p)) {
                 result[count] = lv_strdup_safe(sb_5.data);
                 if (result[count])
                     count++;
@@ -489,7 +482,7 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
             lvStrBuf sb_6 = {0};
             lv_strbuf_printf(&sb_6, "%s_%d",
                      interop_constraint_type_name(con->type), con->id);
-            if (str_prefix_match(sb_6.data, p)) {
+            if (lv_str_startswith(sb_6.data, p)) {
                 result[count] = lv_strdup_safe(sb_6.data);
                 if (result[count])
                     count++;

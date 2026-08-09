@@ -428,10 +428,10 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
         extra_copy = lv_strdup(extra_args);
         if (extra_copy) {
             char *save_ptr = NULL;
-            char *token = strtok_s(extra_copy, " ", &save_ptr);
+            char *token = lv_strtok_r(extra_copy, " ", &save_ptr);
             while (token && argc < 14) {
                 exec_argv[argc++] = token;
-                token = strtok_s(NULL, " ", &save_ptr);
+                token = lv_strtok_r(NULL, " ", &save_ptr);
             }
         }
     }
@@ -474,8 +474,7 @@ static ATPResult atp_parse_szs_status(const char *output) {
 
     /* 跳过 "SZS status:" 前缀 */
     const char *status = szs + strlen("SZS status:");
-    while (*status == ' ')
-        status++;
+    status = lv_str_ltrim((char *) status);
 
     /* 匹配结果 */
     if (lv_str_startswith(status, "Theorem") || lv_str_startswith(status, "Unsatisfiable"))
@@ -517,8 +516,7 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
 
     while (*line) {
         /* 跳过空白 */
-        while (*line == ' ' || *line == '\t' || *line == '\n' || *line == '\r')
-            line++;
+        line = lv_str_ltrim((char *) line);
 
         if (*line == '\0')
             break;
@@ -549,8 +547,7 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
         const char *clause_start = line;
         while (*clause_start != ' ')
             clause_start++;
-        while (*clause_start == ' ')
-            clause_start++;
+        clause_start = lv_str_ltrim((char *) clause_start);
 
         const char *clause_end = clause_start;
         while (*clause_end && *clause_end != '\n')

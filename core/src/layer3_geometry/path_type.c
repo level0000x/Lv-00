@@ -761,7 +761,7 @@ int path_system_create_interval(lvPathSystem *sys, double left, double right, co
     iv->interval_id = id;
     iv->left = left;
     iv->right = right;
-    iv->is_degenerate = (fabs(left - right) < 1e-15);
+    iv->is_degenerate = (fabs(left - right) < lv_EPSILON_SUPERTINY);
     iv->label = label ? lv_strdup(label) : NULL;
 
     sys->interval_count++;

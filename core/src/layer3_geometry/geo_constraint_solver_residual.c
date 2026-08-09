@@ -4,6 +4,7 @@
  */
 
 #include "geo_constraint_solver_internal.h"
+#include "lv/geo_utils.h" /* geo_norm_2d（2D 向量模长统一工具） */
 
 #include <float.h>
 #include <math.h>
@@ -40,7 +41,7 @@ static double eval_pt_pt_distance(const lvSolverSystem *sys, const lvConstraint 
     }
     double dx = ea->params[0] - eb->params[0];
     double dy = ea->params[1] - eb->params[1];
-    double dist = sqrt(dx * dx + dy * dy);
+    double dist = geo_norm_2d(dx, dy);
     double err = dist - c->value;
     if (error_val) *error_val = err;
     return 1;
@@ -57,7 +58,7 @@ static double eval_pt_on_line(const lvSolverSystem *sys, const lvConstraint *c, 
     double ax = eb->params[0], ay = eb->params[1];
     double bx = eb->params[2], by = eb->params[3];
     double ldx = bx - ax, ldy = by - ay;
-    double len = sqrt(ldx * ldx + ldy * ldy);
+    double len = geo_norm_2d(ldx, ldy);
     if (len < lv_EPSILON_SUPERTINY) {
         if (error_val) *error_val = 0.0;
         return 1;
@@ -78,7 +79,7 @@ static double eval_pt_line_distance(const lvSolverSystem *sys, const lvConstrain
     double ax = eb->params[0], ay = eb->params[1];
     double bx = eb->params[2], by = eb->params[3];
     double ldx = bx - ax, ldy = by - ay;
-    double len = sqrt(ldx * ldx + ldy * ldy);
+    double len = geo_norm_2d(ldx, ldy);
     if (len < lv_EPSILON_SUPERTINY) {
         if (error_val) *error_val = 0.0;
         return 1;
@@ -100,8 +101,8 @@ static double eval_pt_on_segment(const lvSolverSystem *sys, const lvConstraint *
     double x1 = eb->params[0], y1 = eb->params[1];
     double x2 = eb->params[2], y2 = eb->params[3];
     double sdx = x2 - x1, sdy = y2 - y1;
-    double slen = sqrt(sdx * sdx + sdy * sdy);
-    if (slen < 1e-15) {
+    double slen = geo_norm_2d(sdx, sdy);
+    if (slen < lv_EPSILON_SUPERTINY) {
         if (error_val) *error_val = 0.0;
         return 1;
     }
@@ -119,7 +120,7 @@ static double eval_pt_on_circle(const lvSolverSystem *sys, const lvConstraint *c
     }
     double dx = ea->params[0] - eb->params[0];
     double dy = ea->params[1] - eb->params[1];
-    double dist = sqrt(dx * dx + dy * dy);
+    double dist = geo_norm_2d(dx, dy);
     double err = dist - eb->params[2];
     if (error_val) *error_val = err;
     return 1;
@@ -204,8 +205,8 @@ static double eval_equal_length(const lvSolverSystem *sys, const lvConstraint *c
     double day = ea->params[3] - ea->params[1];
     double dbx = eb->params[2] - eb->params[0];
     double dby = eb->params[3] - eb->params[1];
-    double len_a = sqrt(dax * dax + day * day);
-    double len_b = sqrt(dbx * dbx + dby * dby);
+    double len_a = geo_norm_2d(dax, day);
+    double len_b = geo_norm_2d(dbx, dby);
     double err = len_a - len_b;
     if (error_val) *error_val = err;
     return 1;
@@ -249,7 +250,7 @@ static double eval_tangent(const lvSolverSystem *sys, const lvConstraint *c, dou
     double cx = eb->params[0], cy = eb->params[1];
     double r = eb->params[2];
     double ldx = bx - ax, ldy = by - ay;
-    double len = sqrt(ldx * ldx + ldy * ldy);
+    double len = geo_norm_2d(ldx, ldy);
     if (len < lv_EPSILON_SUPERTINY) {
         if (error_val) *error_val = 0.0;
         return 1;

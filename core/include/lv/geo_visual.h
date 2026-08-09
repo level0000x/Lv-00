@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file geo_visual.h
  * @brief 几何可视化抽象层 -- 类型声明与公共 API
  *
@@ -74,6 +74,7 @@ typedef struct lvVisualObject {
 typedef struct {
     lvVisualObject **objects; /**< 场景中的对象数组 */
     size_t object_count;      /**< 对象数量 */
+    size_t object_capacity;   /**< 对象数组容量 */
     float camera_center[3];   /**< 相机中心坐标 (x, y, z) */
     float camera_zoom;        /**< 相机缩放倍率 */
     int is_3d;                /**< 是否为三维场景 */

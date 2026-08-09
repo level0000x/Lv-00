@@ -54,6 +54,24 @@
  */
 #define APPROX_EPSILON (lv_EPSILON_MEDIUM)
 
+/**
+ * @brief 计算坐标数组的最大绝对值
+ *
+ * 顺序遍历取最大绝对值，等价于原 fmax 嵌套链（先比较前两个再与第三个比较）
+ * 的求值结果，用于自适应阈值按坐标量级缩放。
+ *
+ * @param p 坐标数组（长度 n）
+ * @param n 坐标个数
+ * @return 各坐标绝对值的最大值
+ */
+static double geo_max_abs_coord2(const double *p, int n) {
+    double m = 0.0;
+    for (int i = 0; i < n; i++) {
+        m = fmax(m, fabs(p[i]));
+    }
+    return m;
+}
+
 /* ========================================================================
  * 全局状态
  * ======================================================================== */
@@ -299,8 +317,8 @@ static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, d
      * 固定阈值对于大坐标会过于严格（舍入误差超过阈值），
      * 对于小坐标又可能过于宽松。
      */
-    double max_coord =
-        fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
+    double coords[] = {p1x, p1y, p2x, p2y, p3x, p3y};
+    double max_coord = geo_max_abs_coord2(coords, 6);
     double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
 
     if (cross > adapted_eps) {
@@ -394,8 +412,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
          * (p2-p1)×(p3-p1) 展开后每项都是坐标差乘积，量级正比于 O(coord^3)，
          * 因此浮点舍入误差的上界也按此标度增长。
          */
-        double max_coord =
-            fmax(fmax(fabs(p1x), fabs(p1y)), fmax(fmax(fabs(p2x), fabs(p2y)), fmax(fabs(p3x), fabs(p3y))));
+        double coords[] = {p1x, p1y, p2x, p2y, p3x, p3y};
+        double max_coord = geo_max_abs_coord2(coords, 6);
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
 
         if (threshold == 0.0) {
@@ -533,10 +551,8 @@ lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, 
          * 3D 行列式每项为三个坐标差之积，量级 O(coord^3)，
          * 因此阈值按 max_coord^3 标度，与 2D 情形同理。
          */
-        double max_coord =
-            fmax(fmax(fmax(fabs(p1x), fabs(p1y)), fabs(p1z)),
-                 fmax(fmax(fmax(fabs(p2x), fabs(p2y)), fabs(p2z)),
-                      fmax(fmax(fmax(fabs(p3x), fabs(p3y)), fabs(p3z)), fmax(fmax(fabs(p4x), fabs(p4y)), fabs(p4z)))));
+        double coords[] = {p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z};
+        double max_coord = geo_max_abs_coord2(coords, 12);
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord * max_coord;
 
         if (threshold == 0.0) {
@@ -724,7 +740,8 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
          * |p-c|² = (px-cx)² + (py-cy)²，每项为坐标差的平方，
          * 因此整体缩放 λ²。阈值取 max_coord² 标度即可。
          */
-        double max_coord = fmax(fmax(fabs(px), fabs(py)), fmax(fmax(fabs(cx), fabs(cy)), fabs(r)));
+        double coords[] = {px, py, cx, cy, r};
+        double max_coord = geo_max_abs_coord2(coords, 5);
         double threshold = ADAPTIVE_THRESHOLD * max_coord * max_coord;
 
         if (threshold == 0.0) {

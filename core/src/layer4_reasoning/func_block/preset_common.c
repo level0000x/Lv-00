@@ -25,6 +25,7 @@
 
 #include "error_codes.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 /* ============================================================
  * 字符串操作实现
@@ -367,7 +368,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
     }
 
     char *context = NULL;
-    char *token = strtok_s(copy, "|,& ", &context);
+    char *token = lv_strtok_r(copy, "|,& ", &context);
 
     while (token != NULL) {
         bool found = false;
@@ -384,7 +385,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
             return false;
         }
 
-        token = strtok_s(NULL, "|,& ", &context);
+        token = lv_strtok_r(NULL, "|,& ", &context);
     }
 
     lv_free((void **) &copy);

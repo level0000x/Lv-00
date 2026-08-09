@@ -22,6 +22,7 @@
 #include "formula_renderer.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
 
@@ -113,16 +114,8 @@ static void render_geom_region(const GeomNode *node, const char *name, char *out
                     } else {
                         snprintf(seg_name, sizeof(seg_name), "S?");
                     }
-                    /* 修复：使用偏移量替代 strncat + strlen */
-                    if (j > 0 && seg_list_len + 2 < sizeof(seg_list)) {
-                        memcpy(seg_list + seg_list_len, ", ", 2);
-                        seg_list_len += 2;
-                    }
-                    size_t sn_len = strlen(seg_name);
-                    if (seg_list_len + sn_len < sizeof(seg_list)) {
-                        memcpy(seg_list + seg_list_len, seg_name, sn_len);
-                        seg_list_len += sn_len;
-                    }
+                    /* 统一走 lv_str_append_sep（游标式追加，首项自动省略分隔符） */
+                    lv_str_append_sep(seg_list, sizeof(seg_list), &seg_list_len, ", ", seg_name);
                 }
                 seg_list[seg_list_len] = '\0';
 

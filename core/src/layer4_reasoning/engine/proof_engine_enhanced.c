@@ -128,8 +128,7 @@ void safe_strncpy(char *dest, const char *src, size_t max_len) {
             dest[0] = '\0';
         return;
     }
-    strncpy(dest, src, max_len - 1);
-    dest[max_len - 1] = '\0';
+    lv_strlcpy(dest, src, max_len);
 }
 
 /* StringBuffer 已迁移至 lvStrBuf（lv/lv_strbuf.h） */

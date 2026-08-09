@@ -436,7 +436,7 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
     /* 等待 + 读取（带超时；读取与等待交错，避免子进程输出超过
      * 管道缓冲时父进程仍在等待导致互锁） */
     DWORD timeout = (timeout_ms > 0) ? (DWORD) timeout_ms : INFINITE;
-    DWORD start_ms = GetTickCount();
+    uint64_t start_ms = lv_get_time_ms();
     bool proc_exited = false;
 
     for (;;) {
@@ -444,7 +444,7 @@ static int lv_run_win(const char *exe, char *const argv[], const char *input_tex
         if (wr == WAIT_OBJECT_0) {
             proc_exited = true;
         } else if (wr == WAIT_TIMEOUT) {
-            if (timeout != INFINITE && (GetTickCount() - start_ms) >= timeout) {
+            if (timeout != INFINITE && (lv_get_time_ms() - start_ms) >= timeout) {
                 timed_out = true;
                 TerminateProcess(pi.hProcess, 1);
                 WaitForSingleObject(pi.hProcess, 5000);

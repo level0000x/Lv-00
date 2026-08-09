@@ -390,12 +390,9 @@ bool lv_gappa_pred_set_add(lvGappaPredSet *set, const lvGappaPredicate *pred) {
     }
 
     if (set->count >= set->capacity) {
-        int new_cap = set->capacity > 0 ? set->capacity * 2 : 8;
-        lvGappaPredicate *p = (lvGappaPredicate *) lv_realloc(set->preds, (size_t) new_cap * sizeof(lvGappaPredicate));
-        if (!p)
+        if (!lv_ensure_capacity((void **) &set->preds, set->count, &set->capacity,
+                                sizeof(lvGappaPredicate), 0))
             return false;
-        set->preds = p;
-        set->capacity = new_cap;
     }
     set->preds[set->count] = *pred;
 

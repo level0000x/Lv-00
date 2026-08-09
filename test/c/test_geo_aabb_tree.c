@@ -87,7 +87,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         TEST("aabb2d_area: 面积计算");
         lvAABB2D box2 = {0, 0, 4, 3};
         double area = lv_aabb2d_area(box2);
-        if (fabs(area - 12.0) < 1e-10) {
+        if (approx_eq(area, 12.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -101,7 +101,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         TEST("aabb3d_volume: 体积计算");
         lvAABB3D box = {0, 0, 0, 2, 3, 4};
         double vol = lv_aabb3d_volume(box);
-        if (fabs(vol - 24.0) < 1e-10) {
+        if (approx_eq(vol, 24.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -110,7 +110,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         }
         TEST("aabb3d_center: 中心点");
         lvAABBPoint3D c = lv_aabb3d_center(box);
-        if (fabs(c.x - 1) < 1e-10 && fabs(c.y - 1.5) < 1e-10 && fabs(c.z - 2) < 1e-10) {
+        if (approx_eq(c.x, 1) && approx_eq(c.y, 1.5) && approx_eq(c.z, 2)) {
             PASS();
             g_pass_count++;
         } else {
@@ -354,7 +354,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         TEST("aabb3d_volume: 体积计算正确");
         lvAABB3D vbox = {1, 2, 3, 4, 6, 7}; /* 宽3 高4 深4 */
         double vol3 = lv_aabb3d_volume(vbox);
-        if (fabs(vol3 - 48.0) < 1e-10) {
+        if (approx_eq(vol3, 48.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -365,7 +365,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         TEST("aabb3d_surface_area: 表面积计算正确");
         /* 宽3 高4 深4 => 2*(3*4 + 3*4 + 4*4) = 2*(12+12+16) = 80 */
         double sa = lv_aabb3d_surface_area(vbox);
-        if (fabs(sa - 80.0) < 1e-10) {
+        if (approx_eq(sa, 80.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -375,7 +375,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         /* aabb3d_center: 计算中心点 */
         TEST("aabb3d_center: 中心点计算正确");
         lvAABBPoint3D c3 = lv_aabb3d_center(vbox);
-        if (fabs(c3.x - 2.5) < 1e-10 && fabs(c3.y - 4.0) < 1e-10 && fabs(c3.z - 5.0) < 1e-10) {
+        if (approx_eq(c3.x, 2.5) && approx_eq(c3.y, 4.0) && approx_eq(c3.z, 5.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -456,7 +456,7 @@ TEST_MAIN_BEGIN("geo_aabb_tree 模块测试")
         TEST("3d_nearest: 最近邻查询返回正确 ID");
         lvAABBNearestResult nr3d = lv_aabb3d_nearest(tree3d, 0.4, 0.2, 0.15);
         /* 查询点 (0.4, 0.2, 0.15) 在 ID=0 的包围盒 [0,0,0]-[0.8,0.4,0.2] 内部 */
-        if (nr3d.primitive_id == 0 && fabs(nr3d.distance) < 1e-10) {
+        if (nr3d.primitive_id == 0 && approx_eq(nr3d.distance, 0.0)) {
             PASS();
             g_pass_count++;
         } else {

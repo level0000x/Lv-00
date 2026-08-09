@@ -12,8 +12,6 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-#define EPSILON 1e-10
-
 TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
     printf("=== geo_halfedge_mesh 模块测试 ===\n\n");
     /* 1. 创建与释放测试 */
@@ -73,7 +71,7 @@ TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
         }
         TEST("get_vertex_position: 获取顶点位置");
         lvPoint3D pos = lv_he_mesh_get_vertex_position(mesh, v1);
-        if (fabs(pos.x) < EPSILON && fabs(pos.y) < EPSILON && fabs(pos.z) < EPSILON) {
+        if (approx_eq(pos.x, 0.0) && approx_eq(pos.y, 0.0) && approx_eq(pos.z, 0.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -84,7 +82,7 @@ TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
         lvPoint3D new_pos = {2, 3, 4};
         lv_he_mesh_set_vertex_position(mesh, v1, new_pos);
         pos = lv_he_mesh_get_vertex_position(mesh, v1);
-        if (fabs(pos.x - 2) < EPSILON && fabs(pos.y - 3) < EPSILON && fabs(pos.z - 4) < EPSILON) {
+        if (approx_eq(pos.x, 2) && approx_eq(pos.y, 3) && approx_eq(pos.z, 4)) {
             PASS();
             g_pass_count++;
         } else {
@@ -146,7 +144,7 @@ TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
         lvFace f = lv_he_mesh_add_face_triangle(mesh, v0, v1, v2);
         TEST("face_normal: 计算面法向量");
         lvPoint3D normal = lv_he_mesh_face_normal(mesh, f);
-        if (fabs(normal.x) < EPSILON && fabs(normal.y) < EPSILON && fabs(normal.z - 1) < EPSILON) {
+        if (approx_eq(normal.x, 0.0) && approx_eq(normal.y, 0.0) && approx_eq(normal.z, 1)) {
             PASS();
             g_pass_count++;
         } else {
@@ -155,7 +153,7 @@ TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
         }
         TEST("face_area: 计算三角形面积（0.5）");
         double area = lv_he_mesh_face_area(mesh, f);
-        if (fabs(area - 0.5) < EPSILON) {
+        if (approx_eq(area, 0.5)) {
             PASS();
             g_pass_count++;
         } else {
@@ -309,7 +307,7 @@ TEST_MAIN_BEGIN("geo_halfedge_mesh 模块测试")
         }
         TEST("total_area: 计算总面积");
         double area = lv_he_mesh_total_area(mesh);
-        if (fabs(area - 0.5) < EPSILON) {
+        if (approx_eq(area, 0.5)) {
             PASS();
             g_pass_count++;
         } else {

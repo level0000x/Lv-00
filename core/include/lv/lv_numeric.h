@@ -90,6 +90,14 @@ lv_PUBLIC_API bool lv_is_positive(double x, double epsilon);
  */
 lv_PUBLIC_API bool lv_is_negative(double x, double epsilon);
 
+/**
+ * @brief 判断浮点数是否近似为整数
+ * @param x 要判断的值
+ * @param epsilon 精度阈值
+ * @return true 如果 |x - round(x)| < epsilon
+ */
+lv_PUBLIC_API bool lv_is_integer_double(double x, double epsilon);
+
 /* ============================================================
  * 数值范围检查
  * ============================================================ */

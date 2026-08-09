@@ -31,7 +31,7 @@
  * ============================================================ */
 
 uint64_t lv_circuit_breaker_now_us(void) {
-    return lv_get_time_ns() / 1000;
+    return lv_get_time_us();
 }
 
 uint64_t lv_circuit_breaker_uptime_us(const CircuitBreaker *cb) {

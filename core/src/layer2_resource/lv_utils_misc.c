@@ -380,9 +380,7 @@ void lv_log_message(int level, const char *file, int line, const char *fmt, ...)
     /* 提取模块名（文件名不含路径作为模块标识） */
     const char *module = "unknown";
     if (file) {
-        const char *base = strrchr(file, '/');
-        if (!base) base = strrchr(file, '\\');
-        module = base ? base + 1 : file;
+        module = lv_path_basename(file);
     }
 
     /* 格式化消息并附加 [file:line] 前缀以保留调用位置信息 */

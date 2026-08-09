@@ -10,6 +10,7 @@
  */
 
 #include "lv/lv_number.h"
+#include "lv/lv_numeric.h"
 #include "lv/rational.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
@@ -250,12 +251,12 @@ static char *float_op_to_string(const lvNumber *n) {
 
 static bool float_op_is_zero(const lvNumber *n) {
     const FloatImpl *f = (const FloatImpl *) n->impl;
-    return fabs(f->value) < 1e-15;
+    return lv_is_zero(f->value, lv_EPSILON_SUPERTINY);
 }
 
 static bool float_op_is_one(const lvNumber *n) {
     const FloatImpl *f = (const FloatImpl *) n->impl;
-    return fabs(f->value - 1.0) < 1e-15;
+    return lv_is_equal(f->value, 1.0, lv_EPSILON_SUPERTINY);
 }
 
 static bool float_op_is_negative(const lvNumber *n) {

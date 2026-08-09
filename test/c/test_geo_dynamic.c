@@ -180,7 +180,7 @@ TEST_MAIN_BEGIN("geo_dynamic 模块测试")
         }
         TEST("update_cascade: 验证中点坐标");
         lvDynNode *mid_node = lv_dyn_graph_get_node(graph, mid);
-        if (mid_node && fabs(mid_node->params[0] - 1.5) < 1e-10 && fabs(mid_node->params[1] - 2.0) < 1e-10) {
+        if (mid_node && approx_eq(mid_node->params[0], 1.5) && approx_eq(mid_node->params[1], 2.0)) {
             PASS();
             g_pass_count++;
         } else {

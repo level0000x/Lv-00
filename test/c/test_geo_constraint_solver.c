@@ -55,7 +55,7 @@ TEST_MAIN_BEGIN("geo_constraint_solver 模块测试")
     {
         TEST("entity_point_2d: 创建 2D 点");
         lvEntity p = lv_entity_point_2d(0, 3.0, 4.0);
-        if (p.type == lv_ENTITY_POINT_2D && p.param_count == 2 && fabs(p.params[0] - 3.0) < 1e-10) {
+        if (p.type == lv_ENTITY_POINT_2D && p.param_count == 2 && approx_eq(p.params[0], 3.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -64,7 +64,7 @@ TEST_MAIN_BEGIN("geo_constraint_solver 模块测试")
         }
         TEST("entity_circle_2d: 创建 2D 圆");
         lvEntity c = lv_entity_circle_2d(1, 5.0, 6.0, 2.0);
-        if (c.type == lv_ENTITY_CIRCLE_2D && c.param_count == 3 && fabs(c.params[2] - 2.0) < 1e-10) {
+        if (c.type == lv_ENTITY_CIRCLE_2D && c.param_count == 3 && approx_eq(c.params[2], 2.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -73,7 +73,7 @@ TEST_MAIN_BEGIN("geo_constraint_solver 模块测试")
         }
         TEST("constraint_distance: 创建距离约束");
         lvConstraint cd = lv_constraint_distance(0, 0, 1, 10.0);
-        if (cd.type == lv_CONSTRAINT_PT_PT_DISTANCE && fabs(cd.value - 10.0) < 1e-10) {
+        if (cd.type == lv_CONSTRAINT_PT_PT_DISTANCE && approx_eq(cd.value, 10.0)) {
             PASS();
             g_pass_count++;
         } else {
@@ -290,7 +290,7 @@ TEST_MAIN_BEGIN("geo_constraint_solver 模块测试")
         TEST("solver_set_drag_position: 设置拖拽位置");
         lv_solver_set_drag_position(sys, 1, 3, 4);
         p = lv_solver_get_entity(sys, 1);
-        if (p && fabs(p->params[0] - 3.0) < 1e-10) {
+        if (p && approx_eq(p->params[0], 3.0)) {
             PASS();
             g_pass_count++;
         } else {

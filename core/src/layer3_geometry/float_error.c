@@ -231,7 +231,7 @@ static bool rpn_eval_div(double *stack, int *top) {
 static bool rpn_eval_pow(double *stack, int *top) {
     if (*top < 2) return false;
     if (stack[*top - 2] < 0.0 &&
-        fabs(stack[*top - 1] - round(stack[*top - 1])) > 1e-12) {
+        !lv_is_integer_double(stack[*top - 1], 1e-12)) {
         return false;
     }
     stack[*top - 2] = pow(stack[*top - 2], stack[*top - 1]);
@@ -1011,7 +1011,7 @@ TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance) {
     }
 
     /* 按误差分级的信任颜色判断 */
-    if (abs_err <= 1e-12) {
+    if (abs_err <= lv_EPSILON_ULTRA) {
         /* 极度精确 —— 完全可构造性安全 */
         return TRUST_GREEN;
     }

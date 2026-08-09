@@ -193,10 +193,9 @@ static int test_large_scale_merge(void) {
 
     clock_t start = clock();
     NormalizationResult *result = graph_normalize(graph, false);
-    clock_t end = clock();
 
     printf("  After: %d nodes, merged %d, time %.4fs\n", graph->node_count, result->merged_count,
-           ((double) (end - start)) / CLOCKS_PER_SEC);
+           lv_clock_elapsed_sec(start));
 
     if (graph->node_count != NUM_GROUPS) {
         printf("  FAILED: Expected %d nodes, got %d\n", NUM_GROUPS, graph->node_count);

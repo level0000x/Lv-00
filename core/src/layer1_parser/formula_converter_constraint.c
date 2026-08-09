@@ -270,7 +270,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
             } else {
                 angle_deg = (double) angle_node->data.number.numerator / (double) angle_node->data.number.denominator;
             }
-            angle_rad = angle_deg * M_PI / 180.0;
+            angle_rad = lv_deg_to_rad(angle_deg);
         }
     }
 
@@ -290,7 +290,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     }
 
     /* 将弧度转换为度 */
-    double angle_deg = angle_rad * 180.0 / M_PI;
+    double angle_deg = lv_rad_to_deg(angle_rad);
 
     /* 创建两条线段 AB 和 BC */
     AddNodeResult seg_ab = graph_add_line_segment(graph, a_id, b_id);

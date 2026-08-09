@@ -77,7 +77,7 @@ static double eval_b_div(const FormulaNode *node, double x, double y) {
             double l = eval_node(node->data.binary_op.left, x, y);
             double r = eval_node(node->data.binary_op.right, x, y);
             /* 使用容差检查代替精确零比较，防止次正规数除法溢出 */
-            return (fabs(r) > 1e-15) ? l / r : 0.0;
+            return (fabs(r) > lv_EPSILON_SUPERTINY) ? l / r : 0.0;
         }
 
 static double eval_b_pow(const FormulaNode *node, double x, double y) {
@@ -85,7 +85,7 @@ static double eval_b_pow(const FormulaNode *node, double x, double y) {
             double r = eval_node(node->data.binary_op.right, x, y);
             /* Guard: pow(negative, non-integer) is undefined in reals.
              * Return 0.0 for consistency with the SQRT handling below. */
-            if (l < 0.0 && fabs(r - round(r)) > 1e-12)
+            if (l < 0.0 && !lv_is_integer_double(r, 1e-12))
                 return 0.0;
             return pow(l, r);
         }

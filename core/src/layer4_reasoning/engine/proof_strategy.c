@@ -728,13 +728,13 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine, const Propositio
     }
 
     /* 记录开始时间 */
-    int64_t start_time = get_time_ns();
+    int64_t start_time = (int64_t) lv_get_time_ns();
 
     /* 执行策略 */
     bool success = dispatch_strategy(engine, goal, strategy_type, tree);
 
     /* 记录结束时间 */
-    int64_t end_time = get_time_ns();
+    int64_t end_time = (int64_t) lv_get_time_ns();
     double elapsed = (double) (end_time - start_time) / 1e6;
 
     /* 更新溯源树状态 */

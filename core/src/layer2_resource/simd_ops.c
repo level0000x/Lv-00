@@ -167,12 +167,7 @@ static lvSimdStatsAtomic g_simd_stats = {0};
 
 /* 轻量计时：simd_time_us 真实计数（可简化：仅批量数组操作级计时，逐向量操作计时开销过大不作） */
 static uint64_t lv_simd_now_us(void) {
-#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
-    struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-        return (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
-#endif
-    return (uint64_t)(((double)clock() / (double)CLOCKS_PER_SEC) * 1e6);
+    return lv_get_time_us();
 }
 
 #define lv_SIMD_TIME_BEGIN() uint64_t lv_t0 = lv_simd_now_us()

@@ -21,6 +21,7 @@
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 
 #include "debug.h"
@@ -131,7 +132,7 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
 
     /* 解析命令类型 */
     char *save_ptr = NULL;
-    char *token = strtok_s(buffer, " ", &save_ptr);
+    char *token = lv_strtok_r(buffer, " ", &save_ptr);
     if (!token)
         return lv_ERROR_PARSE;
 
@@ -145,7 +146,7 @@ int interop_parse_command(const char *input, InteropCommand *cmd) {
         return lv_ERROR_PARSE;
 
     /* 解析参数 */
-    while ((token = strtok_s(NULL, " ", &save_ptr)) != NULL && cmd->param_count < INTEROP_MAX_PARAMS) {
+    while ((token = lv_strtok_r(NULL, " ", &save_ptr)) != NULL && cmd->param_count < INTEROP_MAX_PARAMS) {
         lv_strlcpy(cmd->params[cmd->param_count], token, 256);
         cmd->param_count++;
     }

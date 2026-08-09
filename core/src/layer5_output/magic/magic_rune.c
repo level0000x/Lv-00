@@ -326,8 +326,7 @@ Rune *rune_parse(const char *str) {
     }
 
     /* 跳过前导空白 */
-    while (*str == ' ' || *str == '\t')
-        str++;
+    str = lv_str_ltrim((char *) str);
 
     /* 解析元素类型（默认为 NONE） */
     MagicElement element = ELEMENT_NONE;

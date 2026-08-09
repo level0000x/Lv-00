@@ -370,7 +370,7 @@ bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, c
     ++ctx->recursion_depth;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
-    if (ctx->recursion_depth > MAX_MEMO_ENTRIES) { /* 递归过深 = 记忆化条目上限 */
+    if (ctx->recursion_depth > PROP_MAX_RECURSION_DEPTH) { /* 递归过深，防止栈溢出 */
         goto prove_depth_exceeded;
     }
 
@@ -385,7 +385,8 @@ bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, c
     int midx = memo_find(ctx, goal, phash);
     if (midx >= 0 && ctx->memo[midx].searched) {
         bool r = ctx->memo[midx].proven;
-        ctx->recursion_depth--;
+        if (--ctx->recursion_depth == 0)
+            memo_destroy(ctx);
         return r;
     }
 
@@ -425,13 +426,15 @@ bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, c
     /* 记录记忆化结果 */
     memo_add(ctx, goal, phash, result);
 
-    ctx->recursion_depth--;
+    if (--ctx->recursion_depth == 0)
+        memo_destroy(ctx);
     return result;
 
 prove_depth_exceeded:
 #pragma GCC diagnostic pop
     /* 递归深度超限或时间超时，统一在此递减递归深度 */
-    ctx->recursion_depth--;
+    if (--ctx->recursion_depth == 0)
+        memo_destroy(ctx);
     return false;
 }
 

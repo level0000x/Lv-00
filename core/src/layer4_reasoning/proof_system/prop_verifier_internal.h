@@ -14,17 +14,17 @@ extern "C" {
 #include "lv/lv_internal.h"
 #include "lv/stream.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_hashtable.h"
 
 /* ---- constants ---- */
 #define MAX_PREMISES 64
 #define MAX_GOALS 64
-#define MAX_MEMO_ENTRIES 1024
 #define MAX_FORMULA_STR 2048
 #define MAX_COPY_DEPTH 200
 #define MAX_DESTROY_DEPTH 200
 
+#define PROP_MAX_RECURSION_DEPTH 1024
 #define PROP_DESTROY_STACK_INIT_CAP 64
-#define PROP_DESTROY_STACK_GROWTH 2
 
 #define PROP_PREC_ATOM 100
 #define PROP_PREC_NEGATION 80
@@ -72,8 +72,10 @@ typedef struct {
     int steps;
     bool timed_out;
     uint64_t start_time_ms;
-    MemoEntry memo[MAX_MEMO_ENTRIES];
+    MemoEntry *memo;
+    lvHashtable *memo_index;
     int memo_count;
+    int memo_capacity;
     int recursion_depth;
 } ProofContext;
 
@@ -87,6 +89,7 @@ uint64_t formula_hash(const PropFormula *f);
 uint64_t premises_hash(const PropFormula **premises, int count);
 int memo_find(ProofContext *ctx, const PropFormula *goal, uint64_t phash);
 void memo_add(ProofContext *ctx, const PropFormula *goal, uint64_t phash, bool proven);
+void memo_destroy(ProofContext *ctx);
 bool premise_contains(const PropFormula **premises, int count, const PropFormula *f);
 bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, const PropFormula *goal);
 int forward_chain_conjunctions(const PropFormula **input, int input_count, const PropFormula **output,

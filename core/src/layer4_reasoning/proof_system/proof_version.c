@@ -244,8 +244,7 @@ lvProofRepo *proof_repo_init(const char *path) {
     if (!repo)
         return NULL;
 
-    strncpy(repo->path, path, sizeof(repo->path) - 1);
-    repo->path[sizeof(repo->path) - 1] = '\0';
+    lv_strlcpy(repo->path, path, sizeof(repo->path));
 
     /* Create directory structure */
     if (!create_repo_dirs(path)) {
@@ -300,8 +299,7 @@ lvProofRepo *proof_repo_open(const char *path) {
     if (!repo)
         return NULL;
 
-    strncpy(repo->path, path, sizeof(repo->path) - 1);
-    repo->path[sizeof(repo->path) - 1] = '\0';
+    lv_strlcpy(repo->path, path, sizeof(repo->path));
 
     /* Read HEAD */
     char head_path[lv_PATH_BUF_SIZE], dir[lv_PATH_BUF_SIZE];
@@ -514,8 +512,7 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lv
         if (!diff->entries)
             return false;
 
-        strncpy(diff->entries[0].path, "(root)", sizeof(diff->entries[0].path) - 1);
-        diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
+        lv_strlcpy(diff->entries[0].path, "(root)", sizeof(diff->entries[0].path));
         memset(diff->entries[0].old_hash, '0', lv_OID_LENGTH - 1);
         diff->entries[0].old_hash[lv_OID_LENGTH - 1] = '\0';
         safe_strncpy(diff->entries[0].new_hash, target_b, lv_OID_LENGTH);
@@ -529,8 +526,7 @@ bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lv
     if (!diff->entries)
         return false;
 
-    strncpy(diff->entries[0].path, "(commit)", sizeof(diff->entries[0].path) - 1);
-    diff->entries[0].path[sizeof(diff->entries[0].path) - 1] = '\0';
+    lv_strlcpy(diff->entries[0].path, "(commit)", sizeof(diff->entries[0].path));
     safe_strncpy(diff->entries[0].old_hash, oid_a, lv_OID_LENGTH);
     safe_strncpy(diff->entries[0].new_hash, target_b, lv_OID_LENGTH);
     diff->entries[0].change_type = 1; /* modified */

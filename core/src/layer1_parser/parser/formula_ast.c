@@ -306,6 +306,7 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
         }
         memcpy(node->data.compound.statements, statements, sizeof(FormulaNode *) * count);
         node->data.compound.statement_count = count;
+        node->data.compound.statement_capacity = count;
     }
     return node;
 }
@@ -314,12 +315,12 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
     if (!compound || compound->type != NODE_COMPOUND || !statement)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid compound or statement");
 
-    int new_count = compound->data.compound.statement_count + 1;
-    FormulaNode **new_statements = lv_realloc(compound->data.compound.statements, sizeof(FormulaNode *) * new_count);
-    if (!new_statements)
+    if (!lv_ensure_capacity((void **) &compound->data.compound.statements,
+                            compound->data.compound.statement_count,
+                            &compound->data.compound.statement_capacity,
+                            sizeof(FormulaNode *), 0))
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc statements array");
 
-    compound->data.compound.statements = new_statements;
     compound->data.compound.statements[compound->data.compound.statement_count++] = statement;
     return 0;
 }

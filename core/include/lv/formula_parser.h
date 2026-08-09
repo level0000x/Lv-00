@@ -222,6 +222,7 @@ struct FormulaNode {
         struct {
             FormulaNode **statements;
             int statement_count;
+            int statement_capacity;
         } compound;
     } data;
 };

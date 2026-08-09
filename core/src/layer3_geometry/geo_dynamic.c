@@ -11,6 +11,7 @@
  */
 
 #include "lv/geo_dynamic.h"
+#include "lv/geo_utils.h" /* geo_norm_2d（2D 向量模长统一工具） */
 #include "lv/lv_lifecycle.h"
 #include <float.h>
 #include <math.h>
@@ -521,7 +522,7 @@ static void update_node_params(lvDynGraph *graph, int node_id) {
                 if (p1 && p2 && p1->param_count >= 2 && p2->param_count >= 2) {
                     double dx = p1->params[0] - p2->params[0];
                     double dy = p1->params[1] - p2->params[1];
-                    node->params[0] = sqrt(dx * dx + dy * dy);
+                    node->params[0] = geo_norm_2d(dx, dy);
                     node->param_count = 1;
                 }
             }

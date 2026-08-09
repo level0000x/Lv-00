@@ -143,7 +143,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
                     double fy = (eval_node(equation_node, x, y + h) - f) / h;
 
                     double grad_sq = fx * fx + fy * fy;
-                    if (grad_sq < 1e-12)
+                    if (grad_sq < lv_EPSILON_ULTRA)
                         break;
 
                     x -= f * fx / grad_sq;
@@ -604,7 +604,8 @@ static bool identify_circle(const double *coeffs, double *cx, double *cy, double
     double c_0 = coeffs[0 * IMPLICIT_MAX_DEG + 0];  /* 常数项 */
 
     /* 检查：x^2 和 y^2 系数相同且非零，xy 系数为零 */
-    if (fabs(c_x2 - c_y2) > 1e-9 || fabs(c_x2) < 1e-9 || fabs(c_xy) > 1e-9) {
+    if (fabs(c_x2 - c_y2) > lv_GEO_COLLINEAR_EPSILON || fabs(c_x2) < lv_GEO_COLLINEAR_EPSILON ||
+        fabs(c_xy) > lv_GEO_COLLINEAR_EPSILON) {
         return false;
     }
 
@@ -640,7 +641,7 @@ static bool identify_line(const double *coeffs, double *a, double *b, double *c)
     for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
         int deg_x = i / IMPLICIT_MAX_DEG;
         int deg_y = i % IMPLICIT_MAX_DEG;
-        if (deg_x + deg_y >= 2 && fabs(coeffs[i]) > 1e-9) {
+        if (deg_x + deg_y >= 2 && fabs(coeffs[i]) > lv_GEO_COLLINEAR_EPSILON) {
             return false;
         }
     }
@@ -650,7 +651,7 @@ static bool identify_line(const double *coeffs, double *a, double *b, double *c)
     *c = coeffs[0 * IMPLICIT_MAX_DEG + 0]; /* 常数项 */
 
     /* a 和 b 不能同时为零 */
-    if (fabs(*a) < 1e-9 && fabs(*b) < 1e-9) {
+    if (fabs(*a) < lv_GEO_COLLINEAR_EPSILON && fabs(*b) < lv_GEO_COLLINEAR_EPSILON) {
         return false;
     }
 
@@ -773,7 +774,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             SymbolicCoord *p1_coords[2];
             SymbolicCoord *p2_coords[2];
 
-            if (fabs(b) > 1e-9) {
+            if (fabs(b) > lv_GEO_COLLINEAR_EPSILON) {
                 /* y = (-Ax - C) / B，取 x=0 和 x=1 */
                 double y0 = -c / b;
                 double y1 = -(a + c) / b;
@@ -865,7 +866,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
                 int deg_x = i / IMPLICIT_MAX_DEG;
                 int deg_y = i % IMPLICIT_MAX_DEG;
-                if (fabs(coeffs[i]) > 1e-12 && (deg_x + deg_y) > max_total_deg) {
+                if (fabs(coeffs[i]) > lv_EPSILON_ULTRA && (deg_x + deg_y) > max_total_deg) {
                     max_total_deg = deg_x + deg_y;
                 }
             }
@@ -881,7 +882,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
                 offset = (int) sizeof(buf) - 1;
             }
             for (int i = 0; i < IMPLICIT_COEFFS_SIZE && offset < (int) sizeof(buf) - 1; i++) {
-                if (fabs(coeffs[i]) > 1e-12) {
+                if (fabs(coeffs[i]) > lv_EPSILON_ULTRA) {
                     int added = snprintf(buf + offset, sizeof(buf) - offset, ":%d:%.10g", i, coeffs[i]);
                     if (added > 0) {
                         offset += added;

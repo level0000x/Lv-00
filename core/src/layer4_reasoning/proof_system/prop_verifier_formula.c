@@ -195,17 +195,11 @@ static bool push_to_stack(PropFormula *child, PropFormula ***stack, int *stack_t
     if (!child)
         return true; /* NULL 子节点，无需操作 */
     if (*stack_top >= *stack_capacity) {
-        int new_cap = *stack_capacity * PROP_DESTROY_STACK_GROWTH;
-        if (new_cap <= *stack_capacity)
-            return false; /* 溢出保护 */
-        PropFormula **new_stack = (PropFormula **) lv_realloc(*stack, (size_t) new_cap * sizeof(PropFormula *));
-        if (!new_stack) {
+        if (!lv_ensure_capacity((void **) stack, *stack_top, stack_capacity, sizeof(PropFormula *), 0)) {
             /* 栈扩容失败，直接递归销毁该子节点 */
             prop_formula_destroy(child);
             return false;
         }
-        *stack = new_stack;
-        *stack_capacity = new_cap;
     }
     (*stack)[(*stack_top)++] = child;
     return true;

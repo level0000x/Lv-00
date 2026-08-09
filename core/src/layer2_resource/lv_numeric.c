@@ -64,6 +64,16 @@ bool lv_is_negative(double x, double epsilon) {
     return x < -epsilon;
 }
 
+/**
+ * @brief 判断浮点数是否近似为整数
+ * @param x 要判断的值
+ * @param epsilon 精度阈值
+ * @return true 如果 |x - round(x)| < epsilon
+ */
+bool lv_is_integer_double(double x, double epsilon) {
+    return fabs(x - round(x)) < epsilon;
+}
+
 /* ============================================================
  * 数值范围检查
  * ============================================================ */
