@@ -495,10 +495,7 @@ static LvSemanticType check_expr(LvSemaContext *ctx, LvAstNode *node) {
     if (!node)
         return LV_TYPE_ERROR;
 
-    LvAstNodeType t = node->type;
-    if (t >= 0 && t < LV_AST_COUNT && check_expr_table[t])
-        return check_expr_table[t](ctx, node);
-    return LV_TYPE_UNKNOWN;
+    return LV_DISPATCH(check_expr_table, node->type, LV_TYPE_UNKNOWN, ctx, node);
 }
 
 /* ── VTable for check_stmt ── */

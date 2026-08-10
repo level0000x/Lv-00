@@ -22,6 +22,7 @@
 
 #include "lv/geometric_primitives.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -271,9 +272,7 @@ GeoResult geo_unify(const ConstraintGraph *construction, const ConstraintGraph *
         return geo_err(GEO_STATUS_NULL_ARG, "命题图 NULL");
 
     UnifyStatus s = unify_construction_with_proposition(construction, proposition);
-    if ((unsigned)s < lv_ARRAY_SIZE(kUnifyHandlers) && kUnifyHandlers[s])
-        return kUnifyHandlers[s]();
-    return geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败");
+    return LV_DISPATCH(kUnifyHandlers, s, geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败"));
 }
 
 /* ── geo_pack 状态映射处理函数 ── */

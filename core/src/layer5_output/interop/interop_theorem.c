@@ -358,7 +358,9 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
     x(INTEROP_EXPORT_PDF, "pdf") \
     x(INTEROP_EXPORT_TIKZ, "tikz") \
     x(INTEROP_EXPORT_GEOJSON, "geojson") \
-    x(INTEROP_EXPORT_CANONICAL, "canonical")
+    x(INTEROP_EXPORT_CANONICAL, "canonical") \
+    x(INTEROP_EXPORT_ISABELLE, "isabelle") \
+    x(INTEROP_EXPORT_HOL_LIGHT, "hol_light")
 
 #define INTEROP_IMPORT_FORMAT_X(x) \
     x(INTEROP_IMPORT_GEOGEBRA, "geogebra") \

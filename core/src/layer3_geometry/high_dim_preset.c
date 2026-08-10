@@ -94,10 +94,8 @@ int high_dim_remove_projection_preset(HighDimManager *manager, int block_id, int
         return lv_ERROR_UNSUPPORTED;
     }
 
-    /* 移动后续预设（使用 memmove 而非 memcpy，因为源和目标区域可能重叠） */
-    for (int i = preset_index; i < block->preset_count - 1; i++) {
-        memmove(&block->presets[i], &block->presets[i + 1], sizeof(HighDimProjectionPreset));
-    }
+    /* 移动后续预设（lv_shift_left 内部 memmove 整体前移，源和目标区域可能重叠） */
+    lv_shift_left(block->presets, sizeof(HighDimProjectionPreset), (size_t) preset_index, (size_t) block->preset_count);
 
     block->preset_count--;
 

@@ -125,6 +125,18 @@ void domain_destroy(Domain *domain) {
     lv_free((void **) &domain);
 }
 
+/** @brief DomainRule 优先级升序比较（lv_insertion_sort 回调，数值越小优先级越高） */
+static int cmp_domain_rule_priority(const void *a, const void *b, void *ctx) {
+    (void) ctx;
+    const DomainRule *ra = (const DomainRule *) a;
+    const DomainRule *rb = (const DomainRule *) b;
+    if (ra->priority < rb->priority)
+        return -1;
+    if (ra->priority > rb->priority)
+        return 1;
+    return 0;
+}
+
 /**
  * @brief 向领域添加规则
  *
@@ -161,16 +173,8 @@ bool domain_add_rule(Domain *domain, const char *rule_name, double priority) {
     domain->rules[idx].action = 0; /* 默认动作 */
     domain->rule_count++;
 
-    /* 按优先级排序（数值越小优先级越高，使用简单冒泡排序） */
-    for (int i = domain->rule_count - 1; i > 0; i--) {
-        if (domain->rules[i].priority < domain->rules[i - 1].priority) {
-            DomainRule tmp = domain->rules[i];
-            domain->rules[i] = domain->rules[i - 1];
-            domain->rules[i - 1] = tmp;
-        } else {
-            break; /* 尾部已排好序，提前退出 */
-        }
-    }
+    /* 按优先级排序（数值越小优先级越高，收敛为 lv_insertion_sort） */
+    lv_insertion_sort(domain->rules, (size_t) domain->rule_count, sizeof(DomainRule), cmp_domain_rule_priority, NULL);
 
     return true;
 }

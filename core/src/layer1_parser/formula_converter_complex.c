@@ -303,8 +303,8 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     double rx = radius * cos(start_angle);
     double ry = radius * sin(start_angle);
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_from_double_scaled(rx, 1000);
-    radius_coords[1] = symbolic_coord_from_double_scaled(ry, 1000);
+    radius_coords[0] = symbolic_coord_from_double_scaled(rx, lv_RATIONAL_SCALE_LOW);
+    radius_coords[1] = symbolic_coord_from_double_scaled(ry, lv_RATIONAL_SCALE_LOW);
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);

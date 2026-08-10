@@ -79,14 +79,10 @@ extern "C" {
 #endif
 
 /* ================================================================
- * 全局默认常量（与 lv.h 保持同步，使用 #ifndef 守卫确保幂等）
+ * 全局默认常量（仅本头内部使用）
+ * 注：与 config.h 重复的编译期默认值（如 lv_DEFAULT_TIMEOUT_MS、
+ *     lv_DEFAULT_MAX_ITERATIONS）以 config.h 为唯一来源，勿在此重定义。
  * ================================================================ */
-#ifndef lv_DEFAULT_TIMEOUT_MS
-#define lv_DEFAULT_TIMEOUT_MS 10000
-#endif
-#ifndef lv_DEFAULT_MAX_ITERATIONS
-#define lv_DEFAULT_MAX_ITERATIONS 1000
-#endif
 #ifndef MAX_BLOCK_PORTS
 #define MAX_BLOCK_PORTS 32
 #endif

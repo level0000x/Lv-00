@@ -721,8 +721,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         if (identify_circle(coeffs, &cx, &cy, &r)) {
             /* 创建圆心点 (cx, cy) */
             SymbolicCoord *center_coords[2];
-            center_coords[0] = symbolic_coord_from_double_scaled(cx, 1000);
-            center_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
+            center_coords[0] = symbolic_coord_from_double_scaled(cx, lv_RATIONAL_SCALE_LOW);
+            center_coords[1] = symbolic_coord_from_double_scaled(cy, lv_RATIONAL_SCALE_LOW);
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
             symbolic_coord_destroy(center_coords[0]);
@@ -736,8 +736,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
 
             /* 创建圆周上的一个点表示半径 */
             SymbolicCoord *radius_coords[2];
-            radius_coords[0] = symbolic_coord_from_double_scaled(cx + r, 1000);
-            radius_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
+            radius_coords[0] = symbolic_coord_from_double_scaled(cx + r, lv_RATIONAL_SCALE_LOW);
+            radius_coords[1] = symbolic_coord_from_double_scaled(cy, lv_RATIONAL_SCALE_LOW);
 
             add_result = graph_add_point(graph, radius_coords, 2);
             symbolic_coord_destroy(radius_coords[0]);
@@ -779,15 +779,15 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
                 double y0 = -c / b;
                 double y1 = -(a + c) / b;
                 p1_coords[0] = symbolic_coord_create_rational(0, 1);
-                p1_coords[1] = symbolic_coord_from_double_scaled(y0, 1000);
+                p1_coords[1] = symbolic_coord_from_double_scaled(y0, lv_RATIONAL_SCALE_LOW);
                 p2_coords[0] = symbolic_coord_create_rational(1000, 1000);
-                p2_coords[1] = symbolic_coord_from_double_scaled(y1, 1000);
+                p2_coords[1] = symbolic_coord_from_double_scaled(y1, lv_RATIONAL_SCALE_LOW);
             } else {
                 /* 垂直线 x = -C/A，取 y=0 和 y=1 */
                 double x0 = -c / a;
-                p1_coords[0] = symbolic_coord_from_double_scaled(x0, 1000);
+                p1_coords[0] = symbolic_coord_from_double_scaled(x0, lv_RATIONAL_SCALE_LOW);
                 p1_coords[1] = symbolic_coord_create_rational(0, 1);
-                p2_coords[0] = symbolic_coord_from_double_scaled(x0, 1000);
+                p2_coords[0] = symbolic_coord_from_double_scaled(x0, lv_RATIONAL_SCALE_LOW);
                 p2_coords[1] = symbolic_coord_create_rational(1000, 1000);
             }
 
