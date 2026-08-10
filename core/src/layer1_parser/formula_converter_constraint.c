@@ -161,8 +161,9 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
 
     if (!mid_coords[0] || !mid_coords[1]) {
         /* 使用默认坐标 */
-        mid_coords[0] = symbolic_coord_create_rational(0, 1);
-        mid_coords[1] = symbolic_coord_create_rational(0, 1);
+        symbolic_coord_destroy(mid_coords[0]);
+        symbolic_coord_destroy(mid_coords[1]);
+        symbolic_coord_pair_create_rational(0, 1, 0, 1, &mid_coords[0], &mid_coords[1]);
     }
 
     /* 如果中点 M 已存在，更新其坐标 */
@@ -329,8 +330,9 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
 
         /* 使用两个坐标存储 cos(θ) 和 sin(θ) */
         SymbolicCoord *angle_coords[2];
-        angle_coords[0] = symbolic_coord_from_double_scaled(cos_theta, lv_RATIONAL_SCALE_DEFAULT);
-        angle_coords[1] = symbolic_coord_from_double_scaled(sin_theta, lv_RATIONAL_SCALE_DEFAULT);
+        if (!symbolic_coord_pair_from_double_scaled(cos_theta, sin_theta, lv_RATIONAL_SCALE_DEFAULT, &angle_coords[0], &angle_coords[1])) {
+            return false;
+        }
 
         AddNodeResult add_result = graph_add_point(graph, angle_coords, 2);
         symbolic_coord_destroy(angle_coords[0]);

@@ -1623,11 +1623,9 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
             /* 将 double 坐标转为有理数 SymbolicCoord */
             int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
             int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
-            SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
-            SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
-            if (!cx || !cy) {
-                if (cx)
-                    symbolic_coord_destroy(cx);
+            SymbolicCoord *cx;
+            SymbolicCoord *cy;
+            if (!symbolic_coord_pair_create_rational(xn, 1000000000ULL, yn, 1000000000ULL, &cx, &cy)) {
                 continue;
             }
             AddNodeResult res = graph_add_point_xy(graph, cx, cy);

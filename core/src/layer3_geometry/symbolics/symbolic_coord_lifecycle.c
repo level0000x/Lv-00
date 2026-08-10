@@ -201,6 +201,41 @@ SymbolicCoord *symbolic_coord_from_double_rounded(double val, int64_t scale) {
     return symbolic_coord_create_rational((int64_t) scaled_val, (uint64_t) scale);
 }
 
+bool symbolic_coord_pair_create_rational(int64_t num_x, uint64_t denom_x,
+                                         int64_t num_y, uint64_t denom_y,
+                                         SymbolicCoord **out_x, SymbolicCoord **out_y) {
+    *out_x = NULL;
+    *out_y = NULL;
+    *out_x = symbolic_coord_create_rational(num_x, denom_x);
+    if (!*out_x)
+        return false;
+    *out_y = symbolic_coord_create_rational(num_y, denom_y);
+    if (!*out_y) {
+        /* symbolic_coord_destroy 为 NULL 安全，此处统一回滚已创建项 */
+        symbolic_coord_destroy(*out_x);
+        *out_x = NULL;
+        return false;
+    }
+    return true;
+}
+
+bool symbolic_coord_pair_from_double_scaled(double x, double y, int64_t scale,
+                                            SymbolicCoord **out_x, SymbolicCoord **out_y) {
+    *out_x = NULL;
+    *out_y = NULL;
+    *out_x = symbolic_coord_from_double_scaled(x, scale);
+    if (!*out_x)
+        return false;
+    *out_y = symbolic_coord_from_double_scaled(y, scale);
+    if (!*out_y) {
+        /* symbolic_coord_destroy 为 NULL 安全，此处统一回滚已创建项 */
+        symbolic_coord_destroy(*out_x);
+        *out_x = NULL;
+        return false;
+    }
+    return true;
+}
+
 /**
  * 创建代数数类型的符号坐标。
  *

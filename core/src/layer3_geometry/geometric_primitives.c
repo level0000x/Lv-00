@@ -127,10 +127,7 @@ static GeoResult (*const s_node_handlers[])(ConstraintGraph *, const int *, int)
 /* 原语 1: geo_create_node -- 创建几何节点（POINT/LINE/REGION/PORT） */
 GeoResult geo_create_node(ConstraintGraph *graph, GeoNodeType type, const int *ids, int count) {
     CHECK_GRAPH(graph);
-    if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_node_handlers) && s_node_handlers[(int) type]) {
-        return s_node_handlers[(int) type](graph, ids, count);
-    }
-    return geo_err(GEO_STATUS_INVALID_TYPE, "未知节点类型");
+    return LV_DISPATCH(s_node_handlers, type, geo_err(GEO_STATUS_INVALID_TYPE, "未知节点类型"), graph, ids, count);
 }
 
 /* ── 约束创建辅助函数：将 AddConstraintResult 包装为 GeoResult ── */
@@ -186,10 +183,7 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, 
     CHECK_GRAPH(graph);
     if (!p || n < 2)
         return geo_err(GEO_STATUS_INVALID_PARAM, "参与者不足");
-    if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_constraint_handlers) && s_constraint_handlers[(int) type]) {
-        return s_constraint_handlers[(int) type](graph, p, n);
-    }
-    return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
+    return LV_DISPATCH(s_constraint_handlers, type, geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型"), graph, p, n);
 }
 
 /* ── geo_solve 状态映射处理函数 ── */

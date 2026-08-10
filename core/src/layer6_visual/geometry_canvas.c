@@ -471,6 +471,11 @@ static const lvGeomEntityVtbl kGeomEntityVtbls[] = {
     [lv_GEOM_POLYGON] = {geom_default_extend_bounds, geom_polygon_center, geom_polygon_render},
 };
 
+/** @brief 按实体类型安全获取操作 vtbl（越界返回 NULL） */
+static const lvGeomEntityVtbl *geom_entity_vtbl(lvGeomEntityType type) {
+    return (unsigned) type < lv_ARRAY_SIZE(kGeomEntityVtbls) ? &kGeomEntityVtbls[type] : NULL;
+}
+
 /* ================================================================
  * 包围盒 / 中心 / SVG 输出
  * ================================================================ */
@@ -505,8 +510,9 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
                 max_y = y;
         }
         /* 按实体类型扩展包围盒（圆需额外考虑半径） */
-        if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
-            kGeomEntityVtbls[e->type].extend_bounds(e, &min_x, &min_y, &max_x, &max_y);
+        const lvGeomEntityVtbl *vtbl = geom_entity_vtbl(e->type);
+        if (vtbl) {
+            vtbl->extend_bounds(e, &min_x, &min_y, &max_x, &max_y);
         }
     }
     /* 添加边距 */
@@ -554,8 +560,9 @@ static int find_entity_center(lvGeometryCanvas *canvas, int id, double *cx, doub
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
         if (e->id == id) {
-            if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
-                return kGeomEntityVtbls[e->type].center(e, cx, cy);
+            const lvGeomEntityVtbl *vtbl = geom_entity_vtbl(e->type);
+            if (vtbl) {
+                return vtbl->center(e, cx, cy);
             }
             /* 未知类型：退化为顶点平均（保持原 else 分支语义） */
             return geom_avg_center(e, cx, cy);
@@ -611,8 +618,9 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     /* 绘制实体（按类型 vtable 分派渲染） */
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
-        if ((unsigned) e->type < lv_ARRAY_SIZE(kGeomEntityVtbls)) {
-            kGeomEntityVtbls[e->type].render_svg(e, buf, buf_size, &pos);
+        const lvGeomEntityVtbl *vtbl = geom_entity_vtbl(e->type);
+        if (vtbl) {
+            vtbl->render_svg(e, buf, buf_size, &pos);
         }
         /* 未知类型不渲染（原 switch default 分支为空） */
     }

@@ -61,13 +61,7 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
         if (!coords) {
             lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
         }
-        coords[0] = symbolic_coord_create_rational(0, 1);
-        coords[1] = symbolic_coord_create_rational(0, 1);
-        if (!coords[0] || !coords[1]) {
-            if (coords[0])
-                symbolic_coord_destroy(coords[0]);
-            if (coords[1])
-                symbolic_coord_destroy(coords[1]);
+        if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
             lv_free((void **) &coords);
             lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
         }
@@ -195,8 +189,9 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     /* 如果没有圆心，创建一个默认圆心点 */
     if (center_id < 0) {
         SymbolicCoord *coords[2];
-        coords[0] = symbolic_coord_create_rational(0, 1);
-        coords[1] = symbolic_coord_create_rational(0, 1);
+        if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
+            return false;
+        }
 
         AddNodeResult result = graph_add_point(graph, coords, 2);
         symbolic_coord_destroy(coords[0]);

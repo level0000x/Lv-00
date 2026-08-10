@@ -178,20 +178,16 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder, const Constrai
         double y_val = base_y + (double) src_node->type * type_spacing;
 
         SymbolicCoord *coords[2];
-        coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
-        coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
-        if (!coords[0] || !coords[1]) {
-            if (coords[0])
-                symbolic_coord_destroy(coords[0]);
-            if (coords[1])
-                symbolic_coord_destroy(coords[1]);
+        if (!symbolic_coord_pair_from_double_scaled(x_val, y_val, 1, &coords[0], &coords[1])) {
+            /* 创建失败：pair helper 已自动回滚 */
             continue;
         }
 
         GeomNode *new_node = graph_add_node_with_id(encoded, src_node->id, GEOM_POINT, coords, 2);
+        /* graph_add_node_with_id 深拷贝坐标，此处释放原始对象 */
+        symbolic_coord_destroy(coords[0]);
+        symbolic_coord_destroy(coords[1]);
         if (!new_node) {
-            symbolic_coord_destroy(coords[0]);
-            symbolic_coord_destroy(coords[1]);
             continue;
         }
         new_node->trust = src_node->trust;
@@ -250,13 +246,7 @@ GeomNode *meta_repr_encode_node(MetaReprEncoder *encoder, const GeomNode *node) 
         lv_free((void **) &encoded);
         return NULL;
     }
-    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
-    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
-    if (!coords[0] || !coords[1]) {
-        if (coords[0])
-            symbolic_coord_destroy(coords[0]);
-        if (coords[1])
-            symbolic_coord_destroy(coords[1]);
+    if (!symbolic_coord_pair_from_double_scaled(x_val, y_val, 1, &coords[0], &coords[1])) {
         lv_free((void **) &coords);
         lv_free((void **) &encoded);
         return NULL;
@@ -307,8 +297,11 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
         lv_free((void **) &encoded_region);
         return NULL;
     }
-    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
-    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
+    if (!symbolic_coord_pair_from_double_scaled(x_val, y_val, 1, &coords[0], &coords[1])) {
+        lv_free((void **) &coords);
+        lv_free((void **) &encoded_region);
+        return NULL;
+    }
 
     encoded_region->id = block->id;
     encoded_region->type = GEOM_REGION;
@@ -332,13 +325,7 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 SymbolicCoord **pcoords = (SymbolicCoord **) lv_calloc(2, sizeof(SymbolicCoord *));
                 if (!pcoords)
                     continue;
-                pcoords[0] = symbolic_coord_from_double_scaled(px, 1);
-                pcoords[1] = symbolic_coord_from_double_scaled(py, 1);
-                if (!pcoords[0] || !pcoords[1]) {
-                    if (pcoords[0])
-                        symbolic_coord_destroy(pcoords[0]);
-                    if (pcoords[1])
-                        symbolic_coord_destroy(pcoords[1]);
+                if (!symbolic_coord_pair_from_double_scaled(px, py, 1, &pcoords[0], &pcoords[1])) {
                     lv_free((void **) &pcoords);
                     continue;
                 }
@@ -362,13 +349,7 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 SymbolicCoord **pcoords = (SymbolicCoord **) lv_calloc(2, sizeof(SymbolicCoord *));
                 if (!pcoords)
                     continue;
-                pcoords[0] = symbolic_coord_from_double_scaled(px, 1);
-                pcoords[1] = symbolic_coord_from_double_scaled(py, 1);
-                if (!pcoords[0] || !pcoords[1]) {
-                    if (pcoords[0])
-                        symbolic_coord_destroy(pcoords[0]);
-                    if (pcoords[1])
-                        symbolic_coord_destroy(pcoords[1]);
+                if (!symbolic_coord_pair_from_double_scaled(px, py, 1, &pcoords[0], &pcoords[1])) {
                     lv_free((void **) &pcoords);
                     continue;
                 }
@@ -424,13 +405,7 @@ GeomNode *meta_repr_encode_type_region(MetaReprEncoder *encoder, const TypeRegio
         lv_free((void **) &encoded_region);
         return NULL;
     }
-    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
-    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
-    if (!coords[0] || !coords[1]) {
-        if (coords[0])
-            symbolic_coord_destroy(coords[0]);
-        if (coords[1])
-            symbolic_coord_destroy(coords[1]);
+    if (!symbolic_coord_pair_from_double_scaled(x_val, y_val, 1, &coords[0], &coords[1])) {
         lv_free((void **) &coords);
         lv_free((void **) &encoded_region);
         return NULL;
@@ -477,13 +452,7 @@ GeomNode *meta_repr_encode_proposition(MetaReprEncoder *encoder, const Propositi
         lv_free((void **) &encoded_node);
         return NULL;
     }
-    coords[0] = symbolic_coord_from_double_scaled(x_val, 1);
-    coords[1] = symbolic_coord_from_double_scaled(y_val, 1);
-    if (!coords[0] || !coords[1]) {
-        if (coords[0])
-            symbolic_coord_destroy(coords[0]);
-        if (coords[1])
-            symbolic_coord_destroy(coords[1]);
+    if (!symbolic_coord_pair_from_double_scaled(x_val, y_val, 1, &coords[0], &coords[1])) {
         lv_free((void **) &coords);
         lv_free((void **) &encoded_node);
         return NULL;

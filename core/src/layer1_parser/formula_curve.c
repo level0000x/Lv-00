@@ -721,8 +721,9 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         if (identify_circle(coeffs, &cx, &cy, &r)) {
             /* 创建圆心点 (cx, cy) */
             SymbolicCoord *center_coords[2];
-            center_coords[0] = symbolic_coord_from_double_scaled(cx, lv_RATIONAL_SCALE_LOW);
-            center_coords[1] = symbolic_coord_from_double_scaled(cy, lv_RATIONAL_SCALE_LOW);
+            if (!symbolic_coord_pair_from_double_scaled(cx, cy, lv_RATIONAL_SCALE_LOW, &center_coords[0], &center_coords[1])) {
+                return false;
+            }
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
             symbolic_coord_destroy(center_coords[0]);
@@ -736,8 +737,9 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
 
             /* 创建圆周上的一个点表示半径 */
             SymbolicCoord *radius_coords[2];
-            radius_coords[0] = symbolic_coord_from_double_scaled(cx + r, lv_RATIONAL_SCALE_LOW);
-            radius_coords[1] = symbolic_coord_from_double_scaled(cy, lv_RATIONAL_SCALE_LOW);
+            if (!symbolic_coord_pair_from_double_scaled(cx + r, cy, lv_RATIONAL_SCALE_LOW, &radius_coords[0], &radius_coords[1])) {
+                return false;
+            }
 
             add_result = graph_add_point(graph, radius_coords, 2);
             symbolic_coord_destroy(radius_coords[0]);
@@ -840,8 +842,9 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
      * 格式为 "IMPLICIT_CURVE:degree:coeffs..."
      */
     SymbolicCoord *coords[2];
-    coords[0] = symbolic_coord_create_rational(0, 1);
-    coords[1] = symbolic_coord_create_rational(0, 1);
+    if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
+        return false;
+    }
 
     AddNodeResult add_result = graph_add_point(graph, coords, 2);
     symbolic_coord_destroy(coords[0]);

@@ -249,6 +249,37 @@ SymbolicCoord *symbolic_coord_from_double_scaled(double val, int64_t scale);
  * @return 新建的 SymbolicCoord（有理数类型），失败返回 NULL
  */
 SymbolicCoord *symbolic_coord_from_double_rounded(double val, int64_t scale);
+
+/**
+ * @brief 一次创建一对有理数坐标；任一创建失败时自动回滚已创建项
+ *
+ * 用于收敛「创建 x/y → 判空 → 逐项回滚 → 使用 → 双销毁」四段式样板：
+ * 失败路径由本函数统一回滚，调用点只需判返回值。
+ *
+ * @param num_x   X 坐标分子
+ * @param denom_x X 坐标分母
+ * @param num_y   Y 坐标分子
+ * @param denom_y Y 坐标分母
+ * @param out_x   输出 X 坐标（失败时置 NULL）
+ * @param out_y   输出 Y 坐标（失败时置 NULL）
+ * @return 全部创建成功返回 true；任一失败返回 false（已自动回滚）
+ */
+bool symbolic_coord_pair_create_rational(int64_t num_x, uint64_t denom_x,
+                                         int64_t num_y, uint64_t denom_y,
+                                         SymbolicCoord **out_x, SymbolicCoord **out_y);
+
+/**
+ * @brief 一次创建一对按比例缩放的有理数坐标；任一创建失败时自动回滚已创建项
+ *
+ * @param x      X 坐标原始值
+ * @param y      Y 坐标原始值
+ * @param scale  缩放比例（分母）
+ * @param out_x  输出 X 坐标（失败时置 NULL）
+ * @param out_y  输出 Y 坐标（失败时置 NULL）
+ * @return 全部创建成功返回 true；任一失败返回 false（已自动回滚）
+ */
+bool symbolic_coord_pair_from_double_scaled(double x, double y, int64_t scale,
+                                            SymbolicCoord **out_x, SymbolicCoord **out_y);
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right);
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name);
 SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *c);

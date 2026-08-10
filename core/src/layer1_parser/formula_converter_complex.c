@@ -73,8 +73,9 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
         if (v_id < 0) {
             /* 创建默认顶点 */
             SymbolicCoord *coords[2];
-            coords[0] = symbolic_coord_create_rational(0, 1);
-            coords[1] = symbolic_coord_create_rational(0, 1);
+            if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
+                return false;
+            }
             AddNodeResult r = graph_add_point(graph, coords, 2);
             symbolic_coord_destroy(coords[0]);
             symbolic_coord_destroy(coords[1]);
@@ -243,8 +244,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     /* 如果没有圆心，创建默认圆心 */
     if (center_id < 0) {
         SymbolicCoord *coords[2];
-        coords[0] = symbolic_coord_create_rational(0, 1);
-        coords[1] = symbolic_coord_create_rational(0, 1);
+        if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
+            return false;
+        }
         AddNodeResult r = graph_add_point(graph, coords, 2);
         symbolic_coord_destroy(coords[0]);
         symbolic_coord_destroy(coords[1]);
@@ -303,8 +305,9 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     double rx = radius * cos(start_angle);
     double ry = radius * sin(start_angle);
     SymbolicCoord *radius_coords[2];
-    radius_coords[0] = symbolic_coord_from_double_scaled(rx, lv_RATIONAL_SCALE_LOW);
-    radius_coords[1] = symbolic_coord_from_double_scaled(ry, lv_RATIONAL_SCALE_LOW);
+    if (!symbolic_coord_pair_from_double_scaled(rx, ry, lv_RATIONAL_SCALE_LOW, &radius_coords[0], &radius_coords[1])) {
+        return false;
+    }
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
     symbolic_coord_destroy(radius_coords[0]);
