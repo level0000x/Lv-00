@@ -208,9 +208,7 @@ Rune *rune_copy(const Rune *src) {
  */
 /* ── rune_destroy 子资源销毁适配 ── */
 
-static void destroy_rune_coord(void *obj) {
-    symbolic_coord_destroy((SymbolicCoord *) obj);
-}
+LV_DESTROY_SHIM(destroy_rune_coord, SymbolicCoord, symbolic_coord_destroy)
 
 /* rune_destroy 字段描述表：coord 对象销毁，name/symbol 纯指针 */
 static const lvFieldDesc s_rune_destroy_fields[] = {

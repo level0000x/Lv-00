@@ -12,6 +12,7 @@
 
 #include "geometry_types.h"
 #include "geometry_csg_internal.h"
+#include "lv/lv_numeric.h" /* lv_rel_tol_scale（K5-3B 相对容差共享设施） */
 #include "lv_internal.h"
 #include "lv_utils.h"
 
@@ -65,7 +66,7 @@ void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, CSGTriLi
         max_vertex_abs = fmax(max_vertex_abs, fabs(vertices[i].y));
         max_vertex_abs = fmax(max_vertex_abs, fabs(vertices[i].z));
     }
-    double csg_hull_eps = CSG_BSP_EPSILON * fmax(1.0, max_vertex_abs);
+    double csg_hull_eps = lv_rel_tol_scale(CSG_BSP_EPSILON, max_vertex_abs);
 
     /* 暴力枚举所有三元组 */
     for (int i = 0; i < vertex_count - 2; i++) {

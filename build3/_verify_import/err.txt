@@ -1,0 +1,9 @@
+﻿.\build3\_verify_import\verify.exe : [2026-08-09 13:13:02] [WARN] [engine_lifecycle.c] [C:/Users/xingg/Desktop/知识体系化Wik
+i/Lv-00/core/src/layer4_reasoning/engine/engine_lifecycle.c:68] engine_create: stream_context_register_builtins() 已调用（v
+oid 返回，无法检测错误）
+At line:15 char:7961
++ ... pgrep\bin'; .\build3\_verify_import\verify.exe build3/_verify_import/ ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([2026-08-09 13:...void 返回，无法检测错误）:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

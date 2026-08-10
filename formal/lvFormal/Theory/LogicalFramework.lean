@@ -103,18 +103,24 @@ structure StandardRules (sig : FormalSignature) where
   /-- 全称概括（Generalization）：从 φ（x 自由出现）推出 ∀x φ -/
   gen : InferenceRule sig
 
-/-- 标准一阶逻辑推理规则的默认构造 -/
+/-- 标准一阶逻辑推理规则的默认构造。
+    注意：InferenceRule 只能表示具体公式（无法表达带元变量的规则模式），
+    这里给出 MP（肯定前件）与 Gen（全称概括）的具象实例：
+    • mp：由 φ 与 φ → ψ 推出 ψ（φ、ψ 用变量等式给出）
+    • gen：由 φ 推出 ∀x φ
+    这些实例不使用虚构的 "placeholder" 符号，而是实际的语言构造子。 -/
 def standardRules (sig : FormalSignature) : StandardRules sig :=
+  let p : Formula sig := .eq (.var "φ") (.var "φ")
+  let q : Formula sig := .eq (.var "ψ") (.var "ψ")
   { mp := {
       name       := "mp"
-      premises   := [.rel { name := "placeholder", arity := 0 } [],
-                     .rel { name := "placeholder", arity := 0 } []]
-      conclusion := .rel { name := "placeholder", arity := 0 } []
+      premises   := [p, .imp p q]
+      conclusion := q
     }
     gen := {
       name       := "gen"
-      premises   := [.rel { name := "placeholder", arity := 0 } []]
-      conclusion := .rel { name := "placeholder", arity := 0 } []
+      premises   := [p]
+      conclusion := .forall "x" p
     }
   }
 
@@ -164,12 +170,11 @@ abbrev Valuation (α : Type) := VarName → α
 /-- 在给定模型和赋值下计算项的值 -/
 def term_eval {sig : FormalSignature} (M : Model sig) (v : Valuation M.domain) : Term sig → M.domain
   | .var x => v x
-  | .func f args => M.funcInterp f (args.map (term_eval M v))
-termination_by t => sizeOf t
-decreasing_by
-  simp_wf
-  apply List.sizeOf_lt_sizeOf_cons
-  exact List.mem_map_self _ _
+  | .func f args => M.funcInterp f (term_eval_args args)
+where
+  term_eval_args : List (Term sig) → List M.domain
+    | [] => []
+    | t :: rest => term_eval M v t :: term_eval_args rest
 
 /-- 满足关系：在模型 M 和赋值 v 下，公式 φ 是否为真。
     记为 M ⊧ φ[v]（在赋值 v 下满足 φ）。
@@ -185,10 +190,33 @@ def satisfies {sig : FormalSignature} (M : Model sig) (v : Valuation M.domain) :
   | .forall x φ => ∀ (a : M.domain), satisfies M (fun y => if y = x then a else v y) φ
   | .exists x φ => ∃ (a : M.domain), satisfies M (fun y => if y = x then a else v y) φ
 
-/-- 公式是封闭的（没有自由变量）。封闭公式的真值与赋值无关。 -/
-def is_sentence {sig : FormalSignature} : Formula sig → Prop :=
-  -- 简化的自由变量检查（真实实现需要完整的 FV 计算）
-  fun _ => True
+/-- 项的自由变量：变量返回自身；函数应用收集所有参数的自由变量。 -/
+def term_free_vars {sig : FormalSignature} : Term sig → Finset VarName
+  | .var x => {x}
+  | .func _ args => (term_free_vars_args args).foldr (· ∪ ·) ∅
+where
+  term_free_vars_args : List (Term sig) → List (Finset VarName)
+    | [] => []
+    | t :: rest => term_free_vars t :: term_free_vars_args rest
+
+/-- 公式的自由变量集合：
+    • 关系应用与等式：收集参数项的自由变量
+    • 命题连接词（∧ ∨ → ¬）：子公式自由变量之并
+    • 量词 ∀x φ / ∃x φ：剔除被绑定的变量 x -/
+def free_variables {sig : FormalSignature} : Formula sig → Finset VarName
+  | .rel _ args => (args.map term_free_vars).foldr (· ∪ ·) ∅
+  | .eq t1 t2 => term_free_vars t1 ∪ term_free_vars t2
+  | .and φ ψ => free_variables φ ∪ free_variables ψ
+  | .or φ ψ => free_variables φ ∪ free_variables ψ
+  | .imp φ ψ => free_variables φ ∪ free_variables ψ
+  | .not φ => free_variables φ
+  | .forall x φ => free_variables φ \ {x}
+  | .exists x φ => free_variables φ \ {x}
+
+/-- 公式是封闭的（句子）：当且仅当其自由变量集合为空。
+    封闭公式的真值与赋值无关。 -/
+def is_sentence {sig : FormalSignature} (φ : Formula sig) : Prop :=
+  free_variables φ = ∅
 
 /-- 封闭公式在模型中为真（M ⊧ φ）：当且仅当对任意赋值 v，M ⊧ φ[v]。
     由于 φ 是封闭的，等价于存在一个赋值使其满足。 -/
@@ -244,6 +272,22 @@ def provable (T : FormalTheory) (φ : Formula T.sig) : Prop :=
 /-- 可证明性记法 -/
 notation:50 T:51 " ⊢ " φ:50 => provable T φ
 
+/-- 证明树是封闭的：不含开放前提（premise）节点。
+    封闭证明完全由公理与推理规则构成；含开放前提的证明树
+    依赖未验证的假设，其结论不满足语义可靠性。
+    这是一个计算式谓词（递归 def），可靠性定理中由结构归纳自动展开。 -/
+def ProofTree.Closed : {φ : Formula T.sig} → ProofTree T φ → Prop
+  | _, .ax _ _ => True
+  | _, .premise _ => False
+  | _, .mp _ _ hφ hφψ => ProofTree.Closed hφ ∧ ProofTree.Closed hφψ
+  | _, .gen _ _ hφ => ProofTree.Closed hφ
+  | _, .rule r _ h_premises => ∀ (i : Fin (r.premises.length)), ProofTree.Closed (h_premises i)
+
+/-- 封闭可证明性：存在不含开放前提节点的证明树。
+    只有封闭可证明的公式才被可靠性定理保证为语义有效。 -/
+def closed_provable (T : FormalTheory) (φ : Formula T.sig) : Prop :=
+  ∃ p : ProofTree T φ, ProofTree.Closed p
+
 /-- 一致理论：不存在 φ 使得 T ⊢ φ 且 T ⊢ ¬φ -/
 def consistent (T : FormalTheory) : Prop :=
   ¬ ∃ (φ : Formula T.sig), T ⊢ φ ∧ T ⊢ (.not φ)
@@ -264,49 +308,56 @@ def complete (T : FormalTheory) : Prop :=
    这里我们陈述定理的框架形式，具体逻辑的完备性需要单独证明。
    =============================================================== -/
 
-/-- 可靠性定理：若 T ⊢ φ，则对所有 T 的模型 M，M ⊧ φ。
+/-- 可靠性定理：若 T 封闭地可证明 φ（证明树不含开放前提），
+    则对所有 T 的模型 M，M ⊧ φ。
 
     证明：对 ProofTree 做结构归纳。
     • 公理情况：由 is_model_of 定义中公理部分直接得到
-    • 前提情况：前提公式视为假设，在任意赋值下自动满足
+    • 前提情况：前提公式是开放假设，封闭证明中不出现（由封闭性排除）
     • MP 情况：由 satisfies 对 imp 的语义定义 + 归纳假设
     • Gen 情况：由 satisfies 对 forall 的语义定义 + 归纳假设
     • 规则情况：由 is_model_of 定义中规则有效性部分 + 归纳假设 -/
 theorem soundness_theorem (T : FormalTheory) (φ : Formula T.sig)
-    (h_provable : T ⊢ φ) (h_axioms_ok : True) : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ := by
+    (h_provable : closed_provable T φ) : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ := by
   intro M h_model
-  rcases h_provable with ⟨proof⟩
+  rcases h_provable with ⟨proof, h_closed⟩
   rcases h_model with ⟨h_ax_ok, h_rules_ok⟩
-  refine fun v => ?_
+  revert h_closed
   induction proof with
   | ax φ' h_ax =>
+      intro hc w
       have h_ax_sat : M ⊧ φ' := h_ax_ok φ' h_ax
-      exact h_ax_sat v
+      exact h_ax_sat w
   | premise φ' =>
-      exact False.elim (by trivial)
+      intro hc
+      nomatch hc
   | mp φ' ψ hφ hφψ ih_φ ih_φψ =>
-      exact ih_φψ ih_φ
+      intro hc w
+      rcases hc with ⟨hcφ, hcφψ⟩
+      exact ih_φψ hcφψ w (ih_φ hcφ w)
   | gen φ' x hφ ih =>
+      intro hc w
       intro a
-      simpa [satisfies] using ih (fun y => if y = x then a else v y)
+      simpa [satisfies] using ih hc (fun y => if y = x then a else w y)
   | rule r h_mem h_premises ih =>
+      intro hc w
       have h_rule_valid := h_rules_ok r h_mem
-      exact h_rule_valid v ih
+      exact h_rule_valid w (fun i => ih i (hc i) w)
 
-/-- 完备性原理（框架声明）：若对 T 的所有模型 M 有 M ⊧ φ，则 T ⊢ φ。
+/-- 完备性原理（声明，待证明）：若对 T 的所有模型 M 有 M ⊧ φ，且 T 一致，
+    则 T ⊢ φ。
 
     注意：一阶逻辑完备性定理（Gödel 1929）保证了对任意一阶理论 T，
-    若 φ 在 T 的所有模型中为真，则 φ 在 T 中可证明。
+    若 φ 在 T 的所有模型中为真，则 φ 在 T 中可证明。其证明依赖选择公理与
+    模型论构造（Henkin 构造 / 超滤），本框架尚未给出构造性证明，
+    故以命名 axiom 诚实声明，待后续证明。绝不再用 premise 构造子作万能逃逸。 -/
+axiom completeness_principle_axiom (T : FormalTheory) (φ : Formula T.sig)
+    (h_valid : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ) (h_consistent : consistent T) : T ⊢ φ
 
-    本框架层陈述该原理的形式，具体理论是否需要 / 能否证明完备性
-    取决于该理论的逻辑强度（可判定片段通常可证完备性）。 -/
+/-- 完备性原理（与旧接口兼容的别名，指向 completeness_principle_axiom）。 -/
 theorem completeness_principle (T : FormalTheory) (φ : Formula T.sig)
-    (h_valid : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ) (h_consistent : consistent T) : T ⊢ φ := by
-  classical
-  refine' ⟨_⟩
-  by_cases h_mem : φ ∈ T.axioms
-  · exact ProofTree.ax φ h_mem
-  · exact ProofTree.premise φ
+    (h_valid : ∀ (M : Model T.sig), is_model_of T M → M ⊧ φ) (h_consistent : consistent T) : T ⊢ φ :=
+  completeness_principle_axiom T φ h_valid h_consistent
 
 /-! ===============================================================
    第七部分：理论之间的关系
@@ -327,17 +378,47 @@ structure TheoryExtension (T T' : FormalTheory) where
   /-- 附加标识（保持 Type 层级，避免落入 Prop） -/
   tag : String
 
+/-- 项提升：将签名 sig 下的项翻译为签名 sig' 下的项。
+    变量与函数符号（name + arity）不依赖具体签名，因此可以直接复用。 -/
+def lift_term {sig sig' : FormalSignature} : Term sig → Term sig'
+  | .var x => .var x
+  | .func f args => .func f (lift_term_args args)
+where
+  lift_term_args : List (Term sig) → List (Term sig')
+    | [] => []
+    | t :: rest => lift_term t :: lift_term_args rest
+
+/-- 公式提升：将签名 sig 下的公式翻译为签名 sig' 下的公式。
+    这是保守扩展中"原语言公式嵌入扩展语言"的标准方式。 -/
+def lift_formula {sig sig' : FormalSignature} : Formula sig → Formula sig'
+  | .rel r args => .rel r (lift_formula_args args)
+  | .eq t1 t2 => .eq (lift_term t1) (lift_term t2)
+  | .and φ ψ => .and (lift_formula φ) (lift_formula ψ)
+  | .or φ ψ => .or (lift_formula φ) (lift_formula ψ)
+  | .imp φ ψ => .imp (lift_formula φ) (lift_formula ψ)
+  | .not φ => .not (lift_formula φ)
+  | .forall x φ => .forall x (lift_formula φ)
+  | .exists x φ => .exists x (lift_formula φ)
+where
+  lift_formula_args : List (Term sig) → List (Term sig')
+    | [] => []
+    | t :: rest => lift_term t :: lift_formula_args rest
+
 /-- 保守扩展：T' 是 T 的扩展，且原语言中的定理不变。
 
-    即：对任意 T.sig 中的公式 φ，
+    即：对任意 T.sig 中的公式 φ（提升为 T'.sig 中的公式后），
     若 T' ⊢ φ，则 T ⊢ φ。
 
-    保守扩展保证添加新符号和新公理不会改变原理论的可证明性。 -/
+    保守扩展保证添加新符号和新公理不会改变原理论的可证明性。
+    注意：该性质通常需要定义扩展语义或嵌入映射的论证才能证明，
+    故 thm_preserved 作为构造性要求（require hypothesis）保留，
+    而非虚假的 True。 -/
 structure ConservativeExtension (T T' : FormalTheory) where
   /-- 底层扩展 -/
   ext : TheoryExtension T T'
-  /-- 定理保持：原语言中的可证明性不变 -/
-  thm_preserved : True
+  /-- 定理保持：原语言公式 φ 若在扩展理论 T' 中可证明（提升后），
+      则 φ 在 T 中可证明 -/
+  thm_preserved : ∀ (φ : Formula T.sig), T' ⊢ lift_formula φ → T ⊢ φ
 
 /-- 理论等价：T₁ 和 T₂ 可互相扩展（即它们定义相同的理论）。 -/
 structure TheoryEquivalence (T1 T2 : FormalTheory) where

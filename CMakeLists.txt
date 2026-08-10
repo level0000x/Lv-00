@@ -829,14 +829,6 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/euclidean_geometry.c
-    core/src/layer3_geometry/euclidean_geometry_context.c
-    core/src/layer3_geometry/euclidean_geometry_axiom.c
-    core/src/layer3_geometry/euclidean_geometry_declare.c
-    core/src/layer3_geometry/euclidean_geometry_predicate.c
-    core/src/layer3_geometry/euclidean_geometry_consistency.c
-    core/src/layer3_geometry/euclidean_geometry_export.c
-    core/src/layer3_geometry/euclidean_geometry_equivalence.c
-    core/src/layer3_geometry/euclidean_geometry_helpers.c
     core/src/layer3_geometry/interactive_geo.c
     core/src/layer3_geometry/high_dim.c
     core/src/layer3_geometry/high_dim_core.c
@@ -937,6 +929,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_node_stub.c
     core/src/layer3_geometry/constraint_graph/graph_rank.c
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
+    core/src/layer3_geometry/constraint_graph/graph_dot_export.c
     # 图/树遍历抽象层实现
     core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
     # 符号计算子模块：代数、二次、有理、坐标运算、超越函数
@@ -1678,6 +1671,8 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_hashtable CTEST_NAME hashtable_test)
     add_lv_test_auto(test_module_serialize_unify CTEST_NAME module_serialize_unify_test)
     add_lv_test_auto(test_lifecycle CTEST_NAME lifecycle_test)
+    # 新增：L7 编排层 + L9 应用层测试
+    add_lv_test_auto(test_orchestrator CTEST_NAME orchestrator_test)
     add_lv_test_auto(test_registry CTEST_NAME registry_test)
     add_lv_test_auto(test_stream CTEST_NAME stream_test)
     add_lv_test_auto(test_stream_extended CTEST_NAME stream_extended_test)

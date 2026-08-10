@@ -18,6 +18,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_check.h"
+#include "lv/lv_numeric.h" /* lv_rel_tol_scale（K5-3B 相对容差共享设施） */
 
 #include "debug.h"
 #include "error_codes.h"
@@ -269,7 +270,7 @@ static bool symbolic_check_between(SymbolicCoord *ax, SymbolicCoord *ay, Symboli
     /* 使用相对容差判断 |AB| + |BC| == |AC|：
      * 对于大坐标值，sqrt 的浮点误差可能超过绝对容差。
      * 除以 ac（= max(ab, bc, ac) 当 B 在 A、C 之间）得到相对误差。 */
-    double rel_tol = fmax(EUCLID_COLLINEARITY_EPSILON, ac * EUCLID_COLLINEARITY_EPSILON);
+    double rel_tol = lv_rel_tol_scale(EUCLID_COLLINEARITY_EPSILON, ac);
     return fabs(ab + bc - ac) <= rel_tol;
 }
 

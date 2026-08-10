@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_numeric.h"
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
 #include "lv_utils.h"
@@ -105,11 +106,8 @@ static double compute_angle(double px, double py, double x1, double y1, double x
     double angle2 = atan2(dy2, dx2);
     double diff = angle2 - angle1;
 
-    /* 归一化到 [-π, π] */
-    while (diff > M_PI)
-        diff -= 2 * M_PI;
-    while (diff < -M_PI)
-        diff += 2 * M_PI;
+    /* 归一化到 [-π, π]（共享设施 lv_angle_diff_pi，端点 ±π 保持不变） */
+    diff = lv_angle_diff_pi(diff);
 
     return diff;
 }

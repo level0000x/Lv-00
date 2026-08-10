@@ -93,9 +93,7 @@ Domain *domain_create(const char *name, int range) {
  */
 /* ── domain_destroy 子资源销毁适配 ── */
 
-static void destroy_domain_center(void *obj) {
-    symbolic_coord_destroy((SymbolicCoord *) obj);
-}
+LV_DESTROY_SHIM(destroy_domain_center, SymbolicCoord, symbolic_coord_destroy)
 
 /* DomainRule 元素：释放模式字符串（rules 为值数组，非指针数组，
  * 不适用 lv_FIELD_ARRAY 的指针数组语义） */
@@ -279,50 +277,67 @@ SymbolicCoord *domain_get_center(const Domain *domain) {
  * 使用 lv_enum_to_str 二分查找（表须按枚举值升序排列）
  * ================================================================ */
 
+/* ── 字符串↔枚举 X-macro 列表 ── */
+
+#define MAGIC_ELEMENT_X(x) \
+    x(ELEMENT_FIRE, "FIRE") \
+    x(ELEMENT_WATER, "WATER") \
+    x(ELEMENT_AIR, "AIR") \
+    x(ELEMENT_EARTH, "EARTH") \
+    x(ELEMENT_ETHER, "ETHER") \
+    x(ELEMENT_NONE, "NONE")
+
+#define MAGIC_STAGE_X(x) \
+    x(SPELL_STAGE_MOLDING, "开模") \
+    x(SPELL_STAGE_PURIFYING, "提纯") \
+    x(SPELL_STAGE_INFUSING, "灌注") \
+    x(SPELL_STAGE_RELEASING, "释放")
+
+#define MAGIC_STATUS_X(x) \
+    x(SPELL_STATUS_IDLE, "空闲") \
+    x(SPELL_STATUS_CASTING, "施法中") \
+    x(SPELL_STATUS_SUCCESS, "成功") \
+    x(SPELL_STATUS_FAILED, "失败") \
+    x(SPELL_STATUS_BACKLASH, "反噬")
+
+#define MAGIC_REACTION_X(x) \
+    x(ELEMENT_REACTION_NONE, "无反应") \
+    x(ELEMENT_REACTION_ENHANCE, "增强") \
+    x(ELEMENT_REACTION_WEAKEN, "削弱") \
+    x(ELEMENT_REACTION_CONFLICT, "冲突")
+
+#define MAGIC_RESTRICTION_X(x) \
+    x(RESTRICTION_NONE, "无限制") \
+    x(RESTRICTION_LIMITED, "限制级") \
+    x(RESTRICTION_CONTROLLED, "管制级") \
+    x(RESTRICTION_FORBIDDEN, "禁术级") \
+    x(RESTRICTION_ABSOLUTE, "绝对禁术")
+
 /** @brief element_to_string 名称表（按枚举值升序）
  *  @note 原实现为 names[] 索引表；此处按原表的运行时映射原样迁移，
  *        保持既有输出与边界行为（未命中返回 "未知"）不变。 */
 static const lvStrToEnumEntry s_element_to_string_entries[] = {
-    {"FIRE", ELEMENT_FIRE},
-    {"WATER", ELEMENT_WATER},
-    {"AIR", ELEMENT_AIR},
-    {"EARTH", ELEMENT_EARTH},
-    {"ETHER", ELEMENT_ETHER},
-    {"NONE", ELEMENT_NONE},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_ELEMENT_X)
 };
 
 /** @brief stage_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_stage_to_string_entries[] = {
-    {"开模", SPELL_STAGE_MOLDING},
-    {"提纯", SPELL_STAGE_PURIFYING},
-    {"灌注", SPELL_STAGE_INFUSING},
-    {"释放", SPELL_STAGE_RELEASING},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_STAGE_X)
 };
 
 /** @brief status_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_status_to_string_entries[] = {
-    {"空闲", SPELL_STATUS_IDLE},
-    {"施法中", SPELL_STATUS_CASTING},
-    {"成功", SPELL_STATUS_SUCCESS},
-    {"失败", SPELL_STATUS_FAILED},
-    {"反噬", SPELL_STATUS_BACKLASH},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_STATUS_X)
 };
 
 /** @brief reaction_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_reaction_to_string_entries[] = {
-    {"无反应", ELEMENT_REACTION_NONE},
-    {"增强", ELEMENT_REACTION_ENHANCE},
-    {"削弱", ELEMENT_REACTION_WEAKEN},
-    {"冲突", ELEMENT_REACTION_CONFLICT},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_REACTION_X)
 };
 
 /** @brief restriction_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_restriction_to_string_entries[] = {
-    {"无限制", RESTRICTION_NONE},
-    {"限制级", RESTRICTION_LIMITED},
-    {"管制级", RESTRICTION_CONTROLLED},
-    {"禁术级", RESTRICTION_FORBIDDEN},
-    {"绝对禁术", RESTRICTION_ABSOLUTE},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_RESTRICTION_X)
 };
 
 /**
@@ -344,18 +359,21 @@ const char *element_to_string(MagicElement element) {
  * @param str 元素名称字符串（如 "FIRE"、"火"）
  * @return 对应的魔法元素类型，无法识别时返回 ELEMENT_NONE
  */
+#define MAGIC_ELEMENT_STR_X(x) \
+    x(ELEMENT_FIRE, "FIRE") \
+    x(ELEMENT_FIRE, "火") \
+    x(ELEMENT_WATER, "WATER") \
+    x(ELEMENT_WATER, "水") \
+    x(ELEMENT_AIR, "AIR") \
+    x(ELEMENT_AIR, "风") \
+    x(ELEMENT_EARTH, "EARTH") \
+    x(ELEMENT_EARTH, "土") \
+    x(ELEMENT_ETHER, "ETHER") \
+    x(ELEMENT_ETHER, "以太")
+
 /** @brief string_to_element 字符串→元素查找表（中文名 + 英文名双写，替代 5 分支 strcmp 链） */
 static const lvStrToEnumEntry s_string_to_element_entries[] = {
-    {"FIRE", ELEMENT_FIRE},
-    {"火", ELEMENT_FIRE},
-    {"WATER", ELEMENT_WATER},
-    {"水", ELEMENT_WATER},
-    {"AIR", ELEMENT_AIR},
-    {"风", ELEMENT_AIR},
-    {"EARTH", ELEMENT_EARTH},
-    {"土", ELEMENT_EARTH},
-    {"ETHER", ELEMENT_ETHER},
-    {"以太", ELEMENT_ETHER},
+    lv_XMACRO_TO_ENUM_TABLE(MAGIC_ELEMENT_STR_X)
 };
 
 MagicElement string_to_element(const char *str) {

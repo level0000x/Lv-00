@@ -10,6 +10,7 @@
 
 #include "lv/lv_file.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/lv_numeric.h"
 
 #include "test_framework.h"
 
@@ -53,7 +54,6 @@ lv_REGISTRY_STATIC(case_registry, TEST_CASE_INIT_CAPACITY);
 
 static struct {
     lv_mutex_t mutex;
-    bool initialized;
 
     /* 当前测试上下文 */
     lvTestCase *current_test;
@@ -125,22 +125,19 @@ static lvTestSuite *find_or_create_suite(const char *name) {
     return suite;
 }
 
-lv_LAZY_LOCK_DEFINE(g_test_init_lock);
+/* 惰性初始化：lv_once 一次性守卫（纯一次性，无 reinit 语义） */
+static lv_once_t g_test_system_once = lv_ONCE_INIT;
 
-static void init_test_system(void) {
-    lv_lazy_lock_lock(&g_test_init_lock, g_test_init_lock_init_once);
-    if (g_test_system.initialized) {
-        lv_lazy_lock_unlock(&g_test_init_lock);
-        return;
-    }
-
+static void init_test_system_once(void) {
     memset(&g_test_system, 0, sizeof(g_test_system));
     lv_mutex_init(&g_test_system.mutex);
     suite_registry_ensure();
     case_registry_ensure();
     g_test_system.timeout_ms = 30000; /* 默认 30 秒超时 */
-    g_test_system.initialized = true;
-    lv_lazy_lock_unlock(&g_test_init_lock);
+}
+
+static void init_test_system(void) {
+    lv_once(&g_test_system_once, init_test_system_once);
 }
 
 /* ============== 测试注册实现 ============== */
@@ -248,7 +245,7 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
         void *boxed = lv_registry_get(&g_case_registry, case_key);
         if (boxed) {
             int case_index = unbox_case_index(boxed);
-            if (case_index >= 0 && case_index < suite->case_count) {
+            if (lv_index_in_range(case_index, (int) suite->case_count)) {
                 lvTestCase *test_case = &suite->cases[case_index];
                 /* 添加标签（使用安全的字符串复制函数 lv_strlcpy） */
                 if (test_case->tag_count < 8) {
@@ -519,7 +516,7 @@ lvTestResult *lv_test_run_single(const char *suite_name, const char *test_name) 
         void *boxed = lv_registry_get(&g_case_registry, case_key);
         if (boxed) {
             int case_index = unbox_case_index(boxed);
-            if (case_index >= 0 && case_index < suite->case_count) {
+            if (lv_index_in_range(case_index, (int) suite->case_count)) {
                 result = run_single_test(&suite->cases[case_index], suite);
             }
         }

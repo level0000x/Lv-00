@@ -616,6 +616,10 @@ static int boundary_action_cancel(ConstraintGraph *graph, int constraint_id) {
  *
  * 索引：CROSS_BOUNDARY_PROMOTE=0, CROSS_BOUNDARY_DISCONNECT=1, CROSS_BOUNDARY_CANCEL=2
  */
+/* exempt: 本表与 s_pack_boundary_handlers 虽共享同一枚举值序，但签名
+ * （int(*)(ConstraintGraph*, int) vs bool(*)(PackBoundaryContext*)）与语义层级
+ * （公开 API 错误码 vs 打包内部「是否继续」）均不同，强行合并将引入类型擦除
+ * 桥接层或 if(mode==X) 分支（违反终审一），故保留双表。 */
 static const BoundaryActionHandler s_boundary_action_handlers[] = {
     boundary_action_promote,    /* CROSS_BOUNDARY_PROMOTE */
     boundary_action_disconnect, /* CROSS_BOUNDARY_DISCONNECT */
@@ -693,6 +697,8 @@ static bool pack_boundary_promote(PackBoundaryContext *ctx) {
  *
  * 索引：CROSS_BOUNDARY_PROMOTE=0, CROSS_BOUNDARY_DISCONNECT=1, CROSS_BOUNDARY_CANCEL=2
  */
+/* exempt: 签名（bool(*)(PackBoundaryContext*)）与语义（是否继续处理循环）均与
+ * s_boundary_action_handlers 不同，属不同抽象层级，保留独立查找表。 */
 static const PackBoundaryActionHandler s_pack_boundary_handlers[] = {
     pack_boundary_promote,    /* CROSS_BOUNDARY_PROMOTE */
     pack_boundary_disconnect, /* CROSS_BOUNDARY_DISCONNECT */

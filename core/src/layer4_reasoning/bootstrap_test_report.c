@@ -34,11 +34,14 @@
 
 /* ============== 报告生成 ============== */
 
+#define DIFF_RESULT_X(x) \
+    x(DIFF_RESULT_EQUAL, "IDENTICAL") \
+    x(DIFF_RESULT_DIFFERENT, "DIFFERENT") \
+    x(DIFF_RESULT_ERROR, "ERROR")
+
 /** @brief diff_result_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_diff_result_str_entries[] = {
-    {"IDENTICAL", DIFF_RESULT_EQUAL},
-    {"DIFFERENT", DIFF_RESULT_DIFFERENT},
-    {"ERROR", DIFF_RESULT_ERROR},
+    lv_XMACRO_TO_ENUM_TABLE(DIFF_RESULT_X)
 };
 
 static const char *diff_result_to_string(DiffComparisonResult result) {

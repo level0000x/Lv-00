@@ -32,13 +32,14 @@
 #include <time.h>
 
 #include "lv/lv.h"
-
+#include "lv/lv_numeric.h"
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
 
 #include "lv/lv_thread.h"
 #include "groebner_engine_internal.h"
+#include "groebner_engine_guard.h"
 
 /* ================================================================
  *  平台抽象层 —— 跨平台互斥锁（使用 lv_thread.h）
@@ -75,6 +76,8 @@
 
 
 /* ================================================================
+ *  全局单例状态
+ * ================================================================ */
 
 /** @brief 全局注册数据 —— 单例 */
 lvRegistryData *g_data = NULL;
@@ -225,6 +228,7 @@ int variety_internal_store(lvRegistryData *data, lvVariety *variety) {
  * 调用方应在持有锁的状态下调用本函数。
  */
 lvRegistryData *registry_data_ensure(void) {
+    /* exempt: 惰性初始化（g_data 为空时分配），非有效性守卫，保留 */
     if (!g_data) {
         g_data = (lvRegistryData *) lv_calloc(1, sizeof(lvRegistryData));
     }
@@ -251,7 +255,7 @@ lvRegistryData *registry_data_ensure(void) {
  */
 static lvPolynomial *poly_internal_make_term(const lvPolynomialRing *ring, int var_idx, int power,
                                              double coeff_var, const char *label) {
-    if (!ring || var_idx < 0 || var_idx >= ring->var_count)
+    if (!ring || !groebner_id_in_range(var_idx, ring->var_count))
         return NULL;
     lvPolynomial *poly = poly_internal_create(ring, 2, label);
     if (!poly)
@@ -289,7 +293,7 @@ static void poly_internal_add_term(lvPolynomial *poly, const lvPolynomialRing *r
     /* 构建当前项的指数向量 */
     int *exp = (int *)lv_calloc((size_t)vc, sizeof(int));
     if (!exp) return;
-    if (var_idx >= 0 && var_idx < vc) {
+    if (lv_index_in_range(var_idx, vc)) {
         exp[var_idx] = power;
     }
     /* var_idx == -1 → 常数项，所有指数为 0（已在 calloc 中初始化） */
@@ -344,8 +348,8 @@ typedef struct {
 static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
     int pt_id = con->participants[0];
     int seg_id = con->participants[1];
-    int xpt = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_x[pt_id] : -1;
-    int ypt = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_y[pt_id] : -1;
+    int xpt = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_x[pt_id] : -1;
+    int ypt = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_y[pt_id] : -1;
     if (xpt < 0 || ypt < 0) return;
 
     int p1_id = -1, p2_id = -1;
@@ -357,10 +361,10 @@ static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx,
     }
     if (p1_id < 0) return;
 
-    int x1 = (p1_id >= 0 && p1_id < ctx->map_size) ? ctx->var_x[p1_id] : -1;
-    int y1 = (p1_id >= 0 && p1_id < ctx->map_size) ? ctx->var_y[p1_id] : -1;
-    int x2 = (p2_id >= 0 && p2_id < ctx->map_size) ? ctx->var_x[p2_id] : -1;
-    int y2 = (p2_id >= 0 && p2_id < ctx->map_size) ? ctx->var_y[p2_id] : -1;
+    int x1 = lv_index_in_range(p1_id, ctx->map_size) ? ctx->var_x[p1_id] : -1;
+    int y1 = lv_index_in_range(p1_id, ctx->map_size) ? ctx->var_y[p1_id] : -1;
+    int x2 = lv_index_in_range(p2_id, ctx->map_size) ? ctx->var_x[p2_id] : -1;
+    int y2 = lv_index_in_range(p2_id, ctx->map_size) ? ctx->var_y[p2_id] : -1;
     if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) return;
 
     lvPolynomial *inc_poly = poly_internal_make_term(ctx->ring, xpt, 1, 1.0, NULL);
@@ -398,7 +402,8 @@ static void groebner_engine_ideal_append(const GroebnerEngineEncodeCtx *ctx, lvP
 
 /* 编码辅助：取节点 id 的 (x, y) 变量索引；节点无变量映射返回 -1 */
 static int groebner_engine_var_xy(const GroebnerEngineEncodeCtx *ctx, int node_id, int *xv, int *yv) {
-    if (!ctx || !xv || !yv || node_id < 0 || node_id >= ctx->map_size) return -1;
+    if (!ctx || !xv || !yv || !groebner_id_in_range(node_id, ctx->map_size))
+        return -1;
     if (ctx->var_x[node_id] < 0 || ctx->var_y[node_id] < 0) return -1;
     *xv = ctx->var_x[node_id];
     *yv = ctx->var_y[node_id];
@@ -425,7 +430,8 @@ static bool groebner_engine_segment_coords(const ConstraintGraph *graph, int seg
 /* 编码辅助：构造线性方程 cx*x + cy*y + c0 = 0（近零系数由 add_term 自动剔除） */
 static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, int xv, int yv,
                                                  double cx, double cy, double c0) {
-    if (!ring || xv < 0 || xv >= ring->var_count || yv < 0 || yv >= ring->var_count) return NULL;
+    if (!ring || !groebner_id_in_range(xv, ring->var_count) || !groebner_id_in_range(yv, ring->var_count))
+        return NULL;
     lvPolynomial *poly = poly_internal_create(ring, 4, NULL);
     if (!poly) return NULL;
     poly_internal_add_term(poly, ring, xv, 1, cx);
@@ -601,7 +607,7 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
 
     double ux = bx - ax, uy = by - ay;
     double vx = dx - cx, vy = dy - cy;
-    double theta = con->numeric_value * M_PI / 180.0;
+    double theta = lv_deg_to_rad(con->numeric_value);
     double cos_sq = cos(theta) * cos(theta);
     double dot = ux * vx + uy * vy;
     double norm_u_sq = ux * ux + uy * uy;
@@ -644,7 +650,7 @@ static const int kGroebnerEngineEncodeTableCount =
  * - POINT 节点的符号坐标编码为常量方程 (x_i - val_x = 0)
  * - INCIDENCE(point, line_segment) 编码为叉积方程
  * - BETWEENNESS(p1, p2, p3) 编码为共线性方程
- * - 其他约束类型暂编码为占位（返回包含点坐标的理想）
+ * - 其他约束类型（编码表外）按原语义跳过：仅编码点坐标与已有类型方程
  *
  * @param registry      环注册表
  * @param graph         约束图
@@ -654,10 +660,13 @@ static const int kGroebnerEngineEncodeTableCount =
  */
 int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
                               const char *result_label) {
+    /* exempt: 双指针 NULL 守卫（registry/graph 均须非空），与 id 范围守卫
+     * groebner_id_in_range 不同构（不访问计数成员），与 ring_register 的
+     * `!registry || !ring` 同构（均为两指针非空对）；保留原形态。 */
     if (!registry || !graph)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: registry=%p, graph=%p",
                         (const void *)registry, (const void *)graph);
-    if (ring_id < 0 || ring_id >= registry->ring_count)
+    if (!groebner_id_in_range(ring_id, registry->ring_count))
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: ring_id=%d (max=%d)",
                         ring_id, registry->ring_count);
 
@@ -705,7 +714,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         GeomNode *node = graph->nodes[i];
         if (!node || node->type != GEOM_POINT) continue;
         int id = node->id;
-        if (id >= 0 && id < map_size) {
+        if (lv_index_in_range(id, map_size)) {
             var_x[id] = vi;
             var_y[id] = vi + 1;
             vi += 2;

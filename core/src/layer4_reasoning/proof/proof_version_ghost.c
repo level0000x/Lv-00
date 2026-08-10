@@ -21,6 +21,7 @@
 #include "lv/proof.h"
 #include "lv/smt_backend.h"
 #include "lv/thread_pool.h"
+#include "lv/proof_version_internal.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -233,6 +234,72 @@ bool proof_mark_ghost(int step_id, ProofQuantifier quant) {
     return true;
 }
 
+/** @brief 当前绑定到 ghost 检查的证明导航器（由 proof_navigator_create/destroy 维护） */
+static ProofNavigator *g_ghost_navigator = NULL;
+
+/**
+ * @brief 绑定当前用于 ghost 依赖链检查的证明导航器（内部辅助）
+ *
+ * @param nav 证明导航器指针（可为 NULL，表示仅使用表内 ERASED 计数）
+ */
+void proof_ghost_set_navigator(ProofNavigator *nav) {
+    g_ghost_navigator = nav;
+}
+
+/**
+ * @brief 若指定导航器正是当前绑定的 ghost 检查导航器，则解除绑定（内部辅助）
+ *
+ * @param nav 即将销毁的证明导航器指针
+ */
+void proof_ghost_clear_navigator(ProofNavigator *nav) {
+    if (g_ghost_navigator == nav) {
+        g_ghost_navigator = NULL;
+    }
+}
+
+/**
+ * @brief 对指定导航器执行 ghost（ERASED）依赖链冲突检查（内部辅助）
+ *
+ * 遍历 ghost 标记表中被标记为 PROOF_QTT_ERASED 的步骤，在导航器的
+ * 证明步骤依赖链（dependency_step_ids）中查找是否有其他非 ERASED
+ * 步骤直接依赖了该 ERASED 步骤。若存在，则输出冲突步骤对并计数。
+ *
+ * @param nav 证明导航器（可为 NULL，无导航器时无法做依赖链检查）
+ * @return 冲突数量（0 = 无冲突）
+ */
+static int ghost_conflicts_for_navigator(const ProofNavigator *nav) {
+    if (!nav)
+        return 0;
+
+    int conflicts = 0;
+
+    for (int e = 0; e < MAX_GHOST_STEPS; e++) {
+        if (g_ghost_table[e] != PROOF_QTT_ERASED)
+            continue;
+
+        for (int i = 0; i < nav->step_count; i++) {
+            const ProofStep *step = nav->steps[i];
+            if (!step || step->id == e)
+                continue;
+
+            /* 同为 ERASED 的步骤互相依赖不构成运行时冲突 */
+            if (step->id >= 0 && step->id < MAX_GHOST_STEPS && g_ghost_table[step->id] == PROOF_QTT_ERASED)
+                continue;
+
+            for (int d = 0; d < step->dependency_count; d++) {
+                if (step->dependency_step_ids[d] == e) {
+                    fprintf(stdout, "ghost conflict: step %d (ERASED) is depended on by step %d (runtime)\n",
+                            e, step->id);
+                    conflicts++;
+                    break;
+                }
+            }
+        }
+    }
+
+    return conflicts;
+}
+
 /**
  * @brief 扫描依赖链，检查是否有 runtime 步骤依赖了 ERASED 步骤
  *
@@ -247,15 +314,5 @@ bool proof_mark_ghost(int step_id, ProofQuantifier quant) {
 int proof_check_ghost_conflicts(void) {
     ghost_table_init();
 
-    int conflicts = 0;
-
-    for (int i = 0; i < MAX_GHOST_STEPS; i++) {
-        if (g_ghost_table[i] == PROOF_QTT_ERASED) {
-            /* 当前无导航器关联，仅计数 ERASED 步骤。
-             * FUTURE: 将导航器作为参数传入以进行完整依赖链检查。 */
-            conflicts++;
-        }
-    }
-
-    return conflicts;
+    return ghost_conflicts_for_navigator(g_ghost_navigator);
 }

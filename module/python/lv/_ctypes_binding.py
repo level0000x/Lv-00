@@ -46,6 +46,12 @@ def _find_library():
     if 'lv_LIBRARY_PATH' in os.environ:
         lib_path = os.environ['lv_LIBRARY_PATH']
         if os.path.exists(lib_path):
+            if lib_path.lower().endswith(('.a', '.lib')):
+                raise ImportError(
+                    f"lv_LIBRARY_PATH 指向的是静态库，ctypes 无法加载静态库（.a/.lib）: {lib_path}\n"
+                    f"需要共享库（以 BUILD_SHARED_LIBS=ON 构建，"
+                    f"Windows: liblv.dll，Linux: liblv.so，macOS: liblv.dylib）。"
+                )
             return lib_path
         raise ImportError(f"lv_LIBRARY_PATH 指定的文件不存在: {lib_path}")
     
@@ -62,12 +68,17 @@ def _find_library():
     # 搜索优先级：包目录 > 父目录 > 构建输出目录 > 项目根目录
     # 仅包含当前平台有效的路径，避免无意义的文件系统调用
     package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    project_root = os.path.join(package_dir, '..', '..')
     search_paths = [
-        package_dir,  # module/python/lv/
-        os.path.join(package_dir, '..'),  # module/python/
-        os.path.join(package_dir, '..', '..', 'build'),  # project_root/build
-        os.path.join(package_dir, '..', '..', 'build', 'Release'),  # Windows 构建目录
-        os.path.join(package_dir, '..', '..'),  # project_root
+        package_dir,  # module/python/
+        os.path.join(package_dir, '..'),  # module/
+        os.path.join(project_root, 'build3'),  # 实际静态库构建目录（liblv.a）
+        os.path.join(project_root, 'build4'),  # 实际构建目录（lv.pc）
+        os.path.join(project_root, 'build'),  # project_root/build
+        os.path.join(project_root, 'build', 'Release'),  # Windows 构建目录
+        os.path.join(project_root, 'bin'),  # project_root/bin
+        os.path.join(project_root, 'lib'),  # project_root/lib
+        project_root,  # project_root
     ]
     # 根据平台添加对应的库路径
     if sys.platform == 'darwin':
@@ -91,12 +102,36 @@ def _find_library():
             except OSError:
                 continue
 
+    # 检测是否存在静态库（.a/.lib）——ctypes 无法加载静态库，
+    # 需以 BUILD_SHARED_LIBS=ON 重新构建获得共享库
+    static_names = ['liblv.a', 'lv.a', 'liblv.lib', 'lv.lib']
+    static_hits = []
+    for path in search_paths:
+        for sname in static_names:
+            full_path = os.path.join(path, sname)
+            if os.path.exists(full_path):
+                static_hits.append(full_path)
+
     # 构建详细错误信息，列出所有尝试过的搜索位置
     searched_locations = []
     for path in search_paths:
         for name in names:
             searched_locations.append(os.path.join(path, name))
     searched_locations_str = '\n    '.join(searched_locations)
+
+    if static_hits:
+        static_hits_str = '\n    '.join(static_hits)
+        raise ImportError(
+            f"仅找到 Lv-00 静态库，ctypes 无法加载静态库（.a/.lib）。\n"
+            f"已找到以下静态库：\n"
+            f"    {static_hits_str}\n"
+            f"需要共享库（以 BUILD_SHARED_LIBS=ON 构建，"
+            f"Windows: liblv.dll，Linux: liblv.so，macOS: liblv.dylib）。\n"
+            f"解决方法：\n"
+            f"  1. 以 BUILD_SHARED_LIBS=ON 重新配置并构建 Lv-00（CMake）\n"
+            f"  2. 设置 lv_LIBRARY_PATH 环境变量指向共享库文件"
+        )
+
     raise ImportError(
         f"无法找到 Lv-00 库文件。\n"
         f"已尝试以下位置：\n"

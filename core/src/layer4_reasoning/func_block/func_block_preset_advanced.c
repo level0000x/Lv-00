@@ -18,6 +18,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
 
 /* ============================================================
  * 高级预设操作
@@ -147,7 +148,7 @@ bool func_block_preset_partial(const char *preset_name, const int *fixed_param_i
     /* ── 第四步：验证待固定参数的索引合法性 ── */
     for (int i = 0; i < fixed_count; i++) {
         int param_idx = fixed_param_indices[i];
-        if (param_idx < 0 || param_idx >= meta->input_count) {
+        if (!lv_index_in_range(param_idx, meta->input_count)) {
             /* 参数索引越界 */
             return false;
         }

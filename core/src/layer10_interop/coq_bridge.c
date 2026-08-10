@@ -22,6 +22,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
 #include "lv/interop_bridge_common.h"
 
@@ -133,14 +134,16 @@ static int coq_import_proof(const char *input, void **proof) {
     if (!qed_kw)
         lv_RETURN_ERROR(lv_ERROR_PARSE, "missing 'Qed.' keyword");
 
-    /* Coq tactic 到 Lv-00 步骤类型的反向映射 */
-    static const struct {
-        const char *tactic;
-        int step_type;
-    } reverse_map[] = {{"intro", lv_STEP_ADD_NODE},         {"constructor", lv_STEP_ADD_CONSTRAINT},
-                       {"rewrite", lv_STEP_REWRITE},        {"apply", lv_STEP_FUNCTION_APP},
-                       {"simpl", lv_STEP_NORMALIZATION},    {"reflexivity", lv_STEP_UNIFY},
-                       {"contradiction", lv_STEP_EX_FALSO}, {"admit", lv_STEP_ORACLE}};
+    /* Coq tactic 到 Lv-00 步骤类型的反向映射（name→enum 机制收敛到 lvStrToEnumEntry；互操作字符串内容逐字保留） */
+    static const lvStrToEnumEntry reverse_map[] = {
+        {"intro", lv_STEP_ADD_NODE},
+        {"constructor", lv_STEP_ADD_CONSTRAINT},
+        {"rewrite", lv_STEP_REWRITE},
+        {"apply", lv_STEP_FUNCTION_APP},
+        {"simpl", lv_STEP_NORMALIZATION},
+        {"reflexivity", lv_STEP_UNIFY},
+        {"contradiction", lv_STEP_EX_FALSO},
+        {"admit", lv_STEP_ORACLE}};
     int reverse_count = COQ_REVERSE_MAP_COUNT;
 
     /* 分配证明结构体 */
@@ -185,16 +188,15 @@ static int coq_import_proof(const char *input, void **proof) {
             tac_end++;
 
         if (tac_end > tac_start) {
-            /* 查找对应的步骤类型 */
+            /* 查找对应的步骤类型（收敛到 lv_str_to_enum，需 NUL 终止临时副本） */
             int step_type = -1;
             int tac_len = (int) (tac_end - tac_start);
+            char tac_buf[64];
 
-            for (int j = 0; j < reverse_count; j++) {
-                if ((int) strlen(reverse_map[j].tactic) == tac_len &&
-                    strncmp(tac_start, reverse_map[j].tactic, tac_len) == 0) {
-                    step_type = reverse_map[j].step_type;
-                    break;
-                }
+            if (tac_len < (int) sizeof(tac_buf)) {
+                memcpy(tac_buf, tac_start, (size_t) tac_len);
+                tac_buf[tac_len] = '\0';
+                step_type = lv_str_to_enum(reverse_map, reverse_count, tac_buf, -1);
             }
 
             /* 如果找到有效映射，添加步骤 */

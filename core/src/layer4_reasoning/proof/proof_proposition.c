@@ -18,6 +18,7 @@
 #include "lv/node_deep_copy.h"
 #include "lv/normalization.h" /* graph_normalize / NormalizationResult */
 #include "lv/proof.h"
+#include "lv/proof_version_internal.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -594,6 +595,9 @@ ProofNavigator *proof_navigator_create(Proposition *target, lvEngine *engine) {
     nav->proof_state = PROOF_STATE_ONGOING;
     nav->strategy_note = NULL; /* LeanGeo风格：策略注释 */
 
+    /* 注册为当前 ghost 依赖链检查导航器 */
+    proof_ghost_set_navigator(nav);
+
     return nav;
 }
 
@@ -608,6 +612,9 @@ ProofNavigator *proof_navigator_create(Proposition *target, lvEngine *engine) {
 void proof_navigator_destroy(ProofNavigator *nav) {
     if (!nav)
         return;
+
+    /* 若该导航器当前绑定了 ghost 检查，先解除绑定 */
+    proof_ghost_clear_navigator(nav);
 
     for (int i = 0; i < nav->step_count; i++) {
         proof_step_destroy(nav->steps[i]);

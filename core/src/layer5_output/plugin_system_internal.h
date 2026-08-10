@@ -22,7 +22,7 @@ typedef struct {
 } PluginSystemInternal;
 
 /* plugin_system_core.c 定义：设置系统错误消息（printf 风格格式化） */
-void set_error(lvPluginSystem *system, const char *format, ...);
+void plugin_system_set_error(lvPluginSystem *system, const char *format, ...);
 
 #ifdef __cplusplus
 }

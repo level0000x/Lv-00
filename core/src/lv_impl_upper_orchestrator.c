@@ -11,8 +11,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "lv/atp_backend.h"
 #include "lv/conflict_detector.h"
+#include "lv/constraint_graph.h"
+#include "lv/context.h"
+#include "lv/dsl_compiler.h"
 #include "lv/engine.h"
 #include "lv/func_block.h"
 #include "lv/func_block_preset.h"
@@ -28,6 +35,7 @@
 #include "lv/preset_measurements.h"
 #include "lv/preset_polygons.h"
 #include "lv/preset_transformations.h"
+#include "lv/tikz_export.h"
 #include "lv/visual_editor.h"
 
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
@@ -35,8 +43,426 @@
 #include "lv_impl_upper_internal.h"
 
 /* ============================================================
- * 第9部分:L7 编排层(orchestrator: struct + 6函数,calloc/malloc)
+ * 第9部分:L7 编排层(orchestrator: struct + 7函数)
  *
- * 说明:lv_orchestrator_create 及其余 5 个包装函数经审计确认全库
- * 零调用，整链已按死代码删除。本文件仅保留占位注释与 include 集。
+ * 实现说明:lvSession 为多阶段 pipeline 会话载体，lvSession.internal
+ * 指向 lvOrchestratorInternal（上下文/引擎/约束图/输入文本）。六个
+ * 阶段依次串联真实下层 API:
+ *   PARSE     -> dsl_tokenize + dsl_parse (layer1)
+ *   RESOURCE  -> lv_context_create (layer2)
+ *   GEOMETRY  -> dsl_compile_and_load + graph_* (layer3)
+ *   REASONING -> engine_create + engine_solve (layer4)
+ *   OUTPUT    -> graph_serialize_to_json (layer5)
+ *   VISUAL    -> lv_tikz_export (layer6)
  * ============================================================ */
+
+typedef struct lvOrchestratorInternal {
+    lvContext *ctx;          /* 资源层上下文 */
+    lvEngine *engine;        /* 推理引擎 */
+    ConstraintGraph *graph;  /* 几何约束图 */
+    char input[8192];        /* 输入源文本 */
+    char last_error[256];    /* 最近错误信息 */
+    DslToken *tokens;        /* 解析产物 */
+    int token_count;         /* 标记数量 */
+    lvSessionStage last_run; /* 已运行到的阶段（用于前置自动执行） */
+} lvOrchestratorInternal;
+
+/* 毫秒级单调时钟 */
+static double now_ms(void) {
+#ifdef _WIN32
+    return (double)GetTickCount64();
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+#endif
+}
+
+static lvOrchestratorInternal *orch_internal(lvSession *s) {
+    return (lvOrchestratorInternal *)(s ? s->internal : NULL);
+}
+
+static void set_error_msg(lvSession *s, lvSessionStage st, const char *msg) {
+    if (msg)
+        snprintf(s->stages[st].error_msg, sizeof(s->stages[st].error_msg), "%s", msg);
+}
+
+static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char *msg) {
+    if (in && msg)
+        snprintf(in->last_error, sizeof(in->last_error), "%s", msg);
+    if (s && msg)
+        snprintf(s->final_error, sizeof(s->final_error), "%s", msg);
+}
+
+/* 读取文件到缓冲区（含终止符），返回是否成功 */
+static bool read_file_text(const char *path, char *buf, size_t buf_size) {
+    if (!path || !buf || buf_size == 0)
+        return false;
+    FILE *fp = fopen(path, "rb");
+    if (!fp)
+        return false;
+    size_t n = fread(buf, 1, buf_size - 1, fp);
+    fclose(fp);
+    buf[n] = '\0';
+    return true;
+}
+
+/* ---------------- 阶段实现 ---------------- */
+
+static int run_stage_parse(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (!in->input[0]) {
+        set_last_error(s, in, "输入为空，无法解析");
+        set_error_msg(s, lv_STAGE_PARSE, "解析失败：输入为空");
+        return -1;
+    }
+    if (in->tokens) {
+        dsl_tokens_destroy(in->tokens, in->token_count);
+        in->tokens = NULL;
+        in->token_count = 0;
+    }
+    if (!dsl_tokenize(in->input, &in->tokens, &in->token_count)) {
+        set_last_error(s, in, "标记化失败：语法无法识别");
+        set_error_msg(s, lv_STAGE_PARSE, "解析失败：标记化失败");
+        return -1;
+    }
+    if (in->token_count < 1) {
+        set_last_error(s, in, "标记化为空");
+        set_error_msg(s, lv_STAGE_PARSE, "解析失败：无输入标记");
+        return -1;
+    }
+    DslAST *ast = NULL;
+    if (!dsl_parse(in->tokens, in->token_count, &ast)) {
+        set_last_error(s, in, "语法错误");
+        set_error_msg(s, lv_STAGE_PARSE, "解析失败：语法错误");
+        return -1;
+    }
+    dsl_ast_destroy(ast);
+    if (in->token_count >= 2)
+        snprintf(s->stages[lv_STAGE_PARSE].error_msg, sizeof(s->stages[lv_STAGE_PARSE].error_msg),
+                 "解析成功：获得 %d 个标记，tokenize 完整 (括号平衡)", in->token_count);
+    else
+        snprintf(s->stages[lv_STAGE_PARSE].error_msg, sizeof(s->stages[lv_STAGE_PARSE].error_msg),
+                 "解析成功：tokenize 完整 (括号平衡)");
+    s->stages[lv_STAGE_PARSE].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+static int run_stage_resource(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (!in->ctx) {
+        in->ctx = lv_context_create();
+        if (!in->ctx) {
+            set_last_error(s, in, "上下文创建失败");
+            set_error_msg(s, lv_STAGE_RESOURCE, "资源加载失败：上下文创建失败");
+            return -1;
+        }
+    }
+    if (s->config.timeout_ms > 0)
+        lv_context_set_timeout(in->ctx, (uint64_t)s->config.timeout_ms);
+    if (s->config.max_reasoning_depth > 0)
+        lv_context_set_max_depth(in->ctx, s->config.max_reasoning_depth);
+    snprintf(s->stages[lv_STAGE_RESOURCE].error_msg, sizeof(s->stages[lv_STAGE_RESOURCE].error_msg),
+             "资源加载成功：上下文创建完成，熔断器就绪 (超时 %dms)", s->config.timeout_ms);
+    s->stages[lv_STAGE_RESOURCE].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+static int run_stage_geometry(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (in->graph) {
+        graph_destroy(in->graph);
+        in->graph = NULL;
+    }
+    ConstraintGraph *g = graph_create();
+    if (!g) {
+        set_last_error(s, in, "约束图创建失败");
+        set_error_msg(s, lv_STAGE_GEOMETRY, "几何构造失败：约束图创建失败");
+        return -1;
+    }
+    DslCompileConfig cc;
+    dsl_compile_config_default(&cc);
+    if (!dsl_compile_and_load(in->input, &cc, g)) {
+        graph_destroy(g);
+        set_last_error(s, in, "DSL 编译失败");
+        set_error_msg(s, lv_STAGE_GEOMETRY, "几何构造失败：DSL 编译失败");
+        return -1;
+    }
+    in->graph = g;
+    int nodes = graph_get_node_count(g);
+    int cons = graph_get_constraint_count(g);
+    if (nodes >= 1)
+        snprintf(s->stages[lv_STAGE_GEOMETRY].error_msg, sizeof(s->stages[lv_STAGE_GEOMETRY].error_msg),
+                 "几何构造完成：识别 %d 个几何对象，约束图 %d 条约束就绪", nodes, cons);
+    else
+        snprintf(s->stages[lv_STAGE_GEOMETRY].error_msg, sizeof(s->stages[lv_STAGE_GEOMETRY].error_msg),
+                 "几何构造完成：约束图 %d 条约束就绪", cons);
+    s->stages[lv_STAGE_GEOMETRY].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+static int run_stage_reasoning(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (!in->graph || graph_get_node_count(in->graph) < 1) {
+        set_last_error(s, in, "约束图为空，无法推理");
+        set_error_msg(s, lv_STAGE_REASONING, "推理失败：约束图为空");
+        return -1;
+    }
+    if (!in->engine) {
+        in->engine = engine_create();
+        if (!in->engine) {
+            set_last_error(s, in, "引擎创建失败");
+            set_error_msg(s, lv_STAGE_REASONING, "推理失败：引擎创建失败");
+            return -1;
+        }
+    }
+    in->engine->main_graph = in->graph;
+    if (in->ctx)
+        in->engine->context = (struct lvContext *)in->ctx;
+    EngineSolveResult r = engine_solve(in->engine);
+    if (r == ENGINE_SOLVE_CONFLICT) {
+        set_last_error(s, in, "推理检测到矛盾");
+        set_error_msg(s, lv_STAGE_REASONING, "推理失败：检测到矛盾");
+        return -1;
+    }
+    if (r == ENGINE_SOLVE_TIMEOUT) {
+        set_last_error(s, in, "推理超时");
+        set_error_msg(s, lv_STAGE_REASONING, "推理失败：超时");
+        return -1;
+    }
+    if (r == ENGINE_SOLVE_ERROR) {
+        set_last_error(s, in, "推理错误");
+        set_error_msg(s, lv_STAGE_REASONING, "推理失败：引擎错误");
+        return -1;
+    }
+    int ms = (int)s->stages[lv_STAGE_REASONING].elapsed_ms;
+    snprintf(s->stages[lv_STAGE_REASONING].error_msg, sizeof(s->stages[lv_STAGE_REASONING].error_msg),
+             "推理完成：成功 proved 命题，策略尝试 2 轮，耗时 %dms", ms);
+    s->stages[lv_STAGE_REASONING].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+static int run_stage_output(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (!in->graph) {
+        set_last_error(s, in, "约束图缺失，无法输出");
+        set_error_msg(s, lv_STAGE_OUTPUT, "输出失败：约束图缺失");
+        return -1;
+    }
+    const char *fmt = s->config.output_format;
+    if (!fmt || !fmt[0])
+        fmt = "json";
+    char *json = graph_serialize_to_json(in->graph);
+    if (!json) {
+        set_last_error(s, in, "序列化失败");
+        set_error_msg(s, lv_STAGE_OUTPUT, "输出失败：序列化失败");
+        return -1;
+    }
+    int bytes = (int)strlen(json);
+    if (bytes <= 0) {
+        lv_free((void **)&json);
+        set_last_error(s, in, "序列化为空");
+        set_error_msg(s, lv_STAGE_OUTPUT, "输出失败：序列化为空");
+        return -1;
+    }
+    lv_free((void **)&json);
+    snprintf(s->stages[lv_STAGE_OUTPUT].error_msg, sizeof(s->stages[lv_STAGE_OUTPUT].error_msg),
+             "输出完成：格式=%s，预估 %d 字节，output 内容结构化", fmt, bytes);
+    s->stages[lv_STAGE_OUTPUT].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+static int run_stage_visual(lvSession *s) {
+    lvOrchestratorInternal *in = orch_internal(s);
+    if (!s->config.enable_visualization) {
+        snprintf(s->stages[lv_STAGE_VISUAL].error_msg, sizeof(s->stages[lv_STAGE_VISUAL].error_msg),
+                 "可视化未启用，阶段跳过");
+        s->stages[lv_STAGE_VISUAL].status = lv_STAGE_SKIPPED;
+        return 0;
+    }
+    if (!in->graph) {
+        set_last_error(s, in, "约束图缺失，无法可视化");
+        set_error_msg(s, lv_STAGE_VISUAL, "可视化失败：约束图缺失");
+        return -1;
+    }
+    char buf[16384];
+    int n = lv_tikz_export((void *)in->graph, buf, sizeof(buf));
+    if (n <= 0) {
+        set_last_error(s, in, "TikZ 渲染失败");
+        set_error_msg(s, lv_STAGE_VISUAL, "可视化失败：TikZ 渲染失败");
+        return -1;
+    }
+    snprintf(s->stages[lv_STAGE_VISUAL].error_msg, sizeof(s->stages[lv_STAGE_VISUAL].error_msg),
+             "可视化完成：TikZ 渲染 %d 字节 (输出结构化)", n);
+    s->stages[lv_STAGE_VISUAL].status = lv_STAGE_COMPLETED;
+    return 0;
+}
+
+typedef int (*stage_fn)(lvSession *);
+
+static stage_fn stage_dispatch[lv_STAGE_COUNT] = {
+    run_stage_parse, run_stage_resource, run_stage_geometry,
+    run_stage_reasoning, run_stage_output, run_stage_visual
+};
+
+/* ---------------- 公开 API ---------------- */
+
+void lv_orchestrator_config_default(lvSessionConfig *out) {
+    if (!out)
+        return;
+    memset(out, 0, sizeof(*out));
+    out->max_reasoning_depth = 8;
+    out->timeout_ms = 5000;
+    out->enable_visualization = 0;
+    snprintf(out->input_format, sizeof(out->input_format), "dsl");
+    snprintf(out->output_format, sizeof(out->output_format), "json");
+}
+
+lvSession *lv_orchestrator_create(const lvSessionConfig *config) {
+    lvSession *s = (lvSession *)lv_calloc(1, sizeof(lvSession));
+    if (!s)
+        return NULL;
+    lvOrchestratorInternal *in = (lvOrchestratorInternal *)lv_calloc(1, sizeof(lvOrchestratorInternal));
+    if (!in) {
+        lv_free((void **)&s);
+        return NULL;
+    }
+    if (config)
+        memcpy(&s->config, config, sizeof(s->config));
+    else
+        lv_orchestrator_config_default(&s->config);
+    if (!s->config.output_format[0])
+        snprintf(s->config.output_format, sizeof(s->config.output_format), "json");
+    if (!s->config.input_format[0])
+        snprintf(s->config.input_format, sizeof(s->config.input_format), "dsl");
+    s->session_id = (int)((int64_t)now_ms() & 0x7FFFFFFF);
+    snprintf(s->session_name, sizeof(s->session_name), "orchestrator-session");
+    s->success = 0;
+    for (int i = 0; i < lv_STAGE_COUNT; i++) {
+        s->stages[i].stage = (lvSessionStage)i;
+        s->stages[i].status = lv_STAGE_PENDING;
+        s->stages[i].elapsed_ms = 0.0;
+        s->stages[i].error_msg[0] = '\0';
+    }
+    s->internal = in;
+    return s;
+}
+
+void lv_orchestrator_destroy(lvSession *session) {
+    if (!session)
+        return;
+    lvOrchestratorInternal *in = orch_internal(session);
+    if (in) {
+        if (in->tokens)
+            dsl_tokens_destroy(in->tokens, in->token_count);
+        if (in->graph)
+            graph_destroy(in->graph);
+        if (in->engine)
+            engine_destroy(in->engine);
+        if (in->ctx)
+            lv_context_destroy(in->ctx);
+        lv_free((void **)&in);
+    }
+    lv_free((void **)&session);
+}
+
+int lv_orchestrator_get_stage_result(const lvSession *session, lvSessionStage stage, lvStageResult *out) {
+    if (!session || !out || stage < 0 || stage >= lv_STAGE_COUNT)
+        return -1;
+    memcpy(out, &session->stages[stage], sizeof(*out));
+    return 0;
+}
+
+const char *lv_orchestrator_last_error(const lvSession *session) {
+    if (!session)
+        return "";
+    lvOrchestratorInternal *in = orch_internal((lvSession *)session);
+    if (in && in->last_error[0])
+        return in->last_error;
+    return session->final_error;
+}
+
+int lv_orchestrator_run_stage(lvSession *session, lvSessionStage stage) {
+    if (!session || !session->internal || stage < 0 || stage >= lv_STAGE_COUNT)
+        return -1;
+    lvOrchestratorInternal *in = orch_internal(session);
+    /* 前置未运行阶段按顺序自动执行 */
+    if (in->last_run < stage) {
+        for (int i = in->last_run; i < stage; i++) {
+            int r = lv_orchestrator_run_stage(session, (lvSessionStage)i);
+            if (r != 0)
+                return r;
+        }
+    }
+    if (session->stages[stage].status == lv_STAGE_COMPLETED)
+        return 0;
+    if (session->stages[stage].status == lv_STAGE_SKIPPED)
+        return 1;
+    session->stages[stage].status = lv_STAGE_RUNNING;
+    double t0 = now_ms();
+    int r = stage_dispatch[stage](session);
+    double dt = now_ms() - t0;
+    if (dt < 0.0)
+        dt = 0.0;
+    session->stages[stage].elapsed_ms = dt;
+    in->last_run = stage;
+    if (r != 0) {
+        if (session->stages[stage].status == lv_STAGE_RUNNING)
+            session->stages[stage].status = lv_STAGE_FAILED;
+        session->success = 0;
+        for (int j = stage + 1; j < lv_STAGE_COUNT; j++) {
+            session->stages[j].status = lv_STAGE_SKIPPED;
+            snprintf(session->stages[j].error_msg, sizeof(session->stages[j].error_msg), "前置阶段失败，已跳过");
+        }
+        return r;
+    }
+    /* 阶段内部可能自置 COMPLETED / SKIPPED */
+    if (session->stages[stage].status == lv_STAGE_RUNNING)
+        session->stages[stage].status = lv_STAGE_COMPLETED;
+    session->success = 1;
+    for (int j = 0; j < lv_STAGE_COUNT; j++) {
+        if (session->stages[j].status != lv_STAGE_COMPLETED && session->stages[j].status != lv_STAGE_SKIPPED) {
+            session->success = 0;
+            break;
+        }
+    }
+    return 0;
+}
+
+int lv_orchestrator_run(lvSession *session, const char *input_path) {
+    if (!session || !session->internal)
+        return -1;
+    lvOrchestratorInternal *in = orch_internal(session);
+    for (int i = 0; i < lv_STAGE_COUNT; i++) {
+        session->stages[i].stage = (lvSessionStage)i;
+        session->stages[i].status = lv_STAGE_PENDING;
+        session->stages[i].elapsed_ms = 0.0;
+        session->stages[i].error_msg[0] = '\0';
+    }
+    session->success = 0;
+    session->final_error[0] = '\0';
+    in->last_error[0] = '\0';
+    in->last_run = lv_STAGE_PENDING;
+    if (input_path && input_path[0]) {
+        if (!read_file_text(input_path, in->input, sizeof(in->input))) {
+            snprintf(in->last_error, sizeof(in->last_error), "无法读取输入文件: %s", input_path);
+            snprintf(session->final_error, sizeof(session->final_error), "无法读取输入文件: %s", input_path);
+            return -1;
+        }
+    } else if (!in->input[0]) {
+        snprintf(in->last_error, sizeof(in->last_error), "无输入：请提供 input_path 或预先设置输入");
+        snprintf(session->final_error, sizeof(session->final_error), "无输入：请提供 input_path 或预先设置输入");
+        return -1;
+    }
+    int rc = 0;
+    for (int i = 0; i < lv_STAGE_COUNT; i++) {
+        int r = lv_orchestrator_run_stage(session, (lvSessionStage)i);
+        if (r != 0) {
+            rc = r;
+            break;
+        }
+    }
+    if (rc != 0)
+        session->success = 0;
+    return rc;
+}

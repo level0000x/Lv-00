@@ -389,7 +389,7 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                     return NAN;
                 char *end = NULL;
                 long idx = strtol(digits, &end, 10);
-                if (idx < 0 || idx >= var_count || rpn_len >= EXPR_RPN_MAX)
+                if (!lv_index_in_range((int) idx, var_count) || rpn_len >= EXPR_RPN_MAX)
                     return NAN;
                 rpn_op[rpn_len] = 0;
                 rpn_val[rpn_len] = var_values[idx];
@@ -588,7 +588,7 @@ static double evaluate_expression(const char *expr, const double *var_values, in
             /* 运算符：从求值栈弹出操作数并计算 */
             /* 使用函数指针表分派 RPN 运算符 */
             int idx = -op - 1;
-            if (idx < 0 || idx >= (int)(sizeof(kRpnEvalOps) / sizeof(kRpnEvalOps[0])) || !kRpnEvalOps[idx]) {
+            if (!lv_index_in_range(idx, (int)(sizeof(kRpnEvalOps) / sizeof(kRpnEvalOps[0]))) || !kRpnEvalOps[idx]) {
                 return NAN; /* 未知运算符 */
             }
             if (!kRpnEvalOps[idx](eval_stack, &eval_top)) {
@@ -646,7 +646,7 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
                                         const double *center_vals) {
     (void) var_bounds; /* 签名兼容：区间边界在此函数中未直接使用 */
 
-    if (!expr || !center_vals || var_count <= 0 || var_idx < 0 || var_idx >= var_count) {
+    if (!expr || !center_vals || var_count <= 0 || !lv_index_in_range(var_idx, var_count)) {
         return NAN;
     }
 
@@ -662,8 +662,9 @@ static double finite_difference_partial(const char *expr, const FloatInterval *v
      *
      * 自适应公式：h = sqrt(DBL_EPSILON) * max(1.0, fabs(x_c))
      * （sqrt(DBL_EPSILON) 与公共基准 lv_NUMERICAL_DIFF_EPSILON=1e-8 量级一致，
-     *   此处保留原值作为中心差分 O(h^2) 截断/舍入平衡的语义别名，见 lv_numeric.h） */
-    double h = sqrt(DBL_EPSILON) * fmax(1.0, fabs(x_c));
+     *   此处保留原值作为中心差分 O(h^2) 截断/舍入平衡的语义别名；
+     *   K5-3B 收敛为 lv_fd_step_adaptive（委托 lv_rel_tol_scale，逐位等价）） */
+    double h = lv_fd_step_adaptive(x_c, sqrt(DBL_EPSILON));
 
     LvFdExprCtx ctx = {expr, center_vals, var_count, var_idx, NULL};
     ctx.work = (double *) lv_malloc((size_t) var_count * sizeof(double));

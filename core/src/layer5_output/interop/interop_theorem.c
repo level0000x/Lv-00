@@ -350,16 +350,24 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
+#define INTEROP_EXPORT_FORMAT_X(x) \
+    x(INTEROP_EXPORT_COQ, "coq") \
+    x(INTEROP_EXPORT_LEAN, "lean") \
+    x(INTEROP_EXPORT_HTML, "html") \
+    x(INTEROP_EXPORT_SVG, "svg") \
+    x(INTEROP_EXPORT_PDF, "pdf") \
+    x(INTEROP_EXPORT_TIKZ, "tikz") \
+    x(INTEROP_EXPORT_GEOJSON, "geojson") \
+    x(INTEROP_EXPORT_CANONICAL, "canonical")
+
+#define INTEROP_IMPORT_FORMAT_X(x) \
+    x(INTEROP_IMPORT_GEOGEBRA, "geogebra") \
+    x(INTEROP_IMPORT_GEOJSON, "geojson") \
+    x(INTEROP_IMPORT_SVG, "svg")
+
 /** @brief interop_export_format_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_interop_export_format_name_entries[] = {
-    {"coq", INTEROP_EXPORT_COQ},
-    {"lean", INTEROP_EXPORT_LEAN},
-    {"html", INTEROP_EXPORT_HTML},
-    {"svg", INTEROP_EXPORT_SVG},
-    {"pdf", INTEROP_EXPORT_PDF},
-    {"tikz", INTEROP_EXPORT_TIKZ},
-    {"geojson", INTEROP_EXPORT_GEOJSON},
-    {"canonical", INTEROP_EXPORT_CANONICAL},
+    lv_XMACRO_TO_ENUM_TABLE(INTEROP_EXPORT_FORMAT_X)
 };
 
 const char *interop_export_format_name(InteropExportFormat format) {
@@ -368,9 +376,7 @@ const char *interop_export_format_name(InteropExportFormat format) {
 
 /** @brief interop_import_format_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_interop_import_format_name_entries[] = {
-    {"geogebra", INTEROP_IMPORT_GEOGEBRA},
-    {"geojson", INTEROP_IMPORT_GEOJSON},
-    {"svg", INTEROP_IMPORT_SVG},
+    lv_XMACRO_TO_ENUM_TABLE(INTEROP_IMPORT_FORMAT_X)
 };
 
 const char *interop_import_format_name(InteropImportFormat format) {

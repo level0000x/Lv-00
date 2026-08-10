@@ -30,219 +30,168 @@
  * 图 → 公式 主转换函数
  * ============================================================ */
 
-typedef void (*GraphNodeRenderFunc)(const GeomNode *node, const char *name,
-                                     char *out_latex, size_t *latex_len, size_t latex_size,
-                                     char *out_python, size_t *python_len, size_t python_size,
-                                     char *out_dsl, size_t *dsl_len, size_t dsl_size);
-static void render_geom_point(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                /* 获取坐标 */
-                double x = 0, y = 0;
-                if (node->symbolic_coords && node->coord_count >= 2) {
-                    x = symbolic_coord_to_double(node->symbolic_coords[0]);
-                    y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                }
+/**
+ * @brief 增量输出目标：{out, len, size} 游标式追加
+ *
+ * 收敛原 7 个 render_geom_* 回调/约束循环中重复的 5 步追加样板
+ * （snprintf → if n>0 → memcpy → len+=n → '\0'，全文件 21 处）。
+ */
+typedef struct {
+    char *out;   /* 输出缓冲区 */
+    size_t len;  /* 当前已写入长度 */
+    size_t size; /* 缓冲区容量 */
+} RenderTarget;
 
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+/**
+ * @brief 将格式化结果（n 字节）追加到输出目标
+ *
+ * 语义契约：仅当 n > 0 且 len + n < size 时，将 text 的 n 字节拷贝到 out+len，
+ * 推进 len 并在新位置写 NUL；否则保持目标不变。
+ * 前置条件：t 与 t->out 非 NULL；t->len <= t->size；text 指向至少 n 字节可读数据。
+ * 失败/截断语义：容量不足时静默跳过整次追加（len/size 均不变，不拷入部分内容），
+ * 与原有行为逐字一致。
+ * 边界行为：n == 0 跳过；len + n == size 跳过（严格 <，与原有判断一致）。
+ * 扩展点：无。
+ */
+static void render_append(RenderTarget *t, const char *text, size_t n) {
+    if (n > 0 && t->len + n < t->size) {
+        memcpy(t->out + t->len, text, n);
+        t->len += n;
+        t->out[t->len] = '\0';
+    }
+}
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+typedef void (*GraphNodeRenderFunc)(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                                    RenderTarget *dsl);
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "point %s(%.2f, %.2f); ", name, x, y);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+static void render_geom_point(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                              RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    /* 获取坐标 */
+    double x = 0, y = 0;
+    if (node->symbolic_coords && node->coord_count >= 2) {
+        x = symbolic_coord_to_double(node->symbolic_coords[0]);
+        y = symbolic_coord_to_double(node->symbolic_coords[1]);
+    }
 
-static void render_geom_line_segment(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\overline{%s}\\\\\n", name);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
+    render_append(latex, buf, (size_t) n);
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Segment()\n", name);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
+    render_append(python, buf, (size_t) n);
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "segment %s(); ", name);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "point %s(%.2f, %.2f); ", name, x, y);
+    render_append(dsl, buf, (size_t) n);
+}
 
-static void render_geom_region(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                /* 获取边界线段信息 */
-                int seg_count = node->data.region.segment_count;
-                char seg_list[FORMULA_SEG_LIST_SIZE] = "";
-                size_t seg_list_len = 0;
-                for (int j = 0; j < seg_count && j < 10; j++) {
-                    char seg_name[FORMULA_SEG_NAME_SIZE];
-                    if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
-                        formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
-                    } else {
-                        snprintf(seg_name, sizeof(seg_name), "S?");
-                    }
-                    /* 统一走 lv_str_append_sep（游标式追加，首项自动省略分隔符） */
-                    lv_str_append_sep(seg_list, sizeof(seg_list), &seg_list_len, ", ", seg_name);
-                }
-                seg_list[seg_list_len] = '\0';
+static void render_geom_line_segment(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                                     RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "\\overline{%s}\\\\\n", name);
+    render_append(latex, buf, (size_t) n);
 
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = Segment()\n", name);
+    render_append(python, buf, (size_t) n);
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Region([%s])\n", name, seg_list);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "segment %s(); ", name);
+    render_append(dsl, buf, (size_t) n);
+}
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "region %s(%s); ", name, seg_list);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+static void render_geom_region(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                               RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    /* 获取边界线段信息 */
+    int seg_count = node->data.region.segment_count;
+    char seg_list[FORMULA_SEG_LIST_SIZE] = "";
+    size_t seg_list_len = 0;
+    for (int j = 0; j < seg_count && j < 10; j++) {
+        char seg_name[FORMULA_SEG_NAME_SIZE];
+        if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
+            formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
+        } else {
+            snprintf(seg_name, sizeof(seg_name), "S?");
+        }
+        /* 统一走 lv_str_append_sep（游标式追加，首项自动省略分隔符） */
+        lv_str_append_sep(seg_list, sizeof(seg_list), &seg_list_len, ", ", seg_name);
+    }
+    seg_list[seg_list_len] = '\0';
 
-static void render_geom_circle(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{circle } %s\\\\\n", name);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
+    render_append(latex, buf, (size_t) n);
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Circle()\n", name);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = Region([%s])\n", name, seg_list);
+    render_append(python, buf, (size_t) n);
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "circle %s(); ", name);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "region %s(%s); ", name, seg_list);
+    render_append(dsl, buf, (size_t) n);
+}
 
-static void render_geom_port(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                const char *port_type_str = "unknown";
-                if (node->data.port) {
-                    port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
-                }
+static void render_geom_circle(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                               RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "\\text{circle } %s\\\\\n", name);
+    render_append(latex, buf, (size_t) n);
 
-                /* LaTeX */
-                int n =
-                    snprintf(latex_buf, sizeof(latex_buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = Circle()\n", name);
+    render_append(python, buf, (size_t) n);
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = Port('%s')\n", name, port_type_str);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "circle %s(); ", name);
+    render_append(dsl, buf, (size_t) n);
+}
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "port %s(%s); ", name, port_type_str);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+static void render_geom_port(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                             RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    const char *port_type_str = "unknown";
+    if (node->data.port) {
+        port_type_str = (node->data.port->type == PORT_INPUT) ? "input" : "output";
+    }
 
-static void render_geom_function_block(const GeomNode *node, const char *name, char *out_latex, size_t *latex_len, size_t latex_size, char *out_python, size_t *python_len, size_t python_size, char *out_dsl, size_t *dsl_len, size_t dsl_size) {
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
-                /* 获取函数块信息 */
-                int in_count = node->data.func_block.input_count;
-                int out_count = node->data.func_block.output_count;
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
+    render_append(latex, buf, (size_t) n);
 
-                /* LaTeX */
-                int n = snprintf(latex_buf, sizeof(latex_buf),
-                                 "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
-                                 out_count);
-                if (n > 0 && (*latex_len) + (size_t) n < latex_size) {
-                    memcpy(out_latex + (*latex_len), latex_buf, (size_t) n);
-                    (*latex_len) += (size_t) n;
-                    out_latex[(*latex_len)] = '\0';
-                }
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = Port('%s')\n", name, port_type_str);
+    render_append(python, buf, (size_t) n);
 
-                /* Python */
-                n = snprintf(python_buf, sizeof(python_buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count,
-                             out_count);
-                if (n > 0 && (*python_len) + (size_t) n < python_size) {
-                    memcpy(out_python + (*python_len), python_buf, (size_t) n);
-                    (*python_len) += (size_t) n;
-                    out_python[(*python_len)] = '\0';
-                }
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "port %s(%s); ", name, port_type_str);
+    render_append(dsl, buf, (size_t) n);
+}
 
-                /* DSL */
-                n = snprintf(dsl_buf, sizeof(dsl_buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
-                if (n > 0 && (*dsl_len) + (size_t) n < dsl_size) {
-                    memcpy(out_dsl + (*dsl_len), dsl_buf, (size_t) n);
-                    (*dsl_len) += (size_t) n;
-                    out_dsl[(*dsl_len)] = '\0';
-                }
-            }
+static void render_geom_function_block(const GeomNode *node, const char *name, RenderTarget *latex, RenderTarget *python,
+                                       RenderTarget *dsl) {
+    char buf[FORMULA_LATEX_BUF_SIZE];
+    /* 获取函数块信息 */
+    int in_count = node->data.func_block.input_count;
+    int out_count = node->data.func_block.output_count;
+
+    /* LaTeX */
+    int n = snprintf(buf, sizeof(buf), "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
+                     out_count);
+    render_append(latex, buf, (size_t) n);
+
+    /* Python */
+    n = snprintf(buf, sizeof(buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count, out_count);
+    render_append(python, buf, (size_t) n);
+
+    /* DSL */
+    n = snprintf(buf, sizeof(buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
+    render_append(dsl, buf, (size_t) n);
+}
 
 
 /**
@@ -285,15 +234,22 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
     result->python_output[0] = '\0';
     result->dsl_output[0] = '\0';
 
-    /* 修复：使用偏移量变量跟踪当前写入位置，替代反复调用 strlen 的 strncat 模式，
+    /* 修复：使用 RenderTarget 游标跟踪当前写入位置，替代反复调用 strlen 的 strncat 模式，
      * 避免每次拼接时的 O(n) strlen 扫描和潜在的缓冲区溢出风险 */
-    size_t latex_len = 0;
-    size_t python_len = 0;
-    size_t dsl_len = 0;
+    RenderTarget latex_tgt = {result->latex_output, 0, latex_size};
+    RenderTarget python_tgt = {result->python_output, 0, python_size};
+    RenderTarget dsl_tgt = {result->dsl_output, 0, dsl_size};
 
-    char latex_buf[FORMULA_LATEX_BUF_SIZE];
-    char python_buf[FORMULA_PYTHON_BUF_SIZE];
-    char dsl_buf[FORMULA_DSL_BUF_SIZE];
+    char buf[FORMULA_LATEX_BUF_SIZE];
+
+    static const GraphNodeRenderFunc s_funcs[] = {
+        [GEOM_POINT] = render_geom_point,
+        [GEOM_LINE_SEGMENT] = render_geom_line_segment,
+        [GEOM_REGION] = render_geom_region,
+        [GEOM_CIRCLE] = render_geom_circle,
+        [GEOM_PORT] = render_geom_port,
+        [GEOM_FUNCTION_BLOCK] = render_geom_function_block,
+    };
 
     /* 遍历所有节点 */
     for (int i = 0; i < graph->node_count; i++) {
@@ -304,17 +260,9 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         char name[MAX_NAME_LENGTH];
         formula_node_to_name(node, name, sizeof(name));
 
-    static const GraphNodeRenderFunc s_funcs[] = {
-        [GEOM_POINT] = render_geom_point,
-        [GEOM_LINE_SEGMENT] = render_geom_line_segment,
-        [GEOM_REGION] = render_geom_region,
-        [GEOM_CIRCLE] = render_geom_circle,
-        [GEOM_PORT] = render_geom_port,
-        [GEOM_FUNCTION_BLOCK] = render_geom_function_block,
-    };
-    if ((unsigned)node->type < sizeof(s_funcs)/sizeof(s_funcs[0]) && s_funcs[node->type]) {
-        s_funcs[node->type](node, name, result->latex_output, &latex_len, latex_size, result->python_output, &python_len, python_size, result->dsl_output, &dsl_len, dsl_size);
-    }
+        if ((unsigned)node->type < sizeof(s_funcs) / sizeof(s_funcs[0]) && s_funcs[node->type]) {
+            s_funcs[node->type](node, name, &latex_tgt, &python_tgt, &dsl_tgt);
+        }
     }
 
     /* 约束名称/LaTeX 查找表 */
@@ -349,28 +297,16 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         }
 
         /* LaTeX */
-        int n = snprintf(latex_buf, sizeof(latex_buf), "\\text{Constraint: } %s\\\\\n", constraint_latex);
-        if (n > 0 && latex_len + (size_t) n < latex_size) {
-            memcpy(result->latex_output + latex_len, latex_buf, (size_t) n);
-            latex_len += (size_t) n;
-            result->latex_output[latex_len] = '\0';
-        }
+        int n = snprintf(buf, sizeof(buf), "\\text{Constraint: } %s\\\\\n", constraint_latex);
+        render_append(&latex_tgt, buf, (size_t) n);
 
         /* Python */
-        n = snprintf(python_buf, sizeof(python_buf), "# Constraint: %s\n", constraint_name);
-        if (n > 0 && python_len + (size_t) n < python_size) {
-            memcpy(result->python_output + python_len, python_buf, (size_t) n);
-            python_len += (size_t) n;
-            result->python_output[python_len] = '\0';
-        }
+        n = snprintf(buf, sizeof(buf), "# Constraint: %s\n", constraint_name);
+        render_append(&python_tgt, buf, (size_t) n);
 
         /* DSL */
-        n = snprintf(dsl_buf, sizeof(dsl_buf), "# constraint %s; ", constraint_name);
-        if (n > 0 && dsl_len + (size_t) n < dsl_size) {
-            memcpy(result->dsl_output + dsl_len, dsl_buf, (size_t) n);
-            dsl_len += (size_t) n;
-            result->dsl_output[dsl_len] = '\0';
-        }
+        n = snprintf(buf, sizeof(buf), "# constraint %s; ", constraint_name);
+        render_append(&dsl_tgt, buf, (size_t) n);
     }
 
     result->success = true;

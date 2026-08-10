@@ -84,6 +84,13 @@ typedef struct {
 
 static lvGlobalState g_state = {0};
 
+/* exempt: 惰性守卫豁免 —— g_state.initialized 为"外部驱动的初始化标志"：
+ * 9 处 !g_state.initialized 是防御性活性检查（未初始化则拒绝操作/返回默认值），
+ * 本文件无初始化 setter（lv_global_state_is_initialized 恒为 false，属既有设计，
+ * 由外部流程负责置位）；lv_once 属"进程级一次性自初始化"，会改变初始化时机与
+ * 语义（自动初始化将令 set/get 从拒绝变为生效），且无法表达"查询初始化状态"，
+ * 故保留手写标志检查，不迁移。 */
+
 /* ── 内部辅助 ─────────────────────────────────────────────────────── */
 
 /**

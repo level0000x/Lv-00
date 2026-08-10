@@ -1,0 +1,1094 @@
+ninja: Entering directory `build3'
+[0/1] Re-running CMake...
+-- Configuring done (0.2s)
+-- Generating done (0.9s)
+-- Build files have been written to: C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/build3
+[1/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_numeric.c.obj
+[2/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_callback_list.c.obj
+[3/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_stream_context.c.obj
+[4/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_event_bus.c.obj
+[5/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_str.c.obj
+[6/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/allocator.c.obj
+[7/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_circuit_breaker.c.obj
+[8/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_array.c.obj
+[9/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils.c.obj
+[10/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/context.c.obj
+[11/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_misc.c.obj
+[12/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_config.c.obj
+[13/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_json.c.obj
+[14/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv.c.obj
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:31:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:35:9: warning: 'lv_LOG_MSG_MAX_LEN' redefined
+   35 | #define lv_LOG_MSG_MAX_LEN 4096
+      |         ^~~~~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:174,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:14:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:821:9: note: this is the location of the previous definition
+  821 | #define lv_LOG_MSG_MAX_LEN lv_CONFIG_LOG_MSG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:38:9: warning: 'lv_LOG_TAG_MAX_LEN' redefined
+   38 | #define lv_LOG_TAG_MAX_LEN 64
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:824:9: note: this is the location of the previous definition
+  824 | #define lv_LOG_TAG_MAX_LEN lv_CONFIG_LOG_TAG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:41:9: warning: 'lv_METRIC_NAME_MAX_LEN' redefined
+   41 | #define lv_METRIC_NAME_MAX_LEN 128
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:827:9: note: this is the location of the previous definition
+  827 | #define lv_METRIC_NAME_MAX_LEN lv_CONFIG_METRIC_NAME_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:204:9: warning: 'lv_LOG_FATAL' redefined
+  204 | #define lv_LOG_FATAL(tag, fmt, ...) lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+      |         ^~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_log.h:39:9: note: this is the location of the previous definition
+   39 | #define lv_LOG_FATAL LOG_LEVEL_FATAL
+      |         ^~~~~~~~~~~~
+[15/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_config.c.obj
+[16/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_codes.c.obj
+[17/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug.c.obj
+[18/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_error.c.obj
+[19/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool.c.obj
+[20/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_mempool.c.obj
+[21/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_emergency.c.obj
+[22/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_state.c.obj
+[23/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_refcount.c.obj
+[24/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_invariants.c.obj
+[25/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_normalize_assert.c.obj
+[26/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace_session.c.obj
+[27/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_ringbuf.c.obj
+[28/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool_utils.c.obj
+[29/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_heap.c.obj
+[30/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_log_ctx.c.obj
+[31/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/node_deep_copy.c.obj
+[32/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/result_messages_cn.c.obj
+[33/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/math_theory_guide_cn.c.obj
+[34/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/memory_pool.c.obj
+[35/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_path.c.obj
+[36/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/geometry_config.c.obj
+[37/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace.c.obj
+[38/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/global_state.c.obj
+[39/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/preset_helper_cn.c.obj
+[40/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/test_framework.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_xml':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:911:63: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  911 |         lv_str_escape_xml(&esc_name, suite->name, suite->name ? strlen(suite->name) : 0);
+      |                                                               ^
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:920:66: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  920 |             lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
+      |                                                                  ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:928:74: warning: the comparison will always evaluate as 'true' for the address of 'message' will never be NULL [-Waddress]
+  928 |                 lv_str_escape_xml(&esc_msg, test->message, test->message ? strlen(test->message) : 0);
+      |                                                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:79:10: note: 'message' declared here
+   79 |     char message[lv_TEST_MSG_MAX_LEN];
+      |          ^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_html':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:982:43: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  982 |             size_t esc_slen = suite->name ? strlen(suite->name) : 0;
+      |                                           ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:985:42: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  985 |             size_t esc_tlen = test->name ? strlen(test->name) : 0;
+      |                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:995:67: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  995 |                              esc_suite ? esc_suite : (suite->name ? suite->name : ""),
+      |                                                                   ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:996:64: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  996 |                              esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
+      |                                                                ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+[41/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_monitor.c.obj
+[42/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_messages_cn.c.obj
+[43/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_priority.c.obj
+[44/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/fast_index.c.obj
+[45/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_score.c.obj
+[46/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/sha256.c.obj
+[47/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/status_codes.c.obj
+[48/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_guard.c.obj
+[49/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hash.c.obj
+[50/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hashtable.c.obj
+[51/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_strbuf.c.obj
+[52/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_ringbuf.c.obj
+[53/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_export_common.c.obj
+[54/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_dot_writer.c.obj
+[55/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_str_utils.c.obj
+[56/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/performance_profiler.c.obj
+[57/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/representation_converter.c.obj
+[58/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/adaptive_threshold.c.obj
+[59/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_bytes.c.obj
+[60/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/thread_pool.c.obj
+[61/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/meta_repr.c.obj
+[62/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_log.c.obj
+[63/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_lifecycle.c.obj
+[64/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_file.c.obj
+[65/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/simd_ops.c.obj
+[66/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_process.c.obj
+[67/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_registry.c.obj
+[68/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_serialize_adapters.c.obj
+[69/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_backend_plugin.c.obj
+[70/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_arena.c.obj
+[71/932] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_storage.c.obj
+[72/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_visual.c.obj
+[73/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_geom.c.obj
+[74/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper.c.obj
+[75/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_algebra.c.obj
+[76/932] Building C object CMakeFiles/lv_core.dir/core/src/core/lv_convenience.c.obj
+[77/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_preset.c.obj
+[78/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_interop.c.obj
+[79/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_meta.c.obj
+[80/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_utils.c.obj
+[81/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_app.c.obj
+[82/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_parser.c.obj
+[83/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_native.c.obj
+[84/932] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'lv_orchestrator_run':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:445:18: warning: implicit conversion from 'enum <anonymous>' to 'lvSessionStage' [-Wenum-conversion]
+  445 |     in->last_run = lv_STAGE_PENDING;
+      |                  ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'run_stage_geometry':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:173:11: warning: potential null pointer dereference [-Wnull-dereference]
+  173 |     if (in->graph) {
+      |         ~~^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'run_stage_parse':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:119:11: warning: potential null pointer dereference [-Wnull-dereference]
+  119 |     if (in->tokens) {
+      |         ~~^~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:114:19: warning: null pointer dereference [-Wnull-dereference]
+  114 |     if (!in->input[0]) {
+      |          ~~~~~~~~~^~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'run_stage_output':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:247:12: warning: null pointer dereference [-Wnull-dereference]
+  247 |     if (!in->graph) {
+      |          ~~^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'run_stage_reasoning':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:206:12: warning: null pointer dereference [-Wnull-dereference]
+  206 |     if (!in->graph || graph_get_node_count(in->graph) < 1) {
+      |          ~~^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'run_stage_resource':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:153:12: warning: potential null pointer dereference [-Wnull-dereference]
+  153 |     if (!in->ctx) {
+      |          ~~^~~~~
+[85/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter.c.obj
+[86/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_util.c.obj
+[87/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_complex.c.obj
+[88/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_geom.c.obj
+[89/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_constraint.c.obj
+[90/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_export.c.obj
+[91/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_eval.c.obj
+[92/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_stmt.c.obj
+[93/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer.c.obj
+[94/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_string.c.obj
+[95/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_internal.c.obj
+[96/932] Building C object CMakeFiles/lv_core.dir/core/src/impl_preset_transformations.c.obj
+[97/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_curve.c.obj
+[98/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser_safety.c.obj
+[99/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_mathml.c.obj
+[100/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_ascii.c.obj
+[101/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_html.c.obj
+[102/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_latex.c.obj
+[103/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_python.c.obj
+[104/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_dsl.c.obj
+[105/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler.c.obj
+[106/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lexer_shared.c.obj
+[107/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_parse.c.obj
+[108/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_lexer.c.obj
+[109/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_ir.c.obj
+[110/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/math_input.c.obj
+[111/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_ast.c.obj
+[112/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_load.c.obj
+[113/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_python.c.obj
+[114/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_latex.c.obj
+[115/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_lexer.c.obj
+[116/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_dsl.c.obj
+[117/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_ast.c.obj
+[118/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_parser.c.obj
+[119/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_sema.c.obj
+[120/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph.c.obj
+[121/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolic_coord.c.obj
+[122/932] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_loader.c.obj
+[123/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim.c.obj
+[124/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/interactive_geo.c.obj
+[125/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_core.c.obj
+[126/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_preset.c.obj
+[127/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry.c.obj
+[128/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_project.c.obj
+[129/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_zoom.c.obj
+[130/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_fidelity.c.obj
+[131/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_view.c.obj
+[132/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_serialize.c.obj
+[133/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_utils.c.obj
+[134/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress.c.obj
+[135/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_coords.c.obj
+[136/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_predict.c.obj
+[137/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_triangle.c.obj
+[138/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_bitio.c.obj
+[139/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_edgebreaker.c.obj
+[140/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_huffman.c.obj
+[141/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_entropy.c.obj
+[142/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_rle.c.obj
+[143/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_main.c.obj
+[144/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_io.c.obj
+[145/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_decompress.c.obj
+[146/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_spec.c.obj
+[147/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_event_detect.c.obj
+[148/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_node.c.obj
+[149/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_bbox.c.obj
+[150/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg.c.obj
+[151/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_primitive.c.obj
+[152/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_mesh.c.obj
+[153/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_export.c.obj
+[154/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_eval.c.obj
+[155/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_bsp.c.obj
+[156/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_hull.c.obj
+[157/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geom_evol.c.obj
+[158/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/mpz_poly_resultant.c.obj
+[159/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/float_error.c.obj
+[160/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_multivector.c.obj
+[161/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_invariant_type.c.obj
+[162/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_codegen.c.obj
+[163/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_interface.c.obj
+[164/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_transform.c.obj
+[165/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/interval_arith.c.obj
+[166/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/herbie_eval.c.obj
+[167/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/fptaylor_eval.c.obj
+[168/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/gappa_dsl.c.obj
+[169/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_topology.c.obj
+[170/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/gappa_propagate.c.obj
+[171/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number.c.obj
+[172/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/equiv_class.c.obj
+[173/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/propagation.c.obj
+[174/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_util.c.obj
+[175/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_rational.c.obj
+[176/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_quadratic.c.obj
+[177/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_io.c.obj
+[178/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_interval.c.obj
+[179/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_poly.c.obj
+[180/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver.c.obj
+[181/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_hash.c.obj
+[182/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_box.c.obj
+[183/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_dof.c.obj
+[184/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_system.c.obj
+[185/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_halfedge_mesh.c.obj
+[186/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_linear.c.obj
+[187/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_residual.c.obj
+[188/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_newton.c.obj
+[189/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_aabb_tree.c.obj
+[190/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_fast.c.obj
+[191/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_utils.c.obj
+[192/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_dynamic.c.obj
+[193/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_common.c.obj
+[194/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_2d.c.obj
+[195/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/parametric_curves.c.obj
+[196/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_3d.c.obj
+[197/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_predicate.c.obj
+[198/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometric_primitives.c.obj
+[199/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/lv_reasoning_stack.c.obj
+[200/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/path_type.c.obj
+[201/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_memory.c.obj
+[202/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_conflict.c.obj
+[203/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_node.c.obj
+[204/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_index.c.obj
+[205/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_node_alloc.c.obj
+[206/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_node_conflict.c.obj
+[207/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_node_hash.c.obj
+[208/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_node_stub.c.obj
+[209/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_rank.c.obj
+[210/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/quadratic.c.obj
+[211/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_dot_export.c.obj
+[212/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/graph_serialize.c.obj
+[213/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/algebraic.c.obj
+[214/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/symbolic_coord_compare.c.obj
+[215/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c.obj
+[216/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/rational.c.obj
+[217/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/symbolic_coord_lifecycle.c.obj
+[218/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/symbolic_coord_ops.c.obj
+[219/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/transcendental.c.obj
+[220/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/symbolic_coord_trust.c.obj
+[221/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/symbolic_coord_transform.c.obj
+[222/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/sparse_linear_algebra.c.obj
+[223/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine.c.obj
+[224/932] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolics/lv_number.c.obj
+[225/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_circuit.c.obj
+[226/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_frozen.c.obj
+[227/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_error.c.obj
+[228/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_function.c.obj
+[229/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_resource.c.obj
+[230/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_lifecycle.c.obj
+[231/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_solve.c.obj
+[232/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_state.c.obj
+[233/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_status.c.obj
+[234/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_stream.c.obj
+[235/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver.c.obj
+[236/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof.c.obj
+[237/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_optimize.c.obj
+[238/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_search_algo.c.obj
+[239/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_exec.c.obj
+[240/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_core.c.obj
+[241/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_core.c.obj
+[242/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_vector.c.obj
+[243/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_multi_strategy.c.obj
+[244/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_angle.c.obj
+[245/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_deductive.c.obj
+[246/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/three_valued_logic.c.obj
+[247/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_coordinate.c.obj
+[248/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_hol_oracle.c.obj
+[249/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_trace.c.obj
+[250/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_strategy_numeric.c.obj
+[251/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/logic_check.c.obj
+[252/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_tree.c.obj
+[253/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/circuit_breaker.c.obj
+[254/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/modal_operators.c.obj
+[255/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_engine_enhanced.c.obj
+[256/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_engine.c.obj
+[257/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/quantifier.c.obj
+[258/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_optimize.c.obj
+[259/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_verify.c.obj
+[260/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_strategy.c.obj
+[261/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_export.c.obj
+[262/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_trace_tree.c.obj
+[263/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite.c.obj
+[264/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/proof_contradiction.c.obj
+[265/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify.c.obj
+[266/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_basic.c.obj
+[267/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_equivalence.c.obj
+[268/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_fine.c.obj
+[269/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_helpers.c.obj
+[270/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_instantiate.c.obj
+[271/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_simplify.c.obj
+[272/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_hash.c.obj
+[273/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/unify_report.c.obj
+[274/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/graph_hash.c.obj
+[275/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/normalization.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/unify/normalization.c:189:1: warning: '/*' within comment [-Wcomment]
+  189 | /**
+[276/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion.c.obj
+[277/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/lambda_unify.c.obj
+[278/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_measure.c.obj
+[279/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_context.c.obj
+[280/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_mutual.c.obj
+[281/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_test.c.obj
+[282/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_selector.c.obj
+[283/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_symbolic_measure.c.obj
+[284/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_validation.c.obj
+[285/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_utils.c.obj
+[286/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/recursion_test_suite.c.obj
+[287/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/type_system.c.obj
+[288/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/type_check.c.obj
+[289/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/type_path_explorer.c.obj
+[290/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/type_infer.c.obj
+[291/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/type_equiv_explorer.c.obj
+[292/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier.c.obj
+[293/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_formula.c.obj
+[294/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_compare.c.obj
+[295/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_context.c.obj
+[296/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_hash.c.obj
+[297/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_serialize.c.obj
+[298/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_premises.c.obj
+[299/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_forward.c.obj
+[300/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_memo.c.obj
+[301/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_engine.c.obj
+[302/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_api.c.obj
+[303/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_checks.c.obj
+[304/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c.obj
+[305/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c.obj
+[306/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_formula_visitor.c.obj
+[307/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_trust.c.obj
+[308/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c.obj
+[309/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/prop_formula_ops.c.obj
+[310/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine_ring.c.obj
+[311/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine_core.c.obj
+[312/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine_poly.c.obj
+[313/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/backends/groebner_engine.c:80:1: warning: '/*' within comment [-Wcomment]
+   80 | /** @brief 全局注册数据 —— 单例 */
+[314/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine_ideal.c.obj
+[315/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_mono.c.obj
+[316/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/rational.c.obj
+[317/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_backend_impl_external.c.obj
+[318/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_engine_variety.c.obj
+[319/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_poly.c.obj
+[320/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_backend_impl.c.obj
+[321/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_backend_impl_smtlib2.c.obj
+[322/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_backend_impl_groebner.c.obj
+[323/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/expr_canonical.c.obj
+[324/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/bicgstab_shared.c.obj
+[325/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/atp_backend.c.obj
+[326/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/sat_encoding.c.obj
+[327/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/exact_arithmetic.c.obj
+[328/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/backends/default_host_ops.c.obj
+[329/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/bdd_encoding.c.obj
+[330/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/probabilistic_constraint.c.obj
+[331/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/expr_canon.c.obj
+[332/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/host_linalg.c.obj
+[333/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/relation_model.c.obj
+[334/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/gmres_shared.c.obj
+[335/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/model/algebra_mode.c.obj
+[336/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/backends/cuda_backend.c.obj
+[337/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/numerical_backend.c.obj
+[338/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/backends/hip_backend.c.obj
+[339/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/backends/singular_backend.c.obj
+[340/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/kernel/ecosystem.c.obj
+[341/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module.c.obj
+[342/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream.c.obj
+[343/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/kernel/mini_kernel.c.obj
+[344/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/kernel/gc_language.c.obj
+[345/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_async.c.obj
+[346/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_theory_combiner.c.obj
+[347/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_trigger_engine.c.obj
+[348/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_context_util.c.obj
+[349/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/smt_bitvector.c.obj
+[350/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_filter.c.obj
+[351/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_buffer.c.obj
+[352/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_context.c.obj
+[353/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_emit.c.obj
+[354/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/nt_number_theory.c.obj
+[355/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_lazy.c.obj
+[356/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_json.c.obj
+[357/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/ode_solver.c.obj
+[358/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_stats.c.obj
+[359/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/ode_integrator.c.obj
+[360/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/stream/stream_utils.c.obj
+[361/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_session.c.obj
+[362/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_rule_engine.c.obj
+[363/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/nt_polynomial.c.obj
+[364/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_system/proof_version.c.obj
+[365/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/unify/rewrite_strategy.c.obj
+[366/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/bit_burning.c.obj
+[367/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/autodiff.c.obj
+[368/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/expr/sym_expr.c.obj
+[369/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning.c.obj
+[370/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_transform.c.obj
+[371/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_core.c.obj
+[372/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_prove.c.obj
+[373/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_classic.c.obj
+[374/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_sign.c.obj
+[375/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_geo.c.obj
+[376/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/type_logic/inequality_reasoning_serialize.c.obj
+[377/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg.c.obj
+[378/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_parser.c.obj
+[379/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_core.c.obj
+[380/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_verify.c.obj
+[381/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_serialize.c.obj
+[382/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_expand.c.obj
+[383/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/groebner_parallel.c.obj
+[384/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_grade.c.obj
+[385/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_pkg_depref.c.obj
+[386/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_compose.c.obj
+[387/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block.c.obj
+[388/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom/axiom_template_test.c.obj
+[389/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_determinism.c.obj
+[390/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset.c.obj
+[391/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_instantiate.c.obj
+[392/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_doc.c.obj
+[393/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_advanced.c.obj
+[394/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_data.c.obj
+[395/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_query.c.obj
+[396/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_internal.c.obj
+[397/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_preset_ops.c.obj
+[398/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_registry.c.obj
+[399/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_utils.c.obj
+[400/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_selector.c.obj
+[401/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_basic_math.c.obj
+[402/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/func_block_serialize.c.obj
+[403/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_blocks.c.obj
+[404/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_register.c.obj
+[405/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_calculus.c.obj
+[406/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_common.c.obj
+[407/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_query.c.obj
+[408/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_instantiate.c.obj
+[409/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager.c.obj
+[410/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_compose.c.obj
+[411/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_doc.c.obj
+[412/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_serialize.c.obj
+[413/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_contradiction.c.obj
+[414/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/meta_proof.c.obj
+[415/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_abstract_algebra.c.obj
+[416/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/conflict_detector.c.obj
+[417/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_feedback.c.obj
+[418/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_dirty_set.c.obj
+[419/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_eq_system.c.obj
+[420/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_conflict.c.obj
+[421/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_linear.c.obj
+[422/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_order.c.obj
+[423/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_incremental.c.obj
+[424/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom_rule_engine.c.obj
+[425/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_coord_extract.c.obj
+[426/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_result.c.obj
+[427/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_snapshot.c.obj
+[428/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_stats.c.obj
+[429/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_eliminate.c.obj
+[430/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_symbolic.c.obj
+[431/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_multibranch.c.obj
+[432/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator.c.obj
+[433/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_geom_templates.c.obj
+[434/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_engine.c.obj
+[435/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_groebner.c.obj
+[436/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_dependency.c.obj
+[437/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_exfalso.c.obj
+[438/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_interactive.c.obj
+[439/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_breakpoint.c.obj
+[440/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version.c.obj
+[441/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_dependency.c.obj
+[442/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_export.c.obj
+[443/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_equivalence.c.obj
+[444/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_degrade.c.obj
+[445/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_misc.c.obj
+[446/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_step_registry.c.obj
+[447/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_utils.c.obj
+[448/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_nl.c.obj
+[449/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_instantiate.c.obj
+[450/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_ghost.c.obj
+[451/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_proposition.c.obj
+[452/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_sledge.c.obj
+[453/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_refine.c.obj
+[454/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_task.c.obj
+[455/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_isar.c.obj
+[456/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/trust_color.c.obj
+[457/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/meta_verify.c.obj
+[458/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_match.c.obj
+[459/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_apply.c.obj
+[460/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_hash.c.obj
+[461/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_rule.c.obj
+[462/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_binding.c.obj
+[463/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_match_search.c.obj
+[464/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_wl.c.obj
+[465/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_snapshot.c.obj
+[466/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_church.c.obj
+[467/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_vf2.c.obj
+[468/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/critical_pair.c.obj
+[469/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/beta_reduce.c.obj
+[470/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_strategy_impl.c.obj
+[471/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_term.c.obj
+[472/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_to_graph.c.obj
+[473/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_type_check.c.obj
+[474/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/approx_counter.c.obj
+[475/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_scheduler.c.obj
+[476/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test.c.obj
+[477/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/command_log.c.obj
+[478/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_random.c.obj
+[479/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_init.c.obj
+[480/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_diff.c.obj
+[481/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_primitive.c.obj
+[482/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_oracle.c.obj
+[483/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_report.c.obj
+[484/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_iso.c.obj
+[485/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_delta.c.obj
+[486/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_lvz.c.obj
+[487/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize.c.obj
+[488/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_autosave.c.obj
+[489/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_json.c.obj
+[490/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_msgpack.c.obj
+[491/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop.c.obj
+[492/932] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/mv_polynomial.c.obj
+[493/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_array.c.obj
+[494/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_widget.c.obj
+[495/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_export_enhanced.c.obj
+[496/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_rune.c.obj
+[497/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_domain.c.obj
+[498/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_spell.c.obj
+[499/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/geo_visual_complete.c.obj
+[500/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_render_visitor.c.obj
+[501/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_render_visitor_tikz.c.obj
+[502/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system.c.obj
+[503/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_load.c.obj
+[504/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_state.c.obj
+[505/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_protocol.c.obj
+[506/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_core.c.obj
+[507/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_query.c.obj
+[508/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_autoload.c.obj
+[509/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_event.c.obj
+[510/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_interface.c.obj
+[511/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_config.c.obj
+[512/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_deps.c.obj
+[513/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_version.c.obj
+[514/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_compiler.c.obj
+[515/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_canonical.c.obj
+[516/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export.c.obj
+[517/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/tikz_export.c.obj
+[518/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_coq.c.obj
+[519/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_geojson.c.obj
+[520/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_html.c.obj
+[521/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_command.c.obj
+[522/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_pdf.c.obj
+[523/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_svg.c.obj
+[524/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_export_lean.c.obj
+[525/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_server.c.obj
+[526/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_import.c.obj
+[527/932] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop_theorem.c.obj
+[528/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/visual_editor.c.obj
+[529/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/text_code.c.obj
+[530/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/node_graph.c.obj
+[531/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/view_synchronizer.c.obj
+[532/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/geometry_canvas.c.obj
+[533/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/block_canvas.c.obj
+[534/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/control_flow/while_block.c.obj
+[535/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/control_flow/if_block.c.obj
+[536/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/io/file_block.c.obj
+[537/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/control_flow/match_block.c.obj
+[538/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/io/ui_block.c.obj
+[539/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/data/list_block.c.obj
+[540/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/io/network_block.c.obj
+[541/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/data/map_block.c.obj
+[542/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/data/record_block.c.obj
+[543/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/types/effect_types.c.obj
+[544/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/runtime/incremental_exec.c.obj
+[545/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/runtime/effect_tracker.c.obj
+[546/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/types/extended_types.c.obj
+[547/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/runtime/block_scheduler.c.obj
+[548/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/types/type_inference.c.obj
+[549/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/converter/block_to_text.c.obj
+[550/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/converter/block_to_node.c.obj
+[551/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/converter/block_to_geometry.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer6_visual/converter/block_to_geometry.c:14:9: warning: 'MAX_BLOCK_PORTS' redefined
+   14 | #define MAX_BLOCK_PORTS 64
+      |         ^~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer6_visual/converter/block_to_geometry.c:8:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_internal.h:91:9: note: this is the location of the previous definition
+   91 | #define MAX_BLOCK_PORTS 32
+      |         ^~~~~~~~~~~~~~~
+[552/932] Building C object CMakeFiles/lv_layer6_visual.dir/core/src/layer6_visual/converter/sync_protocol.c.obj
+[553/932] Building C object CMakeFiles/lv_layer8_meta_verify.dir/core/src/layer8_meta_verify/meta_verify.c.obj
+[554/932] Building C object CMakeFiles/lv_layer10_interop.dir/core/src/layer10_interop/lean4_bridge.c.obj
+[555/932] Building C object CMakeFiles/lv_layer10_interop.dir/core/src/layer10_interop/coq_bridge.c.obj
+[556/932] Building C object CMakeFiles/lv_layer10_interop.dir/core/src/layer10_interop/opml_codec.c.obj
+[557/932] Building C object CMakeFiles/test_basic.dir/test/c/test_basic.c.obj
+[558/932] Building C object CMakeFiles/test_normalization.dir/test/c/test_normalization.c.obj
+[559/932] Building C object CMakeFiles/test_edge_cases.dir/test/c/test_edge_cases.c.obj
+[560/932] Building C object CMakeFiles/test_complex_graph.dir/test/c/test_complex_graph.c.obj
+[561/932] Building C object CMakeFiles/test_constraint_graph_ops.dir/test/c/test_constraint_graph_ops.c.obj
+[562/932] Building C object CMakeFiles/test_unify.dir/test/c/test_unify.c.obj
+[563/932] Building C object CMakeFiles/test_constraint_compatibility.dir/test/c/test_constraint_compatibility.c.obj
+[564/932] Building C object CMakeFiles/test_solver.dir/test/c/test_solver.c.obj
+[565/932] Building C object CMakeFiles/test_graph_hash.dir/test/c/test_graph_hash.c.obj
+[566/932] Building C object CMakeFiles/test_func_block.dir/test/c/test_func_block.c.obj
+[567/932] Building C object CMakeFiles/test_solver_enhanced.dir/test/c/test_solver_enhanced.c.obj
+[568/932] Building C object CMakeFiles/test_rewrite.dir/test/c/test_rewrite.c.obj
+[569/932] Building C object CMakeFiles/test_critical_pair.dir/test/c/test_critical_pair.c.obj
+[570/932] Building C object CMakeFiles/test_type_equiv_explorer.dir/test/c/test_type_equiv_explorer.c.obj
+[571/932] Building C object CMakeFiles/test_groebner_basis.dir/test/c/test_groebner_basis.c.obj
+[572/932] Building C object CMakeFiles/test_proof.dir/test/c/test_proof.c.obj
+[573/932] Building C object CMakeFiles/test_type_system.dir/test/c/test_type_system.c.obj
+[574/932] Building C object CMakeFiles/test_axiom_pkg.dir/test/c/test_axiom_pkg.c.obj
+[575/932] Building C object CMakeFiles/test_template_test.dir/test/c/test_template_test.c.obj
+[576/932] Building C object CMakeFiles/test_module.dir/test/c/test_module.c.obj
+[577/932] Building C object CMakeFiles/test_serialize_registry.dir/test/c/test_serialize_registry.c.obj
+[578/932] Building C object CMakeFiles/test_graph_serialize.dir/test/c/test_graph_serialize.c.obj
+[579/932] Building C object CMakeFiles/test_recursion.dir/test/c/test_recursion.c.obj
+[580/932] Linking C static library liblv.a
+[581/932] Building C object CMakeFiles/test_implementation.dir/test/c/test_implementation.c.obj
+[582/932] Building C object CMakeFiles/test_minimal_parse.dir/test/c/test_minimal_parse.c.obj
+[583/932] Building C object CMakeFiles/test_axiom_euclidean_plane.dir/test/c/test_axiom_euclidean_plane.c.obj
+[584/932] Building C object CMakeFiles/test_axiom_classical_propositional_logic.dir/test/c/test_axiom_classical_propositional_logic.c.obj
+[585/932] Building C object CMakeFiles/test_axiom_boolean_algebra.dir/test/c/test_axiom_boolean_algebra.c.obj
+[586/932] Building C object CMakeFiles/test_axiom_zfc_set_theory.dir/test/c/test_axiom_zfc_set_theory.c.obj
+[587/932] Building C object CMakeFiles/test_axiom_group_theory.dir/test/c/test_axiom_group_theory.c.obj
+[588/932] Building C object CMakeFiles/test_axiom_ring_theory.dir/test/c/test_axiom_ring_theory.c.obj
+[589/932] Building C object CMakeFiles/test_axiom_intuitionistic_propositional_logic.dir/test/c/test_axiom_intuitionistic_propositional_logic.c.obj
+[590/932] Building C object CMakeFiles/test_axiom_intuitionistic_logic.dir/test/c/test_axiom_intuitionistic_logic.c.obj
+[591/932] Building C object CMakeFiles/test_axiom_category_theory.dir/test/c/test_axiom_category_theory.c.obj
+[592/932] Building C object CMakeFiles/test_axiom_point_set_topology.dir/test/c/test_axiom_point_set_topology.c.obj
+[593/932] Building C object CMakeFiles/test_axiom_hyperbolic_geometry.dir/test/c/test_axiom_hyperbolic_geometry.c.obj
+[594/932] Building C object CMakeFiles/test_axiom_simple_type_theory.dir/test/c/test_axiom_simple_type_theory.c.obj
+[595/932] Building C object CMakeFiles/test_axiom_elliptic_geometry.dir/test/c/test_axiom_elliptic_geometry.c.obj
+[596/932] Building C object CMakeFiles/test_axiom_field_theory.dir/test/c/test_axiom_field_theory.c.obj
+[597/932] Building C object CMakeFiles/test_axiom_nbg_set_theory.dir/test/c/test_axiom_nbg_set_theory.c.obj
+[598/932] Building C object CMakeFiles/test_axiom_combinatorics.dir/test/c/test_axiom_combinatorics.c.obj
+[599/932] Building C object CMakeFiles/test_axiom_algebraic_topology.dir/test/c/test_axiom_algebraic_topology.c.obj
+[600/932] Building C object CMakeFiles/test_axiom_real_analysis.dir/test/c/test_axiom_real_analysis.c.obj
+[601/932] Building C object CMakeFiles/test_axiom_model_theory.dir/test/c/test_axiom_model_theory.c.obj
+[602/932] Building C object CMakeFiles/test_axiom_dependent_type_theory.dir/test/c/test_axiom_dependent_type_theory.c.obj
+[603/932] Building C object CMakeFiles/test_axiom_homological_algebra.dir/test/c/test_axiom_homological_algebra.c.obj
+[604/932] Building C object CMakeFiles/test_axiom_universal_algebra.dir/test/c/test_axiom_universal_algebra.c.obj
+[605/932] Building C object CMakeFiles/test_axiom_differential_geometry.dir/test/c/test_axiom_differential_geometry.c.obj
+[606/932] Building C object CMakeFiles/test_axiom_number_theory.dir/test/c/test_axiom_number_theory.c.obj
+[607/932] Building C object CMakeFiles/test_axiom_functional_analysis.dir/test/c/test_axiom_functional_analysis.c.obj
+[608/932] Building C object CMakeFiles/test_axiom_proof_theory.dir/test/c/test_axiom_proof_theory.c.obj
+[609/932] Building C object CMakeFiles/test_axiom_homotopy_type_theory.dir/test/c/test_axiom_homotopy_type_theory.c.obj
+[610/932] Building C object CMakeFiles/test_axiom_algebraic_geometry.dir/test/c/test_axiom_algebraic_geometry.c.obj
+[611/932] Building C object CMakeFiles/test_axiom_affine_geometry.dir/test/c/test_axiom_affine_geometry.c.obj
+[612/932] Building C object CMakeFiles/test_axiom_lattice_theory.dir/test/c/test_axiom_lattice_theory.c.obj
+[613/932] Building C object CMakeFiles/test_axiom_projective_geometry.dir/test/c/test_axiom_projective_geometry.c.obj
+[614/932] Building C object CMakeFiles/test_axiom_lie_theory.dir/test/c/test_axiom_lie_theory.c.obj
+[615/932] Building C object CMakeFiles/test_axiom_modal_logic.dir/test/c/test_axiom_modal_logic.c.obj
+[616/932] Building C object CMakeFiles/test_axiom_linear_logic.dir/test/c/test_axiom_linear_logic.c.obj
+[617/932] Building C object CMakeFiles/test_axiom_metric_space.dir/test/c/test_axiom_metric_space.c.obj
+[618/932] Building C object CMakeFiles/test_axiom_game_theory.dir/test/c/test_axiom_game_theory.c.obj
+[619/932] Building C object CMakeFiles/test_axiom_information_theory.dir/test/c/test_axiom_information_theory.c.obj
+[620/932] Building C object CMakeFiles/test_axiom_descriptive_set_theory.dir/test/c/test_axiom_descriptive_set_theory.c.obj
+[621/932] Building C object CMakeFiles/test_axiom_domain_theory.dir/test/c/test_axiom_domain_theory.c.obj
+[622/932] Building C object CMakeFiles/test_axiom_computational_complexity_theory.dir/test/c/test_axiom_computational_complexity_theory.c.obj
+[623/932] Building C object CMakeFiles/test_axiom_presburger_arithmetic.dir/test/c/test_axiom_presburger_arithmetic.c.obj
+[624/932] Building C object CMakeFiles/test_axiom_computability_theory.dir/test/c/test_axiom_computability_theory.c.obj
+[625/932] Building C object CMakeFiles/test_utils.dir/test/c/test_utils.c.obj
+[626/932] Building C object CMakeFiles/test_json_buf.dir/test/c/test_json_buf.c.obj
+[627/932] Building C object CMakeFiles/test_bytes.dir/test/c/test_bytes.c.obj
+[628/932] Building C object CMakeFiles/test_module_serialize_unify.dir/test/c/test_module_serialize_unify.c.obj
+[629/932] Building C object CMakeFiles/test_hashtable.dir/test/c/test_hashtable.c.obj
+[630/932] Building C object CMakeFiles/test_enum_maps.dir/test/c/test_enum_maps.c.obj
+[631/932] Building C object CMakeFiles/test_lifecycle.dir/test/c/test_lifecycle.c.obj
+[632/932] Building C object CMakeFiles/test_orchestrator.dir/test/c/test_orchestrator.c.obj
+[633/932] Building C object CMakeFiles/test_stream.dir/test/c/test_stream.c.obj
+[634/932] Building C object CMakeFiles/test_registry.dir/test/c/test_registry.c.obj
+[635/932] Building C object CMakeFiles/test_stream_extended.dir/test/c/test_stream_extended.c.obj
+[636/932] Building C object CMakeFiles/test_parallel_for.dir/test/c/test_parallel_for.c.obj
+[637/932] Building C object CMakeFiles/test_func_block_preset.dir/test/c/test_func_block_preset.c.obj
+[638/932] Building C object CMakeFiles/test_func_block_utils.dir/test/c/test_func_block_utils.c.obj
+[639/932] Building C object CMakeFiles/test_error_codes.dir/test/c/test_error_codes.c.obj
+[640/932] Building C object CMakeFiles/test_interop.dir/test/c/test_interop.c.obj
+[641/932] Building C object CMakeFiles/test_high_dim.dir/test/c/test_high_dim.c.obj
+[642/932] Building C object CMakeFiles/test_symbolic_coord.dir/test/c/test_symbolic_coord.c.obj
+[643/932] Building C object CMakeFiles/test_proof_trace.dir/test/c/test_proof_trace.c.obj
+[644/932] Building C object CMakeFiles/test_rational.dir/test/c/test_rational.c.obj
+[645/932] Building C object CMakeFiles/test_expr_canon.dir/test/c/test_expr_canon.c.obj
+[646/932] Building C object CMakeFiles/test_circuit_breaker.dir/test/c/test_circuit_breaker.c.obj
+[647/932] Building C object CMakeFiles/test_new_modules.dir/test/c/test_new_modules.c.obj
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_new_modules.c:23:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:35:9: warning: 'lv_LOG_MSG_MAX_LEN' redefined
+   35 | #define lv_LOG_MSG_MAX_LEN 4096
+      |         ^~~~~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_utils.h:38,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/geometry_transform.h:12,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_new_modules.c:19:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:821:9: note: this is the location of the previous definition
+  821 | #define lv_LOG_MSG_MAX_LEN lv_CONFIG_LOG_MSG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:38:9: warning: 'lv_LOG_TAG_MAX_LEN' redefined
+   38 | #define lv_LOG_TAG_MAX_LEN 64
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:824:9: note: this is the location of the previous definition
+  824 | #define lv_LOG_TAG_MAX_LEN lv_CONFIG_LOG_TAG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:41:9: warning: 'lv_METRIC_NAME_MAX_LEN' redefined
+   41 | #define lv_METRIC_NAME_MAX_LEN 128
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:827:9: note: this is the location of the previous definition
+  827 | #define lv_METRIC_NAME_MAX_LEN lv_CONFIG_METRIC_NAME_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+[648/932] Building C object CMakeFiles/test_geo_invariant.dir/test/c/test_geo_invariant.c.obj
+[649/932] Building C object CMakeFiles/test_gappa_dsl.dir/test/c/test_gappa_dsl.c.obj
+[650/932] Building C object CMakeFiles/test_ga_multivector.dir/test/c/test_ga_multivector.c.obj
+[651/932] Building C object CMakeFiles/test_smt_bitvector.dir/test/c/test_smt_bitvector.c.obj
+[652/932] Building C object CMakeFiles/test_interval_arithmetic.dir/test/c/test_interval_arithmetic.c.obj
+[653/932] Building C object CMakeFiles/test_proof_rule_engine.dir/test/c/test_proof_rule_engine.c.obj
+[654/932] Building C object CMakeFiles/test_nt_number_theory.dir/test/c/test_nt_number_theory.c.obj
+[655/932] Building C object CMakeFiles/test_sym_expr.dir/test/c/test_sym_expr.c.obj
+[656/932] Building C object CMakeFiles/test_sparse_linear_algebra.dir/test/c/test_sparse_linear_algebra.c.obj
+[657/932] Building C object CMakeFiles/test_rewrite_strategy.dir/test/c/test_rewrite_strategy.c.obj
+[658/932] Building C object CMakeFiles/test_rewrite_strategy_impl.dir/test/c/test_rewrite_strategy_impl.c.obj
+[659/932] Building C object CMakeFiles/test_nt_polynomial.dir/test/c/test_nt_polynomial.c.obj
+[660/932] Building C object CMakeFiles/test_proof_version.dir/test/c/test_proof_version.c.obj
+[661/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier.c.obj
+[662/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_formula.c.obj
+[663/932] Building C object CMakeFiles/test_autodiff.dir/test/c/test_autodiff.c.obj
+[664/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_compare.c.obj
+[665/932] Building C object CMakeFiles/test_prop_verifier.dir/test/c/test_prop_verifier.c.obj
+[666/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_serialize.c.obj
+[667/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_context.c.obj
+[668/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_hash.c.obj
+[669/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_memo.c.obj
+[670/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_premises.c.obj
+[671/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_engine.c.obj
+[672/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_checks.c.obj
+[673/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_forward.c.obj
+[674/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_api.c.obj
+[675/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_analysis.c.obj
+[676/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_bhk.c.obj
+[677/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_formula_visitor.c.obj
+[678/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_trust.c.obj
+[679/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_verifier_equivalence.c.obj
+[680/932] Building C object CMakeFiles/test_prop_verifier.dir/core/src/layer4_reasoning/proof_system/prop_formula_ops.c.obj
+[681/932] Building C object CMakeFiles/test_wfc_modules.dir/test/c/test_wfc_modules.c.obj
+[682/932] Building C object CMakeFiles/test_geo_constraint_solver.dir/test/c/test_geo_constraint_solver.c.obj
+[683/932] Building C object CMakeFiles/test_geo_constraint_solver_ext.dir/test/c/test_geo_constraint_solver_ext.c.obj
+[684/932] Building C object CMakeFiles/test_group_minimal.dir/test/c/test_group_minimal.c.obj
+[685/932] Building C object CMakeFiles/test_ode_solver.dir/test/c/test_ode_solver.c.obj
+[686/932] Building C object CMakeFiles/test_proof_export_enhanced.dir/test/c/test_proof_export_enhanced.c.obj
+[687/932] Building C object CMakeFiles/test_performance.dir/test/c/test_performance.c.obj
+[688/932] Building C object CMakeFiles/test_memory_management.dir/test/c/test_memory_management.c.obj
+[689/932] Building C object CMakeFiles/test_geo_predicate.dir/test/c/test_geo_predicate.c.obj
+[690/932] Building C object CMakeFiles/test_geo_halfedge_mesh.dir/test/c/test_geo_halfedge_mesh.c.obj
+[691/932] Building C object CMakeFiles/test_geo_visual.dir/test/c/test_geo_visual.c.obj
+[692/932] Building C object CMakeFiles/test_geo_topology.dir/test/c/test_geo_topology.c.obj
+[693/932] Building C object CMakeFiles/test_geo_dynamic.dir/test/c/test_geo_dynamic.c.obj
+[694/932] Building C object CMakeFiles/test_propagation.dir/test/c/test_propagation.c.obj
+[695/932] Building C object CMakeFiles/test_equiv_class.dir/test/c/test_equiv_class.c.obj
+[696/932] Building C object CMakeFiles/test_interactive_geo.dir/test/c/test_interactive_geo.c.obj
+[697/932] Building C object CMakeFiles/test_geom_transform_presets.dir/test/c/test_geom_transform_presets.c.obj
+[698/932] Building C object CMakeFiles/test_error_handling.dir/test/c/test_error_handling.c.obj
+[699/932] Building C object CMakeFiles/test_geo_aabb_tree.dir/test/c/test_geo_aabb_tree.c.obj
+[700/932] Building C object CMakeFiles/test_adaptive_threshold.dir/test/c/test_adaptive_threshold.c.obj
+[701/932] Building C object CMakeFiles/test_conflict_detector.dir/test/c/test_conflict_detector.c.obj
+[702/932] Building C object CMakeFiles/test_engine_ops.dir/test/c/test_engine_ops.c.obj
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_engine_ops.c:18:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:35:9: warning: 'lv_LOG_MSG_MAX_LEN' redefined
+   35 | #define lv_LOG_MSG_MAX_LEN 4096
+      |         ^~~~~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_utils.h:38,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/mpz_poly.h:27,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/symbolic_coord.h:14,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/constraint_graph.h:46,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/engine_scheduler.h:8,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/test/c/test_engine_ops.c:12:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:821:9: note: this is the location of the previous definition
+  821 | #define lv_LOG_MSG_MAX_LEN lv_CONFIG_LOG_MSG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:38:9: warning: 'lv_LOG_TAG_MAX_LEN' redefined
+   38 | #define lv_LOG_TAG_MAX_LEN 64
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:824:9: note: this is the location of the previous definition
+  824 | #define lv_LOG_TAG_MAX_LEN lv_CONFIG_LOG_TAG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:41:9: warning: 'lv_METRIC_NAME_MAX_LEN' redefined
+   41 | #define lv_METRIC_NAME_MAX_LEN 128
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:827:9: note: this is the location of the previous definition
+  827 | #define lv_METRIC_NAME_MAX_LEN lv_CONFIG_METRIC_NAME_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+[703/932] Building C object CMakeFiles/test_engine_scheduler.dir/test/c/test_engine_scheduler.c.obj
+[704/932] Building C object CMakeFiles/test_lv_lexer.dir/test/c/test_lv_lexer.c.obj
+[705/932] Building C object CMakeFiles/test_trust_color.dir/test/c/test_trust_color.c.obj
+[706/932] Building C object CMakeFiles/test_solve_debug.dir/test/c/test_solve_debug.c.obj
+[707/932] Building C object CMakeFiles/test_layer5_output_ops.dir/test/c/test_layer5_output_ops.c.obj
+[708/932] Building C object CMakeFiles/test_lv_parser.dir/test/c/test_lv_parser.c.obj
+[709/932] Building C object CMakeFiles/test_meta_verify.dir/test/c/test_meta_verify.c.obj
+[710/932] Building C object CMakeFiles/test_lv_bootstrap.dir/test/c/test_lv_bootstrap.c.obj
+[711/932] Building C object CMakeFiles/test_lambda_unify.dir/test/c/test_lambda_unify.c.obj
+[712/932] Building C object CMakeFiles/test_axiom_topos_theory.dir/test/c/test_axiom_topos_theory.c.obj
+[713/932] Building C object CMakeFiles/test_lambda_eval.dir/test/c/test_lambda_eval.c.obj
+[714/932] Building C object CMakeFiles/test_lambda_church.dir/test/c/test_lambda_church.c.obj
+[715/932] Building C object CMakeFiles/test_axiom_robin_arithmetic.dir/test/c/test_axiom_robin_arithmetic.c.obj
+[716/932] Building C object CMakeFiles/test_axiom_synthetic_differential_geometry.dir/test/c/test_axiom_synthetic_differential_geometry.c.obj
+[717/932] Building C object CMakeFiles/test_axiom_second_order_arithmetic.dir/test/c/test_axiom_second_order_arithmetic.c.obj
+[718/932] Building C object CMakeFiles/test_axiom_peano_arithmetic.dir/test/c/test_axiom_peano_arithmetic.c.obj
+[719/932] Building C object CMakeFiles/test_axiom_quantum_information_theory.dir/test/c/test_axiom_quantum_information_theory.c.obj
+[720/932] Building C object CMakeFiles/test_axiom_probability_theory.dir/test/c/test_axiom_probability_theory.c.obj
+[721/932] Building C object CMakeFiles/test_axiom_order_theory.dir/test/c/test_axiom_order_theory.c.obj
+[722/932] Building C object CMakeFiles/test_axiom_non_well_founded_set_theory.dir/test/c/test_axiom_non_well_founded_set_theory.c.obj
+[723/932] Building C object CMakeFiles/test_axiom_measure_theory.dir/test/c/test_axiom_measure_theory.c.obj
+[724/932] Building C object CMakeFiles/test_axiom_linear_algebra.dir/test/c/test_axiom_linear_algebra.c.obj
+[725/932] Building C object CMakeFiles/test_axiom_galois_theory.dir/test/c/test_axiom_galois_theory.c.obj
+[726/932] Building C object CMakeFiles/test_axiom_graph_theory.dir/test/c/test_axiom_graph_theory.c.obj
+[727/932] Building C object CMakeFiles/test_solver_submodules.dir/test/c/test_solver_submodules.c.obj
+[728/932] Building C object CMakeFiles/test_axiom_ergodic_theory.dir/test/c/test_axiom_ergodic_theory.c.obj
+[729/932] Building C object CMakeFiles/test_axiom_cartesian_closed_category.dir/test/c/test_axiom_cartesian_closed_category.c.obj
+[730/932] Building C object CMakeFiles/test_geometry_core.dir/test/c/test_geometry_core.c.obj
+[731/932] Building C object CMakeFiles/test_symbolic_coord_ops.dir/test/c/test_symbolic_coord_ops.c.obj
+[732/932] Building C object CMakeFiles/test_smt_backend.dir/test/c/test_smt_backend.c.obj
+[733/932] Building C object CMakeFiles/test_layer4_misc.dir/test/c/test_layer4_misc.c.obj
+[734/932] Building C object CMakeFiles/test_bdd_sat_atp.dir/test/c/test_bdd_sat_atp.c.obj
+[735/932] Building C object CMakeFiles/test_layer5_output.dir/test/c/test_layer5_output.c.obj
+[736/932] Building C object CMakeFiles/test_layer5_core.dir/test/c/test_layer5_core.c.obj
+[737/932] Building C object CMakeFiles/test_proof_infra.dir/test/c/test_proof_infra.c.obj
+[738/932] Building C object CMakeFiles/test_proof_strategy_numeric.dir/test/c/test_proof_strategy_numeric.c.obj
+[739/932] Building C object CMakeFiles/test_interval_arith.dir/test/c/test_interval_arith.c.obj
+[740/932] Building C object CMakeFiles/test_output_export.dir/test/c/test_output_export.c.obj
+[741/932] Building C object CMakeFiles/test_groebner_parallel.dir/test/c/test_groebner_parallel.c.obj
+[742/932] Building C object CMakeFiles/test_callback_list.dir/test/c/test_callback_list.c.obj
+[743/932] Building C object CMakeFiles/example_stream_advanced.dir/test/examples/stream_advanced_demo.c.obj
+[744/932] Building C object CMakeFiles/test_proof_rule_numeric.dir/test/c/test_proof_rule_numeric.c.obj
+[745/932] Building C object CMakeFiles/test_layer6_visual.dir/test/c/test_layer6_visual.c.obj
+[746/932] Building C object CMakeFiles/test_proof_strategy_legacy.dir/test/c/test_proof_strategy_legacy.c.obj
+[747/932] Building C object CMakeFiles/example_triangle.dir/test/examples/triangle_construction.c.obj
+[748/932] Building C object CMakeFiles/example_circle.dir/test/examples/circle_intersection.c.obj
+[749/932] Building C object CMakeFiles/example_composition.dir/test/examples/function_composition.c.obj
+[750/932] Linking C executable test_edge_cases.exe
+[751/932] Linking C executable test_basic.exe
+[752/932] Linking C executable test_constraint_graph_ops.exe
+[753/932] Linking C executable test_complex_graph.exe
+[754/932] Building C object CMakeFiles/example_high_dim.dir/test/examples/high_dim_demo.c.obj
+[755/932] Linking C executable test_solver.exe
+[756/932] Linking C executable test_graph_hash.exe
+[757/932] Linking C executable test_normalization.exe
+[758/932] Linking C executable test_constraint_compatibility.exe
+[759/932] Linking C executable test_unify.exe
+[760/932] Linking C executable test_func_block.exe
+[761/932] Linking C executable test_solver_enhanced.exe
+[762/932] Building C object CMakeFiles/example_recursion.dir/test/examples/recursion_demo.c.obj
+[763/932] Linking C executable test_groebner_basis.exe
+[764/932] Building C object CMakeFiles/example_type_system.dir/test/examples/type_system_demo.c.obj
+[765/932] Building C object CMakeFiles/example_streaming.dir/test/examples/streaming_demo.c.obj
+[766/932] Linking C executable test_critical_pair.exe
+[767/932] Linking C executable test_type_equiv_explorer.exe
+[768/932] Linking C executable test_rewrite.exe
+[769/932] Linking C executable test_module.exe
+[770/932] Linking C executable test_minimal_parse.exe
+[771/932] Linking C executable test_type_system.exe
+[772/932] Linking C executable test_serialize_registry.exe
+[773/932] Linking C executable test_template_test.exe
+[774/932] Linking C executable test_recursion.exe
+[775/932] Linking C executable test_axiom_pkg.exe
+[776/932] Linking C executable test_graph_serialize.exe
+[777/932] Linking C executable test_implementation.exe
+[778/932] Linking C executable test_axiom_euclidean_plane.exe
+[779/932] Linking C executable test_proof.exe
+[780/932] Linking C executable test_axiom_group_theory.exe
+[781/932] Linking C executable test_axiom_intuitionistic_logic.exe
+[782/932] Linking C executable test_axiom_intuitionistic_propositional_logic.exe
+[783/932] Linking C executable test_axiom_point_set_topology.exe
+[784/932] Linking C executable test_axiom_elliptic_geometry.exe
+[785/932] Linking C executable test_axiom_category_theory.exe
+[786/932] Linking C executable test_axiom_zfc_set_theory.exe
+[787/932] Linking C executable test_axiom_classical_propositional_logic.exe
+[788/932] Linking C executable test_axiom_boolean_algebra.exe
+[789/932] Linking C executable test_axiom_field_theory.exe
+[790/932] Linking C executable test_axiom_ring_theory.exe
+[791/932] Linking C executable test_axiom_hyperbolic_geometry.exe
+[792/932] Linking C executable test_axiom_simple_type_theory.exe
+[793/932] Linking C executable test_axiom_nbg_set_theory.exe
+[794/932] Linking C executable test_axiom_affine_geometry.exe
+[795/932] Linking C executable test_axiom_proof_theory.exe
+[796/932] Linking C executable test_axiom_model_theory.exe
+[797/932] Linking C executable test_axiom_combinatorics.exe
+[798/932] Linking C executable test_axiom_homological_algebra.exe
+[799/932] Linking C executable test_axiom_dependent_type_theory.exe
+[800/932] Linking C executable test_axiom_functional_analysis.exe
+[801/932] Linking C executable test_axiom_number_theory.exe
+[802/932] Linking C executable test_axiom_algebraic_geometry.exe
+[803/932] Linking C executable test_axiom_algebraic_topology.exe
+[804/932] Linking C executable test_axiom_differential_geometry.exe
+[805/932] Linking C executable test_axiom_homotopy_type_theory.exe
+[806/932] Linking C executable test_axiom_real_analysis.exe
+[807/932] Linking C executable test_axiom_universal_algebra.exe
+[808/932] Linking C executable test_axiom_projective_geometry.exe
+[809/932] Linking C executable test_utils.exe
+[810/932] Linking C executable test_axiom_modal_logic.exe
+[811/932] Linking C executable test_axiom_descriptive_set_theory.exe
+[812/932] Linking C executable test_axiom_game_theory.exe
+[813/932] Linking C executable test_axiom_computational_complexity_theory.exe
+[814/932] Linking C executable test_axiom_linear_logic.exe
+[815/932] Linking C executable test_axiom_presburger_arithmetic.exe
+[816/932] Linking C executable test_axiom_lattice_theory.exe
+[817/932] Linking C executable test_axiom_information_theory.exe
+[818/932] Linking C executable test_axiom_metric_space.exe
+[819/932] Linking C executable test_axiom_domain_theory.exe
+[820/932] Linking C executable test_axiom_lie_theory.exe
+[821/932] Linking C executable test_axiom_computability_theory.exe
+[822/932] Linking C executable test_json_buf.exe
+[823/932] Linking C executable test_orchestrator.exe
+[824/932] Linking C executable test_hashtable.exe
+[825/932] Linking C executable test_enum_maps.exe
+[826/932] Linking C executable test_bytes.exe
+[827/932] Linking C executable test_module_serialize_unify.exe
+[828/932] Linking C executable test_registry.exe
+[829/932] Linking C executable test_stream.exe
+[830/932] Linking C executable test_lifecycle.exe
+[831/932] Linking C executable test_parallel_for.exe
+[832/932] Linking C executable test_error_codes.exe
+[833/932] Linking C executable test_stream_extended.exe
+[834/932] Linking C executable test_func_block_utils.exe
+[835/932] Linking C executable test_func_block_preset.exe
+[836/932] Linking C executable test_gappa_dsl.exe
+[837/932] Linking C executable test_interop.exe
+[838/932] Linking C executable test_ga_multivector.exe
+[839/932] Linking C executable test_circuit_breaker.exe
+[840/932] Linking C executable test_interval_arithmetic.exe
+[841/932] Linking C executable test_new_modules.exe
+[842/932] Linking C executable test_geo_invariant.exe
+[843/932] Linking C executable test_expr_canon.exe
+[844/932] Linking C executable test_high_dim.exe
+[845/932] Linking C executable test_rational.exe
+[846/932] Linking C executable test_proof_rule_engine.exe
+[847/932] Linking C executable test_symbolic_coord.exe
+[848/932] Linking C executable test_proof_trace.exe
+[849/932] Linking C executable test_smt_bitvector.exe
+[850/932] Linking C executable test_nt_number_theory.exe
+[851/932] Linking C executable test_sym_expr.exe
+[852/932] Linking C executable test_nt_polynomial.exe
+[853/932] Linking C executable test_sparse_linear_algebra.exe
+[854/932] Linking C executable test_proof_version.exe
+[855/932] Linking C executable test_rewrite_strategy_impl.exe
+[856/932] Linking C executable test_wfc_modules.exe
+[857/932] Linking C executable test_geo_constraint_solver_ext.exe
+[858/932] Linking C executable test_geo_constraint_solver.exe
+[859/932] Linking C executable test_ode_solver.exe
+[860/932] Linking C executable test_rewrite_strategy.exe
+[861/932] Linking C executable test_prop_verifier.exe
+[862/932] Linking C executable test_autodiff.exe
+[863/932] Linking C executable test_performance.exe
+[864/932] Linking C executable test_proof_export_enhanced.exe
+[865/932] Linking C executable test_geo_predicate.exe
+[866/932] Linking C executable test_geo_aabb_tree.exe
+[867/932] Linking C executable test_equiv_class.exe
+[868/932] Linking C executable test_geo_dynamic.exe
+[869/932] Linking C executable test_geo_visual.exe
+[870/932] Linking C executable test_geom_transform_presets.exe
+[871/932] Linking C executable test_geo_halfedge_mesh.exe
+[872/932] Linking C executable test_propagation.exe
+[873/932] Linking C executable test_group_minimal.exe
+[874/932] Linking C executable test_memory_management.exe
+[875/932] Linking C executable test_interactive_geo.exe
+[876/932] Linking C executable test_geo_topology.exe
+[877/932] Linking C executable test_adaptive_threshold.exe
+[878/932] Linking C executable test_lv_bootstrap.exe
+[879/932] Linking C executable test_lambda_church.exe
+[880/932] Linking C executable test_solve_debug.exe
+[881/932] Linking C executable test_lv_parser.exe
+[882/932] Linking C executable test_meta_verify.exe
+[883/932] Linking C executable test_engine_ops.exe
+[884/932] Linking C executable test_engine_scheduler.exe
+[885/932] Linking C executable test_error_handling.exe
+[886/932] Linking C executable test_trust_color.exe
+[887/932] Linking C executable test_conflict_detector.exe
+[888/932] Linking C executable test_layer5_output_ops.exe
+[889/932] Linking C executable test_lambda_eval.exe
+[890/932] Linking C executable test_lv_lexer.exe
+[891/932] Linking C executable test_axiom_order_theory.exe
+[892/932] Linking C executable test_axiom_linear_algebra.exe
+[893/932] Linking C executable test_axiom_quantum_information_theory.exe
+[894/932] Linking C executable test_axiom_non_well_founded_set_theory.exe
+[895/932] Linking C executable test_axiom_topos_theory.exe
+[896/932] Linking C executable test_axiom_peano_arithmetic.exe
+[897/932] Linking C executable test_axiom_robin_arithmetic.exe
+[898/932] Linking C executable test_axiom_synthetic_differential_geometry.exe
+[899/932] Linking C executable test_axiom_graph_theory.exe
+[900/932] Linking C executable test_axiom_galois_theory.exe
+[901/932] Linking C executable test_lambda_unify.exe
+[902/932] Linking C executable test_axiom_probability_theory.exe
+[903/932] Linking C executable test_axiom_second_order_arithmetic.exe
+[904/932] Linking C executable test_axiom_measure_theory.exe
+[905/932] Linking C executable test_solver_submodules.exe
+[906/932] Linking C executable test_layer4_misc.exe
+[907/932] Linking C executable test_geometry_core.exe
+[908/932] Linking C executable test_smt_backend.exe
+[909/932] Linking C executable test_output_export.exe
+[910/932] Linking C executable test_proof_infra.exe
+[911/932] Linking C executable test_axiom_ergodic_theory.exe
+[912/932] Linking C executable test_layer6_visual.exe
+[913/932] Linking C executable test_layer5_core.exe
+[914/932] Linking C executable test_proof_strategy_numeric.exe
+[915/932] Linking C executable test_bdd_sat_atp.exe
+[916/932] Linking C executable test_symbolic_coord_ops.exe
+[917/932] Linking C executable test_layer5_output.exe
+[918/932] Linking C executable test_axiom_cartesian_closed_category.exe
+[919/932] Linking C executable example_streaming.exe
+[920/932] Linking C executable example_type_system.exe
+[921/932] Linking C executable example_high_dim.exe
+[922/932] Linking C executable example_triangle.exe
+[923/932] Linking C executable example_composition.exe
+[924/932] Linking C executable test_proof_strategy_legacy.exe
+[925/932] Linking C executable test_groebner_parallel.exe
+[926/932] Linking C executable test_interval_arith.exe
+[927/932] Linking C executable test_callback_list.exe
+[928/932] Linking C executable example_stream_advanced.exe
+[929/932] Linking C executable example_circle.exe
+[930/932] Linking C executable test_proof_rule_numeric.exe
+[931/932] Linking C executable example_recursion.exe

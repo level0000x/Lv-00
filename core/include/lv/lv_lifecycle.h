@@ -180,6 +180,21 @@ typedef struct lvFieldDesc {
     {#field, LV_FIELD_CUSTOM, offsetof(obj_ty, field), 0, {.custom_fn = (cleanup_fn)}}
 
 /**
+ * @brief 生成「强类型 destroy → void* destroy 回调」适配 shim
+ *
+ * 语义契约：生成 `static void shim_name(void *obj) { destroy_fn((Type *)obj); }`。
+ * 收敛全库 17 处 `static void destroy_X(void *obj) { X_destroy((X*)obj); }`
+ * 逐字同构样板（判据 A），供 lv_FIELD_OBJECT / lv_FIELD_ARRAY 的
+ * object_destroy / elem_destroy 回调槽使用。
+ * 前置条件：destroy_fn 的形参类型为 `Type *`；shim_name 在本文件内唯一。
+ * 失败/截断语义：NULL obj 原样透传给 destroy_fn（是否安全取决于 destroy_fn）。
+ * 边界行为：shim 为 static 函数，仅本翻译单元可见。
+ * 扩展点：无。
+ */
+#define LV_DESTROY_SHIM(shim_name, Type, destroy_fn) \
+    static void shim_name(void *obj) { destroy_fn((Type *)obj); }
+
+/**
  * @brief 按字段描述表统一销毁复合对象的全部资源
  *
  * 按描述表声明顺序逐字段释放：PLAIN_FREE 释放指针并置 NULL；

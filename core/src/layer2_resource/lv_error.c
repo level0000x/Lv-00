@@ -94,6 +94,11 @@ static lvErrorFrame *push_frame(lvErrorContext *ctx, int code)
  * API 实现
  * ============================================================ */
 
+/* exempt: 惰性守卫豁免 —— 该守卫初始化"线程局部（TLS）错误上下文"：
+ * g_error_context_initialized 为 lv_THREAD_LOCAL，每线程独立初始化各自的上下文
+ * （lv_once 为进程级一次性守卫，无法按线程触发）；且 lv_error_context_cleanup
+ * 将 frame_capacity 置 0 后可重新初始化（reinit 语义），与 lv_once 不可重置矛盾。
+ * 故保留手写 TLS 惰性守卫，不迁移。 */
 lvErrorContext *lv_error_context_current(void)
 {
     if (!g_error_context_initialized) {

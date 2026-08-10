@@ -42,7 +42,7 @@ int lv_plugin_resolve_dependencies(lvPluginSystem *system, lvPlugin *plugin) {
 
         if (!dep_plugin) {
             if (!dep->optional) {
-                set_error(system, "Required dependency not found: %s", dep->name);
+                plugin_system_set_error(system, "Required dependency not found: %s", dep->name);
                 lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_plugin_resolve_dependencies: required dependency not found");
             }
             continue;
@@ -51,7 +51,7 @@ int lv_plugin_resolve_dependencies(lvPluginSystem *system, lvPlugin *plugin) {
         /* 检查版本兼容性 */
         if (!lv_plugin_check_version(dep->version_constraint, dep_plugin->info.version)) {
             if (!dep->optional) {
-                set_error(system, "Dependency version mismatch: %s", dep->name);
+                plugin_system_set_error(system, "Dependency version mismatch: %s", dep->name);
                 lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "lv_plugin_resolve_dependencies: version mismatch");
             }
         }
@@ -60,7 +60,7 @@ int lv_plugin_resolve_dependencies(lvPluginSystem *system, lvPlugin *plugin) {
         if (dep_plugin->state != lv_PLUGIN_STATE_ACTIVE) {
             if (lv_plugin_activate(dep_plugin) != 0) {
                 if (!dep->optional) {
-                    set_error(system, "Failed to activate dependency: %s", dep->name);
+                    plugin_system_set_error(system, "Failed to activate dependency: %s", dep->name);
                     lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_resolve_dependencies: activation failed");
                 }
             }

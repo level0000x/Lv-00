@@ -1,0 +1,180 @@
+﻿[1/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_serialize.c.obj
+[2/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_abstract_algebra.c.obj
+[3/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_manager_doc.c.obj
+[4/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof_contradiction.c.obj
+[5/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/func_block/preset_blocks.c.obj
+[6/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/axiom_rule_engine.c.obj
+[7/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/meta_proof.c.obj
+[8/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/conflict_detector.c.obj
+[9/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_conflict.c.obj
+[10/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_dirty_set.c.obj
+[11/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_feedback.c.obj
+[12/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_eq_system.c.obj
+[13/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_incremental.c.obj
+[14/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_coord_extract.c.obj
+[15/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_linear.c.obj
+[16/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_order.c.obj
+[17/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_snapshot.c.obj
+[18/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_result.c.obj
+[19/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_stats.c.obj
+[20/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_eliminate.c.obj
+[21/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_engine.c.obj
+[22/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_geom_templates.c.obj
+[23/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_symbolic.c.obj
+[24/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_groebner.c.obj
+[25/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/solver/solver_multibranch.c.obj
+[26/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator.c.obj
+[27/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_dependency.c.obj
+[28/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_dependency.c.obj
+[29/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_exfalso.c.obj
+[30/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_interactive.c.obj
+[31/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_breakpoint.c.obj
+[32/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_equivalence.c.obj
+[33/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_export.c.obj
+[34/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version.c.obj
+[35/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_utils.c.obj
+[36/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_degrade.c.obj
+[37/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_misc.c.obj
+[38/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_proposition.c.obj
+[39/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_step_registry.c.obj
+[40/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_navigator_instantiate.c.obj
+[41/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_nl.c.obj
+[42/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_ghost.c.obj
+[43/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_task.c.obj
+[44/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_sledge.c.obj
+[45/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/trust_color.c.obj
+[46/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_isar.c.obj
+[47/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/proof_version_refine.c.obj
+[48/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/proof/meta_verify.c.obj
+[49/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_match.c.obj
+[50/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_binding.c.obj
+[51/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_hash.c.obj
+[52/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_rule.c.obj
+[53/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_apply.c.obj
+[54/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_snapshot.c.obj
+[55/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_match_search.c.obj
+[56/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_vf2.c.obj
+[57/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_church.c.obj
+[58/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_wl.c.obj
+[59/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/critical_pair.c.obj
+[60/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_type_check.c.obj
+[61/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/beta_reduce.c.obj
+[62/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_to_graph.c.obj
+[63/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/lambda/lambda_term.c.obj
+[64/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/rewrite/rewrite_strategy_impl.c.obj
+[65/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/engine/engine_scheduler.c.obj
+[66/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/backends/approx_counter.c.obj
+[67/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test.c.obj
+[68/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/command_log.c.obj
+[69/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_init.c.obj
+[70/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_diff.c.obj
+[71/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_random.c.obj
+[72/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_iso.c.obj
+[73/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_oracle.c.obj
+[74/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_primitive.c.obj
+[75/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/bootstrap_test_report.c.obj
+[76/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize.c.obj
+[77/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_delta.c.obj
+[78/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_json.c.obj
+[79/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_msgpack.c.obj
+[80/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_lvz.c.obj
+[81/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/module/module_serialize_autosave.c.obj
+[82/521] Building C object CMakeFiles/lv_layer4_reasoning.dir/core/src/layer4_reasoning/numeric/mv_polynomial.c.obj
+[83/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_widget.c.obj
+[84/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/interop/interop.c.obj
+[85/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_array.c.obj
+[86/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_rune.c.obj
+[87/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/proof_export_enhanced.c.obj
+[88/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_spell.c.obj
+[89/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/magic/magic_domain.c.obj
+[90/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_render_visitor_tikz.c.obj
+[91/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_core.c.obj
+[92/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_render_visitor.c.obj
+[93/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system.c.obj
+[94/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/geo_visual_complete.c.obj
+[95/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/lv_protocol.c.obj
+[96/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_load.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_load.c: In function 'lv_plugin_reload':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_load.c:213:5: warning: '__builtin_strncpy' output may be truncated copying 511 bytes from a string of length 511 [-Wstringop-truncation]
+  213 |     strncpy(path, plugin->path, sizeof(path) - 1);
+      |     ^
+[97/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_state.c.obj
+FAILED: [code=1] CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_state.c.obj 
+C:\msys64\mingw64\bin\cc.exe -Dlv_CURRENT_LAYER=5 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -O3 -DNDEBUG -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wnull-dereference -Wduplicated-cond -Wlogical-op -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_state.c.obj -MF CMakeFiles\lv_layer5_output.dir\core\src\layer5_output\plugin_system_state.c.obj.d -o CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_state.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c:8:4: warning: '/*' within comment [-Wcomment]
+    8 |  * /* exempt: 语义异构状态机。插件生命周期状态
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c:14:4: error: stray '@' in program
+   14 |  * @author Lv-00 Project
+      |    ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c:14:12: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'Lv'
+   14 |  * @author Lv-00 Project
+      |            ^~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c:15:4: error: stray '@' in program
+   15 |  * @version 1.0
+      |    ^
+In file included from C:/msys64/mingw64/include/_mingw.h:306,
+                 from C:/msys64/mingw64/include/corecrt.h:10,
+                 from C:/msys64/mingw64/include/crtdefs.h:10,
+                 from C:/msys64/mingw64/include/stddef.h:7,
+                 from C:/msys64/mingw64/lib/gcc/x86_64-w64-mingw32/16.1.0/include/stddef.h:1,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:93,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/plugin_system.h:18,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer5_output/plugin_system_state.c:18:
+C:/msys64/mingw64/include/vadefs.h:31:11: error: unknown type name '__gnuc_va_list'
+   31 |   typedef __gnuc_va_list va_list;
+      |           ^~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_utils.h:24,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/context.h:57,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:191:
+C:/msys64/mingw64/include/stdio.h: In function 'vsprintf':
+C:/msys64/mingw64/include/stdio.h:388:85: error: passing argument 4 of '__mingw_vsnprintf' makes integer from pointer without a cast [-Wint-conversion]
+  388 |     int __retval = __mingw_vsnprintf( __stream, __mingw_bos(__stream, 1), __format, __local_argv );
+      |                                                                                     ^~~~~~~~~~~~
+      |                                                                                     |
+      |                                                                                     __builtin_va_list
+C:/msys64/mingw64/include/stdio.h:178:40: note: expected 'va_list' {aka 'int'} but argument is of type '__builtin_va_list'
+  178 |                                va_list _ArgList);
+      |                                ~~~~~~~~^~~~~~~~
+C:/msys64/mingw64/include/stdio.h:394:48: error: passing argument 3 of '__mingw_vsprintf' makes integer from pointer without a cast [-Wint-conversion]
+  394 |   return __mingw_vsprintf( __stream, __format, __local_argv );
+      |                                                ^~~~~~~~~~~~
+      |                                                |
+      |                                                __builtin_va_list
+C:/msys64/mingw64/include/stdio.h:199:83: note: expected 'va_list' {aka 'int'} but argument is of type '__builtin_va_list'
+  199 |   int __cdecl __mingw_vsprintf (char * __restrict__ , const char * __restrict__ , va_list) __MINGW_NOTHROW;
+      |                                                                                   ^~~~~~~
+C:/msys64/mingw64/include/stdio.h: In function 'vsnprintf':
+C:/msys64/mingw64/include/stdio.h:421:54: error: passing argument 4 of '__mingw_vsnprintf' makes integer from pointer without a cast [-Wint-conversion]
+  421 |   return __mingw_vsnprintf( __stream, __n, __format, __local_argv );
+      |                                                      ^~~~~~~~~~~~
+      |                                                      |
+      |                                                      __builtin_va_list
+C:/msys64/mingw64/include/stdio.h:178:40: note: expected 'va_list' {aka 'int'} but argument is of type '__builtin_va_list'
+  178 |                                va_list _ArgList);
+      |                                ~~~~~~~~^~~~~~~~
+C:/msys64/mingw64/include/stdio.h: In function 'vswprintf':
+C:/msys64/mingw64/include/stdio.h:1046:54: error: passing argument 4 of '__mingw_vswprintf' makes integer from pointer without a cast [-Wint-conversion]
+ 1046 |   return __mingw_vswprintf( __stream, __n, __format, __local_argv );
+      |                                                      ^~~~~~~~~~~~
+      |                                                      |
+      |                                                      __builtin_va_list
+C:/msys64/mingw64/include/stdio.h:920:96: note: expected 'va_list' {aka 'int'} but argument is of type '__builtin_va_list'
+  920 |   int __cdecl __mingw_vswprintf(wchar_t * __restrict__ , size_t, const wchar_t * __restrict__ ,va_list);
+      |                                                                                                ^~~~~~~
+C:/msys64/mingw64/include/stdio.h: In function 'vsnwprintf':
+C:/msys64/mingw64/include/stdio.h:1074:55: error: passing argument 4 of '__mingw_vsnwprintf' makes integer from pointer without a cast [-Wint-conversion]
+ 1074 |   return __mingw_vsnwprintf( __stream, __n, __format, __local_argv );
+      |                                                       ^~~~~~~~~~~~
+      |                                                       |
+      |                                                       __builtin_va_list
+C:/msys64/mingw64/include/stdio.h:916:99: note: expected 'va_list' {aka 'int'} but argument is of type '__builtin_va_list'
+  916 |   int __cdecl __mingw_vsnwprintf (wchar_t * __restrict__ , size_t, const wchar_t * __restrict__ , va_list);
+      |                                                                                                   ^~~~~~~
+[98/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_query.c.obj
+[99/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_event.c.obj
+[100/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_config.c.obj
+[101/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_interface.c.obj
+[102/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_autoload.c.obj
+[103/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_deps.c.obj
+[104/521] Building C object CMakeFiles/lv_layer5_output.dir/core/src/layer5_output/plugin_system_version.c.obj
+ninja: build stopped: subcommand failed.

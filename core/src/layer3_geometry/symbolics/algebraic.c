@@ -31,6 +31,7 @@
 #include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv_numeric.h"
 #include "mpz_poly.h"
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
@@ -90,7 +91,7 @@ void refine_algebraic_bounds(Algebraic *a, int iterations) {
             /* 使用相对区间宽度：根据 |mid| 缩放 epsilon，
              * 避免对大数值使用固定宽度导致精度过剩，
              * 对小数值使用过宽区间导致根隔离不精确。 */
-            double eps_rel = lv_EPSILON_NEWTON * fmax(1.0, fabs(mid));
+            double eps_rel = lv_rel_tol_scale(lv_EPSILON_NEWTON, mid);
             a->left_bound = mid - eps_rel;
             a->right_bound = mid + eps_rel;
             return;

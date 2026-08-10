@@ -11,6 +11,7 @@
 #include "groebner_engine.h"
 #include "lv/lv.h"
 #include "groebner_engine_internal.h"
+#include "groebner_engine_guard.h"
 
 #include <float.h>
 #include <math.h>
@@ -33,7 +34,7 @@
  * @brief 创建多项式并存入池
  */
 int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char *label) {
-    if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
+    if (!groebner_registry_has_ring(registry, ring_id)) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "poly_create: invalid params (registry=%p, ring_id=%d)",
                         (const void *)registry, ring_id);
     }
@@ -74,7 +75,7 @@ cleanup:
 void poly_destroy(lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (poly_id < 0 || poly_id >= g_data->poly_count)
+    if (!groebner_id_in_range(poly_id, g_data->poly_count))
         goto _gcleanup;
 
     if (g_data->polys[poly_id]) {
@@ -89,14 +90,14 @@ GROEBNER_LOCK_GUARD_END();
  * @brief 多项式加法
  */
 int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (poly_id_f < 0 || poly_id_g < 0)
-        goto _gcleanup;
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
+    if (!groebner_id_in_range(poly_id_f, g_data->poly_count) ||
+        !groebner_id_in_range(poly_id_g, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
@@ -126,14 +127,14 @@ GROEBNER_LOCK_GUARD_END();
  * @brief 多项式乘法
  */
 int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (poly_id_f < 0 || poly_id_g < 0)
-        goto _gcleanup;
-    if (poly_id_f >= g_data->poly_count || poly_id_g >= g_data->poly_count)
+    if (!groebner_id_in_range(poly_id_f, g_data->poly_count) ||
+        !groebner_id_in_range(poly_id_g, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
@@ -163,14 +164,14 @@ GROEBNER_LOCK_GUARD_END();
  * @brief 多项式代入
  */
 int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int subst_poly_id, const char *result_label) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (poly_id < 0 || subst_poly_id < 0)
-        goto _gcleanup;
-    if (poly_id >= g_data->poly_count || subst_poly_id >= g_data->poly_count)
+    if (!groebner_id_in_range(poly_id, g_data->poly_count) ||
+        !groebner_id_in_range(subst_poly_id, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id];
@@ -203,7 +204,7 @@ const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     const lvPolynomial *p = NULL;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (poly_id < 0 || poly_id >= g_data->poly_count)
+    if (!groebner_id_in_range(poly_id, g_data->poly_count))
         goto _gcleanup;
     p = g_data->polys[poly_id];
 GROEBNER_LOCK_GUARD_END();

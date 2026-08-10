@@ -44,6 +44,12 @@ BootstrapTestState s_test_state = {0};
  *
  * @return true 初始化成功，false 失败
  */
+/* exempt: 惰性守卫豁免 —— 框架 init 为"init→cleanup 可重入"模式：
+ * lv_bootstrap_test_framework_cleanup 将 initialized 置 false，允许再次 init
+ * （lv_once 不可重置，转换后 cleanup 无法恢复）；且 init 需传播失败
+ * （lv_init/primitive_wrapper_init 失败返回 false，lv_once 回调无返回值），
+ * bootstrap_test_framework_is_initialized 为查询 API（lv_once 无法表达）。
+ * 语义上需保留显式生命周期，故保留手写标志检查，不迁移。 */
 bool bootstrap_test_framework_init(void) {
     if (s_test_state.initialized) {
         return true;

@@ -18,6 +18,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_numeric.h"
 
 /* ============================================================
  * Basis element indices (Cl(3,0,1))
@@ -230,14 +231,9 @@ int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiV
  * @return Rotor 多向量（调用者负责释放），轴为零向量时返回 NULL
  */
 lvMultiVector *ga_embed_rotation(double ax, double ay, double az, double angle) {
-    /* Normalize axis */
-    double len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
-    if (len < lv_EPSILON_HIGH)
+    /* Normalize axis（零长度分支保留在调用点） */
+    if (!lv_normalize_3d(ax, ay, az, lv_EPSILON_HIGH, &ax, &ay, &az))
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "ga_embed_rotation: zero-length rotation axis");
-
-    ax /= len;
-    ay /= len;
-    az /= len;
 
     lvMultiVector *mv = ga_mv_create();
     if (!mv)

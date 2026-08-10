@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file engine_scheduler.c
  * @brief 引擎调度器 —— 多后端求解引擎的动态路由与分发
  *
@@ -17,7 +17,9 @@
 
 #include "lv/engine.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_registry.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/normalization.h"
 #include "lv/solver.h"
@@ -151,7 +153,7 @@ static bool check_condition(const RouteCondition *cond, const GraphFeatures *fea
     if (!cond)
         return false;
 
-    if (cond->type >= 0 && (size_t)cond->type < sizeof(kRouteConditionHandlers)/sizeof(kRouteConditionHandlers[0])
+    if (lv_index_in_range(cond->type, (int)(sizeof(kRouteConditionHandlers)/sizeof(kRouteConditionHandlers[0])))
         && kRouteConditionHandlers[cond->type]) {
         return kRouteConditionHandlers[cond->type](cond, features, scheduler);
     }
@@ -200,7 +202,7 @@ static const SMTSatResult kSolverStatusToSat[] = {
 
 static SMTSatResult solver_status_to_sat(SolverStatus status) {
     int idx = (int)status;
-    if (idx >= 0 && idx < (int)(sizeof(kSolverStatusToSat) / sizeof(kSolverStatusToSat[0]))) {
+    if (lv_index_in_range(idx, (int)(sizeof(kSolverStatusToSat) / sizeof(kSolverStatusToSat[0])))) {
         return kSolverStatusToSat[idx];
     }
     return SMT_RESULT_ERROR;
@@ -629,7 +631,7 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
         if (!node)
             continue;
 
-        if (node->type >= 0 && (size_t)node->type < sizeof(kNodeFeatureDeltas)/sizeof(kNodeFeatureDeltas[0])) {
+        if (lv_index_in_range(node->type, (int)(sizeof(kNodeFeatureDeltas)/sizeof(kNodeFeatureDeltas[0])))) {
             const NodeFeatureDelta *d = &kNodeFeatureDeltas[node->type];
             features->variable_nodes += d->variable_inc;
             features->port_nodes += d->port_inc;
@@ -646,7 +648,7 @@ int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *feature
         if (!c)
             continue;
 
-        if (c->type >= 0 && (size_t)c->type < sizeof(kConstraintFeatureDeltas)/sizeof(kConstraintFeatureDeltas[0])) {
+        if (lv_index_in_range(c->type, (int)(sizeof(kConstraintFeatureDeltas)/sizeof(kConstraintFeatureDeltas[0])))) {
             const ConstraintFeatureDelta *d = &kConstraintFeatureDeltas[c->type];
             features->incidence_constraints += d->incidence_inc;
             features->betweenness_constraints += d->betweenness_inc;
@@ -857,7 +859,7 @@ int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGra
     if ((int64_t) elapsed_us > scheduler->stats.max_solve_time_us) {
         scheduler->stats.max_solve_time_us = (int64_t) elapsed_us;
     }
-    if (backend_type >= 0 && backend_type < SCHEDULER_MAX_BACKEND_TYPES) {
+    if (lv_index_in_range(backend_type, SCHEDULER_MAX_BACKEND_TYPES)) {
         scheduler->stats.backend_solve_counts[(int) backend_type]++;
     }
 
@@ -926,7 +928,7 @@ int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const Constraint
     /* 查找表分发 —— 替代 switch(status) */
     {
         int idx = (int) status;
-        if (idx >= 0 && idx < (int)(sizeof(kSolverStatusToReturnCode) / sizeof(kSolverStatusToReturnCode[0]))) {
+        if (lv_index_in_range(idx, (int)(sizeof(kSolverStatusToReturnCode) / sizeof(kSolverStatusToReturnCode[0])))) {
             return kSolverStatusToReturnCode[idx];
         }
         return -1; /* 未知状态视为错误 */
@@ -986,35 +988,30 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
     if (!scheduler || !buf || buf_size == 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "scheduler_diagnose: NULL parameter or zero buf_size");
 
-    int pos = 0;
-    int rc;
-
-    rc = snprintf(buf + pos, buf_size - (size_t) pos,
-                  "Lv-00 EngineScheduler Diagnostic\n"
-                  "================================\n"
-                  "Default backend: %d (%s)\n"
-                  "Fallback: %s, depth=%d\n"
-                  "Auto-create: %s\n"
-                  "Registered backends: %d\n",
-                  (int) scheduler->default_backend, smtsolver_backend_type_name(scheduler->default_backend),
-                  scheduler->enable_fallback ? "enabled" : "disabled", scheduler->fallback_depth,
-                  scheduler->auto_create ? "yes" : "no", scheduler->backend_count);
-    if (rc > 0)
-        pos += rc;
+    /* 盲区6：lvStrBuf 收敛游标样板（原 5 处 snprintf(buf+pos, buf_size-pos) + pos 手工累加）。
+     * 输出字节不变：返回值为应有长度（与 snprintf 链的 rc 累加一致），
+     * buf 内容为整体文本前 buf_size-1 字节 + NUL（与原逐段截断一致）。 */
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb,
+                     "Lv-00 EngineScheduler Diagnostic\n"
+                     "================================\n"
+                     "Default backend: %d (%s)\n"
+                     "Fallback: %s, depth=%d\n"
+                     "Auto-create: %s\n"
+                     "Registered backends: %d\n",
+                     (int) scheduler->default_backend, smtsolver_backend_type_name(scheduler->default_backend),
+                     scheduler->enable_fallback ? "enabled" : "disabled", scheduler->fallback_depth,
+                     scheduler->auto_create ? "yes" : "no", scheduler->backend_count);
 
     for (int i = 0; i < scheduler->backend_count; i++) {
-        rc = snprintf(buf + pos, buf_size - (size_t) pos, "  [%d] type=%d (%s) available=%s priority=%d desc=%s\n", i,
-                      (int) scheduler->backends[i].type, smtsolver_backend_type_name(scheduler->backends[i].type),
-                      scheduler->backends[i].available ? "yes" : "no", scheduler->backends[i].priority,
-                      scheduler->backends[i].description);
-        if (rc > 0)
-            pos += rc;
+        lv_strbuf_printf(&sb, "  [%d] type=%d (%s) available=%s priority=%d desc=%s\n", i,
+                         (int) scheduler->backends[i].type, smtsolver_backend_type_name(scheduler->backends[i].type),
+                         scheduler->backends[i].available ? "yes" : "no", scheduler->backends[i].priority,
+                         scheduler->backends[i].description);
     }
 
-    rc = snprintf(buf + pos, buf_size - (size_t) pos, "Routing rules: %d\n",
-                  lv_registry_count(&scheduler->routing_rule_registry));
-    if (rc > 0)
-        pos += rc;
+    lv_strbuf_printf(&sb, "Routing rules: %d\n",
+                     lv_registry_count(&scheduler->routing_rule_registry));
 
     int rule_total = lv_registry_count(&scheduler->routing_rule_registry);
     for (int i = 0; i < rule_total; i++) {
@@ -1024,24 +1021,24 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
             continue;
         }
         RoutingRule *rule = (RoutingRule *) rule_reg_value;
-        rc = snprintf(buf + pos, buf_size - (size_t) pos,
-                      "  [%d] '%s' priority=%d enabled=%s conditions=%d backend=%d\n", i,
-                      rule->name, rule->priority,
-                      rule->enabled ? "yes" : "no", rule->condition_count,
-                      (int) rule->target_backend);
-        if (rc > 0)
-            pos += rc;
+        lv_strbuf_printf(&sb, "  [%d] '%s' priority=%d enabled=%s conditions=%d backend=%d\n", i,
+                         rule->name, rule->priority,
+                         rule->enabled ? "yes" : "no", rule->condition_count,
+                         (int) rule->target_backend);
     }
 
-    rc = snprintf(buf + pos, buf_size - (size_t) pos,
-                  "Stats: solves=%lld time=%lldus max=%lldus fallback=%lld miss=%lld\n",
-                  (long long) scheduler->stats.total_solves, (long long) scheduler->stats.total_solve_time_us,
-                  (long long) scheduler->stats.max_solve_time_us, (long long) scheduler->stats.fallback_count,
-                  (long long) scheduler->stats.selection_miss_count);
-    if (rc > 0)
-        pos += rc;
+    lv_strbuf_printf(&sb, "Stats: solves=%lld time=%lldus max=%lldus fallback=%lld miss=%lld\n",
+                     (long long) scheduler->stats.total_solves, (long long) scheduler->stats.total_solve_time_us,
+                     (long long) scheduler->stats.max_solve_time_us, (long long) scheduler->stats.fallback_count,
+                     (long long) scheduler->stats.selection_miss_count);
 
-    return pos;
+    size_t written = sb.len;
+    size_t copy = written < buf_size ? written : buf_size - 1;
+    memcpy(buf, sb.data, copy);
+    buf[copy] = '\0';
+    lv_strbuf_destroy(&sb);
+
+    return (int) written;
 }
 
 /* ============================================================

@@ -14,6 +14,7 @@
 #include <stdio.h>
 
 #include "lv_utils.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
 
 #include "engine_internal.h"
@@ -33,6 +34,13 @@
  *
  * 所有其他组合均非法（如 IDLE → COMPLETE，COMPLETE → REASONING 等）。
  */
+/* exempt: 1-A 状态机合流终审一 —— 与 context.c 的转移矩阵同构，
+ * 但（a）返回错误码体系本质不同（EngineStatus vs lvErrorCode 两个独立枚举），
+ * （b）self-transition 幂等 no-op（current==new_state 计数+1 返回 OK；context 无此分支），
+ * （c）目标状态越界有独立错误消息"无效的目标状态"（context 并入"非法转移"），
+ * （d）NULL 入参返回 ENGINE_STATUS_INVALID_ARGUMENT（context 返回 lv_ERROR_NULL_POINTER），
+ * （e）无熔断强转路径（context 有 ctx_force_to_error）。
+ * 合成共享骨架需体内 if(mode) 分支且返回类型不可统一 → 伪同构，保留各自纯函数。 */
 static const bool engine_transition_table[5][5] = {
     /* from \ to →        IDLE  PARSING  REASONING  ERROR  COMPLETE */
     /* IDLE      */ {false, true, false, true, false},
@@ -43,24 +51,29 @@ static const bool engine_transition_table[5][5] = {
 };
 
 bool engine_is_valid_transition(EngineState from, EngineState to) {
-    /* 边界检查：防止无效状态索引 */
-    if (from > ENGINE_STATE_COMPLETE || to > ENGINE_STATE_COMPLETE) {
+    /* 边界检查：防止无效状态索引（收敛为 lv_index_in_range 双检查，覆盖负值与上界） */
+    int state_count = (int) (sizeof(engine_transition_table) / sizeof(engine_transition_table[0]));
+    if (!lv_index_in_range(from, state_count) || !lv_index_in_range(to, state_count)) {
         return false;
     }
     return engine_transition_table[from][to];
 }
 
 /* ================================================================
- * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * 枚举 -> 名称 映射表（X-macro 键表生成，替代手写枚举条目）
  * ================================================================ */
+
+/** @brief EngineState 状态名键表（项序 = 枚举升序，供 lv_enum_to_str 二分） */
+#define ENGINE_STATE_NAME_X(x)                                                                                        \
+    x(ENGINE_STATE_IDLE, "空闲")                                                                                      \
+    x(ENGINE_STATE_PARSING, "解析中")                                                                                 \
+    x(ENGINE_STATE_REASONING, "推理中")                                                                               \
+    x(ENGINE_STATE_ERROR, "错误")                                                                                     \
+    x(ENGINE_STATE_COMPLETE, "完成")
 
 /** @brief engine_state_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_engine_state_name_entries[] = {
-    {"空闲", ENGINE_STATE_IDLE},
-    {"解析中", ENGINE_STATE_PARSING},
-    {"推理中", ENGINE_STATE_REASONING},
-    {"错误", ENGINE_STATE_ERROR},
-    {"完成", ENGINE_STATE_COMPLETE},
+    lv_XMACRO_TO_ENUM_TABLE(ENGINE_STATE_NAME_X)
 };
 
 const char *engine_state_name(EngineState state) {

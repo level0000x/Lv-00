@@ -29,6 +29,8 @@
  */
 
 #include "lv/groebner_parallel.h"
+#include "lv/lv_numeric.h" /* lv_deg_to_rad / lv_angle_diff_pi（K4-2A/4B 共享设施） */
+#include "lv/coeff_pool.h"  /* coeff_pool_alloc / coeff_pool_clear（K4-C2-3 配对语义） */
 #include "test_helpers.h"
 
 /* ============================================================
@@ -180,6 +182,64 @@ static void test_invalid_args(void) {
 }
 
 /* ============================================================
+ * Test: 2A 度数转弧度（K4 共享设施 lv_deg_to_rad）
+ * 覆盖 groebner_engine.c L604 / smt_backend_impl_smtlib2.c L494 收敛前的
+ * 内联形态 `deg * M_PI / 180.0`（lv_PI 与 M_PI 同为 double 最接近 π 表示，
+ * 数值逐位等价）。采样点：0° / 45° / 90° / 180°。
+ * ============================================================ */
+static void test_deg_to_rad(void) {
+    TEST_ASSERT_DOUBLE(lv_deg_to_rad(0.0), 0.0, 0.0);
+    TEST_ASSERT_DOUBLE(lv_deg_to_rad(45.0), M_PI / 4.0, 1e-12);
+    TEST_ASSERT_DOUBLE(lv_deg_to_rad(90.0), M_PI / 2.0, 1e-12);
+    TEST_ASSERT_DOUBLE(lv_deg_to_rad(180.0), M_PI, 1e-12);
+}
+
+/* ============================================================
+ * Test: 4B 角度回绕边界（K4 共享设施 lv_angle_diff_pi）
+ * 收敛 recursion_selector.c / geo_constraint_solver_residual.c 的
+ * 手写 while 双循环。端点 ±π 逐位保持；3π/2 一次回绕到 -π/2。
+ * ============================================================ */
+static void test_angle_diff_pi_wrap(void) {
+    /* 端点 ±π 保持（while 条件不触发，逐位一致） */
+    TEST_ASSERT_DOUBLE(lv_angle_diff_pi(M_PI), M_PI, 0.0);
+    TEST_ASSERT_DOUBLE(lv_angle_diff_pi(-M_PI), -M_PI, 0.0);
+    /* 3π/2 → -π/2（一次 2π 回绕） */
+    TEST_ASSERT_DOUBLE(lv_angle_diff_pi(3.0 * M_PI / 2.0), -M_PI / 2.0, 1e-12);
+    /* |angle| <= π 范围内原样保持 */
+    TEST_ASSERT_DOUBLE(lv_angle_diff_pi(1.5), 1.5, 0.0);
+    TEST_ASSERT_DOUBLE(lv_angle_diff_pi(-2.5), -2.5, 0.0);
+}
+
+/* ============================================================
+ * Test: C2-3 coeff_pool 配对语义（K4 收敛样板）
+ * solver_coord_extract.c 中 solver_poly_pool_init/push 收敛前的
+ * coeff_pool_alloc + mpz_init + ... + coeff_pool_clear 配对契约：
+ * clear 归还池并置 coeffs=NULL、degree=-1；重复 clear 安全。
+ * 注：配对使用 coeff_pool_clear（池归还），不得再调用 mpz_poly_clear
+ * （其内部 lv_free 与池内存不兼容）。
+ * ============================================================ */
+static void test_coeff_pool_pairing(void) {
+    mpz_poly_t poly;
+    mpz_poly_init(&poly);
+    poly.degree = 1;
+    poly.coeffs = coeff_pool_alloc(2);
+    TEST_ASSERT_NOT_NULL(poly.coeffs);
+    if (poly.coeffs) {
+        mpz_init(poly.coeffs[0]);
+        mpz_init(poly.coeffs[1]);
+        mpz_set_si(poly.coeffs[0], 3);
+        mpz_set_si(poly.coeffs[1], -5);
+    }
+    /* 配对：clear 归还池 */
+    coeff_pool_clear(&poly);
+    TEST_ASSERT_NULL(poly.coeffs);
+    TEST_ASSERT_EQ(poly.degree, -1);
+    /* 重复 clear 安全（coeffs == NULL 时 no-op） */
+    coeff_pool_clear(&poly);
+    TEST_ASSERT_NULL(poly.coeffs);
+}
+
+/* ============================================================
  * Main
  * ============================================================ */
 TEST_MAIN_BEGIN("GroebnerParallel")
@@ -190,5 +250,8 @@ TEST_MAIN_BEGIN("GroebnerParallel")
     TEST_MAIN_RUN(test_sat_x_y);
     TEST_MAIN_RUN(test_empty_clause_unsat);
     TEST_MAIN_RUN(test_invalid_args);
+    TEST_MAIN_RUN(test_deg_to_rad);
+    TEST_MAIN_RUN(test_angle_diff_pi_wrap);
+    TEST_MAIN_RUN(test_coeff_pool_pairing);
 
 TEST_MAIN_END()

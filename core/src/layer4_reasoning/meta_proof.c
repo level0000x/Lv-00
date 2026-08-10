@@ -424,27 +424,34 @@ static PruningRecord *create_pruning_record(void) {
     return record;
 }
 
+/* PruningOperation 元素：释放 removed_states 数组及其中的 SymbolicCoord、
+ * propagation_trace 序列（operations 为值数组，无元素 dtor，逐元素回调） */
+static void destroy_pruning_operation_elem(void *elem) {
+    PruningOperation *op = (PruningOperation *) elem;
+    if (!op)
+        return;
+    if (op->removed_states) {
+        for (int j = 0; j < op->removed_count; j++) {
+            if (op->removed_states[j])
+                symbolic_coord_destroy(op->removed_states[j]);
+        }
+        lv_free((void **) &op->removed_states);
+    }
+    if (op->propagation_trace)
+        lv_free((void **) &op->propagation_trace);
+}
+
+/* destroy_pruning_record 字段描述表：operations 逐元素销毁后整体释放 */
+static const lvFieldDesc s_pruning_record_destroy_fields[] = {
+    lv_FIELD_DARRAY_ELEMS(PruningRecord, operations, destroy_pruning_operation_elem),
+};
+
 /** 销毁剪枝记录 */
 static void destroy_pruning_record(PruningRecord *record) {
     if (!record)
         return;
-
-    for (int i = 0; i < record->operations.count; i++) {
-        PruningOperation *op = (PruningOperation *)lv_darray_get(&record->operations, i);
-        if (op->removed_states) {
-            for (int j = 0; j < op->removed_count; j++) {
-                if (op->removed_states[j]) {
-                    symbolic_coord_destroy(op->removed_states[j]);
-                }
-            }
-            lv_free((void **) &op->removed_states);
-        }
-        if (op->propagation_trace) {
-            lv_free((void **) &op->propagation_trace);
-        }
-    }
-
-    lv_darray_free(&record->operations);
+    lv_obj_destroy_fields(record, s_pruning_record_destroy_fields,
+                          sizeof(s_pruning_record_destroy_fields) / sizeof(s_pruning_record_destroy_fields[0]));
     lv_free((void **) &record);
 }
 

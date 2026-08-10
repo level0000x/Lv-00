@@ -23,6 +23,7 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_render_visitor.h"
 #include "lv/simd_ops.h" /* lv_mat4_identity_f / lv_mat4_mul_f（4x4 列主序 float，收敛共享） */
+#include "lv/lv_numeric.h"
 
 
 
@@ -199,6 +200,9 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]) {
 
     /* 默认绕 Z 轴旋转 */
     float ax = 0.0f, ay = 0.0f, az = 1.0f;
+    /* exempt: float 渲染精度 3D 归一化（sqrtf/1e-6f），与 double 域
+       lv_normalize_3d 语义不同（float 运算 + len>1e-6f 判定），保持原样；
+       零长度分支（保留默认轴）留在调用点。 */
     if (axis != NULL) {
         float len = sqrtf(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
         if (len > 1e-6f) {
@@ -381,6 +385,8 @@ static void svg_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualS
     float x2 = cache[2], y2 = cache[3];
     float w = 800.0f, h = 600.0f;
     float dx = x2 - x1, dy = y2 - y1;
+    /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，
+       与 double 域 lv_normalize_3d 不一致，保持原样（零长度分支提前 return）。 */
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 1e-6f)
         return;
@@ -447,7 +453,7 @@ static void svg_render_object(FILE *fp, const lvVisualObject *obj, const lvVisua
         return;
     }
 
-    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
         SvgObjHandler handler = svg_render_table[obj->type];
         if (handler)
             handler(fp, obj, scene, depth);
@@ -538,6 +544,7 @@ static void cairo_render_line(FILE *fp, const lvVisualObject *obj, const lvVisua
     float x1 = cache[0], y1 = cache[1];
     float x2 = cache[2], y2 = cache[3];
     float dx = x2 - x1, dy = y2 - y1;
+    /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 1e-6f)
         return;
@@ -624,7 +631,7 @@ static void cairo_render_object(FILE *fp, const lvVisualObject *obj, const lvVis
         return;
     }
 
-    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
         CairoObjHandler handler = cairo_render_table[obj->type];
         if (handler)
             handler(fp, obj, scene, depth);
@@ -713,6 +720,7 @@ static void threejs_render_segment(FILE *fp, const lvVisualObject *obj, const lv
     apply_camera(&x2, &y2, scene);
     float mx = (x1 + x2) * 0.5f, my = (y1 + y2) * 0.5f;
     float dx = x2 - x1, dy = y2 - y1;
+    /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
     float length = sqrtf(dx * dx + dy * dy);
     if (length < 1e-6f)
         return;
@@ -742,6 +750,7 @@ static void threejs_render_line(FILE *fp, const lvVisualObject *obj, const lvVis
     float x1 = cache[0], y1 = cache[1];
     float x2 = cache[2], y2 = cache[3];
     float dx = x2 - x1, dy = y2 - y1;
+    /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
     float len = sqrtf(dx * dx + dy * dy);
     if (len < 1e-6f)
         return;
@@ -862,7 +871,7 @@ static void threejs_render_object(FILE *fp, const lvVisualObject *obj, const lvV
         return;
     }
 
-    if (obj->type >= 0 && obj->type < lv_VISUAL_MOBJECT_GROUP) {
+    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
         ThreejsObjHandler handler = threejs_render_table[obj->type];
         if (handler)
             handler(fp, obj, scene, depth, parent_var);
@@ -1193,7 +1202,7 @@ void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const ch
     if (fp == NULL)
         return;
 
-    if (renderer->backend >= 0 && renderer->backend < lv_RENDER_PNG) {
+    if (lv_index_in_range(renderer->backend, lv_RENDER_PNG)) {
         SceneRenderFn fn = scene_render_table[renderer->backend];
         if (fn)
             fn(fp, renderer, scene);

@@ -6,10 +6,8 @@ inductive Formula' (sig : Type) : Type where
 
 def term_eval_test : (Formula' Unit) → Nat
   | .forall _ _ => 0
-  | .rel _ args => List.sum (args.map term_eval_test)
-termination_by t => sizeOf t
-decreasing_by
-  trace_state
-  sorry
-
-end
+  | .rel _ args => term_eval_test_args args
+where
+  term_eval_test_args : List (Formula' Unit) → Nat
+    | [] => 0
+    | t :: rest => term_eval_test t + term_eval_test_args rest

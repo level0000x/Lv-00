@@ -59,65 +59,41 @@ static int helper_dsl_identifier(const FormulaNode *node, char *buffer, size_t s
     return written;
 }
 
-static int helper_dsl_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+/* DSL 二元/一元算子模板表（格式串为外部契约，内容与历史输出逐字一致） */
+static const RenderBinarySpec s_dsl_binary_specs[] = {
+    [NODE_BINARY_OP_ADD] = {"%s + %s", 0},
+    [NODE_BINARY_OP_SUB] = {"%s - %s", 0},
+    [NODE_BINARY_OP_MUL] = {"%s * %s", 0},
+    [NODE_BINARY_OP_DIV] = {"%s / %s", 0},
+    [NODE_BINARY_OP_POW] = {"%s ^ %s", 0},
+};
+
+static const RenderUnarySpec s_dsl_unary_specs[] = {
+    [NODE_UNARY_OP_NEG] = {"-", "", 0},
+    [NODE_UNARY_OP_SQRT] = {"sqrt(", ")", 0},
+    [NODE_UNARY_OP_ABS] = {"abs(", ")", 0},
+    [NODE_UNARY_OP_LN] = {"ln(", ")", 0},
+    [NODE_UNARY_OP_LOG] = {"log(", ")", 0},
+};
+
+/* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
+static const RenderFnNameSpec s_dsl_fn_name_spec = {"%s(", ")", 0, "<unknown>"};
+
+static int helper_dsl_binary(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "%s + %s", 0, buffer, size, options, render_dsl_internal);
+    return render_binary_spec(node, s_dsl_binary_specs, lv_ARRAY_SIZE(s_dsl_binary_specs), buffer, size, options,
+                              render_dsl_internal);
 }
 
-static int helper_dsl_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+static int helper_dsl_unary(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "%s - %s", 0, buffer, size, options, render_dsl_internal);
+    return render_unary_spec(node, s_dsl_unary_specs, lv_ARRAY_SIZE(s_dsl_unary_specs), buffer, size, options,
+                             render_dsl_internal);
 }
 
-static int helper_dsl_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+static int helper_dsl_fn_name(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "%s * %s", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_binary_via(node, "%s / %s", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_binary_via(node, "%s ^ %s", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "-", "", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "sqrt(", ")", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    /* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
-    const char *name = formula_unary_fn_name(node);
-    if (!name)
-        return snprintf(buffer, size, "<unknown>");
-    char prefix[lv_FORMULA_BUF_SMALL];
-    snprintf(prefix, sizeof(prefix), "%s(", name);
-    return render_unary_via(node, prefix, ")", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "abs(", ")", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "ln(", ")", 0, buffer, size, options, render_dsl_internal);
-}
-
-static int helper_dsl_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "log(", ")", 0, buffer, size, options, render_dsl_internal);
+    return render_fn_name_spec(node, &s_dsl_fn_name_spec, buffer, size, options, render_dsl_internal);
 }
 
 static int helper_dsl_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -464,19 +440,19 @@ static const RenderNodeFunc s_render_dsl_funcs[] = {
     [NODE_NUMBER] = helper_dsl_number,
     [NODE_VARIABLE] = helper_dsl_variable,
     [NODE_IDENTIFIER] = helper_dsl_identifier,
-    [NODE_BINARY_OP_ADD] = helper_dsl_binary_add,
-    [NODE_BINARY_OP_SUB] = helper_dsl_binary_sub,
-    [NODE_BINARY_OP_MUL] = helper_dsl_binary_mul,
-    [NODE_BINARY_OP_DIV] = helper_dsl_binary_div,
-    [NODE_BINARY_OP_POW] = helper_dsl_binary_pow,
-    [NODE_UNARY_OP_NEG] = helper_dsl_unary_neg,
-    [NODE_UNARY_OP_SQRT] = helper_dsl_unary_sqrt,
-    [NODE_UNARY_OP_SIN] = helper_dsl_unary_sin_cos_tan,
-    [NODE_UNARY_OP_COS] = helper_dsl_unary_sin_cos_tan,
-    [NODE_UNARY_OP_TAN] = helper_dsl_unary_sin_cos_tan,
-    [NODE_UNARY_OP_ABS] = helper_dsl_unary_abs,
-    [NODE_UNARY_OP_LN] = helper_dsl_unary_ln,
-    [NODE_UNARY_OP_LOG] = helper_dsl_unary_log,
+    [NODE_BINARY_OP_ADD] = helper_dsl_binary,
+    [NODE_BINARY_OP_SUB] = helper_dsl_binary,
+    [NODE_BINARY_OP_MUL] = helper_dsl_binary,
+    [NODE_BINARY_OP_DIV] = helper_dsl_binary,
+    [NODE_BINARY_OP_POW] = helper_dsl_binary,
+    [NODE_UNARY_OP_NEG] = helper_dsl_unary,
+    [NODE_UNARY_OP_SQRT] = helper_dsl_unary,
+    [NODE_UNARY_OP_SIN] = helper_dsl_fn_name,
+    [NODE_UNARY_OP_COS] = helper_dsl_fn_name,
+    [NODE_UNARY_OP_TAN] = helper_dsl_fn_name,
+    [NODE_UNARY_OP_ABS] = helper_dsl_unary,
+    [NODE_UNARY_OP_LN] = helper_dsl_unary,
+    [NODE_UNARY_OP_LOG] = helper_dsl_unary,
     [NODE_EQUATION] = helper_dsl_equation,
     [NODE_GEOM_POINT] = helper_dsl_geom_point,
     [NODE_GEOM_SEGMENT] = helper_dsl_geom_segment,

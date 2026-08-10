@@ -93,9 +93,7 @@ static void destroy_module_axiom_pkg_elem(void *elem) {
         axiom_package_destroy(*slot);
 }
 
-static void destroy_module_graph(void *obj) {
-    graph_destroy((ConstraintGraph *) obj);
-}
+LV_DESTROY_SHIM(destroy_module_graph, ConstraintGraph, graph_destroy)
 
 /* module_destroy 字段描述表：释放顺序与原实现一致
  * （name → version → dependencies（逐元素） → exports（内部数组+外壳） →

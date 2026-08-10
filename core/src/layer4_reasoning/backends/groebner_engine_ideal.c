@@ -12,6 +12,7 @@
 #include "lv/lv.h"
 #include "lv/lv_lifecycle.h"
 #include "groebner_engine_internal.h"
+#include "groebner_engine_guard.h"
 
 #include <float.h>
 #include <math.h>
@@ -168,7 +169,7 @@ static lvIdeal *ideal_alloc_locked(int ring_id, int capacity, const char *label)
  * @brief 创建理想
  */
 int ideal_create(lvRingRegistry *registry, int ring_id, const char *label) {
-    if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
+    if (!groebner_registry_has_ring(registry, ring_id)) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "ideal_create: invalid params (registry=%p, ring_id=%d)",
                         (const void *)registry, ring_id);
     }
@@ -205,7 +206,7 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
-    if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!g_data || !groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         return;
     }
 
@@ -225,19 +226,21 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
  * @brief 向理想添加生成元
  */
 int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return -1;
     }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
-    if (poly_id < 0 || poly_id >= g_data->poly_count) {
+    if (!groebner_id_in_range(poly_id, g_data->poly_count)) {
         return -1;
     }
 
@@ -268,16 +271,18 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
  * @brief 计算 Groebner 基
  */
 int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm algorithm) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return -1;
     }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
 
@@ -482,19 +487,21 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
  * - 若增量扩展失败或未缓存基，回退到完全重算
  */
 int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new_poly_id) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return -1;
     }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
-    if (new_poly_id < 0 || new_poly_id >= g_data->poly_count) {
+    if (!groebner_id_in_range(new_poly_id, g_data->poly_count)) {
         return -1;
     }
 
@@ -552,6 +559,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
  * @brief 理想成员判定
  */
 bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return false;
 
@@ -559,13 +567,14 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return false;
     }
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         return false;
     }
-    if (poly_id < 0 || poly_id >= g_data->poly_count) {
+    if (!groebner_id_in_range(poly_id, g_data->poly_count)) {
         return false;
     }
 
@@ -1016,19 +1025,19 @@ static lvPolynomial **ideal_intersection_extract(const lvPolynomialRing *orig_ri
  * 标准消去算法：I ∩ J = (t·I + (1-t)·J) ∩ K[x]，t 为新变量。
  */
 int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return -1;
     }
-    if (ideal_id_a < 0 || ideal_id_b < 0) {
-        return -1;
-    }
-    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id_a, g_data->ideal_count) ||
+        !groebner_id_in_range(ideal_id_b, g_data->ideal_count)) {
         return -1;
     }
 
@@ -1098,19 +1107,19 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
  *   I : J = ∩_{g ∈ gens(J)} (I : ⟨g⟩)，其中 I : ⟨g⟩ = (I ∩ ⟨g⟩)/g
  */
 int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
+    /* exempt: 单指针 NULL 守卫（g_data 非空），与 id 范围守卫不同构，保留 */
     if (!g_data) {
         return -1;
     }
-    if (ideal_id_a < 0 || ideal_id_b < 0) {
-        return -1;
-    }
-    if (ideal_id_a >= g_data->ideal_count || ideal_id_b >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id_a, g_data->ideal_count) ||
+        !groebner_id_in_range(ideal_id_b, g_data->ideal_count)) {
         return -1;
     }
 

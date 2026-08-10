@@ -144,10 +144,29 @@ static int compat_variable(const TypeRegion *ta, const TypeRegion *tb) {
     return 0;
 }
 
-/* 基本几何类型兼容性检查：同种类即兼容 */
+/* 基本几何类型兼容性检查：同种类才兼容 */
+/* 点/线段仅含 kind 与宇宙层级；区域类型额外携带包含的节点集合（subtype 信息），
+ * 需要进一步核对包含节点数及节点 ID 的一致性 */
 static int compat_geom_primitive(const TypeRegion *ta, const TypeRegion *tb) {
-    (void)ta;
-    (void)tb;
+    if (!ta || !tb)
+        return 0;
+    if (ta->kind != tb->kind)
+        return 0;
+    /* 宇宙层级不一致且均未关闭层级检查（非良基模式）时不兼容 */
+    if (ta->level != tb->level && ta->level != UNIVERSE_LEVEL_ANY && tb->level != UNIVERSE_LEVEL_ANY)
+        return 0;
+    /* 区域类型：核对包含节点集合的一致性 */
+    if (ta->kind == TYPE_KIND_REGION) {
+        int i;
+        if (ta->contained_count != tb->contained_count)
+            return 0;
+        if (ta->contained_count > 0 && (!ta->contained_node_ids || !tb->contained_node_ids))
+            return 0;
+        for (i = 0; i < ta->contained_count; i++) {
+            if (ta->contained_node_ids[i] != tb->contained_node_ids[i])
+                return 0;
+        }
+    }
     return 1;
 }
 

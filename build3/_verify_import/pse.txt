@@ -1,0 +1,1 @@
+[2026-08-09 14:52:54] [WARN] [engine_lifecycle.c] [C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer4_reasoning/engine/engine_lifecycle.c:68] engine_create: stream_context_register_builtins() 已调用（void 返回，无法检测错误）

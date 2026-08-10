@@ -1,4 +1,4 @@
-﻿# Lv-00 Axiom Package Progress
+# Lv-00 Axiom Package Progress
 
 ## Completed Axiom Packages
 
@@ -43,14 +43,14 @@
 | 37 | affine_geometry | 1.0.0 | Affine Geometry (Coxeter/Artin, Incidence + Parallelism + Vector Space + Affine Structure) | 2026-05-23 |
 | 38 | universal_algebra | 1.0.0 | Universal Algebra (Birkhoff HSP, Signatures, Equational Classes, Mal'cev Conditions) | 2026-05-24 |
 | 39 | peano_arithmetic | 1.0.0 | Peano Arithmetic / PA (First-Order, Successor + Induction Schema, 70 templates) | 2026-05-24 |
-| — | category_theory | 1.0.0 | Category Theory (Eilenberg-Mac Lane, Objects + Morphisms) | 2026-05-21 |
+| — | category_theory | 1.0.0 | Category Theory (Eilenberg-Mac Lane, Objects + Morphisms)（注：test_save 往返产物未提交） | 2026-05-21 |
 | — | intuitionistic_logic | 1.0.0 | Intuitionistic Logic (Heyting's Calculus, BHK Interpretation) | 2026-05-21 |
 | 40 | measure_theory | 1.0.0 | Measure Theory (σ-Algebra + Kolmogorov Measure + Carathéodory Extension + Lebesgue Integration + Convergence Theorems + Lᵖ Spaces + Radon-Nikodym, 90 templates) | 2026-05-24 |
 | 41 | order_theory | 1.0.0 | Order Theory (Poset, Total/Well-Order, Bounds, Morphisms, Constructions, Zorn/Dilworth/Knaster-Tarski) | 2026-05-24 |
 | 42 | probability_theory | 1.0.0 | Probability Theory (Kolmogorov 1933, Kolmogorov Axioms, Conditional Probability, Random Variables, Limit Theorems, Stochastic Processes, 102 templates) | 2026-05-24 |
 | 43 | galois_theory | 1.0.0 | Galois Theory (Field Extensions + Galois Groups + Fundamental Theorem + Solvability by Radicals) | 2026-05-24 |
 | 44 | second_order_arithmetic | 1.0.0 | Second-Order Arithmetic Z₂ (Big Five Subsystems RCA₀/WKL₀/ACA₀/ATR₀/Π¹₁-CA₀, Reverse Mathematics, 135 templates) | 2026-05-24 |
-| 45 | robinson_arithmetic | 1.0.0 | Robinson Arithmetic / Q (Finitely Axiomatized Fragment of PA, 7 Axioms, Essentially Undecidable, No Induction) | 2026-05-24 |
+| 45 | robin_arithmetic | 1.0.0 | Robinson Arithmetic / Q (Finitely Axiomatized Fragment of PA, 7 Axioms, Essentially Undecidable, No Induction) | 2026-05-24 |
 | 46 | ergodic_theory | 1.0.0 | Ergodic Theory (Measure-Preserving Systems + Ergodicity + Mixing Hierarchy + Birkhoff/von Neumann Theorems + KS Entropy + Ornstein Isomorphism, 49 templates) | 2026-05-24 |
 | 47 | graph_theory | 1.0.0 | Graph Theory (Euler-Diestel, 70 templates, 14 NP-complete problems, Matching/Coloring/Planarity) | 2026-05-24 |
 | 48 | cartesian_closed_category | 1.0.0 | Cartesian Closed Category / CCC (Eilenberg-Kelly, Terminal + Products + Exponentials, Curry-Howard-Lambek, 55 templates) | 2026-05-24 |
@@ -313,6 +313,7 @@
 
 **File**: `axiom_packages/point_set_topology.lvz`
 **Test**: `tests/test_axiom_point_set_topology.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 9. hyperbolic_geometry v1.0.0
 
@@ -340,6 +341,7 @@
 
 **File**: `axiom_packages/hyperbolic_geometry.lvz`
 **Test**: `tests/test_axiom_hyperbolic_geometry.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 10. simple_type_theory v1.0.0
 
@@ -366,6 +368,7 @@
 
 **File**: `axiom_packages/simple_type_theory.lvz`
 **Test**: `tests/test_axiom_simple_type_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 11. field_theory v1.0.0
 
@@ -393,6 +396,7 @@
 
 **File**: `axiom_packages/field_theory.lvz`
 **Test**: `tests/test_axiom_field_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 12. nbg_set_theory v1.0.0
 
@@ -420,6 +424,7 @@
 
 **File**: `axiom_packages/nbg_set_theory.lvz`
 **Test**: `tests/test_axiom_nbg_set_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 13. real_analysis v1.0.0
 
@@ -442,6 +447,7 @@
 
 **File**: `axiom_packages/real_analysis.lvz`
 **Test**: `tests/test_axiom_real_analysis.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 14. combinatorics v1.0.0
 
@@ -464,6 +470,7 @@
 
 **File**: `axiom_packages/combinatorics.lvz`
 **Test**: `tests/test_axiom_combinatorics.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 15. algebraic_topology v1.0.0
 
@@ -486,6 +493,7 @@
 
 **File**: `axiom_packages/algebraic_topology.lvz`
 **Test**: `tests/test_axiom_algebraic_topology.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 16. model_theory v1.0.0
 
@@ -508,6 +516,7 @@
 
 **File**: `axiom_packages/model_theory.lvz`
 **Test**: `tests/test_axiom_model_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 17. dependent_type_theory v1.0.0
 
@@ -530,6 +539,7 @@
 
 **File**: `axiom_packages/dependent_type_theory.lvz`
 **Test**: `tests/test_axiom_dependent_type_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 18. homological_algebra v1.0.0
 
@@ -552,6 +562,7 @@
 
 **File**: `axiom_packages/homological_algebra.lvz`
 **Test**: `tests/test_axiom_homological_algebra.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 19. differential_geometry v1.0.0
 
@@ -574,6 +585,7 @@
 
 **File**: `axiom_packages/differential_geometry.lvz`
 **Test**: `tests/test_axiom_differential_geometry.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 20. number_theory v1.0.0
 
@@ -596,6 +608,7 @@
 
 **File**: `axiom_packages/number_theory.lvz`
 **Test**: `tests/test_axiom_number_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 21. functional_analysis v1.0.0
 
@@ -618,6 +631,7 @@
 
 **File**: `axiom_packages/functional_analysis.lvz`
 **Test**: `tests/test_axiom_functional_analysis.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 22. algebraic_geometry v1.0.0
 
@@ -640,6 +654,7 @@
 
 **File**: `axiom_packages/algebraic_geometry.lvz`
 **Test**: `tests/test_axiom_algebraic_geometry.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 23. proof_theory v1.0.0
 
@@ -662,6 +677,7 @@
 
 **File**: `axiom_packages/proof_theory.lvz`
 **Test**: `tests/test_axiom_proof_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 24. homotopy_type_theory v1.0.0
 
@@ -683,6 +699,7 @@
 
 **File**: `axiom_packages/homotopy_type_theory.lvz`
 **Test**: `tests/test_axiom_homotopy_type_theory.c` (10 test functions, all passing)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 25. modal_logic v1.0.0
 
@@ -845,7 +862,7 @@
 **File**: `axiom_packages/linear_logic.lvz`
 **Test**: `tests/test_axiom_linear_logic.c` (10 test functions, all passing)
 
----### 26. lie_theory v1.0.0
+### 26. lie_theory v1.0.0
 
 **Mathematical Theory**: Lie theory — the study of Lie groups (smooth manifolds with group structure) and Lie algebras (their infinitesimal/tangent space counterparts), and the deep correspondence between them. Lie theory is the mathematical framework for continuous symmetries, bridging algebra (groups, algebras), geometry (smooth manifolds), and analysis (differential equations).
 
@@ -1077,6 +1094,8 @@
 **File**: `axiom_packages/domain_theory.lvz`
 **Test**: `tests/test_axiom_domain_theory.c` (10 test functions, all passing)
 
+**注（编号 32）**：computational_complexity_theory 的详细章节未单独成节，简洁描述见文末 Dependency Graph 部分。
+
 ### 33. information_theory v1.0.0
 
 **Mathematical Theory**: Information theory, founded by Claude E. Shannon in 1948. The mathematical study of the quantification, storage, and communication of information. Built on probability theory, it defines entropy as the fundamental measure of uncertainty/information, and establishes the theoretical limits of data compression (source coding) and reliable communication (channel coding). Formalized via Khinchin's 1957 axiomatic characterization of entropy.
@@ -1170,6 +1189,7 @@
 
 **File**: `axiom_packages/elliptic_geometry.lvz`
 **Test**: `tests/test_axiom_elliptic_geometry.c` (10 test functions)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ### 35. game_theory v1.0.0
 
@@ -1275,6 +1295,8 @@
 
 **File**: `axiom_packages/computability_theory.lvz`
 **Test**: `tests/test_axiom_computability_theory.c` (10 test functions)
+
+**注（编号 37）**：affine_geometry 的详细章节见文末（### 37. affine_geometry）。
 
 ### 38. universal_algebra v1.0.0
 
@@ -1642,6 +1664,7 @@
 
 **File**: `axiom_packages/galois_theory.lvz`
 **Test**: `tests/test_axiom_galois_theory.c` (10 test functions)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ---
 
@@ -1717,7 +1740,7 @@
 - **Contradiction Behavior**: explosion_principle — classical logic, from ⊥ any proposition follows.
 - **Relationship to existing packages**:
   - **peano_arithmetic**: Z₂ extends PA with second-order quantification; ACA₀ is conservative over PA for arithmetical sentences
-  - **robinson_arithmetic**: The basic axioms of Z₂ are exactly Robinson arithmetic Q
+  - **robin_arithmetic**: The basic axioms of Z₂ are exactly Robinson arithmetic Q
   - **zfc_set_theory**: Z₂ is much weaker than ZFC but sufficient for most "ordinary mathematics"
   - **computability_theory**: RCA₀ captures computable mathematics; Turing reducibility formalized in Z₂
   - **proof_theory**: Ordinal analysis of subsystems (ω^ω, ε₀, Γ₀, Ψ₀(Ω_ω))
@@ -1734,6 +1757,8 @@
 
 **File**: `axiom_packages/second_order_arithmetic.lvz`
 **Test**: `tests/test_axiom_second_order_arithmetic.c` (10 test functions, 135 templates, 12 unconstructible problems)
+
+**注（编号 45）**：robin_arithmetic 的详细章节见文末（### 45. robin_arithmetic）。
 
 ---
 
@@ -2019,6 +2044,7 @@
 
 **File**: `axiom_packages/linear_algebra.lvz`
 **Test**: `tests/test_axiom_linear_algebra.c` (10 test functions)
+**Test Save**: 未提交（注：test_save 往返产物未提交）
 
 ---
 
@@ -2254,7 +2280,7 @@ presburger_arithmetic (v1.0.0, 2026-05-24)
     [self-contained, no inter-package dependencies]
     [Strict subtheory of peano_arithmetic: PA = Presburger + multiplication]
     [presburger_arithmetic → peano_arithmetic: Every Presburger theorem is a PA theorem; PA is strictly stronger]
-    [presburger_arithmetic → robinson_arithmetic: Incomparable — Q has multiplication but no induction; Presburger has induction but no multiplication]
+    [presburger_arithmetic → robin_arithmetic: Incomparable — Q has multiplication but no induction; Presburger has induction but no multiplication]
     [presburger_arithmetic → computability_theory: Decision procedure is doubly-to-triply exponential (Fischer-Rabin 1974, Oppen 1978)]
     [presburger_arithmetic → proof_theory: Quantifier elimination via Cooper's algorithm (1972)]
     [presburger_arithmetic → computational_complexity_theory: PA(1) is NP-complete; PA(i+1) is Σ_i^EXP-complete]
@@ -2746,7 +2772,7 @@ universal_algebra (v1.0.0)
     [Key theorems: Birkhoff HSP theorem, subdirect representation, Mal'cev conditions]
     [60 templates across 10 groups; 8 unconstructible problems]
 
-### 44. robin_arithmetic v1.0.0
+### 45. robin_arithmetic v1.0.0
 
 **Mathematical Theory**: Robinson Arithmetic (Q) — the finitely axiomatized fragment of first-order Peano arithmetic, first set out by Raphael M. Robinson in 1950. Q is PA without the axiom schema of mathematical induction. It is the weakest theory strong enough for Gödel's first incompleteness theorem. Q is essentially undecidable: no consistent recursively axiomatized extension of Q is decidable (Tarski, Mostowski, Robinson 1953).
 
@@ -2851,7 +2877,7 @@ universal_algebra (v1.0.0)
 - **Contradiction Behavior**: explosion_principle
 - **Key Distinction**: The first axiom package where decidability is a FEATURE rather than a limitation. All 7 "unconstructible" entries reflect complexity bounds (2-EXPTIME lower, 3-EXPTIME upper), not logical undecidability.
 - **Relationship to peano_arithmetic**: PA = Presburger + multiplication. PA is undecidable (Gödel 1931); Presburger is decidable. Presburger is a proper subtheory of PA.
-- **Relationship to robinson_arithmetic**: Q is finitely axiomatizable but undecidable; Presburger is infinitely axiomatizable (induction schema) but decidable. They are incomparable in strength.
+- **Relationship to robin_arithmetic**: Q is finitely axiomatizable but undecidable; Presburger is infinitely axiomatizable (induction schema) but decidable. They are incomparable in strength.
 - **Applications**: Formal verification, model checking, SMT solvers (Coq omega tactic, Lean, Isabelle verified QE by Nipkow 2010)
 
 **File**: `axiom_packages/presburger_arithmetic.lvz`
@@ -2867,7 +2893,7 @@ universal_algebra (v1.0.0)
 | Geometry/Analysis | ✅ Covered | differential_geometry |
 | Algebra | ✅ Covered | boolean_algebra, group_theory, ring_theory, field_theory, lattice_theory, lie_theory, universal_algebra |
 | Number Theory | ✅ Covered | number_theory, peano_arithmetic |
-| Arithmetic / Foundations | ✅ Covered | peano_arithmetic, robinson_arithmetic, second_order_arithmetic, presburger_arithmetic |
+| Arithmetic / Foundations | ✅ Covered | peano_arithmetic, robin_arithmetic, second_order_arithmetic, presburger_arithmetic |
 | Logic | ✅ Covered | classical_propositional_logic, intuitionistic_propositional_logic, modal_logic, model_theory |
 | Proof Theory | ✅ Covered | proof_theory |
 | Set Theory | ✅ Covered | zfc_set_theory, nbg_set_theory, descriptive_set_theory |
@@ -2911,7 +2937,7 @@ Major mathematical branches are now comprehensively covered. The three classical
 14. **Spherical Geometry** (Geometry) — Double elliptic geometry on S^2 without antipodal identification. Complements elliptic_geometry (single elliptic = S^2/{+/-}).
 15. **Social Choice Theory** (Economics/Logic) — Voting systems, Arrow's theorem extensions, judgment aggregation. Bridges game_theory and modal_logic.
 16. ~~**Peano Arithmetic** (Foundations/Logic)~~ — ✅ Completed as peano_arithmetic (2026-05-24). First-order PA with successor, addition, multiplication, induction schema, 70 templates, 8 undecidable problems (Gödel, Goodstein, Paris-Harrington, etc.).
-17. ~~**Second-Order Arithmetic (Z₂)** (Foundations/Logic)~~ — ✅ Completed as second_order_arithmetic (2026-05-24, upgraded to 135 templates in 14 groups). The Big Five subsystems (RCA₀, WKL₀, ACA₀, ATR₀, Π¹₁-CA₀), reverse mathematics equivalences (30 theorems), coding schemes, arithmetical/analytical hierarchy, ω-models/β-models, proof-theoretic ordinals, 12 undecidable problems. Bridges peano_arithmetic, robinson_arithmetic, proof_theory, computability_theory, and descriptive_set_theory.
+17. ~~**Second-Order Arithmetic (Z₂)** (Foundations/Logic)~~ — ✅ Completed as second_order_arithmetic (2026-05-24, upgraded to 135 templates in 14 groups). The Big Five subsystems (RCA₀, WKL₀, ACA₀, ATR₀, Π¹₁-CA₀), reverse mathematics equivalences (30 theorems), coding schemes, arithmetical/analytical hierarchy, ω-models/β-models, proof-theoretic ordinals, 12 undecidable problems. Bridges peano_arithmetic, robin_arithmetic, proof_theory, computability_theory, and descriptive_set_theory.
 18. ~~**Presburger Arithmetic** (Logic)~~ — ✅ Completed as presburger_arithmetic (2026-05-24, upgraded to v1.0.0, 74 templates). Decidable fragment of PA (addition only). Cooper's quantifier elimination, automata-theoretic connection, semilinear sets, 10 inexpressible/complexity problems. Complements peano_arithmetic with a decidable theory.
 19. ~~**Robinson Arithmetic (Q)** (Logic)~~ — ✅ Completed as robin_arithmetic (2026-05-24). Finitely axiomatizable fragment of PA, only 7 axioms with no induction, essentially undecidable, weakest theory for Gödel's incompleteness, 39 templates, 12 unconstructible problems. Bridges peano_arithmetic, computability_theory, and decidability theory.
 20. ~~**Galois Theory** (Algebra)~~ — ✅ Completed as galois_theory (2026-05-24). Field extensions, Galois groups, fundamental theorem, solvability by radicals, 62 templates, 8 unconstructible problems including inverse Galois problem (unsolved).
@@ -3006,7 +3032,7 @@ Major mathematical branches are now comprehensively covered. The three classical
    - 45 constraint templates across 9 groups: core metric axioms (4), basic metric constructions (6), metric topology constructions (6), convergence & completeness (6), continuity (6), compactness & boundedness (6), connectedness (3), product & quotient constructions (4), specialized constructions (5)
    - 8 known unconstructible problems: isometric embedding into ℓ², separable metric space classification, Urysohn universal space existence (requires AC), finite metric space isometry (GI-hard), embedding into ℝⁿ (NP-hard), Hausdorff distance computability, Baire category without choice, general metrizability
    - References: Fréchet (1906), Hausdorff (1914), Rudin (1976), Burago-Burago-Ivanov (2001), Wikipedia, nLab
-   - Test file: `tests/test_axiom_metric_space.c` with 10 test functions
+   - Test file: 待补充测试
    - Key relationships: bridges point_set_topology (metric topology), real_analysis (ℝ as complete metric space), euclidean_plane (ℝ² with Euclidean metric), functional_analysis (Banach/Hilbert spaces), descriptive_set_theory (Polish spaces), category_theory (category Met)
    - Key theorems formalized: Banach fixed-point theorem, Baire category theorem, Heine-Borel (compact = complete + totally bounded), Arzelà-Ascoli, Urysohn metrization theorem
    - Total axiom packages: 36 (including 2 unnumbered), covering 20 mathematical branches

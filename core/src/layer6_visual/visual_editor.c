@@ -121,6 +121,8 @@ lvViewType lv_visual_editor_active_view(const lvVisualEditor *editor) {
  * @param mark_all 是否先标记所有块为脏（增量执行）
  * @return 成功返回0，失败返回-1
  */
+/* exempt: 编辑器状态机（IDLE→EXECUTING→IDLE/ERROR）依赖执行结果条件迁移与
+ * 错误计数，非静态数据表可描述的纯函数映射，故保留手写状态切换 */
 static int editor_run(lvVisualEditor *editor, lvSchedStrategy strategy, bool mark_all) {
     lv_CHECK_NOT_NULL(editor);
     if (!editor->block_graph) {

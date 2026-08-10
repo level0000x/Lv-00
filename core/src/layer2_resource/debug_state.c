@@ -145,8 +145,9 @@ lv_mutex_t *debug_counter_mutex(void) {
     return &s_debug_state.counter_mutex;
 }
 
-/* 引用计数加锁/解锁（复用 counter_mutex） */
+/* 引用计数加锁/解锁（复用 counter_mutex；先 lv_once 初始化，与 counter_lock 语义一致） */
 void debug_refcount_lock(void) {
+    lv_once(&s_debug_state.counter_once, counter_mutex_init_func);
     lv_mutex_lock(&s_debug_state.counter_mutex);
 }
 

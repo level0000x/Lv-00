@@ -123,13 +123,8 @@ MagicArray *magic_array_create(void) {
  */
 /* ── magic_array_destroy 子资源销毁适配 ── */
 
-static void destroy_magic_array_runes(void *obj) {
-    rune_sequence_destroy((RuneSequence *) obj);
-}
-
-static void destroy_magic_array_graph(void *obj) {
-    graph_destroy((ConstraintGraph *) obj);
-}
+LV_DESTROY_SHIM(destroy_magic_array_runes, RuneSequence, rune_sequence_destroy)
+LV_DESTROY_SHIM(destroy_magic_array_graph, ConstraintGraph, graph_destroy)
 
 /* magic_array_destroy 字段描述表：runes/graph 对象销毁，constraints 纯指针
  * 释放；name 字符串字段顺带补上（原实现漏释放） */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file ecosystem.c
  * @brief 插件生态系统管理模块（子目录版本）
  *
@@ -7,6 +7,7 @@
  */
 
 #include "lv/ecosystem.h"
+#include "lv/lv_numeric.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,11 @@ static EcosystemState s_ecosystem_state = {0};
  *
  * @return 0 成功
  */
+/* exempt: 惰性守卫豁免 —— 生态系统为"init→shutdown 可重入"模式：
+ * lv_ecosystem_shutdown 将 initialized 置 0（由 lv_cleanup 在 lv.c 中调用），
+ * 允许再次 init（lv_once 不可重置，转换后 shutdown 无法恢复）；
+ * L90 的 !initialized 为消费者活性检查（register 拒绝未初始化操作）。
+ * 生命周期由 lv_init/lv_cleanup 显式串行驱动，故保留手写标志检查，不迁移。 */
 int lv_ecosystem_init(void) {
     if (s_ecosystem_state.initialized) {
         return 0; /* 已初始化，幂等返回 */
@@ -133,7 +139,7 @@ int lv_ecosystem_module_count(void) {
  * @return 模块名称字符串（内部存储，勿释放），无效索引返回 NULL
  */
 const char *lv_ecosystem_module_name(int idx) {
-    if (idx < 0 || idx >= s_ecosystem_state.count) {
+    if (!lv_index_in_range(idx, s_ecosystem_state.count)) {
         return NULL;
     }
     return s_ecosystem_state.modules[idx].name;

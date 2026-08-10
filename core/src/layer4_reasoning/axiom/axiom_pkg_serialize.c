@@ -29,11 +29,14 @@
 
 /* ============== 保存功能 ============== */
 
+#define AXIOM_BEHAVIOR_X(x) \
+    x(PROPOSITION_KIND_CONSTRUCTIVE, "constructive") \
+    x(PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE, "non_constructive_oracle") \
+    x(PROPOSITION_KIND_EXPLOSION_PRINCIPLE, "explosion_principle")
+
 /** @brief behavior_to_string 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_behavior_str_entries[] = {
-    {"constructive", PROPOSITION_KIND_CONSTRUCTIVE},
-    {"non_constructive_oracle", PROPOSITION_KIND_NON_CONSTRUCTIVE_ORACLE},
-    {"explosion_principle", PROPOSITION_KIND_EXPLOSION_PRINCIPLE},
+    lv_XMACRO_TO_ENUM_TABLE(AXIOM_BEHAVIOR_X)
 };
 
 static const char *behavior_to_string(int behavior) {

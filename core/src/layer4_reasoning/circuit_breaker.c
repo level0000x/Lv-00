@@ -73,11 +73,14 @@ bool lv_circuit_breaker_record_failure(lvContext *ctx) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ============================================================ */
 
+#define CIRCUIT_BREAKER_STATE_X(x) \
+    x(CIRCUIT_BREAKER_CLOSED, "关闭（正常）") \
+    x(CIRCUIT_BREAKER_HALF_OPEN, "半开（试探中）") \
+    x(CIRCUIT_BREAKER_OPEN, "打开（熔断）")
+
 /** @brief lv_circuit_breaker_state_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_circuit_breaker_state_name_entries[] = {
-    {"关闭（正常）", CIRCUIT_BREAKER_CLOSED},
-    {"半开（试探中）", CIRCUIT_BREAKER_HALF_OPEN},
-    {"打开（熔断）", CIRCUIT_BREAKER_OPEN},
+    lv_XMACRO_TO_ENUM_TABLE(CIRCUIT_BREAKER_STATE_X)
 };
 
 const char *lv_circuit_breaker_state_name(lvContext *ctx) {

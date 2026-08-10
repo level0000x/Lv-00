@@ -44,6 +44,11 @@ extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;
  * VTable Handler Functions (Lifecycle)
  * ============================================================ */
 
+/* exempt: destroy handlers 均执行 "<T>_destroy(ptr); ptr=NULL;"（逐字同构），
+ * 但各 handler 绑定类型专用析构函数与 SymbolicCoord union 字段。统一模板需要
+ * 函数指针重解释 cast（C 标准未定义行为）或宏泛型（ABSTRACTION_SPEC 禁止），
+ * 故保留逐字实现；分发本身已由 kCoordOpsVTable 表驱动收敛。 */
+
 /* ── destroy handlers ── */
 void destroy_rational(SymbolicCoord *coord) {
     rational_destroy(coord->data.rational);
@@ -62,6 +67,9 @@ void destroy_transcendental(SymbolicCoord *coord) {
     coord->data.transcendental = NULL;
 }
 
+/* exempt: serialize handlers 均执行 "return <T>_serialize(ptr);"（逐字同构），
+ * 绑定类型专用序列化函数，同上理由保留逐字实现。 */
+
 /* ── serialize handlers ── */
 char *serialize_rational(const SymbolicCoord *coord) {
     return rational_serialize(coord->data.rational);
@@ -75,6 +83,10 @@ char *serialize_quadratic(const SymbolicCoord *coord) {
 char *serialize_transcendental(const SymbolicCoord *coord) {
     return transcendental_serialize(coord->data.transcendental);
 }
+
+/* exempt: copy_data handlers 语义逐类型不同（rational 单指针复制、algebraic 含
+ * cached_rational 缓存复制、quadratic 分步构造、transcendental 深复制表达式树），
+ * 强制统一将改变 mpq 精确算术语义，故保留差异实现。 */
 
 /* ── copy_data handlers ── */
 void copy_data_rational(const SymbolicCoord *src, SymbolicCoord *dst) {
@@ -108,6 +120,9 @@ void copy_data_transcendental(const SymbolicCoord *src, SymbolicCoord *dst) {
     }
 }
 
+/* exempt: copy_check handlers 均执行 "return (ptr != NULL);"（逐字同构），
+ * 绑定类型专用字段，同上函数指针 cast 限制保留逐字实现。 */
+
 /* ── copy_check handlers ── */
 bool copy_check_rational(const SymbolicCoord *coord) {
     return (coord->data.rational != NULL);
@@ -121,6 +136,9 @@ bool copy_check_quadratic(const SymbolicCoord *coord) {
 bool copy_check_transcendental(const SymbolicCoord *coord) {
     return (coord->data.transcendental != NULL);
 }
+
+/* exempt: is_zero handlers 判零语义逐类型不同（精确 mpq 比较 / cached_rational
+ * 优先 + 隔离区间判断 / 双有理数判零 / 恒非零），保持差异实现。 */
 
 /* ── is_zero handlers ── */
 bool is_zero_rational(const SymbolicCoord *coord) {

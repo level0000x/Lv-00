@@ -54,65 +54,41 @@ static int helper_ascii_identifier(const FormulaNode *node, char *buffer, size_t
     return snprintf(buffer, size, "%s", node->data.identifier.name);
 }
 
-static int helper_ascii_binary_add(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+/* ASCII 二元/一元算子模板表（格式串为外部契约，内容与历史输出逐字一致） */
+static const RenderBinarySpec s_ascii_binary_specs[] = {
+    [NODE_BINARY_OP_ADD] = {"(%s + %s)", 0},
+    [NODE_BINARY_OP_SUB] = {"(%s - %s)", 0},
+    [NODE_BINARY_OP_MUL] = {"(%s * %s)", 0},
+    [NODE_BINARY_OP_DIV] = {"(%s / %s)", 0},
+    [NODE_BINARY_OP_POW] = {"(%s ^ %s)", 0},
+};
+
+static const RenderUnarySpec s_ascii_unary_specs[] = {
+    [NODE_UNARY_OP_NEG] = {"-(", ")", 0},
+    [NODE_UNARY_OP_SQRT] = {"sqrt(", ")", 0},
+    [NODE_UNARY_OP_ABS] = {"|", "|", 0},
+    [NODE_UNARY_OP_LN] = {"ln(", ")", 0},
+    [NODE_UNARY_OP_LOG] = {"log(", ")", 0},
+};
+
+/* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
+static const RenderFnNameSpec s_ascii_fn_name_spec = {"%s(", ")", 0, "<unknown>"};
+
+static int helper_ascii_binary(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "(%s + %s)", 0, buffer, size, options, render_ascii_internal);
+    return render_binary_spec(node, s_ascii_binary_specs, lv_ARRAY_SIZE(s_ascii_binary_specs), buffer, size, options,
+                              render_ascii_internal);
 }
 
-static int helper_ascii_binary_sub(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+static int helper_ascii_unary(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "(%s - %s)", 0, buffer, size, options, render_ascii_internal);
+    return render_unary_spec(node, s_ascii_unary_specs, lv_ARRAY_SIZE(s_ascii_unary_specs), buffer, size, options,
+                             render_ascii_internal);
 }
 
-static int helper_ascii_binary_mul(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
+static int helper_ascii_fn_name(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return render_binary_via(node, "(%s * %s)", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_binary_div(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_binary_via(node, "(%s / %s)", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_binary_pow(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_binary_via(node, "(%s ^ %s)", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_neg(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "-(", ")", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_sqrt(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "sqrt(", ")", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_sin_cos_tan(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    /* 前缀自共享一元函数名表构造："sin(" 等（与历史输出逐字一致） */
-    const char *name = formula_unary_fn_name(node);
-    if (!name)
-        return snprintf(buffer, size, "<unknown>");
-    char prefix[lv_FORMULA_BUF_SMALL];
-    snprintf(prefix, sizeof(prefix), "%s(", name);
-    return render_unary_via(node, prefix, ")", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_abs(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "|", "|", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_ln(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "ln(", ")", 0, buffer, size, options, render_ascii_internal);
-}
-
-static int helper_ascii_unary_log(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return render_unary_via(node, "log(", ")", 0, buffer, size, options, render_ascii_internal);
+    return render_fn_name_spec(node, &s_ascii_fn_name_spec, buffer, size, options, render_ascii_internal);
 }
 
 static int helper_ascii_equation(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
@@ -420,19 +396,19 @@ static const RenderNodeFunc s_render_ascii_funcs[] = {
     [NODE_NUMBER] = helper_ascii_number,
     [NODE_VARIABLE] = helper_ascii_variable,
     [NODE_IDENTIFIER] = helper_ascii_identifier,
-    [NODE_BINARY_OP_ADD] = helper_ascii_binary_add,
-    [NODE_BINARY_OP_SUB] = helper_ascii_binary_sub,
-    [NODE_BINARY_OP_MUL] = helper_ascii_binary_mul,
-    [NODE_BINARY_OP_DIV] = helper_ascii_binary_div,
-    [NODE_BINARY_OP_POW] = helper_ascii_binary_pow,
-    [NODE_UNARY_OP_NEG] = helper_ascii_unary_neg,
-    [NODE_UNARY_OP_SQRT] = helper_ascii_unary_sqrt,
-    [NODE_UNARY_OP_SIN] = helper_ascii_unary_sin_cos_tan,
-    [NODE_UNARY_OP_COS] = helper_ascii_unary_sin_cos_tan,
-    [NODE_UNARY_OP_TAN] = helper_ascii_unary_sin_cos_tan,
-    [NODE_UNARY_OP_ABS] = helper_ascii_unary_abs,
-    [NODE_UNARY_OP_LN] = helper_ascii_unary_ln,
-    [NODE_UNARY_OP_LOG] = helper_ascii_unary_log,
+    [NODE_BINARY_OP_ADD] = helper_ascii_binary,
+    [NODE_BINARY_OP_SUB] = helper_ascii_binary,
+    [NODE_BINARY_OP_MUL] = helper_ascii_binary,
+    [NODE_BINARY_OP_DIV] = helper_ascii_binary,
+    [NODE_BINARY_OP_POW] = helper_ascii_binary,
+    [NODE_UNARY_OP_NEG] = helper_ascii_unary,
+    [NODE_UNARY_OP_SQRT] = helper_ascii_unary,
+    [NODE_UNARY_OP_SIN] = helper_ascii_fn_name,
+    [NODE_UNARY_OP_COS] = helper_ascii_fn_name,
+    [NODE_UNARY_OP_TAN] = helper_ascii_fn_name,
+    [NODE_UNARY_OP_ABS] = helper_ascii_unary,
+    [NODE_UNARY_OP_LN] = helper_ascii_unary,
+    [NODE_UNARY_OP_LOG] = helper_ascii_unary,
     [NODE_EQUATION] = helper_ascii_equation,
     [NODE_COORDINATE_LIST] = helper_ascii_coord_list,
     [NODE_GEOM_POINT] = helper_ascii_geom_point,

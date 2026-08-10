@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "expr_canon.h"
+#include "expr_canonical.h" /* lvExpr：表达式树深复制回归测试 */
 #include "lv.h"
 #include "test_helpers.h"
 
@@ -464,6 +465,91 @@ static void test_expr_to_string(void) {
     lv_expr_canonical_destroy(&expr);
 }
 
+/**
+ * @brief 测试 lv_expr_copy 深复制（复合表达式）: 修改副本子树不影响原件
+ *
+ * D1 终审二回归测试：钉住 copy_composite 的深复制语义。
+ * 断言副本 operand 数组与每个子表达式指针均与原件不同（非共享）；
+ * 修改副本子树后原件保持不变；原件先释放后副本仍可独立访问并释放。
+ */
+static void test_expr_copy_composite_deep(void) {
+    lvExpr *x = lv_expr_create_variable("x");
+    lvExpr *y = lv_expr_create_variable("y");
+    TEST_ASSERT_NOT_NULL(x);
+    TEST_ASSERT_NOT_NULL(y);
+    lvExpr *sum = lv_expr_add(x, y);
+    TEST_ASSERT_NOT_NULL(sum);
+
+    lvExpr *copy = lv_expr_copy(sum);
+    TEST_ASSERT_NOT_NULL(copy);
+    TEST_ASSERT_EQ(copy->type, EXPR_TYPE_SUM);
+    TEST_ASSERT_EQ(copy->data.composite.count, 2);
+
+    /* 副本 operand 数组与子表达式指针必须与原件不同（深复制，非共享） */
+    TEST_ASSERT_MSG(copy->data.composite.operands != sum->data.composite.operands,
+                    "operand array must be independently allocated");
+    TEST_ASSERT_MSG(copy->data.composite.operands[0] != sum->data.composite.operands[0],
+                    "operand[0] must be a deep copy, not shared");
+    TEST_ASSERT_MSG(copy->data.composite.operands[1] != sum->data.composite.operands[1],
+                    "operand[1] must be a deep copy, not shared");
+
+    /* 修改副本子树不影响原件 */
+    copy->data.composite.operands[0]->data.variable.name[0] = 'z';
+    TEST_ASSERT_MSG(strcmp(sum->data.composite.operands[0]->data.variable.name, "x") == 0,
+                    "modifying the copy must not affect the original");
+
+    /* 独立释放：先销毁原件树（x、y、sum），副本子树仍有效 */
+    lv_expr_destroy(&x);
+    lv_expr_destroy(&y);
+    lv_expr_destroy(&sum);
+    TEST_ASSERT_NOT_NULL(copy->data.composite.operands[0]);
+
+    lv_expr_destroy(&copy->data.composite.operands[0]);
+    lv_expr_destroy(&copy->data.composite.operands[1]);
+    lv_expr_destroy(&copy);
+}
+
+/**
+ * @brief 测试 lv_expr_copy 深复制（幂表达式）: 修改副本子树不影响原件
+ *
+ * D1 终审二回归测试：钉住 copy_power 的深复制语义。
+ * 断言副本 base/exponent 指针与原件不同（非共享）；
+ * 修改副本 base 后原件不变；原件先释放后副本仍可独立访问并释放。
+ */
+static void test_expr_copy_power_deep(void) {
+    lvExpr *base = lv_expr_create_variable("b");
+    lvExpr *two = lv_expr_create_rational(2, 1);
+    TEST_ASSERT_NOT_NULL(base);
+    TEST_ASSERT_NOT_NULL(two);
+    lvExpr *pow = lv_expr_power(base, two);
+    TEST_ASSERT_NOT_NULL(pow);
+
+    lvExpr *copy = lv_expr_copy(pow);
+    TEST_ASSERT_NOT_NULL(copy);
+    TEST_ASSERT_EQ(copy->type, EXPR_TYPE_POWER);
+
+    /* 副本 base/exponent 指针必须与原件不同（深复制，非共享） */
+    TEST_ASSERT_MSG(copy->data.power.base != pow->data.power.base,
+                    "power base must be deep copied, not shared");
+    TEST_ASSERT_MSG(copy->data.power.exponent != pow->data.power.exponent,
+                    "power exponent must be deep copied, not shared");
+
+    /* 修改副本子树不影响原件 */
+    copy->data.power.base->data.variable.name[0] = 'c';
+    TEST_ASSERT_MSG(strcmp(pow->data.power.base->data.variable.name, "b") == 0,
+                    "modifying the copy base must not affect the original");
+
+    /* 独立释放：先销毁原件树，副本仍可访问并独立释放 */
+    lv_expr_destroy(&base);
+    lv_expr_destroy(&two);
+    lv_expr_destroy(&pow);
+    TEST_ASSERT_NOT_NULL(copy->data.power.base);
+
+    lv_expr_destroy(&copy->data.power.base);
+    lv_expr_destroy(&copy->data.power.exponent);
+    lv_expr_destroy(&copy);
+}
+
 /* ============================================================
  * 主入口
  * ============================================================ */
@@ -476,6 +562,8 @@ TEST_MAIN_BEGIN("lvExprCanonical")
     TEST_MAIN_RUN(test_expr_canonicalize_remove_zero);
     TEST_MAIN_RUN(test_expr_is_canonical);
     TEST_MAIN_RUN(test_expr_clone);
+    TEST_MAIN_RUN(test_expr_copy_composite_deep);
+    TEST_MAIN_RUN(test_expr_copy_power_deep);
     TEST_MAIN_RUN(test_expr_add);
     TEST_MAIN_RUN(test_expr_sub);
     TEST_MAIN_RUN(test_expr_compare_terms);

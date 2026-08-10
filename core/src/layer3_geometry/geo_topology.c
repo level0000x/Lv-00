@@ -354,87 +354,173 @@ int geo_simplicial_connected_components(const lvSimplicialComplex *sc) {
 }
 
 /* ========================================================================
- * Legacy stub implementations
+ * Legacy compatibility wrappers
  * ======================================================================== */
 
+/**
+ * @brief 计算欧拉示性数 chi = V - E + F，并验证曲面边界公式
+ *
+ * 对三角剖分曲面，2E = 3F + B（B 为边界边数），恒有 2E >= 3F；
+ * 闭曲面（B == 0）时 chi = 2 - 2g（可定向，g 为亏格）或 2 - k（不可定向），
+ * 故 chi <= 2。计数与上述公式冲突时视为无效输入，返回 -1 并置错误。
+ *
+ * @return 欧拉示性数 V - E + F；参数无效返回 -1
+ */
 int lv_euler_characteristic(int vertices, int edges, int faces) {
-    return vertices - edges + faces;
+    if (vertices < 0 || edges < 0 || faces < 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_euler_characteristic: negative counts");
+
+    /* 曲面边界公式：边界边数 B = 2E - 3F（闭曲面 B == 0），必有 2E >= 3F */
+    long boundary_edges = 2L * edges - 3L * faces;
+    if (boundary_edges < 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_euler_characteristic: inconsistent counts (2E < 3F)");
+
+    int chi = vertices - edges + faces;
+
+    /* 闭曲面（无边界）χ = 2 - 2g 或 2 - k，必有 χ <= 2 */
+    if (boundary_edges == 0 && chi > 2)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_euler_characteristic: closed surface chi must be <= 2");
+
+    return chi;
 }
 
+/**
+ * @brief 校验 faces 是否构成单纯复形（顶点集/边集/面集一致性）
+ *
+ * 约定：faces 按 face_size = dim + 1 个顶点为一组平铺。
+ *   - dim == 1：faces 为边列表（每条边 2 个顶点）
+ *   - dim == 2：faces 为三角形列表（每个面 3 个顶点）
+ *   - dim == 3：faces 为四面体列表（每个面 4 个顶点）
+ *
+ * 一致性检查：
+ *   1. 顶点集：收集所有出现过的顶点，并校验索引非负、面内顶点互异；
+ *   2. 面集/边集一致性：每个面的所有边（C(face_size,2) 条无向边）
+ *      都必须位于由全体面导出的边集中；
+ *   3. 边集无重复边（dim == 1 时输入边列表不允许重复出现同一无向边；
+ *      更高维共享边属于正常情况，去重后即无重复边）；
+ *   4. 边集/顶点集一致性：每条边的两个端点都必须位于顶点集中。
+ *
+ * @return 满足单纯复形一致性返回 1，否则返回 0
+ */
 int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
     if (!faces || n_faces == 0)
         return 0;
     if (dim < 1 || dim > 3)
         return 0;
 
-    /* Verify all faces have valid vertex indices (non-negative) */
-    size_t face_size = dim + 1;
-    for (size_t i = 0; i < n_faces; i++) {
-        for (size_t j = 0; j < face_size; j++) {
-            if (faces[i * face_size + j] < 0)
-                return 0;
-        }
+    const size_t face_size = dim + 1;
+
+    /* 1) 顶点集：收集全部出现过的顶点，并校验索引非负 */
+    int max_vertex = -1;
+    size_t total = n_faces * face_size;
+    size_t i;
+    for (i = 0; i < total; i++) {
+        if (faces[i] < 0)
+            return 0;
+        if (faces[i] > max_vertex)
+            max_vertex = faces[i];
     }
 
-    /* For dim == 2 (triangles), verify simplicial complex properties */
-    if (dim == 2) {
-        /*
-         * 收集所有边并计数每条边被多少个三角形共享。
-         * 单纯复形条件：每条边至多被 2 个三角形共享。
-         */
-        size_t max_edges = n_faces * 3;
-        int *edge_data = (int *) calloc(max_edges * 3, sizeof(int));
-        /* edge_data[k*3 + 0] = v0, edge_data[k*3 + 1] = v1, edge_data[k*3 + 2] = triangle_count */
-        if (!edge_data)
+    unsigned char *vertex_set = NULL;
+    if (max_vertex >= 0) {
+        vertex_set = (unsigned char *) calloc((size_t) max_vertex + 1, sizeof(unsigned char));
+        if (!vertex_set)
             return 0;
-        size_t n_edges = 0;
+        for (i = 0; i < total; i++)
+            vertex_set[faces[i]] = 1;
+    }
 
-        for (size_t i = 0; i < n_faces; i++) {
-            int tri[3] = {faces[i * 3], faces[i * 3 + 1], faces[i * 3 + 2]};
-            int edge_pairs[3][2] = {{tri[0], tri[1]}, {tri[1], tri[2]}, {tri[2], tri[0]}};
-
-            for (int e = 0; e < 3; e++) {
-                int v0 = edge_pairs[e][0];
-                int v1 = edge_pairs[e][1];
-                if (v0 > v1) {
-                    int t = v0; v0 = v1; v1 = t;
-                }
-
-                /* 查找或添加边 */
-                int idx = -1;
-                for (size_t k = 0; k < n_edges; k++) {
-                    if (edge_data[k * 3] == v0 && edge_data[k * 3 + 1] == v1) {
-                        idx = (int) k;
-                        break;
-                    }
-                }
-
-                if (idx < 0) {
-                    /* 新边 */
-                    edge_data[n_edges * 3] = v0;
-                    edge_data[n_edges * 3 + 1] = v1;
-                    edge_data[n_edges * 3 + 2] = 1;
-                    n_edges++;
-                } else {
-                    /* 已有边，递增计数 */
-                    edge_data[idx * 3 + 2]++;
-                    /* 单纯复形条件：每条边至多被 2 个三角形共享 */
-                    if (edge_data[idx * 3 + 2] > 2) {
-                        free(edge_data);
-                        return 0;
-                    }
+    /* 面内顶点互异：退化单纯形（重复顶点/自环边）直接拒绝 */
+    for (i = 0; i < n_faces; i++) {
+        size_t a, b;
+        for (a = 0; a < face_size; a++) {
+            for (b = a + 1; b < face_size; b++) {
+                if (faces[i * face_size + a] == faces[i * face_size + b]) {
+                    free(vertex_set);
+                    return 0;
                 }
             }
         }
-
-        free(edge_data);
     }
 
-    /*
-     * 对于 dim == 1（线段），每条边（即线段本身）至多出现一次（无重复）。
-     * 对于 dim == 3（四面体），每条边至多被多个四面体共享，
-     * 此处暂不实现完整的 3-复形验证。
-     */
+    /* 2) 边集：从所有面提取规范化的无向边并去重 */
+    size_t pairs_per_face = face_size * (face_size - 1) / 2;
+    size_t max_edges = n_faces * pairs_per_face;
+    int *edge_set = (int *) calloc(max_edges * 2, sizeof(int)); /* [v0,v1] 成对平铺 */
+    if (!edge_set) {
+        free(vertex_set);
+        return 0;
+    }
+    size_t n_edges = 0;
+    /* dim == 1 时输入即边列表：同一无向边重复出现视为重复边 */
+    int reject_dup_edge = (dim == 1);
 
+    for (i = 0; i < n_faces; i++) {
+        size_t a, b;
+        for (a = 0; a < face_size; a++) {
+            for (b = a + 1; b < face_size; b++) {
+                int v0 = faces[i * face_size + a];
+                int v1 = faces[i * face_size + b];
+                canonicalize_edge(&v0, &v1);
+
+                int found = -1;
+                size_t k;
+                for (k = 0; k < n_edges; k++) {
+                    if (edge_set[k * 2] == v0 && edge_set[k * 2 + 1] == v1) {
+                        found = (int) k;
+                        break;
+                    }
+                }
+                if (found >= 0) {
+                    if (reject_dup_edge) {
+                        free(edge_set);
+                        free(vertex_set);
+                        return 0;
+                    }
+                    continue;
+                }
+                edge_set[n_edges * 2] = v0;
+                edge_set[n_edges * 2 + 1] = v1;
+                n_edges++;
+            }
+        }
+    }
+
+    /* 3) 面集/边集一致性：每个面的每条边都必须位于边集中 */
+    for (i = 0; i < n_faces; i++) {
+        size_t a, b;
+        for (a = 0; a < face_size; a++) {
+            for (b = a + 1; b < face_size; b++) {
+                int v0 = faces[i * face_size + a];
+                int v1 = faces[i * face_size + b];
+                canonicalize_edge(&v0, &v1);
+                int found = 0;
+                size_t k;
+                for (k = 0; k < n_edges; k++) {
+                    if (edge_set[k * 2] == v0 && edge_set[k * 2 + 1] == v1) {
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found) {
+                    free(edge_set);
+                    free(vertex_set);
+                    return 0;
+                }
+            }
+        }
+    }
+
+    /* 4) 边集/顶点集一致性：每条边的两个端点都必须位于顶点集中 */
+    for (i = 0; i < n_edges; i++) {
+        if (!vertex_set[edge_set[i * 2]] || !vertex_set[edge_set[i * 2 + 1]]) {
+            free(edge_set);
+            free(vertex_set);
+            return 0;
+        }
+    }
+
+    free(edge_set);
+    free(vertex_set);
     return 1;
 }

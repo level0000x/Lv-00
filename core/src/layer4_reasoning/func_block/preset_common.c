@@ -26,6 +26,7 @@
 #include "error_codes.h"
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
 
 /* ============================================================
  * 字符串操作实现
@@ -176,13 +177,13 @@ bool preset_validate_type_combination(const PresetType *input_types, int input_c
 
     /* 验证输入类型 */
     for (int i = 0; i < input_count; i++) {
-        if (input_types[i] < 0 || input_types[i] >= PRESET_TYPE_COUNT) {
+        if (!lv_index_in_range(input_types[i], PRESET_TYPE_COUNT)) {
             return false;
         }
     }
 
     /* 验证输出类型 */
-    if (output_type < 0 || output_type >= PRESET_TYPE_COUNT) {
+    if (!lv_index_in_range(output_type, PRESET_TYPE_COUNT)) {
         return false;
     }
 

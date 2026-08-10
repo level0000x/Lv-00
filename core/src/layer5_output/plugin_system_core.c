@@ -28,7 +28,7 @@
 /* ============ 辅助函数 ============ */
 
 /* 设置系统错误消息（支持 printf 风格格式化） */
-void set_error(lvPluginSystem *system, const char *format, ...) {
+void plugin_system_set_error(lvPluginSystem *system, const char *format, ...) {
     if (!system)
         return;
 

@@ -95,17 +95,20 @@ typedef struct {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
+#define LV_STEP_TYPE_OUT_X(x) \
+    x(lv_STEP_ADD_NODE, "add_node") \
+    x(lv_STEP_ADD_CONSTRAINT, "add_constraint") \
+    x(lv_STEP_REWRITE, "rewrite") \
+    x(lv_STEP_FUNCTION_APP, "function_app") \
+    x(lv_STEP_EXACT, "exact") \
+    x(lv_STEP_HAVE, "have") \
+    x(lv_STEP_CALC, "calc") \
+    x(lv_STEP_NORMALIZATION, "normalization") \
+    x(lv_STEP_ORACLE, "oracle")
+
 /** @brief step_type_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_step_type_name_entries[] = {
-    {"add_node", lv_STEP_ADD_NODE},
-    {"add_constraint", lv_STEP_ADD_CONSTRAINT},
-    {"rewrite", lv_STEP_REWRITE},
-    {"function_app", lv_STEP_FUNCTION_APP},
-    {"exact", lv_STEP_EXACT},
-    {"have", lv_STEP_HAVE},
-    {"calc", lv_STEP_CALC},
-    {"normalization", lv_STEP_NORMALIZATION},
-    {"oracle", lv_STEP_ORACLE},
+    lv_XMACRO_TO_ENUM_TABLE(LV_STEP_TYPE_OUT_X)
 };
 
 static const char *step_type_name(int type) {

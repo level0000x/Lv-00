@@ -20,6 +20,7 @@
 #include "smt_backend_internal.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
+#include "lv/lv_numeric.h"
 
 #include "error_codes.h"
 #include "groebner_engine.h"
@@ -127,6 +128,8 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             /* x 坐标变量 */
             int n = snprintf(out_smtlib2 + written, (size_t) remaining, "(declare-fun %s () Real)\n",
                              smtlib2_coord_var_name(node->id, 0));
+            /* exempt: snprintf 返回码截断检测（n 为返回值而非索引：-1=编码错误、
+             * n>=remaining=缓冲截断），与 lv_index_in_range 的索引范围语义不同 */
             if (n < 0 || n >= remaining)
                 break;
             written += n;
@@ -137,6 +140,7 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
                 break;
             n = snprintf(out_smtlib2 + written, (size_t) remaining, "(declare-fun %s () Real)\n",
                          smtlib2_coord_var_name(node->id, 1));
+            /* exempt: 同上，snprintf 返回码截断检测，非索引范围判定 */
             if (n < 0 || n >= remaining)
                 break;
             written += n;
@@ -168,12 +172,14 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
             };
             static const int kSmtlib2EncodeTableCount =
                 (int)(sizeof(kSmtlib2EncodeTable) / sizeof(kSmtlib2EncodeTable[0]));
-            if (c->type >= 0 && c->type < kSmtlib2EncodeTableCount) {
+            if (lv_index_in_range(c->type, kSmtlib2EncodeTableCount)) {
                 n = kSmtlib2EncodeTable[(int)c->type](graph, c, out_smtlib2 + written, remaining, produce_unsat_cores);
             } else {
                 lv_LOG_WARNING("Unknown constraint type %d in smtlib2_encode_constraints", c->type);
             }
         }
+        /* exempt: snprintf 返回码截断检测（n 为返回值而非索引：-1=编码错误、
+         * n>=remaining=缓冲截断），与 lv_index_in_range 的索引范围语义不同 */
         if (n < 0 || n >= remaining)
             break;
         written += n;
@@ -423,7 +429,7 @@ static int smtlib2_find_line_endpoints(const ConstraintGraph *graph, int line_id
         /* 关联约束 participants[0] = 点, participants[1] = 对象 */
         if (con->participants[1] == line_id) {
             int point_id = con->participants[0];
-            if (point_id >= 0 && point_id < graph->node_count && graph->nodes[point_id] != NULL) {
+            if (lv_index_in_range(point_id, graph->node_count) && graph->nodes[point_id] != NULL) {
                 out_endpoints[count++] = point_id;
             }
         }
@@ -493,7 +499,7 @@ static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *
         return 0;
 
     /* 角度值（度）→ 余弦（弧度） */
-    double theta_rad = c->numeric_value * 3.14159265358979323846 / 180.0;
+    double theta_rad = lv_deg_to_rad(c->numeric_value);
     double cos_theta = cos(theta_rad);
     double cos2 = cos_theta * cos_theta;
 
@@ -553,6 +559,8 @@ static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *
                      cy, by, cy, by,
                      cos2);
     }
+    /* exempt: snprintf 返回码截断检测（n 为返回值而非索引：-1=编码错误、
+     * n>=remaining=缓冲截断），与 lv_index_in_range 的索引范围语义不同 */
     if (n < 0 || n >= remaining - total)
         return (n < 0) ? -1 : total;
     total += n;

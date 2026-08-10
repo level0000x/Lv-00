@@ -10,6 +10,7 @@
 #include "lv/lv_platform.h"
 #include <float.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,27 +89,32 @@ static const size_t kCommandHandlerCount = sizeof(kCommandHandlers) / sizeof(kCo
 
 /* ── 命令解析与执行 ── */
 
-/** @brief 命令名→命令类型 查找表（替代 19 分支 strcmp 链） */
+/* 命令名→命令类型 X 列表（命令名串为互操作协议外部契约，内容逐字保留）。
+ * 枚举定义位于 interop.h，此处经 lv_XMACRO_TO_ENUM_TABLE 收敛查找表生成。 */
+#define LV_INTEROP_CMD_NAME_X(x) \
+    x(INTEROP_CMD_ADD_NODE, "AddNode") \
+    x(INTEROP_CMD_REMOVE_NODE, "RemoveNode") \
+    x(INTEROP_CMD_ADD_CONSTRAINT, "AddConstraint") \
+    x(INTEROP_CMD_REMOVE_CONSTRAINT, "RemoveConstraint") \
+    x(INTEROP_CMD_PACK_FUNCTION, "PackFunction") \
+    x(INTEROP_CMD_INSTANTIATE, "Instantiate") \
+    x(INTEROP_CMD_SOLVE, "Solve") \
+    x(INTEROP_CMD_REWRITE, "Rewrite") \
+    x(INTEROP_CMD_UNIFY, "Unify") \
+    x(INTEROP_CMD_GET_GRAPH, "GetGraph") \
+    x(INTEROP_CMD_EXPORT_GRAPH, "ExportGraph") \
+    x(INTEROP_CMD_GET_STATUS, "GetStatus") \
+    x(INTEROP_CMD_PING, "Ping") \
+    x(INTEROP_CMD_SHUTDOWN, "Shutdown") \
+    x(INTEROP_CMD_STREAM_START, "StreamStart") \
+    x(INTEROP_CMD_STREAM_STOP, "StreamStop") \
+    x(INTEROP_CMD_STREAM_FILTER, "StreamFilter") \
+    x(INTEROP_CMD_STREAM_STATS, "StreamStats") \
+    x(INTEROP_CMD_STREAM_FLUSH, "StreamFlush")
+
+/** @brief 命令名→命令类型 查找表（替代 19 分支 strcmp 链，由 X 列表生成） */
 static const lvStrToEnumEntry kCommandNameToTypeTable[] = {
-    {"AddNode", INTEROP_CMD_ADD_NODE},
-    {"RemoveNode", INTEROP_CMD_REMOVE_NODE},
-    {"AddConstraint", INTEROP_CMD_ADD_CONSTRAINT},
-    {"RemoveConstraint", INTEROP_CMD_REMOVE_CONSTRAINT},
-    {"PackFunction", INTEROP_CMD_PACK_FUNCTION},
-    {"Instantiate", INTEROP_CMD_INSTANTIATE},
-    {"Solve", INTEROP_CMD_SOLVE},
-    {"Rewrite", INTEROP_CMD_REWRITE},
-    {"Unify", INTEROP_CMD_UNIFY},
-    {"GetGraph", INTEROP_CMD_GET_GRAPH},
-    {"ExportGraph", INTEROP_CMD_EXPORT_GRAPH},
-    {"GetStatus", INTEROP_CMD_GET_STATUS},
-    {"Ping", INTEROP_CMD_PING},
-    {"Shutdown", INTEROP_CMD_SHUTDOWN},
-    {"StreamStart", INTEROP_CMD_STREAM_START},
-    {"StreamStop", INTEROP_CMD_STREAM_STOP},
-    {"StreamFilter", INTEROP_CMD_STREAM_FILTER},
-    {"StreamStats", INTEROP_CMD_STREAM_STATS},
-    {"StreamFlush", INTEROP_CMD_STREAM_FLUSH},
+    lv_XMACRO_TO_ENUM_TABLE(LV_INTEROP_CMD_NAME_X)
 };
 
 /**
@@ -231,9 +237,16 @@ static int handle_cmd_get_status(lvEngine *engine, const InteropCommand *cmd, In
     return lv_OK;
 }
 
+/* 引擎停止标志：interop 命令层无法直接访问 InteropServer 实例，
+ * 因此按协议以模块级标志记录「已请求关闭」，供 server 层命令循环
+ * （interop_server_run / interop_ws_run）在每次迭代后检查并退出。
+ * 与 s_stream_callback_id 同级的模块状态模式。 */
+static bool s_shutdown_requested = false;
+
 static int handle_cmd_shutdown(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     (void)engine; (void)cmd;
     lv_strlcpy(resp->data, "shutting down", sizeof(resp->data));
+    s_shutdown_requested = true; /* 设置引擎停止标志，请求 server 循环退出 */
     return lv_OK;
 }
 
@@ -717,15 +730,116 @@ static int handle_cmd_remove_constraint(lvEngine *engine, const InteropCommand *
     return lv_OK;
 }
 
+/** @brief PackFunction 单组 ID 列表的最大数量（内部节点/端口上限，与 lv_MAX_CONSTRAINT_INDICES 同级） */
+#define INTEROP_MAX_PACK_IDS 64
+
+/**
+ * @brief 解析逗号分隔的节点 ID 列表（协议字段 internal_node_ids / input_port_ids / output_port_ids）
+ * @param s 原始字符串（空串表示 0 个元素）
+ * @param out 输出 ID 数组
+ * @param cap 输出数组容量
+ * @param count 输出解析出的 ID 数量
+ * @return true 全部 token 解析成功；false 含非法 token 或超出容量
+ */
+static bool interop_parse_id_list(const char *s, int *out, int cap, int *count) {
+    if (!s || !out || !count || cap <= 0)
+        return false;
+    *count = 0;
+    if (s[0] == '\0')
+        return true;
+    char buf[256];
+    lv_strlcpy(buf, s, sizeof(buf));
+    char *save = NULL;
+    for (char *token = lv_strtok_r(buf, ",", &save); token; token = lv_strtok_r(NULL, ",", &save)) {
+        if (*count >= cap)
+            return false;
+        int val = 0;
+        if (lv_parse_int(token, &val) != 0 || val < 0)
+            return false;
+        out[(*count)++] = val;
+    }
+    return true;
+}
+
 static int handle_cmd_pack_function(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
-    (void)cmd;
     if (!engine->main_graph) {
         resp->status_code = lv_ERROR_INVALID_STATE;
         lv_strlcpy(resp->data, "No graph initialized", sizeof(resp->data));
         return lv_OK;
     }
-    resp->status_code = lv_ERROR_UNSUPPORTED;
-    lv_strlcpy(resp->data, "PackFunction requires UI-level interaction for port selection", sizeof(resp->data));
+    if (cmd->param_count < 4) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data,
+                   "Usage: PackFunction <name> <internal_node_ids> <input_port_ids> <output_port_ids> "
+                   "(id lists are comma-separated, may be empty)",
+                   sizeof(resp->data));
+        return lv_OK;
+    }
+    const char *name = cmd->params[0];
+    int internal_ids[INTEROP_MAX_PACK_IDS];
+    int input_ids[INTEROP_MAX_PACK_IDS];
+    int output_ids[INTEROP_MAX_PACK_IDS];
+    int internal_count = 0, input_count = 0, output_count = 0;
+
+    /* 按协议字段名解析三组端口数据（internal_node_ids / input_port_ids / output_port_ids） */
+    if (!interop_parse_id_list(cmd->params[1], internal_ids, INTEROP_MAX_PACK_IDS, &internal_count) ||
+        !interop_parse_id_list(cmd->params[2], input_ids, INTEROP_MAX_PACK_IDS, &input_count) ||
+        !interop_parse_id_list(cmd->params[3], output_ids, INTEROP_MAX_PACK_IDS, &output_count)) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data,
+                   "PackFunction: failed to parse port ID lists (comma-separated non-negative integers required)",
+                   sizeof(resp->data));
+        return lv_OK;
+    }
+    if (internal_count <= 0) {
+        resp->status_code = lv_ERROR_INVALID_PARAM;
+        lv_strlcpy(resp->data, "PackFunction: no internal nodes (internal_node_ids must not be empty)",
+                   sizeof(resp->data));
+        return lv_OK;
+    }
+
+    int func_block_id = -1;
+    if (!engine_pack_function(engine, internal_ids, internal_count, input_ids, input_count, output_ids,
+                              output_count, &func_block_id) || func_block_id < 0) {
+        resp->status_code = lv_ERROR_UNSUPPORTED;
+        lvJsonBuf _jb;
+        interop_resp_json_init(&_jb, 128);
+        lv_json_buf_begin_object(&_jb);
+        lv_json_buf_append_key(&_jb, "result");
+        lv_json_buf_append_string(&_jb, "failed");
+        lv_json_buf_append_key(&_jb, "reason");
+        lv_json_buf_append_string(&_jb, "Pack failed (invalid nodes or ports)");
+        lv_json_buf_end_object(&_jb);
+        char *_js = lv_json_buf_finalize(&_jb);
+        if (_js) {
+            lv_strlcpy(resp->data, _js, sizeof(resp->data));
+            lv_free((void **)&_js);
+        }
+        return lv_OK;
+    }
+
+    /* 打包成功：把创建结果（函数块节点 id）写入 resp->data */
+    lvJsonBuf _jb;
+    interop_resp_json_init(&_jb, 128);
+    lv_json_buf_begin_object(&_jb);
+    lv_json_buf_append_key(&_jb, "result");
+    lv_json_buf_append_string(&_jb, "ok");
+    lv_json_buf_append_key(&_jb, "name");
+    lv_json_buf_append_string(&_jb, name);
+    lv_json_buf_append_key(&_jb, "func_block_id");
+    lv_json_buf_append_int(&_jb, func_block_id);
+    lv_json_buf_append_key(&_jb, "internal_count");
+    lv_json_buf_append_int(&_jb, internal_count);
+    lv_json_buf_append_key(&_jb, "input_count");
+    lv_json_buf_append_int(&_jb, input_count);
+    lv_json_buf_append_key(&_jb, "output_count");
+    lv_json_buf_append_int(&_jb, output_count);
+    lv_json_buf_end_object(&_jb);
+    char *_js = lv_json_buf_finalize(&_jb);
+    if (_js) {
+        lv_strlcpy(resp->data, _js, sizeof(resp->data));
+        lv_free((void **)&_js);
+    }
     return lv_OK;
 }
 
@@ -836,6 +950,55 @@ static int handle_cmd_unify(lvEngine *engine, const InteropCommand *cmd, Interop
 
 /* ── ExportGraph 导出格式分发（查找表，替代 4 分支 strcmp 链） ── */
 
+/* ── ExportGraph 响应游标骨架：游标推进 + 越界防护 ──
+ * 收敛 svg/tikz/json_pretty 三处重复的「snprintf → 越界守卫 → 游标推进」样板。
+ * 语义与历史实现一致：vsnprintf 返回码 n<0 使游标进入错误态（后续不再追加）；
+ * 截断（n 超过剩余容量）仍推进游标，使后续追加自然短路（等价原 offset < sizeof 守卫）。
+ * 导出格式串为外部契约，内容不得修改。 */
+
+typedef struct {
+    char *out;   /* 输出缓冲区（resp->data） */
+    size_t size; /* 缓冲区总容量 */
+    int offset;  /* 当前游标；<0 表示错误态（不再追加） */
+} RespCursor;
+
+static void resp_cursor_init(RespCursor *c, char *out, size_t size) {
+    c->out = out;
+    c->size = size;
+    c->offset = 0;
+}
+
+static void resp_cursor_printf(RespCursor *c, const char *fmt, ...) {
+    if (c->offset < 0 || c->offset >= (int) c->size)
+        return;
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(c->out + c->offset, c->size - (size_t) c->offset, fmt, ap);
+    va_end(ap);
+    c->offset += n;
+}
+
+static void resp_cursor_char(RespCursor *c, char ch) {
+    if (c->offset < 0 || c->offset >= (int) c->size - 1)
+        return;
+    c->out[c->offset++] = ch;
+}
+
+static void resp_cursor_spaces(RespCursor *c, int count) {
+    if (c->offset < 0)
+        return;
+    for (int i = 0; i < count && c->offset < (int) c->size - 1; i++)
+        c->out[c->offset++] = ' ';
+}
+
+static void resp_cursor_finish(RespCursor *c) {
+    if (c->offset < 0)
+        return;
+    if (c->offset >= (int) c->size)
+        c->offset = (int) c->size - 1;
+    c->out[c->offset] = '\0';
+}
+
 static int interop_export_graph_json(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     (void) cmd;
     char *json_str = graph_serialize_to_json(engine->main_graph);
@@ -850,62 +1013,53 @@ static int interop_export_graph_json(lvEngine *engine, const InteropCommand *cmd
 
 static int interop_export_graph_svg(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     (void) cmd;
-    int offset = snprintf(resp->data, sizeof(resp->data),
-                          "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
-                          "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
-    if (offset < 0)
-        offset = 0;
+    RespCursor cur;
+    resp_cursor_init(&cur, resp->data, sizeof(resp->data));
+    resp_cursor_printf(&cur,
+                       "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n"
+                       "  <rect width=\"100%%\" height=\"100%%\" fill=\"white\"/>\n");
+    if (cur.offset < 0)
+        cur.offset = 0;
     if (engine->main_graph) {
-        for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
+        for (int i = 0; i < engine->main_graph->node_count && cur.offset < (int) sizeof(resp->data) - 256; i++) {
             GeomNode *node = engine->main_graph->nodes[i];
             if (node->type == GEOM_POINT && node->coord_count >= 2) {
                 double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                 double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                if (offset < (int) sizeof(resp->data))
-                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                       "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
-                if (offset < 0)
-                    break;
-            } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
-                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
+                resp_cursor_printf(&cur,
+                                   "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" fill=\"#3b82f6\"/>\n", x, y);
+            } else if (node->type == GEOM_LINE_SEGMENT) {
+                resp_cursor_printf(&cur,
                                    "  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"#22c55e\" "
                                    "stroke-width=\"2\"/>\n");
-                if (offset < 0)
-                    break;
             }
         }
     }
-    if (offset >= 0 && offset < (int) sizeof(resp->data))
-        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "</svg>");
+    resp_cursor_printf(&cur, "</svg>");
     return lv_OK;
 }
 
 static int interop_export_graph_tikz(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
     (void) cmd;
-    int offset = snprintf(resp->data, sizeof(resp->data), "\\begin{tikzpicture}\n");
-    if (offset < 0)
-        offset = 0;
+    RespCursor cur;
+    resp_cursor_init(&cur, resp->data, sizeof(resp->data));
+    resp_cursor_printf(&cur, "\\begin{tikzpicture}\n");
+    if (cur.offset < 0)
+        cur.offset = 0;
     if (engine->main_graph) {
-        for (int i = 0; i < engine->main_graph->node_count && offset < (int) sizeof(resp->data) - 256; i++) {
+        for (int i = 0; i < engine->main_graph->node_count && cur.offset < (int) sizeof(resp->data) - 256; i++) {
             GeomNode *node = engine->main_graph->nodes[i];
             if (node->type == GEOM_POINT && node->coord_count >= 2) {
                 double x = symbolic_coord_to_double(node->symbolic_coords[0]);
                 double y = symbolic_coord_to_double(node->symbolic_coords[1]);
-                if (offset < (int) sizeof(resp->data))
-                    offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                       "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
-                if (offset < 0)
-                    break;
-            } else if (node->type == GEOM_LINE_SEGMENT && offset < (int) sizeof(resp->data)) {
-                offset += snprintf(resp->data + offset, sizeof(resp->data) - offset,
-                                   "  \\draw (0,0) -- (1,1);\n");
-                if (offset < 0)
-                    break;
+                resp_cursor_printf(&cur,
+                                   "  \\coordinate (P%d) at (%.2f, %.2f);\n", node->id, x, y);
+            } else if (node->type == GEOM_LINE_SEGMENT) {
+                resp_cursor_printf(&cur, "  \\draw (0,0) -- (1,1);\n");
             }
         }
     }
-    if (offset >= 0 && offset < (int) sizeof(resp->data))
-        offset += snprintf(resp->data + offset, sizeof(resp->data) - offset, "\\end{tikzpicture}");
+    resp_cursor_printf(&cur, "\\end{tikzpicture}");
     return lv_OK;
 }
 
@@ -913,33 +1067,32 @@ static int interop_export_graph_json_pretty(lvEngine *engine, const InteropComma
     (void) cmd;
     char *json_str = graph_serialize_to_json(engine->main_graph);
     if (json_str) {
-        int offset = 0;
+        RespCursor cur;
+        resp_cursor_init(&cur, resp->data, sizeof(resp->data));
         int indent = 0;
-        for (size_t i = 0; json_str[i] && offset < (int) sizeof(resp->data) - 4; i++) {
+        for (size_t i = 0; json_str[i] && cur.offset < (int) sizeof(resp->data) - 4; i++) {
             char ch = json_str[i];
             if (ch == '{' || ch == '[') {
-                resp->data[offset++] = ch;
-                resp->data[offset++] = '\n';
+                resp_cursor_char(&cur, ch);
+                resp_cursor_char(&cur, '\n');
                 indent += 2;
-                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                    resp->data[offset++] = ' ';
+                resp_cursor_spaces(&cur, indent);
             } else if (ch == '}' || ch == ']') {
-                resp->data[offset++] = '\n';
+                resp_cursor_char(&cur, '\n');
                 indent -= 2;
-                if (indent < 0) indent = 0;
-                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                    resp->data[offset++] = ' ';
-                resp->data[offset++] = ch;
+                if (indent < 0)
+                    indent = 0;
+                resp_cursor_spaces(&cur, indent);
+                resp_cursor_char(&cur, ch);
             } else if (ch == ',') {
-                resp->data[offset++] = ch;
-                resp->data[offset++] = '\n';
-                for (int s = 0; s < indent && offset < (int) sizeof(resp->data) - 1; s++)
-                    resp->data[offset++] = ' ';
+                resp_cursor_char(&cur, ch);
+                resp_cursor_char(&cur, '\n');
+                resp_cursor_spaces(&cur, indent);
             } else {
-                resp->data[offset++] = ch;
+                resp_cursor_char(&cur, ch);
             }
         }
-        resp->data[offset] = '\0';
+        resp_cursor_finish(&cur);
         lv_free((void **) &json_str);
     } else {
         lv_strlcpy(resp->data, "{\"error\": \"Serialization failed\"}", sizeof(resp->data));
@@ -947,7 +1100,92 @@ static int interop_export_graph_json_pretty(lvEngine *engine, const InteropComma
     return lv_OK;
 }
 
-/** @brief ExportGraph 导出格式名→处理函数 查找表（替代 4 分支 strcmp 链） */
+/* ── 文件型导出格式（coq/lean/html/pdf/geojson）：写入磁盘文件 ── */
+
+/* interop.h 未声明 interop_export_pdf（其余导出函数已在 interop.h 声明），
+ * 此处补充与 interop_export_pdf.c 定义一致的前向声明。 */
+int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *config);
+
+/**
+ * @brief 将约束图导出为文件型格式
+ *
+ * ExportGraph 命令协议：`ExportGraph <fmt> [output_path]`，
+ * 未提供 output_path 时使用默认路径 def_path。
+ * coq/lean 需要 ProofNavigator（此处以空导航器导出框架）；
+ * html/pdf/geojson 分别消费 engine / main_graph。
+ */
+static int interop_export_graph_to_file(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp,
+                                        InteropExportFormat format, const char *def_path, bool needs_navigator) {
+    char path[INTEROP_MAX_PATH_LEN];
+    if (cmd->param_count > 1 && cmd->params[1][0] != '\0') {
+        lv_strlcpy(path, cmd->params[1], sizeof(path));
+    } else {
+        lv_strlcpy(path, def_path, sizeof(path));
+    }
+    InteropExportConfig cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.format = format;
+    cfg.include_proofs = true;
+    cfg.include_metadata = true;
+    cfg.pretty_print = true;
+    lv_strlcpy(cfg.output_path, path, sizeof(cfg.output_path));
+
+    int rc = lv_ERROR_UNKNOWN;
+    if (needs_navigator) {
+        ProofNavigator *nav = proof_navigator_create(NULL, engine);
+        if (!nav) {
+            resp->status_code = lv_ERROR_OUT_OF_MEMORY;
+            lv_strlcpy(resp->data,
+                       "{\"result\": \"failed\", \"reason\": \"Out of memory creating proof navigator\"}",
+                       sizeof(resp->data));
+            return lv_OK;
+        }
+        if (format == INTEROP_EXPORT_COQ)
+            rc = interop_export_coq(nav, &cfg);
+        else if (format == INTEROP_EXPORT_LEAN)
+            rc = interop_export_lean(nav, &cfg);
+        proof_navigator_destroy(nav);
+    } else {
+        if (format == INTEROP_EXPORT_HTML)
+            rc = interop_export_html(engine, &cfg);
+        else if (format == INTEROP_EXPORT_PDF)
+            rc = interop_export_pdf(engine->main_graph, &cfg);
+        else if (format == INTEROP_EXPORT_GEOJSON)
+            rc = interop_export_geojson(engine->main_graph, &cfg);
+    }
+    const char *fmt_name = interop_export_format_name(format);
+    if (rc == lv_OK) {
+        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"format\": \"%s\", \"path\": \"%s\"}",
+                 fmt_name, path);
+    } else {
+        resp->status_code = rc;
+        snprintf(resp->data, sizeof(resp->data),
+                 "{\"result\": \"failed\", \"format\": \"%s\", \"path\": \"%s\", \"code\": %d}", fmt_name, path, rc);
+    }
+    return lv_OK;
+}
+
+static int interop_export_graph_coq(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    return interop_export_graph_to_file(engine, cmd, resp, INTEROP_EXPORT_COQ, "export_graph.v", true);
+}
+
+static int interop_export_graph_lean(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    return interop_export_graph_to_file(engine, cmd, resp, INTEROP_EXPORT_LEAN, "export_graph.lean", true);
+}
+
+static int interop_export_graph_html(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    return interop_export_graph_to_file(engine, cmd, resp, INTEROP_EXPORT_HTML, "export_graph.html", false);
+}
+
+static int interop_export_graph_pdf(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    return interop_export_graph_to_file(engine, cmd, resp, INTEROP_EXPORT_PDF, "export_graph.pdf", false);
+}
+
+static int interop_export_graph_geojson(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {
+    return interop_export_graph_to_file(engine, cmd, resp, INTEROP_EXPORT_GEOJSON, "export_graph.geojson", false);
+}
+
+/** @brief ExportGraph 导出格式名→处理函数 查找表（覆盖 interop_theorem.c 注册的全部格式） */
 static const struct {
     const char *name;
     InteropCmdHandler handler;
@@ -957,6 +1195,11 @@ static const struct {
     {"svg", interop_export_graph_svg},
     {"tikz", interop_export_graph_tikz},
     {"json-pretty", interop_export_graph_json_pretty},
+    {"coq", interop_export_graph_coq},
+    {"lean", interop_export_graph_lean},
+    {"html", interop_export_graph_html},
+    {"pdf", interop_export_graph_pdf},
+    {"geojson", interop_export_graph_geojson},
 };
 
 static int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp) {

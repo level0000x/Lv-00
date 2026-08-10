@@ -14,6 +14,9 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/formula_converter.h"
+#include "lv/formula_parser.h"
+#include "lv/formula_renderer.h"
 #include "lv/lv_protocol.h"
 #include "lv/proof.h"
 #include "lv/proof_widget.h"
@@ -518,9 +521,15 @@ static void test_widget_suggest_tactic(void) {
     rc = proof_widget_suggest_tactic((ProofNavigator *) 0x1, suggestions, confidences, 0);
     TEST_ASSERT_EQ(rc, -1);
 
-    /* 正常调用 */
-    rc = proof_widget_suggest_tactic((ProofNavigator *) 0x1, suggestions, confidences, 3);
-    TEST_ASSERT_EQ(rc, 0);
+    /* 正常调用（真实导航器，含等号目标 → reflexivity/rewrite/auto 按置信度排序） */
+    Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
+    TEST_ASSERT_NOT_NULL(target);
+    target->name = lv_strdup("AB = BA");
+    ProofNavigator *nav = proof_navigator_create(target, NULL);
+    TEST_ASSERT_NOT_NULL(nav);
+
+    rc = proof_widget_suggest_tactic(nav, suggestions, confidences, 3);
+    TEST_ASSERT_EQ(rc, 3);
     TEST_ASSERT_NOT_NULL(suggestions[0]);
     TEST_ASSERT_NOT_NULL(suggestions[1]);
     TEST_ASSERT_NOT_NULL(suggestions[2]);
@@ -532,6 +541,8 @@ static void test_widget_suggest_tactic(void) {
         if (suggestions[i])
             lv_free((void **)&suggestions[i]);
     }
+    proof_navigator_destroy(nav);
+    proposition_destroy(target);
 }
 
 static void test_widget_get_step_highlights(void) {
@@ -566,8 +577,14 @@ static void test_widget_get_goal_hypotheses(void) {
     TEST_ASSERT_EQ(proof_widget_get_goal(NULL, &goal), -1);
     TEST_ASSERT_EQ(proof_widget_get_goal((ProofNavigator *) 0x1, NULL), -1);
 
-    /* 正常调用 */
-    int rc = proof_widget_get_goal((ProofNavigator *) 0x1, &goal);
+    /* 正常调用（真实导航器） */
+    Proposition *target = proposition_create(1, PROPOSITION_TYPE_ATOMIC);
+    TEST_ASSERT_NOT_NULL(target);
+    target->name = lv_strdup("AB = BA");
+    ProofNavigator *nav = proof_navigator_create(target, NULL);
+    TEST_ASSERT_NOT_NULL(nav);
+
+    int rc = proof_widget_get_goal(nav, &goal);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_NOT_NULL(goal.goal_text);
     TEST_ASSERT(!goal.is_solved, "goal should not be solved initially");
@@ -589,9 +606,13 @@ static void test_widget_get_goal_hypotheses(void) {
     rc = proof_widget_get_hypotheses((ProofNavigator *) 0x1, hypos, 0);
     TEST_ASSERT_EQ(rc, -1);
 
-    rc = proof_widget_get_hypotheses((ProofNavigator *) 0x1, hypos, 3);
+    rc = proof_widget_get_hypotheses(nav, hypos, 3);
     TEST_ASSERT_EQ(rc, 0);
     TEST_ASSERT_EQ(hypos[0].hyp_id, 0);
+
+    /* 清理 */
+    proof_navigator_destroy(nav);
+    proposition_destroy(target);
 }
 
 static void test_widget_search_tree_dep_graph(void) {
@@ -664,6 +685,164 @@ static void test_widget_layout_type_null(void) {
 }
 
 /* ================================================================
+ * 公式渲染器表驱动收敛测试（盲区1 / 盲区2）：输出逐字节一致
+ * ================================================================ */
+
+static void test_formula_render_byte_identical(void) {
+    /* 构造 1 + 2 二元运算 AST */
+    FormulaNode *n1 = formula_create_number(1, 1);
+    FormulaNode *n2 = formula_create_number(2, 1);
+    TEST_ASSERT_NOT_NULL(n1);
+    TEST_ASSERT_NOT_NULL(n2);
+    FormulaNode *add = formula_create_binary_op(NODE_BINARY_OP_ADD, n1, n2);
+    TEST_ASSERT_NOT_NULL(add);
+
+    char buf[256];
+    int n;
+
+    /* 四个已收敛后端（dsl/ascii/latex/python）输出与历史格式串逐字节一致 */
+    n = formula_render_to_buffer(add, OUTPUT_ASCII, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "ascii render n>0");
+    TEST_ASSERT_STR_EQ(buf, "(1 + 2)");
+
+    n = formula_render_to_buffer(add, OUTPUT_PYTHON, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "python render n>0");
+    TEST_ASSERT_STR_EQ(buf, "(1 + 2)");
+
+    n = formula_render_to_buffer(add, OUTPUT_DSL, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "dsl render n>0");
+    TEST_ASSERT_STR_EQ(buf, "1 + 2");
+
+    n = formula_render_to_buffer(add, OUTPUT_LATEX, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "latex render n>0");
+    TEST_ASSERT_STR_EQ(buf, "1 + 2");
+
+    /* 一元运算：sqrt(4) */
+    FormulaNode *n4 = formula_create_number(4, 1);
+    TEST_ASSERT_NOT_NULL(n4);
+    FormulaNode *sqrt_node = formula_create_unary_op(NODE_UNARY_OP_SQRT, n4);
+    TEST_ASSERT_NOT_NULL(sqrt_node);
+
+    n = formula_render_to_buffer(sqrt_node, OUTPUT_ASCII, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "ascii sqrt n>0");
+    TEST_ASSERT_STR_EQ(buf, "sqrt(4)");
+
+    n = formula_render_to_buffer(sqrt_node, OUTPUT_PYTHON, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "python sqrt n>0");
+    TEST_ASSERT_STR_EQ(buf, "sqrt(4)");
+
+    n = formula_render_to_buffer(sqrt_node, OUTPUT_DSL, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "dsl sqrt n>0");
+    TEST_ASSERT_STR_EQ(buf, "sqrt(4)");
+
+    n = formula_render_to_buffer(sqrt_node, OUTPUT_LATEX, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "latex sqrt n>0");
+    TEST_ASSERT_STR_EQ(buf, "\\sqrt{4}");
+
+    /* 一元负号：-x */
+    FormulaNode *vx = formula_create_variable("x");
+    TEST_ASSERT_NOT_NULL(vx);
+    FormulaNode *neg = formula_create_unary_op(NODE_UNARY_OP_NEG, vx);
+    TEST_ASSERT_NOT_NULL(neg);
+
+    n = formula_render_to_buffer(neg, OUTPUT_ASCII, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "ascii neg n>0");
+    TEST_ASSERT_STR_EQ(buf, "-(x)");
+
+    n = formula_render_to_buffer(neg, OUTPUT_PYTHON, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "python neg n>0");
+    TEST_ASSERT_STR_EQ(buf, "(-x)");
+
+    n = formula_render_to_buffer(neg, OUTPUT_DSL, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "dsl neg n>0");
+    TEST_ASSERT_STR_EQ(buf, "-x");
+
+    n = formula_render_to_buffer(neg, OUTPUT_LATEX, buf, sizeof(buf));
+    TEST_ASSERT(n > 0, "latex neg n>0");
+    TEST_ASSERT_STR_EQ(buf, "-x");
+
+    /* 释放整棵树（父节点持有子节点引用，需分别释放） */
+    formula_node_destroy(add);
+    formula_node_destroy(n1);
+    formula_node_destroy(n2);
+    formula_node_destroy(sqrt_node);
+    formula_node_destroy(n4);
+    formula_node_destroy(neg);
+    formula_node_destroy(vx);
+}
+
+static void test_graph_to_formula_render_append(void) {
+    /* 盲区2：RenderTarget + render_append 收敛后的小图逐字节输出契约 */
+    lv_init();
+    lvEngine *e = lv_engine_create();
+    TEST_ASSERT_NOT_NULL(e);
+
+    int p0 = lv_add_point(e, 0, 1, 1, 1); /* 点 (0, 1) */
+    TEST_ASSERT(p0 >= 0, "add point (0,1)");
+
+    char pname[16];
+    snprintf(pname, sizeof(pname), "P%d", p0);
+    char expected_latex[128];
+    char expected_python[128];
+    char expected_dsl[128];
+    snprintf(expected_latex, sizeof(expected_latex), "%s = \\left(0.00, 1.00\\right)\\\\\n", pname);
+    snprintf(expected_python, sizeof(expected_python), "%s = Point(0.00, 1.00)\n", pname);
+    snprintf(expected_dsl, sizeof(expected_dsl), "point %s(0.00, 1.00); ", pname);
+
+    GraphToFormulaResult *r = graph_to_formula(e->main_graph);
+    TEST_ASSERT_NOT_NULL(r);
+    TEST_ASSERT(r->success, "graph_to_formula success");
+
+    TEST_ASSERT_STR_EQ(r->latex_output, expected_latex);
+    TEST_ASSERT_STR_EQ(r->python_output, expected_python);
+    TEST_ASSERT_STR_EQ(r->dsl_output, expected_dsl);
+
+    graph_to_formula_result_destroy(r);
+    lv_engine_destroy(e);
+    lv_cleanup();
+}
+
+static void test_graph_to_formula_render_append_truncation(void) {
+    /* 盲区2：render_append 在缓冲写满时静默跳过整次追加，不越界、不产生部分拷贝 */
+    lv_init();
+    lvEngine *e = lv_engine_create();
+    TEST_ASSERT_NOT_NULL(e);
+
+    int first_id = -1, last_id = -1;
+    for (int i = 0; i < 300; i++) {
+        int p = lv_add_point(e, i, 1, 0, 1); /* 点 (i, 0) */
+        TEST_ASSERT(p >= 0, "add point");
+        if (first_id < 0)
+            first_id = p;
+        last_id = p;
+    }
+    TEST_ASSERT(first_id >= 0, "first point id");
+
+    GraphToFormulaResult *r = graph_to_formula(e->main_graph);
+    TEST_ASSERT_NOT_NULL(r);
+    TEST_ASSERT(r->success, "graph_to_formula success");
+    TEST_ASSERT_NOT_NULL(r->latex_output);
+    TEST_ASSERT_NOT_NULL(r->python_output);
+    TEST_ASSERT_NOT_NULL(r->dsl_output);
+
+    /* 三个输出均在 4096 容量内 NUL 终止（FORMULA_EXPORT_BUF_SIZE），无越界写 */
+    TEST_ASSERT(strlen(r->latex_output) < 4096, "latex truncated within capacity");
+    TEST_ASSERT(strlen(r->python_output) < 4096, "python truncated within capacity");
+    TEST_ASSERT(strlen(r->dsl_output) < 4096, "dsl truncated within capacity");
+
+    /* 截断语义：头部内容完整保留，尾部（最后一个节点）被跳过 */
+    char first_name[16], last_name[16];
+    snprintf(first_name, sizeof(first_name), "P%d", first_id);
+    snprintf(last_name, sizeof(last_name), "P%d", last_id);
+    TEST_ASSERT(strstr(r->latex_output, first_name) != NULL, "latex keeps head content");
+    TEST_ASSERT(strstr(r->latex_output, last_name) == NULL, "latex truncation skips tail");
+
+    graph_to_formula_result_destroy(r);
+    lv_engine_destroy(e);
+    lv_cleanup();
+}
+
+/* ================================================================
  * Main
  * ================================================================ */
 
@@ -706,5 +885,11 @@ TEST_MAIN_BEGIN("Output Export (TikZ / Proof Widget / Protocol)")
     TEST_MAIN_RUN(test_widget_export_layout_null);
     TEST_MAIN_RUN(test_widget_set_order_edge);
     TEST_MAIN_RUN(test_widget_layout_type_null);
+
+    /* ── 公式渲染 / 转换（K6 收敛回归） ── */
+    printf("\n--- Formula Render / Convert (K6) ---\n");
+    TEST_MAIN_RUN(test_formula_render_byte_identical);
+    TEST_MAIN_RUN(test_graph_to_formula_render_append);
+    TEST_MAIN_RUN(test_graph_to_formula_render_append_truncation);
 
 TEST_MAIN_END()

@@ -5,6 +5,12 @@
  * @details 由 plugin_system.c 按功能域拆分而来。
  *          共享内部数据结构与辅助函数见 plugin_system_internal.h。
  *
+ * exempt: 语义异构状态机。插件生命周期状态
+ *    （LOADED→INITIALIZING→ACTIVE/ERROR→DEACTIVATED 等）在激活/停用/
+ *    查询路径上以多个相互关联的迁移函数承载，各迁移的转换条件与
+ *    回调副作用互不相同，抽公共转换表会引入 mode 分支或回调差异，
+ *    违反判据 A/C（语义异构），保留现状（K5 治理批次登记）。
+ *
  * @author Lv-00 Project
  * @version 1.0
  */

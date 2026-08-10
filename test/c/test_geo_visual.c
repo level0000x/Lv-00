@@ -11,6 +11,8 @@
 #include <string.h>
 
 #include "lv/geo_visual.h"
+#include "lv/lv_numeric.h"
+#include "lv/config.h"
 
 #define TEST_PASS_STATEMENT g_pass_count++
 #define TEST_FAIL_STATEMENT g_fail_count++
@@ -467,6 +469,92 @@ TEST_MAIN_BEGIN("geo_visual 渲染模块测试")
             FAIL("");
         lv_visual_scene_destroy(scene);
         lv_visual_renderer_destroy(r);
+    }
+    /* ========== 组 10：K5-4A 归一化与零长度守卫 ========== */
+    printf("\n[组 10] K5-4A 归一化与零长度守卫\n");
+    {
+        /* lv_normalize_3d 等价性：3-4-5 向量与手写除法逐位一致 */
+        TEST("lv_normalize_3d: 3-4-5 归一化等价");
+        double ox, oy, oz;
+        bool ok = lv_normalize_3d(3.0, 0.0, 4.0, 1e-15, &ox, &oy, &oz);
+        if (ok && ox == 3.0 / 5.0 && oy == 0.0 && oz == 4.0 / 5.0) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("归一化结果与手写除法不一致");
+            g_fail_count++;
+        }
+
+        /* 阈值边界：len == threshold 时归一化成功（严格 < 才失败） */
+        TEST("lv_normalize_3d: len == threshold 边界");
+        ok = lv_normalize_3d(3.0, 0.0, 4.0, 5.0, &ox, &oy, &oz);
+        if (ok && oz == 4.0 / 5.0) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("len==threshold 应归一化成功");
+            g_fail_count++;
+        }
+
+        /* 零长度守卫：len < threshold 返回 false 且不写输出 */
+        TEST("lv_normalize_3d: 零长度守卫（不写输出）");
+        double kx = 0.0, ky = 0.0, kz = 0.0;
+        ok = lv_normalize_3d(0.0, 0.0, 0.0, lv_NORMALIZATION_THRESHOLD, &kx, &ky, &kz);
+        if (!ok && kx == 0.0 && ky == 0.0 && kz == 0.0) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("零长度应失败且输出保持调用点值");
+            g_fail_count++;
+        }
+
+        /* 亚阈值向量：len < threshold 失败（阈值参数化） */
+        TEST("lv_normalize_3d: 亚阈值向量失败");
+        ok = lv_normalize_3d(1e-20, 0.0, 0.0, lv_NORMALIZATION_THRESHOLD, &ox, &oy, &oz);
+        if (!ok) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("亚阈值向量应失败");
+            g_fail_count++;
+        }
+
+        /* lv_visual_rotate 零长度守卫：零轴保留默认 Z 轴（float 渲染层豁免区钉住） */
+        TEST("lv_visual_rotate: 零轴守卫保留默认 Z 轴");
+        lvVisualObject *rpt = lv_visual_point_create(10, 20);
+        float zero_axis[3] = {0.0f, 0.0f, 0.0f};
+        lv_visual_rotate(rpt, 1.5707963f, zero_axis); /* 90° */
+        if (fabsf(rpt->transform[1] - 1.0f) < 1e-5f && fabsf(rpt->transform[4] + 1.0f) < 1e-5f &&
+            fabsf(rpt->transform[10] - 1.0f) < 1e-5f) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("零轴应回退为绕 Z 轴旋转矩阵");
+            g_fail_count++;
+        }
+        lv_visual_object_destroy(rpt);
+
+        /* 归一化等价：非零轴 (0,0,5) 归一化后与默认轴 (0,0,1) 产生相同矩阵 */
+        TEST("lv_visual_rotate: 非零轴归一化与默认轴等价");
+        lvVisualObject *ra = lv_visual_point_create(0, 0);
+        lvVisualObject *rb = lv_visual_point_create(0, 0);
+        float axis5[3] = {0.0f, 0.0f, 5.0f};
+        lv_visual_rotate(ra, 0.7f, axis5);
+        lv_visual_rotate(rb, 0.7f, zero_axis);
+        int same = 1;
+        for (int i = 0; i < 16; i++) {
+            if (fabsf(ra->transform[i] - rb->transform[i]) > 1e-6f)
+                same = 0;
+        }
+        if (same) {
+            PASS();
+            g_pass_count++;
+        } else {
+            FAIL("(0,0,5) 归一化后应与默认 Z 轴矩阵一致");
+            g_fail_count++;
+        }
+        lv_visual_object_destroy(ra);
+        lv_visual_object_destroy(rb);
     }
     /* 清理临时文件 */
     remove(tmp_svg);

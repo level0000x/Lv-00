@@ -25,6 +25,7 @@
  * ======================================================================== */
 
 #include "geo_event_detect.h"
+#include "geo_utils.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -156,45 +157,105 @@ static int geodet_find_event_index(const lvEventDetector *detector, int event_id
  *
  * 每种事件类型提供默认的事件函数计算逻辑。
  * 当用户未指定 func 时，系统根据事件类型选择默认行为。
- * 当前实现提供基础的占位逻辑。
+ * 交点/接触事件基于真实的线段几何计算（含共线重叠与端点接触）。
  * ======================================================================== */
 
 /**
- * @brief 交点事件：检测两条曲线的距离是否为零
+ * @brief 点到线段的最近距离平方
  *
- * 使用 param 的最后 4 个分量作为两条曲线在 2D 下的位置。
- * g = distance_squared - epsilon
+ * 把点投影到线段所在直线上，投影参数 t 钳制到 [0,1]，
+ * 得到线段上最近点，返回两点距离平方。
+ */
+static double geodet_point_segment_dist2(double px, double py, double x1, double y1, double x2, double y2) {
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    double len2 = dx * dx + dy * dy;
+    double t = 0.0;
+    if (len2 > 0.0) {
+        t = ((px - x1) * dx + (py - y1) * dy) / len2;
+        if (t < 0.0)
+            t = 0.0;
+        else if (t > 1.0)
+            t = 1.0;
+    }
+    double qx = x1 + t * dx;
+    double qy = y1 + t * dy;
+    double ex = px - qx;
+    double ey = py - qy;
+    return ex * ex + ey * ey;
+}
+
+/**
+ * @brief 两条线段的最近距离平方
+ *
+ * 先做精确的相交判定（含共线重叠与端点接触，geo_segments_intersect）；
+ * 相交则最短距离为 0。否则两线段间的最短距离必然出现在
+ * 某条线段端点到另一条线段的垂足处，取 4 个端点-线段距离的最小值。
+ */
+static double geodet_segment_segment_dist2(double ax1, double ay1, double ax2, double ay2, double bx1, double by1,
+                                           double bx2, double by2) {
+    if (geo_segments_intersect(ax1, ay1, ax2, ay2, bx1, by1, bx2, by2))
+        return 0.0;
+    double d = geodet_point_segment_dist2(ax1, ay1, bx1, by1, bx2, by2);
+    double d2 = geodet_point_segment_dist2(ax2, ay2, bx1, by1, bx2, by2);
+    if (d2 < d)
+        d = d2;
+    d2 = geodet_point_segment_dist2(bx1, by1, ax1, ay1, ax2, ay2);
+    if (d2 < d)
+        d = d2;
+    d2 = geodet_point_segment_dist2(bx2, by2, ax1, ay1, ax2, ay2);
+    if (d2 < d)
+        d = d2;
+    return d;
+}
+
+/**
+ * @brief 交点事件：检测两条线段的最近距离是否为零
+ *
+ * param 约定：线段 A = (param[0],param[1])->(param[2],param[3])，
+ *             线段 B = (param[4],param[5])->(param[6],param[7])，需 dim>=8。
+ * g = 两线段最近距离平方；相交（含共线重叠、端点接触）时 g=0。
+ * dim 不足时回退为两点的距离平方（保留原调用约定）。
  */
 static int geodet_check_intersection(double t, const double *param, int dim, double *g, lvEventDetector *detector) {
     lv_UNUSED(t);
     lv_UNUSED(detector);
-    if (dim < 4) {
-        *g = 1.0;
+    if (dim < 8) {
+        if (dim < 4) {
+            *g = 1.0;
+            return 0;
+        }
+        double dx = param[0] - param[2];
+        double dy = param[1] - param[3];
+        *g = dx * dx + dy * dy;
         return 0;
     }
-    double dx = param[0] - param[2];
-    double dy = param[1] - param[3];
-    *g = dx * dx + dy * dy;
+    *g = geodet_segment_segment_dist2(param[0], param[1], param[2], param[3], param[4], param[5], param[6], param[7]);
     return 0;
 }
 
 /**
- * @brief 接触事件：检测距离是否小于某阈值
+ * @brief 接触事件：检测点到线段是否进入阈值范围
  *
- * g = distance_squared - threshold^2
+ * param 约定：点 P = (param[0],param[1])，线段 = (param[2],param[3])->(param[4],param[5])，
+ *             需 dim>=6。g = 点到线段距离平方 - threshold^2。
+ * dim 不足时回退为两点的距离平方（保留原调用约定）。
  */
 static int geodet_check_contact(double t, const double *param, int dim, double *g, lvEventDetector *detector) {
     lv_UNUSED(t);
     lv_UNUSED(detector);
-    if (dim < 4) {
-        *g = 1.0;
+    double threshold = 1e-3;
+    if (dim < 6) {
+        if (dim < 4) {
+            *g = 1.0;
+            return 0;
+        }
+        double dx = param[0] - param[2];
+        double dy = param[1] - param[3];
+        *g = dx * dx + dy * dy - threshold * threshold;
         return 0;
     }
-    double dx = param[0] - param[2];
-    double dy = param[1] - param[3];
-    /* 接触阈值设为一个较小正数 */
-    double threshold = 1e-3;
-    *g = dx * dx + dy * dy - threshold * threshold;
+    *g = geodet_point_segment_dist2(param[0], param[1], param[2], param[3], param[4], param[5]) - threshold * threshold;
     return 0;
 }
 

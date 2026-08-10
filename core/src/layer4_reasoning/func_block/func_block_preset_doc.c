@@ -53,6 +53,7 @@ size_t func_block_preset_generate_doc(const char *preset_name, char *out_buffer,
                            props_buffer[0] ? props_buffer : "无", func_block_preset_complexity_string(m->complexity),
                            m->input_count, m->output_count, m->version_major, m->version_minor, m->version_patch);
 
+    /* exempt: snprintf 返回码检测（非索引语义），勿替换为 lv_index_in_range */
     if (written < 0 || (size_t) written >= buffer_size) {
         lv_free((void **) &props_buffer); /* 释放动态分配的属性缓冲区 */
         return buffer_size + 1;           /* 指示缓冲区不足 */

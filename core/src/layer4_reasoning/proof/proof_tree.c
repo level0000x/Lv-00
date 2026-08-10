@@ -58,6 +58,8 @@ static lvProofTreeNode *create_node(int id, int depth, const char *desc, const c
  *
  * @param n 要释放的节点指针（为 NULL 时直接返回）
  */
+/* exempt: 树节点递归销毁依赖深度优先遍历子节点链，字段描述表只能描述
+ * 单层字段，无法表达递归子节点语义，故保留手写递归实现 */
 static void free_node_recursive(lvProofTreeNode *n) {
     if (!n)
         return;

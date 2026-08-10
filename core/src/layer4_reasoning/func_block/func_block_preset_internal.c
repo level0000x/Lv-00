@@ -132,6 +132,8 @@ static bool init_builtin_presets(void) {
 
 bool func_block_preset_library_init(void) {
     /* 幂等操作 */
+    /* exempt: g_preset_library.initialized 带 reinit（cleanup 置 false 后
+     * 可再次 init），lv_once 不可重置，故保留幂等守卫。 */
     if (g_preset_library.initialized) {
         return true;
     }

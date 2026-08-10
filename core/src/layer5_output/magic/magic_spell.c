@@ -110,9 +110,7 @@ Spell *spell_create(const char *name) {
  */
 /* ── spell_destroy 子资源销毁适配 ── */
 
-static void destroy_spell_molding(void *obj) {
-    rune_sequence_destroy((RuneSequence *) obj);
-}
+LV_DESTROY_SHIM(destroy_spell_molding, RuneSequence, rune_sequence_destroy)
 
 /* spell_destroy 字段描述表：name/description 纯指针，molding 对象销毁 */
 static const lvFieldDesc s_spell_destroy_fields[] = {

@@ -160,7 +160,7 @@ static bool autoload_dir_entry_cb(void *ctx, const char *name) {
                                                    (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) |
                                                        (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8))) {
                 /* 插件 API 版本不兼容，记录警告并跳过激活 */
-                set_error(ac->system,
+                plugin_system_set_error(ac->system,
                           "Plugin '%s' version '%s' may be incompatible with "
                           "system API version %d.%d.%d. Loading but not activating.",
                           plugin->info.name, plugin->info.version, lv_PLUGIN_SYSTEM_VERSION_MAJOR,

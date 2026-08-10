@@ -18,7 +18,9 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/debug.h" /* RefCounted / ref_count_inc / ref_count_dec / ref_count_get */
 #include "lv/lv_lifecycle.h"
+#include "lv/magic.h"
 
 #include "test_helpers.h"
 
@@ -322,6 +324,94 @@ static void test_heap_composite_roundtrip(void) {
 }
 
 /* ============================================================
+ * (e) ref_count_dec 锁内 destructor 语义（D3 终审二回归测试）
+ * ============================================================ */
+
+static int g_dtor_calls = 0;
+
+static void test_refcount_dtor_count(void *obj) {
+    (void) obj;
+    g_dtor_calls++;
+}
+
+static void test_refcount_dtor_free(void *obj) {
+    lv_free((void **) &obj);
+}
+
+/* destructor 仅在引用计数降为 0 时于锁内被调用一次；重复 dec 不再触发 */
+static void test_refcount_destructor_once(void) {
+    /* 场景 1：计数 1 → 0 触发 destructor 一次，destructor 置空防重入，重复 dec 返回 false */
+    lvRefCounted *obj = (lvRefCounted *) lv_calloc(1, sizeof(lvRefCounted));
+    TEST_ASSERT_NOT_NULL(obj);
+    obj->ref_count = 1;
+    obj->destructor = test_refcount_dtor_count;
+
+    g_dtor_calls = 0;
+    TEST_ASSERT_EQ(ref_count_dec(obj), true);
+    TEST_ASSERT_EQ(g_dtor_calls, 1);
+    TEST_ASSERT_NULL(obj->destructor); /* 已置空，防止重复调用 */
+    TEST_ASSERT_EQ(ref_count_dec(obj), false); /* 计数为 0：不执行任何操作 */
+    TEST_ASSERT_EQ(g_dtor_calls, 1);           /* destructor 未被再次调用 */
+    lv_free((void **) &obj);
+
+    /* 场景 2：计数 2 → 1 → 0，destructor 仅在归零时调用一次 */
+    lvRefCounted *o2 = (lvRefCounted *) lv_calloc(1, sizeof(lvRefCounted));
+    TEST_ASSERT_NOT_NULL(o2);
+    o2->ref_count = 2;
+    o2->destructor = test_refcount_dtor_count;
+    g_dtor_calls = 0;
+    TEST_ASSERT_EQ(ref_count_dec(o2), false); /* 2 → 1，存活 */
+    TEST_ASSERT_EQ(g_dtor_calls, 0);
+    TEST_ASSERT_EQ(ref_count_dec(o2), true); /* 1 → 0，触发 */
+    TEST_ASSERT_EQ(g_dtor_calls, 1);
+    lv_free((void **) &o2);
+
+    /* 场景 3：inc/dec 往返 + destructor 实际释放对象（锁内调用后对象失效） */
+    lvRefCounted *o3 = (lvRefCounted *) lv_calloc(1, sizeof(lvRefCounted));
+    TEST_ASSERT_NOT_NULL(o3);
+    o3->ref_count = 1;
+    o3->destructor = test_refcount_dtor_free;
+    ref_count_inc(o3);
+    TEST_ASSERT_EQ(ref_count_get(o3), 2);
+    TEST_ASSERT_EQ(ref_count_dec(o3), false); /* 2 → 1，存活 */
+    TEST_ASSERT_EQ(ref_count_dec(o3), true);  /* 1 → 0，destructor 在锁内释放 o3 */
+}
+
+/* ============================================================
+ * (f) K7: LV_DESTROY_SHIM 收敛后字段销毁等价
+ * （magic_array / spell / domain 子资源销毁无泄漏）
+ * ============================================================ */
+static void test_k7_shim_destroy_equivalence(void) {
+    TEST_LEAK_BASELINE();
+
+    /* MagicArray：runes / graph / constraints 子资源销毁（含扩容路径） */
+    MagicArray *array = magic_array_create();
+    TEST_ASSERT_NOT_NULL(array);
+    for (int i = 0; i < 40; i++) {
+        Rune *r = rune_create_rational(i + 1, 1, ELEMENT_FIRE);
+        TEST_ASSERT_NOT_NULL(r);
+        /* magic_array_add_rune 返回图中节点索引（成功 >= 0，失败 -1）；
+         * 原符文所有权归调用者，add 内部已复制，此处必须释放 */
+        TEST_ASSERT_MSG(magic_array_add_rune(array, r) >= 0, "magic_array_add_rune 失败");
+        rune_destroy(r);
+    }
+    TEST_ASSERT_EQ(magic_array_get_rune_count(array), 40);
+    magic_array_destroy(array);
+
+    /* Spell：molding 子序列销毁 */
+    Spell *spell = spell_create("K7ShimSpell");
+    TEST_ASSERT_NOT_NULL(spell);
+    spell_destroy(spell);
+
+    /* Domain：center / rules 子资源销毁 */
+    Domain *domain = domain_create("K7ShimDomain", 10);
+    TEST_ASSERT_NOT_NULL(domain);
+    domain_destroy(domain);
+
+    TEST_LEAK_NO_DELTA();
+}
+
+/* ============================================================
  * 测试入口
  * ============================================================ */
 
@@ -335,5 +425,7 @@ TEST_MAIN_BEGIN("生命周期管理")
     TEST_MAIN_RUN(test_scope_exit_alias);
     TEST_MAIN_RUN(test_graph_destroy_roundtrip);
     TEST_MAIN_RUN(test_heap_composite_roundtrip);
+    TEST_MAIN_RUN(test_refcount_destructor_once);
+    TEST_MAIN_RUN(test_k7_shim_destroy_equivalence);
 
 TEST_MAIN_END()

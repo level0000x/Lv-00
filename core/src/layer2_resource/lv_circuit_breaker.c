@@ -240,6 +240,10 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
     }
 
     /* 状态机逻辑 */
+    /* exempt: 1-B 状态机豁免 —— 熔断器 CLOSED/OPEN/HALF_OPEN 状态机：
+     * 语义为"熔断保护"（OPEN 冷却后试探进入 HALF_OPEN，一次试探调用放行后
+     * 由调用方决定 close 或再次 trip），无转移矩阵/位掩码查表，
+     * 与 context.c/engine_state.c 的"推理任务五态状态机"语义异构，不迁移。 */
     switch (cb->state) {
         case lv_CB_CLOSED:
             /* 正常状态，允许执行 */

@@ -1,0 +1,178 @@
+ninja: Entering directory `build3'
+[1/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_numeric.c.obj
+[2/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_callback_list.c.obj
+[3/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_stream_context.c.obj
+[4/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_event_bus.c.obj
+[5/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_array.c.obj
+[6/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_config.c.obj
+[7/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_str.c.obj
+[8/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/allocator.c.obj
+[9/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils.c.obj
+[10/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_circuit_breaker.c.obj
+[11/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/context.c.obj
+[12/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_misc.c.obj
+[13/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_json.c.obj
+[14/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv.c.obj
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:31:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:35:9: warning: 'lv_LOG_MSG_MAX_LEN' redefined
+   35 | #define lv_LOG_MSG_MAX_LEN 4096
+      |         ^~~~~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:174,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:14:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:821:9: note: this is the location of the previous definition
+  821 | #define lv_LOG_MSG_MAX_LEN lv_CONFIG_LOG_MSG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:38:9: warning: 'lv_LOG_TAG_MAX_LEN' redefined
+   38 | #define lv_LOG_TAG_MAX_LEN 64
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:824:9: note: this is the location of the previous definition
+  824 | #define lv_LOG_TAG_MAX_LEN lv_CONFIG_LOG_TAG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:41:9: warning: 'lv_METRIC_NAME_MAX_LEN' redefined
+   41 | #define lv_METRIC_NAME_MAX_LEN 128
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:827:9: note: this is the location of the previous definition
+  827 | #define lv_METRIC_NAME_MAX_LEN lv_CONFIG_METRIC_NAME_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:204:9: warning: 'lv_LOG_FATAL' redefined
+  204 | #define lv_LOG_FATAL(tag, fmt, ...) lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+      |         ^~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_log.h:39:9: note: this is the location of the previous definition
+   39 | #define lv_LOG_FATAL LOG_LEVEL_FATAL
+      |         ^~~~~~~~~~~~
+[15/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_config.c.obj
+[16/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_codes.c.obj
+[17/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_error.c.obj
+[18/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool.c.obj
+[19/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool_utils.c.obj
+[20/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_refcount.c.obj
+[21/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug.c.obj
+[22/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_mempool.c.obj
+[23/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_emergency.c.obj
+[24/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_invariants.c.obj
+[25/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_state.c.obj
+[26/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace_session.c.obj
+[27/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_log_ctx.c.obj
+[28/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_ringbuf.c.obj
+[29/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_heap.c.obj
+[30/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/node_deep_copy.c.obj
+[31/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_normalize_assert.c.obj
+[32/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/math_theory_guide_cn.c.obj
+[33/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/result_messages_cn.c.obj
+[34/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/memory_pool.c.obj
+[35/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/test_framework.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_xml':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:911:63: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  911 |         lv_str_escape_xml(&esc_name, suite->name, suite->name ? strlen(suite->name) : 0);
+      |                                                               ^
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:920:66: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  920 |             lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
+      |                                                                  ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:928:74: warning: the comparison will always evaluate as 'true' for the address of 'message' will never be NULL [-Waddress]
+  928 |                 lv_str_escape_xml(&esc_msg, test->message, test->message ? strlen(test->message) : 0);
+      |                                                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:79:10: note: 'message' declared here
+   79 |     char message[lv_TEST_MSG_MAX_LEN];
+      |          ^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_html':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:982:43: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  982 |             size_t esc_slen = suite->name ? strlen(suite->name) : 0;
+      |                                           ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:985:42: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  985 |             size_t esc_tlen = test->name ? strlen(test->name) : 0;
+      |                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:995:67: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  995 |                              esc_suite ? esc_suite : (suite->name ? suite->name : ""),
+      |                                                                   ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:996:64: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  996 |                              esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
+      |                                                                ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+[36/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_path.c.obj
+[37/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/global_state.c.obj
+[38/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_monitor.c.obj
+[39/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/geometry_config.c.obj
+[40/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/preset_helper_cn.c.obj
+[41/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_messages_cn.c.obj
+[42/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace.c.obj
+[43/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/fast_index.c.obj
+[44/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hash.c.obj
+[45/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/sha256.c.obj
+[46/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_guard.c.obj
+[47/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_priority.c.obj
+[48/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/status_codes.c.obj
+[49/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_score.c.obj
+[50/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hashtable.c.obj
+[51/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_export_common.c.obj
+[52/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_strbuf.c.obj
+[53/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_ringbuf.c.obj
+[54/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_dot_writer.c.obj
+[55/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_str_utils.c.obj
+[56/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/performance_profiler.c.obj
+[57/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/representation_converter.c.obj
+[58/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/adaptive_threshold.c.obj
+[59/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_lifecycle.c.obj
+[60/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/thread_pool.c.obj
+[61/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_bytes.c.obj
+[62/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_log.c.obj
+[63/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/meta_repr.c.obj
+[64/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_file.c.obj
+[65/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_process.c.obj
+[66/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/simd_ops.c.obj
+[67/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_backend_plugin.c.obj
+[68/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_serialize_adapters.c.obj
+[69/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_registry.c.obj
+[70/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_storage.c.obj
+[71/558] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_arena.c.obj
+[72/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper.c.obj
+[73/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_geom.c.obj
+[74/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_visual.c.obj
+[75/558] Building C object CMakeFiles/lv_core.dir/core/src/core/lv_convenience.c.obj
+[76/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_algebra.c.obj
+[77/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_meta.c.obj
+[78/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj
+FAILED: [code=1] CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj 
+C:\msys64\mingw64\bin\gcc.exe -Dlv_CURRENT_LAYER=0 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -g -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wnull-dereference -Wduplicated-cond -Wlogical-op -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong -O2 -fstrict-aliasing -fno-omit-frame-pointer -MD -MT CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj -MF CMakeFiles\lv_core.dir\core\src\lv_impl_upper_orchestrator.c.obj.d -o CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'lv_orchestrator_create':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:338:36: error: invalid operands to binary & (have 'double' and 'int')
+  338 |     s->session_id = (int)(now_ms() & 0x7FFFFFFF);
+      |                           ~~~~~~~~ ^
+      |                           |
+      |                           double
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c: In function 'lv_orchestrator_run':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/lv_impl_upper_orchestrator.c:445:18: warning: implicit conversion from 'enum <anonymous>' to 'lvSessionStage' [-Wenum-conversion]
+  445 |     in->last_run = lv_STAGE_PENDING;
+      |                  ^
+[79/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_utils.c.obj
+[80/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_interop.c.obj
+[81/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_preset.c.obj
+[82/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_app.c.obj
+[83/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_parser.c.obj
+[84/558] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_native.c.obj
+[85/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter.c.obj
+[86/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_util.c.obj
+[87/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_geom.c.obj
+[88/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_constraint.c.obj
+[89/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_complex.c.obj
+[90/558] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_stmt.c.obj
+[91/558] Building C object CMakeFiles/lv_core.dir/core/src/impl_preset_transformations.c.obj
+ninja: build stopped: subcommand failed.

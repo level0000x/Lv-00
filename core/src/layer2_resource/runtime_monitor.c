@@ -26,6 +26,7 @@ void lv_log_shutdown(void);
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_file.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_numeric.h"
 #include "lv_internal.h"
 #include "lv/lv_event_bus.h"
 
@@ -115,6 +116,13 @@ static void runtime_init_mutex_func(void) {
     lv_mutex_init(&s_runtime_state.init_lock.mutex);
 }
 
+/* exempt: 惰性守卫豁免 —— runtime_monitor 的 4 个子系统
+ * （log/perf/health/event，约 12 处 initialized 检查）均为"init→shutdown 可重入"：
+ * 各 lv_*_shutdown 将自身 initialized 置 false（L167/L303/L575 等），允许再次 init
+ * （lv_once 不可重置，转换后 shutdown 无法恢复）；且 init 带外部配置参数
+ * （lv_log_init(lvLogConfig)、lv_event_trace_init(capacity)），lv_once 回调无参数；
+ * 线程安全已由统一 lv_lazy_lock（s_runtime_state.init_lock）保证。
+ * L240/L307/L432/L1009 等为消费者活性检查，故保留手写标志检查，不迁移。 */
 bool lv_log_init(const lvLogConfig *config) {
     lv_lazy_lock_lock(&s_runtime_state.init_lock, runtime_init_mutex_func);
     if (s_runtime_state.log.initialized) {
@@ -228,7 +236,7 @@ static const int kLogLevelToLvLog[LOG_LEVEL_OFF + LOG_LEVEL_INDEX_OFFSET + 1] = 
 /** 将 LOG_LEVEL_* 级别映射为 lv_internal.h 的 lv_LOG_LEVEL_*（数值越大越详细） */
 static int runtime_log_level_to_lvlog(lvLogLevel level) {
     int idx = (int) level + LOG_LEVEL_INDEX_OFFSET;
-    if (idx >= 0 && idx < (int) (sizeof(kLogLevelToLvLog) / sizeof(kLogLevelToLvLog[0])))
+    if (lv_index_in_range(idx, (int) (sizeof(kLogLevelToLvLog) / sizeof(kLogLevelToLvLog[0]))))
         return kLogLevelToLvLog[idx];
     return lv_LOG_LEVEL_OFF;
 }
@@ -303,6 +311,10 @@ void lv_perf_shutdown(void) {
     s_runtime_state.perf.initialized = false;
 }
 
+/* exempt: 1-B 状态机豁免 —— lvTimer 计时器状态机
+ * （STOPPED→RUNNING→PAUSED↔RUNNING→STOPPED，见 runtime_monitor.h lvTimerState）：
+ * 为"计时器实例"的测量生命周期状态，无转移矩阵/位掩码查表，
+ * 与 context.c/engine_state.c 的"推理任务五态状态机"语义异构，不迁移。 */
 lvTimer *lv_timer_create(const char *name) {
     if (!s_runtime_state.perf.initialized) {
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_STATE, "lv_timer_create: perf system not initialized");
@@ -1062,7 +1074,7 @@ int lv_event_trace_begin(RM_EventType type, const char *name) {
 }
 
 void lv_event_trace_end(int event_id, const char *data) {
-    if (!s_runtime_state.event.initialized || event_id < 0 || event_id >= (int) s_runtime_state.event.event_count) {
+    if (!s_runtime_state.event.initialized || !lv_index_in_range(event_id, (int) s_runtime_state.event.event_count)) {
         return;
     }
 

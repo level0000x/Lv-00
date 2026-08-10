@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Pure-Python fallback mode for lv.
 
@@ -32,11 +32,13 @@ _fallback_enabled: bool = False
 
 
 def enable_fallback() -> None:
-    """Inject _ctypes_binding replacement into the lv module namespace.
+    """Inject the pure-Python fallback into the lv module namespace.
 
-    After calling this function, code that references ``lv._ctypes_binding``
-    will receive a :class:`_FakeBinding` instance instead of a real ctypes
-    wrapper, allowing pure-Python fallback paths to operate transparently.
+    Replaces ``lv._ctypes_binding`` with a :class:`_FakeBinding` instance
+    and binds the fallback classes under their C-binding names
+    (``SymbolicCoord``, ``Point``, ``Graph``) so that code importing the
+    top-level API (``from lv import Graph`` etc.) works without the C DLL,
+    matching the C-binding path.
     """
     global _fallback_enabled
     try:
@@ -45,6 +47,9 @@ def enable_fallback() -> None:
         # lv package not importable; nothing to inject
         return
     mod._ctypes_binding = _FakeBinding()
+    mod.SymbolicCoord = SymbolicCoordFb
+    mod.Point = PointFb
+    mod.Graph = GraphFb
     _fallback_enabled = True
 
 

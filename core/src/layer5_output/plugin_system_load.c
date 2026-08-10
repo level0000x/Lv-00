@@ -36,7 +36,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     if (!path)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_load: path is NULL");
     if (system->plugin_count >= system->plugin_capacity) {
-        set_error(system, "Plugin capacity exceeded");
+        plugin_system_set_error(system, "Plugin capacity exceeded");
         lv_RETURN_ERROR_NULL(lv_ERROR_RESOURCE_EXHAUSTED, "lv_plugin_load: plugin capacity exceeded");
     }
 
@@ -45,7 +45,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
         if (system->plugins[i]->path[0] == '\0')
             continue;
         if (strcmp(system->plugins[i]->path, path) == 0) {
-            set_error(system, "Plugin already loaded: %s", path);
+            plugin_system_set_error(system, "Plugin already loaded: %s", path);
             return NULL;
         }
     }
@@ -53,7 +53,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     /* 加载动态库 */
     void *handle = lv_dlopen(path);
     if (!handle) {
-        set_error(system, "Failed to load library: %s", path);
+        plugin_system_set_error(system, "Failed to load library: %s", path);
         return NULL;
     }
 
@@ -77,7 +77,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
 #pragma GCC diagnostic pop
 
     if (!entry) {
-        set_error(system, "Plugin entry point not found: %s", path);
+        plugin_system_set_error(system, "Plugin entry point not found: %s", path);
         lv_dlclose(handle);
         lv_free((void **) &plugin);
         return NULL;
@@ -96,7 +96,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
 
     /* 调用入口函数 */
     if (entry(plugin->context) != 0) {
-        set_error(system, "Plugin entry function failed: %s", path);
+        plugin_system_set_error(system, "Plugin entry function failed: %s", path);
         lv_free((void **) &plugin->context);
         lv_dlclose(handle);
         lv_free((void **) &plugin);
@@ -106,7 +106,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     /* 调用 on_load 回调 */
     if (plugin->on_load) {
         if (plugin->on_load(plugin->context) != 0) {
-            set_error(system, "Plugin on_load failed: %s", path);
+            plugin_system_set_error(system, "Plugin on_load failed: %s", path);
             lv_free((void **) &plugin->context);
             lv_dlclose(handle);
             lv_free((void **) &plugin);

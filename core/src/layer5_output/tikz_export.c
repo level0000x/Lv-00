@@ -38,21 +38,29 @@ static const char LV_TIKZ_HEADER[] =
  * 查找表：GeomType → TikZ 节点渲染函数
  * ================================================================ */
 
-/** @brief TikZ 节点渲染函数类型 */
-typedef void (*TikzNodeRenderFunc)(const GeomNode *node, lvStrBuf *out);
+/** @brief TikZ 节点渲染函数类型（graph 用于按 ID 解析圆/函数块的引用节点） */
+typedef void (*TikzNodeRenderFunc)(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out);
+
+/** @brief 取节点前两个符号坐标到 (x, y)；坐标不可用返回 -1 */
+static int tikz_node_xy(const GeomNode *node, double *x, double *y) {
+    if (!node || node->coord_count < 2 || !node->symbolic_coords || !node->symbolic_coords[0] ||
+        !node->symbolic_coords[1])
+        return -1;
+    *x = symbolic_coord_to_double(node->symbolic_coords[0]);
+    *y = symbolic_coord_to_double(node->symbolic_coords[1]);
+    return 0;
+}
 
 /**
  * @brief 渲染 GEOM_POINT 节点为 \\fill 圆点命令
  *
  * 仅当节点具有两个有效符号坐标时输出，否则跳过该节点。
  */
-static void tikz_render_point(const GeomNode *node, lvStrBuf *out) {
-    if (node->coord_count >= 2 && node->symbolic_coords && node->symbolic_coords[0] &&
-        node->symbolic_coords[1]) {
-        double x = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double y = symbolic_coord_to_double(node->symbolic_coords[1]);
+static void tikz_render_point(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
+    lv_UNUSED(graph);
+    double x, y;
+    if (tikz_node_xy(node, &x, &y) == 0)
         lv_strbuf_printf(out, "  \\fill (%.4f, %.4f) circle (2pt);\n", x, y);
-    }
 }
 
 /**
@@ -60,7 +68,8 @@ static void tikz_render_point(const GeomNode *node, lvStrBuf *out) {
  *
  * 仅当节点具有四个有效符号坐标（两个端点）时输出，否则跳过该节点。
  */
-static void tikz_render_line_segment(const GeomNode *node, lvStrBuf *out) {
+static void tikz_render_line_segment(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
+    lv_UNUSED(graph);
     if (node->coord_count >= 4 && node->symbolic_coords && node->symbolic_coords[0] &&
         node->symbolic_coords[1] && node->symbolic_coords[2] && node->symbolic_coords[3]) {
         double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
@@ -68,6 +77,96 @@ static void tikz_render_line_segment(const GeomNode *node, lvStrBuf *out) {
         double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
         double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
         lv_strbuf_printf(out, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
+    }
+}
+
+/**
+ * @brief 渲染 GEOM_CIRCLE 节点为 \\draw circle 命令
+ *
+ * 优先使用圆节点自身的 (cx, cy, r) 三个符号坐标；
+ * 否则经图按 center_node_id / radius_node_id 解析圆心与半径端点，
+ * 半径取圆心到半径端点的欧氏距离。
+ */
+static void tikz_render_circle(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
+    double cx = 0.0, cy = 0.0, r = 0.0;
+    if (node->coord_count >= 3 && node->symbolic_coords && node->symbolic_coords[0] &&
+        node->symbolic_coords[1] && node->symbolic_coords[2]) {
+        cx = symbolic_coord_to_double(node->symbolic_coords[0]);
+        cy = symbolic_coord_to_double(node->symbolic_coords[1]);
+        r = symbolic_coord_to_double(node->symbolic_coords[2]);
+    } else {
+        GeomNode *center = graph ? graph_get_node(graph, node->data.circle.center_node_id) : NULL;
+        GeomNode *radius_pt = graph ? graph_get_node(graph, node->data.circle.radius_node_id) : NULL;
+        if (tikz_node_xy(center, &cx, &cy) != 0)
+            return;
+        double rx, ry;
+        if (tikz_node_xy(radius_pt, &rx, &ry) != 0)
+            return;
+        double dx = rx - cx;
+        double dy = ry - cy;
+        r = sqrt(dx * dx + dy * dy);
+    }
+    if (r <= 0.0)
+        return;
+    lv_strbuf_printf(out, "  \\draw (%.4f, %.4f) circle (%.4f);\n", cx, cy, r);
+}
+
+/**
+ * @brief 渲染 GEOM_REGION 节点为 \\draw[fill] ... -- cycle; 多边形命令
+ *
+ * 依次取每条边界线段的首端点组成多边形顶点（与 SVG 导出一致），
+ * 顶点数不足 3 时放弃导出。
+ */
+static void tikz_render_region(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
+    lv_UNUSED(graph);
+    if (node->data.region.segment_count < 3)
+        return;
+    lvStrBuf tmp;
+    lv_strbuf_init(&tmp);
+    int emitted = 0;
+    for (int s = 0; s < node->data.region.segment_count; s++) {
+        GeomNode *seg = node->data.region.boundary_segments[s];
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4 || !seg->symbolic_coords ||
+            !seg->symbolic_coords[0] || !seg->symbolic_coords[1])
+            continue;
+        double sx = symbolic_coord_to_double(seg->symbolic_coords[0]);
+        double sy = symbolic_coord_to_double(seg->symbolic_coords[1]);
+        if (emitted > 0)
+            lv_strbuf_printf(&tmp, " -- ");
+        lv_strbuf_printf(&tmp, "(%.4f, %.4f)", sx, sy);
+        emitted++;
+    }
+    if (emitted >= 3)
+        lv_strbuf_printf(out, "  \\draw[fill=gray!20] %s -- cycle;\n", lv_strbuf_cstr(&tmp));
+    lv_strbuf_destroy(&tmp);
+}
+
+/**
+ * @brief 渲染 GEOM_FUNCTION_BLOCK 节点为 \\draw rectangle + 端口标记
+ *
+ * 以节点符号坐标为矩形中心绘制 120x60 矩形，
+ * 并在各输入/输出端口节点的坐标处绘制实心圆作为端口标记。
+ */
+static void tikz_render_function_block(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
+    double bx, by;
+    if (tikz_node_xy(node, &bx, &by) != 0)
+        return;
+    double bw = 120.0, bh = 60.0;
+    lv_strbuf_printf(out, "  \\draw (%.4f, %.4f) rectangle (%.4f, %.4f);\n", bx - bw / 2.0, by - bh / 2.0,
+                     bx + bw / 2.0, by + bh / 2.0);
+    for (int i = 0; i < node->data.func_block.input_count; i++) {
+        GeomNode *port = graph ? graph_get_node(graph, node->data.func_block.input_port_ids[i]) : NULL;
+        double px, py;
+        if (tikz_node_xy(port, &px, &py) != 0)
+            continue;
+        lv_strbuf_printf(out, "  \\fill (%.4f, %.4f) circle (2pt); %% input port %d\n", px, py, port->id);
+    }
+    for (int i = 0; i < node->data.func_block.output_count; i++) {
+        GeomNode *port = graph ? graph_get_node(graph, node->data.func_block.output_port_ids[i]) : NULL;
+        double px, py;
+        if (tikz_node_xy(port, &px, &py) != 0)
+            continue;
+        lv_strbuf_printf(out, "  \\fill (%.4f, %.4f) circle (2pt); %% output port %d\n", px, py, port->id);
     }
 }
 
@@ -80,12 +179,16 @@ typedef struct {
 /**
  * @brief TikZ 渲染函数查找表
  *
- * 当前仅支持 GEOM_POINT 与 GEOM_LINE_SEGMENT，其他节点类型不导出。
+ * 当前支持 GEOM_POINT、GEOM_LINE_SEGMENT、GEOM_CIRCLE、
+ * GEOM_REGION 与 GEOM_FUNCTION_BLOCK。
  * 新增节点类型时在此追加映射项即可，无需修改共享核心。
  */
 static const TikzNodeRenderEntry s_tikz_renderers[] = {
     {GEOM_POINT, tikz_render_point},
     {GEOM_LINE_SEGMENT, tikz_render_line_segment},
+    {GEOM_CIRCLE, tikz_render_circle},
+    {GEOM_REGION, tikz_render_region},
+    {GEOM_FUNCTION_BLOCK, tikz_render_function_block},
 };
 
 /**
@@ -115,7 +218,7 @@ static int tikz_export_to_buf(const ConstraintGraph *graph, lvStrBuf *out) {
 
         for (size_t r = 0; r < lv_ARRAY_SIZE(s_tikz_renderers); r++) {
             if (node->type == s_tikz_renderers[r].type) {
-                s_tikz_renderers[r].render(node, out);
+                s_tikz_renderers[r].render(graph, node, out);
                 break;
             }
         }
@@ -135,7 +238,10 @@ static int tikz_export_to_buf(const ConstraintGraph *graph, lvStrBuf *out) {
  *          按类型生成对应的 TikZ 命令：
  *          - GEOM_POINT：生成 \\fill circle 命令绘制圆点
  *          - GEOM_LINE_SEGMENT：生成 \\draw -- 命令绘制线段
- *          其他节点类型暂不导出。
+ *          - GEOM_CIRCLE：生成 \\draw circle 命令绘制圆
+ *          - GEOM_REGION：生成 \\draw[fill] ... -- cycle; 多边形命令
+ *          - GEOM_FUNCTION_BLOCK：生成 \\draw rectangle 矩形与端口标记
+ *          其余节点类型（如 GEOM_PORT）暂不单独导出。
  *
  * @param graph   约束图指针（ConstraintGraph*）
  * @param out     输出缓冲区

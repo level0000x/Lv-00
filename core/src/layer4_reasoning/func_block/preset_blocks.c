@@ -21,7 +21,9 @@
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
 #include "lv/preset_category.h" /* LV_PRESET_EXTENDED_CATEGORY_ENTRY 单一事实来源 */
+#include "lv/lv_lifecycle.h"    /* lv_obj_destroy_fields / lv_FIELD_* */
 #include "lv_utils.h"
 #include "preset_common.h"
 
@@ -227,7 +229,15 @@ static bool ensure_preset_registry_capacity(void) {
 }
 
 /**
+ * @brief func_block_destroy 的 LV_FIELD_OBJECT 适配器（void(*)(void*) 形态）
+ */
+LV_DESTROY_SHIM(preset_template_destroy, FuncBlock, func_block_destroy)
+
+/**
  * @brief 释放内部预设条目的资源
+ *
+ * 按字段描述表统一释放各动态字段（lv_obj_destroy_fields），
+ * 最后整体清零条目结构。
  *
  * @param entry 预设条目指针
  */
@@ -235,18 +245,17 @@ static void free_internal_preset_entry(InternalPresetEntry *entry) {
     if (!entry)
         return;
 
-    lv_free((void **) &entry->name);
-    lv_free((void **) &entry->description);
-    lv_free((void **) &entry->mathematical_definition);
-    lv_free((void **) &entry->preconditions);
-    lv_free((void **) &entry->example_usage);
-    lv_free((void **) &entry->complexity);
-    lv_free((void **) &entry->input_types);
-
-    if (entry->template_fb) {
-        func_block_destroy(entry->template_fb);
-        entry->template_fb = NULL;
-    }
+    static const lvFieldDesc kFreeFields[] = {
+        lv_FIELD_PLAIN(InternalPresetEntry, name),
+        lv_FIELD_PLAIN(InternalPresetEntry, description),
+        lv_FIELD_PLAIN(InternalPresetEntry, mathematical_definition),
+        lv_FIELD_PLAIN(InternalPresetEntry, preconditions),
+        lv_FIELD_PLAIN(InternalPresetEntry, example_usage),
+        lv_FIELD_PLAIN(InternalPresetEntry, complexity),
+        lv_FIELD_PLAIN(InternalPresetEntry, input_types),
+        lv_FIELD_OBJECT(InternalPresetEntry, template_fb, preset_template_destroy),
+    };
+    lv_obj_destroy_fields(entry, kFreeFields, lv_ARRAY_SIZE(kFreeFields));
 
     memset(entry, 0, sizeof(InternalPresetEntry));
 }
@@ -274,6 +283,8 @@ static int find_preset_index(const char *name) {
 
 bool preset_blocks_init(void) {
     /* 幂等操作：已初始化则直接返回 */
+    /* exempt: g_preset_registry.initialized 带 reinit（lv_preset_blocks_cleanup
+     * 置 false 后可再次 init），lv_once 不可重置，故保留幂等守卫。 */
     if (g_preset_registry.initialized) {
         return true;
     }
@@ -438,7 +449,7 @@ lv_STATIC_ASSERT(sizeof(kCategoryToExtendedMap) / sizeof(kCategoryToExtendedMap[
  * @return 对应的扩展类别
  */
 static PresetExtendedCategory map_category_to_extended(PresetCategory category) {
-    if ((int)category < 0 || (int)category >= PRESET_CATEGORY_COUNT) {
+    if (!lv_index_in_range((int) category, PRESET_CATEGORY_COUNT)) {
         return PRESET_EXT_BASIC_CONSTRUCTION;
     }
     return kCategoryToExtendedMap[category];

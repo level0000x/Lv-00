@@ -23,6 +23,7 @@
 #include "lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_thread.h"
+#include "lv/lv_lifecycle.h" /* lv_obj_destroy_fields / lv_FIELD_* */
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -225,9 +226,25 @@ static void stats_category_visitor(const char *key, void *value, void *ctx) {
 }
 
 /**
+ * @brief func_block_destroy 的 LV_FIELD_OBJECT 适配器（void(*)(void*) 形态）
+ */
+LV_DESTROY_SHIM(preset_template_destroy, FuncBlock, func_block_destroy)
+
+/**
+ * @brief const 字符串数组元素释放适配器（void(*)(void*) 形态）
+ *
+ * 原样板通过「const 字段 lv_free(&tmp) 绕行」逐元素释放，本适配器保持同一语义。
+ */
+static void free_preset_cstr(void *elem) {
+    void *p = elem;
+    lv_free(&p);
+}
+
+/**
  * @brief 释放预设条目
  *
- * 释放预设条目及其关联的所有动态内存。
+ * 按字段描述表统一释放模板函数块与元数据中的动态字段
+ * （lv_obj_destroy_fields 统一处理释放与置 NULL），最后释放条目本身。
  * 注意：此函数为内部函数，调用前应确保已从哈希表中移除该条目。
  */
 void free_entry(InternalPresetEntry *entry) {
@@ -235,51 +252,15 @@ void free_entry(InternalPresetEntry *entry) {
         return;
     }
 
-    /* 释放模板函数块 */
-    if (entry->template_fb != NULL) {
-        func_block_destroy(entry->template_fb);
-        entry->template_fb = NULL;
-    }
-
-    /* 释放元数据中的动态内存 */
-    /* 注意：metadata 字段可能为 const 限定，需要通过非 const 中间变量释放 */
-    if (entry->metadata.input_params != NULL) {
-        void *tmp = (void *) entry->metadata.input_params;
-        lv_free(&tmp);
-        entry->metadata.input_params = NULL;
-    }
-    if (entry->metadata.output_params != NULL) {
-        void *tmp = (void *) entry->metadata.output_params;
-        lv_free(&tmp);
-        entry->metadata.output_params = NULL;
-    }
-    if (entry->metadata.preconditions != NULL) {
-        for (int i = 0; i < entry->metadata.precondition_count; i++) {
-            void *tmp = (void *) entry->metadata.preconditions[i];
-            lv_free(&tmp);
-        }
-        void *tmp = (void *) entry->metadata.preconditions;
-        lv_free(&tmp);
-        entry->metadata.preconditions = NULL;
-    }
-    if (entry->metadata.postconditions != NULL) {
-        for (int i = 0; i < entry->metadata.postcondition_count; i++) {
-            void *tmp = (void *) entry->metadata.postconditions[i];
-            lv_free(&tmp);
-        }
-        void *tmp = (void *) entry->metadata.postconditions;
-        lv_free(&tmp);
-        entry->metadata.postconditions = NULL;
-    }
-    if (entry->metadata.related_presets != NULL) {
-        for (int i = 0; i < entry->metadata.related_count; i++) {
-            void *tmp = (void *) entry->metadata.related_presets[i];
-            lv_free(&tmp);
-        }
-        void *tmp = (void *) entry->metadata.related_presets;
-        lv_free(&tmp);
-        entry->metadata.related_presets = NULL;
-    }
+    static const lvFieldDesc kFreeFields[] = {
+        lv_FIELD_OBJECT(InternalPresetEntry, template_fb, preset_template_destroy),
+        lv_FIELD_PLAIN(InternalPresetEntry, metadata.input_params),
+        lv_FIELD_PLAIN(InternalPresetEntry, metadata.output_params),
+        lv_FIELD_ARRAY(InternalPresetEntry, metadata.preconditions, metadata.precondition_count, free_preset_cstr),
+        lv_FIELD_ARRAY(InternalPresetEntry, metadata.postconditions, metadata.postcondition_count, free_preset_cstr),
+        lv_FIELD_ARRAY(InternalPresetEntry, metadata.related_presets, metadata.related_count, free_preset_cstr),
+    };
+    lv_obj_destroy_fields(entry, kFreeFields, lv_ARRAY_SIZE(kFreeFields));
 
     /* 释放条目本身 */
     {
@@ -295,6 +276,8 @@ void free_entry(InternalPresetEntry *entry) {
 bool preset_library_init(void) {
     lock_library();
 
+    /* exempt: g_library.initialized 是生命周期状态标志，preset_library_shutdown
+     * 将其置 false 后允许再次 init（带 reinit 语义），lv_once 不可重置，故保留守卫。 */
     if (g_library.initialized) {
         unlock_library();
         set_error("预设库已经初始化");
@@ -326,6 +309,8 @@ bool preset_library_init(void) {
 bool preset_library_shutdown(void) {
     lock_library();
 
+    /* exempt: 与 init 对称的 reinit 生命周期守卫（shutdown 后置 false 可再次 init），
+     * 不可用 lv_once（一次性不可重置），故保留。 */
     if (!g_library.initialized) {
         unlock_library();
         set_error("预设库未初始化");

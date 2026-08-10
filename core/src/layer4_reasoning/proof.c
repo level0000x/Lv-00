@@ -75,6 +75,11 @@
 /** @brief proof 模块全局流式上下文定义（供所有 proof 子模块通过 proof.h 的 extern 引用） */
 LV_STREAM_CTX_DEFINE(proof);
 
+/** @brief 获取 proof 模块的流式输出上下文（宏未生成 getter，按其他模块同法补齐） */
+StreamContext *proof_get_stream_context(void) {
+    return proof_stream_ctx;
+}
+
 /* 证明树 API 的完整实现在 proof/proof_tree.c 中；
  * proof_trace.h 中提供了 lvProofTree / lvProofTreeNode 的完整定义 */
 /* lv_DEFAULT_MAX_STEPS 已迁移至 config.h */

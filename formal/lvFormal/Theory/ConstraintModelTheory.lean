@@ -1097,14 +1097,14 @@ def constraintGraphToQF (g : ConstraintGraph) : QFFormula constraintSignature :=
       | .sqrt e => Term.func { name := "sqrt", arity := 1 } [irExprToTerm' e]
 
 /-- 无量词片段的可靠性定理：
-    若 constraintTheory ⊢ φ（φ 是无量词句子的全称闭包），
+    若 constraintTheory 封闭地可证明 φ（φ 是无量词句子的全称闭包），
     则对所有约束理论的模型 M，M ⊧ φ。
     
     证明：由 LogicalFramework 的通用可靠性定理直接可得。 -/
 theorem qf_soundness (φ : QFFormula constraintSignature)
-    (h_prov : constraintTheory ⊢ qfToFormula φ) :
+    (h_prov : closed_provable constraintTheory (qfToFormula φ)) :
     ∀ (M : Model constraintSignature), is_model_of constraintTheory M → M ⊧ qfToFormula φ :=
-  soundness_theorem constraintTheory (qfToFormula φ) h_prov trivial
+  soundness_theorem constraintTheory (qfToFormula φ) h_prov
 
 /-- 完备性定理（无量词片段）：
     若约束图 g 在标准几何模型中可满足（存在 env 满足所有约束），

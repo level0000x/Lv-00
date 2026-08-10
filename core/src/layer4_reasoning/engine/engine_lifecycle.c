@@ -82,31 +82,14 @@ lvEngine *engine_create(void) {
     return engine;
 }
 
-/* ── engine_destroy 子资源销毁适配（签名统一为 void (*)(void *)） ── */
+/* ── engine_destroy 子资源销毁适配（LV_DESTROY_SHIM：强类型 destroy → void* 回调） ── */
 
-static void destroy_engine_frozen_point(void *obj) {
-    engine_destroy_frozen_point(obj);
-}
-
-static void destroy_engine_scheduler(void *obj) {
-    scheduler_destroy((EngineScheduler *) obj);
-}
-
-static void destroy_engine_module(void *obj) {
-    module_destroy((Module *) obj);
-}
-
-static void destroy_engine_axiom_package(void *obj) {
-    axiom_package_destroy((AxiomPackage *) obj);
-}
-
-static void destroy_engine_rewrite_rule(void *obj) {
-    rewrite_rule_destroy((RewriteRule *) obj);
-}
-
-static void destroy_engine_main_graph(void *obj) {
-    graph_destroy((ConstraintGraph *) obj);
-}
+LV_DESTROY_SHIM(destroy_engine_frozen_point, void, engine_destroy_frozen_point)
+LV_DESTROY_SHIM(destroy_engine_scheduler, EngineScheduler, scheduler_destroy)
+LV_DESTROY_SHIM(destroy_engine_module, Module, module_destroy)
+LV_DESTROY_SHIM(destroy_engine_axiom_package, AxiomPackage, axiom_package_destroy)
+LV_DESTROY_SHIM(destroy_engine_rewrite_rule, RewriteRule, rewrite_rule_destroy)
+LV_DESTROY_SHIM(destroy_engine_main_graph, ConstraintGraph, graph_destroy)
 
 /* 流式上下文需先清除所有已注册模块的全局指针（stream_context_clear_all），
  * 再销毁流式上下文，防止 type_system_stream_ctx、rewrite_stream_ctx 等

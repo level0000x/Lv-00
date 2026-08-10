@@ -103,6 +103,71 @@ void test_interop_command_parsing() {
     printf("  PASSED\n");
 }
 
+void test_interop_command_name_xmacro_table() {
+    printf("Testing command name X-macro table (valid/invalid names)...\n");
+
+    /* 合法：X 列表注册的全部 19 个命令名 → 对应枚举（命令名串为协议外部契约，逐字校验） */
+    static const struct {
+        const char *name;
+        InteropCommandType type;
+    } kValidNames[] = {
+        {"AddNode", INTEROP_CMD_ADD_NODE},
+        {"RemoveNode", INTEROP_CMD_REMOVE_NODE},
+        {"AddConstraint", INTEROP_CMD_ADD_CONSTRAINT},
+        {"RemoveConstraint", INTEROP_CMD_REMOVE_CONSTRAINT},
+        {"PackFunction", INTEROP_CMD_PACK_FUNCTION},
+        {"Instantiate", INTEROP_CMD_INSTANTIATE},
+        {"Solve", INTEROP_CMD_SOLVE},
+        {"Rewrite", INTEROP_CMD_REWRITE},
+        {"Unify", INTEROP_CMD_UNIFY},
+        {"GetGraph", INTEROP_CMD_GET_GRAPH},
+        {"ExportGraph", INTEROP_CMD_EXPORT_GRAPH},
+        {"GetStatus", INTEROP_CMD_GET_STATUS},
+        {"Ping", INTEROP_CMD_PING},
+        {"Shutdown", INTEROP_CMD_SHUTDOWN},
+        {"StreamStart", INTEROP_CMD_STREAM_START},
+        {"StreamStop", INTEROP_CMD_STREAM_STOP},
+        {"StreamFilter", INTEROP_CMD_STREAM_FILTER},
+        {"StreamStats", INTEROP_CMD_STREAM_STATS},
+        {"StreamFlush", INTEROP_CMD_STREAM_FLUSH},
+    };
+
+    InteropCommand cmd;
+    for (size_t i = 0; i < sizeof(kValidNames) / sizeof(kValidNames[0]); i++) {
+        int result = interop_parse_command(kValidNames[i].name, &cmd);
+        lv_ASSERT(result == lv_OK);
+        lv_ASSERT(cmd.type == kValidNames[i].type);
+        lv_ASSERT_STR_EQ(cmd.command_name, kValidNames[i].name);
+    }
+    printf("  All 19 registered command names resolve correctly: PASSED\n");
+
+    /* 非法：大小写敏感、拼写错误，以及枚举存在但未注册的命令（GET_NODE/GET_CONSTRAINT）→ lv_ERROR_PARSE */
+    const char *kInvalidNames[] = {
+        "addnode",       /* 小写不匹配（大小写敏感） */
+        "GetNode",       /* 枚举存在但未注册到命令表 */
+        "GetConstraint", /* 同上 */
+        "PingX",         /* 拼写错误 */
+        "Stream",        /* 不完整命令名 */
+        "Getgraph",
+        "STREAMSTART",
+    };
+    for (size_t i = 0; i < sizeof(kInvalidNames) / sizeof(kInvalidNames[0]); i++) {
+        int result = interop_parse_command(kInvalidNames[i], &cmd);
+        lv_ASSERT(result == lv_ERROR_PARSE);
+    }
+    printf("  Invalid / unregistered names rejected: PASSED\n");
+
+    /* 命令名查表与参数解析互不影响 */
+    int result = interop_parse_command("StreamFilter 0xFFFFFFFF", &cmd);
+    lv_ASSERT(result == lv_OK);
+    lv_ASSERT(cmd.type == INTEROP_CMD_STREAM_FILTER);
+    lv_ASSERT(cmd.param_count == 1);
+    lv_ASSERT_STR_EQ(cmd.params[0], "0xFFFFFFFF");
+    printf("  Command name table unaffected by params: PASSED\n");
+
+    printf("  PASSED\n");
+}
+
 void test_interop_response_serialization() {
     printf("Testing interop response serialization...\n");
 
@@ -277,6 +342,7 @@ TEST_MAIN_BEGIN("Lv-00 Interop Module Test Suite")
     TEST_MAIN_RUN(test_interop_server_management);
     TEST_MAIN_RUN(test_interop_server_start_errors);
     TEST_MAIN_RUN(test_interop_command_parsing);
+    TEST_MAIN_RUN(test_interop_command_name_xmacro_table);
     TEST_MAIN_RUN(test_interop_response_serialization);
     TEST_MAIN_RUN(test_interop_server_process_command);
     TEST_MAIN_RUN(test_interop_formats);

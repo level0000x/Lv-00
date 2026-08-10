@@ -183,6 +183,13 @@ static int count_connected_components(const ConstraintGraph *graph) {
  * 公共 API
  * ================================================================ */
 
+/* exempt: 惰性守卫豁免 —— 自适应阈值为"init→cleanup 可重入"模式：
+ * lv_adaptive_threshold_cleanup 将 s_threshold_state.initialized 置 false，
+ * 允许再次 init（lv_once 不可重置，转换后 cleanup 无法恢复）；
+ * 线程安全已由 THRESHOLD_LOCK（lv_lazy_lock，惰性锁）保证，
+ * 且初始化内含运行时配置读取（lv_config_get_double），非纯一次性。
+ * L301/L307 的 c->initialized 为对象实例字段（每 ctx 生命周期），
+ * 均非 lv_once 适用对象，故保留手写标志检查，不迁移。 */
 lvError lv_adaptive_threshold_init(void) {
     THRESHOLD_LOCK();
 

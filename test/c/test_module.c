@@ -247,6 +247,38 @@ static void test_helper_functions(void) {
 
 }
 
+/* ============== 测试：C3-2 依赖扩容（lv_darray_push 自动倍增） ============== */
+
+static void test_dependency_capacity_growth(void) {
+    printf("Test: dependency capacity growth (C3-2)...\n");
+
+    Module *mod = module_create("CapacityModule", "1.0");
+    lv_ASSERT_NOT_NULL(mod);
+
+    /* 连续添加超过初始容量的依赖，触发 lv_darray_push 倍增扩容（extend+attach 回潮） */
+    const int kTotal = 70;
+    for (int i = 0; i < kTotal; i++) {
+        char name[64];
+        char ver[64];
+        snprintf(name, sizeof(name), "Dep%03d", i);
+        snprintf(ver, sizeof(ver), ">=%d.0.0", i);
+        lv_ASSERT(module_add_dependency(mod, name, ver));
+    }
+    lv_ASSERT(module_get_dependency_count(mod) == kTotal);
+
+    /* 序列化后抽样验证首/中/尾依赖完整保留（扩容无丢失） */
+    char *json = module_serialize_to_json(mod);
+    lv_ASSERT_NOT_NULL(json);
+    lv_ASSERT(strstr(json, "Dep000") != NULL);
+    lv_ASSERT(strstr(json, "Dep035") != NULL);
+    lv_ASSERT(strstr(json, "Dep069") != NULL);
+    lv_free((void **) &json);
+
+    module_destroy(mod);
+    printf("  PASSED\n");
+
+}
+
 /* ============== 主函数 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Module System Test Suite")
@@ -261,5 +293,6 @@ TEST_MAIN_BEGIN("Lv-00 Module System Test Suite")
     TEST_MAIN_RUN(test_dependency_chain_validation);
     TEST_MAIN_RUN(test_module_depth_limit);
     TEST_MAIN_RUN(test_helper_functions);
+    TEST_MAIN_RUN(test_dependency_capacity_growth);
     printf("\n=== All module system tests PASSED! ===\n");
 TEST_MAIN_END()

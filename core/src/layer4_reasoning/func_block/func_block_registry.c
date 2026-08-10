@@ -17,6 +17,7 @@
 #include "lv/preset_category.h" /* LV_PRESET_CATEGORY_ENTRY 单一事实来源 */
 #include "lv/lv_registry.h"     /* 通用注册表（查重/扩容/删除/析构回调） */
 #include "lv/lv_thread.h"       /* lv_once_t / lv_once */
+#include "lv/lv_lifecycle.h"    /* lv_obj_destroy_fields / lv_FIELD_* */
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -50,22 +51,30 @@ static bool g_initialized = false;
 /* ==================== 内部辅助函数 ==================== */
 
 /**
+ * @brief func_block_destroy 的 LV_FIELD_OBJECT 适配器（void(*)(void*) 形态）
+ */
+LV_DESTROY_SHIM(preset_template_destroy, FuncBlock, func_block_destroy)
+
+/**
  * @brief 释放单个预设条目的资源
  *
  * 释放条目中动态分配的 name、description 和 template_fb。
- * 释放后将条目字段置零。
+ * 释放后将条目字段置零（lv_obj_destroy_fields 统一置 NULL），
+ * 并把 category 复位为 PRESET_CATEGORY_CONSTRUCTION。
  *
  * @param entry 预设条目指针
  */
 static void free_preset_entry(PresetEntry *entry) {
     if (!entry)
         return;
-    lv_free((void **) &entry->name);
-    lv_free((void **) &entry->description);
-    if (entry->template_fb) {
-        func_block_destroy(entry->template_fb);
-        entry->template_fb = NULL;
-    }
+
+    static const lvFieldDesc kFreeFields[] = {
+        lv_FIELD_PLAIN(PresetEntry, name),
+        lv_FIELD_PLAIN(PresetEntry, description),
+        lv_FIELD_OBJECT(PresetEntry, template_fb, preset_template_destroy),
+    };
+    lv_obj_destroy_fields(entry, kFreeFields, lv_ARRAY_SIZE(kFreeFields));
+
     entry->category = PRESET_CATEGORY_CONSTRUCTION;
 }
 

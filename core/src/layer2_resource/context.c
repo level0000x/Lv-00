@@ -101,19 +101,11 @@ lvContext *lv_context_create(void) {
     return ctx;
 }
 
-/* ── lv_context_destroy 子资源销毁适配 ── */
+/* ── lv_context_destroy 子资源销毁适配（LV_DESTROY_SHIM：强类型 destroy → void* 回调） ── */
 
-static void destroy_ctx_main_graph(void *obj) {
-    graph_destroy((ConstraintGraph *) obj);
-}
-
-static void destroy_ctx_stream_ctx(void *obj) {
-    stream_context_destroy((StreamContext *) obj);
-}
-
-static void destroy_ctx_normalization(void *obj) {
-    normalization_result_destroy((NormalizationResult *) obj);
-}
+LV_DESTROY_SHIM(destroy_ctx_main_graph, ConstraintGraph, graph_destroy)
+LV_DESTROY_SHIM(destroy_ctx_stream_ctx, StreamContext, stream_context_destroy)
+LV_DESTROY_SHIM(destroy_ctx_normalization, NormalizationResult, normalization_result_destroy)
 
 /* 推理栈帧数组（含每帧的子资源）就地清空 */
 static void destroy_ctx_reasoning_stack(void *obj, void *field_ptr) {
@@ -208,24 +200,25 @@ void lv_context_set_error(lvContext *ctx, lvErrorCode code, const char *fmt, ...
 }
 
 
-/* ============================================================
- * 第七部分：状态机管理 API（辅助函数）
- * ============================================================ */
-
-/**
- * @brief 获取状态机的可读字符串名称
- */
 /* ================================================================
- * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * 第七部分：状态机管理 API（辅助函数）
  * ================================================================ */
+
+/* ================================================================
+ * 枚举 -> 名称 映射表（X-macro 键表生成，替代手写枚举条目）
+ * ================================================================ */
+
+/** @brief lvContextState 状态名键表（项序 = 枚举升序，供 lv_enum_to_str 二分） */
+#define LV_CONTEXT_STATE_NAME_X(x)                                                                                    \
+    x(lv_CONTEXT_IDLE, "IDLE（空闲）")                                                                                 \
+    x(lv_CONTEXT_PARSING, "PARSING（解析中）")                                                                         \
+    x(lv_CONTEXT_REASONING, "REASONING（推理中）")                                                                     \
+    x(lv_CONTEXT_ERROR, "ERROR（错误）")                                                                               \
+    x(lv_CONTEXT_COMPLETE, "COMPLETE（完成）")
 
 /** @brief lv_context_state_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_lv_context_state_name_entries[] = {
-    {"IDLE（空闲）", lv_CONTEXT_IDLE},
-    {"PARSING（解析中）", lv_CONTEXT_PARSING},
-    {"REASONING（推理中）", lv_CONTEXT_REASONING},
-    {"ERROR（错误）", lv_CONTEXT_ERROR},
-    {"COMPLETE（完成）", lv_CONTEXT_COMPLETE},
+    lv_XMACRO_TO_ENUM_TABLE(LV_CONTEXT_STATE_NAME_X)
 };
 
 const char *lv_context_state_name(lvContextState state) {
@@ -244,6 +237,13 @@ const char *lv_context_state_name(lvContextState state) {
  *   COMPLETE  → IDLE
  *   ERROR     → IDLE
  */
+/* exempt: 1-A 状态机合流终审一 —— 与 engine_state.c 的转移矩阵同构，
+ * 但（a）返回错误码体系本质不同（lvErrorCode vs EngineStatus 两个独立枚举），
+ * （b）无 self-transition 幂等分支（engine 允许 IDLE→IDLE no-op，此处查表判非法），
+ * （c）越界目标状态并入"非法转移"错误消息（engine 单独"无效的目标状态"分支），
+ * （d）NULL 入参返回 lv_ERROR_NULL_POINTER（engine 返回 ENGINE_STATUS_INVALID_ARGUMENT），
+ * （e）熔断路径支持无条件强转 ERROR（见 ctx_force_to_error，engine 无此路径）。
+ * 合成共享骨架需体内 if(mode) 分支且返回类型不可统一 → 伪同构，保留各自纯函数。 */
 static const uint32_t kValidTransitions[] = {
     [lv_CONTEXT_IDLE]      = (1u << lv_CONTEXT_PARSING) | (1u << lv_CONTEXT_ERROR),
     [lv_CONTEXT_PARSING]   = (1u << lv_CONTEXT_REASONING) | (1u << lv_CONTEXT_ERROR) | (1u << lv_CONTEXT_IDLE),
@@ -258,6 +258,21 @@ bool lv_context_state_transition_valid(lvContextState from, lvContextState to) {
     }
     return ((unsigned) to < 32u) &&
            ((kValidTransitions[from] >> (unsigned) to) & 1u);
+}
+
+/**
+ * @brief 熔断路径强制转入 ERROR（不查转移表）
+ *
+ * 超时/步数超限/连续错误超限触发熔断时，无条件将状态覆写为 ERROR。
+ * 与 lv_context_set_state 的查表拒绝语义不同：此为"熔断权威覆写"，
+ * 任何状态下都可被熔断抬入 ERROR。
+ */
+/* exempt: 状态机熔断强转 —— 不经过转移表校验，是熔断权威覆写路径；
+ * 与 engine 的转移拒绝语义（非法转移仅报错不改状态）本质不同，保留独立纯函数。 */
+static void ctx_force_to_error(lvContext *ctx) {
+    ctx->previous_state = ctx->state;
+    ctx->state = lv_CONTEXT_ERROR;
+    ctx->state_transition_count++;
 }
 
 /**
@@ -452,10 +467,8 @@ bool lv_context_check_timeout(lvContext *ctx) {
         /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
         lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "操作超时熔断");
 
-        /* 转入错误状态 */
-        ctx->previous_state = ctx->state;
-        ctx->state = lv_CONTEXT_ERROR;
-        ctx->state_transition_count++;
+        /* 转入错误状态（熔断强转，不查转移表） */
+        ctx_force_to_error(ctx);
 
         lv_context_set_error(ctx, lv_ERROR_TIMEOUT, "操作超时: 已用 %llu ms, 限制 %llu ms",
                              (unsigned long long) elapsed_ms, (unsigned long long) ctx->circuit_breaker.timeout_ms);
@@ -510,9 +523,8 @@ bool lv_context_record_step(lvContext *ctx) {
         /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
         lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "推理步数超限熔断");
 
-        ctx->previous_state = ctx->state;
-        ctx->state = lv_CONTEXT_ERROR;
-        ctx->state_transition_count++;
+        /* 转入错误状态（熔断强转，不查转移表） */
+        ctx_force_to_error(ctx);
 
         lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "推理步数超限: %lld / %lld",
                              (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps);
@@ -549,9 +561,8 @@ bool lv_context_record_error(lvContext *ctx) {
         /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */
         lv_circuit_breaker_do_trip(&ctx->circuit_breaker, "连续错误超限熔断");
 
-        ctx->previous_state = ctx->state;
-        ctx->state = lv_CONTEXT_ERROR;
-        ctx->state_transition_count++;
+        /* 转入错误状态（熔断强转，不查转移表） */
+        ctx_force_to_error(ctx);
 
         lv_context_set_error(ctx, lv_ERROR_RESOURCE_EXHAUSTED, "连续错误次数超限: %d / %d",
                              ctx->circuit_breaker.consecutive_errors, ctx->circuit_breaker.max_consecutive_errors);

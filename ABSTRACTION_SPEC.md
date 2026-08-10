@@ -73,7 +73,57 @@
 - 命中判据 C 者**必须**收敛为具名编译期常量。
 - 已有实例：裸 epsilon → `lv_EPSILON_SUPERTINY` / `lv_GEO_COLLINEAR_EPSILON`；裸 `1e-12` → `lv_is_integer_double`。
 
-### 1.4 粒度门槛
+### 1.4 判据 D：枚举 ↔ 字符串双份维护（2026-08-09 批次 I 实证，正文补记）
+
+**定义**：同一枚举集合的符号名 / 显示名 / 反查表在多处以独立手写数组或独立 `switch` 维护 ≥2 份，任一份增删枚举值时其余份必然失步。
+
+**识别方法**：对同名字符串常量做全库 grep（如 `"collinear"`、`"ADD"`），命中 ≥2 处独立表 / `switch` 即进入候选；枚举值变更后逐一比对各份表项数。
+
+**判定规则**：命中判据 D 者**必须**收敛为单一 X-macro 列表（见判据 F）或单一共享表；双份表项不一致（如一份缺 `collinear`）属于缺陷实现，按 2.3 终审二处理（以正确语义为唯一语义 + 回归测试）。
+
+**已有实例**：比较操作符表 ×2 → `s_compare_op_strings`；关系词反查表 ×3 中一份缺 collinear → 共享 `lv_geometry_relation_keywords`；错误码类别映射 ×2 → `LV_ERROR_CATEGORIES_X`。
+
+### 1.5 判据 E：并行后端家族（2026-08-10 批次 K）
+
+**定义**：同一语义的多个后端实现（精确 / 数值 / 启发式）各自重复同一套「句柄 / 上下文有效性守卫」「入口状态机」「降级策略」样板，家族内每文件重复 ≥2 处。
+
+**识别方法**：grep 后端家族目录中逐字同构的 `if (ctx == NULL) return`、id 范围检查、注册表持有性检查。
+
+**判定规则**：命中判据 E 者**必须**抽取 header-only 守卫 / 共享状态机；谓词须为纯函数（不设错误上下文、不加锁、不写寄存器）。
+
+**已有实例**：`groebner_engine*.c`（ring/poly/ideal/variety/engine 5 文件）逐字同构守卫 → `groebner_engine_guard.h`（`groebner_id_in_range` / `groebner_registry_has_ring`）。
+
+### 1.6 判据 F：枚举元数据表家族（2026-08-10 批次 K）
+
+**定义**：枚举 ↔ 字符串 / 名称数组 / 分发表等元数据在 ≥3 处按同一「X 列表宏 → 生成器宏」模式生成，或 ≥3 处手写同构的「边界检查 + NULL 槽 + 调用」分发样板。
+
+**识别方法**：grep 手写 `{ "str", ENUM }` 初始化表、`switch (e) { case ...: return "..." }`、`if ((unsigned)k < N && table[k]) table[k](...)`。
+
+**判定规则**：命中判据 F 者**必须**收敛为 lv_xmacro.h 的生成器族（`lv_XMACRO_ENUM` / `lv_XMACRO_TO_STR` / `lv_XMACRO_TO_ENUM_TABLE` / `lv_XMACRO_TO_NAME_ARRAY`）+ `LV_DISPATCH` / `LV_DISPATCH_VOID`；新增枚举值只改 X 列表一处。与判据 D 的关系：D 是「失步缺陷」，F 是「单源生成族」，D 的修正手段就是 F 的设施。
+
+**已有实例**：lv_xmacro.h 全族 30 处 / 19 文件；`LV_DISPATCH(_VOID)` 收敛 ~30 处手写「边界 + NULL 槽 + 调用」三行样板。
+
+### 1.7 判据 G：析构 shim / 字段销毁表（2026-08-10 批次 K）
+
+**定义**：同一结构体的逐字段析构（释放子对象 → 释放外壳）在多模块重复；或 `(void *)obj` → `destroy((T *)obj)` 的强转样板重复。
+
+**识别方法**：grep `lv_FIELD_` / `lv_obj_destroy_fields` 使用点，及手写「先 destroy 子字段再 free 自身」的成对代码块。
+
+**判定规则**：命中判据 G 者**必须**收敛为 `lv_obj_destroy_fields` 字段描述表；析构函数指针用 `LV_DESTROY_SHIM` 生成（保持字段类型指针 → void 指针 shim 签名，不改变公共 ABI）。
+
+**已有实例**：`LV_DESTROY_SHIM` 20 处 / 12 文件；magic_array / magic_rune / magic_spell / magic_domain / constraint_graph / context / engine_lifecycle 等字段表。
+
+### 1.8 判据 H：维度展开重复项（2026-08-10 批次 K）
+
+**定义**：同一坐标 / 多项式 / 方程的「维度展开 + 提取」逻辑（对每个坐标分量重复同一处理）在多处复制，仅维度上限或分量名不同；或共享资源的「分配 + 归还」配对契约散落各文件。
+
+**识别方法**：grep 连续 `coords[0]` `coords[1]` 手写展开、坐标提取循环、方程系统 push 样板、同一池的 init/clear 调用对。
+
+**判定规则**：命中判据 H 者**必须**收敛为共享提取子模块 / 共享池；资源配对（init 失败内部归还、push 后无条件归还）须以书面契约钉住。
+
+**已有实例**：solver.c 坐标 / 方程提取 → `solver_coord_extract.c`（`extract_equations_from_constraints` / `solver_extract_equations_full`）；coeff_pool 池生命周期配对契约（C2-3 标注）。
+
+### 1.9 粒度门槛
 
 同时满足以下全部条件才允许抽象；缺一**禁止**抽象，记入决策登记待办：
 
@@ -275,6 +325,7 @@
 | 2 | 字符串 / 解析：strtok、strncpy、手写前缀匹配 | A |
 | 3 | 数值 / 数学：epsilon、判定谓词、归一化阈值 | C |
 | 4 | 容器 / 成长：realloc 倍增、线性查找表 | B |
+| 5 | 元数据 / 生命周期家族：枚举↔字符串表、分发表、逐字段析构、后端守卫、维度展开 | D / E / F / G / H |
 
 **每阶段执行序列**：
 1. 列清单：grep 计数、调用点清单、语义验证方法。
@@ -316,7 +367,7 @@
 
 提交任何抽象改动前，逐项自检：
 
-- [ ] 判据类型已判定（A / B / C / D / 泛化）
+- [ ] 判据类型已判定（A / B / C / D / E / F / G / H / 泛化）
 - [ ] 粒度门槛三条全部满足
 - [ ] 同构判定通过（差异分类法或超概念检验 + 两道终审）
 - [ ] 不触碰豁免区（或已显式标注 `/* exempt */` + 登记）
@@ -327,7 +378,7 @@
 - [ ] 测试三层齐全，进 ctest 基线
 - [ ] 决策登记已写入项目记忆
 - [ ] 旧模式 grep 归零（或白名单）
-- [ ] 回归通过：936/936 + 169/169 + 8 个示例
+- [ ] 回归通过：931/931 + 170/170 + 8 个示例
 
 ---
 

@@ -1,21 +1,120 @@
-﻿/**
+/**
  * @file network_block.c
  * @brief 网络块实现
  *
- * @details 实现网络通信块的创建、销毁和连接管理。
- *          网络块封装了 URL 管理、连接状态维护以及数据的发送和接收。
- *          实际的套接字 I/O 由传输层（lv_protocol.h）处理，
- *          本模块主要负责状态管理和接口编排。
+ * @details 实现网络通信块的创建、销毁、连接管理以及基于平台 socket 的
+ *          真实数据收发。连接信息（URL/host/port）保存在 lvIOBlockState 中，
+ *          socket 句柄通过文件内静态句柄表按 block 指针关联，避免侵入
+ *          lvNetworkBlock 的公共字段语义。
+ *          当前仅支持 http 明文连接；https/TLS 不在本实现范围。
  *
  * @author Lv-00 Project
  */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+typedef SOCKET lvNetSocket;
+#define LV_NET_SOCKET_INVALID INVALID_SOCKET
+#define LV_NET_IS_INVALID(s) ((s) == INVALID_SOCKET)
+#define LV_NET_CLOSE(s) closesocket(s)
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <errno.h>
+typedef int lvNetSocket;
+#define LV_NET_SOCKET_INVALID (-1)
+#define LV_NET_IS_INVALID(s) ((s) < 0)
+#define LV_NET_CLOSE(s) close(s)
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
 #include <string.h>
 
 #include "lv/io_block.h"
 #include "lv/io_blocks.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
+
+#define LV_NETWORK_MAX_CONNECTIONS 16
+
+/**
+ * @brief 内部句柄表条目：将 lvNetworkBlock 指针关联到平台 socket 句柄
+ */
+typedef struct {
+    lvNetworkBlock *block;
+    lvNetSocket fd;
+    int in_use;
+} lvNetworkHandle;
+
+static lvNetworkHandle g_network_handles[LV_NETWORK_MAX_CONNECTIONS];
+
+#ifdef _WIN32
+static WSADATA g_network_wsa_data;
+static int g_network_wsa_count = 0;
+#endif
+
+/**
+ * @brief 按 block 指针查找已建立的 socket 句柄
+ */
+static lvNetSocket lv_network_find_handle(lvNetworkBlock *block) {
+    int i;
+    for (i = 0; i < LV_NETWORK_MAX_CONNECTIONS; i++) {
+        if (g_network_handles[i].in_use && g_network_handles[i].block == block)
+            return g_network_handles[i].fd;
+    }
+    return LV_NET_SOCKET_INVALID;
+}
+
+/**
+ * @brief 将新建立的 socket 句柄登记到句柄表
+ */
+static int lv_network_store_handle(lvNetworkBlock *block, lvNetSocket fd) {
+    int i;
+    for (i = 0; i < LV_NETWORK_MAX_CONNECTIONS; i++) {
+        if (!g_network_handles[i].in_use) {
+            g_network_handles[i].block = block;
+            g_network_handles[i].fd = fd;
+            g_network_handles[i].in_use = 1;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief 从句柄表移除 block 对应的条目
+ */
+static void lv_network_remove_handle(lvNetworkBlock *block) {
+    int i;
+    for (i = 0; i < LV_NETWORK_MAX_CONNECTIONS; i++) {
+        if (g_network_handles[i].in_use && g_network_handles[i].block == block) {
+            g_network_handles[i].in_use = 0;
+            g_network_handles[i].block = NULL;
+            g_network_handles[i].fd = LV_NET_SOCKET_INVALID;
+            return;
+        }
+    }
+}
+
+/**
+ * @brief 递减 Winsock 引用计数，计数归零时调用 WSACleanup
+ */
+#ifdef _WIN32
+static void lv_network_wsa_release(void) {
+    if (g_network_wsa_count > 0) {
+        g_network_wsa_count--;
+        if (g_network_wsa_count == 0)
+            WSACleanup();
+    }
+}
+#endif
 
 /**
  * @brief 创建网络块
@@ -47,13 +146,22 @@ lvNetworkBlock *lv_network_block_create(void) {
 /**
  * @brief 销毁网络块
  *
- * 释放内部状态中的 URL 字符串、状态结构体和网络块本身。
+ * 关闭已建立的 socket 连接、释放内部状态中的 URL 字符串、
+ * 状态结构体和网络块本身。
  *
  * @param block 网络块指针
  */
 void lv_network_block_destroy(lvNetworkBlock *block) {
     if (!block)
         return;
+    lvNetSocket fd = lv_network_find_handle(block);
+    if (!LV_NET_IS_INVALID(fd)) {
+        LV_NET_CLOSE(fd);
+#ifdef _WIN32
+        lv_network_wsa_release();
+#endif
+    }
+    lv_network_remove_handle(block);
     if (block->base) {
         lvIOBlockState *state = (lvIOBlockState *) block->base;
         lv_free((void **) &state->target);
@@ -98,8 +206,10 @@ const char *lv_network_block_get_url(const lvNetworkBlock *block) {
 /**
  * @brief 建立连接
  *
- * 验证 URL 格式（必须以 http:// 或 https:// 开头），
- * 并将连接状态标记为已连接。实际套接字 I/O 由传输层处理。
+ * 解析 URL 中的 host 与端口（http 默认 80，https 默认 443），
+ * 通过 getaddrinfo + socket + connect 建立真实的 TCP 连接。
+ * 仅支持 http 明文；https 需要 TLS 加密，超出当前实现范围。
+ * 连接成功后把 socket 句柄登记到内部句柄表并置 active 状态。
  *
  * @param block 网络块指针
  * @return 成功返回0，失败返回-1
@@ -110,14 +220,97 @@ int lv_network_block_connect(lvNetworkBlock *block) {
     lvIOBlockState *state = (lvIOBlockState *) block->base;
     if (!state->target)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "URL not set before connect");
+    if (state->active)
+        return 0;
 
-    /* Validate URL format: must start with http:// or https:// */
-    if (strncmp(state->target, "http://", 7) != 0 && strncmp(state->target, "https://", 8) != 0) {
+    const char *url = state->target;
+    const char *host = NULL;
+    int use_https = 0;
+    if (strncmp(url, "http://", 7) == 0) {
+        host = url + 7;
+    } else if (strncmp(url, "https://", 8) == 0) {
+        use_https = 1;
+        host = url + 8;
+    } else {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "invalid URL format, must start with http:// or https://");
     }
+    if (use_https)
+        lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "https/TLS 不在当前实现范围，仅支持 http 明文连接");
+    if (!*host)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "URL 缺少 host");
 
-    /* Mark connection as established; actual socket I/O
-       is deferred to the transport layer (lv_protocol.h). */
+    char host_buf[512];
+    size_t i = 0;
+    while (host[i] && host[i] != ':' && host[i] != '/' && i < sizeof(host_buf) - 1) {
+        host_buf[i] = host[i];
+        i++;
+    }
+    host_buf[i] = '\0';
+    if (i == 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "URL 缺少 host");
+
+    int port = 80;
+    if (host[i] == ':') {
+        long p = strtol(host + i + 1, NULL, 10);
+        if (p <= 0 || p > 65535)
+            lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "URL 端口无效");
+        port = (int) p;
+    }
+
+#ifdef _WIN32
+    if (g_network_wsa_count == 0) {
+        if (WSAStartup(MAKEWORD(2, 2), &g_network_wsa_data) != 0)
+            lv_RETURN_ERROR(lv_ERROR_IO, "WSAStartup failed");
+    }
+    g_network_wsa_count++;
+#endif
+
+    char port_str[16];
+    snprintf(port_str, sizeof(port_str), "%d", port);
+
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    struct addrinfo *res = NULL;
+    int ga_ret = getaddrinfo(host_buf, port_str, &hints, &res);
+    if (ga_ret != 0) {
+#ifdef _WIN32
+        lv_network_wsa_release();
+#endif
+        lv_RETURN_ERROR(lv_ERROR_IO, "getaddrinfo failed for host %s", host_buf);
+    }
+
+    lvNetSocket fd = LV_NET_SOCKET_INVALID;
+    struct addrinfo *rp;
+    for (rp = res; rp; rp = rp->ai_next) {
+        fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (LV_NET_IS_INVALID(fd))
+            continue;
+        if (connect(fd, rp->ai_addr, (int) rp->ai_addrlen) == 0)
+            break;
+        LV_NET_CLOSE(fd);
+        fd = LV_NET_SOCKET_INVALID;
+    }
+    freeaddrinfo(res);
+
+    if (LV_NET_IS_INVALID(fd)) {
+#ifdef _WIN32
+        lv_network_wsa_release();
+#endif
+        lv_RETURN_ERROR(lv_ERROR_IO, "socket/connect failed for %s:%d", host_buf, port);
+    }
+
+    if (lv_network_store_handle(block, fd) != 0) {
+        LV_NET_CLOSE(fd);
+#ifdef _WIN32
+        lv_network_wsa_release();
+#endif
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "网络连接句柄表已满");
+    }
+
     state->active = true;
     return 0;
 }
@@ -125,7 +318,7 @@ int lv_network_block_connect(lvNetworkBlock *block) {
 /**
  * @brief 发送数据
  *
- * 将数据暂存到请求端口，由传输层负责实际发送。
+ * 将 data 通过已建立的 socket 完整发送（处理部分发送与中断重试）。
  *
  * @param block     网络块指针
  * @param data      待发送数据缓冲区
@@ -139,17 +332,44 @@ int lv_network_block_send(lvNetworkBlock *block, const void *data, size_t data_s
     if (!state->active)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
 
-    /* Data is staged in the request_port for the transport layer
-       to transmit. Actual send is performed by the protocol handler. */
-    (void) data;
-    (void) data_size;
+    lvNetSocket fd = lv_network_find_handle(block);
+    if (LV_NET_IS_INVALID(fd))
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
+
+    const char *p = (const char *) data;
+    size_t remaining = data_size;
+    while (remaining > 0) {
+        size_t chunk = remaining;
+#ifdef _WIN32
+        int n;
+        if (chunk > (size_t) INT_MAX)
+            chunk = (size_t) INT_MAX;
+        n = send(fd, p, (int) chunk, 0);
+        if (n == SOCKET_ERROR) {
+            if (WSAGetLastError() == WSAEINTR)
+                continue;
+            lv_RETURN_ERROR(lv_ERROR_IO, "send failed");
+        }
+#else
+        ssize_t n;
+        n = send(fd, p, chunk, 0);
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            lv_RETURN_ERROR(lv_ERROR_IO, "send failed");
+        }
+#endif
+        p += (size_t) n;
+        remaining -= (size_t) n;
+    }
     return 0;
 }
 
 /**
  * @brief 接收数据
  *
- * 从响应端口读取由传输层填充的接收数据。
+ * 从已建立的 socket 读取数据到 buf，直到收到数据或对端关闭（EOF），
+ * 输出实际接收字节数。
  *
  * @param block          网络块指针
  * @param buf            接收缓冲区
@@ -164,9 +384,33 @@ int lv_network_block_receive(lvNetworkBlock *block, void *buf, size_t buf_size, 
     if (!state->active)
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
 
-    /* Data is read from the response_port populated by the transport
-       layer. Actual receive is performed by the protocol handler. */
+    lvNetSocket fd = lv_network_find_handle(block);
+    if (LV_NET_IS_INVALID(fd))
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "not connected");
+
+    size_t chunk = buf_size;
+#ifdef _WIN32
+    int n;
+    if (chunk > (size_t) INT_MAX)
+        chunk = (size_t) INT_MAX;
+    n = recv(fd, (char *) buf, (int) chunk, 0);
+    if (n == SOCKET_ERROR) {
+        if (WSAGetLastError() == WSAEINTR)
+            n = recv(fd, (char *) buf, (int) chunk, 0);
+        if (n == SOCKET_ERROR)
+            lv_RETURN_ERROR(lv_ERROR_IO, "recv failed");
+    }
+#else
+    ssize_t n;
+    n = recv(fd, buf, chunk, 0);
+    if (n < 0) {
+        if (errno == EINTR)
+            n = recv(fd, buf, chunk, 0);
+        if (n < 0)
+            lv_RETURN_ERROR(lv_ERROR_IO, "recv failed");
+    }
+#endif
     if (bytes_received)
-        *bytes_received = 0;
+        *bytes_received = (size_t) n;
     return 0;
 }

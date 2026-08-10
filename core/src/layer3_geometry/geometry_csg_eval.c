@@ -48,7 +48,7 @@ void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
     csg_evaluate(node->children[1], &tris_b);
 
     /* 布尔运算 kind → BSP 求值函数，统一走查找表 */
-    if (node->kind >= 0 && node->kind < s_bool_op_count && s_bool_op_funcs[node->kind]) {
+    if (lv_index_in_range(node->kind, s_bool_op_count) && s_bool_op_funcs[node->kind]) {
         s_bool_op_funcs[node->kind](&tris_a, &tris_b, out);
     }
 
@@ -77,7 +77,7 @@ void eval_csg_transform(const CSGNode *node, CSGTriList *out) {
                              m10, m11, m12,
                              m20, m21, m22};
     double max_el = lv_max_abs(m_els, 9);
-    double det_tol = CSG_BSP_EPSILON * fmax(1.0, max_el * max_el);
+    double det_tol = lv_rel_tol_scale(CSG_BSP_EPSILON, max_el * max_el);
 
     double inv_det;
     double invT[3][3];

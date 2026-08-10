@@ -1239,9 +1239,7 @@ NormalizationResult *graph_normalize(ConstraintGraph *graph, bool scope_aware) {
 
 /* ── normalization_result_destroy 子资源销毁适配 ── */
 
-static void destroy_normalization_log(void *obj) {
-    normalization_log_destroy((NormalizationLog *) obj);
-}
+LV_DESTROY_SHIM(destroy_normalization_log, NormalizationLog, normalization_log_destroy)
 
 /* normalization_result_destroy 字段描述表：log 对象销毁，
  * 三个 ID 数组纯指针释放，全部置 NULL 安全 */

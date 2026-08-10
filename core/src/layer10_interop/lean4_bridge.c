@@ -22,6 +22,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 #include "lv/interop_bridge_common.h"
 
 #include "lv_utils.h"
@@ -107,12 +108,9 @@ static int lean4_add_step(lvBridgeProof *p, int step_type, const char *desc, int
     return 0;
 }
 
-/* 辅助：在 tactic 映射表中查找 tactic 名称对应的步骤类型 */
+/* 辅助：在 tactic 映射表中查找 tactic 名称对应的步骤类型（name→enum 机制收敛到 lv_str_to_enum） */
 static int lean4_lookup_tactic(const char *name, int name_len) {
-    static const struct {
-        const char *tactic;
-        int step_type;
-    } reverse_map[] = {
+    static const lvStrToEnumEntry reverse_map[] = {
         {"intro", lv_STEP_ADD_NODE},
         {"constructor", lv_STEP_ADD_CONSTRAINT},
         {"cases", lv_STEP_ADD_CONSTRAINT},
@@ -150,13 +148,14 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
         {"let", lv_STEP_HAVE},
         {"from", lv_STEP_FUNCTION_APP},
     };
-    int count = LEAN4_REVERSE_MAP_COUNT;
-    for (int j = 0; j < count; j++) {
-        if ((int) strlen(reverse_map[j].tactic) == name_len && strncmp(name, reverse_map[j].tactic, name_len) == 0) {
-            return reverse_map[j].step_type;
-        }
-    }
-    return -1;
+    /* exempt: 互操作字符串（tactic 名/步骤类型映射）属负面清单外部契约，内容逐字保留，仅机制收敛 */
+    char name_buf[64];
+    if (name_len <= 0 || name_len >= (int) sizeof(name_buf))
+        return -1;
+    memcpy(name_buf, name, (size_t) name_len);
+    name_buf[name_len] = '\0';
+    /* 注意：LEAN4_REVERSE_MAP_COUNT 为 35（非 sizeof 全表 36 条），保持原查找语义逐位一致 */
+    return lv_str_to_enum(reverse_map, LEAN4_REVERSE_MAP_COUNT, name_buf, -1);
 }
 
 /* 辅助：提取标识符（字母/数字/下划线/点/单引号） */

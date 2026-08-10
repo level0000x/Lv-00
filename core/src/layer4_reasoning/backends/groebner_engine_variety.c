@@ -11,6 +11,7 @@
 #include "groebner_engine.h"
 #include "lv/lv.h"
 #include "groebner_engine_internal.h"
+#include "groebner_engine_guard.h"
 
 #include <float.h>
 #include <math.h>
@@ -468,12 +469,13 @@ lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPol
  * @brief 计算代数簇
  */
 int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
+    /* exempt: 单指针 NULL 守卫（registry 非空），与 id 范围守卫不同构，保留 */
     if (!registry)
         return -1;
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (ideal_id < 0 || ideal_id >= g_data->ideal_count) {
+    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
         goto _gcleanup;
     }
 
@@ -569,7 +571,7 @@ int variety_dimension(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
@@ -586,7 +588,7 @@ bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     bool ok = false;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
@@ -607,11 +609,12 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
 
     bool ok = false;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (variety_id < 0 || variety_id >= g_data->variety_count) {
+    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
-    if (!v || !v->solution_points || !v->is_zero_dimensional || point_idx < 0 || point_idx >= v->solution_count) {
+    if (!v || !v->solution_points || !v->is_zero_dimensional ||
+        !groebner_id_in_range(point_idx, v->solution_count)) {
         goto _gcleanup;
     }
     double *src = v->solution_points[point_idx];

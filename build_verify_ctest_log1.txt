@@ -1,0 +1,356 @@
+﻿Test project C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/build_verify
+        Start   1: basic_test
+        Start   2: edge_cases_test
+        Start   3: complex_graph_test
+        Start   4: normalization_test
+        Start   5: constraint_graph_ops_test
+        Start   6: graph_hash_test
+        Start   7: constraint_compatibility_test
+        Start   8: unify_test
+  1/169 Test   #1: basic_test ......................................   Passed    2.30 sec
+  2/169 Test   #2: edge_cases_test .................................   Passed    2.02 sec
+  3/169 Test   #3: complex_graph_test ..............................   Passed    1.69 sec
+  4/169 Test   #4: normalization_test ..............................   Passed    1.48 sec
+  5/169 Test   #5: constraint_graph_ops_test .......................   Passed    1.20 sec
+  6/169 Test   #6: graph_hash_test .................................   Passed    0.92 sec
+        Start   9: func_block_test
+        Start  10: solver_test
+        Start  11: solver_enhanced_test
+        Start  12: groebner_basis_test
+        Start  13: rewrite_test
+        Start  14: critical_pair_test
+  7/169 Test   #7: constraint_compatibility_test ...................   Passed    2.34 sec
+        Start  15: type_system_test
+  8/169 Test   #8: unify_test ......................................   Passed    2.26 sec
+  9/169 Test   #9: func_block_test .................................   Passed    1.87 sec
+ 10/169 Test  #10: solver_test .....................................   Passed    1.32 sec
+ 11/169 Test  #11: solver_enhanced_test ............................   Passed    1.27 sec
+ 12/169 Test  #12: groebner_basis_test .............................   Passed    0.81 sec
+ 13/169 Test  #13: rewrite_test ....................................   Passed    0.44 sec
+        Start  16: type_equiv_explorer_test
+        Start  17: proof_test
+        Start  18: axiom_pkg_test
+        Start  19: template_test_test
+        Start  20: module_test
+        Start  21: graph_serialize_test
+ 14/169 Test  #14: critical_pair_test ..............................   Passed    1.57 sec
+        Start  22: serialize_registry_test
+ 15/169 Test  #15: type_system_test ................................   Passed    1.77 sec
+ 16/169 Test  #16: type_equiv_explorer_test ........................   Passed    1.57 sec
+ 17/169 Test  #17: proof_test ......................................   Passed    1.38 sec
+ 18/169 Test  #18: axiom_pkg_test ..................................   Passed    1.14 sec
+ 19/169 Test  #19: template_test_test ..............................   Passed    0.98 sec
+ 20/169 Test  #20: module_test .....................................   Passed    0.72 sec
+        Start  23: recursion_test
+        Start  24: implementation_test
+        Start  25: minimal_parse_test
+        Start  26: euclidean_plane_axiom_test
+        Start  27: boolean_algebra_axiom_test
+        Start  28: classical_propositional_logic_axiom_test
+ 21/169 Test  #21: graph_serialize_test ............................   Passed    1.87 sec
+        Start  29: group_theory_axiom_test
+ 22/169 Test  #22: serialize_registry_test .........................   Passed    1.81 sec
+ 23/169 Test  #23: recursion_test ..................................   Passed    1.57 sec
+ 24/169 Test  #24: implementation_test .............................   Passed    1.36 sec
+ 25/169 Test  #25: minimal_parse_test ..............................   Passed    1.12 sec
+ 26/169 Test  #26: euclidean_plane_axiom_test ......................   Passed    0.97 sec
+ 27/169 Test  #27: boolean_algebra_axiom_test ......................   Passed    0.77 sec
+        Start  30: zfc_set_theory_axiom_test
+        Start  31: ring_theory_axiom_test
+        Start  32: intuitionistic_logic_axiom_test
+        Start  33: intuitionistic_propositional_logic_axiom_test
+        Start  34: category_theory_axiom_test
+        Start  35: point_set_topology_axiom_test
+ 28/169 Test  #28: classical_propositional_logic_axiom_test ........   Passed    1.83 sec
+        Start  36: hyperbolic_geometry_axiom_test
+ 29/169 Test  #29: group_theory_axiom_test .........................   Passed    1.80 sec
+ 30/169 Test  #34: category_theory_axiom_test ......................   Passed    0.68 sec
+ 31/169 Test  #31: ring_theory_axiom_test ..........................   Passed    1.37 sec
+ 32/169 Test  #30: zfc_set_theory_axiom_test .......................   Passed    1.58 sec
+ 33/169 Test  #33: intuitionistic_propositional_logic_axiom_test ...   Passed    0.91 sec
+ 34/169 Test  #32: intuitionistic_logic_axiom_test .................   Passed    1.16 sec
+        Start  37: elliptic_geometry_axiom_test
+        Start  38: simple_type_theory_axiom_test
+        Start  39: field_theory_axiom_test
+        Start  40: nbg_set_theory_axiom_test
+        Start  41: real_analysis_axiom_test
+        Start  42: axiom_combinatorics_test
+ 35/169 Test  #35: point_set_topology_axiom_test ...................   Passed    1.73 sec
+        Start  43: algebraic_topology_axiom_test
+ 36/169 Test  #36: hyperbolic_geometry_axiom_test ..................   Passed    1.73 sec
+ 37/169 Test  #38: simple_type_theory_axiom_test ...................   Passed    1.25 sec
+ 38/169 Test  #37: elliptic_geometry_axiom_test ....................   Passed    1.49 sec
+ 39/169 Test  #40: nbg_set_theory_axiom_test .......................   Passed    0.83 sec
+ 40/169 Test  #41: real_analysis_axiom_test ........................   Passed    0.64 sec
+ 41/169 Test  #39: field_theory_axiom_test .........................   Passed    1.04 sec
+        Start  44: model_theory_axiom_test
+        Start  45: dependent_type_theory_axiom_test
+        Start  46: homological_algebra_axiom_test
+        Start  47: universal_algebra_axiom_test
+        Start  48: differential_geometry_axiom_test
+        Start  49: number_theory_axiom_test
+ 42/169 Test  #42: axiom_combinatorics_test ........................   Passed    1.64 sec
+        Start  50: functional_analysis_axiom_test
+ 43/169 Test  #44: model_theory_axiom_test .........................   Passed    1.37 sec
+ 44/169 Test  #43: algebraic_topology_axiom_test ...................   Passed    1.60 sec
+ 45/169 Test  #45: dependent_type_theory_axiom_test ................   Passed    1.14 sec
+ 46/169 Test  #48: differential_geometry_axiom_test ................   Passed    0.56 sec
+ 47/169 Test  #47: universal_algebra_axiom_test ....................   Passed    0.76 sec
+ 48/169 Test  #46: homological_algebra_axiom_test ..................   Passed    0.95 sec
+        Start  51: algebraic_geometry_axiom_test
+        Start  52: proof_theory_axiom_test
+        Start  53: homotopy_type_theory_axiom_test
+        Start  54: affine_geometry_axiom_test
+        Start  55: projective_geometry_axiom_test
+        Start  56: lattice_theory_axiom_test
+ 49/169 Test  #49: number_theory_axiom_test ........................   Passed    1.53 sec
+        Start  57: lie_theory_axiom_test
+ 50/169 Test  #52: proof_theory_axiom_test .........................   Passed    1.15 sec
+ 51/169 Test  #50: functional_analysis_axiom_test ..................   Passed    1.54 sec
+ 52/169 Test  #54: affine_geometry_axiom_test ......................   Passed    0.78 sec
+ 53/169 Test  #51: algebraic_geometry_axiom_test ...................   Passed    1.36 sec
+ 54/169 Test  #53: homotopy_type_theory_axiom_test .................   Passed    0.98 sec
+ 55/169 Test  #55: projective_geometry_axiom_test ..................   Passed    0.58 sec
+        Start  58: modal_logic_axiom_test
+        Start  59: linear_logic_axiom_test
+        Start  60: metric_space_axiom_test
+        Start  61: game_theory_axiom_test
+        Start  62: information_theory_axiom_test
+        Start  63: descriptive_set_theory_axiom_test
+ 56/169 Test  #56: lattice_theory_axiom_test .......................   Passed    1.57 sec
+        Start  64: domain_theory_axiom_test
+ 57/169 Test  #60: metric_space_axiom_test .........................   Passed    1.00 sec
+ 58/169 Test  #57: lie_theory_axiom_test ...........................   Passed    1.58 sec
+ 59/169 Test  #59: linear_logic_axiom_test .........................   Passed    1.19 sec
+ 60/169 Test  #58: modal_logic_axiom_test ..........................   Passed    1.38 sec
+ 61/169 Test  #62: information_theory_axiom_test ...................   Passed    0.60 sec
+        Start  65: computability_theory_axiom_test
+        Start  66: computational_complexity_theory_axiom_test
+        Start  67: presburger_arithmetic_axiom_test
+        Start  68: utils_test
+        Start  69: enum_maps_test
+ 62/169 Test  #61: game_theory_axiom_test ..........................   Passed    1.84 sec
+ 63/169 Test  #63: descriptive_set_theory_axiom_test ...............   Passed    1.43 sec
+        Start  70: bytes_test
+        Start  71: json_buf_test
+ 64/169 Test  #68: utils_test ......................................   Passed    0.95 sec
+ 65/169 Test  #64: domain_theory_axiom_test ........................   Passed    1.74 sec
+ 66/169 Test  #67: presburger_arithmetic_axiom_test ................   Passed    1.15 sec
+        Start  72: hashtable_test
+        Start  73: module_serialize_unify_test
+        Start  74: lifecycle_test
+ 67/169 Test  #66: computational_complexity_theory_axiom_test ......   Passed    2.27 sec
+ 68/169 Test  #65: computability_theory_axiom_test .................   Passed    2.47 sec
+ 69/169 Test  #69: enum_maps_test ..................................   Passed    1.63 sec
+ 70/169 Test  #70: bytes_test ......................................   Passed    1.43 sec
+        Start  75: registry_test
+        Start  76: stream_test
+        Start  77: stream_extended_test
+        Start  78: parallel_for_test
+ 71/169 Test  #71: json_buf_test ...................................   Passed    2.44 sec
+ 72/169 Test  #73: module_serialize_unify_test .....................   Passed    1.73 sec
+        Start  79: func_block_utils_test
+        Start  80: func_block_preset_test
+ 73/169 Test  #72: hashtable_test ..................................   Passed    2.63 sec
+ 74/169 Test  #75: registry_test ...................................   Passed    1.69 sec
+ 75/169 Test  #76: stream_test .....................................   Passed    1.19 sec
+ 76/169 Test  #77: stream_extended_test ............................   Passed    1.01 sec
+        Start  81: error_codes_test
+        Start  82: interop_test
+        Start  83: high_dim_test
+        Start  84: symbolic_coord_test
+ 77/169 Test  #78: parallel_for_test ...............................   Passed    1.64 sec
+ 78/169 Test  #79: func_block_utils_test ...........................   Passed    1.25 sec
+        Start  85: rational_test
+        Start  86: expr_canon_test
+ 79/169 Test  #80: func_block_preset_test ..........................   Passed    1.47 sec
+ 80/169 Test  #81: error_codes_test ................................   Passed    1.23 sec
+ 81/169 Test  #82: interop_test ....................................   Passed    1.04 sec
+ 82/169 Test  #83: high_dim_test ...................................   Passed    0.82 sec
+        Start  87: proof_trace_test
+        Start  88: new_modules_test
+        Start  89: circuit_breaker_test
+        Start  90: test_ga_multivector
+ 83/169 Test  #84: symbolic_coord_test .............................   Passed    1.39 sec
+ 84/169 Test  #85: rational_test ...................................   Passed    1.18 sec
+        Start  91: test_geo_invariant
+        Start  92: test_interval_arithmetic
+ 85/169 Test  #86: expr_canon_test .................................   Passed    1.49 sec
+ 86/169 Test  #87: proof_trace_test ................................   Passed    1.28 sec
+ 87/169 Test  #88: new_modules_test ................................   Passed    1.09 sec
+ 88/169 Test  #89: circuit_breaker_test ............................   Passed    0.88 sec
+        Start  93: test_gappa_dsl
+        Start  94: test_smt_bitvector
+        Start  95: test_proof_rule_engine
+        Start  96: test_nt_number_theory
+ 89/169 Test  #90: test_ga_multivector .............................   Passed    1.18 sec
+ 90/169 Test  #91: test_geo_invariant ..............................   Passed    1.00 sec
+ 91/169 Test  #74: lifecycle_test ..................................***Exception: SegFault  4.91 sec
+        Start  97: test_sym_expr
+        Start  98: sparse_linear_algebra_test
+        Start  99: nt_polynomial_test
+ 92/169 Test  #92: test_interval_arithmetic ........................   Passed    1.26 sec
+ 93/169 Test  #93: test_gappa_dsl ..................................   Passed    1.00 sec
+ 94/169 Test  #94: test_smt_bitvector ..............................   Passed    0.95 sec
+ 95/169 Test  #95: test_proof_rule_engine ..........................   Passed    0.79 sec
+        Start 100: test_rewrite_strategy
+        Start 101: rewrite_strategy_impl_test
+        Start 102: test_proof_version
+        Start 103: test_autodiff
+ 96/169 Test  #96: test_nt_number_theory ...........................   Passed    1.42 sec
+ 97/169 Test  #97: test_sym_expr ...................................   Passed    1.33 sec
+ 98/169 Test  #98: sparse_linear_algebra_test ......................   Passed    1.15 sec
+        Start 104: prop_verifier_test
+        Start 105: wfc_modules_test
+        Start 106: geo_constraint_solver_test
+ 99/169 Test  #99: nt_polynomial_test ..............................   Passed    1.59 sec
+100/169 Test #100: test_rewrite_strategy ...........................   Passed    1.41 sec
+101/169 Test #101: rewrite_strategy_impl_test ......................   Passed    1.27 sec
+102/169 Test #102: test_proof_version ..............................   Passed    1.05 sec
+        Start 107: geo_constraint_solver_ext_test
+        Start 108: ode_solver_test
+        Start 109: proof_export_enhanced_test
+        Start 110: performance_test
+103/169 Test #103: test_autodiff ...................................   Passed    1.84 sec
+104/169 Test #104: prop_verifier_test ..............................   Passed    1.64 sec
+105/169 Test #105: wfc_modules_test ................................   Passed    1.43 sec
+        Start 111: memory_management_test
+        Start 112: group_minimal_test
+        Start 113: geo_topology_test
+106/169 Test #106: geo_constraint_solver_test ......................   Passed    1.68 sec
+107/169 Test #107: geo_constraint_solver_ext_test ..................   Passed    1.52 sec
+108/169 Test #108: ode_solver_test .................................   Passed    1.35 sec
+109/169 Test #109: proof_export_enhanced_test ......................   Passed    1.17 sec
+        Start 114: geo_predicate_test
+        Start 115: geo_halfedge_mesh_test
+        Start 116: geo_dynamic_test
+        Start 117: geo_visual_test
+110/169 Test #111: memory_management_test ..........................   Passed    1.14 sec
+111/169 Test #112: group_minimal_test ..............................   Passed    0.96 sec
+        Start 118: propagation_test
+        Start 119: equiv_class_test
+112/169 Test #113: geo_topology_test ...............................   Passed    1.30 sec
+113/169 Test #114: geo_predicate_test ..............................***Failed    1.14 sec
+114/169 Test #115: geo_halfedge_mesh_test ..........................   Passed    1.00 sec
+        Start 120: interactive_geo_test
+        Start 121: geom_transform_presets_test
+        Start 122: geo_aabb_tree_test
+115/169 Test #117: geo_visual_test .................................   Passed    1.55 sec
+116/169 Test #118: propagation_test ................................   Passed    1.38 sec
+        Start 123: error_handling_test
+        Start 124: conflict_detector_test
+117/169 Test #119: equiv_class_test ................................   Passed    1.63 sec
+118/169 Test #120: interactive_geo_test ............................   Passed    1.38 sec
+        Start 125: adaptive_threshold_test
+        Start 126: engine_ops_test
+119/169 Test #121: geom_transform_presets_test .....................   Passed    2.57 sec
+120/169 Test #122: geo_aabb_tree_test ..............................   Passed    2.20 sec
+121/169 Test #123: error_handling_test .............................   Passed    1.97 sec
+        Start 127: engine_scheduler_test
+        Start 128: trust_color_test
+        Start 129: layer5_output_ops_test
+122/169 Test #124: conflict_detector_test ..........................   Passed    2.68 sec
+123/169 Test #125: adaptive_threshold_test .........................   Passed    2.42 sec
+        Start 130: solve_debug_test
+        Start 131: lv_lexer_test
+124/169 Test #127: engine_scheduler_test ...........................   Passed    1.69 sec
+125/169 Test #128: trust_color_test ................................   Passed    1.32 sec
+        Start 132: lv_parser_test
+        Start 133: lv_bootstrap_test
+126/169 Test #126: engine_ops_test .................................   Passed    3.23 sec
+127/169 Test #129: layer5_output_ops_test ..........................   Passed    2.01 sec
+128/169 Test #130: solve_debug_test ................................   Passed    1.65 sec
+        Start 134: meta_verify_test
+        Start 135: lambda_church_test
+        Start 136: lambda_eval_test
+129/169 Test #131: lv_lexer_test ...................................   Passed    2.66 sec
+130/169 Test #110: performance_test ................................   Passed    9.14 sec
+        Start 137: lambda_unify_test
+        Start 138: topos_theory_axiom_test
+131/169 Test #132: lv_parser_test ..................................   Passed    3.00 sec
+132/169 Test #134: meta_verify_test ................................   Passed    2.08 sec
+        Start 139: synthetic_differential_geometry_axiom_test
+        Start 140: second_order_arithmetic_axiom_test
+133/169 Test #133: lv_bootstrap_test ...............................   Passed    3.08 sec
+134/169 Test #137: lambda_unify_test ...............................   Passed    1.06 sec
+        Start 141: robin_arithmetic_axiom_test
+        Start 142: quantum_information_theory_axiom_test
+135/169 Test #135: lambda_church_test ..............................   Passed    2.81 sec
+136/169 Test #136: lambda_eval_test ................................   Passed    2.16 sec
+137/169 Test #138: topos_theory_axiom_test .........................   Passed    1.22 sec
+138/169 Test #139: synthetic_differential_geometry_axiom_test ......   Passed    0.96 sec
+        Start 143: probability_theory_axiom_test
+        Start 144: peano_arithmetic_axiom_test
+        Start 145: order_theory_axiom_test
+        Start 146: non_well_founded_set_theory_axiom_test
+139/169 Test #141: robin_arithmetic_axiom_test .....................   Passed    1.42 sec
+140/169 Test #140: second_order_arithmetic_axiom_test ..............   Passed    1.67 sec
+        Start 147: measure_theory_axiom_test
+        Start 148: linear_algebra_axiom_test
+141/169 Test #142: quantum_information_theory_axiom_test ...........   Passed    1.68 sec
+142/169 Test #143: probability_theory_axiom_test ...................   Passed    1.45 sec
+143/169 Test #144: peano_arithmetic_axiom_test .....................   Passed    1.21 sec
+144/169 Test #145: order_theory_axiom_test .........................   Passed    0.94 sec
+        Start 149: graph_theory_axiom_test
+        Start 150: galois_theory_axiom_test
+        Start 151: ergodic_theory_axiom_test
+        Start 152: cartesian_closed_category_axiom_test
+145/169 Test #146: non_well_founded_set_theory_axiom_test ..........   Passed    1.57 sec
+        Start 153: symbolic_coord_ops_test
+146/169 Test #147: measure_theory_axiom_test .......................   Passed    1.61 sec
+147/169 Test #150: galois_theory_axiom_test ........................   Passed    0.92 sec
+148/169 Test #148: linear_algebra_axiom_test .......................   Passed    1.36 sec
+149/169 Test #149: graph_theory_axiom_test .........................   Passed    1.13 sec
+        Start 154: geometry_core_test
+        Start 155: smt_backend_test
+        Start 156: bdd_sat_atp_test
+        Start 157: solver_submodules_test
+150/169 Test #151: ergodic_theory_axiom_test .......................   Passed    1.59 sec
+151/169 Test #152: cartesian_closed_category_axiom_test ............   Passed    1.37 sec
+        Start 158: layer4_misc_test
+        Start 159: layer5_output_test
+152/169 Test #153: symbolic_coord_ops_test .........................   Passed    1.56 sec
+153/169 Test #154: geometry_core_test ..............................   Passed    1.28 sec
+154/169 Test #156: bdd_sat_atp_test ................................   Passed    0.83 sec
+155/169 Test #155: smt_backend_test ................................   Passed    1.11 sec
+        Start 160: layer5_core_test
+        Start 161: output_export_test
+        Start 162: layer6_visual_test
+        Start 163: proof_infra_test
+156/169 Test #157: solver_submodules_test ..........................   Passed    1.32 sec
+157/169 Test #158: layer4_misc_test ................................   Passed    1.27 sec
+        Start 164: proof_strategy_numeric_test
+        Start 165: interval_arith_test
+158/169 Test #159: layer5_output_test ..............................   Passed    1.37 sec
+159/169 Test #160: layer5_core_test ................................   Passed    1.19 sec
+160/169 Test #163: proof_infra_test ................................   Passed    0.63 sec
+        Start 166: callback_list_test
+        Start 167: groebner_parallel_test
+        Start 168: proof_rule_numeric_test
+161/169 Test #164: proof_strategy_numeric_test .....................   Passed    1.12 sec
+162/169 Test #161: output_export_test ..............................   Passed    1.80 sec
+163/169 Test #162: layer6_visual_test ..............................   Passed    1.60 sec
+        Start 169: proof_strategy_legacy_test
+164/169 Test #165: interval_arith_test .............................   Passed    1.14 sec
+165/169 Test #166: callback_list_test ..............................   Passed    0.96 sec
+166/169 Test #167: groebner_parallel_test ..........................   Passed    0.81 sec
+167/169 Test #168: proof_rule_numeric_test .........................   Passed    0.37 sec
+168/169 Test #169: proof_strategy_legacy_test ......................   Passed    0.20 sec
+169/169 Test #116: geo_dynamic_test ................................   Passed   16.12 sec
+
+99% tests passed, 2 tests failed out of 169
+
+Total Test time (real) =  41.59 sec
+
+The following tests FAILED:
+	 74 - lifecycle_test (SEGFAULT)
+	114 - geo_predicate_test (Failed)
+ctest : Errors while running CTest
+At line:15 char:7961
++ ... @vscode\ripgrep\bin'; ctest --test-dir build_verify -j 8 2>&1 | Tee-O ...
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Errors while running CTest:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Output from these tests are in: C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/build_verify/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.

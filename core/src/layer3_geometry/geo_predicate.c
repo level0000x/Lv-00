@@ -29,6 +29,7 @@
 #include "lv/interval_arith.h"
 #include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_numeric.h" /* lv_rel_tol_scale（K5-3B 相对容差共享设施） */
 
 /* 确保 lv_PUBLIC_API 已定义 */
 #ifndef lv_PUBLIC_API
@@ -319,7 +320,7 @@ static lvOrientation orientation_2d_approx(double p1x, double p1y, double p2x, d
      */
     double coords[] = {p1x, p1y, p2x, p2y, p3x, p3y};
     double max_coord = geo_max_abs_coord2(coords, 6);
-    double adapted_eps = eps * fmax(1.0, max_coord * max_coord * max_coord);
+    double adapted_eps = lv_rel_tol_scale(eps, max_coord * max_coord * max_coord);
 
     if (cross > adapted_eps) {
         return lv_ORIENTATION_LEFT;

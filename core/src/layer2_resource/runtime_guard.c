@@ -59,6 +59,11 @@ static void guard_unlock_stats(const lvGuardContext *guard) {
  * 公开 API 实现
  * ======================================================================== */
 
+/* exempt: 惰性守卫豁免 —— guard->initialized 为 lvGuardContext 对象实例字段：
+ * 由 lv_guard_init/lv_guard_destroy 显式生命周期配对管理（destroy 置 false 后可
+ * 再次 init，reinit 语义）；L86/L105/L121 的检查均为实例活性防御检查，
+ * 非"进程级单例惰性初始化"，lv_once 不适用（每实例一个守卫），
+ * 故保留手写标志检查，不迁移。 */
 bool lv_guard_init(lvGuardContext *guard) {
     if (!guard) {
         return false;

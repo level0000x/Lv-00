@@ -334,7 +334,7 @@ static int apply_translate(double m[16], const double *params, int param_count) 
 
 /** 旋转变换（绕任意轴旋转） */
 static int apply_rotate(double m[16], const double *params, int param_count) {
-    double angle_deg, ax, ay, az, rad, c, s, len, ux, uy, uz;
+    double angle_deg, ax, ay, az, rad, c, s, ux, uy, uz;
     if (param_count < 4)
         return 0;
     angle_deg = params[0];
@@ -344,12 +344,8 @@ static int apply_rotate(double m[16], const double *params, int param_count) {
     rad = lv_deg_to_rad(angle_deg);
     c = cos(rad);
     s = sin(rad);
-    len = geo_distance_3d(0.0, 0.0, 0.0, ax, ay, az);
-    if (len < lv_NORMALIZATION_THRESHOLD)
+    if (!lv_normalize_3d(ax, ay, az, lv_NORMALIZATION_THRESHOLD, &ux, &uy, &uz))
         return 0;
-    ux = ax / len;
-    uy = ay / len;
-    uz = az / len;
     m[0] = c + ux * ux * (1 - c);
     m[1] = ux * uy * (1 - c) + uz * s;
     m[2] = ux * uz * (1 - c) - uy * s;
@@ -382,12 +378,8 @@ static int apply_mirror(double m[16], const double *params, int param_count) {
     nz = params[2];
     d = params[3];
     /* 平面反射矩阵：reflect through plane nx*x + ny*y + nz*z = d */
-    double nlen = sqrt(nx * nx + ny * ny + nz * nz);
-    if (nlen < lv_NORMALIZATION_THRESHOLD)
+    if (!lv_normalize_3d(nx, ny, nz, lv_NORMALIZATION_THRESHOLD, &nx, &ny, &nz))
         return 0;
-    nx /= nlen;
-    ny /= nlen;
-    nz /= nlen;
     m[0] = 1.0 - 2.0 * nx * nx;
     m[1] = -2.0 * nx * ny;
     m[2] = -2.0 * nx * nz;
@@ -412,12 +404,8 @@ static int apply_project(double m[16], const double *params, int param_count) {
     py = params[1];
     pz = params[2];
     /* 正交投影到指定平面（通过原点，法向量为 (px,py,pz)） */
-    double plen = sqrt(px * px + py * py + pz * pz);
-    if (plen < lv_NORMALIZATION_THRESHOLD)
+    if (!lv_normalize_3d(px, py, pz, lv_NORMALIZATION_THRESHOLD, &px, &py, &pz))
         return 0;
-    px /= plen;
-    py /= plen;
-    pz /= plen;
     m[0] = 1.0 - px * px;
     m[1] = -px * py;
     m[2] = -px * pz;
@@ -784,7 +772,7 @@ int algebra_snapshot(AlgebraicGeom *geom) {
 }
 
 AlgebraicGeom *algebra_restore(AlgebraicGeom *geom, int snapshot_index) {
-    if (!geom || snapshot_index < 0 || snapshot_index >= geom->snapshot_count)
+    if (!geom || !lv_index_in_range(snapshot_index, geom->snapshot_count))
         return NULL;
 
     AlgebraicGeom *snap = geom->snapshots[snapshot_index];

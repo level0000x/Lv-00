@@ -32,3 +32,10 @@ try:
 except ImportError:
     from lv.fallback import enable_fallback
     enable_fallback()
+    # 回退模式下顶层 API 与 C 绑定路径保持一致：
+    # fallback 类 GraphFb/SymbolicCoordFb/PointFb → 顶层 Graph/SymbolicCoord/Point
+    from lv.fallback import (  # noqa: F401
+        GraphFb as Graph,
+        SymbolicCoordFb as SymbolicCoord,
+        PointFb as Point,
+    )

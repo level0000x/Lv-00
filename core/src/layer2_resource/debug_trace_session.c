@@ -73,6 +73,12 @@ void debug_log_rewrite(const char *fmt, ...) {
 
 /*=== 新日志系统实现 ===*/
 
+/* exempt: 惰性守卫豁免 —— 日志会话为"init→shutdown 可重入"模式：
+ * debug_log_shutdown 将 s_debug_state.initialized 置 false 并关闭 log_file，
+ * 允许再次 init（lv_once 不可重置，转换后 shutdown 无法恢复）；
+ * 且 L55/L242 的 "log_file && initialized" 为消费者活性检查（日志文件句柄
+ * 与标志位联合判定，非初始化守卫）。锁已由 DEBUG_LOG_LOCK_GUARD（debug_internal.h
+ * 的 lv_once 互斥锁）保证线程安全，故保留手写标志检查，不迁移。 */
 int debug_log_init(void) {
     /* 内层作用域锁守卫（DEBUG_LOG_LOCK_GUARD 经 debug_log_mutex 的 lv_once 保证互斥锁只初始化一次）：
      * 块结束自动解锁，随后的环形缓冲区创建与 LOG_INFO 保持在锁外

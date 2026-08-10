@@ -97,6 +97,11 @@ MetaReprConfig meta_repr_default_config(void) {
  * @param config 编码配置（为 NULL 时使用默认配置）
  * @return 新创建的编码器指针，失败返回 NULL
  */
+/* exempt: 惰性守卫豁免 —— encoder/decoder 的 is_initialized 为对象实例字段：
+ * 由 create/destroy 显式生命周期配对管理（destroy 置 false 后可再次 create，
+ * reinit 语义），5 处检查（L137/L154/L230/L282/L401 等）均为实例活性防御
+ * 检查，非"进程级单例惰性初始化"，lv_once 不适用（每实例一个编码器/解码器），
+ * 故保留手写标志检查，不迁移。 */
 MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config) {
     MetaReprEncoder *encoder = (MetaReprEncoder *) lv_calloc(1, sizeof(MetaReprEncoder));
     if (!encoder)

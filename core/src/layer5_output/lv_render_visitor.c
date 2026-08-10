@@ -14,6 +14,8 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/lv_numeric.h"
 
 /* ========================================================================
  * 内部辅助：从 lvVisualObject 提取几何数据并应用相机变换
@@ -79,7 +81,9 @@ static bool render_line(const lvVisualObject *obj, const lvVisualScene *scene, c
     double dx = cache[2] - cache[0];
     double dy = cache[3] - cache[1];
     double len = geo_distance_2d(cache[0], cache[1], cache[2], cache[3]);
-    if (len < 1e-12)
+    /* exempt: 2D 方向归一化（相机空间），单调用点不抽象为 lv_normalize_3d；
+       阈值具名化为 lv_EPSILON_DOUBLE（=1e-12，数值不变）。 */
+    if (len < lv_EPSILON_DOUBLE)
         return true;
     double ux = dx / len, uy = dy / len;
     double t_max = 1000.0;
@@ -165,7 +169,7 @@ static bool traverse_object(const lvRenderVisitor *visitor,
     }
 
     /* 通过 VTable 分发到具体类型的渲染处理器 */
-    if (obj->type >= 0 && obj->type < (int)(sizeof(kRenderObjectHandlers)/sizeof(kRenderObjectHandlers[0])) && kRenderObjectHandlers[obj->type]) {
+    if (lv_index_in_range(obj->type, (int)(sizeof(kRenderObjectHandlers)/sizeof(kRenderObjectHandlers[0]))) && kRenderObjectHandlers[obj->type]) {
         return kRenderObjectHandlers[obj->type](obj, scene, visitor);
     }
     return true;
@@ -182,7 +186,7 @@ bool lv_render_scene(const lvRenderVisitor *visitor, const lvVisualScene *scene)
     /* 场景标题 */
     char title[64];
     int n = snprintf(title, sizeof(title), "Lv-00 Scene (%zu objects)", scene->object_count);
-    if (n < 0 || (size_t)n >= sizeof(title))
+    if (!lv_index_in_range(n, (int) sizeof(title)))
         snprintf(title, sizeof(title), "Lv-00 Scene");
 
     /* 开始场景 */

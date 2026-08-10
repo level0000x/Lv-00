@@ -36,6 +36,7 @@
 #include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
 #include "lv/host_linalg.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
 #include "debug.h"
 #include "lv/lv_internal.h"
 
@@ -122,6 +123,24 @@ typedef struct {
     double *d_r0;     /**< 设备端影子残差向量（BiCGSTAB） */
     double *d_t;      /**< 设备端 t 向量（BiCGSTAB） */
 } HipIterSolverData;
+
+/**
+ * @brief 释放求解器缓存的矩阵副本（LU clone/destroy 配对样板收敛，判据 A）
+ *
+ * 语义契约：m 非 NULL 时经操作表调用 m->ops->destroy(m)。
+ * 前置条件：m 必须由矩阵操作表 clone 创建。
+ * 失败/截断语义：无失败路径。
+ * 边界行为：m == NULL → 无操作。
+ * exempt: 与 numerical_backend.c 的同名 static 函数逐字同构（判据 A 候选）；
+ *         统一为公共头 static inline 设施需修改白名单外头文件（本批次禁止），
+ *         保留双 static 副本，行为等价。
+ * 扩展点：无。
+ */
+static void linsol_clone_destroy(lvMatrix *m) {
+    if (m) {
+        m->ops->destroy(m);
+    }
+}
 
 /* ========================================================================
  * HIP 内核函数声明
@@ -911,7 +930,7 @@ static void hip_matrix_scale(lvMatrix *A, double c) {
  * 将整个矩阵数据从设备拷贝到主机、修改后再拷贝回设备实现。
  */
 static void hip_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) return;
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) return;
     HipMatrixData *md = (HipMatrixData *)A->data;
     if (!md->d_data) return;
 
@@ -929,7 +948,7 @@ static void hip_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double
  * @brief 获取单个元素值（列主序）
  */
 static double hip_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) return 0.0;
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) return 0.0;
     HipMatrixData *md = (HipMatrixData *)A->data;
     if (!md->d_data) return 0.0;
 
@@ -1055,9 +1074,7 @@ static int hip_dense_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     /* 释放旧数据 */
     if (LS->solver_data) {
         HipDenseLUData *old = (HipDenseLUData *)LS->solver_data;
-        if (old->clone) {
-            old->clone->ops->destroy(old->clone);
-        }
+        linsol_clone_destroy(old->clone);
         lv_free((void **)&LS->solver_data);
     }
     LS->solver_data = lu;
@@ -1104,9 +1121,7 @@ static void hip_dense_linsol_destroy(lvLinearSolver *LS) {
     if (!LS) return;
     if (LS->solver_data) {
         HipDenseLUData *lu = (HipDenseLUData *)LS->solver_data;
-        if (lu->clone) {
-            lu->clone->ops->destroy(lu->clone);
-        }
+        linsol_clone_destroy(lu->clone);
         lv_free((void **)&LS->solver_data);
     }
     lv_free((void **)&LS);
@@ -1151,7 +1166,7 @@ static int hip_iter_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
         if (is->d_work) hipFree(is->d_work);
         if (is->d_r0) hipFree(is->d_r0);
         if (is->d_t) hipFree(is->d_t);
-        is->clone->ops->destroy(is->clone);
+        linsol_clone_destroy(is->clone);
         lv_free((void **)&is);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "HIP 迭代求解器工作区分配失败");
         return lv_BACKEND_MEM_ERROR;
@@ -1160,7 +1175,7 @@ static int hip_iter_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     /* 释放旧数据 */
     if (LS->solver_data) {
         HipIterSolverData *old = (HipIterSolverData *)LS->solver_data;
-        if (old->clone) old->clone->ops->destroy(old->clone);
+        linsol_clone_destroy(old->clone);
         if (old->d_r) hipFree(old->d_r);
         if (old->d_p) hipFree(old->d_p);
         if (old->d_ap) hipFree(old->d_ap);
@@ -1181,7 +1196,7 @@ static void hip_iter_linsol_destroy(lvLinearSolver *LS) {
     if (!LS) return;
     if (LS->solver_data) {
         HipIterSolverData *is = (HipIterSolverData *)LS->solver_data;
-        if (is->clone) is->clone->ops->destroy(is->clone);
+        linsol_clone_destroy(is->clone);
         if (is->d_r) hipFree(is->d_r);
         if (is->d_p) hipFree(is->d_p);
         if (is->d_ap) hipFree(is->d_ap);

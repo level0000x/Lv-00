@@ -40,6 +40,7 @@
 #include "error_codes.h"
 #include "lv_utils.h"
 #include "lv_internal.h"
+#include "lv_numeric.h"
 
 /* ── 运行时配置默认值的边界函数 ── */
 int propagation_default_max_iterations(void) {
@@ -159,7 +160,7 @@ static bool state_add_candidate(NodeStateSpace *state, const SymbolicCoord *coor
 
 /** @brief 从状态空间移除指定索引的候选 */
 static bool state_remove_at(NodeStateSpace *state, int index) {
-    if (index < 0 || index >= state->candidates_da.count)
+    if (!lv_index_in_range(index, state->candidates_da.count))
         return false;
     CoordCandidate *cand = (CoordCandidate *)state->candidates_da.data;
     if (cand[index].coord) {
@@ -650,7 +651,7 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 }
 
 NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id) {
-    if (!ctx || node_id < 0 || node_id >= ctx->state_count)
+    if (!ctx || !lv_index_in_range(node_id, ctx->state_count))
         lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "propagation_get_state_space: invalid ctx or node_id");
     return &ctx->state_spaces[node_id];
 }
@@ -704,7 +705,7 @@ static bool check_incidence_compatible(const SymbolicCoord *point_coord, const G
      * 行列式量级正比于坐标乘积 O(coord²)，对于大坐标（如 1e6），
      * 绝对容差 1e-9 过于严格，会误判实际上在线上的点。 */
     double max_coord = fmax(fmax(fabs(px), fabs(py)), fmax(fmax(fabs(ax_d), fabs(ay_d)), fmax(fabs(bx_d), fabs(by_d))));
-    double tol = lv_GEO_COLLINEAR_EPSILON * fmax(1.0, max_coord * max_coord);
+    double tol = lv_rel_tol_scale(lv_GEO_COLLINEAR_EPSILON, max_coord * max_coord);
     return (fabs(det) < tol);
 }
 
@@ -737,7 +738,7 @@ bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
     /* 对每个参与者执行弧相容性检查 */
     for (int p = 0; p < c->participant_count; p++) {
         int node_id = c->participants[p];
-        if (node_id < 0 || node_id >= ctx->state_count)
+        if (!lv_index_in_range(node_id, ctx->state_count))
             continue;
 
         NodeStateSpace *ss = &ctx->state_spaces[node_id];
@@ -877,7 +878,7 @@ int propagation_select_node(PropagationContext *ctx) {
 }
 
 bool propagation_collapse(PropagationContext *ctx, int node_id) {
-    if (!ctx || node_id < 0 || node_id >= ctx->state_count)
+    if (!ctx || !lv_index_in_range(node_id, ctx->state_count))
         return false;
 
     NodeStateSpace *ss = &ctx->state_spaces[node_id];

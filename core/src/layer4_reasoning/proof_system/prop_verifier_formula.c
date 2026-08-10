@@ -17,6 +17,7 @@
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
  * 公式创建/销毁
@@ -263,9 +264,8 @@ static PropFormula *prop_formula_copy_depth(const PropFormula *f, int depth) {
         /* 递归深度超限，防止栈溢出 */
         return NULL;
     }
-    if ((size_t)f->type < sizeof(copy_handlers) / sizeof(copy_handlers[0]) && copy_handlers[f->type])
-        return copy_handlers[f->type](f, depth);
-    return NULL;
+    /* 统一调度表分发（LV_DISPATCH：越界/NULL 槽返回 fallback NULL） */
+    return LV_DISPATCH(copy_handlers, f->type, NULL, f, depth);
 }
 
 /* 递归销毁公式（带递归深度保护，防止栈溢出） */
@@ -306,9 +306,8 @@ static void prop_formula_destroy_depth(PropFormula *f, int depth) {
     while (stack_top > 0) {
         PropFormula *current = stack[--stack_top];
 
-        /* 通过 VTable 将子节点压栈（后进先出保证销毁顺序） */
-        if ((size_t)current->type < sizeof(destroy_handlers) / sizeof(destroy_handlers[0]) && destroy_handlers[current->type])
-            destroy_handlers[current->type](current, &stack, &stack_top, &stack_capacity);
+        /* 统一调度表分发（LV_DISPATCH_VOID：越界/NULL 槽自动跳过） */
+        LV_DISPATCH_VOID(destroy_handlers, current->type, current, &stack, &stack_top, &stack_capacity);
 
         /* 释放当前节点 */
         lv_free((void **) &current);

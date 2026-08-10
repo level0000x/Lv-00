@@ -30,6 +30,7 @@
 #include "lv/lv_file.h"
 #include "lv/lv_json.h"
 #include "lv/lv_path.h" /* lv_path_join */
+#include "lv/lv_lifecycle.h"
 
 #include "debug.h"
 #include "lv/lv_thread.h"

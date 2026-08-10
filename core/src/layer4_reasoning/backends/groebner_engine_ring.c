@@ -11,6 +11,7 @@
 #include "groebner_engine.h"
 #include "lv/lv.h"
 #include "groebner_engine_internal.h"
+#include "groebner_engine_guard.h"
 
 #include <float.h>
 #include <math.h>
@@ -38,11 +39,13 @@ lvRingRegistry *ring_registry_create(int capacity) {
     }
 
     lvRingRegistry *registry = (lvRingRegistry *) lv_calloc(1, sizeof(lvRingRegistry));
+    /* exempt: OOM 分配失败检查（calloc 返回 NULL），非句柄有效性守卫，保留 */
     if (!registry) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "ring_registry_create: lv_calloc(%zu) failed", sizeof(lvRingRegistry));
     }
 
     registry->rings = (lvPolynomialRing **) lv_calloc((size_t) capacity, sizeof(lvPolynomialRing *));
+    /* exempt: OOM 分配失败检查（calloc 返回 NULL），非句柄有效性守卫，保留 */
     if (!registry->rings) {
         lv_free((void **) &registry);
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "ring_registry_create: lv_calloc for rings failed (cap=%d)", capacity);
@@ -65,6 +68,8 @@ lvRingRegistry *ring_registry_create(int capacity) {
  * @brief 销毁环注册表及所有关联对象
  */
 void ring_registry_destroy(lvRingRegistry *registry) {
+    /* exempt: 单指针 NULL 容忍守卫（销毁路径允许 NULL），与 id 范围守卫
+     * 不同构（不访问计数成员），与 poly/ideal/variety 的 NULL 守卫同族，保留 */
     if (!registry) {
         return;
     }
@@ -144,6 +149,8 @@ void ring_registry_destroy(lvRingRegistry *registry) {
  */
 int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count, lvRingFieldType field,
                 lvMonomialOrder order, const char *label) {
+    /* exempt: 多条件参数校验（指针非空 + 计数下界混合形态），与 id 范围守卫
+     * 不同构（含 var_names 指针与 var_count 语义），保留 */
     if (!registry || !var_names || var_count < 1) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "ring_create: invalid params (registry=%p, var_names=%p, var_count=%d)",
                         (const void *)registry, (const void *)var_names, var_count);
@@ -188,7 +195,7 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
  * @brief 销毁一个多项式环
  */
 void ring_destroy(lvRingRegistry *registry, int ring_id) {
-    if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
+    if (!groebner_registry_has_ring(registry, ring_id)) {
         return;
     }
 
@@ -224,6 +231,7 @@ void ring_destroy(lvRingRegistry *registry, int ring_id) {
  *       保留供外部后端接入 groebner 引擎使用。
  */
 int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring) {
+    /* exempt: NULL 对守卫（两个指针非空），与 id 范围守卫不同构，保留 */
     if (!registry || !ring) {
         return -1;
     }
@@ -245,7 +253,7 @@ int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring) {
  * @brief 按 ID 查找环
  */
 lvPolynomialRing *ring_find(const lvRingRegistry *registry, int ring_id) {
-    if (!registry || ring_id < 0 || ring_id >= registry->ring_count) {
+    if (!groebner_registry_has_ring(registry, ring_id)) {
         return NULL;
     }
     return registry->rings[ring_id];

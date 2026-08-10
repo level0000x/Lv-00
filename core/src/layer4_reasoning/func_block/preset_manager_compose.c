@@ -210,6 +210,7 @@ bool preset_bind_parameter(const char *preset_name, int param_index, int value, 
     }
 
     /* 验证参数索引 */
+    /* exempt: 带 input_count>0 守卫（input_count==0 时仅拒绝负索引，与 lv_index_in_range 语义不同），保留手写检查 */
     if (param_index < 0 || (entry->metadata.input_count > 0 && param_index >= entry->metadata.input_count)) {
         unlock_library();
         set_error("参数索引 %d 越界（有效范围: 0-%d）", param_index, entry->metadata.input_count - 1);
@@ -240,6 +241,7 @@ bool preset_bind_parameter(const char *preset_name, int param_index, int value, 
     /* 生成新预设名称：原名称 + _bound_ + 索引 */
     char new_name[PRESET_BUFFER_SIZE];
     int written = snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, param_index);
+    /* exempt: snprintf 返回码检测（非索引语义），勿替换为 lv_index_in_range */
     if (written < 0 || (size_t) written >= sizeof(new_name)) {
         unlock_library();
         set_error("新预设名称过长");

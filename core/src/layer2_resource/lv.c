@@ -45,6 +45,12 @@
 /**
  * @brief 系统初始化状态
  */
+/* exempt: 1-B 状态机豁免 —— 本状态机描述"进程生命周期"
+ * （UNINITIALIZED→INITIALIZING→INITIALIZED→SHUTTING_DOWN→UNINITIALIZED，
+ * 带 init_count 嵌套引用计数、TLS 每线程实例、幂等 init/cleanup 可重入），
+ * 与 context.c/engine_state.c 的"推理任务五态状态机"
+ * （IDLE→PARSING→REASONING→COMPLETE/ERROR，转移矩阵+位掩码查表）语义异构：
+ * 无共享转移矩阵，不允许中途回退到 IDLE 之外的语义差异过大，故不迁移。 */
 typedef enum {
     SYSTEM_STATE_UNINITIALIZED = 0,
     SYSTEM_STATE_INITIALIZING,

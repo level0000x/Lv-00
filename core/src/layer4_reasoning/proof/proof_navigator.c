@@ -33,7 +33,6 @@
 #include "proof_navigator_internal.h"
 
 /* 流式上下文声明 */
-/* 证明树 API 占位（与 proof.c 保持一致） */
 /* lv_DEFAULT_MAX_STEPS 已迁移至 config.h */
 
 /* lv_proof_tree_* 函数实现在 proof_tree.c 中，通过链接解析 */

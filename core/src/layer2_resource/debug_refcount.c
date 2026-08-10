@@ -122,13 +122,16 @@ bool ref_count_dec(void *obj) {
     rc->ref_count--;
     if (rc->ref_count <= 0) {
         /* 引用计数降为零，在锁内调用析构函数并销毁对象，
-         * 防止多线程同时触发双重释放 */
+         * 防止多线程同时触发双重释放（TOCTOU 窗口已消除）。
+         * 前置条件：destructor 不得调用 ref_count_inc/ref_count_dec/ref_count_get
+         * —— debug_refcount_lock 是全局互斥锁且不可重入，destructor 内重入
+         * 上述 API 将造成死锁。 */
         void (*destructor)(void *) = rc->destructor;
         rc->destructor = NULL; /* 置空防止重复调用 */
-        debug_unlock_refcount();
         if (destructor) {
             destructor(obj);
         }
+        debug_unlock_refcount();
         return true; /* 对象已销毁 */
     }
     debug_unlock_refcount();

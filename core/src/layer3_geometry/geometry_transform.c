@@ -24,6 +24,7 @@
 #include "lv/lv_strbuf.h"
 #include "lv/symbolic_coord.h"
 #include "lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH_VOID */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -554,11 +555,8 @@ void lv_transform_destroy(lvTransform *t) {
         return;
     }
 
-    /* 清理参数（VTable 分发） */
-    if (t->type >= 0 && t->type < (int)(sizeof(kTransformCleanupHandlers)/sizeof(kTransformCleanupHandlers[0]))
-        && kTransformCleanupHandlers[t->type]) {
-        kTransformCleanupHandlers[t->type](t);
-    }
+    /* 清理参数（统一调度表分发：越界/NULL 槽自动跳过） */
+    LV_DISPATCH_VOID(kTransformCleanupHandlers, t->type, t);
 
     /* 清理矩阵 */
     mpq_clear(t->matrix.a);
@@ -1174,7 +1172,7 @@ char *lv_transform_to_string(const lvTransform *t) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_to_string: NULL transform");
     }
 
-    const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
+    const char *type_str = lv_index_in_range(t->type, (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
                            ? s_transform_type_names[t->type].display : "Unknown";
 
     /* 用 lvStrBuf 统一构建，避免两遍 snprintf 重复格式串 */
@@ -1189,7 +1187,7 @@ char *lv_transform_to_json(const lvTransform *t) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_transform_to_json: NULL transform");
     }
 
-    const char *type_str = (t->type >= 0 && t->type < (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
+    const char *type_str = lv_index_in_range(t->type, (int)(sizeof(s_transform_type_names)/sizeof(s_transform_type_names[0])))
                            ? s_transform_type_names[t->type].json : "unknown";
 
     /* 用 lvStrBuf 统一构建，避免两遍 snprintf 重复格式串 */

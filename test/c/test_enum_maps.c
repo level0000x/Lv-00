@@ -17,10 +17,13 @@
 #include <string.h>
 
 #include "constraint_graph.h"
+#include "conflict_detector.h"
+#include "dsl_compiler.h"
 #include "func_block_preset.h"
 #include "func_block_registry.h"
 #include "interop.h"
 #include "lv.h"
+#include "magic.h"
 #include "preset_category.h"
 #include "test_helpers.h"
 
@@ -261,6 +264,71 @@ static void test_entry_macro_uniqueness(void) {
 }
 
 /* ============================================================
+ * K7: X-macro 化枚举表 str↔enum 往返等价（抽样首尾 + 中间）
+ * ============================================================ */
+static void test_k7_enum_roundtrip(void) {
+    /* dsl_compiler_load: s_ir_op_names（30 项） */
+    TEST_ASSERT_STR_EQ(dsl_ir_op_name(IR_CREATE_POINT), "CREATE_POINT");
+    TEST_ASSERT_STR_EQ(dsl_ir_op_name(IR_CONSTRAIN_EQUAL), "CONSTRAIN_EQUAL");
+    TEST_ASSERT_STR_EQ(dsl_ir_op_name(IR_NOOP), "NOOP");
+
+    /* dsl_compiler_load: s_ast_type_names（25 项） */
+    TEST_ASSERT_STR_EQ(dsl_ast_type_name(DSL_AST_PROGRAM), "PROGRAM");
+    TEST_ASSERT_STR_EQ(dsl_ast_type_name(DSL_AST_BISECTOR), "BISECTOR");
+    TEST_ASSERT_STR_EQ(dsl_ast_type_name(DSL_AST_NUMBER), "NUMBER");
+
+    /* interop_theorem: export（8 项）往返 */
+    TEST_ASSERT_STR_EQ(interop_export_format_name(INTEROP_EXPORT_COQ), "coq");
+    TEST_ASSERT_STR_EQ(interop_export_format_name(INTEROP_EXPORT_PDF), "pdf");
+    TEST_ASSERT_STR_EQ(interop_export_format_name(INTEROP_EXPORT_CANONICAL), "canonical");
+    TEST_ASSERT_EQ((int) interop_parse_export_format("coq"), (int) INTEROP_EXPORT_COQ);
+    TEST_ASSERT_EQ((int) interop_parse_export_format("pdf"), (int) INTEROP_EXPORT_PDF);
+    TEST_ASSERT_EQ((int) interop_parse_export_format("canonical"), (int) INTEROP_EXPORT_CANONICAL);
+
+    /* interop_theorem: import（3 项）往返 */
+    TEST_ASSERT_STR_EQ(interop_import_format_name(INTEROP_IMPORT_GEOGEBRA), "geogebra");
+    TEST_ASSERT_STR_EQ(interop_import_format_name(INTEROP_IMPORT_GEOJSON), "geojson");
+    TEST_ASSERT_STR_EQ(interop_import_format_name(INTEROP_IMPORT_SVG), "svg");
+    TEST_ASSERT_EQ((int) interop_parse_import_format("geogebra"), (int) INTEROP_IMPORT_GEOGEBRA);
+    TEST_ASSERT_EQ((int) interop_parse_import_format("geojson"), (int) INTEROP_IMPORT_GEOJSON);
+    TEST_ASSERT_EQ((int) interop_parse_import_format("svg"), (int) INTEROP_IMPORT_SVG);
+
+    /* conflict_detector: s_lv_conflict_type_name_entries（14 项） */
+    TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_POINT_POSITION), "PointPositionConflict");
+    TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_TRANSITIVE_EQUALITY), "TransitiveEquality");
+    TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_UNKNOWN), "Unknown");
+
+    /* magic_domain: element（6 项）往返（中英文双写） */
+    TEST_ASSERT_STR_EQ(element_to_string(ELEMENT_FIRE), "FIRE");
+    TEST_ASSERT_STR_EQ(element_to_string(ELEMENT_NONE), "NONE");
+    TEST_ASSERT_EQ((int) string_to_element("FIRE"), (int) ELEMENT_FIRE);
+    TEST_ASSERT_EQ((int) string_to_element("火"), (int) ELEMENT_FIRE);
+    TEST_ASSERT_EQ((int) string_to_element("以太"), (int) ELEMENT_ETHER);
+
+    /* magic_domain: stage（4 项） */
+    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_MOLDING), "开模");
+    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_INFUSING), "灌注");
+    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_RELEASING), "释放");
+
+    /* magic_domain: status（5 项） */
+    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_IDLE), "空闲");
+    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_FAILED), "失败");
+    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_BACKLASH), "反噬");
+
+    /* magic_domain: reaction（4 项） */
+    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_NONE), "无反应");
+    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_WEAKEN), "削弱");
+    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_CONFLICT), "冲突");
+
+    /* magic_domain: restriction（5 项） */
+    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_NONE), "无限制");
+    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_FORBIDDEN), "禁术级");
+    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_ABSOLUTE), "绝对禁术");
+
+    TEST_PASS("test_k7_enum_roundtrip");
+}
+
+/* ============================================================
  * 主函数
  * ============================================================ */
 TEST_MAIN_BEGIN("枚举映射单一事实来源测试")
@@ -274,6 +342,7 @@ TEST_MAIN_BEGIN("枚举映射单一事实来源测试")
     TEST_MAIN_RUN(test_geom_type_alias_interop);
     TEST_MAIN_RUN(test_preset_category_consistency);
     TEST_MAIN_RUN(test_entry_macro_uniqueness);
+    TEST_MAIN_RUN(test_k7_enum_roundtrip);
     func_block_preset_library_cleanup();
     printf("\n========================================\n");
     if (g_fail_count == 0) {

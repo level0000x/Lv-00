@@ -5,6 +5,7 @@
 
 #include "geo_constraint_solver_internal.h"
 #include "lv/geo_utils.h" /* geo_norm_2d（2D 向量模长统一工具） */
+#include "lv/lv_numeric.h" /* lv_angle_diff_pi（角度差回绕到 [-π,π]） */
 
 #include <float.h>
 #include <math.h>
@@ -187,8 +188,7 @@ static double eval_angle(const lvSolverSystem *sys, const lvConstraint *c, doubl
     double angle_a = (dax != 0.0 || day != 0.0) ? atan2(day, dax) : 0.0;
     double angle_b = (dbx != 0.0 || dby != 0.0) ? atan2(dby, dbx) : 0.0;
     double diff = angle_a - angle_b;
-    while (diff > M_PI) diff -= 2.0 * M_PI;
-    while (diff < -M_PI) diff += 2.0 * M_PI;
+    diff = lv_angle_diff_pi(diff);
     double err = diff - c->value;
     if (error_val) *error_val = err;
     return 1;
@@ -326,7 +326,7 @@ static const int s_constraint_eval_func_count = (int)(sizeof(s_constraint_eval_f
  * @return 残差数量（1 或 2）
  */
 double evaluate_constraint(const lvSolverSystem *sys, const lvConstraint *c, double *error_val) {
-    if (c->type >= 0 && c->type < s_constraint_eval_func_count && s_constraint_eval_funcs[c->type]) {
+    if (lv_index_in_range(c->type, s_constraint_eval_func_count) && s_constraint_eval_funcs[c->type]) {
         return s_constraint_eval_funcs[c->type](sys, c, error_val);
     }
     if (error_val)

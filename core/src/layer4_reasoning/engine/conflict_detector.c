@@ -238,22 +238,25 @@ static bool conflict_report_add(ConflictReport *report, ConflictType type, Confl
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
+#define CONFLICT_TYPE_X(x) \
+    x(CONFLICT_POINT_POSITION, "PointPositionConflict") \
+    x(CONFLICT_DISTANCE_MISMATCH, "DistanceMismatch") \
+    x(CONFLICT_ANGLE_MISMATCH, "AngleMismatch") \
+    x(CONFLICT_COLLINEAR_VS_ANGLE, "CollinearVsAngle") \
+    x(CONFLICT_PERPENDICULAR_VS_PARALLEL, "PerpendicularVsParallel") \
+    x(CONFLICT_CONTAINMENT_VS_SEPARATION, "ContainmentVsSeparation") \
+    x(CONFLICT_INTERSECTION_VS_PARALLEL, "IntersectionVsParallel") \
+    x(CONFLICT_TRANSITIVE_EQUALITY, "TransitiveEquality") \
+    x(CONFLICT_TRANSITIVE_ORDER, "TransitiveOrder") \
+    x(CONFLICT_CYCLIC_DEPENDENCY, "CyclicDependency") \
+    x(CONFLICT_ALGEBRAIC_NO_SOLUTION, "AlgebraicNoSolution") \
+    x(CONFLICT_ALGEBRAIC_OVERCONSTRAINED, "AlgebraicOverconstrained") \
+    x(CONFLICT_ALGEBRAIC_SINGULAR, "AlgebraicSingular") \
+    x(CONFLICT_UNKNOWN, "Unknown")
+
 /** @brief lv_conflict_type_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_lv_conflict_type_name_entries[] = {
-    {"PointPositionConflict", CONFLICT_POINT_POSITION},
-    {"DistanceMismatch", CONFLICT_DISTANCE_MISMATCH},
-    {"AngleMismatch", CONFLICT_ANGLE_MISMATCH},
-    {"CollinearVsAngle", CONFLICT_COLLINEAR_VS_ANGLE},
-    {"PerpendicularVsParallel", CONFLICT_PERPENDICULAR_VS_PARALLEL},
-    {"ContainmentVsSeparation", CONFLICT_CONTAINMENT_VS_SEPARATION},
-    {"IntersectionVsParallel", CONFLICT_INTERSECTION_VS_PARALLEL},
-    {"TransitiveEquality", CONFLICT_TRANSITIVE_EQUALITY},
-    {"TransitiveOrder", CONFLICT_TRANSITIVE_ORDER},
-    {"CyclicDependency", CONFLICT_CYCLIC_DEPENDENCY},
-    {"AlgebraicNoSolution", CONFLICT_ALGEBRAIC_NO_SOLUTION},
-    {"AlgebraicOverconstrained", CONFLICT_ALGEBRAIC_OVERCONSTRAINED},
-    {"AlgebraicSingular", CONFLICT_ALGEBRAIC_SINGULAR},
-    {"Unknown", CONFLICT_UNKNOWN},
+    lv_XMACRO_TO_ENUM_TABLE(CONFLICT_TYPE_X)
 };
 
 const char *lv_conflict_type_name(ConflictType type) {

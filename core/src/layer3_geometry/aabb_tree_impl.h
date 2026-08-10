@@ -2,6 +2,14 @@
  * @file aabb_tree_impl.h
  * @brief AABB 树模板实现（2D/3D 通用）
  *
+ * exempt: 宏泛型（2D/3D 双簿记）。本文件通过宏参数被 aabb_tree_2d.c /
+ *    aabb_tree_3d.c 各包含一次，同时产出两套 typed 实现；迁移为
+ *    aabb2d/aabb3d 两套独立 typed 代码需同时改动两调用方 .c 与
+ *    geo_aabb_tree.h（均超出 K5 白名单），风险与成本过高，列为遗留
+ *    （迁移建议见 K5 报告第③条）。轴展开的 ray slab 段（ray_intersect
+ *    与 ray_recursive）存在 `fabs(d)==DBL_EPSILON` 边界平行判定差异
+ *    （< 与 >），不满足逐位等价前提，同样登记为遗留，不做本组内收敛。
+ *
  * 通过宏参数控制维度差异，被 aabb_tree_2d.c 和 aabb_tree_3d.c 包含。
  *
  * 需要调用方在 include 之前定义以下宏：
@@ -22,6 +30,7 @@
 
 #include "lv/lv.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_numeric.h"
 
 /* ========================================================================
  * 宏连接辅助
@@ -417,7 +426,7 @@ static void AABB_FUNC(nearest_recursive)(const AABB_TREE_TYPE *tree, int node_id
         for (int k = 0; k < count; k++) {
             int pid = (node->leaf_count > 0 && tree->leaf_prim_ids) ? tree->leaf_prim_ids[node->leaf_start + k]
                                                                     : node->primitive_id;
-            if (pid < 0 || pid >= tree->primitive_count)
+            if (!lv_index_in_range(pid, tree->primitive_count))
                 continue;
 
             const lvAABB2D *prim_bb = &tree->primitives[pid];

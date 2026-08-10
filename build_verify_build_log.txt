@@ -1,0 +1,419 @@
+﻿[1/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_numeric.c.obj
+[2/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_event_bus.c.obj
+[3/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/allocator.c.obj
+[4/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_str.c.obj
+[5/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_array.c.obj
+[6/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_callback_list.c.obj
+[7/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils.c.obj
+[8/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_config.c.obj
+[9/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_stream_context.c.obj
+[10/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_utils_misc.c.obj
+[11/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_json.c.obj
+[12/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_circuit_breaker.c.obj
+[13/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/context.c.obj
+[14/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv.c.obj
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:31:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:35:9: warning: 'lv_LOG_MSG_MAX_LEN' redefined
+   35 | #define lv_LOG_MSG_MAX_LEN 4096
+      |         ^~~~~~~~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:174,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:14:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:821:9: note: this is the location of the previous definition
+  821 | #define lv_LOG_MSG_MAX_LEN lv_CONFIG_LOG_MSG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:38:9: warning: 'lv_LOG_TAG_MAX_LEN' redefined
+   38 | #define lv_LOG_TAG_MAX_LEN 64
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:824:9: note: this is the location of the previous definition
+  824 | #define lv_LOG_TAG_MAX_LEN lv_CONFIG_LOG_TAG_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:41:9: warning: 'lv_METRIC_NAME_MAX_LEN' redefined
+   41 | #define lv_METRIC_NAME_MAX_LEN 128
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/config.h:827:9: note: this is the location of the previous definition
+  827 | #define lv_METRIC_NAME_MAX_LEN lv_CONFIG_METRIC_NAME_MAX_LEN
+      |         ^~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_monitor.h:204:9: warning: 'lv_LOG_FATAL' redefined
+  204 | #define lv_LOG_FATAL(tag, fmt, ...) lv_log_write(LOG_LEVEL_FATAL, tag, __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+      |         ^~~~~~~~~~~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv_log.h:39:9: note: this is the location of the previous definition
+   39 | #define lv_LOG_FATAL LOG_LEVEL_FATAL
+      |         ^~~~~~~~~~~~
+[15/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_codes.c.obj
+[16/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug.c.obj
+[17/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_error.c.obj
+[18/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_state.c.obj
+[19/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_config.c.obj
+[20/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_mempool.c.obj
+[21/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_refcount.c.obj
+[22/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_emergency.c.obj
+[23/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_ringbuf.c.obj
+[24/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_invariants.c.obj
+[25/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace_session.c.obj
+[26/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool.c.obj
+[27/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_mempool_utils.c.obj
+[28/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_heap.c.obj
+[29/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_log_ctx.c.obj
+[30/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_normalize_assert.c.obj
+[31/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/node_deep_copy.c.obj
+[32/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/memory_pool.c.obj
+[33/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_path.c.obj
+[34/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/math_theory_guide_cn.c.obj
+[35/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_monitor.c.obj
+[36/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/result_messages_cn.c.obj
+[37/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/test_framework.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_xml':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:911:63: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  911 |         lv_str_escape_xml(&esc_name, suite->name, suite->name ? strlen(suite->name) : 0);
+      |                                                               ^
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:15:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:920:66: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  920 |             lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
+      |                                                                  ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:928:74: warning: the comparison will always evaluate as 'true' for the address of 'message' will never be NULL [-Waddress]
+  928 |                 lv_str_escape_xml(&esc_msg, test->message, test->message ? strlen(test->message) : 0);
+      |                                                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:79:10: note: 'message' declared here
+   79 |     char message[lv_TEST_MSG_MAX_LEN];
+      |          ^~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_test_report_to_html':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:982:43: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  982 |             size_t esc_slen = suite->name ? strlen(suite->name) : 0;
+      |                                           ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:985:42: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  985 |             size_t esc_tlen = test->name ? strlen(test->name) : 0;
+      |                                          ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:995:67: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  995 |                              esc_suite ? esc_suite : (suite->name ? suite->name : ""),
+      |                                                                   ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:89:10: note: 'name' declared here
+   89 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:996:64: warning: the comparison will always evaluate as 'true' for the address of 'name' will never be NULL [-Waddress]
+  996 |                              esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
+      |                                                                ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/test_framework.h:71:10: note: 'name' declared here
+   71 |     char name[lv_TEST_NAME_MAX_LEN];
+      |          ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c: In function 'lv_assert_fail':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/test_framework.c:297:5: warning: '__builtin_strncpy' output may be truncated copying 511 bytes from a string of length 511 [-Wstringop-truncation]
+  297 |     strncpy(test->message, message, sizeof(test->message) - 1);
+      |     ^
+[38/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/geometry_config.c.obj
+[39/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/global_state.c.obj
+[40/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/debug_trace.c.obj
+[41/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/preset_helper_cn.c.obj
+[42/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/error_messages_cn.c.obj
+[43/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/runtime_guard.c.obj
+[44/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_priority.c.obj
+[45/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/fast_index.c.obj
+[46/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/status_codes.c.obj
+[47/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/proof_score.c.obj
+[48/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hash.c.obj
+[49/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/sha256.c.obj
+[50/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/representation_converter.c.obj
+[51/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/performance_profiler.c.obj
+[52/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_hashtable.c.obj
+[53/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_ringbuf.c.obj
+[54/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_strbuf.c.obj
+[55/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_export_common.c.obj
+[56/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_dot_writer.c.obj
+[57/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/adaptive_threshold.c.obj
+[58/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/thread_pool.c.obj
+[59/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_str_utils.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c: In function 'lv_str_read_int':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c:278:9: warning: potential null pointer dereference [-Wnull-dereference]
+  278 |     if (*p == '-') {
+      |         ^~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c: In function 'lv_str_read_quoted':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c:322:9: warning: potential null pointer dereference [-Wnull-dereference]
+  322 |     if (*p != '"') {
+      |         ^~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c: In function 'lv_str_read_token':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_str_utils.c:356:12: warning: potential null pointer dereference [-Wnull-dereference]
+  356 |     while (*p && !strchr(delims, *p))
+      |            ^~
+[60/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_log.c.obj
+[61/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/meta_repr.c.obj
+[62/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_file.c.obj
+[63/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/simd_ops.c.obj
+[64/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_process.c.obj
+[65/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_lifecycle.c.obj
+[66/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_registry.c.obj
+[67/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_backend_plugin.c.obj
+[68/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_bytes.c.obj
+[69/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_serialize_adapters.c.obj
+[70/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_arena.c.obj
+[71/937] Building C object CMakeFiles/lv_layer2_resource.dir/core/src/layer2_resource/lv_storage.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_storage.c: In function 'lv_storage_close':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer2_resource/lv_storage.c:499:5: warning: '__builtin_strncpy' output may be truncated copying between 0 and 63 bytes from a string of length 511 [-Wstringop-truncation]
+  499 |     strncpy(out, uri, scheme_len);
+      |     ^
+[72/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper.c.obj
+[73/937] Building C object CMakeFiles/lv_core.dir/core/src/core/lv_convenience.c.obj
+[74/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_geom.c.obj
+[75/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_visual.c.obj
+[76/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_algebra.c.obj
+[77/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_orchestrator.c.obj
+[78/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_native.c.obj
+[79/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_meta.c.obj
+[80/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_app.c.obj
+[81/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_interop.c.obj
+[82/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_preset.c.obj
+[83/937] Building C object CMakeFiles/lv_core.dir/core/src/lv_impl_upper_utils.c.obj
+[84/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter.c.obj
+[85/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_parser.c.obj
+[86/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_util.c.obj
+[87/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_geom.c.obj
+[88/937] Building C object CMakeFiles/lv_core.dir/core/src/impl_preset_transformations.c.obj
+[89/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_complex.c.obj
+[90/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_constraint.c.obj
+[91/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_stmt.c.obj
+[92/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_converter_export.c.obj
+[93/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_eval.c.obj
+[94/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer.c.obj
+[95/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_string.c.obj
+[96/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_internal.c.obj
+[97/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_python.c.obj
+[98/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_latex.c.obj
+[99/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_curve.c.obj
+[100/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser_safety.c.obj
+[101/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_mathml.c.obj
+[102/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_dsl.c.obj
+[103/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_html.c.obj
+[104/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lexer_shared.c.obj
+[105/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/formula_renderer_ascii.c.obj
+[106/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler.c.obj
+[107/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_parse.c.obj
+[108/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_ir.c.obj
+[109/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_compiler_load.c.obj
+[110/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/dsl_lexer.c.obj
+[111/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/math_input.c.obj
+[112/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_latex.c.obj
+[113/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_dsl.c.obj
+[114/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_ast.c.obj
+[115/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/parser/formula_python.c.obj
+[116/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_lexer.c.obj
+[117/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_ast.c.obj
+[118/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_sema.c.obj
+[119/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/constraint_graph.c.obj
+[120/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/symbolic_coord.c.obj
+[121/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_parser.c.obj
+[122/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_context.c.obj
+[123/937] Building C object CMakeFiles/lv_layer1_parser.dir/core/src/layer1_parser/lv_loader.c.obj
+[124/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry.c.obj
+[125/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_axiom.c.obj
+[126/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_declare.c.obj
+[127/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_predicate.c.obj
+[128/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_consistency.c.obj
+[129/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_export.c.obj
+[130/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_equivalence.c.obj
+[131/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/euclidean_geometry_helpers.c.obj
+[132/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim.c.obj
+[133/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_core.c.obj
+[134/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_preset.c.obj
+[135/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/interactive_geo.c.obj
+[136/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_project.c.obj
+[137/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_zoom.c.obj
+[138/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_serialize.c.obj
+[139/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress.c.obj
+[140/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_utils.c.obj
+[141/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_triangle.c.obj
+[142/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_view.c.obj
+[143/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/high_dim_fidelity.c.obj
+[144/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_coords.c.obj
+[145/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_predict.c.obj
+[146/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_edgebreaker.c.obj
+[147/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_huffman.c.obj
+[148/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_bitio.c.obj
+[149/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_rle.c.obj
+[150/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_entropy.c.obj
+[151/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_main.c.obj
+[152/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_decompress.c.obj
+[153/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_compress_io.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c: In function 'compress_write_lvzd':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c:47:5: warning: array subscript 20 is outside array bounds of 'uint8_t[16]' {aka 'unsigned char[16]'} [-Warray-bounds=]
+   47 |     lv_store_le64(header + 20, (uint64_t) size);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c:40:13: note: at offset 20 into object 'header' of size 16
+   40 |     uint8_t header[LVZD_HEADER_SIZE];
+      |             ^~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c: In function 'compress_read_lvzd':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c:95:26: warning: array subscript 20 is outside array bounds of 'uint8_t[16]' {aka 'unsigned char[16]'} [-Warray-bounds=]
+   95 |     uint64_t comp_size = lv_load_le64(header + 20);
+      |                          ^~~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/geometry_compress_io.c:71:13: note: at offset 20 into object 'header' of size 16
+   71 |     uint8_t header[LVZD_HEADER_SIZE];
+      |             ^~~~~~
+[154/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_spec.c.obj
+[155/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg.c.obj
+[156/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_node.c.obj
+[157/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_event_detect.c.obj
+[158/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_bbox.c.obj
+[159/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_primitive.c.obj
+[160/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_mesh.c.obj
+[161/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_bsp.c.obj
+[162/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_hull.c.obj
+[163/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_export.c.obj
+[164/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_csg_eval.c.obj
+[165/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/float_error.c.obj
+[166/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/mpz_poly_resultant.c.obj
+[167/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geom_evol.c.obj
+[168/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometry_transform.c.obj
+[169/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_codegen.c.obj
+[170/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_multivector.c.obj
+[171/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/ga_interface.c.obj
+[172/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_invariant_type.c.obj
+[173/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/fptaylor_eval.c.obj
+[174/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/herbie_eval.c.obj
+[175/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/gappa_dsl.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_dsl.c: In function 'parse_primary':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_dsl.c:89:9: warning: '__builtin_strncpy' output may be truncated copying 63 bytes from a string of length 63 [-Wstringop-truncation]
+   89 |         strncpy(n->var_name, name, sizeof(n->var_name) - 1);
+      |         ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_dsl.c: In function 'gappa_parse':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_dsl.c:678:21: warning: '__builtin_strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+  678 |                     strncpy(item.expr_lhs, varname, sizeof(item.expr_lhs) - 1);
+      |                     ^
+[176/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/gappa_propagate.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_propagate.c: In function 'lv_gappa_propagate_backward':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/gappa_propagate.c:974:9: warning: '__builtin_strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+  974 |         strncpy(derived.expr_lhs, goal->expr_lhs, sizeof(derived.expr_lhs) - 1);
+      |         ^
+[177/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/interval_arith.c.obj
+[178/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_topology.c.obj
+[179/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/equiv_class.c.obj
+[180/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/propagation.c.obj
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/propagation.c: In function 'propagation_snapshot_save':
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/propagation.c:1009:25: warning: potential null pointer dereference [-Wnull-dereference]
+ 1009 |         snap->states[i] = *(state_deep_copy(&ctx->state_spaces[i]));
+      |         ~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/propagation.c:1009:25: warning: potential null pointer dereference [-Wnull-dereference]
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/propagation.c:1009:25: warning: potential null pointer dereference [-Wnull-dereference]
+[181/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number.c.obj
+[182/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_util.c.obj
+[183/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_rational.c.obj
+[184/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_quadratic.c.obj
+[185/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_interval.c.obj
+[186/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_io.c.obj
+[187/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/algebraic_number_poly.c.obj
+[188/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver.c.obj
+[189/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_hash.c.obj
+[190/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_dof.c.obj
+[191/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_halfedge_mesh.c.obj
+[192/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_system.c.obj
+[193/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_box.c.obj
+[194/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_residual.c.obj
+[195/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_linear.c.obj
+[196/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_fast.c.obj
+[197/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_constraint_solver_newton.c.obj
+[198/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_utils.c.obj
+[199/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_aabb_tree.c.obj
+[200/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_2d.c.obj
+FAILED: [code=1] CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_2d.c.obj 
+C:\msys64\mingw64\bin\cc.exe -Dlv_CURRENT_LAYER=3 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -O3 -DNDEBUG -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wnull-dereference -Wduplicated-cond -Wlogical-op -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_2d.c.obj -MF CMakeFiles\lv_layer3_geometry.dir\core\src\layer3_geometry\aabb_tree_2d.c.obj.d -o CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_2d.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_2d.c
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_2d.c:56:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:5:4: warning: '/*' within comment [-Wcomment]
+    5 |  * /* exempt: 宏泛型（2D/3D 双簿记）。本文件通过宏参数被 aabb_tree_2d.c /
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:13:31: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'aabb_tree_2d'
+   13 |  * 通过宏参数控制维度差异，被 aabb_tree_2d.c 和 aabb_tree_3d.c 包含。
+      |                               ^~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:13:68: error: stray '\343' in program
+   13 |  * <U+901A><U+8FC7><U+5B8F><U+53C2><U+6570><U+63A7><U+5236><U+7EF4><U+5EA6><U+5DEE><U+5F02><U+FF0C><U+88AB> aabb_tree_2d.c <U+548C> aabb_tree_3d.c <U+5305><U+542B><U+3002>
+      |                                                                                                                                                                    ^~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:16:39: error: invalid suffix '）' on integer constant
+   16 |  *   AABB_DIMS           - 轴数（2 或 3）
+      |                                       ^~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_2d.c:39:33: error: expected identifier or '(' before 'else'
+   39 |     if ((axis) == 0) { body_x } else { body_y }
+      |                                 ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:21:6: note: in expansion of macro 'AABB_AXIS_SWITCH'
+   21 |  *   AABB_AXIS_SWITCH(axis, body_x, body_y, body_z) - 按轴分派
+      |      ^~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:21:53: error: expected identifier or '(' before '-' token
+   21 |  *   AABB_AXIS_SWITCH(axis, body_x, body_y, body_z) - 按轴分派
+      |                                                     ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_2d.c:45:21: error: invalid suffix 'd' on integer constant
+   45 | #define AABB_PREFIX 2d
+      |                     ^~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:25:6: note: in expansion of macro 'AABB_PREFIX'
+   25 |  *   AABB_PREFIX         - 函数名前缀（2d / 3d）
+      |      ^~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:25:45: error: invalid suffix 'd）' on integer constant
+   25 |  *   AABB_PREFIX         - 函数名前缀（2d / 3d）
+      |                                             ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_2d.c:50:95: error: expected identifier or '(' before ',' token
+   50 |         (lvAABB2D){(node)->bbox.xmin, (node)->bbox.ymin, (node)->bbox.xmax, (node)->bbox.ymax}, \
+      |                                                                                               ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:26:6: note: in expansion of macro 'AABB_NODE_RAY_INT'
+   26 |  *   AABB_NODE_RAY_INT(node, ray, tmin, tmax) - 内部节点射线检测
+      |      ^~~~~~~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:27:54: error: invalid suffix '）' on integer constant
+   27 |  *   AABB_STATS          - 是否包含 stats 函数（1 或 0）
+      |                                                      ^~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:28:53: error: invalid suffix '）' on integer constant
+   28 |  *   AABB_LEAF_MULTI     - 是否支持多面片叶子（1 或 0）
+      |                                                     ^~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:188,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:31:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_guard.h:385:52: warning: 'struct lvContext' declared inside parameter list will not be visible outside of this definition or declaration
+  385 | static inline bool lv_verify_data_integrity(struct lvContext *ctx) {
+      |                                                    ^~~~~~~~~
+[201/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_common.c.obj
+[202/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_dynamic.c.obj
+[203/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_3d.c.obj
+FAILED: [code=1] CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_3d.c.obj 
+C:\msys64\mingw64\bin\cc.exe -Dlv_CURRENT_LAYER=3 -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src -IC:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/preset -O3 -DNDEBUG -std=c11 -fms-extensions -Wall -Wextra -Wpedantic -Wno-incompatible-pointer-types -Wnull-dereference -Wduplicated-cond -Wlogical-op -fstack-clash-protection -Wno-sign-conversion -Wno-unused-parameter -Wno-missing-field-initializers -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -Wno-pedantic -Wno-jump-misses-init -Wno-enum-compare -Wno-switch -Wno-discarded-qualifiers -Wno-format-truncation -Wno-format-nonliteral -Wno-conversion -Wno-sign-compare -Wno-duplicated-branches -Wno-float-conversion -Wno-format -Wno-pointer-to-int-cast -Wno-cast-function-type -Wno-unused-label -fstack-protector-strong -D_FORTIFY_SOURCE=2 -MD -MT CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_3d.c.obj -MF CMakeFiles\lv_layer3_geometry.dir\core\src\layer3_geometry\aabb_tree_3d.c.obj.d -o CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/aabb_tree_3d.c.obj -c C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_3d.c
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_3d.c:55:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:5:4: warning: '/*' within comment [-Wcomment]
+    5 |  * /* exempt: 宏泛型（2D/3D 双簿记）。本文件通过宏参数被 aabb_tree_2d.c /
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:13:31: error: expected '=', ',', ';', 'asm' or '__attribute__' before 'aabb_tree_2d'
+   13 |  * 通过宏参数控制维度差异，被 aabb_tree_2d.c 和 aabb_tree_3d.c 包含。
+      |                               ^~~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:13:68: error: stray '\343' in program
+   13 |  * <U+901A><U+8FC7><U+5B8F><U+53C2><U+6570><U+63A7><U+5236><U+7EF4><U+5EA6><U+5DEE><U+5F02><U+FF0C><U+88AB> aabb_tree_2d.c <U+548C> aabb_tree_3d.c <U+5305><U+542B><U+3002>
+      |                                                                                                                                                                    ^~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:16:39: error: invalid suffix '）' on integer constant
+   16 |  *   AABB_DIMS           - 轴数（2 或 3）
+      |                                       ^~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:21:53: error: expected identifier or '(' before '-' token
+   21 |  *   AABB_AXIS_SWITCH(axis, body_x, body_y, body_z) - 按轴分派
+      |                                                     ^
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_3d.c:46:21: error: invalid suffix 'd' on integer constant
+   46 | #define AABB_PREFIX 3d
+      |                     ^~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:25:6: note: in expansion of macro 'AABB_PREFIX'
+   25 |  *   AABB_PREFIX         - 函数名前缀（2d / 3d）
+      |      ^~~~~~~~~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:25:45: error: invalid suffix 'd）' on integer constant
+   25 |  *   AABB_PREFIX         - 函数名前缀（2d / 3d）
+      |                                             ^~~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:27:54: error: invalid suffix '）' on integer constant
+   27 |  *   AABB_STATS          - 是否包含 stats 函数（1 或 0）
+      |                                                      ^~~
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:28:53: error: invalid suffix '）' on integer constant
+   28 |  *   AABB_LEAF_MULTI     - 是否支持多面片叶子（1 或 0）
+      |                                                     ^~~
+In file included from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/lv.h:188,
+                 from C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/src/layer3_geometry/aabb_tree_impl.h:31:
+C:/Users/xingg/Desktop/知识体系化Wiki/Lv-00/core/include/lv/runtime_guard.h:385:52: warning: 'struct lvContext' declared inside parameter list will not be visible outside of this definition or declaration
+  385 | static inline bool lv_verify_data_integrity(struct lvContext *ctx) {
+      |                                                    ^~~~~~~~~
+[204/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/parametric_curves.c.obj
+[205/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geo_predicate.c.obj
+[206/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/geometric_primitives.c.obj
+[207/937] Building C object CMakeFiles/lv_layer3_geometry.dir/core/src/layer3_geometry/path_type.c.obj
+ninja: build stopped: subcommand failed.

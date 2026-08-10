@@ -1389,6 +1389,7 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
      */
     if (!engine || !config)
         return lv_ERROR_INVALID_PARAM;
+    printf("[GGB-DBG-ENTRY] entered interop_import_geogebra\n");
     if (config->input_path[0] == '\0')
         return lv_ERROR_INVALID_PARAM;
     if (!engine->main_graph) {
@@ -1447,6 +1448,15 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
         xml = tmp;
     }
 
+    {
+        FILE *df = fopen("build3/_verify_import/ggb_dump.xml", "wb");
+        printf("[GGB-DBG] xml_len=%zu comp=%zu uncomp=%zu method=%u fopen=%p\n",
+               xml_len, comp_size, uncomp_size, (unsigned) comp_method, (void *) df);
+        if (df) {
+            fwrite(xml, 1, xml_len, df);
+            fclose(df);
+        }
+    }
     int imported = ggb_import_xml(engine, (const char *) xml, xml_len);
     lv_free((void **) &xml);
 
@@ -2161,8 +2171,12 @@ static void svg_import_path(ConstraintGraph *graph, const char *d, int *count, d
             for (;;) {
                 double out_points[SVG_PATH_SAMPLES * 2 + 16];
                 int cnt = 0;
+                const char *before = s;
                 if (!svg_parse_path_command(cmd, &s, &state, out_points,
                                             (int) lv_ARRAY_SIZE(out_points), &cnt, is_relative))
+                    break;
+                /* 无参数命令（Z 闭合）不消费输入，处理一次即退出，防止死循环 */
+                if (s == before)
                     break;
                 for (int i = 0; i < cnt && total < SVG_PATH_MAX_POINTS; i++) {
                     pts[total * 2] = out_points[i * 2];

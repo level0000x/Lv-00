@@ -120,6 +120,21 @@ lv_PUBLIC_API bool lv_is_in_range(double x, double lo, double hi);
  */
 lv_PUBLIC_API double lv_clamp(double x, double lo, double hi);
 
+/**
+ * @brief 判断整数索引是否在 [0, bound) 区间内
+ *
+ * 语义契约：返回 (idx >= 0 && idx < bound)。收敛散落各模块的
+ * "x < 0 || x >= bound" 双检查样板（判据 A）。
+ * 前置条件：bound > 0；bound <= 0 时恒返回 false（安全降级，不越界访问）。
+ * 失败/截断语义：无失败路径。
+ * 边界行为：idx == 0 → true；idx == bound-1 → true；idx == bound → false；
+ *           idx 为 INT_MIN → false；bound 为 INT_MAX 时 idx 有效上限为 INT_MAX-1。
+ * 扩展点：无。
+ */
+static inline bool lv_index_in_range(int idx, int bound) {
+    return idx >= 0 && idx < bound;
+}
+
 /* ============================================================
  * 角度转换
  * ============================================================ */
@@ -137,6 +152,26 @@ lv_PUBLIC_API double lv_deg_to_rad(double deg);
  * @return 对应的角度值（度数）
  */
 lv_PUBLIC_API double lv_rad_to_deg(double rad);
+
+/**
+ * @brief 将角度差回绕到 [-π, π] 闭区间
+ *
+ * 语义契约：逐次 while 循环回绕（`while (a > lv_PI) a -= 2π; while (a < -lv_PI)
+ * a += 2π;`），与原调用点行为逐位一致（含端点：M_PI 保持 M_PI、-M_PI 保持
+ * -M_PI）。收敛 recursion_selector.c 与 geo_constraint_solver_residual.c 的
+ * 手写双循环（判据 A）。注意：不回绕 NaN/Inf 等非有限输入（原调用点同样）。
+ * 前置条件：angle 为有限值。
+ * 失败/截断语义：无失败路径；|angle| 巨大时迭代次数多，与原有行为等价。
+ * 边界行为：angle==lv_PI → lv_PI；angle==-lv_PI → -lv_PI；|angle|<=2π 一次迭代收敛。
+ * 扩展点：无。
+ */
+static inline double lv_angle_diff_pi(double angle) {
+    while (angle > lv_PI)
+        angle -= 2.0 * lv_PI;
+    while (angle < -lv_PI)
+        angle += 2.0 * lv_PI;
+    return angle;
+}
 
 /* ============================================================
  * 插值工具
@@ -305,14 +340,43 @@ lv_PUBLIC_API int lv_finite_difference_vec(lvFdVecFunc fn, void *userdata, doubl
                                            const double *f_base, double *df, int n);
 
 /**
+ * @brief 相对容差缩放（3B 收敛 helper）：eps * max(1, |mag|)。
+ *
+ * 【契约卡】
+ * - 语义契约：基准容差 eps 按量级 |mag| 放大；|mag| <= 1 时保持 eps 不变。
+ *   量纲指数（k=1/2/3 的 scale^n）由调用点自行折算进 mag，helper 不感知量纲。
+ * - 前置条件：eps 为有限非负值；mag 为有限值。
+ * - 失败/截断语义：无失败路径；|mag| 极大时 eps*|mag| 可能上溢为 +inf，
+ *   与各调用点原有行为一致（不额外钳制）。
+ * - 边界行为：mag==0 → eps；|mag|<=1 → eps；eps==0 → 0；mag 为 NaN → NaN（fmax/fabs 透传）。
+ * - 扩展点：量纲缩放 k 的折算（max_el²、max_coord³ 等）保留在调用点，
+ *   本函数仅承载 `eps * max(1, |x|)` 单一形态（终审一：体内无 mode 分支）。
+ *
+ * 收敛来源（K5-3B，原 7 处 `tol = eps * fmax(1.0, ...)` 手写形态）：
+ * - k=1（与 |x| 同量纲）：euclidean_geometry_helpers.c（ac）、
+ *   geometry_csg_hull.c（max_vertex_abs）、algebraic.c（mid）；
+ * - k=2（量纲 L²）：geometry_csg_eval.c（max_el²）、propagation.c（max_coord²）；
+ * - k=3（量纲 L³）：geo_predicate.c（max_coord³）。
+ *
+ * @param eps 基准容差（>0）
+ * @param mag 量级基准（可为负，内部取绝对值）
+ * @return eps * max(1, |mag|)
+ */
+static inline double lv_rel_tol_scale(double eps, double mag) {
+    return eps * fmax(1.0, fabs(mag));
+}
+
+/**
  * @brief 自适应相对步长：eps * max(1, |x|)。
  *
  * 原语义：float_error.c finite_difference_partial 与
  * geo_constraint_solver_newton.c build_jacobian_and_residual 的自适应步长策略，
  * 保证 |x| 很大时扰动仍可区分、|x| 很小时不放大扰动。
+ *
+ * K5-3B 后委托 lv_rel_tol_scale（数值逐位一致），保留领域语义命名。
  */
 static inline double lv_fd_step_adaptive(double x, double eps) {
-    return eps * fmax(1.0, fabs(x));
+    return lv_rel_tol_scale(eps, x);
 }
 
 /**
@@ -322,6 +386,41 @@ static inline double lv_fd_step_adaptive(double x, double eps) {
  */
 static inline double lv_fd_step_relative(double x, double eps) {
     return eps * (fabs(x) + 1.0);
+}
+
+/* ============================================================
+ * 3D 向量归一化纯函数（K5-4A 收敛）
+ * ============================================================ */
+
+/**
+ * @brief 3D 向量归一化纯函数：模长不低于阈值时输出归一化分量。
+ *
+ * 【契约卡】
+ * - 语义契约：len = sqrt(x²+y²+z²)；len >= threshold 时输出
+ *   (x/len, y/len, z/len) 并返回 true；len < threshold 时返回 false
+ *   且不写入输出。零长度分支（跳过/返回错误）由调用点处理。
+ * - 前置条件：threshold >= 0；ox/oy/oz 非空；x/y/z 为有限值。
+ * - 失败/截断语义：len < threshold → false，输出保持调用点传入值不变。
+ * - 边界行为：len == threshold → 归一化（严格 < 才失败）；
+ *   零向量 (0,0,0) → false；非零向量恒 true。
+ * - 扩展点：threshold 参数化吸收各调用点阈值
+ *   （ga_interface.c lv_EPSILON_HIGH、algebra_mode.c lv_NORMALIZATION_THRESHOLD），
+ *   与 lv_vec3_normalize 的固定 lv_EPSILON_MEDIUM 语义并存。
+ *
+ * @param x, y, z  待归一化向量分量
+ * @param threshold 零长度判定阈值（>= 0）
+ * @param ox, oy, oz 归一化结果输出（与输入分量同名传参安全）
+ * @return 归一化成功返回 true；len < threshold 返回 false
+ */
+static inline bool lv_normalize_3d(double x, double y, double z, double threshold, double *ox, double *oy,
+                                   double *oz) {
+    double len = sqrt(x * x + y * y + z * z);
+    if (len < threshold)
+        return false;
+    *ox = x / len;
+    *oy = y / len;
+    *oz = z / len;
+    return true;
 }
 
 #ifdef __cplusplus

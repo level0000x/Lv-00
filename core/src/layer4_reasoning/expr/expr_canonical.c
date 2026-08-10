@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============== 内部辅助 ============== */
 
@@ -152,23 +153,18 @@ lvExpr *lv_expr_function(const char *func_name, lvExpr *argument) {
  * VTable 类型分发 — 消除 ExprType switch 反模式
  * ============================================================ */
 
-/** @brief 表达式虚函数表条目（每个 type 一组操作） */
-typedef struct {
-    /** 释放 type 特有数据（不释放 lvExpr 结构体本身） */
-    void (*destroy_data)(lvExpr *e);
-    /** 复制 type 特有数据到 dst（已分配好，仅填充 data 字段） */
-    int (*copy_data)(const lvExpr *src, lvExpr *dst);
-} ExprVTableEntry;
-
 /* ── 各 type 的 destroy 实现 ── */
 
 static void destroy_variable(lvExpr *e) { lv_free((void **)&e->data.variable.name); }
 static void destroy_rational(lvExpr *e) { mpq_clear(e->data.rational.value); }
-static void destroy_power(lvExpr *e) { (void)e; /* 子表达式由调用者管理 */ }
+static void destroy_power(lvExpr *e) {
+    (void)e; /* exempt: 浅树生态——公共 lv_expr_destroy 非递归销毁，power 子表达式
+               由调用者管理（与 lambda_term 递归 destroy 语义不同，跨模块语义差异） */
+}
 static void destroy_composite(lvExpr *e) { lv_free((void **)&e->data.composite.operands); }
 static void destroy_function(lvExpr *e) { lv_free((void **)&e->data.function.func_name); }
 
-/* ── 各 type 的 copy 实现 ── */
+/* ── 各 type 的 copy 实现（深复制：副本子树与原件完全独立） ── */
 
 static int copy_variable(const lvExpr *src, lvExpr *dst) {
     dst->data.variable.name = lv_strdup(src->data.variable.name);
@@ -182,8 +178,10 @@ static int copy_rational(const lvExpr *src, lvExpr *dst) {
 }
 
 static int copy_power(const lvExpr *src, lvExpr *dst) {
-    dst->data.power.base = src->data.power.base;
-    dst->data.power.exponent = src->data.power.exponent;
+    dst->data.power.base = lv_expr_copy(src->data.power.base);
+    if (!dst->data.power.base) return -1;
+    dst->data.power.exponent = lv_expr_copy(src->data.power.exponent);
+    if (!dst->data.power.exponent) return -1;
     return 0;
 }
 
@@ -191,45 +189,82 @@ static int copy_composite(const lvExpr *src, lvExpr *dst) {
     dst->data.composite.count = src->data.composite.count;
     dst->data.composite.operands = (lvExpr **)lv_malloc((size_t)src->data.composite.count * sizeof(lvExpr *));
     if (!dst->data.composite.operands) return -1;
-    for (uint32_t i = 0; i < src->data.composite.count; i++)
-        dst->data.composite.operands[i] = src->data.composite.operands[i];
+    for (uint32_t i = 0; i < src->data.composite.count; i++) {
+        dst->data.composite.operands[i] = lv_expr_copy(src->data.composite.operands[i]);
+        if (!dst->data.composite.operands[i]) return -1;
+    }
     return 0;
 }
 
 static int copy_function(const lvExpr *src, lvExpr *dst) {
     dst->data.function.func_name = lv_strdup(src->data.function.func_name);
     if (!dst->data.function.func_name) return -1;
-    dst->data.function.argument = src->data.function.argument;
+    dst->data.function.argument = lv_expr_copy(src->data.function.argument);
+    if (!dst->data.function.argument) return -1;
     return 0;
 }
 
-/* ── VTable 数组 ── */
+/* ── 统一调度表（C1-1：clone/copy/destroy VTable 样板收敛，判据 A） ── */
 
-static const ExprVTableEntry kExprVTables[EXPR_TYPE_FUNCTION + 1] = {
-    [EXPR_TYPE_VARIABLE] = { destroy_variable, copy_variable },
-    [EXPR_TYPE_RATIONAL] = { destroy_rational, copy_rational },
-    [EXPR_TYPE_POWER]    = { destroy_power,    copy_power },
-    [EXPR_TYPE_PRODUCT]  = { destroy_composite, copy_composite },
-    [EXPR_TYPE_SUM]      = { destroy_composite, copy_composite },
-    [EXPR_TYPE_FUNCTION] = { destroy_function,  copy_function },
+typedef void (*ExprDestroyFn)(lvExpr *e);
+typedef int (*ExprCopyFn)(const lvExpr *src, lvExpr *dst);
+
+static const ExprDestroyFn kExprDestroyTable[EXPR_TYPE_FUNCTION + 1] = {
+    [EXPR_TYPE_VARIABLE] = destroy_variable,
+    [EXPR_TYPE_RATIONAL] = destroy_rational,
+    [EXPR_TYPE_POWER]    = destroy_power,
+    [EXPR_TYPE_PRODUCT]  = destroy_composite,
+    [EXPR_TYPE_SUM]      = destroy_composite,
+    [EXPR_TYPE_FUNCTION] = destroy_function,
 };
 
-static const ExprVTableEntry *expr_get_vtable(lvExprType type) {
-    if (type < 0 || type > EXPR_TYPE_FUNCTION) return NULL;
-    return &kExprVTables[type];
-}
+static const ExprCopyFn kExprCopyTable[EXPR_TYPE_FUNCTION + 1] = {
+    [EXPR_TYPE_VARIABLE] = copy_variable,
+    [EXPR_TYPE_RATIONAL] = copy_rational,
+    [EXPR_TYPE_POWER]    = copy_power,
+    [EXPR_TYPE_PRODUCT]  = copy_composite,
+    [EXPR_TYPE_SUM]      = copy_composite,
+    [EXPR_TYPE_FUNCTION] = copy_function,
+};
 
 /* ============== 表达式销毁/复制 ============== */
+
+/**
+ * @brief 递归释放整棵 lvExpr 子树（内部辅助，仅供 lv_expr_copy 失败路径清理）
+ *
+ * 语义契约：自顶向下对子树内每个节点依次调用其 destroy_data、释放 label 并 lv_free。
+ * 前置条件：e 指向 lv_expr_create_* 家族分配的有效节点（NULL 安全）。
+ * 失败/截断语义：无失败路径。
+ * 边界行为：e == NULL → 无操作。
+ * exempt: 此处的 type 分支是树结构遍历（不同节点类型的子字段不同），
+ *         不属于 VTable 调度样板；公共 lv_expr_destroy 保持非递归浅销毁语义
+ *         （浅树生态，子表达式由调用者管理），仅 copy 失败路径用递归清理。
+ * 扩展点：新增表达式类型时须在此补充子树递归释放。
+ */
+static void expr_subtree_destroy(lvExpr *e) {
+    if (!e)
+        return;
+    if (e->type == EXPR_TYPE_POWER) {
+        expr_subtree_destroy(e->data.power.base);
+        expr_subtree_destroy(e->data.power.exponent);
+    } else if (e->type == EXPR_TYPE_PRODUCT || e->type == EXPR_TYPE_SUM) {
+        for (uint32_t i = 0; i < e->data.composite.count; i++)
+            expr_subtree_destroy(e->data.composite.operands[i]);
+    } else if (e->type == EXPR_TYPE_FUNCTION) {
+        expr_subtree_destroy(e->data.function.argument);
+    }
+    LV_DISPATCH_VOID(kExprDestroyTable, e->type, e);
+    lv_free((void **) &e->label);
+    lv_free((void **) &e);
+}
 
 void lv_expr_destroy(lvExpr **expr) {
     if (!expr || !*expr)
         return;
     lvExpr *e = *expr;
 
-    /* VTable dispatch */
-    const ExprVTableEntry *vt = expr_get_vtable(e->type);
-    if (vt && vt->destroy_data)
-        vt->destroy_data(e);
+    /* 统一调度表分发（LV_DISPATCH_VOID：越界/NULL 槽自动跳过） */
+    LV_DISPATCH_VOID(kExprDestroyTable, e->type, e);
 
     lv_free((void **) &e->label);
     lv_free((void **) expr);
@@ -243,16 +278,9 @@ lvExpr *lv_expr_copy(const lvExpr *expr) {
         return NULL;
     copy->type = expr->type;
 
-    /* VTable dispatch */
-    const ExprVTableEntry *vt = expr_get_vtable(expr->type);
-    if (vt && vt->copy_data) {
-        if (vt->copy_data(expr, copy) != 0) {
-            lv_free((void **) &copy);
-            return NULL;
-        }
-    } else {
-        /* 未知类型 */
-        lv_free((void **) &copy);
+    /* 统一调度表分发（fallback=-1：未知类型视为复制失败） */
+    if (LV_DISPATCH(kExprCopyTable, expr->type, -1, expr, copy) != 0) {
+        expr_subtree_destroy(copy);
         return NULL;
     }
 

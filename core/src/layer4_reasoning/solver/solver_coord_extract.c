@@ -35,6 +35,38 @@ static int equation_system_push_impl(EquationSystem *sys, mpz_poly_t poly, int v
 /* equation_system_push/clear 实现在 solver_eq_system.c 中，由 solver_types.h 声明 */
 
 /* ------------------------------------------------------------------ */
+/*  coeff_pool 配对收敛（K4 C2-3）：init 负责 mpz_poly_init + 池分配 +
+ *  系数元素初始化，失败时内部已归还池；push 负责 equation_system_push
+ * （深拷贝进方程系统）后归还池。配对契约：池分配成功后，无论 push
+ *  成败，池内存必须经 coeff_pool_clear 归还。 */
+/* ------------------------------------------------------------------ */
+
+/** @brief 从系数池分配 poly->coeffs 并初始化系数元素
+ * @return 0 成功；-1 分配失败（内部已完成 coeff_pool_clear 归还） */
+static int solver_poly_pool_init(mpz_poly_t *poly, int degree, int coeff_count) {
+    mpz_poly_init(poly);
+    poly->degree = degree;
+    poly->coeffs = coeff_pool_alloc(coeff_count);
+    if (!poly->coeffs) {
+        coeff_pool_clear(poly);
+        return -1;
+    }
+    for (int i = 0; i <= degree; i++)
+        mpz_init(poly->coeffs[i]);
+    return 0;
+}
+
+/** @brief 将 poly 推入方程系统（深拷贝）并归还池；失败时设置 OOM 错误
+ * @return equation_system_push 的返回码（0 成功；非 0 失败，池已归还） */
+static int solver_poly_pool_push(EquationSystem *sys, mpz_poly_t *poly, int var_node_id, int coord_index) {
+    int rc = equation_system_push(sys, *poly, var_node_id, coord_index);
+    coeff_pool_clear(poly);
+    if (rc != 0)
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+    return rc;
+}
+
+/* ------------------------------------------------------------------ */
 
 /* ------------------------------------------------------------------ */
 /*  内部：从 SymbolicCoord 提取数值的辅助函数                          */
@@ -100,7 +132,7 @@ int coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
         return false;
     int type = c->type;
-    if (type >= 0 && type < (int)(sizeof(coord_to_double_ops) / sizeof(coord_to_double_ops[0])) && coord_to_double_ops[type])
+    if (lv_index_in_range(type, (int)(sizeof(coord_to_double_ops) / sizeof(coord_to_double_ops[0]))) && coord_to_double_ops[type])
         return coord_to_double_ops[type](c, out);
     return false;
 }
@@ -488,11 +520,7 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                 mpz_sub(dy_s, ly2_s, ly1_s);
 
                 mpz_poly_t poly;
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = coeff_pool_alloc(2);
-                if (!poly.coeffs) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_init(&poly, 1, 2) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(lx1_s);
@@ -501,8 +529,6 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly2_s);
                     return 0;
                 }
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
                 mpz_neg(poly.coeffs[1], dy_s);
                 {
                     mpz_t term1, term2;
@@ -515,8 +541,7 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(term1);
                     mpz_clear(term2);
                 }
-                if (equation_system_push(sys, poly, pt->id, 0) != 0) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, pt->id, 0) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(lx1_s);
@@ -525,13 +550,8 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly2_s);
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
-                coeff_pool_clear(&poly);
 
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = coeff_pool_alloc(2);
-                if (!poly.coeffs) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_init(&poly, 1, 2) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(lx1_s);
@@ -540,8 +560,6 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly2_s);
                     return 0;
                 }
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
                 mpz_set(poly.coeffs[1], dx_s);
                 {
                     mpz_t term1, term2;
@@ -555,8 +573,7 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(term1);
                     mpz_clear(term2);
                 }
-                if (equation_system_push(sys, poly, pt->id, 1) != 0) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, pt->id, 1) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(lx1_s);
@@ -565,7 +582,6 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     mpz_clear(ly2_s);
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
-                coeff_pool_clear(&poly);
                 mpz_clear(dx_s);
                 mpz_clear(dy_s);
             } else {
@@ -577,39 +593,23 @@ static int extract_incidence(const ConstraintGraph *graph, EquationSystem *sys, 
                     double dx = lx2 - lx1;
                     double dy = ly2 - ly1;
                     mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = coeff_pool_alloc(2);
-                    if (!poly.coeffs) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_init(&poly, 1, 2) != 0) {
                         return 0;
                     }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(-dy, poly.coeffs[1], scale);
                     double_to_mpz_scaled(dy * lx1 - dx * ly1, poly.coeffs[0], scale);
-                    if (equation_system_push(sys, poly, pt->id, 0) != 0) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_push(sys, &poly, pt->id, 0) != 0) {
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
-                    coeff_pool_clear(&poly);
 
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = coeff_pool_alloc(2);
-                    if (!poly.coeffs) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_init(&poly, 1, 2) != 0) {
                         return 0;
                     }
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
                     double_to_mpz_scaled(dx, poly.coeffs[1], scale);
                     double_to_mpz_scaled(-dx * ly1 - dy * lx1, poly.coeffs[0], scale);
-                    if (equation_system_push(sys, poly, pt->id, 1) != 0) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_push(sys, &poly, pt->id, 1) != 0) {
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
-                    coeff_pool_clear(&poly);
                 }
             }
             mpz_clear(lx1_s);
@@ -740,16 +740,10 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                 }
 
                 mpz_poly_t poly;
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = coeff_pool_alloc(2);
-                if (poly.coeffs) {
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
+                if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                     mpz_set(poly.coeffs[1], D_s);
                     mpz_neg(poly.coeffs[0], x_num_s);
-                    if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_push(sys, &poly, rpt->id, 0) != 0) {
                         mpz_clear(D_s);
                         mpz_clear(x_num_s);
                         mpz_clear(y_num_s);
@@ -773,21 +767,12 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                         mpz_clear(l2y2_s);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
-                    coeff_pool_clear(&poly);
-                } else {
-                    coeff_pool_clear(&poly);
                 }
 
-                mpz_poly_init(&poly);
-                poly.degree = 1;
-                poly.coeffs = coeff_pool_alloc(2);
-                if (poly.coeffs) {
-                    mpz_init(poly.coeffs[1]);
-                    mpz_init(poly.coeffs[0]);
+                if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                     mpz_set(poly.coeffs[1], D_s);
                     mpz_neg(poly.coeffs[0], y_num_s);
-                    if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
-                        coeff_pool_clear(&poly);
+                    if (solver_poly_pool_push(sys, &poly, rpt->id, 1) != 0) {
                         mpz_clear(D_s);
                         mpz_clear(x_num_s);
                         mpz_clear(y_num_s);
@@ -811,9 +796,6 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
                         mpz_clear(l2y2_s);
                         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                     }
-                    coeff_pool_clear(&poly);
-                } else {
-                    coeff_pool_clear(&poly);
                 }
             }
 
@@ -895,39 +877,23 @@ static int extract_intersection(const ConstraintGraph *graph, EquationSystem *sy
             double y_numerator = le2.a * le1.c - le1.a * le2.c;
 
             mpz_poly_t poly;
-            mpz_poly_init(&poly);
-            poly.degree = 1;
-            poly.coeffs = coeff_pool_alloc(lv_SOLVER_LINEAR_COEFF_COUNT);
-            if (!poly.coeffs) {
-                coeff_pool_clear(&poly);
+            if (solver_poly_pool_init(&poly, 1, lv_SOLVER_LINEAR_COEFF_COUNT) != 0) {
                 return 0;
             }
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
             double_to_mpz_scaled(D, poly.coeffs[1], scale);
             double_to_mpz_scaled(-x_numerator, poly.coeffs[0], scale);
-            if (equation_system_push(sys, poly, rpt->id, 0) != 0) {
-                coeff_pool_clear(&poly);
+            if (solver_poly_pool_push(sys, &poly, rpt->id, 0) != 0) {
                 lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
             }
-            coeff_pool_clear(&poly);
 
-            mpz_poly_init(&poly);
-            poly.degree = 1;
-            poly.coeffs = coeff_pool_alloc(2);
-            if (!poly.coeffs) {
-                coeff_pool_clear(&poly);
+            if (solver_poly_pool_init(&poly, 1, 2) != 0) {
                 return 0;
             }
-            mpz_init(poly.coeffs[1]);
-            mpz_init(poly.coeffs[0]);
             double_to_mpz_scaled(D, poly.coeffs[1], scale);
             double_to_mpz_scaled(-y_numerator, poly.coeffs[0], scale);
-            if (equation_system_push(sys, poly, rpt->id, 1) != 0) {
-                coeff_pool_clear(&poly);
+            if (solver_poly_pool_push(sys, &poly, rpt->id, 1) != 0) {
                 lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
             }
-            coeff_pool_clear(&poly);
         }
     }
     return 0;
@@ -964,12 +930,7 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
 
         {
             mpz_poly_t poly;
-            mpz_poly_init(&poly);
-            poly.degree = 1;
-            poly.coeffs = coeff_pool_alloc(2);
-            if (poly.coeffs) {
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
+            if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                 mpz_set(poly.coeffs[1], dy_s);
                 mpz_t term1, term2;
                 mpz_init(term1);
@@ -980,8 +941,7 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                 mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                 mpz_clear(term1);
                 mpz_clear(term2);
-                if (equation_system_push(sys, poly, p2->id, 0) != 0) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, p2->id, 0) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(x1_s);
@@ -991,17 +951,11 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
             }
-            coeff_pool_clear(&poly);
         }
 
         {
             mpz_poly_t poly;
-            mpz_poly_init(&poly);
-            poly.degree = 1;
-            poly.coeffs = coeff_pool_alloc(2);
-            if (poly.coeffs) {
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
+            if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                 mpz_neg(poly.coeffs[1], dx_s);
                 mpz_t term1, term2;
                 mpz_init(term1);
@@ -1012,8 +966,7 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                 mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                 mpz_clear(term1);
                 mpz_clear(term2);
-                if (equation_system_push(sys, poly, p2->id, 1) != 0) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, p2->id, 1) != 0) {
                     mpz_clear(dx_s);
                     mpz_clear(dy_s);
                     mpz_clear(x1_s);
@@ -1023,7 +976,6 @@ static int extract_betweenness(const ConstraintGraph *graph, EquationSystem *sys
                     lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                 }
             }
-            coeff_pool_clear(&poly);
         }
 
         mpz_clear(dx_s);
@@ -1078,12 +1030,7 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
 
                 {
                     mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = coeff_pool_alloc(2);
-                    if (poly.coeffs) {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
+                    if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                         mpz_set(poly.coeffs[1], dy_s);
                         mpz_t term1, term2;
                         mpz_init(term1);
@@ -1094,8 +1041,7 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                         mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                         mpz_clear(term1);
                         mpz_clear(term2);
-                        if (equation_system_push(sys, poly, inner->id, 0) != 0) {
-                            coeff_pool_clear(&poly);
+                        if (solver_poly_pool_push(sys, &poly, inner->id, 0) != 0) {
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
                             mpz_clear(sx1_s);
@@ -1105,17 +1051,11 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         }
                     }
-                    coeff_pool_clear(&poly);
                 }
 
                 {
                     mpz_poly_t poly;
-                    mpz_poly_init(&poly);
-                    poly.degree = 1;
-                    poly.coeffs = coeff_pool_alloc(2);
-                    if (poly.coeffs) {
-                        mpz_init(poly.coeffs[1]);
-                        mpz_init(poly.coeffs[0]);
+                    if (solver_poly_pool_init(&poly, 1, 2) == 0) {
                         mpz_neg(poly.coeffs[1], dx_s);
                         mpz_t term1, term2;
                         mpz_init(term1);
@@ -1126,8 +1066,7 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                         mpz_fdiv_q_ui(poly.coeffs[0], term1, (unsigned long) scale);
                         mpz_clear(term1);
                         mpz_clear(term2);
-                        if (equation_system_push(sys, poly, inner->id, 1) != 0) {
-                            coeff_pool_clear(&poly);
+                        if (solver_poly_pool_push(sys, &poly, inner->id, 1) != 0) {
                             mpz_clear(dx_s);
                             mpz_clear(dy_s);
                             mpz_clear(sx1_s);
@@ -1137,7 +1076,6 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
                             lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
                         }
                     }
-                    coeff_pool_clear(&poly);
                 }
 
                 mpz_clear(dx_s);
@@ -1204,43 +1142,21 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
     int64_t scale = lv_SOLVER_SCALE_FACTOR;
 
     mpz_poly_t poly;
-    mpz_poly_init(&poly);
-    poly.degree = 2;
-    poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
-    if (!poly.coeffs) {
-        coeff_pool_clear(&poly);
+    if (solver_poly_pool_init(&poly, 2, lv_SOLVER_QUADRATIC_COEFF_COUNT) != 0)
         return 0;
-    }
-    mpz_init(poly.coeffs[2]);
-    mpz_init(poly.coeffs[1]);
-    mpz_init(poly.coeffs[0]);
     mpz_set_si(poly.coeffs[2], scale);
     double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
     double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-    if (equation_system_push(sys, poly, nodeB->id, 0) != 0) {
-        coeff_pool_clear(&poly);
+    if (solver_poly_pool_push(sys, &poly, nodeB->id, 0) != 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
-    }
-    coeff_pool_clear(&poly);
 
-    mpz_poly_init(&poly);
-    poly.degree = 2;
-    poly.coeffs = coeff_pool_alloc(3);
-    if (!poly.coeffs) {
-        coeff_pool_clear(&poly);
+    if (solver_poly_pool_init(&poly, 2, 3) != 0)
         return 0;
-    }
-    mpz_init(poly.coeffs[2]);
-    mpz_init(poly.coeffs[1]);
-    mpz_init(poly.coeffs[0]);
     mpz_set_si(poly.coeffs[2], scale);
     double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
     double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
-    if (equation_system_push(sys, poly, nodeB->id, 1) != 0) {
-        coeff_pool_clear(&poly);
+    if (solver_poly_pool_push(sys, &poly, nodeB->id, 1) != 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
-    }
-    coeff_pool_clear(&poly);
     return 0;
 }
 
@@ -1273,7 +1189,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
             continue;
 
         int type = c->type;
-        if (type >= 0 && type < (int)(sizeof(constraint_extract_ops) / sizeof(constraint_extract_ops[0])) && constraint_extract_ops[type]) {
+        if (lv_index_in_range(type, (int)(sizeof(constraint_extract_ops) / sizeof(constraint_extract_ops[0]))) && constraint_extract_ops[type]) {
             if (constraint_extract_ops[type](graph, sys, c) != 0)
                 goto push_error;
         } else {
@@ -1334,42 +1250,22 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
                    注意：距离方程展开后常数项为 x1^2 + y1^2 - dist_sq，
                    原代码错误地使用了 x1^2 + dist_sq（符号错误）。 */
                 mpz_poly_t poly;
-                mpz_poly_init(&poly);
-                poly.degree = 2;
-                /* GMP 兼容性要求：mpz_poly_clear 内部调用 free()，
-                 * 因此此处必须使用标准 malloc 而非 lv_malloc。
-                 * lv_SOLVER_QUADRATIC_COEFF_COUNT 为常量，不存在溢出风险。 */
-                poly.coeffs = coeff_pool_alloc(lv_SOLVER_QUADRATIC_COEFF_COUNT);
-                if (!poly.coeffs) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_init(&poly, 2, lv_SOLVER_QUADRATIC_COEFF_COUNT) != 0)
                     continue;
-                }
-                mpz_init(poly.coeffs[2]);
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
                 mpz_set_si(poly.coeffs[2], scale);                                        /* x^2 系数 */
                 double_to_mpz_scaled(-2.0 * x1, poly.coeffs[1], scale);                   /* x 系数 */
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                if (lv_equation_push_checked(sys, poly, node->id, 0) != 0) goto push_error;
-                coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, node->id, 0) != 0)
+                    goto push_error;
 
                 /* 同理对 y 建立方程：y^2 - 2*y1*y + (x1^2 + y1^2 - dist_sq) = 0 */
-                mpz_poly_init(&poly);
-                poly.degree = 2;
-                /* GMP 要求使用标准分配器 */
-                poly.coeffs = coeff_pool_alloc(3);
-                if (!poly.coeffs) {
-                    coeff_pool_clear(&poly);
+                if (solver_poly_pool_init(&poly, 2, 3) != 0)
                     continue;
-                }
-                mpz_init(poly.coeffs[2]);
-                mpz_init(poly.coeffs[1]);
-                mpz_init(poly.coeffs[0]);
                 mpz_set_si(poly.coeffs[2], scale);
                 double_to_mpz_scaled(-2.0 * y1, poly.coeffs[1], scale);
                 double_to_mpz_scaled(x1 * x1 + y1 * y1 - dist_sq, poly.coeffs[0], scale); /* 常数项（已修正符号） */
-                if (lv_equation_push_checked(sys, poly, node->id, 1) != 0) goto push_error;
-                coeff_pool_clear(&poly);
+                if (solver_poly_pool_push(sys, &poly, node->id, 1) != 0)
+                    goto push_error;
             }
         }
     }
@@ -1461,24 +1357,4 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
 /*  内部：求解一元一次方程 a*x + b = 0                                    */
 /* ------------------------------------------------------------------ */
 
-/**
- * @brief 求解一元一次方程 a*x + b = 0
- *
- * 从多项式系数中提取 a (coeffs[1]) 和 b (coeffs[0])，计算 x = -b/a。
- *
- * @param poly  一元多项式指针（次数必须为 1）
- * @param x_out 输出：方程的解
- * @return true 表示成功求解，false 表示次数不为 1 或 a 近似为 0
- */
-bool solve_linear(const mpz_poly_t *poly, double *x_out) {
-    if (!poly || !x_out)
-        return false;
-    if (poly->degree != 1)
-        return false;
-    double a = mpz_get_d(poly->coeffs[1]);
-    double b = mpz_get_d(poly->coeffs[0]);
-    if (fabs(a) < lv_ZERO_EPSILON)
-        return false;
-    *x_out = -b / a;
-    return true;
-}
+/* 一元一次求解统一走 solver_linear.c 的 solve_linear，此处不再重复定义。 */

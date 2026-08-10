@@ -134,6 +134,117 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
         }
     }
 
+    /* 导出区域类型节点 → Polygon 坐标环（顶点取各边界线段首端点，末点闭合） */
+    for (int i = 0; i < graph->node_count; i++) {
+        const GeomNode *node = graph_get_node(graph, i);
+        if (!node || node->type != GEOM_REGION)
+            continue;
+
+        /* 预检：统计坐标可用的边界线段数，不足 3 条无法构成多边形环 */
+        int usable = 0;
+        for (int s = 0; s < node->data.region.segment_count; s++) {
+            const GeomNode *seg = node->data.region.boundary_segments[s];
+            if (seg && seg->type == GEOM_LINE_SEGMENT && seg->coord_count >= 4 && seg->symbolic_coords &&
+                seg->symbolic_coords[0] && seg->symbolic_coords[1])
+                usable++;
+        }
+        if (usable < 3)
+            continue;
+
+        if (feature_count > 0)
+            lv_json_buf_append_raw(&buf, ",\n");
+        lv_json_buf_append_raw(&buf, "    {\n");
+        lv_json_buf_append_raw(&buf, "      \"type\": \"Feature\",\n");
+        lv_json_buf_append_raw(&buf, "      \"geometry\": {\n");
+        lv_json_buf_append_raw(&buf, "        \"type\": \"Polygon\",\n");
+        lv_json_buf_append_raw(&buf, "        \"coordinates\": [ [\n");
+
+        int ring_pts = 0;
+        for (int s = 0; s < node->data.region.segment_count; s++) {
+            const GeomNode *seg = node->data.region.boundary_segments[s];
+            if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4 || !seg->symbolic_coords ||
+                !seg->symbolic_coords[0] || !seg->symbolic_coords[1])
+                continue;
+            double sx = symbolic_coord_to_double(seg->symbolic_coords[0]);
+            double sy = symbolic_coord_to_double(seg->symbolic_coords[1]);
+            if (ring_pts > 0)
+                lv_json_buf_append_raw(&buf, ", ");
+            lv_json_buf_append_fmt(&buf, "[%.15g, %.15g]", sx, sy);
+            ring_pts++;
+        }
+        /* GeoJSON 要求环闭合：重复首点 */
+        const GeomNode *first = node->data.region.boundary_segments[0];
+        double fx = symbolic_coord_to_double(first->symbolic_coords[0]);
+        double fy = symbolic_coord_to_double(first->symbolic_coords[1]);
+        lv_json_buf_append_fmt(&buf, ", [%.15g, %.15g]", fx, fy);
+
+        lv_json_buf_append_raw(&buf, "\n        ] ]\n");
+        lv_json_buf_append_raw(&buf, "      },\n");
+        lv_json_buf_append_raw(&buf, "      \"properties\": {\n");
+        lv_json_buf_append_fmt(&buf, "        \"id\": %d,\n", node->id);
+        lv_json_buf_append_raw(&buf, "        \"type\": \"region\"\n");
+        lv_json_buf_append_raw(&buf, "      }\n");
+        lv_json_buf_append_raw(&buf, "    }");
+        feature_count++;
+    }
+
+    /* 导出圆类型节点 → 采 32 点的近似多边形（圆心经中心/半径节点解析） */
+    for (int i = 0; i < graph->node_count; i++) {
+        const GeomNode *node = graph_get_node(graph, i);
+        if (!node || node->type != GEOM_CIRCLE)
+            continue;
+
+        double cx = 0.0, cy = 0.0, r = 0.0;
+        if (node->coord_count >= 3 && node->symbolic_coords && node->symbolic_coords[0] &&
+            node->symbolic_coords[1] && node->symbolic_coords[2]) {
+            cx = symbolic_coord_to_double(node->symbolic_coords[0]);
+            cy = symbolic_coord_to_double(node->symbolic_coords[1]);
+            r = symbolic_coord_to_double(node->symbolic_coords[2]);
+        } else {
+            const GeomNode *center = graph_get_node(graph, node->data.circle.center_node_id);
+            const GeomNode *radius_pt = graph_get_node(graph, node->data.circle.radius_node_id);
+            if (!center || center->coord_count < 2 || !center->symbolic_coords || !radius_pt ||
+                radius_pt->coord_count < 2 || !radius_pt->symbolic_coords)
+                continue;
+            cx = symbolic_coord_to_double(center->symbolic_coords[0]);
+            cy = symbolic_coord_to_double(center->symbolic_coords[1]);
+            double rx = symbolic_coord_to_double(radius_pt->symbolic_coords[0]);
+            double ry = symbolic_coord_to_double(radius_pt->symbolic_coords[1]);
+            r = sqrt((rx - cx) * (rx - cx) + (ry - cy) * (ry - cy));
+        }
+        if (r <= 0.0)
+            continue;
+
+        if (feature_count > 0)
+            lv_json_buf_append_raw(&buf, ",\n");
+        lv_json_buf_append_raw(&buf, "    {\n");
+        lv_json_buf_append_raw(&buf, "      \"type\": \"Feature\",\n");
+        lv_json_buf_append_raw(&buf, "      \"geometry\": {\n");
+        lv_json_buf_append_raw(&buf, "        \"type\": \"Polygon\",\n");
+        lv_json_buf_append_raw(&buf, "        \"coordinates\": [ [\n");
+
+        for (int k = 0; k < 32; k++) {
+            double ang = 2.0 * 3.14159265358979323846 * k / 32.0;
+            double px = cx + r * cos(ang);
+            double py = cy + r * sin(ang);
+            if (k > 0)
+                lv_json_buf_append_raw(&buf, ", ");
+            lv_json_buf_append_fmt(&buf, "[%.15g, %.15g]", px, py);
+        }
+        /* 闭合环：重复起始采样点（k=0 即 (cx+r, cy)） */
+        lv_json_buf_append_raw(&buf, ", ");
+        lv_json_buf_append_fmt(&buf, "[%.15g, %.15g]", cx + r, cy);
+
+        lv_json_buf_append_raw(&buf, "\n        ] ]\n");
+        lv_json_buf_append_raw(&buf, "      },\n");
+        lv_json_buf_append_raw(&buf, "      \"properties\": {\n");
+        lv_json_buf_append_fmt(&buf, "        \"id\": %d,\n", node->id);
+        lv_json_buf_append_raw(&buf, "        \"type\": \"circle\"\n");
+        lv_json_buf_append_raw(&buf, "      }\n");
+        lv_json_buf_append_raw(&buf, "    }");
+        feature_count++;
+    }
+
     lv_json_buf_append_raw(&buf, "\n  ]\n");
     lv_json_buf_append_raw(&buf, "}\n");
 

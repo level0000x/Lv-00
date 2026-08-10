@@ -8,16 +8,19 @@
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
+#define LV_EFFECT_TYPE_X(x) \
+    x(lv_EFFECT_PURE, "Pure") \
+    x(lv_EFFECT_FILE_READ, "FileRead") \
+    x(lv_EFFECT_FILE_WRITE, "FileWrite") \
+    x(lv_EFFECT_NETWORK, "Network") \
+    x(lv_EFFECT_UI_RENDER, "UIRender") \
+    x(lv_EFFECT_UI_INPUT, "UIInput") \
+    x(lv_EFFECT_RANDOM, "Random") \
+    x(lv_EFFECT_TIME, "Time")
+
 /** @brief lv_effect_type_name 名称表（按枚举值升序） */
 static const lvStrToEnumEntry s_lv_effect_type_name_entries[] = {
-    {"Pure", lv_EFFECT_PURE},
-    {"FileRead", lv_EFFECT_FILE_READ},
-    {"FileWrite", lv_EFFECT_FILE_WRITE},
-    {"Network", lv_EFFECT_NETWORK},
-    {"UIRender", lv_EFFECT_UI_RENDER},
-    {"UIInput", lv_EFFECT_UI_INPUT},
-    {"Random", lv_EFFECT_RANDOM},
-    {"Time", lv_EFFECT_TIME},
+    lv_XMACRO_TO_ENUM_TABLE(LV_EFFECT_TYPE_X)
 };
 
 const char *lv_effect_type_name(lvEffectType effect) {

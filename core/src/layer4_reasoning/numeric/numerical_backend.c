@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include "lv/config.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
 
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -275,7 +276,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A);
 static int serial_linsol_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static void serial_linsol_destroy(lvLinearSolver *LS);
 
-/* 迭代法接口声明（当前为占位实现，完整实现需引入迭代求解算法） */
+/* 迭代法接口声明（完整实现见下方：GMRES/BiCGSTAB 委托共享内核，CG 内联实现） */
 static int iterative_gmres_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_bicgstab_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
 static int iterative_cg_solve(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
@@ -518,6 +519,24 @@ typedef struct DenseLUData {
 } DenseLUData;
 
 /**
+ * @brief 释放求解器缓存的矩阵副本（LU clone/destroy 配对样板收敛，判据 A）
+ *
+ * 语义契约：m 非 NULL 时经操作表调用 m->ops->destroy(m)。
+ * 前置条件：m 必须由矩阵操作表 clone 创建。
+ * 失败/截断语义：无失败路径。
+ * 边界行为：m == NULL → 无操作。
+ * exempt: 与 hip_backend.c 的同名 static 函数逐字同构（判据 A 候选）；
+ *         统一为公共头 static inline 设施需修改白名单外头文件（本批次禁止），
+ *         保留双 static 副本，行为等价。
+ * 扩展点：无。
+ */
+static void linsol_clone_destroy(lvMatrix *m) {
+    if (m) {
+        m->ops->destroy(m);
+    }
+}
+
+/**
  * @brief 设置线性求解器
  *
  * 为稠密直接法分配一个与模板矩阵 A 同形的副本。
@@ -539,9 +558,7 @@ static int serial_linsol_setup(lvLinearSolver *LS, const lvMatrix *A) {
     /* 释放旧数据 */
     if (LS->solver_data) {
         DenseLUData *old = (DenseLUData *) LS->solver_data;
-        if (old->clone) {
-            old->clone->ops->destroy(old->clone);
-        }
+        linsol_clone_destroy(old->clone);
         lv_free((void **) &LS->solver_data);
     }
     LS->solver_data = lu;
@@ -598,9 +615,7 @@ static void serial_linsol_destroy(lvLinearSolver *LS) {
     }
     if (LS->solver_data) {
         DenseLUData *lu = (DenseLUData *) LS->solver_data;
-        if (lu->clone) {
-            lu->clone->ops->destroy(lu->clone);
-        }
+        linsol_clone_destroy(lu->clone);
         lv_free((void **) &LS->solver_data);
     }
     lv_free((void **) &LS);
@@ -634,9 +649,7 @@ static void serial_iter_linsol_destroy(lvLinearSolver *LS) {
     }
     if (LS->solver_data) {
         IterSolverData *is = (IterSolverData *) LS->solver_data;
-        if (is->clone) {
-            is->clone->ops->destroy(is->clone);
-        }
+        linsol_clone_destroy(is->clone);
         if (is->r) lv_free((void **) &is->r);
         if (is->p) lv_free((void **) &is->p);
         if (is->ap) lv_free((void **) &is->ap);
@@ -679,7 +692,7 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
             lv_free((void **) &is->ap);
         if (is->work)
             lv_free((void **) &is->work);
-        is->clone->ops->destroy(is->clone);
+        linsol_clone_destroy(is->clone);
         lv_free((void **) &is);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "迭代求解器工作区分配失败");
         return lv_BACKEND_MEM_ERROR;
@@ -688,8 +701,7 @@ static int serial_iter_setup(lvLinearSolver *LS, const lvMatrix *A) {
     /* 释放旧数据 */
     if (LS->solver_data) {
         IterSolverData *old = (IterSolverData *) LS->solver_data;
-        if (old->clone)
-            old->clone->ops->destroy(old->clone);
+        linsol_clone_destroy(old->clone);
         if (old->r)
             lv_free((void **) &old->r);
         if (old->p)
@@ -1107,7 +1119,7 @@ static void sparse_matrix_scale(lvMatrix *A, double c) {
  * @brief 设置单个元素值（越界时静默忽略，与稠密 default_matrix_set_element 一致）
  */
 static void sparse_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols)
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols))
         return;
     lv_sparse_set((lvSparseMatrix *) A->data, (int) row, (int) col, val);
 }
@@ -1116,7 +1128,7 @@ static void sparse_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, dou
  * @brief 获取单个元素值（越界返回 0.0，与稠密 default_matrix_get_element 一致）
  */
 static double sparse_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols)
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols))
         return 0.0;
     return lv_sparse_get((const lvSparseMatrix *) A->data, (int) row, (int) col);
 }
@@ -1191,7 +1203,7 @@ static lvLinearSolver *serial_linsol_create(lvLinearSolverMethod method) {
         [lv_LINSOL_ITERATIVE_BICGSTAB] = &serial_bicgstab_linsol_ops,
         [lv_LINSOL_ITERATIVE_CG] = &serial_cg_linsol_ops,
     };
-    if ((int) method >= 0 && (size_t) method < lv_ARRAY_SIZE(s_linsol_ops) && s_linsol_ops[(int) method]) {
+    if (lv_index_in_range((int) method, (int) lv_ARRAY_SIZE(s_linsol_ops)) && s_linsol_ops[(int) method]) {
         LS->ops = s_linsol_ops[(int) method];
     } else {
         lv_free((void **) &LS);

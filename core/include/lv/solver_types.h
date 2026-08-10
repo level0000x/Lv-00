@@ -4,6 +4,7 @@
 #include "lv/cross_platform.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
+#include "lv/lv_numeric.h" /* lv_rel_tol_scale（相对容差缩放，K5-3B 共享设施） */
 #include "mpz_poly.h"
 #include <math.h>
 
@@ -92,8 +93,12 @@ static inline int solver_quadratic_roots_double(double a, double b, double c, do
     }
     double disc = b * b - 4.0 * a * c;
     /* 相对容差：系数量级很大时（如 b² ~ 1e20）判别式浮点舍入误差可达
-     * O(|b²| * eps_machine)，远超绝对容差 lv_EPSILON_DOUBLE。 */
-    double disc_tol = lv_EPSILON_DOUBLE * fmax(1.0, fmax(b * b, fabs(4.0 * a * c)));
+     * O(|b²| * eps_machine)，远超绝对容差 lv_EPSILON_DOUBLE。
+     * K4-3B 收敛：eps * fmax(1.0, fmax(b², |4ac|)) → lv_rel_tol_scale(eps, mag)，
+     * mag = fmax(b², |4ac|) 恒非负故 helper 内 fabs 为恒等，数值逐位一致。
+     * 量纲语义（供 K5 对齐）：量纲 k = max(b², |4ac|)（判别式量纲 L²，
+     * 二维 fmax 而非单变量 |x| 形态），缩放基准 eps = lv_EPSILON_DOUBLE。 */
+    double disc_tol = lv_rel_tol_scale(lv_EPSILON_DOUBLE, fmax(b * b, fabs(4.0 * a * c)));
     if (disc < -disc_tol) {
         /* 无实数根 */
         return 0;
