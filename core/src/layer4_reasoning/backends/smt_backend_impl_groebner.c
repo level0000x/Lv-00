@@ -590,7 +590,7 @@ static int _poly_create_angle(lvRingRegistry *registry, int ring_id, const int *
     /* ---- 步骤 5：组合项 comb = dot·cosθ + cross·sinθ ----
      * 三角函数值约等于 0 时跳过对应项，避免与零多项式相乘产生零系数项。 */
     int c_cos = -1, c_sin = -1, term_cos = -1, term_sin = -1, comb = -1;
-    const double trig_eps = 1e-12;
+    const double trig_eps = lv_EPSILON_ULTRA;
     if (fabs(cos_t) > trig_eps) {
         ANGLE_CREATE(c_cos, _poly_create_const(registry, ring_id, cos_t, var_count, "angle_cos"));
         ANGLE_CREATE(term_cos, poly_multiply(registry, dot, c_cos, "angle_term_cos"));

@@ -22,6 +22,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "../../layer4_reasoning/proof/trust_color_x.h"
 
 
 /* ==================== 内部辅助函数 ==================== */
@@ -31,19 +32,29 @@
  * @param type 证明步骤类型
  * @return 类型标识符字符串
  */
+/* 步骤类型 -> 英文标识符 映射表（本文件内局部 X 主源，按枚举值升序） */
+#define LV_PROOF_STEP_TYPE_X(X) \
+    X(PROOF_STEP_ADD_NODE,       "ADD_NODE") \
+    X(PROOF_STEP_ADD_CONSTRAINT, "ADD_CONSTRAINT") \
+    X(PROOF_STEP_REWRITE,        "REWRITE") \
+    X(PROOF_STEP_FUNCTION_APP,   "FUNCTION_APP") \
+    X(PROOF_STEP_PACK_FUNCTION,  "PACK_FUNCTION") \
+    X(PROOF_STEP_NORMALIZATION,  "NORMALIZATION") \
+    X(PROOF_STEP_UNIFY,          "UNIFY") \
+    X(PROOF_STEP_EX_FALSO,       "EX_FALSO") \
+    X(PROOF_STEP_ORACLE,         "ORACLE")
+
+#define LV_PROOF_STEP_TO_COQNAME(sym, coq) [sym] = coq,
+static const char *const s_proof_step_coq_names[] = {
+    LV_PROOF_STEP_TYPE_X(LV_PROOF_STEP_TO_COQNAME)
+};
+#undef LV_PROOF_STEP_TO_COQNAME
+#undef LV_PROOF_STEP_TYPE_X
+
 static const char *lv_step_type_name(ProofStepType type) {
-    switch (type) {
-        case PROOF_STEP_ADD_NODE:        return "ADD_NODE";
-        case PROOF_STEP_ADD_CONSTRAINT:  return "ADD_CONSTRAINT";
-        case PROOF_STEP_REWRITE:         return "REWRITE";
-        case PROOF_STEP_FUNCTION_APP:    return "FUNCTION_APP";
-        case PROOF_STEP_PACK_FUNCTION:   return "PACK_FUNCTION";
-        case PROOF_STEP_NORMALIZATION:   return "NORMALIZATION";
-        case PROOF_STEP_UNIFY:           return "UNIFY";
-        case PROOF_STEP_EX_FALSO:        return "EX_FALSO";
-        case PROOF_STEP_ORACLE:          return "ORACLE";
-        default:                         return "UNKNOWN";
-    }
+    if ((unsigned) type < lv_ARRAY_SIZE(s_proof_step_coq_names))
+        return s_proof_step_coq_names[type];
+    return "UNKNOWN";
 }
 
 /**
@@ -51,22 +62,17 @@ static const char *lv_step_type_name(ProofStepType type) {
  * @param color 信任颜色
  * @return 颜色名
  */
+/* 颜色 -> Coq 名称 映射表（按枚举值升序，自 LV_PROOF_COLOR_X 生成） */
+#define LV_PROOF_COLOR_TO_COQNAME(sym, disp, hex, coq) [sym] = coq,
+static const char *const s_proof_color_coq_names[] = {
+    LV_PROOF_COLOR_X(LV_PROOF_COLOR_TO_COQNAME)
+};
+#undef LV_PROOF_COLOR_TO_COQNAME
+
 static const char *lv_color_name(ProofColor color) {
-    switch (color) {
-        case PROOF_COLOR_GREEN:             return "GREEN";
-        case PROOF_COLOR_BLUE_UNEXPLORED:   return "BLUE_UNEXPLORED";
-        case PROOF_COLOR_BLUE_RESOURCE:     return "BLUE_RESOURCE";
-        case PROOF_COLOR_BLUE_OUT_OF_RANGE: return "BLUE_OUT_OF_RANGE";
-        case PROOF_COLOR_GREEN_VERIFIED:    return "GREEN_VERIFIED";
-        case PROOF_COLOR_YELLOW:            return "YELLOW";
-        case PROOF_COLOR_ORANGE_ORACLE:     return "ORANGE_ORACLE";
-        case PROOF_COLOR_ORANGE_EX_FALSO:   return "ORANGE_EX_FALSO";
-        case PROOF_COLOR_AMBER:             return "AMBER";
-        case PROOF_COLOR_DARK_ORANGE:       return "DARK_ORANGE";
-        case PROOF_COLOR_GREEN_COMPLETE:    return "GREEN_COMPLETE";
-        case PROOF_COLOR_RED_CONFLICT:      return "RED_CONFLICT";
-        default:                            return "UNKNOWN";
-    }
+    if ((unsigned) color < lv_ARRAY_SIZE(s_proof_color_coq_names))
+        return s_proof_color_coq_names[color];
+    return "UNKNOWN";
 }
 
 /**

@@ -255,7 +255,7 @@ lvRegistryData *registry_data_ensure(void) {
  */
 static lvPolynomial *poly_internal_make_term(const lvPolynomialRing *ring, int var_idx, int power,
                                              double coeff_var, const char *label) {
-    if (!ring || !groebner_id_in_range(var_idx, ring->var_count))
+    if (!ring || !lv_index_in_range(var_idx, ring->var_count))
         return NULL;
     lvPolynomial *poly = poly_internal_create(ring, 2, label);
     if (!poly)
@@ -402,7 +402,7 @@ static void groebner_engine_ideal_append(const GroebnerEngineEncodeCtx *ctx, lvP
 
 /* 编码辅助：取节点 id 的 (x, y) 变量索引；节点无变量映射返回 -1 */
 static int groebner_engine_var_xy(const GroebnerEngineEncodeCtx *ctx, int node_id, int *xv, int *yv) {
-    if (!ctx || !xv || !yv || !groebner_id_in_range(node_id, ctx->map_size))
+    if (!ctx || !xv || !yv || !lv_index_in_range(node_id, ctx->map_size))
         return -1;
     if (ctx->var_x[node_id] < 0 || ctx->var_y[node_id] < 0) return -1;
     *xv = ctx->var_x[node_id];
@@ -430,7 +430,7 @@ static bool groebner_engine_segment_coords(const ConstraintGraph *graph, int seg
 /* 编码辅助：构造线性方程 cx*x + cy*y + c0 = 0（近零系数由 add_term 自动剔除） */
 static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, int xv, int yv,
                                                  double cx, double cy, double c0) {
-    if (!ring || !groebner_id_in_range(xv, ring->var_count) || !groebner_id_in_range(yv, ring->var_count))
+    if (!ring || !lv_index_in_range(xv, ring->var_count) || !lv_index_in_range(yv, ring->var_count))
         return NULL;
     lvPolynomial *poly = poly_internal_create(ring, 4, NULL);
     if (!poly) return NULL;
@@ -666,7 +666,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     if (!registry || !graph)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: registry=%p, graph=%p",
                         (const void *)registry, (const void *)graph);
-    if (!groebner_id_in_range(ring_id, registry->ring_count))
+    if (!lv_index_in_range(ring_id, registry->ring_count))
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "constraint_graph_to_ideal: ring_id=%d (max=%d)",
                         ring_id, registry->ring_count);
 

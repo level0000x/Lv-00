@@ -1,4 +1,4 @@
-﻿# 28. 数论与多项式系统
+# 28. 数论与多项式系统
 
 ## 28.1 模块概述
 
@@ -341,7 +341,7 @@ void lv_rational_to_mpq(const lvRational *r, mpq_t out);
 |------|----------|
 | [01_symbolic_coord.md](01_symbolic_coord.md) | 符号坐标与代数坐标表示 |
 | [04_solver.md](04_solver.md) | Gröbner 与代数求解 |
-| [17_numerical_analysis.md](17_numerical_analysis.md) | 数值分析与区间算术 |
+| [39_numerical_analysis.md](39_numerical_analysis.md) | 数值分析与区间算术 |
 | [29_inequality_approximation.md](29_inequality_approximation.md) | 不等式与近似计算 |
 | [23_core_infrastructure.md](23_core_infrastructure.md) | 配置、安全阈值与错误处理 |
 

@@ -231,7 +231,7 @@ static bool rpn_eval_div(double *stack, int *top) {
 static bool rpn_eval_pow(double *stack, int *top) {
     if (*top < 2) return false;
     if (stack[*top - 2] < 0.0 &&
-        !lv_is_integer_double(stack[*top - 1], 1e-12)) {
+        !lv_is_integer_double(stack[*top - 1], lv_EPSILON_ULTRA)) {
         return false;
     }
     stack[*top - 2] = pow(stack[*top - 2], stack[*top - 1]);

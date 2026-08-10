@@ -35,7 +35,7 @@ lv_LAZY_LOCK_DEFINE(g_geometry_lock);
 lvGeometryConfig lv_geometry_config_default(void) {
     lvGeometryConfig cfg;
     cfg.precision = lv_GEO_DOUBLE;
-    cfg.tolerance = 1e-9; /* 通用容差：config.h 无对应常量，保持历史值（数值与 lv_GEO_COLLINEAR_EPSILON 一致） */
+    cfg.tolerance = lv_EPSILON_MEDIUM; /* 通用容差：精度梯中等档（1e-9，与历史值一致） */
     cfg.dimensions = 3;
     /* 收敛说明（P0-2）：epsilon 默认值全部改为引用 config.h 权威常量，config.h 成为
      * 唯一默认值权威源。行为变更：distance_epsilon 由 1e-9 → lv_GEO_DISTANCE_EPSILON

@@ -205,7 +205,7 @@ uint64_t symbolic_coord_hash(const SymbolicCoord *coord) {
 static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double precision) {
     double val = algebraic_to_double(a);
     if (precision <= 0)
-        precision = 1e-15;
+        precision = lv_EPSILON_SUPERTINY;
 
     mpq_t approx;
     mpq_init(approx);

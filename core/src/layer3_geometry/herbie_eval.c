@@ -209,7 +209,7 @@ static int herbie_apply_builtin_rules(const char *expr, HerbieOptimizer *opt) {
         if (contains_pattern(expr, builtin_rules[i].pattern)) {
             double orig_err = estimate_relative_error(expr, 1.0, 2);
             double improv = builtin_rules[i].error_improvement;
-            double new_err = (fabs(improv) > 1e-15) ? orig_err / improv : orig_err;
+            double new_err = (fabs(improv) > lv_EPSILON_SUPERTINY) ? orig_err / improv : orig_err;
 
             add_entry(opt, builtin_rules[i].replacement, new_err, builtin_rules[i].description);
             found++;

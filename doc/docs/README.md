@@ -42,18 +42,37 @@ Lv-00 是一门以几何为唯一载体的双模数学元语言。几何体本�
 |------|------|----------|
 | [12_context_and_lifecycle.md](12_context_and_lifecycle.md) | 上下文与生命周期 | 引擎上下文管理、资源生命周期 |
 | [13_error_handling.md](13_error_handling.md) | 错误处理 | 错误码体系、错误传播、恢复策略 |
-| [14_memory_management.md](14_memory_management.md) | 内存管理 | 内存池、分配策略、泄漏检测 |
+| [36_memory_management.md](36_memory_management.md) | 内存管理 | 内存池、分配策略、泄漏检测 |
+
+### 扩展与高级主题
+
+| 文档 | 模块 | 功能描述 |
+|------|------|----------|
+| [14_solver_backends.md](14_solver_backends.md) | 求解后端 | SMT/ATP/SAT/BDD 多后端设计 |
+| [15_geometry_advanced.md](15_geometry_advanced.md) | 高级几何 | 高级几何模块（约束求解、拓扑、动态几何） |
+| [21_euclidean_geometry.md](21_euclidean_geometry.md) | 欧氏几何公理包 | Hilbert 公理体系、公理分级与信任颜色 |
+| [40_formula_dsl_ga.md](40_formula_dsl_ga.md) | 公式 DSL 与 GA | 公式解析、几何代数代码生成、表达式规范化 |
 
 ### 十层架构详细文档
 
 | 文档 | 模块 | 功能描述 |
 |------|------|----------|
-| [15_parsing_layer.md](15_parsing_layer.md) | 解析层 (Layer 1) | 词法分析、语法解析、DSL 编译、AST 生成 |
+| [37_parsing_layer.md](37_parsing_layer.md) | 解析层 (Layer 1) | 词法分析、语法解析、DSL 编译、AST 生成 |
 | [16_geometry_layer.md](16_geometry_layer.md) | 几何层 (Layer 3) | 约束图、符号坐标、规范化、几何拓扑 |
 | [17_reasoning_layer.md](17_reasoning_layer.md) | 推理层 (Layer 4) | 求解器、重写、证明、SMT/ATP 后端 |
 | [18_output_layer.md](18_output_layer.md) | 输出层 (Layer 5) | TikZ 导出、跨语言互操作、证明格式化 |
 | [19_numerical_backends.md](19_numerical_backends.md) | 数值后端 | 区间算术、浮点误差、Herbie/FPTaylor/Gappa |
-| [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | 63个领域预设函数块完整索引 |
+| [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 | 60+ 领域预设函数块完整索引 |
+
+### 逻辑验证、性能与证明增强
+
+| 文档 | 模块 | 功能描述 |
+|------|------|----------|
+| [30_performance_concurrency.md](30_performance_concurrency.md) | 性能与并发 | 线程池、环形缓冲、任务调度、基准测试 |
+| [38_logic_verification.md](38_logic_verification.md) | 逻辑验证 | 命题验证器、三值逻辑、SAT 编码、模态验证 |
+| [39_numerical_analysis.md](39_numerical_analysis.md) | 数值分析 | 自动微分、ODE 求解、区间算术、误差计数 |
+| [41_axiom_rewrite_export.md](41_axiom_rewrite_export.md) | 公理包重写与导出 | 安全重写规则、证明编译导出（Coq/Lean/OPML） |
+| [42_proof_engine_enhanced.md](42_proof_engine_enhanced.md) | 增强证明引擎 | 证明会话、评分、优先级、策略调度、元验证 |
 
 ## 模块依赖关系
 
@@ -242,7 +261,7 @@ ctest --output-on-failure
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](../LICENSE) 文件
+本项目采用 MIT 许可证 - 详见 [LICENSE](../../LICENSE) 文件
 
 ## 参考文献
 

@@ -32,6 +32,7 @@
 #include "lv/gmres_shared.h"
 #include "lv/lv_utils.h"
 #include "lv/host_linalg.h"
+#include "lv/lv_numeric.h"
 #include "debug.h"
 #include "lv/lv_internal.h"
 
@@ -976,7 +977,7 @@ static void cuda_matrix_scale(lvMatrix *A, double c) {
  * CUDA 后端不能直接修改单个 GPU 元素，回传主机修改后再传回设备。
  */
 static void cuda_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
-    if (!A || !A->backend_data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
+    if (!A || !A->backend_data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) {
         return;
     }
     CudaMatrixData *cmd = (CudaMatrixData *) A->backend_data;
@@ -994,7 +995,7 @@ static void cuda_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, doubl
  * @brief 获取单个元素值（列主序）
  */
 static double cuda_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
-    if (!A || !A->backend_data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
+    if (!A || !A->backend_data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) {
         return 0.0;
     }
     CudaMatrixData *cmd = (CudaMatrixData *) A->backend_data;

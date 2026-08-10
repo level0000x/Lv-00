@@ -568,7 +568,7 @@ static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *
     /* 断言 2：dot 的符号，消除平方带来的符号二义性 */
     if (remaining - total <= 64)
         return total;
-    if (cos_theta > 1e-9) {
+    if (cos_theta > lv_EPSILON_MEDIUM) {
         if (named) {
             n = snprintf(buf + total, (size_t) (remaining - total),
                          "  (assert (! (>= (+ (* (- %s %s) (- %s %s))\n"
@@ -582,7 +582,7 @@ static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *
                          "               0.0))\n",
                          ax, bx, cx, bx, ay, by, cy, by);
         }
-    } else if (cos_theta < -1e-9) {
+    } else if (cos_theta < -lv_EPSILON_MEDIUM) {
         if (named) {
             n = snprintf(buf + total, (size_t) (remaining - total),
                          "  (assert (! (<= (+ (* (- %s %s) (- %s %s))\n"

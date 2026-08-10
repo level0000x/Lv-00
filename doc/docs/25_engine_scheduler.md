@@ -1,4 +1,4 @@
-﻿# 25. 引擎核心与调度系统
+# 25. 引擎核心与调度系统
 
 ## 25.1 模块概述
 
@@ -418,7 +418,7 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
 | [04_solver.md](04_solver.md) | 符号代数求解器 |
 | [05_rewrite.md](05_rewrite.md) | 图重写引擎 |
 | [14_solver_backends.md](14_solver_backends.md) | SMT/ATP 后端 |
-| [ARCHITECTURE_v3.3.md](ARCHITECTURE_v3.3.md) | 五层架构 |
+| [系统架构（README）](../../README.md) | 系统架构 |
 
 ---
 

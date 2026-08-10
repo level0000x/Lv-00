@@ -118,9 +118,9 @@ static const ConflictDetectorConfig g_default_config = {.enable_basic_checks = t
                                                         .max_conflicts = 100,
                                                         .max_check_time_ms = 0, /* 无限制 */
 
-                                                        .position_tolerance = 1e-9,
-                                                        .distance_tolerance = 1e-9,
-                                                        .angle_tolerance = 1e-6};
+                                                        .position_tolerance = lv_GEO_COLLINEAR_EPSILON,
+                                                        .distance_tolerance = lv_GEO_COLLINEAR_EPSILON,
+                                                        .angle_tolerance = lv_EPSILON_LOW};
 
 const ConflictDetectorConfig *lv_conflict_detector_default_config(void) {
     return &g_default_config;

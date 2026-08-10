@@ -1,4 +1,4 @@
-﻿# 27. 量词与关系逻辑
+# 27. 量词与关系逻辑
 
 ## 27.1 模块概述
 
@@ -413,7 +413,7 @@ char *relation_instance_export_xml(const RelInstance *inst);
 
 | 文档 | 关联内容 |
 |------|----------|
-| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证、三值逻辑 |
+| [38_logic_verification.md](38_logic_verification.md) | 逻辑验证、三值逻辑 |
 | [02_constraint_graph.md](02_constraint_graph.md) | 约束图核心 |
 | [09_proof.md](09_proof.md) | 命题与证明系统 |
 | [26_interactive_geometry.md](26_interactive_geometry.md) | 交互式几何 |

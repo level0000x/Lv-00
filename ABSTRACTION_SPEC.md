@@ -361,6 +361,8 @@
 2. 至少一条测试进入 ctest 基线。
 3. 全库旧模式 grep 计数归零（或进入显式白名单）。
 
+**已准入设施（批次 L P2，2026-08-10）**：`lv_tree_release_recursive`（lv_graph_traversal.h，回调驱动后序递归释放，判据 A）——第一批真实调用点 3（lvTreeNode / lvProofTreeNode（lvDArray 适配）/ BacktrackNode），测试经 test_proof_trace / test_orchestrator destroy 路径覆盖。第二批候选 3 例（proof_trace_tree.c / expr_canonical.c / gappa_dsl.c）形态略异，已登记待后续，迁移时复用本设施。
+
 ---
 
 ## 12. 合规检查清单

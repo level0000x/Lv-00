@@ -31,14 +31,17 @@
  * ------------------------------------------------------------------------- */
 
 /** @brief UnifyStatus → 中文原因 查找表（按枚举值升序，文案语义取更完整版本） */
+#define LV_UNIFY_STATUS_REASON_X(x) \
+    x(UNIFY_STATUS_PORT_TYPE_MISMATCH, "端口类型不匹配") \
+    x(UNIFY_STATUS_CONSTRAINT_MISMATCH, "约束类型不匹配") \
+    x(UNIFY_STATUS_COORD_MISMATCH, "符号坐标不匹配") \
+    x(UNIFY_STATUS_STRUCTURE_MISMATCH, "图结构不匹配") \
+    x(UNIFY_STATUS_SCOPE_MISMATCH, "作用域不匹配") \
+    x(UNIFY_STATUS_FAILED, "合一检查系统内部错误")
 static const char *const s_unify_status_reasons_zh[] = {
-    [UNIFY_STATUS_PORT_TYPE_MISMATCH]  = "端口类型不匹配",
-    [UNIFY_STATUS_CONSTRAINT_MISMATCH] = "约束类型不匹配",
-    [UNIFY_STATUS_COORD_MISMATCH]      = "符号坐标不匹配",
-    [UNIFY_STATUS_STRUCTURE_MISMATCH]  = "图结构不匹配",
-    [UNIFY_STATUS_SCOPE_MISMATCH]      = "作用域不匹配",
-    [UNIFY_STATUS_FAILED]              = "合一检查系统内部错误",
+    lv_XMACRO_TO_NAME_ARRAY(LV_UNIFY_STATUS_REASON_X)
 };
+#undef LV_UNIFY_STATUS_REASON_X
 
 const char *unify_status_reason_zh(UnifyStatus status) {
     if ((int) status >= 0 && (size_t) status < lv_ARRAY_SIZE(s_unify_status_reasons_zh) &&

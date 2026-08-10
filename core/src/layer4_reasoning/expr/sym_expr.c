@@ -144,7 +144,7 @@ static double eval_binary_arith(const lvSymExpr *expr, const char **var_names,
     if (op == '*') return a * b;
     /* pow */
     if (isnan(a) || isnan(b)) return NAN;
-    if (a < 0.0 && !lv_is_integer_double(b, 1e-12)) return NAN;
+    if (a < 0.0 && !lv_is_integer_double(b, lv_EPSILON_ULTRA)) return NAN;
     return pow(a, b);
 }
 
@@ -307,7 +307,7 @@ static lvSymExpr *simplify_pow(lvSymExprKind kind, lvSymExpr **children, int chi
     if (sym_expr_is_const_val(exp, 0.0)) { sym_expr_destroy(base); sym_expr_destroy(exp); return sym_expr_create_const(1.0); }
     if (sym_expr_is_const_val(exp, 1.0)) { sym_expr_destroy(exp); return base; }
     if (sym_expr_is_const(base) && sym_expr_is_const(exp)) {
-        double val = (base->value < 0.0 && !lv_is_integer_double(exp->value, 1e-12))
+        double val = (base->value < 0.0 && !lv_is_integer_double(exp->value, lv_EPSILON_ULTRA))
                      ? NAN : pow(base->value, exp->value);
         lvSymExpr *r = sym_expr_create_const(val);
         sym_expr_destroy(base); sym_expr_destroy(exp); return r;

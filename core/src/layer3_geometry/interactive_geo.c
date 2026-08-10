@@ -145,7 +145,7 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine) {
 
     g->continuity.current_config = CONFIG_NORMAL;
     g->continuity.previous_config = CONFIG_NORMAL;
-    g->continuity.singular_threshold = 1e-12;
+    g->continuity.singular_threshold = lv_SINGULARITY_THRESHOLD;
     g->continuity.degenerate_threshold = lv_EPSILON_HIGH;
 
     lvGeoScriptBinding *sb = &g->script_binding;

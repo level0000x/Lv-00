@@ -18,6 +18,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_check.h"
+#include "lv/lv_lifecycle.h"
 
 #include "debug.h"
 #include "error_codes.h"
@@ -69,6 +70,19 @@ EuclideanContext *euclidean_init(ConstraintGraph *graph) {
     return ctx;
 }
 
+/* ── euclidean_destroy 子资源销毁适配 ── */
+
+LV_DESTROY_SHIM(destroy_euclid_equiv_chain, EquivalenceProofChain, euclidean_destroy_equivalence_chain)
+
+/* euclidean_destroy 字段描述表：points/lines/circles 动态数组整体释放，
+ * equivalence_chain 对象销毁后置 NULL（释放顺序与原实现一致） */
+static const lvFieldDesc s_euclidean_destroy_fields[] = {
+    lv_FIELD_DARRAY(EuclideanContext, points_da),
+    lv_FIELD_DARRAY(EuclideanContext, lines_da),
+    lv_FIELD_DARRAY(EuclideanContext, circles_da),
+    lv_FIELD_OBJECT(EuclideanContext, equivalence_chain, destroy_euclid_equiv_chain),
+};
+
 /**
  * @brief 销毁欧几里得几何上下文
  *
@@ -82,12 +96,7 @@ void euclidean_destroy(EuclideanContext *ctx) {
         return;
     }
 
-    lv_darray_free(&ctx->points_da);
-    lv_darray_free(&ctx->lines_da);
-    lv_darray_free(&ctx->circles_da);
-    if (ctx->equivalence_chain) {
-        euclidean_destroy_equivalence_chain(ctx->equivalence_chain);
-        ctx->equivalence_chain = NULL;
-    }
+    lv_obj_destroy_fields(ctx, s_euclidean_destroy_fields,
+                          sizeof(s_euclidean_destroy_fields) / sizeof(s_euclidean_destroy_fields[0]));
     lv_free((void **) &ctx);
 }

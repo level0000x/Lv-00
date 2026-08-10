@@ -1,4 +1,4 @@
-﻿# Lv-00 Layer 6：图形化编程层设计规范
+# Lv-00 Layer 6：图形化编程层设计规范
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -695,7 +695,7 @@ typedef struct RepresentationConverter {
 
 ```c
 /*
- * 借鉴 self_bootstrapping_design.md 的几何编码方案：
+ * 借鉴自举元表示层的几何编码方案：
  * 
  * C 结构体 → 几何隐喻
  * 
@@ -878,7 +878,7 @@ core/
 
 - [函数块系统](07_func_block.md)
 - [WFC范式注入](11_wfc_paradigm.md)
-- [自举架构设计](self_bootstrapping_design.md)
+- [自举 Phase 1 元表示层](phase1_meta_representation.md)
 - [类型系统](08_type_system.md)
-- [架构手册](ARCHITECTURE_MANUAL.md)
+- [架构手册](archived/ARCHITECTURE_MANUAL.md)
 - [语言规范](lv_LANGUAGE_SPEC.md)

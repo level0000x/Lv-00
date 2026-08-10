@@ -137,7 +137,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
                 double f = eval_node(equation_node, x, y);
 
                 /* 简单的梯度下降细化 */
-                for (int iter = 0; iter < 10 && fabs(f) > 1e-6; iter++) {
+                for (int iter = 0; iter < 10 && fabs(f) > lv_EPSILON_LOW; iter++) {
                     double h = 1e-6;
                     double fx = (eval_node(equation_node, x + h, y) - f) / h;
                     double fy = (eval_node(equation_node, x, y + h) - f) / h;

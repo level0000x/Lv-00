@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv/lv_graph_traversal.h" /* lv_tree_release_recursive */
 #include "lv/proof_trace.h"
 #include "lv/lv_strbuf.h"
 
@@ -58,20 +59,24 @@ static lvProofTreeNode *create_node(int id, int depth, const char *desc, const c
  *
  * @param n 要释放的节点指针（为 NULL 时直接返回）
  */
-/* exempt: 树节点递归销毁依赖深度优先遍历子节点链，字段描述表只能描述
- * 单层字段，无法表达递归子节点语义，故保留手写递归实现 */
-static void free_node_recursive(lvProofTreeNode *n) {
-    if (!n)
-        return;
-    for (int i = 0; i < n->children.count; i++) {
-        lvProofTreeNode **child = (lvProofTreeNode **)lv_darray_get(&n->children, i);
-        free_node_recursive(*child);
-    }
+/* 递归子节点销毁：后序骨架收敛至 lv_tree_release_recursive（lv_graph_traversal.h），
+ * lvDArray 容器经 proof_node_children 适配为裸指针数组 */
+static void **proof_node_children(void *node, int *count) {
+    lvProofTreeNode *n = (lvProofTreeNode *)node;
+    *count = n->children.count;
+    return (void **)n->children.data;
+}
+
+static void proof_node_cleanup(void *node) {
+    lvProofTreeNode *n = (lvProofTreeNode *)node;
     lv_darray_free(&n->children);
     lv_darray_free(&n->premises);
     lv_free((void **) &n->axiom_used);
     lv_free((void **) &n->conclusion);
-    lv_free((void **) &(n));
+}
+
+static void free_node_recursive(lvProofTreeNode *n) {
+    lv_tree_release_recursive(n, proof_node_children, proof_node_cleanup);
 }
 
 /* lvDArray 已提供扩容，不再需要单独的 ensure_*_capacity 函数 */

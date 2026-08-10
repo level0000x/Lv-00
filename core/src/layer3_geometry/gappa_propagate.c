@@ -443,7 +443,7 @@ void lv_gappa_pred_set_clear(lvGappaPredSet *set) {
 lvGappaPropagateConfig lv_gappa_propagate_config_default(void) {
     lvGappaPropagateConfig cfg;
     cfg.max_iterations = 1;
-    cfg.precision = 1e-15;
+    cfg.precision = lv_GAPPA_BOUND_SLACK;
     cfg.backward = false;
     return cfg;
 }
@@ -785,7 +785,7 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
     lv_gappa_pred_set_init(output);
 
     int max_iter = cfg ? cfg->max_iterations : 100;
-    double precision = cfg ? cfg->precision : 1e-15;
+    double precision = cfg ? cfg->precision : lv_GAPPA_BOUND_SLACK;
     bool do_backward = cfg ? cfg->backward : false;
 
     /* 复制所有输入谓词到输出 */

@@ -85,7 +85,7 @@ static double eval_b_pow(const FormulaNode *node, double x, double y) {
             double r = eval_node(node->data.binary_op.right, x, y);
             /* Guard: pow(negative, non-integer) is undefined in reals.
              * Return 0.0 for consistency with the SQRT handling below. */
-            if (l < 0.0 && !lv_is_integer_double(r, 1e-12))
+            if (l < 0.0 && !lv_is_integer_double(r, lv_EPSILON_ULTRA))
                 return 0.0;
             return pow(l, r);
         }

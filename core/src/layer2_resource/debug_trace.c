@@ -18,6 +18,7 @@
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_xmacro.h"
 
 /* ========================================================================
  * 追踪会话管理
@@ -149,12 +150,15 @@ int debug_trace_check_breakpoint(TraceEventType type, int step) {
  * 导出
  * ======================================================================== */
 
-/** @brief TRACE_* 枚举 -> 名称 查找表（指定初始化器，编译器校验枚举对齐） */
+/** @brief TRACE_* 枚举 -> 名称 查找表（自 LV_TRACE_TYPE_X 生成，指定初始化器编译器校验枚举对齐） */
+#define LV_TRACE_TYPE_X(x) \
+    x(TRACE_NORMALIZATION, "normalization") \
+    x(TRACE_REWRITE, "rewrite") \
+    x(TRACE_SOLVER, "solver")
 static const char *const kTraceTypeNames[] = {
-    [TRACE_NORMALIZATION] = "normalization",
-    [TRACE_REWRITE] = "rewrite",
-    [TRACE_SOLVER] = "solver",
+    lv_XMACRO_TO_NAME_ARRAY(LV_TRACE_TYPE_X)
 };
+#undef LV_TRACE_TYPE_X
 
 /** @brief 将追踪会话导出为 JSON 字符串 */
 char *trace_session_export_json(const TraceSession *session) {

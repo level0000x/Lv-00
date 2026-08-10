@@ -24,6 +24,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_graph_traversal.h" /* lv_tree_release_recursive */
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
@@ -339,18 +340,21 @@ void unconstruct_info_destroy(UnconstructInfo *info) {
 /**
  * @brief 递归销毁回溯节点及其子树（后序遍历）
  */
-static void backtrack_node_destroy_recursive(BacktrackNode *node) {
-    if (!node)
-        return;
+static void **backtrack_node_children(void *node, int *count) {
+    BacktrackNode *n = (BacktrackNode *)node;
+    *count = n->child_count;
+    return (void **)n->children;
+}
 
-    /* 后序遍历：先释放子节点，再释放自身 */
-    for (int i = 0; i < node->child_count; i++) {
-        backtrack_node_destroy_recursive(node->children[i]);
-    }
-    lv_free((void **) &node->children);
-    lv_free((void **) &node->label);
-    lv_free((void **) &node->strategy_name);
-    lv_free((void **) &node);
+static void backtrack_node_cleanup(void *node) {
+    BacktrackNode *n = (BacktrackNode *)node;
+    lv_free((void **) &n->children);
+    lv_free((void **) &n->label);
+    lv_free((void **) &n->strategy_name);
+}
+
+static void backtrack_node_destroy_recursive(BacktrackNode *node) {
+    lv_tree_release_recursive(node, backtrack_node_children, backtrack_node_cleanup);
 }
 
 /**

@@ -114,8 +114,8 @@ void compute_bezier_control_points(double p1x, double p1y, double p2x, double p2
     if (offset < 0.01)
         offset = 5.0;
 
-    double nx = -dy / (dist + 0.001);
-    double ny = dx / (dist + 0.001);
+    double nx = -dy / (dist + lv_GEO_LENGTH_GUARD);
+    double ny = dx / (dist + lv_GEO_LENGTH_GUARD);
 
     *cp1x = p1x + 0.3 * dx + nx * offset;
     *cp1y = p1y + 0.3 * dy + ny * offset;
@@ -137,7 +137,7 @@ bool segment_intersection(double p1x, double p1y, double p2x, double p2y,
     double d2x = q2x - q1x, d2y = q2y - q1y;
     double cross = d1x * d2y - d1y * d2x;
 
-    if (fabs(cross) > 1e-10) {
+    if (fabs(cross) > lv_EPSILON_HIGH) {
         double dx0 = q1x - p1x;
         double dy0 = q1y - p1y;
         double t = (dx0 * d2y - dy0 * d2x) / cross;

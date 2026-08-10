@@ -407,7 +407,7 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
             if (dist_j < 0)
                 continue;
 
-            if (fabs(dist_i - dist_j) > 1e-9) {
+            if (fabs(dist_i - dist_j) > lv_GEO_COLLINEAR_EPSILON) {
                 return true;
             }
         }

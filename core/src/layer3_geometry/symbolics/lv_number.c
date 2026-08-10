@@ -676,7 +676,7 @@ bool lv_number_is_integer(const lvNumber *n) {
     if (n->ops->type(n) == lv_NUMBER_INTEGER) return true;
     /* 对于有理数，检查分母是否为 1 */
     double d = n->ops->to_double(n);
-    return fabs(d - (double)(int64_t)d) < 1e-15;
+    return fabs(d - (double)(int64_t)d) < lv_EPSILON_SUPERTINY;
 }
 
 lvNumberType lv_number_type(const lvNumber *n) {

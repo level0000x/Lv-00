@@ -358,9 +358,9 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                             for (int e = 0; e < 3; e++) {
                                 double diff = fabs(edges1[e] - edges2[e]);
                                 double max_val = fmax(fabs(edges1[e]), fabs(edges2[e]));
-                                if (max_val < 1e-12)
+                                if (max_val < lv_EPSILON_ULTRA)
                                     continue; /* 两边都为零 */
-                                if (diff / max_val > 1e-6) {
+                                if (diff / max_val > lv_EPSILON_LOW) {
                                     sss_match = false;
                                     break;
                                 }

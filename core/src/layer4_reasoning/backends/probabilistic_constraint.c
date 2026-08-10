@@ -1122,7 +1122,7 @@ static bool pctl_eval_steady_state(SimpleDTMC *mc, const PCTLFormula *formula, d
     double *next_pi = (double *) lv_malloc((size_t) n * sizeof(double));
     if (pi && next_pi) {
         for (int i = 0; i < n; i++) pi[i] = 1.0 / (double) n;
-        const double convergence_threshold = 1e-12;
+        const double convergence_threshold = lv_EPSILON_ULTRA;
         const int max_iter = lv_config_get_int(LV_CFG_PCTL_POWER_ITER_MAX, 10000);
         bool converged = false;
         for (int iter = 0; iter < max_iter; iter++) {

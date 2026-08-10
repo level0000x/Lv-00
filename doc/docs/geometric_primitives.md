@@ -1,4 +1,4 @@
-﻿# Lv-00 几何层最小原语集
+# Lv-00 几何层最小原语集
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -643,7 +643,7 @@
 
 ## 参考文档
 
-- [自举架构设计](self_bootstrapping_design.md)
+- [自举 Phase 1 元表示层](phase1_meta_representation.md)
 - [API 参考](API_REFERENCE.md)
 - [函数块系统](07_func_block.md)
 - [类型系统](08_type_system.md)

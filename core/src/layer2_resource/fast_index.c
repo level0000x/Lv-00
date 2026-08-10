@@ -73,7 +73,7 @@
 #define BUCKET_GROWTH_FACTOR 2
 
 /** 最小网格单元大小（避免除零和过度细分） */
-#define MIN_CELL_SIZE 1e-6
+#define MIN_CELL_SIZE lv_EPSILON_LOW
 
 /* ============== 内部数据结构 ============== */
 

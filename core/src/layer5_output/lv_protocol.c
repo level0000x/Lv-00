@@ -26,6 +26,7 @@
 #include "lv/lv.h"
 #include "lv/lv_builtin_commands.h"
 #include "lv/lv_config.h"
+#include "lv/lv_graph_traversal.h" /* lv_tree_release_recursive */
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
@@ -1024,15 +1025,19 @@ void lv_proto_free_table_rows(lvTableRowList *list) {
  *
  * @param node 要释放的树节点指针
  */
+static void **lv_proto_tree_children(void *node, int *count) {
+    lvTreeNode *n = (lvTreeNode *)node;
+    *count = n->child_count;
+    return (void **)n->children;
+}
+
+static void lv_proto_tree_cleanup(void *node) {
+    lvTreeNode *n = (lvTreeNode *)node;
+    lv_free((void **) &n->children);
+}
+
 static void lv_proto_free_tree_node(lvTreeNode *node) {
-    if (!node) {
-        return;
-    }
-    for (int i = 0; i < node->child_count; i++) {
-        lv_proto_free_tree_node(node->children[i]);
-    }
-    lv_free((void **) &node->children);
-    lv_free((void **) &node);
+    lv_tree_release_recursive(node, lv_proto_tree_children, lv_proto_tree_cleanup);
 }
 
 /**

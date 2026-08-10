@@ -297,8 +297,8 @@ static int project_to_3d_perspective(ProjectTo3dContext *ctx) {
         return lv_ERROR_INVALID_PARAM;
     }
     double denominator = ctx->camera_distance - ctx->pw;
-    if (fabs(denominator) < ctx->camera_distance * lv_EPSILON_LOW + 1e-12) {
-        double min_denom = ctx->camera_distance * lv_EPSILON_LOW + 1e-12;
+    if (fabs(denominator) < ctx->camera_distance * lv_EPSILON_LOW + lv_SINGULARITY_THRESHOLD) {
+        double min_denom = ctx->camera_distance * lv_EPSILON_LOW + lv_SINGULARITY_THRESHOLD;
         denominator = (denominator >= 0) ? min_denom : -min_denom;
         lv_set_error(lv_OK,
                      "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"

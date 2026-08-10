@@ -134,7 +134,7 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
 
 /* 几何判定容差 */
 #define META_PROOF_GEOM_EPS lv_GEO_COLLINEAR_EPSILON
-#define META_PROOF_ANGLE_EPS 1e-6
+#define META_PROOF_ANGLE_EPS lv_EPSILON_LOW
 #define META_PROOF_PI 3.14159265358979323846
 
 /**

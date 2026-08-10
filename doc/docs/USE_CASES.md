@@ -648,4 +648,4 @@ Lv-00 几何元语言具有广泛的应用场景：
 
 - [入门教程](TUTORIAL.md)
 - [API 完整参考](API_REFERENCE.md)
-- [架构手册](ARCHITECTURE_MANUAL.md)
+- [架构手册](archived/ARCHITECTURE_MANUAL.md)

@@ -1,4 +1,4 @@
-﻿# 34. 元证明与推理缓存
+# 34. 元证明与推理缓存
 
 ## 34.1 模块概述
 
@@ -493,9 +493,9 @@ SymbolicCoord *node_deep_copy_symbolic_coord(const SymbolicCoord *orig);
 | 文档 | 关联内容 |
 |------|----------|
 | [09_proof.md](09_proof.md) | 证明系统核心 |
-| [13_proof_engine_enhanced.md](13_proof_engine_enhanced.md) | 增强证明引擎、会话、评分与规则 |
+| [42_proof_engine_enhanced.md](42_proof_engine_enhanced.md) | 增强证明引擎、会话、评分与规则 |
 | [24_constraint_propagation.md](24_constraint_propagation.md) | WFC 传播与等价类系统 |
-| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证与命题验证 |
+| [38_logic_verification.md](38_logic_verification.md) | 逻辑验证与命题验证 |
 | [22_proof_export_trace_widget.md](22_proof_export_trace_widget.md) | 证明导出与追踪 |
 | [31_stream_interop.md](31_stream_interop.md) | 流式事件输出 |
 

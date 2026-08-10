@@ -129,7 +129,7 @@ bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, 
             double by = symbolic_coord_to_double(nb->symbolic_coords[1]);
             double dist = geo_distance_2d(ax, ay, bx, by);
 
-            if (fabs(dist - c->numeric_value) > 1e-6) {
+            if (fabs(dist - c->numeric_value) > lv_EPSILON_LOW) {
                 return false;
             }
         }

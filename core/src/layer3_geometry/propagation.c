@@ -36,6 +36,7 @@
 
 #include "lv/config.h"
 #include "lv/lv_config.h"
+#include "lv/lv_lifecycle.h"
 
 #include "error_codes.h"
 #include "lv_utils.h"
@@ -1043,15 +1044,29 @@ void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *
     lv_free((void **) &snap);
 }
 
-void propagation_snapshot_destroy(PropagationSnapshot *snap) {
-    if (!snap)
-        return;
+/* propagation_snapshot_destroy 字段描述表：states 为 NodeStateSpace 值数组
+ * （非指针数组，不适用 lv_FIELD_ARRAY 的指针数组语义），逐元素 state_destroy
+ * 后释放数组；整体释放顺序与原实现一致 */
+static void destroy_snapshot_states(void *obj, void *field_ptr) {
+    (void) field_ptr;
+    PropagationSnapshot *snap = (PropagationSnapshot *) obj;
     if (snap->states) {
         for (int i = 0; i < snap->state_count; i++) {
             state_destroy(&snap->states[i]);
         }
         lv_free((void **) &snap->states);
     }
+}
+
+static const lvFieldDesc s_snapshot_destroy_fields[] = {
+    lv_FIELD_CUSTOM(PropagationSnapshot, states, destroy_snapshot_states),
+};
+
+void propagation_snapshot_destroy(PropagationSnapshot *snap) {
+    if (!snap)
+        return;
+    lv_obj_destroy_fields(snap, s_snapshot_destroy_fields,
+                          sizeof(s_snapshot_destroy_fields) / sizeof(s_snapshot_destroy_fields[0]));
     lv_free((void **) &snap);
 }
 

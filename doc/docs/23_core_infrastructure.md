@@ -527,10 +527,10 @@ size_t lv_get_memory_limit_ex(void);                // 获取内存上限
 | 文档 | 关联内容 |
 |------|----------|
 | [12_context_and_lifecycle.md](12_context_and_lifecycle.md) | 上下文管理、熔断器、运行时守卫 |
-| [14_memory_management.md](14_memory_management.md) | 内存池详细设计 |
+| [36_memory_management.md](36_memory_management.md) | 内存池详细设计 |
 | [01_symbolic_coord.md](01_symbolic_coord.md) | 符号坐标系统 |
 | [02_constraint_graph.md](02_constraint_graph.md) | 约束图核心 |
-| [ARCHITECTURE_v3.3.md](ARCHITECTURE_v3.3.md) | 五层架构总览 |
+| [系统架构（README）](../../README.md) | 系统架构总览 |
 
 ---
 

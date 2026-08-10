@@ -34,6 +34,7 @@
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_json.h"
+#include "../../layer4_reasoning/proof/trust_color_x.h"
 
 /* graph_validate_region_closure: 实现在 graph_conflict.c 中 */
 
@@ -143,18 +144,11 @@ static void json_buf_append_coord(lvJsonBuf *buf, const SymbolicCoord *coord) {
  * ================================================================ */
 
 /** @brief TrustColor 字符串↔枚举映射表（按枚举值升序，序列化/反序列化共用） */
+#define LV_TRUST_COLOR_TO_SERIAL(sym, disp, ser, dot, tex) {ser, sym},
 static const lvStrToEnumEntry trust_map[] = {
-    {"GREEN", TRUST_GREEN},
-    {"BLUE_UNEXPLORED", TRUST_BLUE_UNEXPLORED},
-    {"BLUE_EXCEEDED", TRUST_BLUE_EXCEEDED},
-    {"BLUE_OUT_OF_SCOPE", TRUST_BLUE_OUT_OF_SCOPE},
-    {"YELLOW", TRUST_YELLOW},
-    {"LIGHT_ORANGE_ORACLE", TRUST_LIGHT_ORANGE_ORACLE},
-    {"LIGHT_ORANGE_EXPLOSION", TRUST_LIGHT_ORANGE_EXPLOSION},
-    {"AMBER", TRUST_AMBER},
-    {"DEEP_ORANGE", TRUST_DEEP_ORANGE},
-    {"RED", TRUST_RED},
+    LV_TRUST_COLOR_X(LV_TRUST_COLOR_TO_SERIAL)
 };
+#undef LV_TRUST_COLOR_TO_SERIAL
 
 static const char *trust_color_to_string(TrustColor trust) {
     /* 复用 trust_map 表 + lv_enum_to_str 二分查找（替代 switch） */

@@ -475,7 +475,7 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id, g_data->ideal_count)) {
         goto _gcleanup;
     }
 
@@ -571,7 +571,7 @@ int variety_dimension(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
+    if (!lv_index_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
@@ -588,7 +588,7 @@ bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id) {
     lv_UNUSED(registry);
     bool ok = false;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
+    if (!lv_index_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
@@ -609,12 +609,12 @@ bool variety_get_solution_point(lvRingRegistry *registry, int variety_id, int po
 
     bool ok = false;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(variety_id, g_data->variety_count)) {
+    if (!lv_index_in_range(variety_id, g_data->variety_count)) {
         goto _gcleanup;
     }
     lvVariety *v = g_data->varieties[variety_id];
     if (!v || !v->solution_points || !v->is_zero_dimensional ||
-        !groebner_id_in_range(point_idx, v->solution_count)) {
+        !lv_index_in_range(point_idx, v->solution_count)) {
         goto _gcleanup;
     }
     double *src = v->solution_points[point_idx];

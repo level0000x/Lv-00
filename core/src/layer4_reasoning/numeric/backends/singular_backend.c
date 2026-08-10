@@ -47,6 +47,9 @@
 #include "lv/groebner_engine.h"
 #include "layer4_reasoning/backends/groebner_engine_internal.h"
 
+#include "singular_engine_guard.h"
+#include "lv/lv_numeric.h" /* lv_index_in_range */
+
 /* ========================================================================
  * 数据结构定义
  * ======================================================================== */
@@ -269,7 +272,7 @@ static int singular_create_ring_locked(const char *var_names[], int nvars) {
     if (!var_names || nvars <= 0) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_create_ring: 无效参数");
     }
-    if (!g_singular_state.registry) {
+    if (!singular_registry_has(g_singular_state.registry)) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_create_ring: 引擎未初始化");
     }
 
@@ -319,7 +322,7 @@ static int singular_ideal_to_internal(const SingularIdeal *s_ideal) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "singular_ideal_to_internal: 无效理想句柄");
     }
     lvRingRegistry *reg = singular_registry_snapshot();
-    if (!reg) {
+    if (!singular_registry_has(reg)) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "singular_ideal_to_internal: 引擎未初始化");
     }
 
@@ -411,7 +414,7 @@ static SingularIdeal *singular_polys_to_handle(lvPolynomialRing *ring,
         /* 失败回滚：释放已入池的副本（poly_destroy 内部加锁，须在锁外调用） */
         lvRingRegistry *reg = singular_registry_snapshot();
         for (int k = 0; k < count; k++) {
-            if (h->var_ids[k] >= 0 && reg) {
+            if (h->var_ids[k] >= 0 && singular_registry_has(reg)) {
                 poly_destroy(reg, h->var_ids[k]);
             }
         }
@@ -432,7 +435,7 @@ static SingularIdeal *singular_polys_to_handle(lvPolynomialRing *ring,
  */
 static SingularIdeal *singular_ideal_from_internal(int ideal_id) {
     lvRingRegistry *reg = singular_registry_snapshot();
-    if (!reg) {
+    if (!singular_registry_has(reg)) {
         return NULL;
     }
 
@@ -442,7 +445,7 @@ static SingularIdeal *singular_ideal_from_internal(int ideal_id) {
     {
         lvLockGuard _lg;
         lv_lock_guard_init(&_lg, &g_data_mutex);
-        if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count ||
+        if (!g_data || !lv_index_in_range(ideal_id, g_data->ideal_count) ||
             !g_data->ideals[ideal_id]) {
             lv_lock_guard_destroy(&_lg);
             return NULL;
@@ -496,7 +499,7 @@ static SingularIdeal *singular_basis_from_internal(int ideal_id) {
     {
         lvLockGuard _lg;
         lv_lock_guard_init(&_lg, &g_data_mutex);
-        if (!g_data || ideal_id < 0 || ideal_id >= g_data->ideal_count ||
+        if (!g_data || !lv_index_in_range(ideal_id, g_data->ideal_count) ||
             !g_data->ideals[ideal_id]) {
             lv_lock_guard_destroy(&_lg);
             return NULL;
@@ -554,7 +557,7 @@ static void singular_internal_ideal_release(int ideal_id) {
     {
         lvLockGuard _lg;
         lv_lock_guard_init(&_lg, &g_data_mutex);
-        if (g_data && ideal_id >= 0 && ideal_id < g_data->ideal_count &&
+        if (g_data && lv_index_in_range(ideal_id, g_data->ideal_count) &&
             g_data->ideals[ideal_id]) {
             lvIdeal *ideal = g_data->ideals[ideal_id];
             count = ideal->generator_count;

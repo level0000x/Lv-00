@@ -25,7 +25,7 @@ ConstraintGraph 结构体 → 几何区域（REGION）
 
 ### 1.2 与自举设计文档的关系
 
-本文档是 `self_bootstrapping_design.md` 中 Phase 1 的具体实现规范，将"阶段一：元表示层"的抽象规划转化为可执行的工程方案。
+本文档是自举路线中 Phase 1 的具体实现规范，将"阶段一：元表示层"的抽象规划转化为可执行的工程方案。
 
 ---
 
@@ -307,8 +307,8 @@ GeomNode *encoded = meta_repr_encode_func_block(block);
 
 ## 八、参考文档
 
-- [自举架构设计](self_bootstrapping_design.md)
+- [自举差分测试框架](bootstrap_test_framework.md)
 - [13 个最小原语](geometric_primitives.md)
-- [结构体审查报告](struct_normalization_review.md)
+- [图规范化遍引擎](03_normalization.md)
 - [函数块系统](07_func_block.md)
 - [类型系统](08_type_system.md)

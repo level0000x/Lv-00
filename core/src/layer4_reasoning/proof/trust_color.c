@@ -12,6 +12,7 @@
  */
 #include "lv/trust_color.h"
 #include "lv/lv_xmacro.h"
+#include "trust_color_x.h"
 
 /* ================================================================
  * 映射函数：TrustColor ↔ ProofColor
@@ -73,59 +74,34 @@ TrustColor proof_color_to_trust(ProofColor pc) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief trust_color_name 名称表（按枚举值升序） */
+/** @brief trust_color_name 名称表（按枚举值升序，自 LV_TRUST_COLOR_X 生成） */
+#define LV_TRUST_COLOR_TO_ENTRY(sym, disp, ser, dot, tex) {disp, sym},
 static const lvStrToEnumEntry s_trust_color_name_entries[] = {
-    {"Green", TRUST_GREEN},
-    {"Blue (unexplored)", TRUST_BLUE_UNEXPLORED},
-    {"Blue (exceeded)", TRUST_BLUE_EXCEEDED},
-    {"Blue (out of scope)", TRUST_BLUE_OUT_OF_SCOPE},
-    {"Yellow", TRUST_YELLOW},
-    {"Light orange (oracle)", TRUST_LIGHT_ORANGE_ORACLE},
-    {"Light orange (ex falso)", TRUST_LIGHT_ORANGE_EXPLOSION},
-    {"Amber", TRUST_AMBER},
-    {"Deep orange", TRUST_DEEP_ORANGE},
-    {"Red", TRUST_RED},
+    LV_TRUST_COLOR_X(LV_TRUST_COLOR_TO_ENTRY)
 };
+#undef LV_TRUST_COLOR_TO_ENTRY
 
 const char *trust_color_name(TrustColor tc) {
     return lv_enum_to_str(s_trust_color_name_entries, lv_ARRAY_SIZE(s_trust_color_name_entries), (int) tc, "Unknown");
 }
 
-/** @brief proof_color_name 名称表（按枚举值升序） */
+/** @brief proof_color_name 名称表（按枚举值升序，自 LV_PROOF_COLOR_X 生成） */
+#define LV_PROOF_COLOR_TO_ENTRY(sym, disp, hex, coq) {disp, sym},
 static const lvStrToEnumEntry s_proof_color_name_entries[] = {
-    {"Green (fully constructed)", PROOF_COLOR_GREEN},
-    {"Blue (unexplored)", PROOF_COLOR_BLUE_UNEXPLORED},
-    {"Blue (resource limited)", PROOF_COLOR_BLUE_RESOURCE},
-    {"Blue (out of range)", PROOF_COLOR_BLUE_OUT_OF_RANGE},
-    {"Green (verified unconstructible)", PROOF_COLOR_GREEN_VERIFIED},
-    {"Yellow", PROOF_COLOR_YELLOW},
-    {"Orange (oracle)", PROOF_COLOR_ORANGE_ORACLE},
-    {"Orange (ex falso)", PROOF_COLOR_ORANGE_EX_FALSO},
-    {"Amber", PROOF_COLOR_AMBER},
-    {"Dark orange", PROOF_COLOR_DARK_ORANGE},
-    {"Green (complete)", PROOF_COLOR_GREEN_COMPLETE},
-    {"Red (conflict)", PROOF_COLOR_RED_CONFLICT},
+    LV_PROOF_COLOR_X(LV_PROOF_COLOR_TO_ENTRY)
 };
+#undef LV_PROOF_COLOR_TO_ENTRY
 
 const char *proof_color_name(ProofColor pc) {
     return lv_enum_to_str(s_proof_color_name_entries, lv_ARRAY_SIZE(s_proof_color_name_entries), (int) pc, "Unknown");
 }
 
-/** @brief proof_color_to_html_hex 名称表（按枚举值升序，自 proof_navigator_export.c 收敛） */
+/** @brief proof_color_to_html_hex 名称表（按枚举值升序，自 LV_PROOF_COLOR_X 生成） */
+#define LV_PROOF_COLOR_TO_HTML(sym, disp, hex, coq) {hex, sym},
 static const lvStrToEnumEntry s_proof_color_html_names[] = {
-    {"#4CAF50", PROOF_COLOR_GREEN},
-    {"#2196F3", PROOF_COLOR_BLUE_UNEXPLORED},
-    {"#1976D2", PROOF_COLOR_BLUE_RESOURCE},
-    {"#0D47A1", PROOF_COLOR_BLUE_OUT_OF_RANGE},
-    {"#2E7D32", PROOF_COLOR_GREEN_VERIFIED},
-    {"#FFC107", PROOF_COLOR_YELLOW},
-    {"#FF9800", PROOF_COLOR_ORANGE_ORACLE},
-    {"#F57C00", PROOF_COLOR_ORANGE_EX_FALSO},
-    {"#FFB300", PROOF_COLOR_AMBER},
-    {"#E65100", PROOF_COLOR_DARK_ORANGE},
-    {"#1B5E20", PROOF_COLOR_GREEN_COMPLETE},
-    {"#D32F2F", PROOF_COLOR_RED_CONFLICT},
+    LV_PROOF_COLOR_X(LV_PROOF_COLOR_TO_HTML)
 };
+#undef LV_PROOF_COLOR_TO_HTML
 
 const char *proof_color_to_html_hex(ProofColor pc) {
     return lv_enum_to_str(s_proof_color_html_names, lv_ARRAY_SIZE(s_proof_color_html_names), (int) pc, "#78909C");

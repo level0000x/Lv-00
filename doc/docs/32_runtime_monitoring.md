@@ -1,4 +1,4 @@
-﻿# 32. 运行时监控与生态系统
+# 32. 运行时监控与生态系统
 
 ## 32.1 模块概述
 
@@ -484,7 +484,7 @@ typedef enum {
 | [30_performance_concurrency.md](30_performance_concurrency.md) | 性能、线程池、基准测试 |
 | [31_stream_interop.md](31_stream_interop.md) | 流式事件与外部互操作 |
 | [20_preset_registry.md](20_preset_registry.md) | 预设函数块注册表 |
-| [19_axiom_rewrite_export.md](19_axiom_rewrite_export.md) | 公理包、重写与导出 |
+| [41_axiom_rewrite_export.md](41_axiom_rewrite_export.md) | 公理包、重写与导出 |
 
 ---
 

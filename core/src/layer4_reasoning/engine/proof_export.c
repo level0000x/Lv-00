@@ -39,6 +39,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "../proof/trust_color_x.h"
 
 /* ============== 查找表 ============== */
 
@@ -310,18 +311,11 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
     }
 
     /* 信任颜色映射到 LaTeX 颜色（LaTeX 格式派生态；TrustColor 权威名称见 trust_color.c trust_color_name()） */
+    #define LV_TRUST_COLOR_TO_LATEX(sym, disp, ser, dot, tex) tex,
     static const char *color_map[] = {
-        "\\textcolor{green}{}",     /* TRUST_GREEN */
-        "\\textcolor{blue}{}",      /* TRUST_BLUE_UNEXPLORED */
-        "\\textcolor{blue}{}",      /* TRUST_BLUE_EXCEEDED */
-        "\\textcolor{blue}{}",      /* TRUST_BLUE_OUT_OF_SCOPE */
-        "\\textcolor{yellow}{}",    /* TRUST_YELLOW */
-        "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_ORACLE */
-        "\\textcolor{orange!70}{}", /* TRUST_LIGHT_ORANGE_EXPLOSION */
-        "\\textcolor{orange!50}{}", /* TRUST_AMBER */
-        "\\textcolor{orange}{}",    /* TRUST_DEEP_ORANGE */
-        "\\textcolor{red}{}"        /* TRUST_RED */
+        LV_TRUST_COLOR_X(LV_TRUST_COLOR_TO_LATEX)
     };
+    #undef LV_TRUST_COLOR_TO_LATEX
     static const int color_map_count = sizeof(color_map) / sizeof(color_map[0]);
 
     /* 遍历节点生成 LaTeX */

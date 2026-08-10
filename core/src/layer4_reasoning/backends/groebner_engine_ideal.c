@@ -206,7 +206,7 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id) {
     lvLockGuard _lg;
     groebner_lock_guard_init(&_lg);
     lv_DEFER(groebner_lock_guard_defer_cleanup, &_lg);
-    if (!g_data || !groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!g_data || !lv_index_in_range(ideal_id, g_data->ideal_count)) {
         return;
     }
 
@@ -237,10 +237,10 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id) {
     if (!g_data) {
         return -1;
     }
-    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
-    if (!groebner_id_in_range(poly_id, g_data->poly_count)) {
+    if (!lv_index_in_range(poly_id, g_data->poly_count)) {
         return -1;
     }
 
@@ -282,7 +282,7 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
     if (!g_data) {
         return -1;
     }
-    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
 
@@ -498,10 +498,10 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
     if (!g_data) {
         return -1;
     }
-    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id, g_data->ideal_count)) {
         return -1;
     }
-    if (!groebner_id_in_range(new_poly_id, g_data->poly_count)) {
+    if (!lv_index_in_range(new_poly_id, g_data->poly_count)) {
         return -1;
     }
 
@@ -571,10 +571,10 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id) {
     if (!g_data) {
         return false;
     }
-    if (!groebner_id_in_range(ideal_id, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id, g_data->ideal_count)) {
         return false;
     }
-    if (!groebner_id_in_range(poly_id, g_data->poly_count)) {
+    if (!lv_index_in_range(poly_id, g_data->poly_count)) {
         return false;
     }
 
@@ -1036,8 +1036,8 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
     if (!g_data) {
         return -1;
     }
-    if (!groebner_id_in_range(ideal_id_a, g_data->ideal_count) ||
-        !groebner_id_in_range(ideal_id_b, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id_a, g_data->ideal_count) ||
+        !lv_index_in_range(ideal_id_b, g_data->ideal_count)) {
         return -1;
     }
 
@@ -1118,8 +1118,8 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
     if (!g_data) {
         return -1;
     }
-    if (!groebner_id_in_range(ideal_id_a, g_data->ideal_count) ||
-        !groebner_id_in_range(ideal_id_b, g_data->ideal_count)) {
+    if (!lv_index_in_range(ideal_id_a, g_data->ideal_count) ||
+        !lv_index_in_range(ideal_id_b, g_data->ideal_count)) {
         return -1;
     }
 

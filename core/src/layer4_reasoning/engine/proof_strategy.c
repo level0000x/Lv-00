@@ -28,24 +28,28 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /* ============== 内部策略实现 ============== */
 
 /**
- * @brief 策略中文名称映射表
+ * @brief 策略中文名称映射表（自 LV_STRATEGY_X 生成）
  */
+#define LV_STRATEGY_X(x) \
+    x(STRATEGY_DIRECT, "直接证明") \
+    x(STRATEGY_CONTRADICTION, "反证法") \
+    x(STRATEGY_CONTRAPOSITIVE, "逆否证明") \
+    x(STRATEGY_INDUCTION, "数学归纳法") \
+    x(STRATEGY_CASES, "分情况讨论") \
+    x(STRATEGY_CONSTRUCTION, "构造性证明") \
+    x(STRATEGY_UNFOLDING, "定义展开") \
+    x(STRATEGY_BACKWARD, "逆向推理") \
+    x(STRATEGY_FORWARD, "正向推理") \
+    x(STRATEGY_HYBRID, "混合策略")
 static const char *g_strategy_names_zh[] = {
-    "直接证明",   /* STRATEGY_DIRECT */
-    "反证法",     /* STRATEGY_CONTRADICTION */
-    "逆否证明",   /* STRATEGY_CONTRAPOSITIVE */
-    "数学归纳法", /* STRATEGY_INDUCTION */
-    "分情况讨论", /* STRATEGY_CASES */
-    "构造性证明", /* STRATEGY_CONSTRUCTION */
-    "定义展开",   /* STRATEGY_UNFOLDING */
-    "逆向推理",   /* STRATEGY_BACKWARD */
-    "正向推理",   /* STRATEGY_FORWARD */
-    "混合策略"    /* STRATEGY_HYBRID */
+    lv_XMACRO_TO_NAME_ARRAY(LV_STRATEGY_X)
 };
+#undef LV_STRATEGY_X
 
 /**
  * @brief 获取策略中文名称
@@ -686,10 +690,7 @@ static const dispatch_handler kStrategyDispatch[] = {
  */
 static bool dispatch_strategy(lvProofEngine *engine, const Proposition *goal, lvStrategyType type,
                               lvProofTraceTree *tree) {
-    if (type >= 0 && type <= STRATEGY_HYBRID) {
-        return kStrategyDispatch[type](engine, goal, tree);
-    }
-    return false;
+    return LV_DISPATCH(kStrategyDispatch, type, false, engine, goal, tree);
 }
 
 /**

@@ -273,7 +273,7 @@ static bool unary_op_sin(double lo, double hi, double *rlo, double *rhi) {
     int k0 = (int) floor((lo + M_PI / 2) / M_PI), k1 = (int) floor((hi + M_PI / 2) / M_PI);
     for (int k = k0; k <= k1; k++) {
         double x = k * M_PI - M_PI / 2;
-        if (x >= lo - 1e-15 && x <= hi + 1e-15) {
+        if (x >= lo - lv_GAPPA_BOUND_SLACK && x <= hi + lv_GAPPA_BOUND_SLACK) {
             double v = sin(x);
             if (v < *rlo)
                 *rlo = v;
@@ -290,7 +290,7 @@ static bool unary_op_cos(double lo, double hi, double *rlo, double *rhi) {
     int k0 = (int) floor(lo / M_PI), k1 = (int) floor(hi / M_PI);
     for (int k = k0; k <= k1; k++) {
         double x = k * M_PI;
-        if (x >= lo - 1e-15 && x <= hi + 1e-15) {
+        if (x >= lo - lv_GAPPA_BOUND_SLACK && x <= hi + lv_GAPPA_BOUND_SLACK) {
             double v = cos(x);
             if (v < *rlo)
                 *rlo = v;
@@ -846,7 +846,7 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
                         double dev_lo = fabs(hyp[j].bound_lo - center);
                         double dev_hi = fabs(hyp[j].bound_hi - center);
                         double max_dev = fmax(dev_lo, dev_hi);
-                        if (max_dev <= gpred.bound_abs + 1e-15) {
+                        if (max_dev <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                             proven = true;
                             break;
                         }
@@ -873,20 +873,20 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
                         /* 对 BND 目标检查区间包含 */
                         if (gpred.type == lv_PRED_BND) {
                             apply_round_err(&lo, &hi, &fmt);
-                            if (lo >= gpred.bound_lo - 1e-15 && hi <= gpred.bound_hi + 1e-15) {
+                            if (lo >= gpred.bound_lo - lv_GAPPA_BOUND_SLACK && hi <= gpred.bound_hi + lv_GAPPA_BOUND_SLACK) {
                                 proven = true;
                             }
                         } else if (gpred.type == lv_PRED_ABS) {
                             apply_round_err(&lo, &hi, &fmt);
                             double max_dev = fmax(fabs(lo), fabs(hi));
-                            if (max_dev <= gpred.bound_abs + 1e-15) {
+                            if (max_dev <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                                 proven = true;
                             }
                         } else if (gpred.type == lv_PRED_REL) {
                             apply_round_err(&lo, &hi, &fmt);
                             double abs_mag = fmax(fabs(lo), fabs(hi));
                             double rel_err = (fabs(lo) > 1e-30) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
-                            if (rel_err <= gpred.bound_abs + 1e-15) {
+                            if (rel_err <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                                 proven = true;
                             }
                         }
@@ -907,19 +907,19 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
 
                     if (gpred.type == lv_PRED_BND) {
                         /* BND: 检查计算区间是否在目标区间内 */
-                        if (lo >= gpred.bound_lo - 1e-15 && hi <= gpred.bound_hi + 1e-15) {
+                        if (lo >= gpred.bound_lo - lv_GAPPA_BOUND_SLACK && hi <= gpred.bound_hi + lv_GAPPA_BOUND_SLACK) {
                             proven = true;
                         }
                     } else if (gpred.type == lv_PRED_ABS) {
                         /* ABS: 检查最大绝对偏差 */
                         double max_dev = fmax(fabs(lo), fabs(hi));
-                        if (max_dev <= gpred.bound_abs + 1e-15) {
+                        if (max_dev <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                             proven = true;
                         }
                     } else if (gpred.type == lv_PRED_REL) {
                         /* REL: 检查相对误差 */
                         double rel_err = (fabs(lo) > 1e-30) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
-                        if (rel_err <= gpred.bound_abs + 1e-15) {
+                        if (rel_err <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                             proven = true;
                         }
                     }

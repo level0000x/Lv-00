@@ -36,6 +36,7 @@
 
 #include "lv/error_codes.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_numeric.h"
 
 /* ========================================================================
  * 向量主机端实现（硬件无关）
@@ -276,7 +277,7 @@ void default_matrix_scale(lvMatrix *A, double c) {
  * @brief 设置单个元素值（列主序）
  */
 void default_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double val) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) {
         return;
     }
     double *data = (double *) A->data;
@@ -287,7 +288,7 @@ void default_matrix_set_element(lvMatrix *A, int64_t row, int64_t col, double va
  * @brief 获取单个元素值（列主序）
  */
 double default_matrix_get_element(const lvMatrix *A, int64_t row, int64_t col) {
-    if (!A || !A->data || row < 0 || col < 0 || row >= A->rows || col >= A->cols) {
+    if (!A || !A->data || !lv_index_in_range((int) row, (int) A->rows) || !lv_index_in_range((int) col, (int) A->cols)) {
         return 0.0;
     }
     double *data = (double *) A->data;

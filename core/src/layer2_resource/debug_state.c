@@ -156,14 +156,17 @@ void debug_refcount_unlock(void) {
 }
 
 /* 日志级别 → 名称映射表（TRACE=-1，以 TRACE 为基准偏移下标；未知级别返回 "UNKNOWN"） */
+#define LV_LOGLEVEL_X(x) \
+    x(LOG_LEVEL_TRACE - LOG_LEVEL_TRACE, "TRACE") \
+    x(LOG_LEVEL_DEBUG - LOG_LEVEL_TRACE, "DEBUG") \
+    x(LOG_LEVEL_INFO - LOG_LEVEL_TRACE, "INFO") \
+    x(LOG_LEVEL_WARN - LOG_LEVEL_TRACE, "WARN") \
+    x(LOG_LEVEL_ERROR - LOG_LEVEL_TRACE, "ERROR") \
+    x(LOG_LEVEL_FATAL - LOG_LEVEL_TRACE, "FATAL")
 static const char *kLogLevelNames[] = {
-    [LOG_LEVEL_TRACE - LOG_LEVEL_TRACE] = "TRACE",
-    [LOG_LEVEL_DEBUG - LOG_LEVEL_TRACE] = "DEBUG",
-    [LOG_LEVEL_INFO - LOG_LEVEL_TRACE]  = "INFO",
-    [LOG_LEVEL_WARN - LOG_LEVEL_TRACE]  = "WARN",
-    [LOG_LEVEL_ERROR - LOG_LEVEL_TRACE] = "ERROR",
-    [LOG_LEVEL_FATAL - LOG_LEVEL_TRACE] = "FATAL",
+    lv_XMACRO_TO_NAME_ARRAY(LV_LOGLEVEL_X)
 };
+#undef LV_LOGLEVEL_X
 
 /* 获取日志级别字符串 —— v3.3.0：扩展 TRACE 和 FATAL 级别 */
 const char *log_level_string(LogLevel level) {

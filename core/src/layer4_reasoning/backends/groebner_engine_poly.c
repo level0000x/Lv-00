@@ -75,7 +75,7 @@ cleanup:
 void poly_destroy(lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(poly_id, g_data->poly_count))
+    if (!lv_index_in_range(poly_id, g_data->poly_count))
         goto _gcleanup;
 
     if (g_data->polys[poly_id]) {
@@ -96,8 +96,8 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(poly_id_f, g_data->poly_count) ||
-        !groebner_id_in_range(poly_id_g, g_data->poly_count))
+    if (!lv_index_in_range(poly_id_f, g_data->poly_count) ||
+        !lv_index_in_range(poly_id_g, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
@@ -133,8 +133,8 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(poly_id_f, g_data->poly_count) ||
-        !groebner_id_in_range(poly_id_g, g_data->poly_count))
+    if (!lv_index_in_range(poly_id_f, g_data->poly_count) ||
+        !lv_index_in_range(poly_id_g, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id_f];
@@ -170,8 +170,8 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
 
     int ret = -1;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(poly_id, g_data->poly_count) ||
-        !groebner_id_in_range(subst_poly_id, g_data->poly_count))
+    if (!lv_index_in_range(poly_id, g_data->poly_count) ||
+        !lv_index_in_range(subst_poly_id, g_data->poly_count))
         goto _gcleanup;
 
     lvPolynomial *f = g_data->polys[poly_id];
@@ -204,7 +204,7 @@ const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id) {
     lv_UNUSED(registry);
     const lvPolynomial *p = NULL;
     GROEBNER_LOCK_GUARD_BEGIN();
-    if (!groebner_id_in_range(poly_id, g_data->poly_count))
+    if (!lv_index_in_range(poly_id, g_data->poly_count))
         goto _gcleanup;
     p = g_data->polys[poly_id];
 GROEBNER_LOCK_GUARD_END();

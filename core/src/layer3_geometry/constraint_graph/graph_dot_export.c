@@ -30,6 +30,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "../../layer4_reasoning/proof/trust_color_x.h"
 
 /* ================================================================
  * 内部辅助
@@ -60,37 +61,27 @@ static const char *geom_type_fillcolor(GeomType type) {
 }
 
 /** @brief 信任颜色 → DOT 填充色（show_trust_colors 时覆盖类型色） */
+#define LV_TRUST_COLOR_TO_FILL(sym, disp, ser, dot, tex) [sym] = dot,
+static const char *const kTrustFillColorMap[] = {
+    LV_TRUST_COLOR_X(LV_TRUST_COLOR_TO_FILL)
+};
+#undef LV_TRUST_COLOR_TO_FILL
+
 static const char *trust_fillcolor(TrustColor trust) {
-    switch (trust) {
-    case TRUST_GREEN:                 return "#2ca02c";
-    case TRUST_BLUE_UNEXPLORED:
-    case TRUST_BLUE_EXCEEDED:
-    case TRUST_BLUE_OUT_OF_SCOPE:     return "#1f77b4";
-    case TRUST_YELLOW:                return "#bcbd22";
-    case TRUST_LIGHT_ORANGE_ORACLE:
-    case TRUST_LIGHT_ORANGE_EXPLOSION: return "#ff7f0e";
-    case TRUST_AMBER:                 return "#ffbf00";
-    case TRUST_DEEP_ORANGE:           return "#ff4500";
-    case TRUST_RED:                   return "#d62728";
-    default:                          return "#d3d3d3";
-    }
+    if ((unsigned) trust < lv_ARRAY_SIZE(kTrustFillColorMap))
+        return kTrustFillColorMap[trust];
+    return "#d3d3d3";
 }
 
 /** @brief 信任颜色 → 显示名（追加到节点 label） */
+#define LV_TRUST_COLOR_TO_NAME(sym, disp, ser, dot, tex) {ser, sym},
+static const lvStrToEnumEntry s_trust_color_name_entries[] = {
+    LV_TRUST_COLOR_X(LV_TRUST_COLOR_TO_NAME)
+};
+#undef LV_TRUST_COLOR_TO_NAME
+
 static const char *trust_color_name(TrustColor trust) {
-    switch (trust) {
-    case TRUST_GREEN:                  return "GREEN";
-    case TRUST_BLUE_UNEXPLORED:        return "BLUE_UNEXPLORED";
-    case TRUST_BLUE_EXCEEDED:          return "BLUE_EXCEEDED";
-    case TRUST_BLUE_OUT_OF_SCOPE:      return "BLUE_OUT_OF_SCOPE";
-    case TRUST_YELLOW:                 return "YELLOW";
-    case TRUST_LIGHT_ORANGE_ORACLE:    return "LIGHT_ORANGE_ORACLE";
-    case TRUST_LIGHT_ORANGE_EXPLOSION: return "LIGHT_ORANGE_EXPLOSION";
-    case TRUST_AMBER:                  return "AMBER";
-    case TRUST_DEEP_ORANGE:            return "DEEP_ORANGE";
-    case TRUST_RED:                    return "RED";
-    default:                           return "UNKNOWN";
-    }
+    return lv_enum_to_str(s_trust_color_name_entries, lv_ARRAY_SIZE(s_trust_color_name_entries), (int) trust, "UNKNOWN");
 }
 
 /** @brief 布局引擎 → rankdir（层级布局适合 TB，其余 LR） */
@@ -309,13 +300,10 @@ int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig 
     char tmp_dot[1024];
     snprintf(tmp_dot, sizeof(tmp_dot), "%s.tmp.dot", output_svg);
 
-    FILE *f = fopen(tmp_dot, "w");
-    if (!f) {
+    if (!lv_dot_write_file(tmp_dot, dot, strlen(dot))) {
         lv_free((void **) &dot);
         return lv_ERROR_IO;
     }
-    fputs(dot, f);
-    fclose(f);
     lv_free((void **) &dot);
 
     char cmd[4096];

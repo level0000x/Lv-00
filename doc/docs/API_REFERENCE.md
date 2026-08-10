@@ -1302,7 +1302,7 @@ int lv_get_log_level(void);
 
 ## 参考文档
 
-- [架构手册](ARCHITECTURE_MANUAL.md)
+- [架构手册](archived/ARCHITECTURE_MANUAL.md)
 - [入门教程](TUTORIAL.md)
 - [API 快速入门](API_QUICKSTART.md)
 - [语言规范](lv_LANGUAGE_SPEC.md)

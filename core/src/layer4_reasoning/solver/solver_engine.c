@@ -46,6 +46,11 @@ static void solver_set_stream_context_local(StreamContext *ctx) {
     solver_stream_ctx = ctx;
 }
 
+static void solver_snapshot_rollback(ConstraintGraph *graph, SolverSnapshot *snap) {
+    solver_snapshot_restore(graph, snap);
+    solver_snapshot_free(snap);
+}
+
 /**
  * @brief 释放 solver_handle_multiple_solutions 输出的分支坐标数组
  *
@@ -145,8 +150,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             equation_system_clear(&sys);
             *out_result = result;
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 检测到冲突方程", 0);
-            solver_snapshot_restore(graph, &snapshot);
-            solver_snapshot_free(&snapshot);
+            solver_snapshot_rollback(graph, &snapshot);
             return SOLVER_STATUS_OVERCONSTRAINED;
         }
     }
@@ -163,8 +167,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 方程超出代数范围", 0);
-        solver_snapshot_restore(graph, &snapshot);
-        solver_snapshot_free(&snapshot);
+        solver_snapshot_rollback(graph, &snapshot);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 
@@ -175,8 +178,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
             equation_system_clear(&sys);
             *out_result = result;
             stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
-            solver_snapshot_restore(graph, &snapshot);
-            solver_snapshot_free(&snapshot);
+            solver_snapshot_rollback(graph, &snapshot);
             return SOLVER_STATUS_TIMEOUT;
         }
         int all_var_count = 0;
@@ -224,8 +226,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解错误: 内存分配失败", 0);
-                    solver_snapshot_restore(graph, &snapshot);
-                    solver_snapshot_free(&snapshot);
+                    solver_snapshot_rollback(graph, &snapshot);
                     return SOLVER_STATUS_OUT_OF_MEMORY;
                 }
                 for (int i = 0; i < eqs_count; i++) {
@@ -285,8 +286,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 无解", 0);
-        solver_snapshot_restore(graph, &snapshot);
-        solver_snapshot_free(&snapshot);
+        solver_snapshot_rollback(graph, &snapshot);
         return SOLVER_STATUS_NO_SOLUTION;
     }
 
@@ -334,8 +334,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 高次方程无法处理", 0);
-                solver_snapshot_restore(graph, &snapshot);
-                solver_snapshot_free(&snapshot);
+                solver_snapshot_rollback(graph, &snapshot);
                 return SOLVER_STATUS_OUT_OF_SCOPE;
             }
 
@@ -348,8 +347,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                 equation_system_clear(&sys);
                 *out_result = result;
                 stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基计算超出范围", 0);
-                solver_snapshot_restore(graph, &snapshot);
-                solver_snapshot_free(&snapshot);
+                solver_snapshot_rollback(graph, &snapshot);
                 return SOLVER_STATUS_OUT_OF_SCOPE;
             }
 
@@ -361,8 +359,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                     equation_system_clear(&sys);
                     *out_result = result;
                     stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: Groebner基求解后无解", 0);
-                    solver_snapshot_restore(graph, &snapshot);
-                    solver_snapshot_free(&snapshot);
+                    solver_snapshot_rollback(graph, &snapshot);
                     return SOLVER_STATUS_NO_SOLUTION;
                 }
             }
@@ -415,8 +412,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         equation_system_clear(&sys);
         *out_result = result;
         stream_emit_simple(solver_stream_ctx, STREAM_EVENT_ERROR, "求解完成: 未能求解任何变量", 0);
-        solver_snapshot_restore(graph, &snapshot);
-        solver_snapshot_free(&snapshot);
+        solver_snapshot_rollback(graph, &snapshot);
         return SOLVER_STATUS_OUT_OF_SCOPE;
     }
 

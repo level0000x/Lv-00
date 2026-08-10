@@ -26,8 +26,10 @@
 #include "lv/func_block_registry.h"
 #include "lv/geom_evol.h"
 #include "lv/interop.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv/meta_verify.h"
 #include "lv/orchestrator.h"
 #include "lv/preset_algebraic.h"
@@ -98,11 +100,11 @@ static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char 
 static bool read_file_text(const char *path, char *buf, size_t buf_size) {
     if (!path || !buf || buf_size == 0)
         return false;
-    FILE *fp = fopen(path, "rb");
+    FILE *fp = lv_file_open(path, "rb");
     if (!fp)
         return false;
     size_t n = fread(buf, 1, buf_size - 1, fp);
-    fclose(fp);
+    lv_file_close(fp);
     buf[n] = '\0';
     return true;
 }
@@ -400,7 +402,7 @@ int lv_orchestrator_run_stage(lvSession *session, lvSessionStage stage) {
         return 1;
     session->stages[stage].status = lv_STAGE_RUNNING;
     double t0 = now_ms();
-    int r = stage_dispatch[stage](session);
+    int r = LV_DISPATCH(stage_dispatch, stage, -1, session);
     double dt = now_ms() - t0;
     if (dt < 0.0)
         dt = 0.0;

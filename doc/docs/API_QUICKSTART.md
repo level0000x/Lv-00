@@ -1,4 +1,4 @@
-﻿# Lv-00 API 快速入门指南
+# Lv-00 API 快速入门指南
 
 > **版本**: 1.1.0
 > **最后更新**: 2026-06-27
@@ -883,10 +883,10 @@ undefined reference to `lv_context_create'
 
 ## 更多资源
 
-- [架构规范文档](ARCHITECTURE_v3.3.md)
-- [变更日志](../CHANGELOG_v3.3.0.md)
-- [配置参考](../include/lv/config.h)
-- [跨平台参考](../include/lv/cross_platform.h)
+- [架构规范文档](../../README.md)
+- [变更日志](../../CHANGELOG.md)
+- [配置参考](../../core/include/lv/config.h)
+- [跨平台参考](../../core/include/lv/cross_platform.h)
 
 ---
 

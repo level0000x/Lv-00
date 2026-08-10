@@ -144,6 +144,9 @@ extern "C" {
 #ifndef lv_GEO_ANGLE_EPSILON
 #define lv_GEO_ANGLE_EPSILON lv_EPSILON_HIGH /* 角度相等容差（语义别名 = lv_EPSILON_HIGH，1e-10） */
 #endif
+#ifndef lv_GEO_LENGTH_GUARD
+#define lv_GEO_LENGTH_GUARD 0.001 /* 几何长度/分母保护阈值（interop 弧偏移除数保护、贝塞尔法线归一化防护） */
+#endif
 
 /* 代数运算安全阈值 */
 #ifndef lv_SINGULARITY_THRESHOLD
@@ -151,6 +154,9 @@ extern "C" {
 #endif
 #ifndef lv_NORMALIZATION_THRESHOLD
 #define lv_NORMALIZATION_THRESHOLD lv_EPSILON_SUPERTINY /* 向量归一化容差（语义别名 = lv_EPSILON_SUPERTINY，1e-15） */
+#endif
+#ifndef lv_GAPPA_BOUND_SLACK
+#define lv_GAPPA_BOUND_SLACK 1e-15 /* Gappa 区间包含判定松弛量（gappa_dsl/gappa_propagate 传播精度） */
 #endif
 
 /* 数值范围极限（用于哨兵值） */

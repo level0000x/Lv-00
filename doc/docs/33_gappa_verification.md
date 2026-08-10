@@ -1,4 +1,4 @@
-﻿# 33. Gappa 浮点验证与解析安全
+# 33. Gappa 浮点验证与解析安全
 
 ## 33.1 模块概述
 
@@ -496,9 +496,9 @@ typedef struct AlgebraicGeom {
 
 | 文档 | 关联内容 |
 |------|----------|
-| [17_numerical_analysis.md](17_numerical_analysis.md) | 浮点误差、区间算术与 Gappa/FPTaylor |
+| [39_numerical_analysis.md](39_numerical_analysis.md) | 浮点误差、区间算术与 Gappa/FPTaylor |
 | [29_inequality_approximation.md](29_inequality_approximation.md) | Herbie/FPTaylor 与误差评估 |
-| [18_formula_dsl_ga.md](18_formula_dsl_ga.md) | 公式 DSL、词法分析与表达式规范化 |
+| [40_formula_dsl_ga.md](40_formula_dsl_ga.md) | 公式 DSL、词法分析与表达式规范化 |
 | [06_unify.md](06_unify.md) | 合一与等式检查 |
 | [26_interactive_geometry.md](26_interactive_geometry.md) | 交互几何与构造过程 |
 

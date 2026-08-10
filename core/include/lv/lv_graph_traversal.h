@@ -16,6 +16,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "lv/lv_utils.h" /* lv_free */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -96,6 +98,44 @@ int lv_tree_traverse(void *root,
                       void *user_data,
                       lvGetChildrenFunc get_children,
                       const lvTreeTraversalConfig *config);
+
+// ---- 树递归释放（回调驱动共享递归释放：判据 A）----
+//
+// 收敛各模块手写「后序递归销毁」骨架（递归子节点 → 释放节点字段 → 释放外壳）：
+// lvTreeNode（lv_protocol.c）/ lvProofTreeNode（proof_tree.c，lvDArray 适配）/
+// BacktrackNode（proof_dependency.c）三实例共享本设施。
+// 契约卡：
+// - 语义契约：后序递归释放整棵子树；先递归释放全部子节点，再回调 cleanup
+//   释放节点自身字段（含 children 数组），最后由本设施释放节点外壳。
+// - get_children 提取子节点指针数组（void **），out_count 写回子节点数；
+//   返回 NULL 或 out_count==0 时按叶节点处理（不访问数组）。
+// - cleanup 可为 NULL（此时仅释放外壳，字段由调用方另行处理）。
+// - 前置条件：node 可为 NULL（直接返回）；get_children/cleanup 为纯函数，
+//   不得访问兄弟节点（本设施按整棵子树独占所有权释放）。
+// - 失败/截断语义：无失败路径。
+// - 边界行为：单节点树（count==0）→ 仅 cleanup + 释放外壳；
+//   深层链（count==1）→ 递归等价，栈深与手写版本一致。
+// - 扩展点：无。
+
+typedef void **(*lvTreeGetChildrenFn)(void *node, int *out_count);
+typedef void (*lvTreeReleaseCleanupFn)(void *node);
+
+static inline void lv_tree_release_recursive(
+    void *node,
+    lvTreeGetChildrenFn get_children,
+    lvTreeReleaseCleanupFn cleanup)
+{
+    if (!node)
+        return;
+    int count = 0;
+    void **children = get_children ? get_children(node, &count) : NULL;
+    for (int i = 0; i < count; i++) {
+        lv_tree_release_recursive(children[i], get_children, cleanup);
+    }
+    if (cleanup)
+        cleanup(node);
+    lv_free(&node);
+}
 
 // ---- 便利函数 ----
 

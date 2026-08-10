@@ -733,6 +733,6 @@ int main(void) {
 ## 下一步
 
 - 阅读 [API 完整参考](API_REFERENCE.md) 了解所有 API
-- 阅读 [架构手册](ARCHITECTURE_MANUAL.md) 深入理解系统设计
+- 阅读 [架构手册](archived/ARCHITECTURE_MANUAL.md) 深入理解系统设计
 - 查看 [应用场景](USE_CASES.md) 了解更多使用示例
 - 参与项目贡献，查看 [贡献指南](../../CONTRIBUTING.md)

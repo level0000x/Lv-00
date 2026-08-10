@@ -1954,9 +1954,9 @@ static bool svg_path_arc(const char **s, SvgParserState *state, double *out_poin
         double arc_angle = t * M_PI;
         double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
         double chord_len = geo_distance_2d(x_start, y_start, dx, dy);
-        double bulge_factor = (chord_len > 0.001) ? (rx / chord_len) * 0.5 : 0.0;
-        double nx = -(dy - y_start) / (chord_len > 0.001 ? chord_len : 1.0);
-        double ny = (dx - x_start) / (chord_len > 0.001 ? chord_len : 1.0);
+        double bulge_factor = (chord_len > lv_GEO_LENGTH_GUARD) ? (rx / chord_len) * 0.5 : 0.0;
+        double nx = -(dy - y_start) / (chord_len > lv_GEO_LENGTH_GUARD ? chord_len : 1.0);
+        double ny = (dx - x_start) / (chord_len > lv_GEO_LENGTH_GUARD ? chord_len : 1.0);
         lx += nx * bulge * bulge_factor * chord_len * 0.5;
         ly += ny * bulge * bulge_factor * chord_len * 0.5;
 

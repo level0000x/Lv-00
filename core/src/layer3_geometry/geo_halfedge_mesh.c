@@ -15,6 +15,7 @@
 #include "lv/lv_platform.h"
 
 #include "lv/geo_halfedge_mesh.h"
+#include "lv/lv_lifecycle.h"
 
 #include <float.h>
 #include <math.h>
@@ -133,22 +134,28 @@ lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config) {
  * @brief 销毁 Halfedge 网格并释放所有资源
  * @param mesh 网格指针（可为 NULL）
  */
+/* lv_he_mesh_destroy 字段描述表：11 个纯指针字段直接释放 */
+static const lvFieldDesc s_he_mesh_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvHeMesh, vertex_data),
+    lv_FIELD_PLAIN(lvHeMesh, vertex_out_he),
+    lv_FIELD_PLAIN(lvHeMesh, he_twin),
+    lv_FIELD_PLAIN(lvHeMesh, he_next),
+    lv_FIELD_PLAIN(lvHeMesh, he_prev),
+    lv_FIELD_PLAIN(lvHeMesh, he_face),
+    lv_FIELD_PLAIN(lvHeMesh, he_vertex),
+    lv_FIELD_PLAIN(lvHeMesh, he_data),
+    lv_FIELD_PLAIN(lvHeMesh, edge_he),
+    lv_FIELD_PLAIN(lvHeMesh, face_he),
+    lv_FIELD_PLAIN(lvHeMesh, face_data),
+};
+
 void lv_he_mesh_destroy(lvHeMesh *mesh) {
     if (!mesh)
         return;
 
-    lv_free((void **) &(mesh->vertex_data));
-    lv_free((void **) &(mesh->vertex_out_he));
-    lv_free((void **) &(mesh->he_twin));
-    lv_free((void **) &(mesh->he_next));
-    lv_free((void **) &(mesh->he_prev));
-    lv_free((void **) &(mesh->he_face));
-    lv_free((void **) &(mesh->he_vertex));
-    lv_free((void **) &(mesh->he_data));
-    lv_free((void **) &(mesh->edge_he));
-    lv_free((void **) &(mesh->face_he));
-    lv_free((void **) &(mesh->face_data));
-    lv_free((void **) &(mesh));
+    lv_obj_destroy_fields(mesh, s_he_mesh_destroy_fields,
+                          sizeof(s_he_mesh_destroy_fields) / sizeof(s_he_mesh_destroy_fields[0]));
+    lv_free((void **) &mesh);
 }
 
 /**
@@ -959,7 +966,7 @@ lvFace lv_he_mesh_point_in_face(const lvHeMesh *mesh, lvPoint3D point, double *o
         if ((d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0)) {
             /* 计算重心坐标 */
             double total_area = fabs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1));
-            if (out_barycentric && total_area > 1e-10) {
+            if (out_barycentric && total_area > lv_EPSILON_HIGH) {
                 double a1 = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / total_area;
                 double a2 = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / total_area;
                 out_barycentric[0] = a1;

@@ -1,4 +1,4 @@
-﻿# 29. 不等式推理与近似计算
+# 29. 不等式推理与近似计算
 
 ## 29.1 模块概述
 
@@ -473,9 +473,9 @@ bool fptaylor_taylor_form(const char *expr,
 
 | 文档 | 关联内容 |
 |------|----------|
-| [17_numerical_analysis.md](17_numerical_analysis.md) | 区间算术、浮点误差与数值后端 |
+| [39_numerical_analysis.md](39_numerical_analysis.md) | 区间算术、浮点误差与数值后端 |
 | [28_number_theory.md](28_number_theory.md) | 精确有理数、多项式和数论基础 |
-| [16_logic_verification.md](16_logic_verification.md) | 逻辑验证与三值逻辑 |
+| [38_logic_verification.md](38_logic_verification.md) | 逻辑验证与三值逻辑 |
 | [14_solver_backends.md](14_solver_backends.md) | SAT/SMT/BDD 后端 |
 | [33_gappa_verification.md](33_gappa_verification.md) | Gappa 浮点证明与误差传播 |
 

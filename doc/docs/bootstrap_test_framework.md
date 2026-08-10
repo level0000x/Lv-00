@@ -1,4 +1,4 @@
-﻿# Lv-00 自举差分测试框架设计规范
+# Lv-00 自举差分测试框架设计规范
 
 > **版本**: 1.0.0-draft  
 > **日期**: 2026-05-29  
@@ -453,7 +453,7 @@ add_test(NAME BootstrapTest COMMAND bootstrap_test_runner)
 
 ## 参考文档
 
-- [自举架构设计](self_bootstrapping_design.md)
+- [自举 Phase 1 元表示层](phase1_meta_representation.md)
 - [13 个最小原语](geometric_primitives.md)
-- [测试框架](test_framework.h)
-- [重写系统](rewrite.h) - VF2 同构算法
+- [测试框架](../../core/include/lv/test_framework.h)
+- [重写系统](../../core/include/lv/rewrite.h) - VF2 同构算法

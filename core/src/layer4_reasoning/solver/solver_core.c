@@ -16,6 +16,7 @@
 #include "solver_common.h"
 #include "lv/groebner_parallel.h"
 #include "lv/lv.h"
+#include "lv/lv_xmacro.h"
 
 /* ========================================================================
  * 内部常量
@@ -1102,15 +1103,10 @@ static CDCLState cdcl_run(lvSolver *solver) {
         step++;
 
         /* 使用查找表调度状态处理函数 */
-        if ((unsigned) ctx->state < sizeof(kCdclStateHandlers) / sizeof(kCdclStateHandlers[0]) &&
-            kCdclStateHandlers[ctx->state] != NULL) {
-            ctx->state = kCdclStateHandlers[ctx->state](solver);
-            /* 终端状态（SATISFIED / UNSAT）退出循环 */
-            if (ctx->state == CDCL_SATISFIED || ctx->state == CDCL_UNSAT) {
-                return ctx->state;
-            }
-        } else {
-            return CDCL_IDLE;
+        ctx->state = LV_DISPATCH(kCdclStateHandlers, ctx->state, CDCL_IDLE, solver);
+        /* 终端状态（SATISFIED / UNSAT）退出循环 */
+        if (ctx->state == CDCL_SATISFIED || ctx->state == CDCL_UNSAT) {
+            return ctx->state;
         }
     }
 

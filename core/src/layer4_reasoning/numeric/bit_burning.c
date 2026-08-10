@@ -252,7 +252,7 @@ bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *s
             char decl[256];
             snprintf(decl, sizeof(decl), "位熔断降级: 连续触发 %d 次, 位数 %" PRIu64, state->consecutive_trips,
                      state->bit_count);
-            return bit_burning_downgrade_to_amber(graph, node_id, 1e-12, decl);
+            return bit_burning_downgrade_to_amber(graph, node_id, lv_EPSILON_ULTRA, decl);
         }
 
         default:

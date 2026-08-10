@@ -23,6 +23,7 @@
 #include "lv/geom_evol.h"
 #include "lv/interop.h"
 #include "lv/lv.h"
+#include "lv/lv_file.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
 #include "lv/meta_verify.h"
@@ -54,11 +55,11 @@
 static int read_file_text(const char *path, char *buf, size_t buf_size) {
     if (!path || !buf || buf_size == 0)
         return -1;
-    FILE *fp = fopen(path, "rb");
+    FILE *fp = lv_file_open(path, "rb");
     if (!fp)
         return -1;
     size_t n = fread(buf, 1, buf_size - 1, fp);
-    fclose(fp);
+    lv_file_close(fp);
     buf[n] = '\0';
     return 0;
 }
@@ -66,12 +67,7 @@ static int read_file_text(const char *path, char *buf, size_t buf_size) {
 static int write_text_file(const char *path, const char *text) {
     if (!path || !text)
         return -1;
-    FILE *fp = fopen(path, "wb");
-    if (!fp)
-        return -1;
-    int rc = (fputs(text, fp) < 0) ? -1 : 0;
-    fclose(fp);
-    return rc;
+    return lv_file_write_all(path, text, strlen(text));
 }
 
 /* 从输入文件构建约束图（真实调用 layer1 + layer3） */

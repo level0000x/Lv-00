@@ -2101,7 +2101,7 @@ void lv_simd_point_line_distance_array(const double *px, const double *py, doubl
     double dy = y2 - y1;
     double len_sq = dx * dx + dy * dy;
 
-    if (len_sq < 1e-12) {
+    if (len_sq < lv_EPSILON_ULTRA) {
         /* 线段退化为点 */
         for (size_t i = 0; i < count; i++) {
             out[i] = geo_distance_2d(x1, y1, px[i], py[i]);
