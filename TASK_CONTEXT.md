@@ -24,6 +24,8 @@
 | v1.9.0 微自举 A：lv 解析自身 .lv 文件 | ✅ |
 | v1.9.1 重写引擎加固：测试覆盖 + StreamContext 修复 | ✅ |
 | v2.0.0 λ-演算内核集成 | ✅ |
+| P2 收敛 (ef1dc596): 分发表/析构/坐标样板全量收敛 (19 文件) | ✅ |
+| P3 收敛 (5043c126): LV_DISPATCH 分发 + 坐标对 pair helper 模板 (20 站点) | ✅ |
 
 ## 二、v1.9.0 微自举 A — lv 解析自身 .lv 文件
 
@@ -233,3 +235,41 @@
 - 每个 POINT 节点分配 2 个连续变量 (x_i, y_i)
 - 符号坐标编码为常量方程 (x_i - val_x = 0, y_i - val_y = 0)
 - INCIDENCE/BETWEENNESS 等约束编码为占位结构（叉积方程骨架）
+
+---
+
+## 八、P3 抽象化收敛（commit 5043c126）
+
+### 方向 1：分发表收敛
+| 修改 | 文件 |
+|:---|:---|
+| `geo_create_node` / `geo_create_constraint` 手写边界检查 + 分发表 → `LV_DISPATCH` 宏 | `core/src/layer3_geometry/geometric_primitives.c` (2 处) |
+| `kGeomEntityVtbls` 3 处分发点 → 新增 `geom_entity_vtbl()` 访问器封装越界检查（结构体 vtable 不适用 LV_DISPATCH） | `core/src/layer6_visual/geometry_canvas.c` (3 处) |
+
+### 方向 3：坐标对创建模板收敛
+新增 API（`symbolic_coord.h` / `symbolic_coord_lifecycle.c`）：
+- `symbolic_coord_pair_create_rational(num_x, denom_x, num_y, denom_y, &out_x, &out_y)`
+- `symbolic_coord_pair_from_double_scaled(x, y, scale, &out_x, &out_y)`
+- 失败时自动回滚已创建项；`symbolic_coord_destroy` 确认 NULL 安全
+
+替换站点（20 处）：
+| 文件 | 数量 | 说明 |
+|:---|:---:|:---|
+| `meta_repr.c` | 7 | 含修复 1 处成功路径泄漏（graph_add_node_with_id 深拷贝） |
+| `formula_converter_geom.c` | 2 | 堆/栈默认坐标对 |
+| `formula_converter_constraint.c` | 2 | fallback 默认对（顺带修复部分失败泄漏）+ angle 对 |
+| `formula_converter_complex.c` | 3 | 默认顶点/圆心 + radius 对 |
+| `formula_curve.c` | 3 | center/radius scaled 对 + fallback 原点对 |
+| `lv.c` | 1 | `lv_add_point` 坐标对 |
+| `path_type.c` | 1 | path 节点区分坐标对（新增失败路径） |
+| `interop_import.c` | 1 | GeoJSON 坐标导入对 |
+
+### 明确排除（非收敛价值）
+- 混合对（rational+scaled，如 `formula_curve.c` p1/p2、`formula_converter_geom.c` radius）
+- 计算对（`symbolic_coord_add` 中点）
+- 循环内元素创建（`formula_converter_util.c`）
+- 矩阵系数对（`impl_preset_transformations.c`，非坐标语义）
+- 结构体 vtable（`interop_export_lean.c` void+fallback、`engine_circuit.c` 并行销毁表）— 与宏语义不匹配
+
+### 验证
+ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
