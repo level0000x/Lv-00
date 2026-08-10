@@ -483,10 +483,7 @@ int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num,
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_add_point: 创建符号坐标失败");
     }
 
-    /* 二维坐标维度常量 */
-    const int coord_dim = 2;
-    SymbolicCoord *coords[] = {x, y};
-    AddNodeResult result = graph_add_point(engine->main_graph, coords, coord_dim);
+    AddNodeResult result = graph_add_point_xy(engine->main_graph, x, y);
 
     symbolic_coord_destroy(x);
     symbolic_coord_destroy(y);

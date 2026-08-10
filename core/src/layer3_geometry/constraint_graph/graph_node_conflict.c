@@ -278,6 +278,22 @@ AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coor
 }
 
 /**
+ * @brief 向约束图添加二维点节点（x/y 坐标对便捷封装）
+ *
+ * 等价于 {@code SymbolicCoord *coords[2] = {x, y}; graph_add_point(graph, coords, 2);}。
+ * graph_add_point 深拷贝坐标，调用方保留 x/y 所有权。
+ *
+ * @param graph 约束图指针
+ * @param x     x 坐标（可为 NULL，对应未约束自由度）
+ * @param y     y 坐标（可为 NULL，对应未约束自由度）
+ * @return 添加结果状态
+ */
+AddNodeResult graph_add_point_xy(ConstraintGraph *graph, SymbolicCoord *x, SymbolicCoord *y) {
+    SymbolicCoord *coords[2] = {x, y};
+    return graph_add_point(graph, coords, 2);
+}
+
+/**
  * @brief 添加线段节点（由两个端点定义）
  *
  * 创建线段类型的几何节点，验证端点存在性，并自动添加端点关联约束。

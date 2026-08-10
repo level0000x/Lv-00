@@ -292,12 +292,12 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
                               step->color == PROOF_COLOR_DARK_ORANGE);
             bool is_amber = (step->color == PROOF_COLOR_AMBER);
 
-            /* 使用查找表替代 switch */
+            /* 查表选择类型专用 handler：未命中（越界/NULL 槽）回退默认 handler */
             {
-                LeanStepHandler handler = lean_handler_default;
-                int n_handlers = (int)(sizeof(lean_step_handlers) / sizeof(lean_step_handlers[0]));
-                if ((int)step->type >= 0 && (int)step->type < n_handlers && lean_step_handlers[step->type])
-                    handler = lean_step_handlers[step->type];
+                LeanStepHandler handler =
+                    ((unsigned) step->type < lv_ARRAY_SIZE(lean_step_handlers) && lean_step_handlers[step->type])
+                        ? lean_step_handlers[step->type]
+                        : lean_handler_default;
                 handler(fp, step, is_green, is_blue, is_orange, is_amber);
             }
         }

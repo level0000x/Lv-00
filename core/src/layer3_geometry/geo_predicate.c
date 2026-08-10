@@ -396,8 +396,8 @@ lv_PUBLIC_API lvOrientation lv_orientation_2d(double p1x, double p1y, double p2x
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
 
-    /* 查表分发 APPROX / EXACT 实现 */
-    if ((unsigned) mode < lv_ARRAY_SIZE(s_orientation_2d_impls) && s_orientation_2d_impls[mode]) {
+    /* 查表分发 APPROX / EXACT 实现（ADAPTIVE 与越界值落入下方自适应块） */
+    if (mode == lv_PREDICATE_EXACT || mode == lv_PREDICATE_APPROX) {
         return s_orientation_2d_impls[mode](p1x, p1y, p2x, p2y, p3x, p3y, eps);
     }
 
@@ -535,8 +535,8 @@ lvOrientation lv_orientation_3d(double p1x, double p1y, double p1z, double p2x, 
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
 
-    /* 查表分发 APPROX / EXACT 实现 */
-    if ((unsigned) mode < lv_ARRAY_SIZE(s_orientation_3d_impls) && s_orientation_3d_impls[mode]) {
+    /* 查表分发 APPROX / EXACT 实现（ADAPTIVE 与越界值落入下方自适应块） */
+    if (mode == lv_PREDICATE_EXACT || mode == lv_PREDICATE_APPROX) {
         return s_orientation_3d_impls[mode](p1x, p1y, p1z, p2x, p2y, p2z, p3x, p3y, p3z, p4x, p4y, p4z, eps);
     }
 
@@ -723,8 +723,8 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
 
-    /* 查表分发 APPROX / EXACT 实现 */
-    if ((unsigned) mode < lv_ARRAY_SIZE(s_side_of_circle_impls) && s_side_of_circle_impls[mode]) {
+    /* 查表分发 APPROX / EXACT 实现（ADAPTIVE 与越界值落入下方自适应块） */
+    if (mode == lv_PREDICATE_EXACT || mode == lv_PREDICATE_APPROX) {
         return s_side_of_circle_impls[mode](px, py, cx, cy, r, eps);
     }
 
@@ -1092,8 +1092,8 @@ lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, dou
     /* 模式归一化：SYMBOLIC → EXACT（符号模式暂回退到精确模式） */
     mode = normalize_predicate_mode(mode);
 
-    /* 查表分发 APPROX / EXACT 实现 */
-    if ((unsigned) mode < lv_ARRAY_SIZE(s_four_points_concyclic_impls) && s_four_points_concyclic_impls[mode]) {
+    /* 查表分发 APPROX / EXACT 实现（ADAPTIVE 与越界值落入下方自适应块） */
+    if (mode == lv_PREDICATE_EXACT || mode == lv_PREDICATE_APPROX) {
         return s_four_points_concyclic_impls[mode](ax, ay, bx, by, cx, cy, dx, dy, eps);
     }
 

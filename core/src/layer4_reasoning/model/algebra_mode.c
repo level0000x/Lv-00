@@ -136,17 +136,17 @@ AlgebraicGeom *algebra_point(AlgebraicGeom *geom, double x, double y, double z) 
         return NULL;
     (void) z; /* 二维模式下忽略 z */
 
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (x * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW),
-                                symbolic_coord_create_rational((int) (y * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW)};
+    SymbolicCoord *sx = symbolic_coord_create_rational((int) (x * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW);
+    SymbolicCoord *sy = symbolic_coord_create_rational((int) (y * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW);
 
-    AddNodeResult res = graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    AddNodeResult res = graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     if (res != ADD_NODE_OK) {
-        symbolic_coord_destroy(coords[0]);
-        symbolic_coord_destroy(coords[1]);
         return NULL;
     }
 
-    /* graph_add_point 内部消费了 coords，无需手动释放 */
     geom->current_entity = graph_get_last_added_node_id(geom->graph);
     history_push(geom, HISTORY_POINT);
     return geom;
@@ -158,9 +158,13 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
 
     /* 在 entity_id 上创建一个共线点 */
     /* 简化实现：创建点并与 entity_id 添加 incidence 约束 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *sx = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *sy = symbolic_coord_create_rational(0, 1);
 
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int new_id = graph_get_last_added_node_id(geom->graph);
 
     graph_add_incidence(geom->graph, new_id, entity_id);
@@ -174,9 +178,13 @@ AlgebraicGeom *algebra_midpoint(AlgebraicGeom *geom, int id_a, int id_b) {
         return NULL;
 
     /* 中点坐标取平均 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *sx = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *sy = symbolic_coord_create_rational(0, 1);
 
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int mid_id = graph_get_last_added_node_id(geom->graph);
 
     /* 中点与两端点 incidence */
@@ -192,9 +200,13 @@ AlgebraicGeom *algebra_intersect(AlgebraicGeom *geom, int id_a, int id_b) {
     if (!geom || !geom->graph || id_a < 0 || id_b < 0)
         return NULL;
 
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *sx = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *sy = symbolic_coord_create_rational(0, 1);
 
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int isect_id = graph_get_last_added_node_id(geom->graph);
 
     /* 交点与两几何体都关联 */
@@ -244,9 +256,13 @@ AlgebraicGeom *algebra_circle_radius(AlgebraicGeom *geom, int center_id, double 
         return NULL;
 
     /* 圆：通过圆心和半径上的点构造 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational((int) (radius * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW),
-                                symbolic_coord_create_rational(0, 1)};
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    SymbolicCoord *sx = symbolic_coord_create_rational((int) (radius * lv_RATIONAL_SCALE_LOW), lv_RATIONAL_SCALE_LOW);
+    SymbolicCoord *sy = symbolic_coord_create_rational(0, 1);
+
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int radius_point = graph_get_last_added_node_id(geom->graph);
 
     /* 创建圆 line（实际用线段表示直径方向） */
@@ -277,8 +293,13 @@ AlgebraicGeom *algebra_parallel(AlgebraicGeom *geom, int line_id, int point_id) 
         return NULL;
 
     /* 平行线：通过 point_id 作 line_id 的平行线 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(100, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    SymbolicCoord *sx = symbolic_coord_create_rational(100, 1);
+    SymbolicCoord *sy = symbolic_coord_create_rational(0, 1);
+
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int second_point = graph_get_last_added_node_id(geom->graph);
 
     graph_add_line_segment(geom->graph, point_id, second_point);
@@ -297,8 +318,13 @@ AlgebraicGeom *algebra_perpendicular(AlgebraicGeom *geom, int line_id, int point
         return NULL;
 
     /* 垂线：通过 point_id 作 line_id 的垂线 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(100, 1)};
-    graph_add_point(geom->graph, (SymbolicCoord *const *) coords, 2);
+    SymbolicCoord *sx = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *sy = symbolic_coord_create_rational(100, 1);
+
+    graph_add_point_xy(geom->graph, sx, sy);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+    symbolic_coord_destroy(sx);
+    symbolic_coord_destroy(sy);
     int second_point = graph_get_last_added_node_id(geom->graph);
 
     graph_add_line_segment(geom->graph, point_id, second_point);

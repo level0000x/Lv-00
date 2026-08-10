@@ -133,8 +133,7 @@ void *random_generator_generate_graph(RandomGenerator *gen) {
         double y = lv_random_double(gen->config.coord_min, gen->config.coord_max);
         SymbolicCoord *sx = symbolic_coord_create_rational((long long) (x * 1000), 1000);
         SymbolicCoord *sy = symbolic_coord_create_rational((long long) (y * 1000), 1000);
-        SymbolicCoord *coords[] = {sx, sy};
-        graph_add_point(graph, coords, 2);
+        graph_add_point_xy(graph, sx, sy);
         symbolic_coord_destroy(sx);
         symbolic_coord_destroy(sy);
     }

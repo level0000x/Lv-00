@@ -521,6 +521,19 @@ lv_PUBLIC_API lvErrorCode lv_remove_node_result_to_error(RemoveNodeResult result
 lv_PUBLIC_API AddNodeResult graph_add_point(ConstraintGraph *graph, SymbolicCoord *const *coords, int coord_count);
 
 /**
+ * @brief 向约束图添加二维点节点（x/y 坐标对便捷封装）
+ *
+ * 等价于 {@code SymbolicCoord *coords[2] = {x, y}; graph_add_point(graph, coords, 2);}。
+ * graph_add_point 深拷贝坐标，调用方保留 x/y 所有权。
+ *
+ * @param[in] graph 约束图
+ * @param[in] x     x 坐标（可为 NULL，对应未约束自由度）
+ * @param[in] y     y 坐标（可为 NULL，对应未约束自由度）
+ * @return 操作结果状态码
+ */
+lv_PUBLIC_API AddNodeResult graph_add_point_xy(ConstraintGraph *graph, SymbolicCoord *x, SymbolicCoord *y);
+
+/**
  * @brief 向约束图添加线段节点
  *
  * @param[in] graph      约束图

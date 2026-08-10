@@ -32,6 +32,7 @@
 
 #include "quantifier.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_lifecycle.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -473,6 +474,15 @@ lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const ch
     return expr;
 }
 
+/** @brief 体命题外层容器字段销毁表（仅释放外层自身字段；sub_props/pattern 等由 proposition_destroy 递归释放） */
+static const lvFieldDesc kQuantBodyPropDestroyFields[] = {
+    lv_FIELD_PLAIN(Proposition, label),
+    lv_FIELD_PLAIN(Proposition, input_port_ids),
+    lv_FIELD_PLAIN(Proposition, output_port_ids),
+    lv_FIELD_PLAIN(Proposition, precondition_region_ids),
+    lv_FIELD_PLAIN(Proposition, postcondition_constraint_ids),
+};
+
 /**
  * @brief 销毁量化表达式
  *
@@ -495,12 +505,9 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr) {
 
     /* 释放体命题 */
     if (expr->body_proposition) {
-        lv_FREE_AND_NULL(expr->body_proposition->label);
-        lv_FREE_AND_NULL(expr->body_proposition->input_port_ids);
-        lv_FREE_AND_NULL(expr->body_proposition->output_port_ids);
-        lv_FREE_AND_NULL(expr->body_proposition->precondition_region_ids);
-        lv_FREE_AND_NULL(expr->body_proposition->postcondition_constraint_ids);
-        /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处释放外层命题即可 */
+        /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处仅释放外层命题自身字段 */
+        lv_obj_destroy_fields(expr->body_proposition, kQuantBodyPropDestroyFields,
+                              lv_ARRAY_SIZE(kQuantBodyPropDestroyFields));
         lv_free((void **) &(expr->body_proposition));
     }
 

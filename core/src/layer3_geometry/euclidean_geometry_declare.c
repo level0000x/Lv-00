@@ -49,8 +49,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
     lv_UNUSED(name);
 
     if (ctx->constraint_graph) {
-        SymbolicCoord *coords[2] = {x, y};
-        AddNodeResult result = graph_add_point(ctx->constraint_graph, coords, 2);
+        AddNodeResult result = graph_add_point_xy(ctx->constraint_graph, x, y);
         if (result != ADD_NODE_OK) {
             lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_declare_point: graph_add_point failed");
         }

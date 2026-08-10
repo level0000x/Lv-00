@@ -405,9 +405,8 @@ static bool lvz_node_point(LvzParser *p, Module *mod, int node_id) {
     /* 创建点节点 (简化实现 - 使用有理数坐标) */
     SymbolicCoord *sx = symbolic_coord_from_double_rounded(x, 10000);
     SymbolicCoord *sy = symbolic_coord_from_double_rounded(y, 10000);
-    SymbolicCoord *coords[2] = {sx, sy};
     if (sx && sy) {
-        graph_add_point(mod->graph, coords, 2);
+        graph_add_point_xy(mod->graph, sx, sy);
         symbolic_coord_destroy(sx);
         symbolic_coord_destroy(sy);
     }
@@ -475,8 +474,8 @@ static bool lvz_node_circle(LvzParser *p, Module *mod, int node_id) {
         lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "解析错误 (行 %d): 无法为圆节点 #%d 构造半径端点点坐标",
                              p->current.line, node_id);
     }
-    SymbolicCoord *radius_coords[2] = {srx, sry};
-    AddNodeResult add_result = graph_add_point(mod->graph, radius_coords, 2);
+    AddNodeResult add_result = graph_add_point_xy(mod->graph, srx, sry);
+    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
     symbolic_coord_destroy(srx);
     symbolic_coord_destroy(sry);
     if (add_result != ADD_NODE_OK) {

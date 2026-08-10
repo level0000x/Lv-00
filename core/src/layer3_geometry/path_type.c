@@ -441,11 +441,11 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
         /* 使用节点 ID 生成区分性的符号坐标 */
         SymbolicCoord *coord_x = symbolic_coord_create_rational(nid * lv_RATIONAL_SCALE_LOW + 1, lv_RATIONAL_SCALE_LOW);
         SymbolicCoord *coord_y = symbolic_coord_create_rational(nid * lv_RATIONAL_SCALE_LOW + 2, lv_RATIONAL_SCALE_LOW);
-        SymbolicCoord *coords[2] = {coord_x, coord_y};
-        AddNodeResult r = graph_add_point(eq, (SymbolicCoord *const *) coords, 2);
+        AddNodeResult r = graph_add_point_xy(eq, coord_x, coord_y);
+        /* graph_add_point 深拷贝坐标，此处释放原始对象 */
+        symbolic_coord_destroy(coord_x);
+        symbolic_coord_destroy(coord_y);
         if (r != ADD_NODE_OK) {
-            symbolic_coord_destroy(coord_x);
-            symbolic_coord_destroy(coord_y);
             graph_destroy(eq);
             lv_RETURN_ERROR(lv_ERROR_INVALID_GEOM_TYPE, "path_to_equality: graph_add_point failed");
         }
