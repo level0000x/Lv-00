@@ -133,7 +133,7 @@ typedef enum {
 |---|---|
 | `char *preset_blocks_generate_documentation(void)` | 生成全部预设的 Markdown 文档 |
 | `char *preset_blocks_generate_single_doc(const char *name)` | 生成单个预设的 Markdown 文档 |
-| `size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size)` / `int lv_safe_snprintf(...)` | 安全字符串工具 |
+| `int lv_safe_snprintf(...)` | 安全字符串格式化工具 |
 | `int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size)` / `bool preset_properties_from_string(const char *str, PresetProperty *properties)` | 属性位标志与字符串互转 |
 | 宏 `LV_DECLARE_PRESET_REGISTER(category)` / `LV_PRESET_REGISTER(...)` | 注册辅助宏，消除每个预设文件的重复注册结构 |
 | 宏 `PRESET_CHECK_NULL(ptr, label)` | goto error 模式的空指针检查 |

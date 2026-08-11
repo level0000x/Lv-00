@@ -672,18 +672,7 @@ void geo_event_detector_destroy(lvEventDetector *detector) {
     geo_event_registry_ensure();
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "%p:", (const void *) detector);
-    size_t prefix_len = strlen(prefix);
-    int total = lv_registry_count(&g_geo_event_registry);
-    for (int i = total - 1; i >= 0; i--) {
-        const char *reg_name = NULL;
-        void *reg_value = NULL;
-        if (!lv_registry_get_at(&g_geo_event_registry, i, &reg_name, &reg_value)) {
-            continue;
-        }
-        if (strncmp(reg_name, prefix, prefix_len) == 0) {
-            lv_registry_remove(&g_geo_event_registry, reg_name);
-        }
-    }
+    lv_registry_remove_prefix(&g_geo_event_registry, prefix);
 
     lv_free((void **) &detector);
 }

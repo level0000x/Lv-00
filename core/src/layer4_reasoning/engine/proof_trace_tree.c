@@ -120,7 +120,7 @@ lvProofTraceNode *lv_trace_node_create(lvTraceNodeType type, const char *label) 
     node->elapsed_ms = 0.0;
 
     if (label) {
-        safe_strncpy(node->label, label, sizeof(node->label));
+        lv_strlcpy(node->label, label, sizeof(node->label));
     }
 
     /* 初始化子节点数组 */

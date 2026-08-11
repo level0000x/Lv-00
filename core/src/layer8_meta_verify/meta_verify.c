@@ -309,12 +309,7 @@ static int check_nontriviality(const lvSession *session, int strict, lvStrBuf *s
     const char *attempt_str = strstr(reasoning_msg, "尝试");
     if (attempt_str) {
         /* 向前搜索数字 */
-        const char *num_start = attempt_str;
-        while (num_start > reasoning_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-            num_start--;
-        if (num_start < attempt_str) {
-            lv_parse_int(num_start, &strategy_attempts);
-        }
+        lv_parse_int_before(reasoning_msg, attempt_str, &strategy_attempts);
     }
 
     /* 检查证明深度 > 1：至少尝试了 2 个策略或推理耗时 > 1ms */
@@ -330,16 +325,10 @@ static int check_nontriviality(const lvSession *session, int strict, lvStrBuf *s
     if (parse_msg) {
         const char *token_str = strstr(parse_msg, "标记");
         if (token_str) {
-            const char *num_start = token_str;
-            while (num_start > parse_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-                num_start--;
-            if (num_start < token_str) {
-                int tokens = 0;
-                lv_parse_int(num_start, &tokens);
-                if (tokens < 2) {
-                    lv_strbuf_printf(sb, "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
-                    return 0;
-                }
+            int tokens = 0;
+            if (lv_parse_int_before(parse_msg, token_str, &tokens) == 0 && tokens < 2) {
+                lv_strbuf_printf(sb, "非平凡性失败：输入仅含 %d 个标记（不足 2 个）", tokens);
+                return 0;
             }
         }
     }
@@ -349,16 +338,10 @@ static int check_nontriviality(const lvSession *session, int strict, lvStrBuf *s
     if (geo_msg) {
         const char *obj_str = strstr(geo_msg, "个几何对象");
         if (obj_str) {
-            const char *num_start = obj_str;
-            while (num_start > geo_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-                num_start--;
-            if (num_start < obj_str) {
-                int objs = 0;
-                lv_parse_int(num_start, &objs);
-                if (objs < 1) {
-                    lv_strbuf_printf(sb, "非平凡性失败：无几何对象被识别");
-                    return 0;
-                }
+            int objs = 0;
+            if (lv_parse_int_before(geo_msg, obj_str, &objs) == 0 && objs < 1) {
+                lv_strbuf_printf(sb, "非平凡性失败：无几何对象被识别");
+                return 0;
             }
         }
     }
@@ -416,16 +399,10 @@ static int check_roundtrip(const lvSession *session, int strict, lvStrBuf *sb) {
     /* 检查输出是否包含可重新解析的数值信息（如字节数） */
     const char *byte_str = strstr(output_msg, "字节");
     if (byte_str) {
-        const char *num_start = byte_str;
-        while (num_start > output_msg && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
-            num_start--;
-        if (num_start < byte_str) {
-            int bytes = 0;
-            lv_parse_int(num_start, &bytes);
-            if (bytes <= 0) {
-                lv_strbuf_printf(sb, "往返验证失败：输出字节数无效 (%d)", bytes);
-                return 0;
-            }
+        int bytes = 0;
+        if (lv_parse_int_before(output_msg, byte_str, &bytes) == 0 && bytes <= 0) {
+            lv_strbuf_printf(sb, "往返验证失败：输出字节数无效 (%d)", bytes);
+            return 0;
         }
     }
 
@@ -593,8 +570,7 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     lvVerifyReport report;
     memset(&report, 0, sizeof(report));
     if (!verifier || !session) {
-        strncpy(report.summary, "Invalid verifier or session", sizeof(report.summary));
-        report.summary[sizeof(report.summary) - 1] = '\0';
+        lv_strlcpy(report.summary, "Invalid verifier or session", sizeof(report.summary));
         return report;
     }
     report.total_checks = lv_CHECK_COUNT;
@@ -611,8 +587,7 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
             } else {
                 report.failed_checks++;
             }
-            strncpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
-            report.results[i].description[sizeof(report.results[i].description) - 1] = '\0';
+            lv_strlcpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
             lv_strbuf_destroy(&sb);
         } else {
             /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
@@ -872,8 +847,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     lvVerifyReport report;
     memset(&report, 0, sizeof(report));
     if (!verifier) {
-        strncpy(report.summary, "Invalid verifier", sizeof(report.summary) - 1);
-        report.summary[sizeof(report.summary) - 1] = '\0';
+        lv_strlcpy(report.summary, "Invalid verifier", sizeof(report.summary));
         return report;
     }
 
@@ -907,8 +881,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         } else {
             report.failed_checks++;
         }
-        strncpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
-        report.results[i].description[sizeof(report.results[i].description) - 1] = '\0';
+        lv_strlcpy(report.results[i].description, sb.data, sizeof(report.results[i].description));
         lv_strbuf_destroy(&sb);
     }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_proof_rule_engine.c
  * @brief Proof rule engine and proof session tests
  *
@@ -96,7 +96,7 @@ static void test_rule_engine_add_rule(void) {
     lvProofRule *rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule);
     memset(rule, 0, sizeof(lvProofRule));
-    strncpy(rule->name, "test_intro", lv_PROOF_RULE_NAME_MAX - 1);
+    lv_strlcpy(rule->name, "test_intro", lv_PROOF_RULE_NAME_MAX);
     rule->type = RULE_INTRO;
     rule->priority = 10;
     rule->weight = 0.8;
@@ -121,7 +121,7 @@ static void test_rule_engine_add_rule(void) {
     lvProofRule *rule2 = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(rule2);
     memset(rule2, 0, sizeof(lvProofRule));
-    strncpy(rule2->name, "test_elim", lv_PROOF_RULE_NAME_MAX - 1);
+    lv_strlcpy(rule2->name, "test_elim", lv_PROOF_RULE_NAME_MAX);
     rule2->type = RULE_ELIM;
     rule2->priority = 5;
     rule2->weight = 0.5;
@@ -167,7 +167,7 @@ static void test_rule_engine_search_simple(void) {
     lvProofRule *solve_rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(solve_rule);
     memset(solve_rule, 0, sizeof(lvProofRule));
-    strncpy(solve_rule->name, "solve_trivial", lv_PROOF_RULE_NAME_MAX - 1);
+    lv_strlcpy(solve_rule->name, "solve_trivial", lv_PROOF_RULE_NAME_MAX);
     solve_rule->type = RULE_INTRO;
     solve_rule->priority = 100;
     solve_rule->weight = 1.0;
@@ -214,7 +214,7 @@ static void test_rule_engine_search_simple(void) {
     lvProofRule *deep_rule = (lvProofRule *) lv_malloc(sizeof(lvProofRule));
     TEST_ASSERT_NOT_NULL(deep_rule);
     memset(deep_rule, 0, sizeof(lvProofRule));
-    strncpy(deep_rule->name, "push_subgoal", lv_PROOF_RULE_NAME_MAX - 1);
+    lv_strlcpy(deep_rule->name, "push_subgoal", lv_PROOF_RULE_NAME_MAX);
     deep_rule->type = RULE_CASE_SPLIT;
     deep_rule->priority = 50;
     deep_rule->weight = 0.9;

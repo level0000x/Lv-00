@@ -15,6 +15,7 @@
 
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_constraint_guard.h"
 
 #include "smt_backend.h"
 #include "smt_backend_internal.h"
@@ -218,7 +219,7 @@ int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic
  */
 static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                     bool named) {
-    if (!c || c->participant_count < 2)
+    if (!lv_constraint_has_participants(c, 2))
         return 0;
 
     /* 获取参与约束的节点 */
@@ -251,7 +252,7 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
         Constraint *con = graph->constraints[ci];
         if (!con || !con->is_active)
             continue;
-        if (con->type == CONNECTION && con->participant_count >= 2) {
+        if (con->type == CONNECTION && lv_constraint_has_participants(con, 2)) {
             /* 检查该连接约束是否涉及当前线段 */
             bool seg_found = false;
             int point_id = -1;
@@ -321,7 +322,7 @@ static int smtlib2_encode_incidence(const ConstraintGraph *graph, const Constrai
  */
 static int smtlib2_encode_betweenness(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                       bool named) {
-    if (!c || c->participant_count < 3)
+    if (!lv_constraint_has_participants(c, 3))
         return 0;
 
     int a_id = c->participants[0];  /* 起点 A */
@@ -424,7 +425,7 @@ static int smtlib2_find_line_endpoints(const ConstraintGraph *graph, int line_id
         const Constraint *con = graph->constraints[i];
         if (!con)
             continue;
-        if (con->type != INCIDENCE || con->participant_count < 2)
+        if (con->type != INCIDENCE || !lv_constraint_has_participants(con, 2))
             continue;
         /* 关联约束 participants[0] = 点, participants[1] = 对象 */
         if (con->participants[1] == line_id) {
@@ -466,11 +467,11 @@ static int smtlib2_find_line_endpoints(const ConstraintGraph *graph, int line_id
  */
 static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                 bool named) {
-    if (!c || c->participant_count < 2)
+    if (!lv_constraint_has_participants(c, 2))
         return 0;
 
     int a_id = -1, b_id = -1, cc_id = -1;
-    if (c->participant_count >= 3) {
+    if (lv_constraint_has_participants(c, 3)) {
         /* 三点形式：∠p0p1p2，顶点为 p1 */
         a_id = c->participants[0];
         b_id = c->participants[1];
@@ -627,7 +628,7 @@ static int smtlib2_encode_angle(const ConstraintGraph *graph, const Constraint *
  */
 static int smtlib2_encode_intersection(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                        bool named) {
-    if (!c || c->participant_count < 3)
+    if (!lv_constraint_has_participants(c, 3))
         return 0;
 
     int l1_id = c->participants[0]; /* 线段 1 */
@@ -718,7 +719,7 @@ static int smtlib2_encode_intersection(const ConstraintGraph *graph, const Const
  */
 static int smtlib2_encode_containment(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                       bool named) {
-    if (!c || c->participant_count < 2)
+    if (!lv_constraint_has_participants(c, 2))
         return 0;
 
     int inner_id = c->participants[0]; /* 内部对象 ID */
@@ -764,7 +765,7 @@ static int smtlib2_encode_containment(const ConstraintGraph *graph, const Constr
  */
 static int smtlib2_encode_connection(const ConstraintGraph *graph, const Constraint *c, char *buf, int remaining,
                                      bool named) {
-    if (!c || c->participant_count < 2)
+    if (!lv_constraint_has_participants(c, 2))
         return 0;
 
     int src_id = c->participants[0]; /* 源端口 ID */

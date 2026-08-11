@@ -5,6 +5,7 @@
 
 #include "lv/block_graph_view.h"
 #include "lv/func_block.h"
+#include "lv/lv_error.h"
 #include "lv/lv_graph_traversal.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -107,15 +108,13 @@ void lv_block_scheduler_set_strategy(lvBlockScheduler *sched, lvSchedStrategy st
 lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     lvExecResult result = {0};
     if (!sched) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL scheduler", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL scheduler");
         return result;
     }
 
     BlockGraphView *bg = (BlockGraphView *) sched->graph;
     if (!bg || !bg->blocks || bg->count <= 0) {
-        result.success = 0;
-        strncpy(result.error_msg, "Invalid or empty block graph", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "Invalid or empty block graph");
         return result;
     }
 
@@ -129,8 +128,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
 
     if (!adj_count || !adj_cap || !adj || !topo_order) {
         lv_free_many(&adj_count, &adj_cap, &adj, &topo_order, NULL);
-        result.success = 0;
-        strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -154,14 +152,14 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
         for (int i = 0; i < n; i++)
             lv_free((void **) &adj[i]);
         lv_free_many(&adj, &adj_cap, &adj_count, NULL);
-        result.success = 0;
-        strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
     /* 检测环 */
     if (topo_count < n) {
         result.success = 0;
+        /* exempt: 格式化消息样板（snprintf 形态）不适用 lv_RESULT_FAIL，见 ABSTRACTION_SPEC 判据 K 豁免登记 */
         snprintf(result.error_msg, sizeof(result.error_msg), "Cycle detected in block graph: %d/%d blocks sorted",
                  topo_count, n);
     } else {
@@ -199,15 +197,13 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
 lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *dirty, int count) {
     lvExecResult result = {0};
     if (!sched) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL scheduler", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL scheduler");
         return result;
     }
 
     BlockGraphView *bg = (BlockGraphView *) sched->graph;
     if (!bg || !bg->blocks || bg->count <= 0) {
-        result.success = 0;
-        strncpy(result.error_msg, "Invalid or empty block graph", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "Invalid or empty block graph");
         return result;
     }
 
@@ -232,8 +228,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
     int **adj = lv_calloc(n, sizeof(int *));
     if (!adj_count || !adj_cap || !adj) {
         lv_free_many(&adj_count, &adj_cap, &adj, NULL);
-        result.success = 0;
-        strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -246,8 +241,7 @@ lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *di
         for (int i = 0; i < n; i++)
             lv_free((void **) &adj[i]);
         lv_free_many(&adj, &adj_count, &adj_cap, NULL);
-        result.success = 0;
-        strncpy(result.error_msg, "Out of memory", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 

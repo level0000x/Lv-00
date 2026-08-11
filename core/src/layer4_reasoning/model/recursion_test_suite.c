@@ -461,26 +461,34 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
         } else {
             /* 创建一个简单的区域（三角形）和测试点 */
             /* 三角形顶点：(0,0), (4,0), (0,3) */
-            SymbolicCoord *p0_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-            SymbolicCoord *p1_coords[2] = {symbolic_coord_create_rational(4, 1), symbolic_coord_create_rational(0, 1)};
-            SymbolicCoord *p2_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(3, 1)};
+            SymbolicCoord *p0_coords[2];
+            SymbolicCoord *p1_coords[2];
+            SymbolicCoord *p2_coords[2];
+            if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &p0_coords[0], &p0_coords[1]) ||
+                !symbolic_coord_pair_create_rational(4, 1, 0, 1, &p1_coords[0], &p1_coords[1]) ||
+                !symbolic_coord_pair_create_rational(0, 1, 3, 1, &p2_coords[0], &p2_coords[1])) {
+                tr->passed = false;
+                snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create fixture coords");
+            } else {
+                graph_add_point(graph, p0_coords, 2);
+                graph_add_point(graph, p1_coords, 2);
+                graph_add_point(graph, p2_coords, 2);
 
-            graph_add_point(graph, p0_coords, 2);
-            graph_add_point(graph, p1_coords, 2);
-            graph_add_point(graph, p2_coords, 2);
+                /* 创建线段（三角形的边） */
+                graph_add_line_segment(graph, 0, 1);
+                graph_add_line_segment(graph, 1, 2);
+                graph_add_line_segment(graph, 2, 0);
 
-            /* 创建线段（三角形的边） */
-            graph_add_line_segment(graph, 0, 1);
-            graph_add_line_segment(graph, 1, 2);
-            graph_add_line_segment(graph, 2, 0);
+                /* 创建测试点（在三角形内部：(1,1)） */
+                SymbolicCoord *test_pt_coords[2];
+                if (!symbolic_coord_pair_create_rational(1, 1, 1, 1, &test_pt_coords[0], &test_pt_coords[1])) {
+                    tr->passed = false;
+                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test point coords");
+                } else {
+                    graph_add_point(graph, test_pt_coords, 2);
 
-            /* 创建测试点（在三角形内部：(1,1)） */
-            SymbolicCoord *test_pt_coords[2] = {symbolic_coord_create_rational(1, 1),
-                                                symbolic_coord_create_rational(1, 1)};
-            graph_add_point(graph, test_pt_coords, 2);
-
-            /* 创建选择器块 */
-            SelectorBlock *sb = selector_block_create(1, graph);
+                    /* 创建选择器块 */
+                    SelectorBlock *sb = selector_block_create(1, graph);
             if (!sb) {
                 tr->passed = false;
                 snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create selector block");
@@ -513,7 +521,9 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                     tr->passed = false;
                     snprintf(tr->error_msg, sizeof(tr->error_msg), "Branches should be disjoint");
                 }
-            }
+                }
+                }
+                }
 
             graph_destroy(graph);
         }

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_error_handling.c
  * @brief 边界条件与错误处理测试
  *
@@ -18,6 +18,7 @@
 #include "engine.h"
 #include "formula_parser.h"
 #include "lv.h"
+#include "lv_error.h" /* lv_RESULT_FAIL 判据 K 收敛设施 */
 #include "lv_utils.h"
 #include "memory_pool.h"
 #include "solver.h"
@@ -234,6 +235,52 @@ static void test_magic_head_tail_consistency(void) {
 }
 
 /* ============================================================
+ * 测试：lv_RESULT_FAIL 错误结果宏（判据 K 收敛设施）
+ * ============================================================ */
+
+static void test_result_fail_macro(void) {
+    /*
+     * lv_RESULT_FAIL 收敛了错误结果样板：
+     *   result.success = 0;
+     *   lv_strlcpy(result.error_msg, msg, sizeof(result.error_msg));
+     * 验证：success 置 0、消息复制、NULL 消息、超长截断。
+     * 使用与 lvExecResult / lvConvertResult 同构的局部结构体。
+     */
+    struct FailRes {
+        int success;
+        char error_msg[16];
+    };
+    struct FailRes r;
+
+    /* 正常路径：success=0 且消息复制 */
+    memset(&r, 0xCC, sizeof(r));
+    lv_RESULT_FAIL(r, "boom");
+    TEST_ASSERT_EQ(r.success, 0);
+    TEST_ASSERT_STR_EQ(r.error_msg, "boom");
+
+    /* NULL 消息：写空串（不崩溃） */
+    lv_RESULT_FAIL(r, NULL);
+    TEST_ASSERT_EQ(r.success, 0);
+    TEST_ASSERT_STR_EQ(r.error_msg, "");
+
+    /* 可重复调用：覆盖先前的成功态 */
+    r.success = 1;
+    lv_RESULT_FAIL(r, "again");
+    TEST_ASSERT_EQ(r.success, 0);
+    TEST_ASSERT_STR_EQ(r.error_msg, "again");
+
+    /* 超长消息：lv_strlcpy 截断并 NUL 终止，不越界 */
+    lv_RESULT_FAIL(r, "this error message is much longer than sixteen bytes");
+    TEST_ASSERT_EQ(r.success, 0);
+    TEST_ASSERT(r.error_msg[15] == '\0', "超长消息应被截断且 NUL 终止");
+    TEST_ASSERT_EQ((int) strlen(r.error_msg), 15);
+
+    /* 边界：恰好填满缓冲区（15 字符 + NUL） */
+    lv_RESULT_FAIL(r, "123456789012345");
+    TEST_ASSERT_STR_EQ(r.error_msg, "123456789012345");
+}
+
+/* ============================================================
  * 测试入口
  * ============================================================ */
 
@@ -266,6 +313,9 @@ TEST_MAIN_BEGIN("错误处理")
     /* 缓冲区溢出检测 */
     TEST_MAIN_RUN(test_buffer_overflow_detection);
     TEST_MAIN_RUN(test_magic_head_tail_consistency);
+
+    /* lv_RESULT_FAIL 错误结果宏 */
+    TEST_MAIN_RUN(test_result_fail_macro);
 
 
 TEST_MAIN_END()

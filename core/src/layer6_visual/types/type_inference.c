@@ -1,4 +1,4 @@
-﻿#include <stdlib.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "lv/extended_types.h"
@@ -46,10 +46,8 @@ int lv_type_inference_register_rule(lvTypeInference *inf, const char *pattern, c
     if (!inf || !pattern || !type)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL inf, pattern, or type");
     lvTypeInferenceRule rule;
-    strncpy(rule.pattern, pattern, sizeof(rule.pattern) - 1);
-    rule.pattern[sizeof(rule.pattern) - 1] = '\0';
-    strncpy(rule.type_name, type, sizeof(rule.type_name) - 1);
-    rule.type_name[sizeof(rule.type_name) - 1] = '\0';
+    lv_strlcpy(rule.pattern, pattern, sizeof(rule.pattern));
+    lv_strlcpy(rule.type_name, type, sizeof(rule.type_name));
     int idx = lv_darray_push(&inf->rules, &rule);
     if (idx < 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push rule");
@@ -65,8 +63,7 @@ int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result
     for (int i = inf->rules.count - 1; i >= 0; i--) {
         lvTypeInferenceRule *rule = (lvTypeInferenceRule *) lv_darray_get(&inf->rules, i);
         if (strstr(expr, rule->pattern) != NULL) {
-            strncpy(result_type, rule->type_name, size - 1);
-            result_type[size - 1] = '\0';
+            lv_strlcpy(result_type, rule->type_name, size);
             return 0;
         }
     }
@@ -74,38 +71,31 @@ int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result
     /* 内置默认规则 */
     if (strstr(expr, "+") != NULL || strstr(expr, "-") != NULL || strstr(expr, "*") != NULL ||
         strstr(expr, "/") != NULL) {
-        strncpy(result_type, "Number", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "Number", size);
         return 0;
     }
     if (strstr(expr, "point") != NULL || strstr(expr, "Point") != NULL) {
-        strncpy(result_type, "Point", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "Point", size);
         return 0;
     }
     if (strstr(expr, "line") != NULL || strstr(expr, "Line") != NULL) {
-        strncpy(result_type, "Line", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "Line", size);
         return 0;
     }
     if (strstr(expr, "circle") != NULL || strstr(expr, "Circle") != NULL) {
-        strncpy(result_type, "Circle", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "Circle", size);
         return 0;
     }
     if (strstr(expr, "\"") != NULL || strstr(expr, "'") != NULL) {
-        strncpy(result_type, "String", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "String", size);
         return 0;
     }
     if (strstr(expr, "true") != NULL || strstr(expr, "false") != NULL) {
-        strncpy(result_type, "Boolean", size - 1);
-        result_type[size - 1] = '\0';
+        lv_strlcpy(result_type, "Boolean", size);
         return 0;
     }
 
     /* 无法推理 */
-    strncpy(result_type, "Unknown", size - 1);
-    result_type[size - 1] = '\0';
+    lv_strlcpy(result_type, "Unknown", size);
     return 1;
 }

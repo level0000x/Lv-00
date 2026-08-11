@@ -287,13 +287,41 @@ lv_PUBLIC_API int lv_error_line(lvErrorContext *ctx);
 /** @brief 字符串复制写入实例错误缓冲（无格式化写入点使用；保证 NUL 终止） */
 #define lv_ERROR_SLOT_COPY(dst_buf, dst_size, src) \
     do { \
-        strncpy((dst_buf), (src) ? (src) : "", (dst_size) - 1); \
-        (dst_buf)[(dst_size) - 1] = '\0'; \
+        lv_strlcpy((dst_buf), (src) ? (src) : "", (dst_size)); \
     } while (0)
 
 /** @brief 清空实例错误缓冲 */
 #define lv_ERROR_SLOT_CLEAR(dst_buf) \
     ((dst_buf)[0] = '\0')
+
+/* ============================================================
+ * 错误结果样板 —— 判据 K 收敛设施
+ *
+ * 收敛对象：block_scheduler / block_to_text / block_to_node /
+ * block_to_geometry / representation_converter 共 34 处
+ * "result.success = 0; lv_strlcpy(result.error_msg, msg, sizeof(result.error_msg));"
+ * 静态消息失败样板。格式化消息（snprintf 形态）与 lvParseResult::errors[]
+ * 数组形态（error_count + 多槽）不适用本宏，见 ABSTRACTION_SPEC 判据 K 豁免登记。
+ * ============================================================ */
+
+/**
+ * @brief 将结果结构体置为失败态并写入错误消息
+ *
+ * 等价于三行样板：
+ *   res.success = 0;
+ *   lv_strlcpy(res.error_msg, msg, sizeof(res.error_msg));
+ *
+ * @param res 含 success + error_msg 字段的结果结构体左值（lvExecResult /
+ *            lvConvertResult 等；宏内 sizeof 需要完整类型，可多次求值）
+ * @param msg 错误消息字符串（NULL 时写空串；求值一次）
+ * @note 不包含 return：调用方保留自己的 return 语句；
+ *       与 lv_ERROR_SLOT_COPY 一致，仅复制不格式化。
+ */
+#define lv_RESULT_FAIL(res, msg) \
+    do { \
+        (res).success = 0; \
+        lv_strlcpy((res).error_msg, (msg) ? (msg) : "", sizeof((res).error_msg)); \
+    } while (0)
 
 /* ============================================================
  * 便利宏

@@ -46,8 +46,7 @@ static const char *gc_keywords[] = {"point",    "line",          "circle",    "s
  */
 static void gc_set_error(const char *msg) {
     if (msg) {
-        strncpy(s_gc_language.error_buf, msg, sizeof(s_gc_language.error_buf) - 1);
-        s_gc_language.error_buf[sizeof(s_gc_language.error_buf) - 1] = '\0';
+        lv_strlcpy(s_gc_language.error_buf, msg, sizeof(s_gc_language.error_buf));
     } else {
         s_gc_language.error_buf[0] = '\0';
     }

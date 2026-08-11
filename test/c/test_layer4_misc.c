@@ -153,10 +153,10 @@ static void test_mini_kernel_check_substitution(void) {
     /* 有效替换 */
     Substitution subs[2];
     memset(subs, 0, sizeof(subs));
-    strncpy(subs[0].variable_name, "x", sizeof(subs[0].variable_name) - 1);
-    strncpy(subs[0].replacement_term, "A", sizeof(subs[0].replacement_term) - 1);
-    strncpy(subs[1].variable_name, "y", sizeof(subs[1].variable_name) - 1);
-    strncpy(subs[1].replacement_term, "B", sizeof(subs[1].replacement_term) - 1);
+    lv_strlcpy(subs[0].variable_name, "x", sizeof(subs[0].variable_name));
+    lv_strlcpy(subs[0].replacement_term, "A", sizeof(subs[0].replacement_term));
+    lv_strlcpy(subs[1].variable_name, "y", sizeof(subs[1].variable_name));
+    lv_strlcpy(subs[1].replacement_term, "B", sizeof(subs[1].replacement_term));
     vr = mini_kernel_check_substitution(kernel, subs, 2, "x = y", &result);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_OK);
     if (result) {
@@ -168,18 +168,18 @@ static void test_mini_kernel_check_substitution(void) {
     /* 冲突替换（同一变量映射到不同表达式）应被检测 */
     Substitution conflicted[2];
     memset(conflicted, 0, sizeof(conflicted));
-    strncpy(conflicted[0].variable_name, "x", sizeof(conflicted[0].variable_name) - 1);
-    strncpy(conflicted[0].replacement_term, "A", sizeof(conflicted[0].replacement_term) - 1);
-    strncpy(conflicted[1].variable_name, "x", sizeof(conflicted[1].variable_name) - 1);
-    strncpy(conflicted[1].replacement_term, "B", sizeof(conflicted[1].replacement_term) - 1);
+    lv_strlcpy(conflicted[0].variable_name, "x", sizeof(conflicted[0].variable_name));
+    lv_strlcpy(conflicted[0].replacement_term, "A", sizeof(conflicted[0].replacement_term));
+    lv_strlcpy(conflicted[1].variable_name, "x", sizeof(conflicted[1].variable_name));
+    lv_strlcpy(conflicted[1].replacement_term, "B", sizeof(conflicted[1].replacement_term));
     vr = mini_kernel_check_substitution(kernel, conflicted, 2, "x = x", &result);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_SUBSTITUTION);
 
     /* 未绑定变量应被检测 */
     Substitution unbound;
     memset(&unbound, 0, sizeof(unbound));
-    strncpy(unbound.variable_name, "__nonexistent__", sizeof(unbound.variable_name) - 1);
-    strncpy(unbound.replacement_term, "A", sizeof(unbound.replacement_term) - 1);
+    lv_strlcpy(unbound.variable_name, "__nonexistent__", sizeof(unbound.variable_name));
+    lv_strlcpy(unbound.replacement_term, "A", sizeof(unbound.replacement_term));
     vr = mini_kernel_check_substitution(kernel, &unbound, 1, "x", &result);
     TEST_ASSERT_EQ(vr, MINI_VERIFY_FAIL_UNBOUND_VAR);
 

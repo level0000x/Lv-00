@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "lv/func_block.h"
+#include "lv/lv_error.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
@@ -72,13 +73,8 @@ void lv_converter_destroy(lvRepresentationConverter *conv) {
  */
 static lvConvertResult make_error_result(const char *msg) {
     lvConvertResult r;
-    r.success = 0;
     r.output = NULL;
-    if (msg) {
-        lv_strlcpy(r.error_msg, msg, sizeof(r.error_msg));
-    } else {
-        r.error_msg[0] = '\0';
-    }
+    lv_RESULT_FAIL(r, msg);
     return r;
 }
 

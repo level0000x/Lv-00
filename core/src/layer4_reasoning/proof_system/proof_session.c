@@ -77,8 +77,7 @@ lvProofSession *proof_session_create_with_id(const char *session_id, const char 
         return NULL;
 
     /* Set identity */
-    strncpy(session->session_id, session_id, lv_SESSION_ID_MAX - 1);
-    session->session_id[lv_SESSION_ID_MAX - 1] = '\0';
+    lv_strlcpy(session->session_id, session_id, lv_SESSION_ID_MAX);
     session->created_at = (uint64_t) time(NULL);
 
     /* Set target proposition */

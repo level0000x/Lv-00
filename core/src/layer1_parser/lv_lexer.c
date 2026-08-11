@@ -612,8 +612,8 @@ const char *lv_token_type_name(LvTokenType type) {
 size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size) {
     if (!token || !buf || buf_size == 0)
         return 0;
-    /* [安全] 使用 lv_strncpy 替代标准 strncpy，保证 null 终止且处理 NULL src */
+    /* [安全] 使用 lv_strlcpy，保证 null 终止且处理 NULL src */
     size_t copy_len = token->length < buf_size - 1 ? token->length : buf_size - 1;
-    lv_strncpy(buf, token->start, copy_len + 1);
+    lv_strlcpy(buf, token->start, copy_len + 1);
     return copy_len;
 }

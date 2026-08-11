@@ -105,13 +105,11 @@ int lv_proof_trace_add_step(ProofTrace *trace, const char *rule, const void *sta
     step.step_id = trace->steps.count;
 
     /* 复制规则名称（截断保护） */
-    strncpy(step.rule, rule, MAX_RULE_NAME_LENGTH - 1);
-    step.rule[MAX_RULE_NAME_LENGTH - 1] = '\0';
+    lv_strlcpy(step.rule, rule, MAX_RULE_NAME_LENGTH);
 
     /* 状态描述：使用调用者提供的 state 字符串，无则留空 */
     if (state) {
-        strncpy(step.state_desc, (const char *) state, MAX_STATE_DESC_LENGTH - 1);
-        step.state_desc[MAX_STATE_DESC_LENGTH - 1] = '\0';
+        lv_strlcpy(step.state_desc, (const char *) state, MAX_STATE_DESC_LENGTH);
     } else {
         step.state_desc[0] = '\0';
     }

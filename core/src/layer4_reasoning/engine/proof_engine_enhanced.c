@@ -43,7 +43,7 @@
  *   - proof_optimize.c  证明优化（冗余消除 / 复杂度评估）
  *   - proof_export.c    证明导出（自然语言/LaTeX/Coq/Isar）
  *
- * 本文件保留：文件头、公共常量、内部辅助函数（safe_strncpy）。
+ * 本文件保留：文件头、公共常量与跨模块共享的内部辅助函数。
  * 内部共享声明见 proof_engine_enhanced_internal.h。
  */
 
@@ -106,29 +106,5 @@
  * @brief 获取当前时间戳（纳秒级）
  * @return 当前时间戳
  */
-
-/**
- * @brief 安全字符串复制，截断超长字符串
- * @param dest 目标缓冲区
- * @param src 源字符串
- * @param max_len 缓冲区最大长度
- *
- * 本函数与标准 strncpy 的行为差异：
- *   1. 标准 strncpy 不会保证目标字符串以 '\0' 结尾（当 src 长度 >= n 时），
- *      而本函数始终在 dest[max_len-1] 处写入 '\0'，确保结果始终为合法 C 字符串。
- *   2. 标准 strncpy 在 src 短于 n 时会用 '\0' 填充剩余空间，本函数不做填充，
- *      仅写入有效内容加终止符，性能更优。
- *   3. 本函数对 NULL 指针做了防御性检查，标准 strncpy 对 NULL 调用是未定义行为。
- */
-void safe_strncpy(char *dest, const char *src, size_t max_len) {
-    if (max_len == 0)
-        return; /* 空缓冲区：无操作，避免下方 max_len - 1 下溢为 SIZE_MAX */
-    if (!dest || !src) {
-        if (dest && max_len > 0)
-            dest[0] = '\0';
-        return;
-    }
-    lv_strlcpy(dest, src, max_len);
-}
 
 /* StringBuffer 已迁移至 lvStrBuf（lv/lv_strbuf.h） */

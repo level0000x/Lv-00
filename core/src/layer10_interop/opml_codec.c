@@ -563,10 +563,8 @@ int lv_register_opml_plugin(lvInteropManager *mgr) {
     lv_CHECK_NOT_NULL(mgr);
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
-    strncpy(plugin.name, "opml", sizeof(plugin.name) - 1);
-    plugin.name[sizeof(plugin.name) - 1] = '\0';
-    strncpy(plugin.version, "1.0.0", sizeof(plugin.version) - 1);
-    plugin.version[sizeof(plugin.version) - 1] = '\0';
+    lv_strlcpy(plugin.name, "opml", sizeof(plugin.name));
+    lv_strlcpy(plugin.version, "1.0.0", sizeof(plugin.version));
     plugin.system = lv_EXT_JSON;
     plugin.export_proof = opml_export_proof;
     plugin.import_proof = opml_import_proof;

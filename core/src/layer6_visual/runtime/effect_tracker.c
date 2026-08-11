@@ -1,4 +1,4 @@
-﻿#include <string.h>
+#include <string.h>
 
 #include "lv/effect_system.h"
 #include "lv/lv_utils.h"
@@ -43,7 +43,7 @@ void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int
     e.effect = effect;
     e.block_id = block_id;
     if (desc)
-        strncpy(e.description, desc, sizeof(e.description) - 1);
+        lv_strlcpy(e.description, desc, sizeof(e.description));
     lv_darray_push(&tracker->entries, &e);
 }
 

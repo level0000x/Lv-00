@@ -1328,11 +1328,9 @@ void lv_quant_result_destroy(lvQuantifiedResult *result) {
     lv_FREE_AND_NULL(result->error_message);
 
     if (result->result_prop) {
-        lv_FREE_AND_NULL(result->result_prop->label);
-        lv_FREE_AND_NULL(result->result_prop->input_port_ids);
-        lv_FREE_AND_NULL(result->result_prop->output_port_ids);
-        lv_FREE_AND_NULL(result->result_prop->precondition_region_ids);
-        lv_FREE_AND_NULL(result->result_prop->postcondition_constraint_ids);
+        /* 复用 kQuantBodyPropDestroyFields 表（与 G3 体命题外层字段 1:1 一致） */
+        lv_obj_destroy_fields(result->result_prop, kQuantBodyPropDestroyFields,
+                              lv_ARRAY_SIZE(kQuantBodyPropDestroyFields));
         lv_free((void **) &(result->result_prop));
     }
 

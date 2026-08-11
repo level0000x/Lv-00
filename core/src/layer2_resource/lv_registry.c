@@ -292,6 +292,36 @@ int lv_registry_count(const lvRegistry *reg) {
     return count;
 }
 
+int lv_registry_remove_prefix(lvRegistry *reg, const char *prefix) {
+    if (!reg || !prefix) return 0;
+
+    lv_MUTEX_LOCK(&reg->mutex);
+    size_t prefix_len = strlen(prefix);
+    int removed = 0;
+    int i = reg->count - 1;
+    while (i >= 0) {
+        const char *entry_name = reg->entries[i].name;
+        if (entry_name && strncmp(entry_name, prefix, prefix_len) == 0) {
+            if (reg->entries[i].destroy && reg->entries[i].value) {
+                reg->entries[i].destroy(reg->entries[i].value);
+            }
+            lv_free((void **) &reg->entries[i].name);
+            lv_shift_left(reg->entries, sizeof(lvRegistryEntry), (size_t) i, (size_t) reg->count);
+            reg->count--;
+            removed++;
+        } else {
+            i--;
+        }
+    }
+    if (removed > 0 && reg->index) {
+        lv_hashtable_str_destroy(reg->index);
+        reg->index = NULL;
+        registry_ensure_index_locked(reg); /* 失败保持 NULL，读路径回退线性扫描 */
+    }
+    lv_MUTEX_UNLOCK(&reg->mutex);
+    return removed;
+}
+
 bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value) {
     if (!reg || index < 0) return false;
 

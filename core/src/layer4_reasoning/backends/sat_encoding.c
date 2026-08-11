@@ -1271,7 +1271,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         Relation *binding = (Relation *) lv_calloc(1, sizeof(Relation));
                         if (!binding)
                             continue;
-                        strncpy(binding->name, rel->name, sizeof(binding->name) - 1);
+                        lv_strlcpy(binding->name, rel->name, sizeof(binding->name));
                         binding->arity = rel->arity;
                         for (int d = 0; d < rel->arity && d < 8; d++) {
                             binding->domains[d] = rel->domains[d];

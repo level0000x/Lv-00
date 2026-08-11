@@ -226,22 +226,7 @@ lv_PUBLIC_API char *lv_asprintf(const char *fmt, ...);
 /**
  * @brief 检查字符串是否为空或仅包含空白
  */
-lv_PUBLIC_API bool lv_str_is_blank(const char *str);
-
-/**
- * @brief 安全字符串复制 —— 保证 \0 终止并检查参数有效性
- *
- * 与标准 strncpy 不同：
- * - 始终以 \0 终止目标字符串（即使截断）
- * - 参数为 NULL 时安全返回 NULL（不崩溃）
- * - dest_size 为 0 时安全返回 NULL
- *
- * @param dest 目标缓冲区
- * @param src  源字符串（可为 NULL）
- * @param dest_size 目标缓冲区大小（字节）
- * @return 成功时返回 dest，失败时返回 NULL
- */
-lv_PUBLIC_API char *lv_strncpy(char *dest, const char *src, size_t dest_size);
+lv_PUBLIC_API bool lv_str_is_blank(const char *s);
 
 /**
  * @brief 安全字符串连接 —— 保证 \0 终止并检查参数有效性

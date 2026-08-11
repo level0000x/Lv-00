@@ -119,8 +119,7 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config) {
     pool->auto_grow = config->auto_grow;
 
     if (config->name) {
-        strncpy(pool->name, config->name, sizeof(pool->name) - 1);
-        pool->name[sizeof(pool->name) - 1] = '\0';
+        lv_strlcpy(pool->name, config->name, sizeof(pool->name));
     } else {
         pool->name[0] = '\0';
     }

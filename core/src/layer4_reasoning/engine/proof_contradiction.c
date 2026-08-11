@@ -97,9 +97,9 @@ uint32_t lv_contradiction_path_add_node(lvContradictionPath *path, const char *s
     memset(&node, 0, sizeof(node));
     node.id = (uint32_t)path->nodes.count;
 
-    safe_strncpy(node.statement, statement, sizeof(node.statement));
+    lv_strlcpy(node.statement, statement, sizeof(node.statement));
     if (justification) {
-        safe_strncpy(node.justification, justification, sizeof(node.justification));
+        lv_strlcpy(node.justification, justification, sizeof(node.justification));
     } else {
         node.justification[0] = '\0';
     }
@@ -446,7 +446,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *
             /* 发现矛盾 */
             found_contradiction = true;
             path->type = ctype;
-            safe_strncpy(path->contradiction_desc, cdesc, sizeof(path->contradiction_desc));
+            lv_strlcpy(path->contradiction_desc, cdesc, sizeof(path->contradiction_desc));
 
             /* 标记最后一个节点为矛盾节点 */
             if (path->nodes.count > 0) {
@@ -457,7 +457,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *
             /* 添加矛盾节点到溯源树 */
             lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_CONTRADICTION, "Contradiction Found");
             if (contra_node) {
-                safe_strncpy(contra_node->description, cdesc, sizeof(contra_node->description));
+                lv_strlcpy(contra_node->description, cdesc, sizeof(contra_node->description));
                 lv_trace_node_set_status(contra_node, TRACE_STATUS_PROVED);
                 if (hyp_node) {
                     lv_trace_node_add_child(hyp_node, contra_node);

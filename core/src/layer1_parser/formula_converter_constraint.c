@@ -161,8 +161,11 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
 
     if (!mid_coords[0] || !mid_coords[1]) {
         /* 使用默认坐标 */
-        mid_coords[0] = symbolic_coord_create_rational(0, 1);
-        mid_coords[1] = symbolic_coord_create_rational(0, 1);
+        SymbolicCoord *default_coords[2];
+        if (symbolic_coord_pair_create_rational(0, 1, 0, 1, &default_coords[0], &default_coords[1])) {
+            mid_coords[0] = default_coords[0];
+            mid_coords[1] = default_coords[1];
+        }
     }
 
     /* 如果中点 M 已存在，更新其坐标 */

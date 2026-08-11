@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_constraint_guard.h"
 #include "lv/lv_file.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_str_utils.h"
@@ -292,7 +293,7 @@ static int _find_line_endpoints(const ConstraintGraph *graph, int line_id, int o
         Constraint *c = graph->constraints[ci];
         if (!c || !c->is_active)
             continue;
-        if (c->type != INCIDENCE || c->participant_count < 2)
+        if (c->type != INCIDENCE || !lv_constraint_has_participants(c, 2))
             continue;
 
         int candidate = -1;
@@ -643,7 +644,7 @@ typedef struct {
 typedef void (*GroebnerManualEncodeFn)(const GroebnerManualEncodeCtx *ctx, const Constraint *c);
 
 static void groebner_manual_encode_incidence(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 2) {
+    if (lv_constraint_has_participants(c, 2)) {
         int pt_id = c->participants[0];
         int seg_id = c->participants[1];
         int p_var = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_map[pt_id] : -1;
@@ -671,7 +672,7 @@ static void groebner_manual_encode_incidence(const GroebnerManualEncodeCtx *ctx,
 }
 
 static void groebner_manual_encode_betweenness(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 3) {
+    if (lv_constraint_has_participants(c, 3)) {
         int pts[3] = {c->participants[0], c->participants[1], c->participants[2]};
         bool valid = true;
         for (int k = 0; k < 3; k++) {
@@ -693,7 +694,7 @@ static void groebner_manual_encode_betweenness(const GroebnerManualEncodeCtx *ct
 }
 
 static void groebner_manual_encode_intersection(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 3) {
+    if (lv_constraint_has_participants(c, 3)) {
         int line1_id = c->participants[0];
         int line2_id = c->participants[1];
         int pt_id = c->participants[2];
@@ -723,7 +724,7 @@ static void groebner_manual_encode_intersection(const GroebnerManualEncodeCtx *c
 }
 
 static void groebner_manual_encode_angle(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 2) {
+    if (lv_constraint_has_participants(c, 2)) {
         int line1_id = c->participants[0];
         int line2_id = c->participants[1];
         int ep1[2] = {-1, -1}, ep2[2] = {-1, -1};
@@ -768,7 +769,7 @@ static void groebner_manual_encode_angle(const GroebnerManualEncodeCtx *ctx, con
 }
 
 static void groebner_manual_encode_connection(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 2) {
+    if (lv_constraint_has_participants(c, 2)) {
         int src_id = c->participants[0];
         int dst_id = c->participants[1];
         int src_var = (src_id >= 0 && src_id < ctx->map_size) ? ctx->var_map[src_id] : -1;
@@ -790,7 +791,7 @@ static void groebner_manual_encode_connection(const GroebnerManualEncodeCtx *ctx
 }
 
 static void groebner_manual_encode_containment(const GroebnerManualEncodeCtx *ctx, const Constraint *c) {
-    if (c->participant_count >= 2) {
+    if (lv_constraint_has_participants(c, 2)) {
         int inner_id = c->participants[0];
         int outer_id = c->participants[1];
         GeomNode *inner = graph_get_node(ctx->graph, inner_id);

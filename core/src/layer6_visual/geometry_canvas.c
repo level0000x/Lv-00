@@ -156,8 +156,7 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
     ent->id = canvas->next_entity_id++;
     ent->type = (lvGeomEntityType) type;
     if (label) {
-        strncpy(ent->label, label, sizeof(ent->label) - 1);
-        ent->label[sizeof(ent->label) - 1] = '\0';
+        lv_strlcpy(ent->label, label, sizeof(ent->label));
     } else {
         ent->label[0] = '\0';
     }
@@ -177,10 +176,8 @@ int lv_geometry_canvas_add_entity(lvGeometryCanvas *canvas, int type, const char
     ent->coord_count = coord_count;
 
     /* 默认样式 */
-    strncpy(ent->stroke_color, "#333333", sizeof(ent->stroke_color) - 1);
-    ent->stroke_color[sizeof(ent->stroke_color) - 1] = '\0';
-    strncpy(ent->fill_color, "none", sizeof(ent->fill_color) - 1);
-    ent->fill_color[sizeof(ent->fill_color) - 1] = '\0';
+    lv_strlcpy(ent->stroke_color, "#333333", sizeof(ent->stroke_color));
+    lv_strlcpy(ent->fill_color, "none", sizeof(ent->fill_color));
     ent->stroke_width = 2.0;
 
     canvas->entity_count++;
@@ -259,13 +256,11 @@ int lv_geometry_canvas_add_constraint(lvGeometryCanvas *canvas, int entity_a_id,
     c->entity_a_id = entity_a_id;
     c->entity_b_id = entity_b_id;
     if (label) {
-        strncpy(c->label, label, sizeof(c->label) - 1);
-        c->label[sizeof(c->label) - 1] = '\0';
+        lv_strlcpy(c->label, label, sizeof(c->label));
     } else {
         c->label[0] = '\0';
     }
-    strncpy(c->color, "#888888", sizeof(c->color) - 1);
-    c->color[sizeof(c->color) - 1] = '\0';
+    lv_strlcpy(c->color, "#888888", sizeof(c->color));
 
     canvas->constraint_count++;
     return c->id;

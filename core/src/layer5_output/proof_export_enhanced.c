@@ -36,6 +36,7 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_dot_writer.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 
 /* ================================================================
  * 错误结果工厂
@@ -119,7 +120,7 @@ static void sanitize_id(char *dst, size_t dst_sz, const char *src) {
     }
     dst[j] = '\0';
     if (j == 0) {
-        strncpy(dst, "theorem", dst_sz);
+        lv_strlcpy(dst, "theorem", dst_sz);
     }
 }
 
@@ -635,10 +636,7 @@ lvExportResult *proof_export_enhanced(const lvProof *proof, const lvExportConfig
         return make_error("proof_export_enhanced: config is NULL");
     }
 
-    if ((unsigned)config->format < sizeof(kExportHandlers)/sizeof(kExportHandlers[0]) && kExportHandlers[config->format]) {
-        return kExportHandlers[config->format](proof, config);
-    }
-    return make_error("proof_export_enhanced: unknown format");
+    return LV_DISPATCH(kExportHandlers, config->format, make_error("proof_export_enhanced: unknown format"), proof, config);
 }
 
 lvExportResult *proof_export_from_navigator(const char *theorem_name, lvExportFormat format) {

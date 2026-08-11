@@ -32,30 +32,6 @@
  * 字符串操作实现
  * ============================================================ */
 
-size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size) {
-    PRESET_CHECK_NULL(dest, error);
-    PRESET_CHECK_NULL(src, error);
-
-    if (dest_size == 0) {
-        return 0;
-    }
-
-    size_t i;
-    for (i = 0; i < dest_size - 1 && src[i] != '\0'; i++) {
-        dest[i] = src[i];
-    }
-    dest[i] = '\0';
-
-    /* 返回源字符串长度（不含终止符） */
-    while (src[i] != '\0') {
-        i++;
-    }
-    return i;
-
-error:
-    return 0;
-}
-
 int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(fmt, error);

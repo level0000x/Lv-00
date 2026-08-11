@@ -158,7 +158,7 @@ static bool execute_strategy_contrapositive(lvProofEngine *engine, const Proposi
     /* 创建逆否命题节点 */
     lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_HYPOTHESIS, "Contrapositive Transformation");
     if (contra_node) {
-        safe_strncpy(contra_node->description, "将命题 P -> Q 转换为逆否命题 NOT Q -> NOT P",
+        lv_strlcpy(contra_node->description, "将命题 P -> Q 转换为逆否命题 NOT Q -> NOT P",
                      sizeof(contra_node->description));
         lv_trace_node_set_status(contra_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, contra_node);
@@ -194,7 +194,7 @@ static bool execute_strategy_induction(lvProofEngine *engine, const Proposition 
     /* 基础步节点 */
     lvProofTraceNode *base_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Base Case (n=0)");
     if (base_node) {
-        safe_strncpy(base_node->description, "验证基础情况：当 n=0 时命题成立", sizeof(base_node->description));
+        lv_strlcpy(base_node->description, "验证基础情况：当 n=0 时命题成立", sizeof(base_node->description));
         lv_trace_node_set_status(base_node, TRACE_STATUS_PROVED);
         lv_trace_node_add_child(tree->root, base_node);
         trace_tree_register_node(tree, base_node);
@@ -203,7 +203,7 @@ static bool execute_strategy_induction(lvProofEngine *engine, const Proposition 
     /* 归纳假设节点 */
     lvProofTraceNode *ih_node = lv_trace_node_create(TRACE_NODE_HYPOTHESIS, "Inductive Hypothesis");
     if (ih_node) {
-        safe_strncpy(ih_node->description, "归纳假设：假设命题在 n=k 时成立", sizeof(ih_node->description));
+        lv_strlcpy(ih_node->description, "归纳假设：假设命题在 n=k 时成立", sizeof(ih_node->description));
         lv_trace_node_set_status(ih_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, ih_node);
         trace_tree_register_node(tree, ih_node);
@@ -212,7 +212,7 @@ static bool execute_strategy_induction(lvProofEngine *engine, const Proposition 
     /* 归纳步节点 */
     lvProofTraceNode *step_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Inductive Step (k -> k+1)");
     if (step_node) {
-        safe_strncpy(step_node->description, "归纳步：由 n=k 成立推导 n=k+1 也成立", sizeof(step_node->description));
+        lv_strlcpy(step_node->description, "归纳步：由 n=k 成立推导 n=k+1 也成立", sizeof(step_node->description));
         lv_trace_node_set_status(step_node, TRACE_STATUS_PROVED);
         lv_trace_node_add_child(tree->root, step_node);
         trace_tree_register_node(tree, step_node);
@@ -374,7 +374,7 @@ static bool execute_strategy_construction(lvProofEngine *engine, const Propositi
     if (!construct_node)
         lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "execute_strategy_construction: node creation failed");
 
-    safe_strncpy(construct_node->description, "构造满足目标命题的数学对象", sizeof(construct_node->description));
+    lv_strlcpy(construct_node->description, "构造满足目标命题的数学对象", sizeof(construct_node->description));
 
     /* 使用规则库尝试构造 */
     bool success = false;
@@ -446,7 +446,7 @@ static bool execute_strategy_unfolding(lvProofEngine *engine, const Proposition 
             for (uint32_t r = 0; r < rule_count; r++) {
                 lvProofTraceNode *unfold_node = lv_trace_node_create(TRACE_NODE_DEFINITION, def_rules[r]->name);
                 if (unfold_node) {
-                    safe_strncpy(unfold_node->description, def_rules[r]->description, sizeof(unfold_node->description));
+                    lv_strlcpy(unfold_node->description, def_rules[r]->description, sizeof(unfold_node->description));
                     lv_trace_node_set_status(unfold_node, TRACE_STATUS_PROVED);
                     lv_trace_node_add_child(tree->root, unfold_node);
                     trace_tree_register_node(tree, unfold_node);
@@ -479,7 +479,7 @@ static bool execute_strategy_backward(lvProofEngine *engine, const Proposition *
     /* 创建逆向推理起始节点 */
     lvProofTraceNode *back_node = lv_trace_node_create(TRACE_NODE_GOAL, "Backward Analysis");
     if (back_node) {
-        safe_strncpy(back_node->description, "从目标出发，逆向分析所需前提", sizeof(back_node->description));
+        lv_strlcpy(back_node->description, "从目标出发，逆向分析所需前提", sizeof(back_node->description));
         lv_trace_node_set_status(back_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, back_node);
         trace_tree_register_node(tree, back_node);
@@ -594,7 +594,7 @@ static bool execute_strategy_hybrid(lvProofEngine *engine, const Proposition *go
     /* 阶段 1: 逆向分析 */
     lvProofTraceNode *analysis_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Phase 1: Backward Analysis");
     if (analysis_node) {
-        safe_strncpy(analysis_node->description, "混合策略阶段1：逆向分析目标结构", sizeof(analysis_node->description));
+        lv_strlcpy(analysis_node->description, "混合策略阶段1：逆向分析目标结构", sizeof(analysis_node->description));
         lv_trace_node_set_status(analysis_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, analysis_node);
         trace_tree_register_node(tree, analysis_node);
@@ -613,7 +613,7 @@ static bool execute_strategy_hybrid(lvProofEngine *engine, const Proposition *go
     /* 阶段 3: 尝试反证法 */
     lvProofTraceNode *contra_node = lv_trace_node_create(TRACE_NODE_DERIVATION, "Phase 3: Contradiction Fallback");
     if (contra_node) {
-        safe_strncpy(contra_node->description, "混合策略阶段3：正向推理失败，切换到反证法",
+        lv_strlcpy(contra_node->description, "混合策略阶段3：正向推理失败，切换到反证法",
                      sizeof(contra_node->description));
         lv_trace_node_set_status(contra_node, TRACE_STATUS_EXPLORING);
         lv_trace_node_add_child(tree->root, contra_node);

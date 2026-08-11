@@ -157,8 +157,7 @@ static void simple_block_graph_guard_cleanup(void *p) {
 lvConvertResult lv_convert_block_to_geometry(void *block) {
     lvConvertResult result = {0};
     if (!block) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL block", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL block");
         return result;
     }
 
@@ -167,8 +166,7 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     /* 创建几何编码结构 */
     GeometryEncoding *enc = lv_calloc(1, sizeof(GeometryEncoding));
     if (!enc) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     /* 注册作用域守卫：任一失败分支直接 return，几何编码在函数出口自动释放 */
@@ -185,20 +183,17 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
     }
     enc->rects = lv_calloc(bg->count + 1, sizeof(PolygonEntity *));
     if (!enc->rects) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     enc->port_points = lv_calloc(total_ports + 1, sizeof(PointEntity *));
     if (!enc->port_points) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     enc->connections = lv_calloc(total_ports + 1, sizeof(LinearEntity *));
     if (!enc->connections) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -338,8 +333,7 @@ lvConvertResult lv_convert_block_to_geometry(void *block) {
 lvConvertResult lv_convert_geometry_to_block(void *entity) {
     lvConvertResult result = {0};
     if (!entity) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL entity", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL entity");
         return result;
     }
 
@@ -347,8 +341,7 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
 
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     /* 注册作用域守卫：任一失败分支直接 return，已建函数块与结构在函数出口自动释放 */
@@ -356,8 +349,7 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
     sg->cap = enc->rect_count > 0 ? enc->rect_count : 8;
     sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -405,8 +397,7 @@ lvConvertResult lv_convert_geometry_to_block(void *entity) {
             func_block_set_output_ports(fb, outputs, out_cnt);
 
         if (!lv_ensure_capacity((void **) &sg->blocks, sg->count, &sg->cap, sizeof(FuncBlock *), 0)) {
-            result.success = 0;
-            strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+            lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
             return result; /* 已建函数块与结构由守卫统一释放 */
         }
         sg->blocks[sg->count++] = fb;

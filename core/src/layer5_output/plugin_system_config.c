@@ -82,22 +82,11 @@ void lv_plugin_config_destroy(lvPluginConfig *config) {
     if (!config)
         return;
 
-    /* 从注册表移除并释放该 config 的所有条目（倒序遍历避免前移跳过） */
+    /* 从注册表移除并释放该 config 的所有条目（按前缀批量移除） */
     config_registry_ensure();
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
-    size_t prefix_len = strlen(prefix);
-    int total = lv_registry_count(&g_config_registry);
-    for (int i = total - 1; i >= 0; i--) {
-        const char *entry_name = NULL;
-        void *entry_value = NULL;
-        if (!lv_registry_get_at(&g_config_registry, i, &entry_name, &entry_value)) {
-            continue;
-        }
-        if (strncmp(entry_name, prefix, prefix_len) == 0) {
-            lv_registry_remove(&g_config_registry, entry_name);
-        }
-    }
+    lv_registry_remove_prefix(&g_config_registry, prefix);
 
     if (config->entries)
         lv_free((void **) &config->entries);
@@ -144,7 +133,7 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
     if (lv_ini_parse(filepath, plugin_config_ini_visit, config) != 0)
         lv_RETURN_ERROR(lv_ERROR_IO, "lv_plugin_config_load: 解析失败");
 
-    strncpy(config->config_file, filepath, sizeof(config->config_file) - 1);
+    lv_strlcpy(config->config_file, filepath, sizeof(config->config_file));
     return 0;
 }
 
@@ -208,8 +197,7 @@ int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *va
     /* 已存在：覆盖（保持旧语义），否则追加新条目 */
     lvPluginConfigEntry *entry = (lvPluginConfigEntry *) lv_registry_get(&g_config_registry, regkey);
     if (entry) {
-        strncpy(entry->value, value, sizeof(entry->value) - 1);
-        entry->value[sizeof(entry->value) - 1] = '\0';
+        lv_strlcpy(entry->value, value, sizeof(entry->value));
         entry->type = type;
         return 0;
     }
@@ -218,10 +206,8 @@ int lv_plugin_config_set(lvPluginConfig *config, const char *key, const char *va
     entry = (lvPluginConfigEntry *) lv_calloc(1, sizeof(lvPluginConfigEntry));
     if (!entry)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_config_set: entry calloc failed");
-    strncpy(entry->key, key, sizeof(entry->key) - 1);
-    entry->key[sizeof(entry->key) - 1] = '\0';
-    strncpy(entry->value, value, sizeof(entry->value) - 1);
-    entry->value[sizeof(entry->value) - 1] = '\0';
+    lv_strlcpy(entry->key, key, sizeof(entry->key));
+    lv_strlcpy(entry->value, value, sizeof(entry->value));
     entry->type = type;
 
     if (!lv_registry_put_ex(&g_config_registry, regkey, entry, config_entry_destroy)) {

@@ -86,7 +86,7 @@ static ExprNode *expr_var_node(const char *name) {
     ExprNode *n = (ExprNode *) lv_calloc(1, sizeof(ExprNode));
     if (n) {
         n->type = EXPR_VAR;
-        strncpy(n->var_name, name, sizeof(n->var_name) - 1);
+        lv_strlcpy(n->var_name, name, sizeof(n->var_name));
     }
     return n;
 }
@@ -675,7 +675,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                     lvGappaPredicate item;
                     memset(&item, 0, sizeof(item));
                     item.type = lv_PRED_BND;
-                    strncpy(item.expr_lhs, varname, sizeof(item.expr_lhs) - 1);
+                    lv_strlcpy(item.expr_lhs, varname, sizeof(item.expr_lhs));
                     item.bound_lo = lo;
                     item.bound_hi = hi;
                     item.is_hypothesis = true;
@@ -723,9 +723,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                     lvGappaProofGoal item;
                     memset(&item, 0, sizeof(item));
                     item.predicate.type = lv_PRED_ABS;
-                    strncpy(item.predicate.expr_lhs, inner_expr,
-                            sizeof(item.predicate.expr_lhs));
-                    item.predicate.expr_lhs[sizeof(item.predicate.expr_lhs) - 1] = '\0';
+                    lv_strlcpy(item.predicate.expr_lhs, inner_expr, sizeof(item.predicate.expr_lhs));
                     item.predicate.bound_abs = bound;
                     item.predicate.is_hypothesis = false;
                     if (lv_darray_push(&g_arr, &item) >= 0) {
@@ -740,9 +738,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                         lvGappaProofGoal item;
                         memset(&item, 0, sizeof(item));
                         item.predicate.type = lv_PRED_BND;
-                        strncpy(item.predicate.expr_lhs, varname,
-                                sizeof(item.predicate.expr_lhs));
-                        item.predicate.expr_lhs[sizeof(item.predicate.expr_lhs) - 1] = '\0';
+                        lv_strlcpy(item.predicate.expr_lhs, varname, sizeof(item.predicate.expr_lhs));
                         item.predicate.bound_lo = lo;
                         item.predicate.bound_hi = hi;
                         item.predicate.is_hypothesis = false;

@@ -1029,8 +1029,7 @@ lvProofRule *lv_proof_rule_numeric_verification_create(void) {
     if (!rule)
         return NULL;
 
-    strncpy(rule->name, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION, lv_PROOF_RULE_NAME_MAX - 1);
-    rule->name[lv_PROOF_RULE_NAME_MAX - 1] = '\0';
+    lv_strlcpy(rule->name, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION, lv_PROOF_RULE_NAME_MAX);
     rule->weight = 1.0;
     rule->type = RULE_REWRITE; /* 数值求值判定，语义等同重写步骤（策略层对应 PROOF_STEP_REWRITE） */
     rule->priority = 0;

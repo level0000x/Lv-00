@@ -496,8 +496,7 @@ static const char *extract_scheme(const char *uri, char *out, size_t out_size) {
 
     size_t scheme_len = (size_t)(colon - uri);
     if (scheme_len >= out_size) scheme_len = out_size - 1;
-    strncpy(out, uri, scheme_len);
-    out[scheme_len] = '\0';
+    lv_strlcpy(out, uri, scheme_len + 1);
     return out;
 }
 
@@ -600,8 +599,7 @@ lvStorage *lv_storage_open(const char *uri, int mode) {
     storage->ctx     = ctx;
     storage->mode    = mode;
     storage->is_open = true;
-    strncpy(storage->uri, uri, lv_STORAGE_MAX_URI - 1);
-    storage->uri[lv_STORAGE_MAX_URI - 1] = '\0';
+    lv_strlcpy(storage->uri, uri, lv_STORAGE_MAX_URI);
 
     return storage;
 }

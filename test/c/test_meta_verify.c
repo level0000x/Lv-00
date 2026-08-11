@@ -12,6 +12,7 @@
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/lv_parse_utils.h"
 
 #include "test_helpers.h"
 
@@ -166,12 +167,66 @@ static void test_differential(void) {
     graph_destroy(empty2);
 }
 
+/**
+ * @brief 测试判据 I 设施 lv_parse_int_before（关键词后置数字提取）
+ *
+ * 覆盖：正常提取 / 无前驱数字 / pos 处为数字 / NULL 参数 / 起点边界 /
+ * 溢出失败不写 out / 非数字隔断时仅取紧邻数字串。
+ */
+static void test_parse_int_before(void) {
+    /* 数字串与关键词紧邻时回退提取（设施契约；真实消息含空格时不触发） */
+    const char *text = "完成12尝试，输出123字节，识别7个几何对象";
+    int value = 0;
+    TEST_ASSERT_EQ(lv_parse_int_before(text, strstr(text, "尝试"), &value), 0);
+    TEST_ASSERT_EQ(value, 12);
+    value = 0;
+    TEST_ASSERT_EQ(lv_parse_int_before(text, strstr(text, "字节"), &value), 0);
+    TEST_ASSERT_EQ(value, 123);
+    value = 0;
+    TEST_ASSERT_EQ(lv_parse_int_before(text, strstr(text, "个几何对象"), &value), 0);
+    TEST_ASSERT_EQ(value, 7);
+
+    /* 起点边界：数字串起点位于 base 处仍可解析 */
+    const char *at_base = "42标记";
+    value = 0;
+    TEST_ASSERT_EQ(lv_parse_int_before(at_base, strstr(at_base, "标记"), &value), 0);
+    TEST_ASSERT_EQ(value, 42);
+
+    /* 无前驱数字 → -1，不写 out */
+    const char *no_digit = "abc标记";
+    value = -7;
+    TEST_ASSERT_EQ(lv_parse_int_before(no_digit, strstr(no_digit, "标记"), &value), -1);
+    TEST_ASSERT_EQ(value, -7);
+
+    /* pos 指向数字本身 → -1 */
+    TEST_ASSERT_EQ(lv_parse_int_before("123", "123", &value), -1);
+
+    /* 非数字隔断：仅取紧邻标记的数字串 */
+    const char *gapped = "7次12标记";
+    value = 0;
+    TEST_ASSERT_EQ(lv_parse_int_before(gapped, strstr(gapped, "标记"), &value), 0);
+    TEST_ASSERT_EQ(value, 12);
+
+    /* 溢出失败：不写 out */
+    const char *overflow = "999999999999999999999标记";
+    value = 5;
+    TEST_ASSERT_EQ(lv_parse_int_before(overflow, strstr(overflow, "标记"), &value), -1);
+    TEST_ASSERT_EQ(value, 5);
+
+    /* NULL / 越界参数 → -1 */
+    TEST_ASSERT_EQ(lv_parse_int_before(NULL, "x", &value), -1);
+    TEST_ASSERT_EQ(lv_parse_int_before("x", NULL, &value), -1);
+    TEST_ASSERT_EQ(lv_parse_int_before("x", "x", NULL), -1);
+    TEST_ASSERT_EQ(lv_parse_int_before("123", "123", NULL), -1);
+}
+
 TEST_MAIN_BEGIN("Meta Verify")
 
     TEST_MAIN_RUN(test_null_input);
     TEST_MAIN_RUN(test_completeness);
     TEST_MAIN_RUN(test_soundness);
     TEST_MAIN_RUN(test_differential);
+    TEST_MAIN_RUN(test_parse_int_before);
 
 
 TEST_MAIN_END()

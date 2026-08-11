@@ -199,7 +199,7 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
 
     /* 复制 names 用于拆分 */
     char buf[1024];
-    lv_strncpy(buf, names, sizeof(buf));
+    lv_strlcpy(buf, names, sizeof(buf));
 
     /* VTable 调度（越界/未登记类型走暂存，对应原 default 分支） */
     EntityDeclHandler handler = decl_stash;
@@ -234,7 +234,7 @@ LvParseResult lv_load_file(const char *filepath) {
 
     if (!filepath) {
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "filepath is NULL", sizeof(result.errors[0].message));
+        lv_strlcpy(result.errors[0].message, "filepath is NULL", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -252,7 +252,7 @@ LvParseResult lv_load_file(const char *filepath) {
     if (!lexer) {
         lv_free((void **) &source);
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "failed to create lexer", sizeof(result.errors[0].message));
+        lv_strlcpy(result.errors[0].message, "failed to create lexer", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -261,7 +261,7 @@ LvParseResult lv_load_file(const char *filepath) {
         lv_lexer_destroy(lexer);
         lv_free((void **) &source);
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "failed to create parser", sizeof(result.errors[0].message));
+        lv_strlcpy(result.errors[0].message, "failed to create parser", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -809,7 +809,7 @@ static void collect_ident(LvAstNode *node,
         *overflow = true;
         return;
     }
-    lv_strncpy(vars[*count], name, LV_PROP_VAR_NAME_MAX);
+    lv_strlcpy(vars[*count], name, LV_PROP_VAR_NAME_MAX);
     (*count)++;
 }
 

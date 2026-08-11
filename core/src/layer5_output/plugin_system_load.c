@@ -63,8 +63,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
         lv_dlclose(handle);
         return NULL;
     }
-    strncpy(plugin->path, path, sizeof(plugin->path));
-    plugin->path[sizeof(plugin->path) - 1] = '\0';
+    lv_strlcpy(plugin->path, path, sizeof(plugin->path));
     plugin->handle = handle;
     plugin->state = lv_PLUGIN_STATE_LOADING;
     plugin->load_time = lv_get_wallclock_ns();
@@ -210,7 +209,7 @@ int lv_plugin_reload(lvPluginSystem *system, lvPlugin *plugin) {
     lv_CHECK_ARG(plugin->path[0] != '\0', lv_ERROR_INVALID_PARAM, "plugin path is empty");
 
     char path[lv_PLUGIN_PATH_MAX];
-    strncpy(path, plugin->path, sizeof(path) - 1);
+    lv_strlcpy(path, plugin->path, sizeof(path));
 
     if (lv_plugin_unload(system, plugin) != 0) {
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "lv_plugin_reload: unload failed");

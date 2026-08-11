@@ -492,7 +492,7 @@ static void test_registry_register_find(void) {
     SMTBackendEntry entry;
     memset(&entry, 0, sizeof(entry));
     entry.type = SMT_Z3;
-    strncpy(entry.name, "test_z3", sizeof(entry.name) - 1);
+    lv_strlcpy(entry.name, "test_z3", sizeof(entry.name));
     entry.available = true;
     entry.priority = 5;
 

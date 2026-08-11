@@ -199,7 +199,7 @@ LvAstNode *lv_ast_create_call_typed(LvAstNodeType type, LvSourceLoc loc, const c
  */
 LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = ast_alloc(LV_AST_BINARY_OP, loc, "failed to create binary node");
-    lv_strncpy(node->data.binary.op, op, sizeof(node->data.binary.op));
+    lv_strlcpy(node->data.binary.op, op, sizeof(node->data.binary.op));
     node->data.binary.left = left;
     node->data.binary.right = right;
     return node;
@@ -215,7 +215,7 @@ LvAstNode *lv_ast_create_binary(LvSourceLoc loc, const char *op, LvAstNode *left
  */
 LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *operand) {
     LvAstNode *node = ast_alloc(LV_AST_UNARY_OP, loc, "failed to create unary node");
-    lv_strncpy(node->data.unary.op, op, sizeof(node->data.unary.op));
+    lv_strlcpy(node->data.unary.op, op, sizeof(node->data.unary.op));
     node->data.unary.operand = operand;
     return node;
 }
@@ -231,7 +231,7 @@ LvAstNode *lv_ast_create_unary(LvSourceLoc loc, const char *op, LvAstNode *opera
  */
 LvAstNode *lv_ast_create_compare(LvSourceLoc loc, const char *op, LvAstNode *left, LvAstNode *right) {
     LvAstNode *node = ast_alloc(LV_AST_COMPARE, loc, "failed to create compare node");
-    lv_strncpy(node->data.compare.op, op, sizeof(node->data.compare.op));
+    lv_strlcpy(node->data.compare.op, op, sizeof(node->data.compare.op));
     node->data.compare.left = left;
     node->data.compare.right = right;
     return node;
@@ -253,7 +253,7 @@ LvAstNode *lv_ast_create_logic_binary(LvAstNodeType type, LvSourceLoc loc, const
     LvAstNode *node = ast_alloc(type, loc, "failed to create logic binary node");
     if (!node)
         return NULL;
-    lv_strncpy(node->data.binary.op, op, sizeof(node->data.binary.op));
+    lv_strlcpy(node->data.binary.op, op, sizeof(node->data.binary.op));
     node->data.binary.left = left;
     node->data.binary.right = right;
     return node;

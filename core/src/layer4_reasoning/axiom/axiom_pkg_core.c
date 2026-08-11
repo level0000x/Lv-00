@@ -81,18 +81,7 @@ static void axiom_registry_remove_pkg(const AxiomPackage *pkg) {
     axiom_name_registry_ensure();
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "%p:", (const void *) pkg);
-    size_t prefix_len = strlen(prefix);
-    int total = lv_registry_count(&g_axiom_name_registry);
-    for (int i = total - 1; i >= 0; i--) {
-        const char *reg_name = NULL;
-        void *reg_value = NULL;
-        if (!lv_registry_get_at(&g_axiom_name_registry, i, &reg_name, &reg_value)) {
-            continue;
-        }
-        if (strncmp(reg_name, prefix, prefix_len) == 0) {
-            lv_registry_remove(&g_axiom_name_registry, reg_name);
-        }
-    }
+    lv_registry_remove_prefix(&g_axiom_name_registry, prefix);
 }
 
 /* ============== 创建和销毁 ============== */

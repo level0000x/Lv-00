@@ -81,7 +81,7 @@ static void parser_error(LvParser *p, const LvToken *tok, const char *msg) {
     if (p->error_count < 64) {
         int idx = p->error_count++;
         p->errors[idx].loc = tok->loc;
-        lv_strncpy(p->errors[idx].message, msg, sizeof(p->errors[idx].message));
+        lv_strlcpy(p->errors[idx].message, msg, sizeof(p->errors[idx].message));
     }
 }
 
@@ -307,7 +307,7 @@ static LvAstNode *parse_let_stmt(LvParser *p) {
     char type_name[128] = {0};
 
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        lv_strlcpy(name, token_text(&p->current), sizeof(name));
         advance(p);
     } else {
         expect(p, LV_TOKEN_IDENTIFIER, "expected identifier after Let");
@@ -316,12 +316,12 @@ static LvAstNode *parse_let_stmt(LvParser *p) {
     expect(p, LV_TOKEN_COLON, "expected ':' after identifier in Let");
 
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(type_name, token_text(&p->current), sizeof(type_name));
+        lv_strlcpy(type_name, token_text(&p->current), sizeof(type_name));
         advance(p);
     } else {
         /* 也可能是类型关键字 */
         if (is_entity_type(p->current.type)) {
-            lv_strncpy(type_name, token_text(&p->current), sizeof(type_name));
+            lv_strlcpy(type_name, token_text(&p->current), sizeof(type_name));
             advance(p);
         } else {
             expect(p, LV_TOKEN_IDENTIFIER, "expected type in Let");
@@ -369,7 +369,7 @@ static LvAstNode *parse_constraint_stmt(LvParser *p) {
     char name[128] = {0};
     /* 命名约束: "Constraint Name: formula;"（Name 为 Identifier 且后随冒号） */
     if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
-        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        lv_strlcpy(name, token_text(&p->current), sizeof(name));
         advance(p);
         advance(p); /* 消费 ':' */
     }
@@ -410,7 +410,7 @@ static LvAstNode *parse_axiom_stmt(LvParser *p) {
 
     char name[128] = {0};
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        lv_strlcpy(name, token_text(&p->current), sizeof(name));
         advance(p);
     } else {
         expect(p, LV_TOKEN_IDENTIFIER, "expected identifier after Axiom");
@@ -449,7 +449,7 @@ static LvAstNode *parse_theorem_stmt(LvParser *p) {
 
     char name[128] = {0};
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        lv_strlcpy(name, token_text(&p->current), sizeof(name));
         advance(p);
     } else {
         expect(p, LV_TOKEN_IDENTIFIER, "expected identifier after Theorem");
@@ -513,12 +513,12 @@ static LvAstNode *parse_normalize_stmt(LvParser *p) {
 
     char target[128] = {0};
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(target, token_text(&p->current), sizeof(target));
+        lv_strlcpy(target, token_text(&p->current), sizeof(target));
         advance(p);
     } else {
         /* 无参形式 "Normalize;"：target 语义为"全部"（"all"）。
          * 注意：不能消费当前 token（分号/EOF），否则后续 match(SEMICOLON) 必然失败。 */
-        lv_strncpy(target, "all", sizeof(target));
+        lv_strlcpy(target, "all", sizeof(target));
     }
 
     if (!match(p, LV_TOKEN_SEMICOLON)) {
@@ -545,7 +545,7 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
 
     char target[128] = {0};
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(target, token_text(&p->current), sizeof(target));
+        lv_strlcpy(target, token_text(&p->current), sizeof(target));
         advance(p);
     } else {
         expect(p, LV_TOKEN_IDENTIFIER, "expected export target");
@@ -558,7 +558,7 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
 
     char format[128] = {0};
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
-        lv_strncpy(format, token_text(&p->current), sizeof(format));
+        lv_strlcpy(format, token_text(&p->current), sizeof(format));
         advance(p);
     } else {
         expect(p, LV_TOKEN_IDENTIFIER, "expected export format");
@@ -872,7 +872,7 @@ static LvAstNode *parse_not_expr(LvParser *p) {
         LvAstNode *node = lv_ast_create(LV_AST_LOGIC_NOT, loc);
         if (node) {
             node->data.unary.operand = operand;
-            lv_strncpy(node->data.unary.op, "not", sizeof(node->data.unary.op));
+            lv_strlcpy(node->data.unary.op, "not", sizeof(node->data.unary.op));
         }
         return node;
     }
@@ -897,7 +897,7 @@ static LvAstNode *parse_quantified_expr(LvParser *p) {
             char var_type[128] = {0};
 
             if (p->current.type == LV_TOKEN_IDENTIFIER) {
-                lv_strncpy(var_name, token_text(&p->current), sizeof(var_name));
+                lv_strlcpy(var_name, token_text(&p->current), sizeof(var_name));
                 advance(p);
             } else {
                 expect(p, LV_TOKEN_IDENTIFIER, "expected variable name in quantifier binder");
@@ -907,10 +907,10 @@ static LvAstNode *parse_quantified_expr(LvParser *p) {
             expect(p, LV_TOKEN_COLON, "expected ':' in quantifier binder");
 
             if (p->current.type == LV_TOKEN_IDENTIFIER) {
-                lv_strncpy(var_type, token_text(&p->current), sizeof(var_type));
+                lv_strlcpy(var_type, token_text(&p->current), sizeof(var_type));
                 advance(p);
             } else if (is_entity_type(p->current.type)) {
-                lv_strncpy(var_type, token_text(&p->current), sizeof(var_type));
+                lv_strlcpy(var_type, token_text(&p->current), sizeof(var_type));
                 advance(p);
             } else {
                 expect(p, LV_TOKEN_IDENTIFIER, "expected type in quantifier binder");
@@ -1000,7 +1000,7 @@ static LvAstNode *parse_predicate_expr(LvParser *p) {
         const char *txt = token_text(&p->current);
         if (strcmp(txt, "implies") != 0 && strcmp(txt, "iff") != 0) {
             char pname[128];
-            lv_strncpy(pname, txt, sizeof(pname));
+            lv_strlcpy(pname, txt, sizeof(pname));
             LvSourceLoc ploc = p->current.loc;
             advance(p);
             LvAstNode *pnode = lv_ast_create(LV_AST_PREDICATE_APP, ploc);
@@ -1147,7 +1147,7 @@ static LvAstNode *parse_arg_list(LvParser *p) {
             char arg_name[128] = {0};
             int has_name = 0;
             if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
-                lv_strncpy(arg_name, token_text(&p->current), sizeof(arg_name));
+                lv_strlcpy(arg_name, token_text(&p->current), sizeof(arg_name));
                 has_name = 1;
                 advance(p); /* name */
                 advance(p); /* ':' */
@@ -1196,7 +1196,7 @@ static LvAstNode *parse_struct_literal(LvParser *p) {
     while (p->current.type != LV_TOKEN_RBRACE && p->current.type != LV_TOKEN_EOF) {
         char fname[128] = {0};
         if (p->current.type == LV_TOKEN_IDENTIFIER) {
-            lv_strncpy(fname, token_text(&p->current), sizeof(fname));
+            lv_strlcpy(fname, token_text(&p->current), sizeof(fname));
             advance(p);
         } else {
             expect(p, LV_TOKEN_IDENTIFIER, "expected field name in record literal");
@@ -1445,7 +1445,7 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     /* 标识符（可能是函数调用、关系、度量、几何表达式） */
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
         char name[128];
-        lv_strncpy(name, token_text(&p->current), sizeof(name));
+        lv_strlcpy(name, token_text(&p->current), sizeof(name));
         LvSourceLoc ident_loc = p->current.loc;
         advance(p);
 
@@ -1505,7 +1505,7 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         p->current.type == LV_TOKEN_KW_MEASURE) {
         /* Copy immediately — token_text uses a static buffer */
         char func_name[128];
-        lv_strncpy(func_name, token_text(&p->current), sizeof(func_name));
+        lv_strlcpy(func_name, token_text(&p->current), sizeof(func_name));
 
         LvSourceLoc kw_loc = p->current.loc;
         advance(p);
@@ -1610,7 +1610,7 @@ LvParseResult lv_parser_parse_program(LvParser *p) {
     if (!p) {
         result.error_count = 1;
         result.errors[0].loc.line = 0;
-        lv_strncpy(result.errors[0].message, "parser is NULL", sizeof(result.errors[0].message));
+        lv_strlcpy(result.errors[0].message, "parser is NULL", sizeof(result.errors[0].message));
         return result;
     }
 
@@ -1618,7 +1618,7 @@ LvParseResult lv_parser_parse_program(LvParser *p) {
     LvAstNode *program = lv_ast_create(LV_AST_PROGRAM, program_loc);
     if (!program) {
         result.error_count = 1;
-        lv_strncpy(result.errors[0].message, "out of memory", sizeof(result.errors[0].message));
+        lv_strlcpy(result.errors[0].message, "out of memory", sizeof(result.errors[0].message));
         return result;
     }
 

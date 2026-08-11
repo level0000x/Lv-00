@@ -349,18 +349,7 @@ static void gappa_pred_registry_remove_set(const lvGappaPredSet *set) {
     }
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "%p:", (const void *) set);
-    size_t prefix_len = strlen(prefix);
-    int total = lv_registry_count(&g_gappa_pred_registry);
-    for (int i = total - 1; i >= 0; i--) {
-        const char *reg_name = NULL;
-        void *reg_value = NULL;
-        if (!lv_registry_get_at(&g_gappa_pred_registry, i, &reg_name, &reg_value)) {
-            continue;
-        }
-        if (strncmp(reg_name, prefix, prefix_len) == 0) {
-            lv_registry_remove(&g_gappa_pred_registry, reg_name);
-        }
-    }
+    lv_registry_remove_prefix(&g_gappa_pred_registry, prefix);
 }
 
 /* -- Structured propagation API -- */
@@ -971,7 +960,7 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));
         derived.type = lv_PRED_BND;
-        strncpy(derived.expr_lhs, goal->expr_lhs, sizeof(derived.expr_lhs) - 1);
+        lv_strlcpy(derived.expr_lhs, goal->expr_lhs, sizeof(derived.expr_lhs));
         derived.bound_lo = goal->bound_lo;
         derived.bound_hi = goal->bound_hi;
         derived.is_hypothesis = true;

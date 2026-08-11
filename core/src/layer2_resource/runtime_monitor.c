@@ -206,8 +206,7 @@ bool lv_log_set_file(const char *path) {
         fclose(s_runtime_state.log.log_file);
     }
 
-    strncpy(s_runtime_state.log.config.file_path, path, sizeof(s_runtime_state.log.config.file_path) - 1);
-    s_runtime_state.log.config.file_path[sizeof(s_runtime_state.log.config.file_path) - 1] = '\0';
+    lv_strlcpy(s_runtime_state.log.config.file_path, path, sizeof(s_runtime_state.log.config.file_path));
     s_runtime_state.log.log_file = new_file;
     s_runtime_state.log.current_file_size = 0;
 
@@ -326,7 +325,7 @@ lvTimer *lv_timer_create(const char *name) {
     }
 
     if (name) {
-        strncpy(timer->name, name, sizeof(timer->name) - 1);
+        lv_strlcpy(timer->name, name, sizeof(timer->name));
     }
     timer->state = TIMER_STOPPED;
 
@@ -451,7 +450,7 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
     }
 
     if (name) {
-        strncpy(stats->name, name, sizeof(stats->name) - 1);
+        lv_strlcpy(stats->name, name, sizeof(stats->name));
     }
     stats->min_val = 1e308;
     stats->max_val = -1e308;
@@ -698,7 +697,7 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     /* 内存检查 */
     lvHealthCheck *check = &report->checks[0];
-    strncpy(check->name, "Memory Usage", sizeof(check->name) - 1);
+    lv_strlcpy(check->name, "Memory Usage", sizeof(check->name));
     check->threshold_warning = s_runtime_state.health.memory_warning_mb;
     check->threshold_critical = s_runtime_state.health.memory_critical_mb;
 
@@ -738,7 +737,7 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     /* CPU 检查 */
     check = &report->checks[1];
-    strncpy(check->name, "CPU Usage", sizeof(check->name) - 1);
+    lv_strlcpy(check->name, "CPU Usage", sizeof(check->name));
     check->threshold_warning = s_runtime_state.health.cpu_warning_percent;
     check->threshold_critical = s_runtime_state.health.cpu_critical_percent;
     check->value = get_cpu_usage_percent();
@@ -760,7 +759,7 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     /* 线程检查 */
     check = &report->checks[2];
-    strncpy(check->name, "Thread Count", sizeof(check->name) - 1);
+    lv_strlcpy(check->name, "Thread Count", sizeof(check->name));
     /* 线程检查：通过环境变量 lv_MONITOR_THREADS 配置，默认 1，范围 [1, 64]。
      * 收敛至 lv_env_get_int（严格解析 + clamp），空/非法值回落默认 1。
      * 命名说明（P2-2）：lv_ 小写前缀为全仓库唯一的环境变量命名，与 LV_ 前缀
@@ -774,14 +773,14 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     /* 计时器检查 */
     check = &report->checks[3];
-    strncpy(check->name, "Active Timers", sizeof(check->name) - 1);
+    lv_strlcpy(check->name, "Active Timers", sizeof(check->name));
     check->value = s_runtime_state.perf.timer_count;
     check->status = HEALTH_OK;
     snprintf(check->message, sizeof(check->message), "%u active timers", s_runtime_state.perf.timer_count);
 
     /* 性能统计检查 */
     check = &report->checks[4];
-    strncpy(check->name, "Performance Stats", sizeof(check->name) - 1);
+    lv_strlcpy(check->name, "Performance Stats", sizeof(check->name));
     check->value = s_runtime_state.perf.stats_count;
     check->status = HEALTH_OK;
     snprintf(check->message, sizeof(check->message), "%u performance stats tracked", s_runtime_state.perf.stats_count);
@@ -806,8 +805,8 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     }
 
     /* 基本信息 */
-    strncpy(diag->version, "3.3.0", sizeof(diag->version) - 1);
-    strncpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date) - 1);
+    lv_strlcpy(diag->version, "3.3.0", sizeof(diag->version));
+    lv_strlcpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date));
     diag->uptime_ms = lv_get_time_ns() / 1000000;
 
     /* 内存统计 - 从 lv 内存管理器获取实际数据 */
@@ -835,7 +834,7 @@ lvDiagnostics *lv_diagnostics_generate(void) {
 
     /* 系统信息 */
 #ifdef _WIN32
-    strncpy(diag->os_info, "Windows", sizeof(diag->os_info) - 1);
+    lv_strlcpy(diag->os_info, "Windows", sizeof(diag->os_info));
     SYSTEM_INFO sys_info;
     GetSystemInfo(&sys_info);
     diag->cpu_cores = sys_info.dwNumberOfProcessors;
@@ -845,7 +844,7 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     GlobalMemoryStatusEx(&mem_status);
     diag->total_memory_mb = (uint32_t) (mem_status.ullTotalPhys / (1024 * 1024));
 #else
-    strncpy(diag->os_info, "Linux/Unix", sizeof(diag->os_info) - 1);
+    lv_strlcpy(diag->os_info, "Linux/Unix", sizeof(diag->os_info));
     diag->cpu_cores = sysconf(_SC_NPROCESSORS_ONLN);
     diag->total_memory_mb = (uint32_t) (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / (1024 * 1024));
 #endif
@@ -1034,10 +1033,10 @@ void lv_event_trace_record(RM_EventType type, const char *name, const char *data
         event->thread_id = (int)lv_thread_id();
 
         if (name) {
-            strncpy(event->name, name, sizeof(event->name) - 1);
+            lv_strlcpy(event->name, name, sizeof(event->name));
         }
         if (data) {
-            strncpy(event->data, data, sizeof(event->data) - 1);
+            lv_strlcpy(event->data, data, sizeof(event->data));
         }
     }
 
@@ -1063,7 +1062,7 @@ int lv_event_trace_begin(RM_EventType type, const char *name) {
         event->thread_id = (int)lv_thread_id();
 
         if (name) {
-            strncpy(event->name, name, sizeof(event->name) - 1);
+            lv_strlcpy(event->name, name, sizeof(event->name));
         }
     }
 
@@ -1087,7 +1086,7 @@ void lv_event_trace_end(int event_id, const char *data) {
         event->duration_ns = lv_get_time_ns() - event->timestamp_ns;
 
         if (data) {
-            strncpy(event->data, data, sizeof(event->data) - 1);
+            lv_strlcpy(event->data, data, sizeof(event->data));
         }
     }
 

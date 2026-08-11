@@ -273,3 +273,31 @@
 
 ### 验证
 ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
+
+---
+
+## 九、批次 N 抽象收敛（2026-08-11）
+
+### 收敛设施（决策登记）
+
+| 设施 | 判据 | 调用点 | 测试 |
+|------|------|-------|------|
+| `lv_parse_int_before`（lv_parse_utils.h） | I（数字提取样板） | 4（meta_verify.c：策略尝试数 / 标记数 / 几何对象数 / 字节数） | test_meta_verify `test_parse_int_before` |
+| `lv_strlcpy` / `lv_strlcat`（lv_utils.h） | J（字符串安全复制 / 拼接样板） | 全库 336 | 既有字符串测试链 |
+| `lv_RESULT_FAIL`（lv_error.h） | K（错误结果样板） | 34（block_scheduler 8 / block_to_node 11 / block_to_text 5 / block_to_geometry 9 / representation_converter 1 + `make_error_result` 收敛） | test_error_handling `test_result_fail_macro` |
+| `lv_registry_remove_prefix`（lv_registry.h） | A 变体（批量清理样板） | 4（插件配置 / 公理包 / 几何事件 / Gappa 传播清理） | test_registry |
+| `lv_constraint_has_participants`（lv_constraint_guard.h） | H 泛化 | 25+（smtlib2 / bdd / groebner 后端编码族） | test_smt_backend 等 |
+
+### 判据 K 豁免登记
+
+| 豁免形态 | 位置 | 理由 |
+|----------|------|------|
+| 格式化消息样板（snprintf 形态） | block_scheduler.c 环检测消息（已标注 `/* exempt: */`） | 需内嵌 topo_count/n 数值，静态消息宏无法表达 |
+| `lvParseResult::errors[]` 数组形态（error_count + 多槽） | lv_parser.h | 多槽错误数组，非单 `error_msg` 字段 |
+
+### 文档同步（ABSTRACTION_SPEC.md）
+
+- 新增 §1.9 / §1.10 / §1.11 判据 I / J / K；原粒度门槛重编号 §1.12
+- §10 迁移顺序表新增阶段 6（判据 I / J / K）
+- §11.3 新设施准入登记批次 N 五项设施
+- §12 合规清单判据类型扩展为 A–K / 泛化

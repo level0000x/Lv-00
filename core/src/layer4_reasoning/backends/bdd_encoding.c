@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_constraint_guard.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
@@ -704,7 +705,7 @@ typedef BDDNode *(*BDDEncodeFn)(BDDManager *mgr, const Constraint *con, int n, c
 
 static BDDNode *bdd_encode_incidence(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (con->participant_count >= 2) {
+    if (lv_constraint_has_participants(con, 2)) {
         int p_id = con->participants[0];
         int l_id = con->participants[1];
         int p_var = (p_id >= 0) ? lookup_node_base_var(p_id, n, node_base_var, graph) : -1;
@@ -723,7 +724,7 @@ static BDDNode *bdd_encode_incidence(BDDManager *mgr, const Constraint *con, int
 
 static BDDNode *bdd_encode_betweenness(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (con->participant_count >= 3) {
+    if (lv_constraint_has_participants(con, 3)) {
         int p1_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
         int p2_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
         int p3_var = (con->participants[2] >= 0) ? lookup_node_base_var(con->participants[2], n, node_base_var, graph) : -1;
@@ -745,7 +746,7 @@ static BDDNode *bdd_encode_betweenness(BDDManager *mgr, const Constraint *con, i
 
 static BDDNode *bdd_encode_intersection(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (con->participant_count >= 3) {
+    if (lv_constraint_has_participants(con, 3)) {
         int l1_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
         int l2_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
         int p_var = (con->participants[2] >= 0) ? lookup_node_base_var(con->participants[2], n, node_base_var, graph) : -1;
@@ -767,7 +768,7 @@ static BDDNode *bdd_encode_intersection(BDDManager *mgr, const Constraint *con, 
 
 static BDDNode *bdd_encode_containment(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (con->participant_count >= 2) {
+    if (lv_constraint_has_participants(con, 2)) {
         int r_var = (con->participants[0] >= 0) ? lookup_node_base_var(con->participants[0], n, node_base_var, graph) : -1;
         int p_var = (con->participants[1] >= 0) ? lookup_node_base_var(con->participants[1], n, node_base_var, graph) : -1;
         if (r_var >= 0 && p_var >= 0) {
@@ -784,7 +785,7 @@ static BDDNode *bdd_encode_containment(BDDManager *mgr, const Constraint *con, i
 
 static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (con->participant_count >= 2) {
+    if (lv_constraint_has_participants(con, 2)) {
         int l1_id = con->participants[0];
         int l2_id = con->participants[1];
         int l1_var = (l1_id >= 0) ? lookup_node_base_var(l1_id, n, node_base_var, graph) : -1;
@@ -836,7 +837,7 @@ static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, 
 
 static BDDNode *bdd_encode_connection(BDDManager *mgr, const Constraint *con, int n, const int *node_base_var, const ConstraintGraph *graph) {
     (void)n;
-    if (!mgr || !con || !graph || con->participant_count < 2)
+    if (!mgr || !graph || !lv_constraint_has_participants(con, 2))
         return NULL;
     int p1_id = con->participants[0];
     int p2_id = con->participants[1];

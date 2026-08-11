@@ -343,10 +343,8 @@ static int mini_internal_add_statement(MiniKernel *kernel, MiniStmtType type, co
 
     stmt->id = kernel->statement_count;
     stmt->type = type;
-    strncpy(stmt->label, label, sizeof(stmt->label) - 1);
-    stmt->label[sizeof(stmt->label) - 1] = '\0';
-    strncpy(stmt->formula_text, formula, sizeof(stmt->formula_text) - 1);
-    stmt->formula_text[sizeof(stmt->formula_text) - 1] = '\0';
+    lv_strlcpy(stmt->label, label, sizeof(stmt->label));
+    lv_strlcpy(stmt->formula_text, formula, sizeof(stmt->formula_text));
     stmt->ref_count = 0;
     stmt->verified = false;
     stmt->constraint_node_id = -1;
@@ -623,8 +621,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
     verifier.kernel = kernel;
     verifier.target_stmt_id = stmt_id;
     verifier.max_steps = MINI_VERIFIER_MAX_STEPS;
-    strncpy(verifier.target_formula, stmt->formula_text, sizeof(verifier.target_formula) - 1);
-    verifier.target_formula[sizeof(verifier.target_formula) - 1] = '\0';
+    lv_strlcpy(verifier.target_formula, stmt->formula_text, sizeof(verifier.target_formula));
 
     mini_verifier_reset(&verifier);
 
@@ -931,10 +928,10 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel) {
     {
         Substitution subs[2];
         memset(subs, 0, sizeof(subs));
-        strncpy(subs[0].variable_name, "x", sizeof(subs[0].variable_name) - 1);
-        strncpy(subs[0].replacement_term, "A", sizeof(subs[0].replacement_term) - 1);
-        strncpy(subs[1].variable_name, "x", sizeof(subs[1].variable_name) - 1);
-        strncpy(subs[1].replacement_term, "B", sizeof(subs[1].replacement_term) - 1);
+        lv_strlcpy(subs[0].variable_name, "x", sizeof(subs[0].variable_name));
+        lv_strlcpy(subs[0].replacement_term, "A", sizeof(subs[0].replacement_term));
+        lv_strlcpy(subs[1].variable_name, "x", sizeof(subs[1].variable_name));
+        lv_strlcpy(subs[1].replacement_term, "B", sizeof(subs[1].replacement_term));
 
         char *result = NULL;
         MiniVerifyResult r = mini_kernel_check_substitution(kernel, subs, 2, "test", &result);
@@ -949,8 +946,8 @@ MiniVerifyResult mini_kernel_self_check(MiniKernel *kernel) {
     {
         Substitution sub;
         memset(&sub, 0, sizeof(sub));
-        strncpy(sub.variable_name, "__nonexistent_var__", sizeof(sub.variable_name) - 1);
-        strncpy(sub.replacement_term, "A", sizeof(sub.replacement_term) - 1);
+        lv_strlcpy(sub.variable_name, "__nonexistent_var__", sizeof(sub.variable_name));
+        lv_strlcpy(sub.replacement_term, "A", sizeof(sub.replacement_term));
 
         char *result = NULL;
         MiniVerifyResult r = mini_kernel_check_substitution(kernel, &sub, 1, "test", &result);

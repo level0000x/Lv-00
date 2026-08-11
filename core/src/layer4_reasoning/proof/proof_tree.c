@@ -97,11 +97,9 @@ lvProofTree *lv_proof_tree_create(const char *name, const char *strategy) {
         return NULL;
 
     if (name)
-        strncpy(tree->name, name, sizeof(tree->name) - 1);
+        lv_strlcpy(tree->name, name, sizeof(tree->name));
     if (strategy)
-        strncpy(tree->strategy, strategy, sizeof(tree->strategy) - 1);
-    tree->name[sizeof(tree->name) - 1] = '\0';
-    tree->strategy[sizeof(tree->strategy) - 1] = '\0';
+        lv_strlcpy(tree->strategy, strategy, sizeof(tree->strategy));
     tree->theorem_name = name ? lv_strdup(name) : NULL;
     tree->proof_strategy = strategy ? lv_strdup(strategy) : NULL;
 
@@ -212,8 +210,7 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
     memset(&premise, 0, sizeof(premise));
     premise.premise_id = idx;
     if (name) {
-        strncpy(premise.description, name, sizeof(premise.description) - 1);
-        premise.description[sizeof(premise.description) - 1] = '\0';
+        lv_strlcpy(premise.description, name, sizeof(premise.description));
     }
     premise.is_axiom = negated;
     lv_darray_push(&node->premises, &premise);

@@ -112,7 +112,7 @@ bool lv_optimize_proof(const lvProofTraceTree *trace, lvProofTraceTree **out_opt
         if (!new_node)
             continue;
 
-        safe_strncpy(new_node->description, src_node->description, sizeof(new_node->description));
+        lv_strlcpy(new_node->description, src_node->description, sizeof(new_node->description));
         new_node->status = src_node->status;
         new_node->trust_color = src_node->trust_color;
         new_node->proposition = src_node->proposition;

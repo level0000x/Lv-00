@@ -126,6 +126,20 @@ void *lv_registry_get(const lvRegistry *reg, const char *name);
 bool lv_registry_remove(lvRegistry *reg, const char *name);
 
 /**
+ * @brief 按名称前缀批量移除条目
+ *
+ * 收敛「倒序遍历 + strncmp 前缀匹配 + remove」的批量清理样板
+ * （插件系统配置 / 公理包 / 几何事件 / Gappa 传播清理，4 处同构调用点）。
+ * 单次持锁遍历：匹配条目的析构与前移紧凑语义与 lv_registry_remove 逐条一致，
+ * 哈希副索引仅在批量移除结束后重建一次。
+ *
+ * @param reg    注册表指针
+ * @param prefix 名称前缀（按字节 strncmp 匹配，非 NULL）
+ * @return 移除的条目数
+ */
+int lv_registry_remove_prefix(lvRegistry *reg, const char *prefix);
+
+/**
  * @brief 获取当前条目数
  * @param reg 注册表指针
  * @return 条目数

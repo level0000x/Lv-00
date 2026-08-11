@@ -162,8 +162,8 @@ static inline int bridge_register(lvInteropManager *mgr, const char *name, const
     lv_CHECK_NOT_NULL(mgr);
     lvPlugin plugin;
     memset(&plugin, 0, sizeof(plugin));
-    strncpy(plugin.name, name, sizeof(plugin.name) - 1);
-    strncpy(plugin.version, version, sizeof(plugin.version) - 1);
+    lv_strlcpy(plugin.name, name, sizeof(plugin.name));
+    lv_strlcpy(plugin.version, version, sizeof(plugin.version));
     plugin.system = system;
     plugin.export_proof = export_proof;
     plugin.import_proof = import_proof;

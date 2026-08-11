@@ -32,6 +32,7 @@
 #include <time.h>
 
 #include "lv/lv.h"
+#include "lv/lv_constraint_guard.h"
 #include "lv/lv_numeric.h"
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -444,7 +445,7 @@ static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, i
  * 编码：叉积 cross = (B-A)×(C-A) = (x_B-x_A)(y_C-y_A) - (y_B-y_A)(x_C-x_A) = 0，
  * 展开为两个双线性因子之差，用乘法构造后合并。 */
 static void groebner_engine_encode_betweenness(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    if (con->participant_count < 3) return;
+    if (!lv_constraint_has_participants(con, 3)) return;
     int xa = -1, ya = -1, xb = -1, yb = -1, xc = -1, yc = -1;
     if (groebner_engine_var_xy(ctx, con->participants[0], &xa, &ya) < 0) return;
     if (groebner_engine_var_xy(ctx, con->participants[1], &xb, &yb) < 0) return;
@@ -487,7 +488,7 @@ static void groebner_engine_encode_betweenness(const GroebnerEngineEncodeCtx *ct
  *   cross(E-A, B-A) = dy1*Ex - dx1*Ey + (ay*dx1 - ax*dy1) = 0
  *   cross(E-C, D-C) = dy2*Ex - dx2*Ey + (cy*dx2 - cx*dy2) = 0 */
 static void groebner_engine_encode_intersection(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    if (con->participant_count < 3) return;
+    if (!lv_constraint_has_participants(con, 3)) return;
     double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
     double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
     if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
@@ -510,7 +511,7 @@ static void groebner_engine_encode_intersection(const GroebnerEngineEncodeCtx *c
  *  - outer=REGION：点 P 在区域首条边界线段上的共线方程（包含的边界退化编码）。
  *  其余组合（inner 非 POINT 等）缺数据，记录诊断并跳过。 */
 static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    if (con->participant_count < 2) return;
+    if (!lv_constraint_has_participants(con, 2)) return;
     int inner_id = con->participants[0];
     int outer_id = con->participants[1];
 
@@ -576,7 +577,7 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
  *   x_src - x_dst = 0、y_src - y_dst = 0。
  * 端口节点默认无坐标（graph_add_port 置 coord_count=0），缺坐标变量时记录诊断并跳过。 */
 static void groebner_engine_encode_connection(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    if (con->participant_count < 2) return;
+    if (!lv_constraint_has_participants(con, 2)) return;
     int src_id = con->participants[0];
     int dst_id = con->participants[1];
     GeomNode *src = graph_get_node(ctx->graph, src_id);
@@ -599,7 +600,7 @@ static void groebner_engine_encode_connection(const GroebnerEngineEncodeCtx *ctx
  *   (u·v)^2 - cos^2θ · |u|^2 · |v|^2 = 0（平方消除根号，等价于余弦/斜率判据）。
  * 结果为常量多项式：角度匹配时近零（跳过），否则作为一致性方程加入理想。 */
 static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
-    if (con->participant_count < 2) return;
+    if (!lv_constraint_has_participants(con, 2)) return;
     double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
     double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
     if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
@@ -787,7 +788,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     for (int ci = 0; ci < graph->constraint_count; ci++) {
         Constraint *con = graph->constraints[ci];
         if (!con || !con->is_active) continue;
-        if (con->participant_count < 2) continue;
+        if (!lv_constraint_has_participants(con, 2)) continue;
 
         GroebnerEngineEncodeCtx gctx;
         gctx.ring = ring;

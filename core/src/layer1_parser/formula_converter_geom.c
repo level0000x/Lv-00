@@ -61,16 +61,13 @@ bool formula_convert_point(const FormulaNode *point_node, ConstraintGraph *graph
         if (!coords) {
             lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
         }
-        coords[0] = symbolic_coord_create_rational(0, 1);
-        coords[1] = symbolic_coord_create_rational(0, 1);
-        if (!coords[0] || !coords[1]) {
-            if (coords[0])
-                symbolic_coord_destroy(coords[0]);
-            if (coords[1])
-                symbolic_coord_destroy(coords[1]);
+        SymbolicCoord *pair[2];
+        if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &pair[0], &pair[1])) {
             lv_free((void **) &coords);
             lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "failed to allocate default coords");
         }
+        coords[0] = pair[0];
+        coords[1] = pair[1];
         coord_count = 2;
     }
 
@@ -228,6 +225,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     }
 
     /* 创建圆周上的一个点（用于表示半径） */
+    /* exempt: 半径点为混合对（double_scaled 与 rational 混用），不适用 H2 pair helper */
     SymbolicCoord *radius_coords[2];
     radius_coords[0] = symbolic_coord_from_double_scaled(radius, lv_RATIONAL_SCALE_LOW); /* 圆心 x + radius */
     radius_coords[1] = symbolic_coord_create_rational(0, 1);                            /* 圆心 y */

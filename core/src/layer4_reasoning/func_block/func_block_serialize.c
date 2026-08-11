@@ -95,22 +95,10 @@ char *func_block_serialize_state(const FuncBlock *fb) {
     /* 确定性状态 */
     lv_strbuf_printf(&sb, "  determinism = %s\n", determinism_state_to_string(fb->determinism));
 
-    /* 视图状态 */
-    {
-        const char *vs = "EXPANDED";
-        switch (fb->view_state) {
-            case FB_VIEW_COLLAPSED:
-                vs = "COLLAPSED";
-                break;
-            case FB_VIEW_PINNED:
-                vs = "PINNED";
-                break;
-            default:
-                vs = "EXPANDED";
-                break;
-        }
-        lv_strbuf_printf(&sb, "  view_state = %s\n", vs);
-    }
+    /* 视图状态（复用 s_view_state_to_string_entries 表，未命中回退 "EXPANDED" 与旧 switch default 一致） */
+    lv_strbuf_printf(&sb, "  view_state = %s\n",
+                     lv_enum_to_str(s_view_state_to_string_entries, lv_ARRAY_SIZE(s_view_state_to_string_entries),
+                                    (int) fb->view_state, "EXPANDED"));
 
     /* 内部节点 */
     lv_strbuf_printf(&sb, "  internal_nodes = [");

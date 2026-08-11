@@ -53,8 +53,7 @@ static void node_graph_guard_cleanup(void *p) {
 lvConvertResult lv_convert_block_to_node(void *block) {
     lvConvertResult result = {0};
     if (!block) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL block", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL block");
         return result;
     }
 
@@ -64,8 +63,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     /* 创建节点图 */
     NodeGraph *ng = lv_calloc(1, sizeof(NodeGraph));
     if (!ng) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     /* 注册作用域守卫：任一失败分支直接 return，整个节点图在函数出口自动释放 */
@@ -74,15 +72,13 @@ lvConvertResult lv_convert_block_to_node(void *block) {
     ng->node_cap = bg->count > 0 ? bg->count : 8;
     ng->nodes = lv_calloc(ng->node_cap, sizeof(NodeGraphNode));
     if (!ng->nodes) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     ng->edge_cap = 32;
     ng->edges = lv_calloc(ng->edge_cap, sizeof(ng->edges[0]));
     if (!ng->edges) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -108,8 +104,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (in_count > 0 && fb->input_port_ids) {
             node->input_ports = lv_calloc(in_count, sizeof(int));
             if (!node->input_ports) {
-                result.success = 0;
-                strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+                lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
                 return result; /* 守卫自动释放（含当前节点已置字段） */
             }
             memcpy(node->input_ports, fb->input_port_ids, in_count * sizeof(int));
@@ -121,8 +116,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
         if (out_count > 0 && fb->output_port_ids) {
             node->output_ports = lv_calloc(out_count, sizeof(int));
             if (!node->output_ports) {
-                result.success = 0;
-                strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+                lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
                 return result; /* 守卫自动释放（含当前节点已置字段） */
             }
             memcpy(node->output_ports, fb->output_port_ids, out_count * sizeof(int));
@@ -152,8 +146,7 @@ lvConvertResult lv_convert_block_to_node(void *block) {
             if (src_idx >= 0 && dst_idx >= 0) {
                 /* 扩容检查（统一委托 lv_ensure_capacity，内部含溢出检查与倍增） */
                 if (!lv_ensure_capacity((void **) &ng->edges, ng->edge_count, &ng->edge_cap, sizeof(ng->edges[0]), 0)) {
-                    result.success = 0;
-                    strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+                    lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
                     return result;
                 }
                 ng->edges[ng->edge_count].src_node = src_idx;
@@ -204,8 +197,7 @@ static void simple_block_graph_guard_cleanup(void *p) {
 lvConvertResult lv_convert_node_to_block(void *node) {
     lvConvertResult result = {0};
     if (!node) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL node", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL node");
         return result;
     }
 
@@ -215,8 +207,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     /* 创建 BlockGraphView 结构作为输出 */
     BlockGraphView *bg = lv_calloc(1, sizeof(BlockGraphView));
     if (!bg) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     /* 注册作用域守卫：任一失败分支直接 return，已建函数块与结构在函数出口自动释放 */
@@ -236,8 +227,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
     bg->count = ng->node_count;
     bg->blocks = lv_calloc(ng->node_count, sizeof(FuncBlock *));
     if (!bg->blocks) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -248,8 +238,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
         FuncBlock *fb = func_block_create(n->id);
         if (!fb) {
             /* 内存不足，已建块由守卫统一释放 */
-            result.success = 0;
-            strncpy(result.error_msg, "out of memory creating FuncBlock", sizeof(result.error_msg));
+            lv_RESULT_FAIL(result, "out of memory creating FuncBlock");
             return result;
         }
 

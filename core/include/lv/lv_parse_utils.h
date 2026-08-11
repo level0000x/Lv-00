@@ -83,6 +83,45 @@ static inline int lv_parse_int_default(const char *str, int default_value) {
 }
 
 /**
+ * @brief 从文本中定位指针前向回退并解析整数（关键词后置数字提取）
+ *
+ * 语义契约：从 pos 向 base 方向回退连续 ASCII 数字字符，定位数字串起点后
+ * 按前缀语义解析（仅消费数字前缀，忽略后续非数字字符）；pos 处非数字、
+ * pos 之前无数字、前缀溢出或前缀为空时返回 -1 且不写 out。
+ *
+ * 前置条件：base <= pos；base / pos / out 均非 NULL。
+ * 失败/截断语义：纯查询，无资源分配；失败不修改 out。
+ * 边界行为：pos == base 恒失败（无前驱字符可回退）；单个数字字符可正常解析；
+ *            数字串起点位于 base 处（回退到 base 即停）仍可解析。
+ * 扩展点：无（若未来需要「数字串后置 + 前向吸收」，另立新设施）。
+ *
+ * @note 与 lv_parse_int 严格整串语义相区别：调用点传入的是嵌入消息文本中的
+ *       数字子串（如 "12尝试完成…"），整串消费恒失败；故按前缀语义解析，
+ *       与 lv_parse_double 的前缀语义一致。原始 meta_verify.c 样板因整串
+ *       解析恒失败而实际不可达，本设施为语义修复 + 收敛（见 ABSTRACTION_SPEC
+ *       判据 I 决策登记）。
+ *
+ * 收敛对象（判据 I）：meta_verify.c 四处「strstr 定位关键词 → 回退数字起始 →
+ * lv_parse_int」样板（策略尝试 / 标记数 / 几何对象数 / 字节数）。
+ */
+static inline int lv_parse_int_before(const char *base, const char *pos, int *out) {
+    if (!base || !pos || pos < base || !out)
+        return -1;
+    const char *num_start = pos;
+    while (num_start > base && *(num_start - 1) >= '0' && *(num_start - 1) <= '9')
+        num_start--;
+    if (num_start == pos)
+        return -1;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(num_start, &end, 10);
+    if (errno != 0 || end == num_start || val > INT_MAX || val < INT_MIN)
+        return -1;
+    *out = (int) val;
+    return 0;
+}
+
+/**
  * @brief 读取环境变量并安全解析为整数（严格解析 + 范围钳制）
  * @param name 环境变量名
  * @param dflt 变量缺失 / 空串 / 解析失败时返回的默认值

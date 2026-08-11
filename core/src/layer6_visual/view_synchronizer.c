@@ -115,9 +115,8 @@ int lv_view_sync_propagate(lvViewSynchronizer *sync, int source_view_id, const c
                             sizeof(sync->pending_changes[0]), 1))
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc pending changes");
     sync->pending_changes[sync->pending_count].source_view_id = source_view_id;
-    strncpy(sync->pending_changes[sync->pending_count].change_type, change_type,
-            sizeof(sync->pending_changes[0].change_type) - 1);
-    sync->pending_changes[sync->pending_count].change_type[sizeof(sync->pending_changes[0].change_type) - 1] = '\0';
+    lv_strlcpy(sync->pending_changes[sync->pending_count].change_type, change_type,
+               sizeof(sync->pending_changes[0].change_type));
     sync->pending_count++;
 
     /* 将源视图标记为脏（集合 add 内部去重，等价原有线性查重 + 追加） */

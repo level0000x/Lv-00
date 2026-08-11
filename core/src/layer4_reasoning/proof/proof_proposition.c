@@ -25,6 +25,7 @@
 #include "lv_utils.h"
 
 #include "lv/lv_xmacro.h"
+#include "lv/lv_lifecycle.h"
 
 /* ── 流式上下文声明 ── */
 /* ── 命题销毁栈初始容量 ── */
@@ -42,6 +43,23 @@
  *
  * @param prop 命题指针（可为 NULL）
  */
+
+LV_DESTROY_SHIM(destroy_proposition_pattern, ConstraintGraph, graph_destroy);
+LV_DESTROY_SHIM(destroy_proposition_type, TypeRegion, type_region_destroy);
+
+/* 命题外层字段销毁表（判据 G：sub_props 数组本身直接释放，子命题外壳由下方迭代栈统一处理，不在此处 unref） */
+static const lvFieldDesc s_proposition_destroy_fields[] = {
+    lv_FIELD_PLAIN(Proposition, input_port_ids),
+    lv_FIELD_PLAIN(Proposition, output_port_ids),
+    lv_FIELD_PLAIN(Proposition, precondition_region_ids),
+    lv_FIELD_PLAIN(Proposition, postcondition_constraint_ids),
+    lv_FIELD_OBJECT(Proposition, pattern, destroy_proposition_pattern),
+    lv_FIELD_PLAIN(Proposition, sub_props),
+    lv_FIELD_PLAIN(Proposition, name),
+    lv_FIELD_PLAIN(Proposition, description),
+    lv_FIELD_OBJECT(Proposition, prop_type, destroy_proposition_type),
+};
+
 void proposition_destroy(Proposition *prop) {
     if (!prop)
         return;
@@ -54,17 +72,7 @@ void proposition_destroy(Proposition *prop) {
     if (!destroy_stack) {
         /* 分配失败时的降级处理：直接释放命题本身的资源
          * 注意：这种情况下子命题可能泄漏，但至少避免崩溃 */
-        lv_free((void **) &prop->input_port_ids);
-        lv_free((void **) &prop->output_port_ids);
-        lv_free((void **) &prop->precondition_region_ids);
-        lv_free((void **) &prop->postcondition_constraint_ids);
-        if (prop->pattern)
-            graph_destroy(prop->pattern);
-        lv_free((void **) &prop->sub_props);
-        lv_free((void **) &prop->name);
-        lv_free((void **) &prop->description);
-        if (prop->prop_type)
-            type_region_destroy(prop->prop_type);
+        lv_obj_destroy_fields(prop, s_proposition_destroy_fields, lv_ARRAY_SIZE(s_proposition_destroy_fields));
         lv_free((void **) &prop);
         return;
     }
@@ -94,17 +102,7 @@ void proposition_destroy(Proposition *prop) {
                             if (current->sub_props[j]) {
                                 /* 使用非递归方式释放子命题，避免栈溢出 */
                                 Proposition *child = current->sub_props[j];
-                                lv_free((void **) &child->input_port_ids);
-                                lv_free((void **) &child->output_port_ids);
-                                lv_free((void **) &child->precondition_region_ids);
-                                lv_free((void **) &child->postcondition_constraint_ids);
-                                if (child->pattern)
-                                    graph_destroy(child->pattern);
-                                lv_free((void **) &child->sub_props);
-                                lv_free((void **) &child->name);
-                                lv_free((void **) &child->description);
-                                if (child->prop_type)
-                                    type_region_destroy(child->prop_type);
+                                lv_obj_destroy_fields(child, s_proposition_destroy_fields, lv_ARRAY_SIZE(s_proposition_destroy_fields));
                                 lv_free((void **) &child);
                             }
                         }
@@ -115,23 +113,7 @@ void proposition_destroy(Proposition *prop) {
             }
 
             /* 释放当前命题的资源 */
-            lv_free((void **) &current->input_port_ids);
-            lv_free((void **) &current->output_port_ids);
-            lv_free((void **) &current->precondition_region_ids);
-            lv_free((void **) &current->postcondition_constraint_ids);
-
-            if (current->pattern) {
-                graph_destroy(current->pattern);
-                current->pattern = NULL;
-            }
-
-            lv_free((void **) &current->sub_props);
-            lv_free((void **) &current->name);
-            lv_free((void **) &current->description);
-            if (current->prop_type) {
-                type_region_destroy(current->prop_type);
-                current->prop_type = NULL;
-            }
+            lv_obj_destroy_fields(current, s_proposition_destroy_fields, lv_ARRAY_SIZE(s_proposition_destroy_fields));
 
             /* 获取下一个待处理的子命题 */
             current = (stack_top > 0) ? destroy_stack[--stack_top] : NULL;

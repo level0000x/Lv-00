@@ -24,6 +24,7 @@
 #include "lv/lv_render_visitor.h"
 #include "lv/simd_ops.h" /* lv_mat4_identity_f / lv_mat4_mul_f（4x4 列主序 float，收敛共享） */
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 
 
 
@@ -453,11 +454,7 @@ static void svg_render_object(FILE *fp, const lvVisualObject *obj, const lvVisua
         return;
     }
 
-    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
-        SvgObjHandler handler = svg_render_table[obj->type];
-        if (handler)
-            handler(fp, obj, scene, depth);
-    }
+    LV_DISPATCH_VOID(svg_render_table, obj->type, fp, obj, scene, depth);
 }
 
 /** SVG 渲染入口 */
@@ -631,11 +628,7 @@ static void cairo_render_object(FILE *fp, const lvVisualObject *obj, const lvVis
         return;
     }
 
-    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
-        CairoObjHandler handler = cairo_render_table[obj->type];
-        if (handler)
-            handler(fp, obj, scene, depth);
-    }
+    LV_DISPATCH_VOID(cairo_render_table, obj->type, fp, obj, scene, depth);
 }
 
 /** Cairo 渲染入口：生成可编译的 `.c` 脚本 */
@@ -871,11 +864,7 @@ static void threejs_render_object(FILE *fp, const lvVisualObject *obj, const lvV
         return;
     }
 
-    if (lv_index_in_range(obj->type, lv_VISUAL_MOBJECT_GROUP)) {
-        ThreejsObjHandler handler = threejs_render_table[obj->type];
-        if (handler)
-            handler(fp, obj, scene, depth, parent_var);
-    }
+    LV_DISPATCH_VOID(threejs_render_table, obj->type, fp, obj, scene, depth, parent_var);
 }
 
 /** Three.js 渲染入口：生成交互式 HTML 文件 */

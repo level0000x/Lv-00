@@ -23,6 +23,7 @@
 #include "stream_context_util.h"
 #include "type_system.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_lifecycle.h"
 #include "unify_internal.h"
 
 /* ---------------------------------------------------------------------------
@@ -73,12 +74,19 @@ SimpleProposition *simple_proposition_create(const char *name, int *input_port_i
     return prop;
 }
 
+LV_DESTROY_SHIM(destroy_simple_prop_pattern, ConstraintGraph, graph_destroy);
+
+/* 简单命题字段销毁表（判据 G：pattern 归 object 语义，其余指针字段 PLAIN；name 释放后由表置 NULL） */
+static const lvFieldDesc s_simple_prop_destroy_fields[] = {
+    lv_FIELD_PLAIN(SimpleProposition, name),
+    lv_FIELD_PLAIN(SimpleProposition, input_port_ids),
+    lv_FIELD_PLAIN(SimpleProposition, output_port_ids),
+    lv_FIELD_OBJECT(SimpleProposition, pattern, destroy_simple_prop_pattern),
+};
+
 void simple_proposition_destroy(SimpleProposition *prop) {
     if (prop) {
-        lv_free((void **) &prop->name);
-        lv_free((void **) &prop->input_port_ids);
-        lv_free((void **) &prop->output_port_ids);
-        graph_destroy(prop->pattern);
+        lv_obj_destroy_fields(prop, s_simple_prop_destroy_fields, lv_ARRAY_SIZE(s_simple_prop_destroy_fields));
         lv_free((void **) &prop);
     }
 }

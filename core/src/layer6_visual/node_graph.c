@@ -125,8 +125,7 @@ int lv_node_graph_add_node(lvNodeGraphView *graph, int id, const char *label, do
     node.x = x;
     node.y = y;
     node.type = (lvNodeType) type;
-    strncpy(node.label, label, sizeof(node.label) - 1);
-    node.label[sizeof(node.label) - 1] = '\0';
+    lv_strlcpy(node.label, label, sizeof(node.label));
 
     if (lv_darray_push(&graph->nodes_da, &node) < 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to push node to darray");
@@ -203,8 +202,7 @@ int lv_node_graph_add_connection(lvNodeGraphView *graph, int from_id, int to_id,
     conn.from_node_id = from_id;
     conn.to_node_id = to_id;
     if (label) {
-        strncpy(conn.label, label, sizeof(conn.label) - 1);
-        conn.label[sizeof(conn.label) - 1] = '\0';
+        lv_strlcpy(conn.label, label, sizeof(conn.label));
     } else {
         conn.label[0] = '\0';
     }

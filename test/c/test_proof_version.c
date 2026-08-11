@@ -77,7 +77,7 @@ static void test_repo_open(void) {
     TEST_ASSERT_NOT_NULL(repo);
     char original_head[lv_OID_LENGTH];
     memset(original_head, 0, sizeof(original_head));
-    strncpy(original_head, repo->head_commit, lv_OID_LENGTH - 1);
+    lv_strlcpy(original_head, repo->head_commit, lv_OID_LENGTH);
     proof_repo_destroy(repo);
 
     /* Now open it */
@@ -101,7 +101,7 @@ static void test_repo_commit(void) {
 
     char old_head[lv_OID_LENGTH];
     memset(old_head, 0, sizeof(old_head));
-    strncpy(old_head, repo->head_commit, lv_OID_LENGTH - 1);
+    lv_strlcpy(old_head, repo->head_commit, lv_OID_LENGTH);
 
     const char *files[] = {"theorem1.lv"};
     const char *contents[] = {"forall x: P(x) -> Q(x)"};
@@ -165,7 +165,7 @@ static void test_repo_diff(void) {
     /* Get initial commit OID */
     char initial_oid[lv_OID_LENGTH];
     memset(initial_oid, 0, sizeof(initial_oid));
-    strncpy(initial_oid, repo->head_commit, lv_OID_LENGTH - 1);
+    lv_strlcpy(initial_oid, repo->head_commit, lv_OID_LENGTH);
 
     const char *files[] = {"lemma.lv"};
     const char *contents[] = {"lemma: A -> B"};
@@ -235,7 +235,7 @@ static void test_repo_checkout(void) {
     /* Save the current HEAD (which dev branch points to) */
     char dev_head[lv_OID_LENGTH];
     memset(dev_head, 0, sizeof(dev_head));
-    strncpy(dev_head, repo->head_commit, lv_OID_LENGTH - 1);
+    lv_strlcpy(dev_head, repo->head_commit, lv_OID_LENGTH);
 
     /* Make a new commit on main */
     const char *files[] = {"new.lv"};

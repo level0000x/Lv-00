@@ -114,8 +114,7 @@ int lv_ecosystem_register_module(const char *name, int layer) {
     }
 
     entry = &s_ecosystem_state.modules[s_ecosystem_state.count];
-    strncpy(entry->name, name, ECOSYSTEM_NAME_MAX_LEN - 1);
-    entry->name[ECOSYSTEM_NAME_MAX_LEN - 1] = '\0';
+    lv_strlcpy(entry->name, name, ECOSYSTEM_NAME_MAX_LEN);
     entry->layer = layer;
     entry->active = 1;
     s_ecosystem_state.count++;

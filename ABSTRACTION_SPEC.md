@@ -123,7 +123,37 @@
 
 **已有实例**：solver.c 坐标 / 方程提取 → `solver_coord_extract.c`（`extract_equations_from_constraints` / `solver_extract_equations_full`）；coeff_pool 池生命周期配对契约（C2-3 标注）。
 
-### 1.9 粒度门槛
+### 1.9 判据 I：数字提取样板（2026-08-11 批次 N 实证）
+
+**定义**：从嵌入文本中提取数值的「关键词定位（strstr）→ 回退数字起始 → 解析整数」三连样板在多处重复；嵌入文本（如 `"12尝试…"`）使整串严格解析语义必然失败，只有前缀解析语义正确。
+
+**识别方法**：grep `strstr(` 后随反向 while 扫描数字（`*(num_start - 1) >= '0'`）+ `lv_parse_int` 的三连模式。
+
+**判定规则**：命中判据 I 者**必须**收敛为 `lv_parse_int_before(base, pos, &out)`（lv_parse_utils.h，静态内联）：自 pos 向左扫描连续数字并以 strtol 前缀语义解析；无数字 / 溢出 / 参数非法返回 -1 且不写入 out。与 `lv_parse_int`（整串严格语义）互补，二者语义契约以 DOX 注释钉住。
+
+**已有实例**：meta_verify.c 4 处（策略尝试数 / 标记数 / 几何对象数 / 字节数）；test_meta_verify.c `test_parse_int_before` 覆盖正常 / 边界（base 处读取）/ 无数字 / 溢出 / NULL 参数。
+
+### 1.10 判据 J：字符串安全复制 / 拼接样板（2026-08-11 批次 N 实证）
+
+**定义**：手写「strncpy + 手动 NUL 终止」或裸 `strncpy(` 拷贝样板在多文件重复，是 NUL 终止遗忘 / 截断语义分歧的高发点。
+
+**识别方法**：grep 裸 `strncpy(`、手写 `[dest_size - 1] = '\0'` 尾随行。
+
+**判定规则**：命中判据 J 者**必须**收敛为 `lv_strlcpy`（保证 NUL 终止，返回实际复制字符数）/ `lv_strlcat`（lv_utils.h）；新增字符串复制一律走 `lv_strlcpy`，裸 `strncpy(` 加入治理黑名单。
+
+**已有实例**：全库 336 处 `lv_strlcpy` / `lv_strlcat` 调用点；core 内裸 `strncpy(` 归零（grep 验证）。契约卡：`lv_strlcpy` 必须写明"保证 NUL 终止"（与 `strncpy` 的关键差异，见 4.4）。
+
+### 1.11 判据 K：错误结果样板（2026-08-11 批次 N 实证）
+
+**定义**：结果结构体（success + error_msg）的「置失败 + 写消息」双行样板 `result.success = 0; lv_strlcpy(result.error_msg, msg, sizeof(result.error_msg));` 在多模块重复。
+
+**识别方法**：grep `\.success = 0;` 后随 `lv_strlcpy(result.error_msg, ...)` 的连续行。
+
+**判定规则**：命中判据 K 者**必须**收敛为 `lv_RESULT_FAIL(res, msg)` 宏（lv_error.h）：等价双行样板，NULL 消息写空串，不包含 return（调用方保留自己的 return 语句）；宏内 `sizeof` 需要完整结构类型。**豁免**（禁止套用本宏）：① 格式化消息样板（`snprintf` 形态，如 block_scheduler 环检测消息，代码处已标注 `/* exempt: */`）；② `lvParseResult::errors[]` 数组形态（error_count + 多槽，见 lv_parser.h）。两豁免均须在代码处显式标注 `/* exempt: */` 并登记到第 9 章。
+
+**已有实例**：5 模块 34 处迁移（block_scheduler 8 / block_to_node 11 / block_to_text 5 / block_to_geometry 9 / representation_converter 1 + `make_error_result` 辅助函数收敛）；"Out of memory" → `lv_ERR_MSG_OOM` 规范文本收敛；test_error_handling.c `test_result_fail_macro`（正常 / NULL / 覆盖 / 截断 / 边界）。
+
+### 1.12 粒度门槛
 
 同时满足以下全部条件才允许抽象；缺一**禁止**抽象，记入决策登记待办：
 
@@ -326,6 +356,7 @@
 | 3 | 数值 / 数学：epsilon、判定谓词、归一化阈值 | C |
 | 4 | 容器 / 成长：realloc 倍增、线性查找表 | B |
 | 5 | 元数据 / 生命周期家族：枚举↔字符串表、分发表、逐字段析构、后端守卫、维度展开 | D / E / F / G / H |
+| 6 | 样板收敛：数字提取、字符串安全复制、错误结果（批次 N） | I / J / K |
 
 **每阶段执行序列**：
 1. 列清单：grep 计数、调用点清单、语义验证方法。
@@ -363,13 +394,15 @@
 
 **已准入设施（批次 L P2，2026-08-10）**：`lv_tree_release_recursive`（lv_graph_traversal.h，回调驱动后序递归释放，判据 A）——第一批真实调用点 3（lvTreeNode / lvProofTreeNode（lvDArray 适配）/ BacktrackNode），测试经 test_proof_trace / test_orchestrator destroy 路径覆盖。第二批候选 3 例（proof_trace_tree.c / expr_canonical.c / gappa_dsl.c）形态略异，已登记待后续，迁移时复用本设施。
 
+**已准入设施（批次 N，2026-08-11）**：`lv_parse_int_before`（lv_parse_utils.h，判据 I，4 调用点，test_meta_verify）；`lv_strlcpy` / `lv_strlcat`（lv_utils.h，判据 J，全库 336 调用点，strncpy 归零）；`lv_RESULT_FAIL`（lv_error.h，判据 K，34 调用点，test_error_handling）；`lv_registry_remove_prefix`（lv_registry.h，判据 A 变体，4 调用点，test_registry）；`lv_constraint_has_participants`（lv_constraint_guard.h，判据 H 泛化，25+ 调用点，test_smt_backend 等）。
+
 ---
 
 ## 12. 合规检查清单
 
 提交任何抽象改动前，逐项自检：
 
-- [ ] 判据类型已判定（A / B / C / D / E / F / G / H / 泛化）
+- [ ] 判据类型已判定（A / B / C / D / E / F / G / H / I / J / K / 泛化）
 - [ ] 粒度门槛三条全部满足
 - [ ] 同构判定通过（差异分类法或超概念检验 + 两道终审）
 - [ ] 不触碰豁免区（或已显式标注 `/* exempt */` + 登记）

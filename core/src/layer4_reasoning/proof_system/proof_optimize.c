@@ -175,8 +175,7 @@ int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps
 
     step = &ctx->steps[ctx->step_count];
     step->step_id = ctx->next_id++;
-    strncpy(step->rule, rule, OPT_RULE_NAME_LEN - 1);
-    step->rule[OPT_RULE_NAME_LEN - 1] = '\0';
+    lv_strlcpy(step->rule, rule, OPT_RULE_NAME_LEN);
     step->dep_count = dep_count < OPT_MAX_DEPS ? dep_count : OPT_MAX_DEPS;
     for (i = 0; i < step->dep_count; i++) {
         step->deps[i] = deps ? deps[i] : 0;

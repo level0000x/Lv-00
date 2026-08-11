@@ -16,6 +16,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 
 /* ========================================================================
  * 内部辅助：从 lvVisualObject 提取几何数据并应用相机变换
@@ -169,10 +170,7 @@ static bool traverse_object(const lvRenderVisitor *visitor,
     }
 
     /* 通过 VTable 分发到具体类型的渲染处理器 */
-    if (lv_index_in_range(obj->type, (int)(sizeof(kRenderObjectHandlers)/sizeof(kRenderObjectHandlers[0]))) && kRenderObjectHandlers[obj->type]) {
-        return kRenderObjectHandlers[obj->type](obj, scene, visitor);
-    }
-    return true;
+    return LV_DISPATCH(kRenderObjectHandlers, obj->type, true, obj, scene, visitor);
 }
 
 /* ========================================================================

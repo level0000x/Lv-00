@@ -278,7 +278,7 @@ CommandEntry *command_entry_create_set_numeric_assumption(int node_id, double pr
     entry->params.set_numeric_assumption.node_id = node_id;
     entry->params.set_numeric_assumption.precision = precision;
     if (declaration) {
-        lv_strncpy(entry->params.set_numeric_assumption.declaration, declaration,
+        lv_strlcpy(entry->params.set_numeric_assumption.declaration, declaration,
                    sizeof(entry->params.set_numeric_assumption.declaration));
     }
     return entry;

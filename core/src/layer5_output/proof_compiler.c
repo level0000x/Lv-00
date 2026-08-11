@@ -599,10 +599,7 @@ char *lv_proof_compiler_compile(lvProofCompiler *compiler, const lvProofObject *
     if (!compiler || !proof)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_proof_compiler_compile: compiler or proof is NULL");
 
-    if ((unsigned)compiler->config.format < sizeof(kCompileHandlers)/sizeof(kCompileHandlers[0]) && kCompileHandlers[compiler->config.format]) {
-        return kCompileHandlers[compiler->config.format](compiler, proof, trace);
-    }
-    return lv_proof_compiler_to_text(proof, compiler->config.language);
+    return LV_DISPATCH(kCompileHandlers, compiler->config.format, lv_proof_compiler_to_text(proof, compiler->config.language), compiler, proof, trace);
 }
 
 /**

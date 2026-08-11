@@ -20,7 +20,6 @@ extern "C" {
 #endif
 
 /* 内部辅助（proof_trace_tree.c 与 proof_engine_enhanced.c 共享） */
-void safe_strncpy(char *dest, const char *src, size_t max_len);
 int64_t get_time_ns(void);
 bool trace_tree_register_node(lvProofTraceTree *tree, lvProofTraceNode *node);
 void trace_tree_update_stats(lvProofTraceTree *tree);

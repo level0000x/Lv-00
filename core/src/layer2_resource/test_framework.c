@@ -108,7 +108,7 @@ static lvTestSuite *find_or_create_suite(const char *name) {
         return NULL;
     }
 
-    strncpy(suite->name, name, sizeof(suite->name) - 1);
+    lv_strlcpy(suite->name, name, sizeof(suite->name));
     suite->cases = (lvTestCase *) lv_malloc(TEST_CASE_INIT_CAPACITY * sizeof(lvTestCase));
     if (!suite->cases) {
         lv_free((void **) &suite);
@@ -184,8 +184,8 @@ bool lv_test_register_with_fixture(const char *suite_name, const char *test_name
     lvTestCase *test_case = &suite->cases[suite->case_count++];
     memset(test_case, 0, sizeof(lvTestCase));
 
-    strncpy(test_case->name, test_name, sizeof(test_case->name) - 1);
-    strncpy(test_case->suite, suite_name, sizeof(test_case->suite) - 1);
+    lv_strlcpy(test_case->name, test_name, sizeof(test_case->name));
+    lv_strlcpy(test_case->suite, suite_name, sizeof(test_case->suite));
     test_case->func = func;
     test_case->setup = setup;
     test_case->teardown = teardown;
@@ -291,11 +291,11 @@ void lv_assert_fail(const char *expr, const char *file, int line, const char *fm
         vsnprintf(message, sizeof(message), fmt, args);
         va_end(args);
     } else {
-        strncpy(message, expr, sizeof(message) - 1);
+        lv_strlcpy(message, expr, sizeof(message));
     }
 
-    strncpy(test->message, message, sizeof(test->message) - 1);
-    strncpy(test->file, file, sizeof(test->file) - 1);
+    lv_strlcpy(test->message, message, sizeof(test->message));
+    lv_strlcpy(test->file, file, sizeof(test->file));
     test->line = line;
 }
 
@@ -724,7 +724,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     }
 
     lvBenchmark *bench = &g_benchmarks.benchmarks[g_benchmarks.count++];
-    strncpy(bench->name, name, sizeof(bench->name) - 1);
+    lv_strlcpy(bench->name, name, sizeof(bench->name));
     bench->iterations = iterations;
 
     /* 运行基准测试 */

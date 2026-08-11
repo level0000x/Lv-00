@@ -853,17 +853,9 @@ static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
     }
     int point_count = n_vars / 2;
     for (int i = 0; i < point_count; i++) {
-        SymbolicCoord *coords[2] = {
-            symbolic_coord_from_double_scaled(vars[2 * i].val, 1000000),
-            symbolic_coord_from_double_scaled(vars[2 * i + 1].val, 1000000)
-        };
-        if (!coords[0] || !coords[1]) {
-            if (coords[0]) {
-                symbolic_coord_destroy(coords[0]);
-            }
-            if (coords[1]) {
-                symbolic_coord_destroy(coords[1]);
-            }
+        SymbolicCoord *coords[2];
+        if (!symbolic_coord_pair_from_double_scaled(vars[2 * i].val, vars[2 * i + 1].val, 1000000,
+                                                    &coords[0], &coords[1])) {
             graph_destroy(graph);
             lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY,
                                  "singular_constraint_graph_to_ideal: 符号坐标创建失败");

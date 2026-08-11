@@ -770,7 +770,7 @@ static void test_plugin_interface_full(void) {
 
     lvPluginInterface iface;
     memset(&iface, 0, sizeof(iface));
-    strncpy(iface.name, "test_interface", sizeof(iface.name) - 1);
+    lv_strlcpy(iface.name, "test_interface", sizeof(iface.name));
     iface.version = 1;
 
     /* 注册 */
@@ -836,13 +836,13 @@ static void test_plugin_dependency_deep(void) {
     /* 创建一个模拟插件 */
     lvPlugin plugin_a;
     memset(&plugin_a, 0, sizeof(plugin_a));
-    strncpy(plugin_a.info.name, "PluginA", sizeof(plugin_a.info.name) - 1);
+    lv_strlcpy(plugin_a.info.name, "PluginA", sizeof(plugin_a.info.name));
     plugin_a.state = lv_PLUGIN_STATE_LOADED;
 
     lvPluginDependency dep;
     memset(&dep, 0, sizeof(dep));
-    strncpy(dep.name, "PluginB", sizeof(dep.name) - 1);
-    strncpy(dep.version_constraint, ">=1.0.0", sizeof(dep.version_constraint) - 1);
+    lv_strlcpy(dep.name, "PluginB", sizeof(dep.name));
+    lv_strlcpy(dep.version_constraint, ">=1.0.0", sizeof(dep.version_constraint));
     dep.optional = 0;
 
     lvPluginDependency *dep_ptrs[] = {&dep};

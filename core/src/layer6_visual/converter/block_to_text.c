@@ -36,8 +36,7 @@ static void simple_block_graph_guard_cleanup(void *p) {
 lvConvertResult lv_convert_block_to_text(void *graph) {
     lvConvertResult result = {0};
     if (!graph) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL graph", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL graph");
         return result;
     }
 
@@ -90,16 +89,14 @@ lvConvertResult lv_convert_block_to_text(void *graph) {
 lvConvertResult lv_convert_text_to_block(const char *code) {
     lvConvertResult result = {0};
     if (!code) {
-        result.success = 0;
-        strncpy(result.error_msg, "NULL code", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "NULL code");
         return result;
     }
 
     /* 验证输入文本非空 */
     int len = (int) strlen(code);
     if (len == 0) {
-        result.success = 0;
-        strncpy(result.error_msg, "empty code input", sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, "empty code input");
         return result;
     }
 
@@ -107,8 +104,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     /* 为每个块创建 FuncBlock，收集输入/输出端口 */
     SimpleBlockGraph *sg = lv_calloc(1, sizeof(SimpleBlockGraph));
     if (!sg) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
     /* 注册作用域守卫：失败分支直接 return，已建函数块与结构在函数出口自动释放 */
@@ -116,8 +112,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
     sg->cap = 16;
     sg->blocks = lv_calloc(sg->cap, sizeof(FuncBlock *));
     if (!sg->blocks) {
-        result.success = 0;
-        strncpy(result.error_msg, lv_ERR_MSG_OOM, sizeof(result.error_msg));
+        lv_RESULT_FAIL(result, lv_ERR_MSG_OOM);
         return result;
     }
 
@@ -138,8 +133,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
             char *name_tok = NULL;
             p = lv_str_read_token(&p, &name_tok, " {\n");
             if (name_tok) {
-                strncpy(name, name_tok, sizeof(name) - 1);
-                name[sizeof(name) - 1] = '\0';
+                lv_strlcpy(name, name_tok, sizeof(name));
                 lv_free((void **) &name_tok);
             }
             /* 跳到花括号 */

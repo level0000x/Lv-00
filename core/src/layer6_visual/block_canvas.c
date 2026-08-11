@@ -158,8 +158,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
     lvVisualBlock block;
     memset(&block, 0, sizeof(block));
     block.id = canvas->next_block_id++;
-    strncpy(block.label, label, sizeof(block.label) - 1);
-    block.label[sizeof(block.label) - 1] = '\0';
+    lv_strlcpy(block.label, label, sizeof(block.label));
     block.x = x;
     block.y = y;
     block.width = (width > 0) ? width : 120.0;

@@ -134,8 +134,7 @@ static int find_or_create_param(const char *key, lvGsParamType type) {
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "param registry full (max %d)", lv_GS_MAX_PARAMS);
     idx = g_state.param_count++;
     memset(&g_state.params[idx], 0, sizeof(lvGsParam));
-    strncpy(g_state.params[idx].key, key, lv_GS_MAX_KEY_LEN - 1);
-    g_state.params[idx].key[lv_GS_MAX_KEY_LEN - 1] = '\0'; /* 确保 null-terminate */
+    lv_strlcpy(g_state.params[idx].key, key, lv_GS_MAX_KEY_LEN); /* 确保 null-terminate */
     g_state.params[idx].type = type;
     /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
     if (!g_state.param_index)
@@ -273,8 +272,7 @@ int lv_global_state_set_string(const char *key, const char *value) {
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "failed to find or create param '%s'", key);
     }
     if (value) {
-        strncpy(g_state.params[idx].value.str_val, value, lv_GS_MAX_VALUE_LEN - 1);
-        g_state.params[idx].value.str_val[lv_GS_MAX_VALUE_LEN - 1] = '\0'; /* 确保 null-terminate */
+        lv_strlcpy(g_state.params[idx].value.str_val, value, lv_GS_MAX_VALUE_LEN); /* 确保 null-terminate */
     } else {
         g_state.params[idx].value.str_val[0] = '\0';
     }

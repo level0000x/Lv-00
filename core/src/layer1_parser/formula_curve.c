@@ -721,8 +721,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         if (identify_circle(coeffs, &cx, &cy, &r)) {
             /* 创建圆心点 (cx, cy) */
             SymbolicCoord *center_coords[2];
-            center_coords[0] = symbolic_coord_from_double_scaled(cx, 1000);
-            center_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
+            if (!symbolic_coord_pair_from_double_scaled(cx, cy, 1000, &center_coords[0], &center_coords[1]))
+                return false;
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
             symbolic_coord_destroy(center_coords[0]);
@@ -736,8 +736,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
 
             /* 创建圆周上的一个点表示半径 */
             SymbolicCoord *radius_coords[2];
-            radius_coords[0] = symbolic_coord_from_double_scaled(cx + r, 1000);
-            radius_coords[1] = symbolic_coord_from_double_scaled(cy, 1000);
+            if (!symbolic_coord_pair_from_double_scaled(cx + r, cy, 1000, &radius_coords[0], &radius_coords[1]))
+                return false;
 
             add_result = graph_add_point(graph, radius_coords, 2);
             symbolic_coord_destroy(radius_coords[0]);
@@ -774,6 +774,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             SymbolicCoord *p1_coords[2];
             SymbolicCoord *p2_coords[2];
 
+            /* exempt: 直线两端点为混合对（rational 与 double_scaled 混用），不适用 H2 pair helper */
             if (fabs(b) > lv_GEO_COLLINEAR_EPSILON) {
                 /* y = (-Ax - C) / B，取 x=0 和 x=1 */
                 double y0 = -c / b;
@@ -840,8 +841,8 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
      * 格式为 "IMPLICIT_CURVE:degree:coeffs..."
      */
     SymbolicCoord *coords[2];
-    coords[0] = symbolic_coord_create_rational(0, 1);
-    coords[1] = symbolic_coord_create_rational(0, 1);
+    if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1]))
+        return false;
 
     AddNodeResult add_result = graph_add_point(graph, coords, 2);
     symbolic_coord_destroy(coords[0]);

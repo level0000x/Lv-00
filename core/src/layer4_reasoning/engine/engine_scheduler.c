@@ -330,7 +330,7 @@ EngineScheduler *scheduler_create(void) {
     entry->type = GROEBNER;
     entry->available = true;
     entry->priority = 100;
-    lv_strncpy(entry->description, "Built-in Groebner basis solver", sizeof(entry->description));
+    lv_strlcpy(entry->description, "Built-in Groebner basis solver", sizeof(entry->description));
     entry->detect_func = NULL;
     sched->backend_count++;
 
@@ -369,7 +369,7 @@ void scheduler_reset(EngineScheduler *scheduler) {
     entry->type = GROEBNER;
     entry->available = true;
     entry->priority = 100;
-    lv_strncpy(entry->description, "Built-in Groebner basis solver", sizeof(entry->description));
+    lv_strlcpy(entry->description, "Built-in Groebner basis solver", sizeof(entry->description));
     entry->detect_func = NULL;
     scheduler->backend_count++;
 
@@ -391,7 +391,7 @@ int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType typ
             scheduler->backends[i].priority = priority;
             scheduler->backends[i].detect_func = detect_func;
             if (description) {
-                lv_strncpy(scheduler->backends[i].description, description, sizeof(scheduler->backends[i].description));
+                lv_strlcpy(scheduler->backends[i].description, description, sizeof(scheduler->backends[i].description));
             }
             if (detect_func) {
                 scheduler->backends[i].available = true;
@@ -410,7 +410,7 @@ int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType typ
     entry->priority = priority;
     entry->detect_func = detect_func;
     if (description) {
-        lv_strncpy(entry->description, description, sizeof(entry->description));
+        lv_strlcpy(entry->description, description, sizeof(entry->description));
     } else {
         entry->description[0] = '\0';
     }

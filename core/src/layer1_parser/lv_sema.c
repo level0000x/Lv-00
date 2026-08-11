@@ -129,7 +129,7 @@ static bool add_symbol(LvSemaContext *ctx, const char *name, LvSemanticType type
     LvSymbol *sym = (LvSymbol *) lv_calloc(1, sizeof(LvSymbol));
     if (!sym)
         return false;
-    lv_strncpy(sym->name, name, sizeof(sym->name));
+    lv_strlcpy(sym->name, name, sizeof(sym->name));
     sym->type = type;
     sym->loc = loc;
     /* 表内部复制键副本（完整名字，不受 name[64] 截断限制）；
@@ -156,7 +156,7 @@ static void check_declaration(LvSemaContext *ctx, LvAstNode *node) {
 
     /* 复制 names 用于拆分，避免修改原始字符串 */
     char buf[1024];
-    lv_strncpy(buf, names, sizeof(buf));
+    lv_strlcpy(buf, names, sizeof(buf));
 
     char *save;
     char *tok = lv_strtok_r(buf, ",", &save);

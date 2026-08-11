@@ -190,6 +190,49 @@ static void test_factory_compat(void) {
 }
 
 /* ============================================================
+ * remove_prefix 前缀批量移除
+ * ============================================================ */
+
+static void test_remove_prefix(void) {
+    lvRegistry reg;
+    lv_registry_init(&reg, 4);
+
+    g_destroy_count = 0;
+    TEST_ASSERT(lv_registry_put_ex(&reg, "grp1", (void *) (intptr_t) 0x11, test_destroy_fn), "put grp1");
+    TEST_ASSERT(lv_registry_put_ex(&reg, "grp2", (void *) (intptr_t) 0x22, test_destroy_fn), "put grp2");
+    TEST_ASSERT(lv_registry_put_ex(&reg, "other", (void *) (intptr_t) 0x33, test_destroy_fn), "put other");
+    TEST_ASSERT_EQ(lv_registry_count(&reg), 3);
+
+    /* 前缀 "grp" 移除 2 个，保留 "other" */
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(&reg, "grp"), 2);
+    TEST_ASSERT_EQ(lv_registry_count(&reg), 1);
+    TEST_ASSERT_NULL(lv_registry_get(&reg, "grp1"));
+    TEST_ASSERT_NULL(lv_registry_get(&reg, "grp2"));
+    TEST_ASSERT_NOT_NULL(lv_registry_get(&reg, "other"));
+    TEST_ASSERT_EQ(g_destroy_count, 2);
+
+    /* 无匹配前缀：返回 0，条目不变 */
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(&reg, "nope"), 0);
+    TEST_ASSERT_EQ(lv_registry_count(&reg), 1);
+
+    /* 空前缀匹配全部 */
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(&reg, ""), 1);
+    TEST_ASSERT_EQ(lv_registry_count(&reg), 0);
+    TEST_ASSERT_EQ(g_destroy_count, 3);
+
+    /* 移除后索引重建，可继续 put/再移除 */
+    TEST_ASSERT(lv_registry_put(&reg, "re1", (void *) (intptr_t) 9), "put re1");
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(&reg, "re"), 1);
+    TEST_ASSERT_EQ(lv_registry_count(&reg), 0);
+
+    /* NULL 安全 */
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(NULL, "x"), 0);
+    TEST_ASSERT_EQ(lv_registry_remove_prefix(&reg, NULL), 0);
+
+    lv_registry_destroy(&reg);
+}
+
+/* ============================================================
  * 迁移后：插件接口注册/注销
  * ============================================================ */
 
@@ -208,7 +251,7 @@ static void test_plugin_interface_registry(void) {
 
     lvPluginInterface iface;
     memset(&iface, 0, sizeof(iface));
-    strncpy(iface.name, "test.iface", sizeof(iface.name) - 1);
+    lv_strlcpy(iface.name, "test.iface", sizeof(iface.name));
     iface.version = 1;
 
     /* 注册 */
@@ -246,12 +289,12 @@ static void test_plugin_interface_registry(void) {
 
     lvPluginInterface iface2;
     memset(&iface2, 0, sizeof(iface2));
-    strncpy(iface2.name, "shared.iface", sizeof(iface2.name) - 1);
+    lv_strlcpy(iface2.name, "shared.iface", sizeof(iface2.name));
     iface2.version = 1;
 
     lvPluginInterface iface3;
     memset(&iface3, 0, sizeof(iface3));
-    strncpy(iface3.name, "shared.iface", sizeof(iface3.name) - 1);
+    lv_strlcpy(iface3.name, "shared.iface", sizeof(iface3.name));
     iface3.version = 2;
 
     TEST_ASSERT_EQ(lv_plugin_register_interface(&plugin, &iface2), 0);
@@ -362,6 +405,7 @@ TEST_MAIN_BEGIN("Registry")
     TEST_MAIN_RUN(test_duplicate_register);
     TEST_MAIN_RUN(test_destroy_callback);
     TEST_MAIN_RUN(test_factory_compat);
+    TEST_MAIN_RUN(test_remove_prefix);
 
     printf("\n--- Migrated Registries ---\n");
     TEST_MAIN_RUN(test_plugin_interface_registry);
