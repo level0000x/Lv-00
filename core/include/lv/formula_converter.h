@@ -22,10 +22,12 @@ extern "C" {
  * ============================================================ */
 typedef struct {
     bool success;
-    int *created_node_ids;        /* 创建的节点 ID 数组 */
-    int created_node_count;       /* 创建的节点数量 */
-    int *created_constraint_ids;  /* 创建的约束 ID 数组 */
-    int created_constraint_count; /* 创建的约束数量 */
+    int *created_node_ids;          /* 创建的节点 ID 数组 */
+    int created_node_count;         /* 创建的节点数量 */
+    int created_node_capacity;      /* 创建的节点数组容量（lv_ensure_capacity 维护） */
+    int *created_constraint_ids;    /* 创建的约束 ID 数组 */
+    int created_constraint_count;   /* 创建的约束数量 */
+    int created_constraint_capacity;/* 创建的约束数组容量（lv_ensure_capacity 维护） */
     char error_message[256];      /* 错误信息 */
 } FormulaToGraphResult;
 /* ============================================================

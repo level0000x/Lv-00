@@ -47,17 +47,17 @@ static void dot_escape_append(lvStrBuf *sb, const char *s) {
     }
 }
 
-/** @brief 几何类型 → DOT 填充色（点=蓝、线段=绿、区域=橙、圆=青、端口=灰、函数块=紫） */
+/** @brief 几何类型 → DOT 填充色（自 LV_GEOM_TYPE_ENTRY 生成，单一事实来源） */
+#define LV_GEOM_FILL_ROW(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) [ENUM] = COLOR,
+static const char *const kGeomFillColorMap[] = {
+    LV_GEOM_TYPE_ENTRY(LV_GEOM_FILL_ROW)
+};
+#undef LV_GEOM_FILL_ROW
+
 static const char *geom_type_fillcolor(GeomType type) {
-    switch (type) {
-    case GEOM_POINT:         return "#1f77b4";
-    case GEOM_LINE_SEGMENT:  return "#2ca02c";
-    case GEOM_REGION:        return "#ff7f0e";
-    case GEOM_CIRCLE:        return "#17becf";
-    case GEOM_PORT:          return "#7f7f7f";
-    case GEOM_FUNCTION_BLOCK: return "#9467bd";
-    default:                 return "#d3d3d3";
-    }
+    if ((unsigned) type < lv_ARRAY_SIZE(kGeomFillColorMap))
+        return kGeomFillColorMap[type];
+    return "#d3d3d3";
 }
 
 /** @brief 信任颜色 → DOT 填充色（show_trust_colors 时覆盖类型色） */

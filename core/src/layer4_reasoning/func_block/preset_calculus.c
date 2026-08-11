@@ -274,15 +274,8 @@ int preset_calculus_count(void) {
  * @return false 失败
  */
 bool preset_calculus_get_names(char ***out_names, int *out_count) {
-    PRESET_CHECK_NULL(out_names, error);
-    PRESET_CHECK_NULL(out_count, error);
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(CALCULUS_PRESET_COUNT * sizeof(char *));
-    PRESET_CHECK_NULL(names, error);
-
     /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 极限运算 */
         PRESET_LIMIT_SEQUENCE, PRESET_LIMIT_FUNCTION, PRESET_LIMIT_LEFT, PRESET_LIMIT_RIGHT, PRESET_LIMIT_INFINITY,
         PRESET_LIMIT_INDETERMINATE,
@@ -298,33 +291,8 @@ bool preset_calculus_get_names(char ***out_names, int *out_count) {
         PRESET_MULTIVARIABLE_GRADIENT, PRESET_MULTIVARIABLE_DIVERGENCE, PRESET_MULTIVARIABLE_CURL,
         PRESET_MULTIVARIABLE_LAPLACIAN};
 
-    /* 复制每个名称字符串 */
-    for (int i = 0; i < CALCULUS_PRESET_COUNT; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            /* 内存分配失败，释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv_free(&tmp);
-                }
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            /* PRESET_ERROR_LOG("复制微积分预设名称失败: 索引 %d", i); */
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = CALCULUS_PRESET_COUNT;
-    return true;
-
-error:
-    /* PRESET_ERROR_LOG("获取微积分预设名称列表失败: 参数为空"); */
-    return false;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }
 
 /**

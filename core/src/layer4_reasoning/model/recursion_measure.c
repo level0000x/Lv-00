@@ -144,14 +144,12 @@ bool measure_system_add(MeasureSystem *ms, Measure *m) {
     if (!ms || !m)
         return false;
 
-    int new_count = ms->measure_count + 1;
-    Measure **new_arr = lv_realloc(ms->measures, (size_t) new_count * sizeof(Measure *));
-    if (!new_arr)
+    /* 统一扩容：复用 lv_ensure_capacity（倍增 + 溢出检查），失败时内部已设置错误 */
+    if (!lv_ensure_capacity((void **) &ms->measures, ms->measure_count, &ms->measure_capacity, sizeof(Measure *), 0))
         return false;
 
-    ms->measures = new_arr;
     ms->measures[ms->measure_count] = m;
-    ms->measure_count = new_count;
+    ms->measure_count++;
 
     if (m->type == MEASURE_CUSTOM) {
         ms->has_non_symbolic = true;

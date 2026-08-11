@@ -1010,13 +1010,12 @@ pack_cleanup:
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief determinism_state_to_string 名称表（按枚举值升序） */
+/** @brief determinism_state_to_string 名称表（按枚举值升序，由 LV_DETERMINISM_STATE_ENTRY 单一事实源生成） */
+#define LV_DET_STRING_ROW(ENUM, STR) {STR, ENUM},
 static const lvStrToEnumEntry s_determinism_state_to_string_entries[] = {
-    {"UNVERIFIED", DETERMINISM_STATE_UNVERIFIED},
-    {"VERIFIED", DETERMINISM_STATE_VERIFIED},
-    {"NON_DETERMINISTIC", DETERMINISM_STATE_NON_DETERMINISTIC},
-    {"PARTIALLY_VERIFIED", DETERMINISM_STATE_PARTIALLY_VERIFIED},
+    LV_DETERMINISM_STATE_ENTRY(LV_DET_STRING_ROW)
 };
+#undef LV_DET_STRING_ROW
 
 const char *determinism_state_to_string(DeterminismState state) {
     return lv_enum_to_str(s_determinism_state_to_string_entries, lv_ARRAY_SIZE(s_determinism_state_to_string_entries), (int) state, "UNKNOWN");

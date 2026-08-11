@@ -37,7 +37,6 @@
 #include "lv/config.h"
 #include "lv/lv_config.h"
 #include "lv/lv_lifecycle.h"
-#include "lv/lv_xmacro.h"
 
 #include "error_codes.h"
 #include "lv_utils.h"
@@ -644,7 +643,9 @@ PropagationResult propagation_init_state_spaces(PropagationContext *ctx) {
 
         NodeStateSpace *ss = &ctx->state_spaces[i];
 
-        LV_DISPATCH_VOID(init_state_handlers, node->type, ctx, i, node, ss);
+        if (node->type >= 0 && node->type < (int)(sizeof(init_state_handlers)/sizeof(init_state_handlers[0])) && init_state_handlers[node->type]) {
+            init_state_handlers[node->type](ctx, i, node, ss);
+        }
     }
 
     return PROP_RESULT_CONSISTENT;
@@ -719,7 +720,10 @@ static bool check_constraint_compatible(const SymbolicCoord *candidate, const Co
     if (!candidate || !constraint || !graph)
         return false;
 
-    return LV_DISPATCH(check_constraint_handlers, constraint->type, true, candidate, constraint, graph);
+    if (constraint->type >= 0 && constraint->type < (int)(sizeof(check_constraint_handlers)/sizeof(check_constraint_handlers[0])) && check_constraint_handlers[constraint->type]) {
+        return check_constraint_handlers[constraint->type](candidate, constraint, graph);
+    }
+    return true;
 }
 
 bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id) {
@@ -868,7 +872,10 @@ int propagation_select_node(PropagationContext *ctx) {
     if (!ctx)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "propagation_select_node: ctx is NULL");
 
-    return LV_DISPATCH(select_node_strategies, ctx->strategy, -1, ctx);
+    if (ctx->strategy >= 0 && ctx->strategy < (int)(sizeof(select_node_strategies)/sizeof(select_node_strategies[0])) && select_node_strategies[ctx->strategy]) {
+        return select_node_strategies[ctx->strategy](ctx);
+    }
+    return -1;
 }
 
 bool propagation_collapse(PropagationContext *ctx, int node_id) {
@@ -882,7 +889,11 @@ bool propagation_collapse(PropagationContext *ctx, int node_id) {
         return false;
 
     CoordCandidate *cand = (CoordCandidate *)ss->candidates_da.data;
-    int selected_index = LV_DISPATCH(collapse_strategies, ctx->collapse_strategy, 0, ctx, ss);
+    int selected_index = 0;
+
+    if (ctx->collapse_strategy >= 0 && ctx->collapse_strategy < (int)(sizeof(collapse_strategies)/sizeof(collapse_strategies[0])) && collapse_strategies[ctx->collapse_strategy]) {
+        selected_index = collapse_strategies[ctx->collapse_strategy](ctx, ss);
+    }
 
     /* 保存选中的坐标，释放其余 */
     SymbolicCoord *selected = cand[selected_index].coord;

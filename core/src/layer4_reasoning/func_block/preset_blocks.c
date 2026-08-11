@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_hashtable.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
@@ -185,6 +186,7 @@ typedef struct {
     int capacity;                 /* 数组容量 */
     bool initialized;             /* 是否已初始化 */
     int next_preset_id;           /* 下一个预设ID */
+    lvHashtable *name_index;      /* 名称 → 索引+1 哈希索引（可选加速，未建/失效回退线性） */
 } ExtendedPresetRegistry;
 
 /* ==================== 全局注册表 ==================== */
@@ -270,6 +272,12 @@ static int find_preset_index(const char *name) {
     if (!name)
         return -1;
 
+    /* 哈希快查（可选索引，存 索引+1；越界/未建则回退线性扫描） */
+    if (g_preset_registry.name_index) {
+        intptr_t v = (intptr_t) lv_hashtable_str_get(g_preset_registry.name_index, name);
+        if (v != 0 && (int) v - 1 < g_preset_registry.count)
+            return (int) v - 1;
+    }
     for (int i = 0; i < g_preset_registry.count; i++) {
         if (g_preset_registry.entries[i].name && strcmp(g_preset_registry.entries[i].name, name) == 0) {
             return i;
@@ -318,6 +326,12 @@ void lv_preset_blocks_cleanup(void) {
 
     /* 释放条目数组本身 */
     lv_free((void **) &g_preset_registry.entries);
+
+    /* 释放哈希索引（键副本由表内部持有；置 NULL 供下次 init 重建） */
+    if (g_preset_registry.name_index) {
+        lv_hashtable_str_destroy(g_preset_registry.name_index);
+        g_preset_registry.name_index = NULL;
+    }
 
     /* 重置注册表状态 */
     g_preset_registry.count = 0;
@@ -570,6 +584,11 @@ bool preset_blocks_register_simple(const char *name, const char *description, Pr
     }
 
     g_preset_registry.count++;
+    /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
+    if (!g_preset_registry.name_index)
+        g_preset_registry.name_index = lv_hashtable_str_create(64);
+    if (g_preset_registry.name_index)
+        lv_hashtable_str_insert(g_preset_registry.name_index, entry->name, (void *) (intptr_t) (g_preset_registry.count));
     PRESET_REGISTRY_UNLOCK();
     return true;
 }
@@ -630,6 +649,11 @@ static bool register_preset_internal(const char *name, const char *description, 
     }
 
     g_preset_registry.count++;
+    /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
+    if (!g_preset_registry.name_index)
+        g_preset_registry.name_index = lv_hashtable_str_create(64);
+    if (g_preset_registry.name_index)
+        lv_hashtable_str_insert(g_preset_registry.name_index, entry->name, (void *) (intptr_t) (g_preset_registry.count));
     return true;
 }
 

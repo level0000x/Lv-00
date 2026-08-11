@@ -17,6 +17,7 @@
 #include "lv/performance_profiler.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_hashtable.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -75,6 +76,8 @@ struct lvPerfSession {
     PerfMemStat *mem_stats; /**< 内存统计数组（动态扩容，消除 MAX_MEM_TYPES 上限） */
     int mem_capacity;       /**< 内存统计容量 */
     int mem_count;
+    lvHashtable *region_index; /**< region 名称 → 索引+1 哈希索引（可选加速，未建/失效回退线性） */
+    lvHashtable *mem_index;    /**< mem_stat 类型名 → 索引+1 哈希索引（可选加速，未建/失效回退线性） */
 };
 
 /* ================================================================
@@ -88,6 +91,12 @@ struct lvPerfSession {
 static int find_region(const lvPerfSession *session, const char *name) {
     if (!session || !name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or name is NULL");
+    /* 哈希快查（可选索引，存 索引+1；越界/未建则回退线性扫描） */
+    if (session->region_index) {
+        intptr_t v = (intptr_t) lv_hashtable_str_get(session->region_index, name);
+        if (v != 0 && (int) v - 1 < session->region_count)
+            return (int) v - 1;
+    }
     for (int i = 0; i < session->region_count; i++) {
         if (strcmp(session->regions[i].name, name) == 0) {
             return i;
@@ -121,6 +130,9 @@ static int get_or_create_region(lvPerfSession *session, const char *name) {
     session->regions[idx].max_ns = 0;
     session->regions[idx].start_ns = 0;
     session->regions[idx].active = 0;
+    /* 维护哈希索引（可选：哈希创建失败时下次查找回退线性扫描） */
+    if (session->region_index)
+        lv_hashtable_str_insert(session->region_index, session->regions[idx].name, (void *) (intptr_t) (idx + 1));
     return idx;
 }
 
@@ -131,6 +143,12 @@ static int get_or_create_region(lvPerfSession *session, const char *name) {
 static int find_mem_stat(const lvPerfSession *session, const char *type_name) {
     if (!session || !type_name)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "session or type_name is NULL");
+    /* 哈希快查（可选索引，存 索引+1；越界/未建则回退线性扫描） */
+    if (session->mem_index) {
+        intptr_t v = (intptr_t) lv_hashtable_str_get(session->mem_index, type_name);
+        if (v != 0 && (int) v - 1 < session->mem_count)
+            return (int) v - 1;
+    }
     for (int i = 0; i < session->mem_count; i++) {
         if (strcmp(session->mem_stats[i].type_name, type_name) == 0) {
             return i;
@@ -162,6 +180,9 @@ static int get_or_create_mem_stat(lvPerfSession *session, const char *type_name)
     session->mem_stats[idx].total_free_bytes = 0;
     session->mem_stats[idx].alloc_count = 0;
     session->mem_stats[idx].free_count = 0;
+    /* 维护哈希索引（可选：哈希创建失败时下次查找回退线性扫描） */
+    if (session->mem_index)
+        lv_hashtable_str_insert(session->mem_index, session->mem_stats[idx].type_name, (void *) (intptr_t) (idx + 1));
     return idx;
 }
 
@@ -272,6 +293,11 @@ lvPerfSession *lv_perf_session_create(const char *name) {
     }
 
     session->start_time_ns = lv_get_time_ns();
+
+    /* 建立名称→索引哈希索引（可选加速：创建失败时查找回退线性扫描，不影响正确性） */
+    session->region_index = lv_hashtable_str_create(64);
+    session->mem_index = lv_hashtable_str_create(64);
+
     return session;
 }
 
@@ -446,12 +472,21 @@ void lv_perf_session_reset(lvPerfSession *session) {
         lv_free((void **) &session->regions[i].name);
     }
     session->region_count = 0;
+    /* 名称已释放，旧哈希索引悬空，重建之（可选索引） */
+    if (session->region_index) {
+        lv_hashtable_str_destroy(session->region_index);
+        session->region_index = lv_hashtable_str_create(64);
+    }
 
     /* 释放内存类型名称 */
     for (int i = 0; i < session->mem_count; i++) {
         lv_free((void **) &session->mem_stats[i].type_name);
     }
     session->mem_count = 0;
+    if (session->mem_index) {
+        lv_hashtable_str_destroy(session->mem_index);
+        session->mem_index = lv_hashtable_str_create(64);
+    }
 
     /* 重置时钟 */
     session->start_time_ns = lv_get_time_ns();
@@ -475,6 +510,15 @@ void lv_perf_session_destroy(lvPerfSession *session) {
     session->regions = NULL;
     lv_free((void **) &session->mem_stats);
     session->mem_stats = NULL;
+
+    if (session->region_index) {
+        lv_hashtable_str_destroy(session->region_index);
+        session->region_index = NULL;
+    }
+    if (session->mem_index) {
+        lv_hashtable_str_destroy(session->mem_index);
+        session->mem_index = NULL;
+    }
 
     lv_free((void **) &session->name);
     lv_free((void **) &session);

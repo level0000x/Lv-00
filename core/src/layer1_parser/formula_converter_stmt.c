@@ -50,19 +50,15 @@ typedef bool (*ProcessStmtFunc)(const FormulaNode *stmt, ConstraintGraph *graph,
 /* ---- 动态追加辅助（消除固定容量静默截断）----
  * 原实现用 `if (created_node_count < 256)` / `if (created_constraint_count < 64)`
  * 固定容量上限，超限条目被静默丢弃（大公式下节点/约束 ID 丢失）。
- * FormulaToGraphResult 结构体定义于头文件（不在本次改动范围）中无 capacity
- * 字段，无法直接套用 lv_ensure_capacity 的倍增（其需要 capacity 槽位）；此处用
- * lv_realloc 精确扩到 count+1（统一内存追踪，默认分配器 realloc 操作等价标准
- * realloc）。数组在初次分配 MAX_CREATED_NODES/MAX_CREATED_CONSTRAINTS 容量内
- * 直接写入，超出后只增不减、按需扩容，因此无静默截断；仅 OOM 时放弃记录（优于
- * 原先的固定上限丢弃）。成功路径下数组内容与追加顺序不变，输出语义保持一致。 */
+ * 数组初次分配 MAX_CREATED_NODES/MAX_CREATED_CONSTRAINTS 容量（capacity 字段预置），
+ * 超出后统一走 lv_ensure_capacity 倍增扩容（内含溢出检查），无静默截断；仅 OOM 时
+ * 放弃记录（优于原先的固定上限丢弃）。成功路径下数组内容与追加顺序不变，输出语义
+ * 保持一致。 */
 static void result_append_node(FormulaToGraphResult *r, int nid) {
     int n = r->created_node_count;
-    if (n >= MAX_CREATED_NODES) {
-        int *tmp = (int *) lv_realloc(r->created_node_ids, ((size_t) n + 1) * sizeof(int));
-        if (!tmp)
+    if (n >= r->created_node_capacity) {
+        if (!lv_ensure_capacity((void **) &r->created_node_ids, n, &r->created_node_capacity, sizeof(int), 0))
             return;
-        r->created_node_ids = tmp;
     }
     r->created_node_ids[n] = nid;
     r->created_node_count = n + 1;
@@ -70,11 +66,9 @@ static void result_append_node(FormulaToGraphResult *r, int nid) {
 
 static void result_append_constraint(FormulaToGraphResult *r, int cid) {
     int n = r->created_constraint_count;
-    if (n >= MAX_CREATED_CONSTRAINTS) {
-        int *tmp = (int *) lv_realloc(r->created_constraint_ids, ((size_t) n + 1) * sizeof(int));
-        if (!tmp)
+    if (n >= r->created_constraint_capacity) {
+        if (!lv_ensure_capacity((void **) &r->created_constraint_ids, n, &r->created_constraint_capacity, sizeof(int), 0))
             return;
-        r->created_constraint_ids = tmp;
     }
     r->created_constraint_ids[n] = cid;
     r->created_constraint_count = n + 1;
@@ -182,9 +176,11 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
         stream_emit_info(formula_converter_stream_ctx, "公式转换开始：AST → 约束图", 0);
     }
 
-    /* 分配节点和约束 ID 数组 */
+    /* 分配节点和约束 ID 数组（容量预置为首次分配大小，超限时由 lv_ensure_capacity 倍增） */
     result->created_node_ids = (int *) lv_calloc(MAX_CREATED_NODES, sizeof(int));             /* 统一内存分配器 */
     result->created_constraint_ids = (int *) lv_calloc(MAX_CREATED_CONSTRAINTS, sizeof(int)); /* 统一内存分配器 */
+    result->created_node_capacity = MAX_CREATED_NODES;
+    result->created_constraint_capacity = MAX_CREATED_CONSTRAINTS;
 
     if (!result->created_node_ids || !result->created_constraint_ids) {
         /* 修复：分配失败时释放已成功分配的数组，避免内存泄漏 */

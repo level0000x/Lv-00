@@ -36,6 +36,14 @@ int find_preset_index(const char *name) {
     if (!name)
         return -1;
 
+    /* 哈希快查（可选索引，存 索引+1；未激活/越界/未建则回退线性扫描） */
+    if (g_preset_library.preset_index) {
+        intptr_t v = (intptr_t) lv_hashtable_str_get(g_preset_library.preset_index, name);
+        if (v != 0 && (int) v - 1 < g_preset_library.count &&
+            g_preset_library.entries[(int) v - 1].is_active) {
+            return (int) v - 1;
+        }
+    }
     for (int i = 0; i < g_preset_library.count; i++) {
         if (g_preset_library.entries[i].is_active && g_preset_library.entries[i].metadata.name &&
             strcmp(g_preset_library.entries[i].metadata.name, name) == 0) {
@@ -108,6 +116,12 @@ static bool register_builtin_preset(const PresetMetadata *metadata) {
     g_preset_library.entries[idx].is_builtin = true;
     g_preset_library.entries[idx].is_active = true;
 
+    /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
+    if (!g_preset_library.preset_index)
+        g_preset_library.preset_index = lv_hashtable_str_create(64);
+    if (g_preset_library.preset_index)
+        lv_hashtable_str_insert(g_preset_library.preset_index, metadata->name, (void *) (intptr_t) (idx + 1));
+
     return true;
 }
 
@@ -161,6 +175,10 @@ void func_block_preset_library_cleanup(void) {
     }
 
     /* 重置状态 */
+    if (g_preset_library.preset_index) {
+        lv_hashtable_str_destroy(g_preset_library.preset_index);
+        g_preset_library.preset_index = NULL;
+    }
     memset(&g_preset_library, 0, sizeof(g_preset_library));
 }
 

@@ -116,19 +116,22 @@ typedef enum {
 /**
  * @brief GeomType 全字段条目宏（枚举↔字符串映射的单一事实来源，并行于 LV_GEOM_TYPE_X）
  *
- * 每行携带 4 列：ENUM（枚举值）、NAME（规范名，与 LV_GEOM_TYPE_X 一致）、
+ * 每行携带 6 列：ENUM（枚举值）、NAME（规范名，与 LV_GEOM_TYPE_X 一致）、
  * ALIAS（CLI 命令协议小写别名，interop_command.c 对外格式）、
- * DOT_SHAPE（Graphviz DOT 节点形状，meta_repr_export_dot 使用）。
- * graph_node_alloc / interop_command / meta_repr 等文件散落的
- * GeomType 名称/别名/形状表统一由本宏生成，禁止在其他文件重复定义。
+ * DOT_SHAPE（Graphviz DOT 节点形状，meta_repr_export_dot 使用）、
+ * NODE_PREFIX（公式转换器节点名称前缀，formula_node_to_name 使用）、
+ * DOT_COLOR（Graphviz DOT 填充色，graph_dot_export 使用）。
+ * graph_node_alloc / interop_command / meta_repr / graph_dot_export /
+ * formula_converter_util 等文件散落的 GeomType 名称/别名/形状/前缀/颜色表
+ * 统一由本宏生成，禁止在其他文件重复定义。
  */
 #define LV_GEOM_TYPE_ENTRY(x) \
-    x(GEOM_POINT, "POINT", "point", "ellipse") \
-    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT", "line_segment", "diamond") \
-    x(GEOM_REGION, "REGION", "region", "box") \
-    x(GEOM_CIRCLE, "CIRCLE", "circle", "circle") \
-    x(GEOM_PORT, "PORT", "port", "box") \
-    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK", "function_block", "box")
+    x(GEOM_POINT, "POINT", "point", "ellipse", "P", "#1f77b4") \
+    x(GEOM_LINE_SEGMENT, "LINE_SEGMENT", "line_segment", "diamond", "S", "#2ca02c") \
+    x(GEOM_REGION, "REGION", "region", "box", "R", "#ff7f0e") \
+    x(GEOM_CIRCLE, "CIRCLE", "circle", "circle", "C", "#17becf") \
+    x(GEOM_PORT, "PORT", "port", "box", "Port", "#7f7f7f") \
+    x(GEOM_FUNCTION_BLOCK, "FUNCTION_BLOCK", "function_block", "box", "FB", "#9467bd")
 
 /**
  * @brief 端口方向枚举

@@ -193,10 +193,12 @@ struct MeasureSystem {
     /* 非符号测度元数据（修改6） */
     NonSymbolicMeasureMeta *non_symbolic_metas; /* 非符号测度元数据数组 */
     int non_symbolic_meta_count;                /* 非符号测度元数据数量 */
+    int non_symbolic_meta_capacity;             /* 非符号测度元数据数组容量（lv_ensure_capacity 维护） */
 
     /* 非符号测度验证模板（Feature 2） */
     NonSymbolicMeasureValidationMeta *validation_metas; /* 验证模板元数据数组 */
     int validation_meta_count;                          /* 验证模板元数据数量 */
+    int validation_meta_capacity;                       /* 验证模板元数据数组容量（lv_ensure_capacity 维护） */
 };
 
 /* ============== 选择器块分支状态 ============== */

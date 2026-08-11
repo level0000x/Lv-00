@@ -944,11 +944,11 @@ static int ggb_add_point_node(ConstraintGraph *graph, double x, double y) {
             symbolic_coord_destroy(cy);
         return -1;
     }
-    AddNodeResult res = graph_add_point_xy(graph, cx, cy);
-    /* graph_add_point 深拷贝坐标，此处释放原始对象 */
-    symbolic_coord_destroy(cx);
-    symbolic_coord_destroy(cy);
+    SymbolicCoord *coords[2] = {cx, cy};
+    AddNodeResult res = graph_add_point(graph, coords, 2);
     if (res != ADD_NODE_OK) {
+        symbolic_coord_destroy(cx);
+        symbolic_coord_destroy(cy);
         return -1;
     }
     return (int) (graph->next_node_id - 1);
@@ -1623,16 +1623,18 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
             /* 将 double 坐标转为有理数 SymbolicCoord */
             int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
             int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
-            SymbolicCoord *cx;
-            SymbolicCoord *cy;
-            if (!symbolic_coord_pair_create_rational(xn, 1000000000ULL, yn, 1000000000ULL, &cx, &cy)) {
+            SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
+            SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
+            if (!cx || !cy) {
+                if (cx)
+                    symbolic_coord_destroy(cx);
                 continue;
             }
-            AddNodeResult res = graph_add_point_xy(graph, cx, cy);
-            /* graph_add_point 深拷贝坐标，此处释放原始对象 */
-            symbolic_coord_destroy(cx);
-            symbolic_coord_destroy(cy);
+            SymbolicCoord *coords[] = {cx, cy};
+            AddNodeResult res = graph_add_point(graph, coords, 2);
             if (res != ADD_NODE_OK) {
+                symbolic_coord_destroy(cx);
+                symbolic_coord_destroy(cy);
                 continue;
             }
             int node_id = graph->next_node_id - 1;
@@ -2071,11 +2073,11 @@ static int svg_import_samples(ConstraintGraph *graph, const double *pts, int n, 
                 symbolic_coord_destroy(cy);
             continue;
         }
-        AddNodeResult res = graph_add_point_xy(graph, cx, cy);
-        /* graph_add_point 深拷贝坐标，此处释放原始对象 */
-        symbolic_coord_destroy(cx);
-        symbolic_coord_destroy(cy);
+        SymbolicCoord *coords[2] = {cx, cy};
+        AddNodeResult res = graph_add_point(graph, coords, 2);
         if (res != ADD_NODE_OK) {
+            symbolic_coord_destroy(cx);
+            symbolic_coord_destroy(cy);
             continue;
         }
         int node_id = (int) (graph->next_node_id - 1);

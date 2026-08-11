@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：三值逻辑系统 (three_valued_logic)
  * 功能概述：引入 Kleene 强三值逻辑，扩展 Lv-00 原有的 TRUE/FALSE 二值
  *          系统。支持三种真值：lv_TRUE（已证真）、lv_FALSE（已证伪）、
@@ -48,6 +48,15 @@ extern "C" {
  * lv_UNKNOWN = 未知（未确定）
  */
 typedef enum { lv_TRUE = 0, lv_FALSE = 1, lv_UNKNOWN = 2 } lvTruthValue;
+
+/**
+ * @brief lvTruthValue 条目宏（枚举↔en/zh 字符串映射的单一事实来源）
+ * three_valued_logic.c 的 en/zh 两张名称表由本宏生成。
+ */
+#define LV_TRUTH_VALUE_ENTRY(x) \
+    x(lv_TRUE, "TRUE", "真") \
+    x(lv_FALSE, "FALSE", "伪") \
+    x(lv_UNKNOWN, "UNKNOWN", "未知")
 
 /* ============== 真值表查找操作 ============== */
 

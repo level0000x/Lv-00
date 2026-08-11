@@ -905,31 +905,17 @@ void proof_multi_strategy_get_stats(const ProofMultiStrategy *mse, int *out_tota
 
 /* ================================================================
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ *
+ * zh/en 名称表统一由 proof.h 的 LV_PROOF_STRATEGY_ENTRY 宏生成
+ * （枚举↔字符串映射的单一事实来源），禁止在本文件手写重复列表。
  * ================================================================ */
 
-/** @brief proof_strategy_type_to_string 名称表（按枚举值升序） */
+#define LV_PROOF_STRATEGY_ZH_ENTRY(name, zh, en) { zh, name },
+#define LV_PROOF_STRATEGY_EN_ENTRY(name, zh, en) { en, name },
+
+/** @brief proof_strategy_type_to_string 名称表（按枚举值升序，自宏表生成） */
 static const lvStrToEnumEntry s_proof_strategy_type_to_string_entries[] = {
-    {"直接构造法", PROOF_STRATEGY_DIRECT_CONSTRUCTION},
-    {"面积法", PROOF_STRATEGY_AREA_METHOD},
-    {"Groebner基法", PROOF_STRATEGY_GROEBNER_BASIS},
-    {"向量法", PROOF_STRATEGY_VECTOR_METHOD},
-    {"全角法", PROOF_STRATEGY_FULL_ANGLE_METHOD},
-    {"演绎数据库法", PROOF_STRATEGY_DEDUCTIVE_DATABASE},
-    {"坐标法", PROOF_STRATEGY_COORDINATE},
-    {"λ-演算归约法", PROOF_STRATEGY_LAMBDA_CALCULUS},
-    {"λ-演算合一法", PROOF_STRATEGY_LAMBDA_UNIFY},
-    {"HOL Light 微内核验证", PROOF_STRATEGY_HOL_LIGHT},
-    {"Oracle法", PROOF_STRATEGY_ORACLE},
-    {"经典-直接证明", PROOF_STRATEGY_LEGACY_DIRECT},
-    {"经典-反证法", PROOF_STRATEGY_LEGACY_CONTRADICTION},
-    {"经典-逆否证明", PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE},
-    {"经典-数学归纳法", PROOF_STRATEGY_LEGACY_INDUCTION},
-    {"经典-分情况讨论", PROOF_STRATEGY_LEGACY_CASES},
-    {"经典-构造性证明", PROOF_STRATEGY_LEGACY_CONSTRUCTION},
-    {"经典-定义展开", PROOF_STRATEGY_LEGACY_UNFOLDING},
-    {"经典-逆向推理", PROOF_STRATEGY_LEGACY_BACKWARD},
-    {"经典-正向推理", PROOF_STRATEGY_LEGACY_FORWARD},
-    {"经典-混合策略", PROOF_STRATEGY_LEGACY_HYBRID},
+    LV_PROOF_STRATEGY_ENTRY(LV_PROOF_STRATEGY_ZH_ENTRY)
 };
 
 const char *proof_strategy_type_to_string(ProofStrategyType type) {
@@ -965,35 +951,17 @@ const char *proof_strategy_status_to_string(ProofStrategyStatus status) {
  * @param strategy 策略类型
  * @return 策略名称字符串
  */
-/** @brief proof_strategy_type_to_string_en 名称表（按枚举值升序） */
+/** @brief proof_strategy_type_to_string_en 名称表（按枚举值升序，自宏表生成） */
 static const lvStrToEnumEntry s_proof_strategy_type_to_string_en_entries[] = {
-    {"direct_construction", PROOF_STRATEGY_DIRECT_CONSTRUCTION},
-    {"area_method", PROOF_STRATEGY_AREA_METHOD},
-    {"groebner_basis", PROOF_STRATEGY_GROEBNER_BASIS},
-    {"vector_method", PROOF_STRATEGY_VECTOR_METHOD},
-    {"full_angle_method", PROOF_STRATEGY_FULL_ANGLE_METHOD},
-    {"deductive_database", PROOF_STRATEGY_DEDUCTIVE_DATABASE},
-    {"coordinate", PROOF_STRATEGY_COORDINATE},
-    {"lambda_calculus", PROOF_STRATEGY_LAMBDA_CALCULUS},
-    {"lambda_unify", PROOF_STRATEGY_LAMBDA_UNIFY},
-    {"hol_light", PROOF_STRATEGY_HOL_LIGHT},
-    {"oracle", PROOF_STRATEGY_ORACLE},
-    {"numeric_verification", PROOF_STRATEGY_NUMERIC_VERIFICATION},
-    {"legacy_direct", PROOF_STRATEGY_LEGACY_DIRECT},
-    {"legacy_contradiction", PROOF_STRATEGY_LEGACY_CONTRADICTION},
-    {"legacy_contrapositive", PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE},
-    {"legacy_induction", PROOF_STRATEGY_LEGACY_INDUCTION},
-    {"legacy_cases", PROOF_STRATEGY_LEGACY_CASES},
-    {"legacy_construction", PROOF_STRATEGY_LEGACY_CONSTRUCTION},
-    {"legacy_unfolding", PROOF_STRATEGY_LEGACY_UNFOLDING},
-    {"legacy_backward", PROOF_STRATEGY_LEGACY_BACKWARD},
-    {"legacy_forward", PROOF_STRATEGY_LEGACY_FORWARD},
-    {"legacy_hybrid", PROOF_STRATEGY_LEGACY_HYBRID},
+    LV_PROOF_STRATEGY_ENTRY(LV_PROOF_STRATEGY_EN_ENTRY)
 };
 
 const char *proof_strategy_type_to_string_en(ProofStrategyType strategy) {
     return lv_enum_to_str(s_proof_strategy_type_to_string_en_entries, lv_ARRAY_SIZE(s_proof_strategy_type_to_string_en_entries), (int) strategy, "unknown");
 }
+
+#undef LV_PROOF_STRATEGY_ZH_ENTRY
+#undef LV_PROOF_STRATEGY_EN_ENTRY
 
 /* ============== 策略处理函数查找表 ============== */
 

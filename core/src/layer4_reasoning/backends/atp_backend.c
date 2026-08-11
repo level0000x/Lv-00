@@ -185,12 +185,12 @@ char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat f
     int offset = 0;
     int remaining = lv_config_get_int(LV_CFG_ATP_TPTP_BUFFER_SIZE, ATP_TPTP_BUFFER_SIZE);
 
-    /* 格式 -> TPTP 语言标识符 查找表 */
+    /* 格式 -> TPTP 语言标识符 查找表（自 LV_ATP_FORMAT_ENTRY 生成，单一事实来源） */
+#define LV_ATP_LANG_ROW(ENUM, LANG, MODE, DISPLAY) [ENUM] = LANG,
     static const char *const s_format_lang_table[] = {
-        "fof",  /* ATP_FORMAT_TPTP_FOF = 0 */
-        "cnf",  /* ATP_FORMAT_TPTP_CNF = 1 */
-        "tff",  /* ATP_FORMAT_TPTP_TFF = 2 */
+        LV_ATP_FORMAT_ENTRY(LV_ATP_LANG_ROW)
     };
+#undef LV_ATP_LANG_ROW
     const char *lang = ((int)format >= 0 && (int)format <= ATP_FORMAT_TPTP_TFF)
                        ? s_format_lang_table[format] : "fof";
 
@@ -686,12 +686,12 @@ int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result) {
     char extra_args[512];
     extra_args[0] = '\0';
 
-    /* 输入格式 -> 模式参数 查找表 */
+    /* 输入格式 -> 模式参数 查找表（自 LV_ATP_FORMAT_ENTRY 生成，单一事实来源） */
+#define LV_ATP_MODE_ROW(ENUM, LANG, MODE, DISPLAY) [ENUM] = MODE,
     static const char *const s_format_mode_table[] = {
-        "--fof",  /* ATP_FORMAT_TPTP_FOF = 0 */
-        "--cnf",  /* ATP_FORMAT_TPTP_CNF = 1 */
-        "--tff",  /* ATP_FORMAT_TPTP_TFF = 2 */
+        LV_ATP_FORMAT_ENTRY(LV_ATP_MODE_ROW)
     };
+#undef LV_ATP_MODE_ROW
     const char *mode = ((int)solver->config.input_format >= 0
                         && (int)solver->config.input_format <= ATP_FORMAT_TPTP_TFF)
                        ? s_format_mode_table[solver->config.input_format] : "--fof";
@@ -1045,13 +1045,12 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief atp_backend_type_name 名称表（按枚举值升序） */
+/** @brief atp_backend_type_name 名称表（按枚举值升序，由 LV_ATP_BACKEND_ENTRY 单一事实源生成） */
+#define LV_ATP_BACKEND_NAME_ROW(ENUM, NAME) {NAME, ENUM},
 static const lvStrToEnumEntry s_atp_backend_type_name_entries[] = {
-    {"Vampire", ATP_BACKEND_VAMPIRE},
-    {"E Prover", ATP_BACKEND_EPROVER},
-    {"iProver", ATP_BACKEND_IPROVER},
-    {"Custom", ATP_BACKEND_CUSTOM},
+    LV_ATP_BACKEND_ENTRY(LV_ATP_BACKEND_NAME_ROW)
 };
+#undef LV_ATP_BACKEND_NAME_ROW
 
 const char *atp_backend_type_name(ATPBackendType type) {
     return lv_enum_to_str(s_atp_backend_type_name_entries, lv_ARRAY_SIZE(s_atp_backend_type_name_entries), (int) type, "Unknown");
@@ -1190,12 +1189,11 @@ const char *atp_result_name(ATPResult result) {
  * @brief 获取输入格式名称
  */
 /** @brief atp_format_name 名称表（按枚举值升序） */
+#define LV_ATP_DISPLAY_ROW(ENUM, LANG, MODE, DISPLAY) { DISPLAY, ENUM },
 static const lvStrToEnumEntry s_atp_format_name_entries[] = {
-    {"TPTP FOF", ATP_FORMAT_TPTP_FOF},
-    {"TPTP CNF", ATP_FORMAT_TPTP_CNF},
-    {"TPTP TFF", ATP_FORMAT_TPTP_TFF},
-    {"SMT-LIB2", ATP_FORMAT_SMTLIB2},
+    LV_ATP_FORMAT_ENTRY(LV_ATP_DISPLAY_ROW)
 };
+#undef LV_ATP_DISPLAY_ROW
 
 const char *atp_format_name(ATPInputFormat format) {
     return lv_enum_to_str(s_atp_format_name_entries, lv_ARRAY_SIZE(s_atp_format_name_entries), (int) format, "UNKNOWN");

@@ -93,9 +93,22 @@ ConstraintGraph *euclidean_export_tarski(const EuclideanContext *ctx) {
     if (!export_graph)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "euclidean_export_tarski: graph_create failed");
 
-    if (!euclidean_export_points_common(ctx, export_graph)) {
-        graph_destroy(export_graph);
-        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_export_tarski: graph_add_point failed");
+    for (int i = 0; i < (int)ctx->points_da.count; i++) {
+        int *pp = (int *)lv_darray_get(&ctx->points_da, i);
+        if (!pp) break;
+        int point_id = *pp;
+        SymbolicCoord *coords[2] = {NULL, NULL};
+        if (ctx->constraint_graph) {
+            GeomNode *node = graph_get_node(ctx->constraint_graph, point_id);
+            if (node && node->symbolic_coords && node->coord_count >= 2) {
+                coords[0] = node->symbolic_coords[0];
+                coords[1] = node->symbolic_coords[1];
+            }
+        }
+        if (graph_add_point(export_graph, coords, 2) != ADD_NODE_OK) {
+            graph_destroy(export_graph);
+            lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_GEOM_TYPE, "euclidean_export_tarski: graph_add_point failed");
+        }
     }
 
     return export_graph;

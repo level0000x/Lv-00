@@ -187,9 +187,9 @@ static int has_duplicate_str(const char *const *arr, size_t n) {
 static void test_entry_macro_uniqueness(void) {
     /* ── LV_GEOM_TYPE_ENTRY ── */
     {
-#define ROW_GEOM_ENUM(ENUM, NAME, ALIAS, SHAPE) ENUM,
-#define ROW_GEOM_NAME(ENUM, NAME, ALIAS, SHAPE) NAME,
-#define ROW_GEOM_ALIAS(ENUM, NAME, ALIAS, SHAPE) ALIAS,
+#define ROW_GEOM_ENUM(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) ENUM,
+#define ROW_GEOM_NAME(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) NAME,
+#define ROW_GEOM_ALIAS(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) ALIAS,
         static const int kGeomEnums[] = {LV_GEOM_TYPE_ENTRY(ROW_GEOM_ENUM)};
         static const char *const kGeomNames[] = {LV_GEOM_TYPE_ENTRY(ROW_GEOM_NAME)};
         static const char *const kGeomAliases[] = {LV_GEOM_TYPE_ENTRY(ROW_GEOM_ALIAS)};

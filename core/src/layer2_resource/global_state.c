@@ -34,6 +34,7 @@
 
 #include "lv/lv_thread.h"
 #include "lv_internal.h"
+#include "lv/lv_hashtable.h"
 
 lv_LAZY_LOCK_DEFINE(g_state_lock);
 
@@ -80,6 +81,7 @@ typedef struct {
     int param_count;                    /**< 当前参数数量 */
     bool initialized;                   /**< 初始化标志 */
     char version[64];                   /**< 版本号 */
+    lvHashtable *param_index;           /**< key → 索引+1 哈希索引（可选加速，未建/失效回退线性） */
 } lvGlobalState;
 
 static lvGlobalState g_state = {0};
@@ -102,6 +104,12 @@ static lvGlobalState g_state = {0};
 static int find_param_index(const char *key) {
     if (!key)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "key is NULL");
+    /* 哈希快查（可选索引，存 索引+1；越界/未建则回退线性扫描） */
+    if (g_state.param_index) {
+        intptr_t v = (intptr_t) lv_hashtable_str_get(g_state.param_index, key);
+        if (v != 0 && (int) v - 1 < g_state.param_count)
+            return (int) v - 1;
+    }
     for (int i = 0; i < g_state.param_count; i++) {
         if (strcmp(g_state.params[i].key, key) == 0)
             return i;
@@ -129,6 +137,11 @@ static int find_or_create_param(const char *key, lvGsParamType type) {
     strncpy(g_state.params[idx].key, key, lv_GS_MAX_KEY_LEN - 1);
     g_state.params[idx].key[lv_GS_MAX_KEY_LEN - 1] = '\0'; /* 确保 null-terminate */
     g_state.params[idx].type = type;
+    /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
+    if (!g_state.param_index)
+        g_state.param_index = lv_hashtable_str_create(64);
+    if (g_state.param_index)
+        lv_hashtable_str_insert(g_state.param_index, g_state.params[idx].key, (void *) (intptr_t) (idx + 1));
     return idx;
 }
 

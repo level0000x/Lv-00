@@ -179,15 +179,12 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
         return false;
     }
 
-    /* 根据节点类型生成名称 */
-    static const char *s_node_prefixes[] = {
-    [GEOM_POINT]          = "P",
-    [GEOM_LINE_SEGMENT]   = "S",
-    [GEOM_REGION]         = "R",
-    [GEOM_CIRCLE]         = "C",
-    [GEOM_PORT]           = "Port",
-    [GEOM_FUNCTION_BLOCK] = "FB",
-};
+    /* 根据节点类型生成名称（前缀表自 LV_GEOM_TYPE_ENTRY 生成，单一事实来源） */
+#define LV_GEOM_PREFIX_ROW(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) [ENUM] = PREFIX,
+    static const char *const s_node_prefixes[] = {
+        LV_GEOM_TYPE_ENTRY(LV_GEOM_PREFIX_ROW)
+    };
+#undef LV_GEOM_PREFIX_ROW
 
 #define NODE_PREFIX_COUNT (sizeof(s_node_prefixes) / sizeof(s_node_prefixes[0]))
     {

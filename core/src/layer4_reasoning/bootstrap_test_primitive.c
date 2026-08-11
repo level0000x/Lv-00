@@ -151,19 +151,22 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
             } else {
                 SymbolicCoord *c0x = symbolic_coord_create_rational(0, 1);
                 SymbolicCoord *c0y = symbolic_coord_create_rational(0, 1);
-                graph_add_point_xy(test_graph, c0x, c0y);
+                SymbolicCoord *coords0[] = {c0x, c0y};
+                graph_add_point(test_graph, coords0, 2);
                 symbolic_coord_destroy(c0x);
                 symbolic_coord_destroy(c0y);
 
                 SymbolicCoord *c1x = symbolic_coord_create_rational(1, 1);
                 SymbolicCoord *c1y = symbolic_coord_create_rational(0, 1);
-                graph_add_point_xy(test_graph, c1x, c1y);
+                SymbolicCoord *coords1[] = {c1x, c1y};
+                graph_add_point(test_graph, coords1, 2);
                 symbolic_coord_destroy(c1x);
                 symbolic_coord_destroy(c1y);
 
                 SymbolicCoord *c2x = symbolic_coord_create_rational(0, 1);
                 SymbolicCoord *c2y = symbolic_coord_create_rational(1, 1);
-                graph_add_point_xy(test_graph, c2x, c2y);
+                SymbolicCoord *coords2[] = {c2x, c2y};
+                graph_add_point(test_graph, coords2, 2);
                 symbolic_coord_destroy(c2x);
                 symbolic_coord_destroy(c2y);
 

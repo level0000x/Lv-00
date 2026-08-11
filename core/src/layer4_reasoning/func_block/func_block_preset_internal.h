@@ -13,6 +13,7 @@
 
 #include "func_block_preset.h"
 #include "lv/func_block_internal.h"
+#include "lv/lv_hashtable.h"
 
 #include <stdbool.h>
 
@@ -49,6 +50,7 @@ typedef struct {
     int count;                                /**< 当前预设数量 */
     bool initialized;                         /**< 是否已初始化 */
     int next_preset_id;                       /**< 下一个预设ID */
+    lvHashtable *preset_index;                /**< 名称 → 索引+1 哈希索引（可选加速，未建/失效回退线性） */
 } PresetLibraryState;
 
 /** 预设库全局实例（定义于 func_block_preset_data.c） */

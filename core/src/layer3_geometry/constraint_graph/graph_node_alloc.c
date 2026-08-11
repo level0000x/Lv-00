@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/determinism_state.h"
 #include "lv/memory_pool.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
@@ -615,13 +616,12 @@ static bool func_block_serialize(const GeomNode *node, void *buf) {
     lv_json_buf_append_raw(jb, "],");
 
     lv_json_buf_append_raw(jb, "\"determinism_state\":");
-    /* 确定性状态 -> JSON 字符串 查找表（按下标索引，与 func_block 匿名枚举严格对齐） */
+    /* 确定性状态 -> JSON 字符串 查找表（按下标索引，由 LV_DETERMINISM_STATE_ENTRY 单一事实源生成） */
+#define LV_DET_JSON_ROW(ENUM, STR) [ENUM] = STR,
     static const char *const s_determinism_state_names[] = {
-        [UNVERIFIED] = "UNVERIFIED",
-        [VERIFIED] = "VERIFIED",
-        [NON_DETERMINISTIC] = "NON_DETERMINISTIC",
-        [PARTIALLY_VERIFIED] = "PARTIALLY_VERIFIED",
+        LV_DETERMINISM_STATE_ENTRY(LV_DET_JSON_ROW)
     };
+#undef LV_DET_JSON_ROW
     /* 原 switch 无 default：未知状态不输出字符串，保持行为一致 */
     if ((unsigned) node->data.func_block.determinism_state < lv_ARRAY_SIZE(s_determinism_state_names)) {
         const char *ds_name = s_determinism_state_names[node->data.func_block.determinism_state];

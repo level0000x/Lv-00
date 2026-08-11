@@ -988,6 +988,16 @@ typedef enum {
 } BacktrackNodeType;
 
 /**
+ * @brief BacktrackNodeType 条目宏（枚举↔字符串映射的单一事实来源）
+ * proof_dependency.c 的 backtrack_node_type_to_string 名称表由本宏生成。
+ */
+#define LV_BACKTRACK_NODE_ENTRY(x) \
+    x(BACKTRACK_CHOICE_POINT, "choice") \
+    x(BACKTRACK_FAILURE, "failure") \
+    x(BACKTRACK_SUCCESS, "success") \
+    x(BACKTRACK_PRUNE, "prune")
+
+/**
  * @brief 证明搜索树节点（Newclid风格）
  *
  * 借鉴 Newclid 的证明搜索树可视化：
@@ -1153,6 +1163,39 @@ typedef enum {
     PROOF_STRATEGY_LEGACY_HYBRID,         /**< 桥接：经典引擎的混合策略 */
     PROOF_STRATEGY_COUNT                  /**< 策略总数（用于数组大小） */
 } ProofStrategyType;
+
+/**
+ * @brief ProofStrategyType 全字段条目宏（枚举↔字符串映射的单一事实来源）
+ *
+ * 每行携带 3 列：ENUM（枚举值）、ZH（中文名，proof_strategy_type_to_string 输出）、
+ * EN（英文标识符，proof_strategy_type_to_string_en 输出）。
+ * proof_multi_strategy.c 的 zh/en 名称表统一由本宏生成，禁止在其他文件重复定义。
+ * 注意：legacy 桥接策略（PROOF_STRATEGY_LEGACY_*）为经典引擎（lvStrategyType）的
+ * 桥接条目，与 lv_strategy_type_to_string_zh（engine/proof_strategy.c）是两个独立枚举。
+ */
+#define LV_PROOF_STRATEGY_ENTRY(x) \
+    x(PROOF_STRATEGY_DIRECT_CONSTRUCTION, "直接构造法", "direct_construction") \
+    x(PROOF_STRATEGY_AREA_METHOD, "面积法", "area_method") \
+    x(PROOF_STRATEGY_GROEBNER_BASIS, "Groebner基法", "groebner_basis") \
+    x(PROOF_STRATEGY_VECTOR_METHOD, "向量法", "vector_method") \
+    x(PROOF_STRATEGY_FULL_ANGLE_METHOD, "全角法", "full_angle_method") \
+    x(PROOF_STRATEGY_DEDUCTIVE_DATABASE, "演绎数据库法", "deductive_database") \
+    x(PROOF_STRATEGY_COORDINATE, "坐标法", "coordinate") \
+    x(PROOF_STRATEGY_LAMBDA_CALCULUS, "λ-演算归约法", "lambda_calculus") \
+    x(PROOF_STRATEGY_LAMBDA_UNIFY, "λ-演算合一法", "lambda_unify") \
+    x(PROOF_STRATEGY_HOL_LIGHT, "HOL Light 微内核验证", "hol_light") \
+    x(PROOF_STRATEGY_ORACLE, "Oracle法", "oracle") \
+    x(PROOF_STRATEGY_NUMERIC_VERIFICATION, "数值验证", "numeric_verification") \
+    x(PROOF_STRATEGY_LEGACY_DIRECT, "经典-直接证明", "legacy_direct") \
+    x(PROOF_STRATEGY_LEGACY_CONTRADICTION, "经典-反证法", "legacy_contradiction") \
+    x(PROOF_STRATEGY_LEGACY_CONTRAPOSITIVE, "经典-逆否证明", "legacy_contrapositive") \
+    x(PROOF_STRATEGY_LEGACY_INDUCTION, "经典-数学归纳法", "legacy_induction") \
+    x(PROOF_STRATEGY_LEGACY_CASES, "经典-分情况讨论", "legacy_cases") \
+    x(PROOF_STRATEGY_LEGACY_CONSTRUCTION, "经典-构造性证明", "legacy_construction") \
+    x(PROOF_STRATEGY_LEGACY_UNFOLDING, "经典-定义展开", "legacy_unfolding") \
+    x(PROOF_STRATEGY_LEGACY_BACKWARD, "经典-逆向推理", "legacy_backward") \
+    x(PROOF_STRATEGY_LEGACY_FORWARD, "经典-正向推理", "legacy_forward") \
+    x(PROOF_STRATEGY_LEGACY_HYBRID, "经典-混合策略", "legacy_hybrid")
 
 /* Forward declaration: ProofMultiStrategy 结构体在下方完整定义 */
 struct ProofMultiStrategy;

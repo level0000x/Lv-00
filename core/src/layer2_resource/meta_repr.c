@@ -904,7 +904,7 @@ typedef struct {
     const char *dot_shape; /* Graphviz DOT 节点形状 */
 } GeomTypeEntry;
 
-#define LV_GEOM_TYPE_ROW(ENUM, NAME, ALIAS, SHAPE) { NAME, ALIAS, SHAPE },
+#define LV_GEOM_TYPE_ROW(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) { NAME, ALIAS, SHAPE },
 static const GeomTypeEntry kGeomTypeEntries[] = {
     LV_GEOM_TYPE_ENTRY(LV_GEOM_TYPE_ROW)
 };
@@ -1033,15 +1033,13 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
     if (!encoded_graph)
         return NULL;
 
-    /* 修复：旧表仅 5 项（缺 CIRCLE 且 FUNCTION_BLOCK 越界），补齐 6 项并用指定初始化器对齐枚举 */
-    static const char *type_names[] = {
-        [GEOM_POINT] = "GEOM_POINT",
-        [GEOM_LINE_SEGMENT] = "GEOM_LINE_SEGMENT",
-        [GEOM_REGION] = "GEOM_REGION",
-        [GEOM_CIRCLE] = "GEOM_CIRCLE",
-        [GEOM_PORT] = "GEOM_PORT",
-        [GEOM_FUNCTION_BLOCK] = "GEOM_FUNCTION_BLOCK",
+    /* 历史修复：旧表仅 5 项（缺 CIRCLE 且 FUNCTION_BLOCK 越界），现已由
+     * LV_GEOM_TYPE_ENTRY（constraint_graph.h）单一事实来源生成并补齐 6 项。 */
+#define LV_GEOM_JSON_ROW(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) [ENUM] = "GEOM_" NAME,
+    static const char *const type_names[] = {
+        LV_GEOM_TYPE_ENTRY(LV_GEOM_JSON_ROW)
     };
+#undef LV_GEOM_JSON_ROW
 
     /* 预估缓冲区大小 */
     size_t est_size = 512 + (size_t) encoded_graph->node_count * 128 + (size_t) encoded_graph->constraint_count * 64;

@@ -645,13 +645,12 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief backtrack_node_type_to_string 名称表（按枚举值升序） */
+/** @brief backtrack_node_type_to_string 名称表（按枚举值升序，由 LV_BACKTRACK_NODE_ENTRY 单一事实源生成） */
+#define LV_BACKTRACK_ROW(ENUM, STR) {STR, ENUM},
 static const lvStrToEnumEntry s_backtrack_node_type_to_string_entries[] = {
-    {"choice", BACKTRACK_CHOICE_POINT},
-    {"failure", BACKTRACK_FAILURE},
-    {"success", BACKTRACK_SUCCESS},
-    {"prune", BACKTRACK_PRUNE},
+    LV_BACKTRACK_NODE_ENTRY(LV_BACKTRACK_ROW)
 };
+#undef LV_BACKTRACK_ROW
 
 static const char *backtrack_node_type_to_string(BacktrackNodeType type) {
     return lv_enum_to_str(s_backtrack_node_type_to_string_entries, lv_ARRAY_SIZE(s_backtrack_node_type_to_string_entries), (int) type, "unknown");

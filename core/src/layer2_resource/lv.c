@@ -474,9 +474,12 @@ int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num,
                      (uint64_t) x_den, (uint64_t) y_den);
     }
 
-    SymbolicCoord *x;
-    SymbolicCoord *y;
-    if (!symbolic_coord_pair_create_rational(x_num, x_den, y_num, y_den, &x, &y)) {
+    SymbolicCoord *x = symbolic_coord_create_rational(x_num, x_den);
+    SymbolicCoord *y = symbolic_coord_create_rational(y_num, y_den);
+
+    if (!x || !y) {
+        if (x) symbolic_coord_destroy(x);
+        if (y) symbolic_coord_destroy(y);
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_add_point: 创建符号坐标失败");
     }
 

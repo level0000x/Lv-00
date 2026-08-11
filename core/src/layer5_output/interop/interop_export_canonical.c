@@ -23,7 +23,6 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
-#include "lv/lv_xmacro.h"
 
 /* ---- 节点类型 → 规范输出处理器查找表 ---- */
 typedef void (*CanonicalNodeHandler)(FILE *fp, const GeomNode *node);
@@ -116,8 +115,15 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
         /* 命名空间深度和父块 */
         fprintf(fp, " ns=%d parent=%d", node->namespace_depth, node->parent_block_id);
 
-        /* 类型特定信息 — 收敛为 LV_DISPATCH_VOID（边界+NULL 槽检查） */
-        LV_DISPATCH_VOID(canonical_node_handlers, node->type, fp, node);
+        /* 类型特定信息 — 使用查找表 */
+        {
+            CanonicalNodeHandler handler = NULL;
+            int n_handlers = (int)(sizeof(canonical_node_handlers) / sizeof(canonical_node_handlers[0]));
+            if ((int)node->type >= 0 && (int)node->type < n_handlers)
+                handler = canonical_node_handlers[node->type];
+            if (handler)
+                handler(fp, node);
+        }
 
         fprintf(fp, "\n");
     }

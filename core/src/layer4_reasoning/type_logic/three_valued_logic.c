@@ -194,12 +194,12 @@ lvTruthValue lv_tvl_or_all(const lvTruthValue *values, int count) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief lv_tvl_to_string 名称表（按枚举值升序） */
+/** @brief lv_tvl_to_string 名称表（按枚举值升序，由 LV_TRUTH_VALUE_ENTRY 单一事实源生成） */
+#define LV_TVL_EN_ROW(ENUM, EN, ZH) {EN, ENUM},
 static const lvStrToEnumEntry s_lv_tvl_to_string_entries[] = {
-    {"TRUE", lv_TRUE},
-    {"FALSE", lv_FALSE},
-    {"UNKNOWN", lv_UNKNOWN},
+    LV_TRUTH_VALUE_ENTRY(LV_TVL_EN_ROW)
 };
+#undef LV_TVL_EN_ROW
 
 const char *lv_tvl_to_string(lvTruthValue v) {
     return lv_enum_to_str(s_lv_tvl_to_string_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_entries), (int) v, "INVALID");
@@ -208,13 +208,13 @@ const char *lv_tvl_to_string(lvTruthValue v) {
 /**
  * @brief 将三值真值转换为中文字符串
  */
-/** @brief lv_tvl_to_string_zh 名称表（按枚举值升序） */
+/** @brief lv_tvl_to_string_zh 名称表（按枚举值升序，由 LV_TRUTH_VALUE_ENTRY 单一事实源生成） */
+#define LV_TVL_ZH_ROW(ENUM, EN, ZH) {ZH, ENUM},
 static const lvStrToEnumEntry s_lv_tvl_to_string_zh_entries[] = {
-    {"\xe7\x9c\x9f", lv_TRUE},
-    {"\xe4\xbc\xaa", lv_FALSE},
-    {"\xe6\x9c\xaa\xe7\x9f\xa5", lv_UNKNOWN},
+    LV_TRUTH_VALUE_ENTRY(LV_TVL_ZH_ROW)
 };
+#undef LV_TVL_ZH_ROW
 
 const char *lv_tvl_to_string_zh(lvTruthValue v) {
-    return lv_enum_to_str(s_lv_tvl_to_string_zh_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_zh_entries), (int) v, "\xe6\x97\xa0\xe6\x95\x88");
+    return lv_enum_to_str(s_lv_tvl_to_string_zh_entries, lv_ARRAY_SIZE(s_lv_tvl_to_string_zh_entries), (int) v, "无效");
 }

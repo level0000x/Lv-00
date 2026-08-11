@@ -225,6 +225,27 @@ static void test_execute_rejects_unsupported(void) {
  * Test: 策略注册与 try_all
  * ============================================================ */
 
+static void test_strategy_type_to_string(void) {
+    /* zh/en 名称表自 LV_PROOF_STRATEGY_ENTRY 宏生成。
+     * 历史失步：zh 表曾缺 PROOF_STRATEGY_NUMERIC_VERIFICATION，此处钉住回归。 */
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string(PROOF_STRATEGY_NUMERIC_VERIFICATION), "数值验证") == 0,
+                    "zh name for NUMERIC_VERIFICATION");
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string_en(PROOF_STRATEGY_NUMERIC_VERIFICATION), "numeric_verification") == 0,
+                    "en name for NUMERIC_VERIFICATION");
+
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string(PROOF_STRATEGY_DIRECT_CONSTRUCTION), "直接构造法") == 0,
+                    "zh name for DIRECT_CONSTRUCTION");
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string(PROOF_STRATEGY_LEGACY_HYBRID), "经典-混合策略") == 0,
+                    "zh name for LEGACY_HYBRID");
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string_en(PROOF_STRATEGY_LEGACY_DIRECT), "legacy_direct") == 0,
+                    "en name for LEGACY_DIRECT");
+
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string((ProofStrategyType) PROOF_STRATEGY_COUNT), "未知策略") == 0,
+                    "zh fallback for unknown type");
+    TEST_ASSERT_MSG(strcmp(proof_strategy_type_to_string_en((ProofStrategyType) PROOF_STRATEGY_COUNT), "unknown") == 0,
+                    "en fallback for unknown type");
+}
+
 static void test_strategy_registered(void) {
     ProofMultiStrategy *mse = proof_multi_strategy_create(NULL);
     TEST_ASSERT_NOT_NULL(mse);
@@ -283,6 +304,7 @@ TEST_MAIN_BEGIN("ProofStrategyNumeric")
     TEST_MAIN_RUN(test_execute_rejects_unsupported);
 
     TEST_MAIN_RUN(test_strategy_registered);
+    TEST_MAIN_RUN(test_strategy_type_to_string);
     TEST_MAIN_RUN(test_try_all_lands_on_numeric);
 
 TEST_MAIN_END()

@@ -258,6 +258,12 @@ bool func_block_preset_register_custom(const PresetMetadata *metadata, const Fun
     g_preset_library.entries[idx].is_builtin = false;
     g_preset_library.entries[idx].is_active = true;
 
+    /* 维护哈希索引（惰性创建；插入失败不影响正确性，回退线性） */
+    if (!g_preset_library.preset_index)
+        g_preset_library.preset_index = lv_hashtable_str_create(64);
+    if (g_preset_library.preset_index)
+        lv_hashtable_str_insert(g_preset_library.preset_index, metadata->name, (void *) (intptr_t) (idx + 1));
+
     return true;
 }
 

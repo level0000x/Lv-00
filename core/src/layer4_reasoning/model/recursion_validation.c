@@ -26,27 +26,16 @@ bool measure_system_register_non_symbolic(MeasureSystem *ms, int measure_type_id
     if (!ms || !comparator)
         return false;
 
-    /* 扩展元数据数组 */
-    int new_count = ms->non_symbolic_meta_count + 1;
-    /* 检查加法溢出 */
-    if (new_count < 0)
+    /* 统一扩容：复用 lv_ensure_capacity（倍增 + 溢出检查），失败时内部已设置错误 */
+    if (!lv_ensure_capacity((void **) &ms->non_symbolic_metas, ms->non_symbolic_meta_count, &ms->non_symbolic_meta_capacity, sizeof(NonSymbolicMeasureMeta), 0))
         return false;
-    /* 检查乘法溢出 */
-    if ((size_t) new_count > SIZE_MAX / sizeof(NonSymbolicMeasureMeta))
-        return false;
-    NonSymbolicMeasureMeta *new_metas =
-        lv_realloc(ms->non_symbolic_metas, (size_t) new_count * sizeof(NonSymbolicMeasureMeta));
-    if (!new_metas)
-        return false;
-
-    ms->non_symbolic_metas = new_metas;
-    ms->non_symbolic_meta_count = new_count;
 
     /* 填充新元数据 */
-    NonSymbolicMeasureMeta *meta = &ms->non_symbolic_metas[new_count - 1];
+    NonSymbolicMeasureMeta *meta = &ms->non_symbolic_metas[ms->non_symbolic_meta_count];
     meta->measure_type_id = measure_type_id;
     meta->comparator = comparator;
     meta->is_well_founded = is_well_founded;
+    ms->non_symbolic_meta_count++;
 
     return true;
 }
@@ -180,23 +169,14 @@ int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_i
             snprintf(sys->validation_metas[existing_idx].validation_template,
                      sizeof(sys->validation_metas[existing_idx].validation_template), "%s", axiom_template_name);
         } else {
-            /* 添加新条目 */
-            int new_count = sys->validation_meta_count + 1;
-            if (new_count < 0)
-                return -1; /* 加法溢出 */
-            if ((size_t) new_count > SIZE_MAX / sizeof(NonSymbolicMeasureValidationMeta))
-                return -1;
-            NonSymbolicMeasureValidationMeta *new_metas =
-                lv_realloc(sys->validation_metas, (size_t) new_count * sizeof(NonSymbolicMeasureValidationMeta));
-            if (!new_metas)
+            /* 添加新条目（统一扩容：lv_ensure_capacity 内含倍增与溢出检查） */
+            if (!lv_ensure_capacity((void **) &sys->validation_metas, sys->validation_meta_count, &sys->validation_meta_capacity, sizeof(NonSymbolicMeasureValidationMeta), 0))
                 return -1;
 
-            sys->validation_metas = new_metas;
-            sys->validation_meta_count = new_count;
-
-            NonSymbolicMeasureValidationMeta *meta = &sys->validation_metas[new_count - 1];
+            NonSymbolicMeasureValidationMeta *meta = &sys->validation_metas[sys->validation_meta_count];
             meta->measure_id = measure_id;
             snprintf(meta->validation_template, sizeof(meta->validation_template), "%s", axiom_template_name);
+            sys->validation_meta_count++;
         }
     }
 

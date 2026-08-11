@@ -457,7 +457,7 @@ static bool store_baseline(const Module *mod, uint64_t hash) {
             /* 回收最旧的条目 */
             free_delta_baseline(&s_delta_baseline_state.entries[0]);
             /* 移动其他条目 */
-            lv_shift_left(s_delta_baseline_state.entries, sizeof(DeltaBaseline), 0, (size_t) s_delta_baseline_state.count);
+            memmove(&s_delta_baseline_state.entries[0], &s_delta_baseline_state.entries[1], (s_delta_baseline_state.count - 1) * sizeof(DeltaBaseline));
             s_delta_baseline_state.count--;
         }
         bl = &s_delta_baseline_state.entries[s_delta_baseline_state.count++];

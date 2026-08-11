@@ -461,23 +461,13 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
         } else {
             /* 创建一个简单的区域（三角形）和测试点 */
             /* 三角形顶点：(0,0), (4,0), (0,3) */
-            SymbolicCoord *p0x = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *p0y = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *p1x = symbolic_coord_create_rational(4, 1);
-            SymbolicCoord *p1y = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *p2x = symbolic_coord_create_rational(0, 1);
-            SymbolicCoord *p2y = symbolic_coord_create_rational(3, 1);
+            SymbolicCoord *p0_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+            SymbolicCoord *p1_coords[2] = {symbolic_coord_create_rational(4, 1), symbolic_coord_create_rational(0, 1)};
+            SymbolicCoord *p2_coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(3, 1)};
 
-            graph_add_point_xy(graph, p0x, p0y);
-            graph_add_point_xy(graph, p1x, p1y);
-            graph_add_point_xy(graph, p2x, p2y);
-            /* graph_add_point 深拷贝坐标，此处释放原始对象 */
-            symbolic_coord_destroy(p0x);
-            symbolic_coord_destroy(p0y);
-            symbolic_coord_destroy(p1x);
-            symbolic_coord_destroy(p1y);
-            symbolic_coord_destroy(p2x);
-            symbolic_coord_destroy(p2y);
+            graph_add_point(graph, p0_coords, 2);
+            graph_add_point(graph, p1_coords, 2);
+            graph_add_point(graph, p2_coords, 2);
 
             /* 创建线段（三角形的边） */
             graph_add_line_segment(graph, 0, 1);
@@ -485,13 +475,9 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
             graph_add_line_segment(graph, 2, 0);
 
             /* 创建测试点（在三角形内部：(1,1)） */
-            SymbolicCoord *test_pt_x = symbolic_coord_create_rational(1, 1);
-            SymbolicCoord *test_pt_y = symbolic_coord_create_rational(1, 1);
-
-            graph_add_point_xy(graph, test_pt_x, test_pt_y);
-            /* graph_add_point 深拷贝坐标，此处释放原始对象 */
-            symbolic_coord_destroy(test_pt_x);
-            symbolic_coord_destroy(test_pt_y);
+            SymbolicCoord *test_pt_coords[2] = {symbolic_coord_create_rational(1, 1),
+                                                symbolic_coord_create_rational(1, 1)};
+            graph_add_point(graph, test_pt_coords, 2);
 
             /* 创建选择器块 */
             SelectorBlock *sb = selector_block_create(1, graph);

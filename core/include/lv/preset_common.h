@@ -136,6 +136,7 @@ size_t lv_safe_strncpy(char *dest, const char *src, size_t dest_size);
 int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...);
 int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
 bool preset_properties_from_string(const char *str, PresetProperty *properties);
+bool preset_module_get_names(const char *const *names, int count, char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

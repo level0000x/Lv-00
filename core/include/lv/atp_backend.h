@@ -36,6 +36,16 @@ typedef enum {
     ATP_BACKEND_CUSTOM = 3,  /**< 自定义后端 */
     ATP_BACKEND_COUNT        /**< 后端总数 */
 } ATPBackendType;
+/**
+ * @brief ATPBackendType 条目宏（枚举↔显示名映射的单一事实来源）
+ * atp_backend.c 的 atp_backend_type_name 表由本宏生成；"e"/"eprover" 缩写
+ * 在 atp_backend_type_from_name 内独立处理（非表项）。
+ */
+#define LV_ATP_BACKEND_ENTRY(x) \
+    x(ATP_BACKEND_VAMPIRE, "Vampire") \
+    x(ATP_BACKEND_EPROVER, "E Prover") \
+    x(ATP_BACKEND_IPROVER, "iProver") \
+    x(ATP_BACKEND_CUSTOM, "Custom")
 /** ATP 输入格式 */
 typedef enum {
     ATP_FORMAT_TPTP_FOF = 0, /**< TPTP FOF（一阶公式）— 最通用 */
@@ -43,6 +53,20 @@ typedef enum {
     ATP_FORMAT_TPTP_TFF = 2, /**< TPTP TFF（带类型的一阶公式） */
     ATP_FORMAT_SMTLIB2 = 3,  /**< SMT-LIB2 — 与 SMT 后端共用格式 */
 } ATPInputFormat;
+
+/**
+ * @brief ATPInputFormat 全字段条目宏（枚举↔字符串映射的单一事实来源）
+ *
+ * 每行携带 4 列：ENUM（枚举值）、LANG（TPTP 语言标识符，TPTP 编码头部使用；
+ * SMT-LIB2 无 TPTP 语言标识符，为 NULL）、MODE（命令行模式参数，Vampire/E
+ * 等求解器使用；SMT-LIB2 为 NULL）、DISPLAY（对外显示名，atp_format_name 输出）。
+ * atp_backend.c 的 lang/mode/display 三张表统一由本宏生成，禁止在其他文件重复定义。
+ */
+#define LV_ATP_FORMAT_ENTRY(x) \
+    x(ATP_FORMAT_TPTP_FOF, "fof", "--fof", "TPTP FOF") \
+    x(ATP_FORMAT_TPTP_CNF, "cnf", "--cnf", "TPTP CNF") \
+    x(ATP_FORMAT_TPTP_TFF, "tff", "--tff", "TPTP TFF") \
+    x(ATP_FORMAT_SMTLIB2, NULL, NULL, "SMT-LIB2")
 /** ATP 求解结果 */
 typedef enum {
     ATP_RESULT_SAT = 0,     /**< 可满足 */
