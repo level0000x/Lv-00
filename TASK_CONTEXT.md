@@ -327,9 +327,11 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 | 候选 | 规模 | 拟新建设施 | 说明 |
 |------|------|-----------|------|
 | 手写前缀匹配 | 34 文件 / ~100 处 | `lv_str_has_prefix` | 现有仅 proof_version_isar.c 一个静态 `starts_with` 局部副本；注册表前缀过滤 6 处完全同构 |
-| strstr/strchr + memcpy 手工截取 | 33 文件 / ~49 处 | `lv_str_cpylen`（长度钳制） | memcpy+手动 NUL 形态 |
-| 手写线性查找 | 100 文件 / 245 处 | `lvHashtable_int` / `lv_registry` / 通用 `lv_array_find` | 仅"return i"型 42+ 处明确；热路径需评估 |
-| count++ 动态收集追加 | 117 文件 / 352 处 | IntArray / lvDArray push 语义 | 仅无界动态部分收敛；有上限栈缓冲豁免 |
+| strstr/strchr + memcpy 手工截取 | 44 文件 / 161 处（粗扫）；截取子形态 ~49 处 | `lv_str_cpylen`（长度钳制） | memcpy+手动 NUL 形态；粗扫含全部 strstr/strchr 使用点（含查找未截取），2026-08-12 复核 |
+| 手写线性查找 | 100 文件 / 245 处 | `lvHashtable_int` / `lv_registry` / 通用 `lv_array_find` | 仅"return i"型 42+ 处明确；热路径需评估；2026-08-12 复核 `strcmp==0` 全库 365 处/106 文件 |
+| count++ 动态收集追加 | 117 文件 / 352 处 | IntArray / lvDArray push 语义 | 仅无界动态部分收敛；有上限栈缓冲豁免；2026-08-12 复核显式 `->count++/len++/size++` 32 文件 |
+| 枚举↔字符串平行表 | 7 文件（lv_protocol.c 5 张、debug_state / conflict_detector / modal_operators / lv_number 各 1） | X-Macro 枚举族生成器（一次性生成枚举+名称表+双向转换） | **2026-08-12 新增**；判据 F/D。lv_protocol.c 的 kTrustColorName/RGBA/SVG/TikZ/ToLv 5 张平行表被 test_output_export.c / test_layer5_output.c 精确断言，迁移需同步改测试或豁免 |
+| 序列化"逗号分隔"骨架（for + `if (i > 0)` + append 分隔符） | 12 文件 / 21 处 | `lv_strbuf_join_*`（分隔符注入） | **2026-08-12 新增**；判据泛化（≥3 特例成立）。已有雏形 lv_str_utils.c:404（`"%s", separator`）；分布见 graph_serialize / graph_node_alloc / opml_codec / formula_renderer_ascii / proof_widget / bootstrap_test_report 等 |
 
 ### 低优先级 / 不建议
 
@@ -339,6 +341,9 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 | 手写二分查找 | 4 文件 / 5 处 | 比较谓词各异，收益小 |
 | goto fail 链 | 24-41 文件 / 59-173 处 | 半收敛（lv_DEFER 已配），逐子系统推进 |
 | stderr 日志 | 3 文件 / 4 处 | 已基本收敛至 lv_log，无需处理 |
+| 构造器失败回滚（多分配+失败逐字段 free+return NULL） | 47 文件（"单块双 free"精确命中；`return NULL` 粗扫 1582 处/214 文件） | **2026-08-12 新增**；判据 E。与阶段 F（lv_DEFER）协同——F 完成后在 graph_node_alloc 等重灾区评估 goto cleanup 统一约定或 arena 分配 |
+| 手写数字解析（`v = v*10 + (c-'0')`） | 7 文件 / 16 处 | **2026-08-12 新增**；中低优先级，集中在 lv_json / formula_dsl / module_lvz 编解码，可收敛至 lv_str_utils 格式化模块 |
+| 手写排序（qsort 除外） | 0 文件 | 已全面收敛至 qsort（10 文件），无需处理 |
 
 ### 批次 O 执行进度（2026-08-11 立项后按优先级推进）
 
@@ -355,5 +360,7 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 **阶段 C 明细（2026-08-11）**：字面量前缀 13 文件约 30 处迁移（block_to_text / axiom_pkg_serialize / magic_rune / proof_version / network_block / math_input / module_serialize / runtime_monitor / probabilistic_constraint / interop_import / lv_storage / proof_strategy_deductive×10 / formula_curve 前批）。动态长度形态 8 处迁移（plugin_system_interface×3 / plugin_system_config / geo_event_detect / solver_symbolic×2 / solver_coord_extract×2，消去手写 prefix_len 缓存变量 4 处）。`lv_str_startswith` 实现同步优化为 `strncmp(str, prefix, strlen(prefix))`（不再全文 strlen 预扫）。
 
 **阶段 C 剩余 strncmp 登记豁免**：精确长度标识符匹配（proof_strategy_numeric.c `len==N &&` 形态，前缀化会放宽匹配）；有界缓冲/非 NUL 终止解析（lean4_bridge.c / interop_server.c HTTP / mini_kernel.c / proof_version_isar.c）；截断到 `*` 的有界前缀（test_framework.c）；复合"前缀+分隔+精确尾部"（gappa_propagate.c）；设施自身内部（lv_registry.c `lv_registry_remove_prefix`）。
+
+**2026-08-12 增补扫描结论**：全库复查确认阶段 D/E/F/G 候选仍成立（`lv_CHECK_NULL` 已用 20 文件/308 处，说明宏已被采纳、剩余裸守卫迁移成本可控）。新增 4 个登记候选：① 枚举↔字符串平行表（判据 F/D，lv_protocol.c 5 张平行表为首要案例，需处理测试精确断言）；② 序列化"逗号分隔"骨架（判据泛化，12 文件/21 处）；③ 构造器失败回滚（判据 E，与阶段 F 协同）；④ 手写数字解析（中低优先级）。另确认手写排序已全面收敛至 qsort、无抽象必要。上述候选均已登记至本节约"候选方向"表。
 
 **回归（阶段 A–C）**：ninja build3 931/931、ctest 170/170、示例 8/8 全部通过。
