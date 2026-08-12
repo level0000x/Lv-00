@@ -345,6 +345,43 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 | 手写数字解析（`v = v*10 + (c-'0')`） | 7 文件 / 16 处 | **2026-08-12 新增**；中低优先级，集中在 lv_json / formula_dsl / module_lvz 编解码，可收敛至 lv_str_utils 格式化模块 |
 | 手写排序（qsort 除外） | 0 文件 | 已全面收敛至 qsort（10 文件），无需处理 |
 
+### 第二波扫描新增候选（2026-08-12 午后；三路并行子代理只读扫描 core/src 全库）
+
+#### P0 高价值（设施成熟、规模大、纯机械）
+
+| 候选 | 规模 | 收敛目标 | 说明 |
+|------|------|----------|------|
+| 手写 snprintf buffer 链（多次 snprintf + strlen 累计 pos 拼长串） | 13 文件 / 60+ 处 | `lvStrBuf`（lv_strbuf_printf + to_string） | 本批最大规模方向。smt_backend_impl_smtlib2 编码子函数 ~20 处（(buf,remaining) 签名需小改接口）；atp_backend 6+；proof_trace / proof_contradiction 本地宏 TRACE_WRITE / CONTRADICTION_WRITE 逐字同构；formula_converter_export 自述局部复刻 lvStrBuf（21 处 5 步样板）；另 approx_counter / float_error / conflict_detector / lambda_unify / formula_curve / inequality_reasoning_serialize / preset_manager_doc / high_dim_view |
+| 枚举/错误码转字符串手写查表（names[] 数组 + 下标返回） | 14 文件 / ~16 函数 | `lv_enum_to_str` / `lvStrToEnumEntry` / `lv_error_name` | 全库已有 20+ 同构迁移先例，纯机械。lv_lexer.c lv_token_type_name、lv_ast.c ast_type_name、mini_kernel.c 错误码数组（应并入 lv_error_name）、type_system / relation_model / proof_strategy / prop_verifier_trust / euclidean_geometry / interop_export_coq / graph_dot_export / axiom_pkg_serialize / preset_group_theory。与阶段 J（平行表合并）互补 |
+| 手写倍增 realloc 扩容补漏 | 3 文件确定 | `lv_ensure_capacity` / `lvDArray` | 与上表 L320 勘误"全面收敛"互补：interop_theorem.c:102 / lambda_to_graph.c:828 / lv_utils_config.c:326 为漏网倍增；text_code.c / lv_graph_traversal.c 与既有"语义特化豁免"清单重叠，迁移时复核 |
+| 手写"创建-注册-查找"注册表三件套 | 3 文件 | `lv_registry` / `lv_REGISTRY_STATIC` | lv_backend_plugin.c（for+strcmp 查重 + find 线性查找）最契合；preset_blocks.c / smt_theory_combiner.c 需保留额外元数据字段做适配。与阶段 G（通用线性查找）区分：本项为完整注册表语义 |
+
+#### P1 中价值（需补有界/无分配变体或新辅助）
+
+| 候选 | 规模 | 收敛目标 | 说明 |
+|------|------|----------|------|
+| 手写空白跳过 / trim 循环 | 8 文件 / ~19 处 | 补 `lv_str_skip_ws_n(p, end)` 有界变体 + `lv_str_ltrim` | lean4_bridge（7 处同构）/ coq_bridge / proof_strategy_numeric / gappa_propagate / float_error / formula_dsl 均为 `(pos < end)` 有界解析器，现 lv_str_skip_ws 仅支持 NUL 结尾；math_input.c 单点可直接迁移 |
+| strchr 单次切分（找分隔符→取切片） | 13 文件 / ~17 处 | 补无分配 `lv_str_split_once(const char **pp, char delim)` | 与 lv_str_read_token（跳空白+堆分配）语义不吻合。axiom_pkg_verify / atp_backend / proof_version_isar / graph_conflict / interop_import / interop_server / proof_strategy_deductive / gappa_dsl / lv_utils_misc / lv_protocol；HTTP 有界场景需 bounded 变体 |
+| 关键字表循环（for + strstr 命中枚举） | 7 文件 / ~9 处 | `lv_str_match_any`（返回首个命中下标） | proof_classical.h / proof_version_ghost.c / lv_protocol.c 直接覆盖；meta_verify 为计数语义需新 `lv_str_match_count` 变体；module_lvz / mini_kernel / geo_spec / formula_python 等 strcmp 多分支链可作旁支收敛 |
+| 手写对象销毁序列（NULL + 成员逐个 free + 元素循环） | 5-6 函数 / 100+ 行 | `lvFieldDesc` 字段销毁描述表 | probabilistic_constraint.c dtmc_destroy（8 成员+行循环）、approx_counter.c cnf_destroy、relation_model.c rel_destroy、lambda_unify.c lambda_apply_entries_destroy、groebner_parallel.c（60 行，线程关闭逻辑除外）。lvFieldDesc 已 34 处使用。与阶段 F（作用域守卫 lv_DEFER）区分：本项为销毁函数本身 |
+| 错误消息组装（snprintf 写固定 error_msg 字段） | 6 文件 / 35+ 处 | `lv_set_result_error(result, fmt, ...)` 辅助 | lv_impl_upper_orchestrator.c ~20 处（set_error_msg 中 snprintf("%s") 可简化为 lv_strlcpy）、engine_scheduler 6 处、formula_curve 4 处、lv_sema 前缀拼接 |
+| 边界钳制 + 越界检查序列 | ~20 处 | `lv_CLAMP` / `lv_index_in_range` | 小批量高可行：formula_converter_stmt / axiom_rule_engine（同文件 4 处同构）/ expr_canon / graph_node_alloc / geometry_csg_eval / high_dim_project 钳制；conflict_detector 等运行期线性扫描索引验证；5 文件 _Static_assert 可统一宏包装 |
+
+#### P2 低价值 / 设施补齐 / 暂缓
+
+| 候选 | 规模 | 结论 |
+|------|------|------|
+| 手写复制构造函数（graph_node_alloc 同文件 3 份 6 字段"增强字段"拷贝） | 6 文件 | 先抽本地 helper（高确定低风险）；跨文件统一需新"复制描述表"设施（深/浅拷贝字段声明），属新设施建设，暂缓 |
+| 设施补齐：`lv_str_hex_decode` | 1 处（module_delta hash_string_to_u64）+ JSON `\uXXXX` 公共解码点 | 设施补齐而非批量替换，低优先 |
+| 设施补齐：`lv_path_ext` | 1 处（interop_theorem interop_get_file_extension）+ 同文件 strchr 非法字符检查 | 方向相反于现有 lv_path_strip_ext，低优先 |
+| 报表列对齐 → `lv_strbuf_append_cell` 示范迁移 | 2 文件（memory_pool / lv_utils 的 fprintf "%-20s" 报表） | append_cell 当前 0 外部调用，先示范 1 处再推广 |
+| 手写数组最值遍历 / 手写选择排序 | 9 文件 / ~15-18 处 | lv_max_d 仅 double；带索引/自定义类型需 comparator 适配，部分为算法内聚（solver_engine / rewrite_vf2），暂缓 |
+| 手写 LCG / Box-Muller（probabilistic_constraint） | 1 文件 | 替换会改变随机序列与可复现性，需评估测试种子语义，暂缓 |
+| 手写幂/平方/立方 | 6 文件 / ~10 处 | 残留均为数学算法固有表达式（贝塞尔 / gamma 采样 / 谓词 / Horner），替换 pow 反而劣化，不迁移 |
+| 手写栈/队列模拟（DFS/BFS 栈） | 9 文件 / ~15-18 处 | 与遍历算法强耦合且已封装良好，无泛型栈设施；仅建议统一各栈的"扩容"委托 lv_ensure_capacity |
+| 参数校验 + 默认值样板 | 4 处零散 | 语义各异（条件透传 vs 默认值），机械迁移收益小 |
+| 时间/时间戳格式化、大小写转换循环 | 0 处 | 已收敛，无需处理 |
+
 ### 批次 O 执行进度（2026-08-11 立项后按优先级推进）
 
 | 阶段 | 内容 | 状态 |
