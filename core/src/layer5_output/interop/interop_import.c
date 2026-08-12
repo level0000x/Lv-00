@@ -1703,7 +1703,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         char *tstr = lv_json_parse_string(&tp);
         if (tstr) {
             /* 与原实现一致的宽松前缀比较（strncmp 17 字符，不要求结尾引号） */
-            if (strncmp(tstr, "FeatureCollection", 17) == 0)
+            if (lv_str_startswith(tstr, "FeatureCollection"))
                 is_feature_collection = true;
             lv_free((void **) &tstr);
         }

@@ -163,7 +163,6 @@ lvPluginInterface *lv_plugin_query_interface(lvPluginSystem *system, const char 
     /* 遍历系统级注册表条目，仅匹配当前 system */
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
-    size_t prefix_len = strlen(prefix);
 
     int count = lv_registry_count(&g_system_iface_registry);
     for (int i = 0; i < count; i++) {
@@ -172,7 +171,7 @@ lvPluginInterface *lv_plugin_query_interface(lvPluginSystem *system, const char 
         if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
             continue;
         }
-        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+        if (!lv_str_startswith(entry_name, prefix)) {
             continue;
         }
         lvPluginInterface *iface = (lvPluginInterface *) entry_value;
@@ -233,7 +232,6 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
     /* 遍历系统级注册表条目，仅匹配当前 system */
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
-    size_t prefix_len = strlen(prefix);
 
     int total = lv_registry_count(&g_system_iface_registry);
 
@@ -245,7 +243,7 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
         if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
             continue;
         }
-        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+        if (!lv_str_startswith(entry_name, prefix)) {
             continue;
         }
         if (wildcard_match(pattern, ((lvPluginInterface *) entry_value)->name)) {
@@ -273,7 +271,7 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
         if (!lv_registry_get_at(&g_system_iface_registry, i, &entry_name, &entry_value)) {
             continue;
         }
-        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+        if (!lv_str_startswith(entry_name, prefix)) {
             continue;
         }
         lvPluginInterface *iface = (lvPluginInterface *) entry_value;

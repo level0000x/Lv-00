@@ -826,7 +826,7 @@ bool module_parse_version_constraint(const char *constraint, const char *version
         lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "module_parse_version_constraint: version is NULL");
 
     /* Exact match: "1.0.0" */
-    if (strncmp(constraint, ">=", 2) == 0) {
+    if (lv_str_startswith(constraint, ">=")) {
         return module_compare_versions(version, constraint + 2) >= 0;
     }
 

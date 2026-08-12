@@ -1115,7 +1115,7 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
         if (!n || !n->numeric_assumption_declaration)
             continue;
         const char *decl = n->numeric_assumption_declaration;
-        if (strncmp(decl, prefix, prefix_len) == 0) {
+        if (lv_str_startswith(decl, prefix)) {
             if (lv_parse_double(decl + prefix_len, &dist_val) != 0)
                 dist_val = 0.0;
             dist_node = n;
@@ -1214,7 +1214,7 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
         /* 尝试解析为 "distance=<value>" 格式 */
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免重复计算 */
-        if (strncmp(decl, prefix, prefix_len) == 0) {
+        if (lv_str_startswith(decl, prefix)) {
             if (lv_parse_double(decl + prefix_len, &dist_sq) != 0)
                 dist_sq = 0.0;
             dist_sq = dist_sq * dist_sq; /* 存储平方值 */

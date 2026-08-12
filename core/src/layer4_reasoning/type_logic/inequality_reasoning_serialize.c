@@ -85,7 +85,7 @@ char *lv_ineq_proof_to_latex(const lvInequalityProof *proof) {
     if (offset < (int) buf_size)
         offset += snprintf(s + offset, buf_size - (size_t) offset, "\\begin{proof}\n");
     if (offset < 0)
-        goto done;
+        return s;
 
     for (int i = 0; i < proof->step_count && offset < (int) buf_size - 64; i++) {
         const char *just = proof->steps[i].justification ? proof->steps[i].justification : "unknown";
@@ -97,8 +97,6 @@ char *lv_ineq_proof_to_latex(const lvInequalityProof *proof) {
 
     if (offset >= 0 && offset < (int) buf_size)
         offset += snprintf(s + offset, buf_size - (size_t) offset, "\\end{proof}\n");
-
-done:
 
     return s;
 }

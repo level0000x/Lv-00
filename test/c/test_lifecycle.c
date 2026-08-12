@@ -20,7 +20,6 @@
 #include "lv/constraint_graph.h"
 #include "lv/debug.h" /* RefCounted / ref_count_inc / ref_count_dec / ref_count_get */
 #include "lv/lv_lifecycle.h"
-#include "lv/magic.h"
 
 #include "test_helpers.h"
 
@@ -378,40 +377,6 @@ static void test_refcount_destructor_once(void) {
 }
 
 /* ============================================================
- * (f) K7: LV_DESTROY_SHIM 收敛后字段销毁等价
- * （magic_array / spell / domain 子资源销毁无泄漏）
- * ============================================================ */
-static void test_k7_shim_destroy_equivalence(void) {
-    TEST_LEAK_BASELINE();
-
-    /* MagicArray：runes / graph / constraints 子资源销毁（含扩容路径） */
-    MagicArray *array = magic_array_create();
-    TEST_ASSERT_NOT_NULL(array);
-    for (int i = 0; i < 40; i++) {
-        Rune *r = rune_create_rational(i + 1, 1, ELEMENT_FIRE);
-        TEST_ASSERT_NOT_NULL(r);
-        /* magic_array_add_rune 返回图中节点索引（成功 >= 0，失败 -1）；
-         * 原符文所有权归调用者，add 内部已复制，此处必须释放 */
-        TEST_ASSERT_MSG(magic_array_add_rune(array, r) >= 0, "magic_array_add_rune 失败");
-        rune_destroy(r);
-    }
-    TEST_ASSERT_EQ(magic_array_get_rune_count(array), 40);
-    magic_array_destroy(array);
-
-    /* Spell：molding 子序列销毁 */
-    Spell *spell = spell_create("K7ShimSpell");
-    TEST_ASSERT_NOT_NULL(spell);
-    spell_destroy(spell);
-
-    /* Domain：center / rules 子资源销毁 */
-    Domain *domain = domain_create("K7ShimDomain", 10);
-    TEST_ASSERT_NOT_NULL(domain);
-    domain_destroy(domain);
-
-    TEST_LEAK_NO_DELTA();
-}
-
-/* ============================================================
  * 测试入口
  * ============================================================ */
 
@@ -426,6 +391,5 @@ TEST_MAIN_BEGIN("生命周期管理")
     TEST_MAIN_RUN(test_graph_destroy_roundtrip);
     TEST_MAIN_RUN(test_heap_composite_roundtrip);
     TEST_MAIN_RUN(test_refcount_destructor_once);
-    TEST_MAIN_RUN(test_k7_shim_destroy_equivalence);
 
 TEST_MAIN_END()

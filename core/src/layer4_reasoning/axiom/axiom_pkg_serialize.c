@@ -213,21 +213,21 @@ static bool is_valid_url(const char *str) {
         return false;
 
     /* 检查常见URL协议 */
-    if (strncmp(str, "http://", 7) == 0)
+    if (lv_str_startswith(str, "http://"))
         return true;
-    if (strncmp(str, "https://", 8) == 0)
+    if (lv_str_startswith(str, "https://"))
         return true;
-    if (strncmp(str, "ftp://", 6) == 0)
+    if (lv_str_startswith(str, "ftp://"))
         return true;
-    if (strncmp(str, "file://", 7) == 0)
+    if (lv_str_startswith(str, "file://"))
         return true;
 
     /* 检查DOI格式 */
-    if (strncmp(str, "doi:", 4) == 0)
+    if (lv_str_startswith(str, "doi:"))
         return true;
 
     /* 检查arXiv格式 */
-    if (strncmp(str, "arXiv:", 6) == 0)
+    if (lv_str_startswith(str, "arXiv:"))
         return true;
 
     /* 检查标识符格式 (字母开头，只包含字母数字、下划线、连字符、点) */

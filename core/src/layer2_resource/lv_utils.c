@@ -165,7 +165,8 @@ void fill_poison(void *data, size_t size) {
 }
 
 void *lv_malloc(size_t size) {
-    return lv_allocator_get()->alloc(size);
+    const AllocatorOps *a = lv_allocator_get();
+    return a->alloc(size);
 }
 
 void *lv_malloc_tracked(size_t size, const char *file, int line) {

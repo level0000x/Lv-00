@@ -204,8 +204,8 @@ static const TikzNodeRenderEntry s_tikz_renderers[] = {
  * @return 0 成功，-1 参数非法
  */
 static int tikz_export_to_buf(const ConstraintGraph *graph, lvStrBuf *out) {
-    if (!graph || !out)
-        return -1;
+    lv_CHECK_NULL(graph, -1);
+    lv_CHECK_NULL(out, -1);
 
     /* 写入 TikZ 头部 */
     lv_strbuf_printf(out, "%s", LV_TIKZ_HEADER);
@@ -259,7 +259,7 @@ int lv_tikz_export(void *graph, char *out, size_t buf_size) {
 
     if (tikz_export_to_buf((const ConstraintGraph *) graph, &buf) < 0) {
         lv_strbuf_destroy(&buf);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "TikZ 导出内部失败");
     }
 
     size_t full_len = buf.len;
@@ -305,7 +305,7 @@ int lv_tikz_export_file(void *graph, const char *filename) {
 
     if (tikz_export_to_buf((const ConstraintGraph *) graph, &buf) < 0) {
         lv_strbuf_destroy(&buf);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INTERNAL, "TikZ 导出内部失败");
     }
 
     /* 写入文件（复用公共文件写出辅助：fopen "w" + fwrite + fclose） */

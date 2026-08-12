@@ -25,7 +25,9 @@ static void lv_strbuf_grow(lvStrBuf *sb, size_t needed) {
         new_cap *= 2;
     }
     char *new_data = (char *)lv_malloc(new_cap);
-    if (!new_data) return;
+    if (!new_data) {
+        return;
+    }
     if (sb->len > 0 && sb->data) {
         memcpy(new_data, sb->data, sb->len + 1);
     } else {
@@ -45,8 +47,14 @@ void lv_strbuf_vprintf(lvStrBuf *sb, const char *fmt, va_list args) {
     if (needed < 0) return;
     size_t required = sb->len + (size_t)needed + 1;
     lv_strbuf_grow(sb, required);
+    /* grow 失败（内存不足/容量溢出保护）时按剩余容量截断，与 append_raw 语义一致，
+     * 防止 sb->len 越界导致下次写入越界 */
+    size_t avail = sb->cap - sb->len - 1;
+    size_t written = (size_t)needed;
+    if (written > avail)
+        written = avail;
     vsnprintf(sb->data + sb->len, sb->cap - sb->len, fmt, args);
-    sb->len += (size_t)needed;
+    sb->len += written;
 }
 
 void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...) {

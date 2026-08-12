@@ -301,3 +301,59 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 - §10 迁移顺序表新增阶段 6（判据 I / J / K）
 - §11.3 新设施准入登记批次 N 五项设施
 - §12 合规清单判据类型扩展为 A–K / 泛化
+
+---
+
+## 十、批次 O 候选方向登记（2026-08-11 全库扫描，待立项）
+
+### 黑名单直接命中（已验证）
+
+| 候选 | 位置 | 收敛目标 | 状态 |
+|------|------|----------|------|
+| 手写单调时钟 `now_ms()` | lv_impl_upper_orchestrator.c:73-81 | `lv_get_time_ms()` 已存在 | 需决策：单调 vs 墙上时钟语义差异 |
+| 裸数值微分步长 `h = 1e-6` | formula_curve.c:141 | `lv_NUMERICAL_DIFF_EPSILON`（=1e-8） | 需决策：量级 1e-6 vs 1e-8 不一致 |
+
+### 设施已存在、调用点未迁移（零成本候选）
+
+| 候选 | 规模 | 收敛目标 | 说明 |
+|------|------|----------|------|
+| 手写 capacity+realloc 倍增 | 37 文件 / 55 处 | `lv_ensure_capacity` | **勘误（2026-08-11 复核）**：实际已全面收敛。裸 realloc( 仅设施自身 3 处（allocator.c / lv_utils.c ops 包装）；命中多为已收敛使用点、解析器硬上限守卫（formula_dsl.c 等）、设施自身实现。剩余非倍增 `lv_realloc`（text_code.c 4KB 对齐文本缓冲 / geo_visual_complete.c IDAT 精确增长 / lv_path.c 路径扩展 / rewrite_apply.c 数组压缩 / memory_pool.c 分块 / graph_node_hash.c 哈希 rehash）登记为**语义特化豁免**，不迁移 |
+| 裸 `return -1` 错误码 | 133 文件 / 629 处 | `lv_RETURN_ERROR` 宏 | 需按语义筛除"未找到索引"型合法 -1 |
+| 连续 `lv_free` 清理序列 | 66 文件 / 271 处 | `lv_DEFER` 作用域守卫 | 同构性中（变量序列/条件位置各异） |
+| NULL 参数守卫 | 10 文件 / 25 处 | `lv_CHECK_NULL` 系列宏 | 已有宏未用 |
+
+### 需新建设施的高同构候选
+
+| 候选 | 规模 | 拟新建设施 | 说明 |
+|------|------|-----------|------|
+| 手写前缀匹配 | 34 文件 / ~100 处 | `lv_str_has_prefix` | 现有仅 proof_version_isar.c 一个静态 `starts_with` 局部副本；注册表前缀过滤 6 处完全同构 |
+| strstr/strchr + memcpy 手工截取 | 33 文件 / ~49 处 | `lv_str_cpylen`（长度钳制） | memcpy+手动 NUL 形态 |
+| 手写线性查找 | 100 文件 / 245 处 | `lvHashtable_int` / `lv_registry` / 通用 `lv_array_find` | 仅"return i"型 42+ 处明确；热路径需评估 |
+| count++ 动态收集追加 | 117 文件 / 352 处 | IntArray / lvDArray push 语义 | 仅无界动态部分收敛；有上限栈缓冲豁免 |
+
+### 低优先级 / 不建议
+
+| 候选 | 规模 | 结论 |
+|------|------|------|
+| 链表遍历骨架 | 15 文件 / 48 处 | 语义差异大，仅可做 foreach 宏，不替换结构 |
+| 手写二分查找 | 4 文件 / 5 处 | 比较谓词各异，收益小 |
+| goto fail 链 | 24-41 文件 / 59-173 处 | 半收敛（lv_DEFER 已配），逐子系统推进 |
+| stderr 日志 | 3 文件 / 4 处 | 已基本收敛至 lv_log，无需处理 |
+
+### 批次 O 执行进度（2026-08-11 立项后按优先级推进）
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| A | `now_ms()` → `lv_get_time_ns()/1000000ULL`（单调语义一致）；新建 `lv_FD_GRADIENT_STEP 1e-6`（语义常量，区别于相对容差 eps），formula_curve.c 迁移 | 完成 |
+| B | 手写 capacity+realloc 倍增 | 完成（复核为已收敛，无迁移；异常值已登记豁免） |
+| C | 手写前缀匹配 → `lv_str_startswith` | 完成（见下） |
+| D | NULL 守卫 → `lv_CHECK_NULL` | 待推进 |
+| E | 裸 `return -1` → `lv_RETURN_ERROR` | 待推进 |
+| F | 连续 free 序列 → `lv_DEFER` | 待推进 |
+| G | 手写线性查找 → 容器设施 | 待推进 |
+
+**阶段 C 明细（2026-08-11）**：字面量前缀 13 文件约 30 处迁移（block_to_text / axiom_pkg_serialize / magic_rune / proof_version / network_block / math_input / module_serialize / runtime_monitor / probabilistic_constraint / interop_import / lv_storage / proof_strategy_deductive×10 / formula_curve 前批）。动态长度形态 8 处迁移（plugin_system_interface×3 / plugin_system_config / geo_event_detect / solver_symbolic×2 / solver_coord_extract×2，消去手写 prefix_len 缓存变量 4 处）。`lv_str_startswith` 实现同步优化为 `strncmp(str, prefix, strlen(prefix))`（不再全文 strlen 预扫）。
+
+**阶段 C 剩余 strncmp 登记豁免**：精确长度标识符匹配（proof_strategy_numeric.c `len==N &&` 形态，前缀化会放宽匹配）；有界缓冲/非 NUL 终止解析（lean4_bridge.c / interop_server.c HTTP / mini_kernel.c / proof_version_isar.c）；截断到 `*` 的有界前缀（test_framework.c）；复合"前缀+分隔+精确尾部"（gappa_propagate.c）；设施自身内部（lv_registry.c `lv_registry_remove_prefix`）。
+
+**回归（阶段 A–C）**：ninja build3 931/931、ctest 170/170、示例 8/8 全部通过。

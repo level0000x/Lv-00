@@ -711,7 +711,7 @@ lvHealthReport *lv_runtime_health_check(void) {
     if (fp) {
         char line[256];
         while (fgets(line, sizeof(line), fp)) {
-            if (strncmp(line, "VmRSS:", 6) == 0) {
+            if (lv_str_startswith(line, "VmRSS:")) {
                 check->value = lv_parse_double(line + 6, &check->value);
                 break;
             }

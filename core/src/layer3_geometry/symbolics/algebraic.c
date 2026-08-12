@@ -31,6 +31,7 @@
 #include "lv/lv_log.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h" /* lv_DEFER */
 #include "lv_numeric.h"
 #include "mpz_poly.h"
 
@@ -152,6 +153,11 @@ void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, co
  * @param result  输出参数，存储找到的有理数近似
  * @return 找到合适近似返回 true，否则返回 false
  */
+/* 单个 mpz_t 栈变量的 defer 清理回调（配合 lv_DEFER(mpz_clear_deferred, &v) 使用） */
+static void mpz_clear_deferred(void *p) {
+    mpz_clear(*(mpz_t *) p);
+}
+
 static bool continued_fraction_approx(double value, double epsilon, mpq_t result) {
     if (epsilon <= 0.0)
         return false;
@@ -165,9 +171,16 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     mpz_init(h_next);
     mpz_init(k_next);
     mpz_init(a);
+    /* 作用域守卫：任意出口（含直接 return）逆序自动 mpz_clear 各临时变量 */
+    lv_DEFER(mpz_clear_deferred, &h_prev);
+    lv_DEFER(mpz_clear_deferred, &h_curr);
+    lv_DEFER(mpz_clear_deferred, &k_prev);
+    lv_DEFER(mpz_clear_deferred, &k_curr);
+    lv_DEFER(mpz_clear_deferred, &h_next);
+    lv_DEFER(mpz_clear_deferred, &k_next);
+    lv_DEFER(mpz_clear_deferred, &a);
 
-    /* found 必须在任何 goto cleanup 之前初始化，避免通过 cleanup: 返回未定义值。
-     * 此处将其提至函数顶部以确保所有代码路径均能正确返回。 */
+    /* found 在函数顶部初始化，确保所有代码路径均能正确返回。 */
     bool found = false;
 
     /* 单独处理符号 */
@@ -179,14 +192,7 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
      * 使用 ULLONG_MAX（来自 <limits.h>）转为 double 进行安全比较。 */
     double max_ull_as_double = (double) ULLONG_MAX;
     if (value > max_ull_as_double) {
-        /* 值过大，无法用 unsigned long long 表示，直接返回失败 */
-        mpz_clear(h_prev);
-        mpz_clear(h_curr);
-        mpz_clear(k_prev);
-        mpz_clear(k_curr);
-        mpz_clear(h_next);
-        mpz_clear(k_next);
-        mpz_clear(a);
+        /* 值过大，无法用 unsigned long long 表示，直接返回失败（各 mpz 由 lv_DEFER 守卫自动清理） */
         return false;
     }
 
@@ -212,8 +218,7 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
         mpq_neg(result, result);
     double approx = mpq_get_d(result);
     if (fabs(approx - (negative ? -value : value)) < epsilon) {
-        found = true;
-        goto cleanup;
+        return true;
     }
 
     /* 迭代：每一步取小数部分的倒数，
@@ -270,14 +275,6 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
         }
     }
 
-cleanup:
-    mpz_clear(h_prev);
-    mpz_clear(h_curr);
-    mpz_clear(k_prev);
-    mpz_clear(k_curr);
-    mpz_clear(h_next);
-    mpz_clear(k_next);
-    mpz_clear(a);
     return found;
 }
 

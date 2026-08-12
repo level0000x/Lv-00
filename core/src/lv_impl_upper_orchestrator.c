@@ -69,16 +69,8 @@ typedef struct lvOrchestratorInternal {
     lvSessionStage last_run; /* 已运行到的阶段（用于前置自动执行） */
 } lvOrchestratorInternal;
 
-/* 毫秒级单调时钟 */
-static double now_ms(void) {
-#ifdef _WIN32
-    return (double)GetTickCount64();
-#else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
-#endif
-}
+/* 毫秒级单调时钟（收敛：lv_get_time_ns 跨平台单调语义与原生 now_ms 一致） */
+static double now_ms(void) { return (double)(lv_get_time_ns() / 1000000ULL); }
 
 static lvOrchestratorInternal *orch_internal(lvSession *s) {
     return (lvOrchestratorInternal *)(s ? s->internal : NULL);

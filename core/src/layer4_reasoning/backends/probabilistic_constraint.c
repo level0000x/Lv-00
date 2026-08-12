@@ -372,7 +372,7 @@ static bool eval_state_predicate(const char *predicate, int state_id) {
         return false;
 
     /* "state_N" 格式（表外前缀 fallback；保持现有顺序：先精确后前缀） */
-    if (kind == PRED_KIND_UNKNOWN && strncmp(predicate, "state_", 6) == 0) {
+    if (kind == PRED_KIND_UNKNOWN && lv_str_startswith(predicate, "state_")) {
         int target = 0;
         lv_parse_int(predicate + 6, &target);
         return (state_id == target);

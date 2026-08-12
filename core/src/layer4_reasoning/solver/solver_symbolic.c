@@ -366,7 +366,7 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
         double dist_i = -1.0;
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix);
-        if (strncmp(di, prefix, prefix_len) == 0) {
+        if (lv_str_startswith(di, prefix)) {
             if (lv_parse_double(di + prefix_len, &dist_i) != 0)
                 dist_i = 0.0;
         } else {
@@ -397,7 +397,7 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
 
             const char *dj = nj->numeric_assumption_declaration;
             double dist_j = -1.0;
-            if (strncmp(dj, prefix, prefix_len) == 0) {
+            if (lv_str_startswith(dj, prefix)) {
                 if (lv_parse_double(dj + prefix_len, &dist_j) != 0)
                     dist_j = 0.0;
             } else {

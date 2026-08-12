@@ -178,7 +178,7 @@ void lv_arena_destroy(lvArena *arena) {
 }
 
 void *lv_arena_alloc(lvArena *arena, size_t size) {
-    if (!arena) return NULL;
+    lv_CHECK_NULL(arena, NULL);
     lv_arena_lock(arena);
     void *ptr = arena_alloc_impl(arena, size, LV_ARENA_ALIGNMENT);
     lv_arena_unlock(arena);
@@ -186,7 +186,7 @@ void *lv_arena_alloc(lvArena *arena, size_t size) {
 }
 
 void *lv_arena_alloc_aligned(lvArena *arena, size_t size, size_t alignment) {
-    if (!arena) return NULL;
+    lv_CHECK_NULL(arena, NULL);
     lv_arena_lock(arena);
     void *ptr = arena_alloc_impl(arena, size, alignment);
     lv_arena_unlock(arena);
@@ -194,7 +194,7 @@ void *lv_arena_alloc_aligned(lvArena *arena, size_t size, size_t alignment) {
 }
 
 void *lv_arena_calloc(lvArena *arena, size_t size) {
-    if (!arena) return NULL;
+    lv_CHECK_NULL(arena, NULL);
     lv_arena_lock(arena);
     void *ptr = arena_alloc_impl(arena, size, LV_ARENA_ALIGNMENT);
     if (ptr) {
@@ -205,7 +205,8 @@ void *lv_arena_calloc(lvArena *arena, size_t size) {
 }
 
 char *lv_arena_strdup(lvArena *arena, const char *str) {
-    if (!arena || !str) return NULL;
+    lv_CHECK_NULL(arena, NULL);
+    lv_CHECK_NULL(str, NULL);
 
     size_t len = strlen(str);
     lv_arena_lock(arena);

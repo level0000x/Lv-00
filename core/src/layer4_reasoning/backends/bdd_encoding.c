@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "lv_utils.h"
+#include "lv/lv_check.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_strbuf.h"
@@ -46,8 +47,7 @@ static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_si
 
 /** 在唯一表中查找或插入节点 */
 static BDDNode *bdd_unique_lookup(BDDManager *mgr, int var_id, BDDNode *low, BDDNode *high) {
-    if (!mgr)
-        return NULL;
+    lv_CHECK_NULL(mgr, NULL);
 
     /* 终端节点直接返回 */
     if (low == high)
@@ -261,8 +261,7 @@ void bdd_manager_destroy(BDDManager *mgr) {
  * @return 新变量的 ID，失败返回 -1
  */
 int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
-    if (!mgr)
-        return -1;
+    lv_CHECK_NULL(mgr, -1);
     /* 检查 var_order 数组容量，不足时扩容 */
     if (mgr->var_count >= mgr->var_capacity) {
         if (mgr->var_capacity > 0 && mgr->var_capacity > INT_MAX / 2)
@@ -342,8 +341,7 @@ BDDNode *bdd_false(BDDManager *mgr) {
  * @return 文字节点指针，失败返回 NULL
  */
 BDDNode *bdd_literal(BDDManager *mgr, int var_id) {
-    if (!mgr)
-        return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     if (var_id > 0) {
         /* 正文字：var -> high=T, low=F */
         return bdd_unique_lookup(mgr, var_id, mgr->false_node, mgr->true_node);
@@ -518,21 +516,21 @@ BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
 
 BDDNode *bdd_and(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f & g = ite(f, g, F) */
-    if (!mgr) return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     return bdd_ite(mgr, f, g, mgr->false_node);
 }
 
 BDDNode *bdd_or(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f | g = ite(f, T, g) */
-    if (!mgr) return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     return bdd_ite(mgr, f, mgr->true_node, g);
 }
 
 BDDNode *bdd_not(BDDManager *mgr, BDDNode *f) {
     /* ~f = ite(f, F, T) —— 直接实现避免通过 bdd_ite 触发无限递归
      * Shannon 展开：~f = x * ~f_high + ~x * ~f_low */
-    if (!mgr || !f)
-        return NULL;
+    lv_CHECK_NULL(mgr, NULL);
+    lv_CHECK_NULL(f, NULL);
     if (f == mgr->true_node) {
         bdd_ref(mgr->false_node);
         return mgr->false_node;
@@ -551,7 +549,7 @@ BDDNode *bdd_not(BDDManager *mgr, BDDNode *f) {
 
 BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* f ^ g = ite(f, ~g, g) */
-    if (!mgr) return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, g);
     bdd_deref(mgr, not_g);
@@ -560,7 +558,7 @@ BDDNode *bdd_xor(BDDManager *mgr, BDDNode *f, BDDNode *g) {
 
 BDDNode *bdd_nand(BDDManager *mgr, BDDNode *f, BDDNode *g) {
     /* ~(f & g) = ite(f, ~g, T) */
-    if (!mgr) return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     BDDNode *not_g = bdd_not(mgr, g);
     BDDNode *result = bdd_ite(mgr, f, not_g, mgr->true_node);
     bdd_deref(mgr, not_g);
@@ -1391,8 +1389,7 @@ void add_manager_destroy(ADDManager *mgr) {
  * @return 常数节点指针，失败返回 NULL
  */
 ADDNode *add_constant(ADDManager *mgr, double value) {
-    if (!mgr)
-        return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     ADDNode *node = (ADDNode *) lv_calloc(1, sizeof(ADDNode));
     if (!node)
         return NULL;
@@ -1408,8 +1405,7 @@ ADDNode *add_constant(ADDManager *mgr, double value) {
 
 /** 内部：ADD 节点创建辅助 */
 static ADDNode *add_node_create(ADDManager *mgr, int var_id, ADDNode *low, ADDNode *high) {
-    if (!mgr)
-        return NULL;
+    lv_CHECK_NULL(mgr, NULL);
     /* 终端合并：如果 low == high，返回 low */
     if (low == high)
         return low;

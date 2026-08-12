@@ -30,7 +30,7 @@ typedef struct lvProofStepRecord {
     char *rule_name;    /**< 规则名称 */
 
     /* 前提步骤 */
-    int *premise_step_ids; /**< 前提步骤ID数组 */
+    int *premise_step_ids; /**< 前提步骤ID数组（须经 lv_proof_step_record_set_premises 管理） */
     int premise_count;     /**< 前提数量 */
     int premise_capacity;  /**< 前提数组容量 */
 
@@ -212,6 +212,7 @@ lv_PUBLIC_API char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, co
 /* ---- 辅助函数 ---- */
 lv_PUBLIC_API lvProofStepRecord *lv_proof_step_record_create(void);
 lv_PUBLIC_API void lv_proof_step_record_destroy(lvProofStepRecord *record);
+lv_PUBLIC_API bool lv_proof_step_record_set_premises(lvProofStepRecord *record, const int *ids, int count);
 lv_PUBLIC_API lvTraceEvent *lv_trace_event_create(lvTraceEventType type);
 lv_PUBLIC_API void lv_trace_event_destroy(lvTraceEvent *event);
 lv_PUBLIC_API lvCompilerConfig lv_compiler_config_default(void);

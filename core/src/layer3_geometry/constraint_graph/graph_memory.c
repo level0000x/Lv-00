@@ -259,7 +259,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* Collect all coordinate variables (point x,y pairs) */
     /* First, find all points referenced by INCIDENCE/BETWEENNESS constraints */
     /* Phase 2 资源统一生命周期管理：lv_DEFER 作用域守卫在函数出口
-     * （含 goto cleanup / 正常返回）逆序自动释放，替代手写 cleanup 块 */
+     * （含各分支直接返回）逆序自动释放，替代手写 cleanup 块 */
     int *point_ids = NULL;
     bool *point_seen = NULL;
     int *node_id_to_var_idx = NULL;
@@ -277,11 +277,11 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     point_ids = lv_malloc((size_t) graph->node_count * sizeof(int));
     if (!point_ids)
-        goto cleanup;
+        return redundant;
     int point_count = 0;
     point_seen = lv_calloc(graph->node_count, sizeof(bool));
     if (!point_seen)
-        goto cleanup;
+        return redundant;
 
     /* Use a mapping from node id to variable index */
     int max_node_id = 0;
@@ -293,7 +293,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* node_id_to_var_idx: maps node_id to variable index (-1 if not a variable) */
     node_id_to_var_idx = lv_malloc((size_t) (max_node_id + 1) * sizeof(int));
     if (!node_id_to_var_idx)
-        goto cleanup;
+        return redundant;
     for (int i = 0; i <= max_node_id; i++)
         node_id_to_var_idx[i] = -1;
 
@@ -325,7 +325,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     int num_linear = 0;
     linear_constraint_indices = lv_malloc((size_t) graph->constraint_count * sizeof(int));
     if (!linear_constraint_indices)
-        goto cleanup;
+        return redundant;
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         if (c->type == INCIDENCE || c->type == BETWEENNESS) {
@@ -336,7 +336,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
 
     if (num_linear <= 1 || num_vars <= 0) {
         /* 约束数量不足，无法进行线性相关性检测 */
-        goto cleanup;
+        return redundant;
     }
 
     /* 使用 GMP mpq_t 构建系数矩阵进行精确算术运算
@@ -345,11 +345,11 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* [安全] 防止乘法溢出：size_t 计算 */
     size_t matrix_size = (size_t) num_linear * (size_t) (num_vars + 1);
     if (num_linear > 0 && matrix_size / (size_t) num_linear != (size_t) (num_vars + 1)) {
-        goto cleanup;
+        return redundant;
     }
     matrix = lv_calloc(matrix_size, sizeof(mpq_t));
     if (!matrix)
-        goto cleanup;
+        return redundant;
     matrix_guard.matrix = matrix;
     matrix_guard.count = num_linear * (num_vars + 1);
 
@@ -577,7 +577,7 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
     /* Gaussian elimination with partial pivoting using mpq_t（公共行阶梯实现） */
     pivot_row = lv_malloc((size_t) num_linear * sizeof(int)); /* maps row i -> original constraint index */
     if (!pivot_row)
-        goto cleanup;
+        return redundant;
     for (int i = 0; i < num_linear; i++)
         pivot_row[i] = linear_constraint_indices[i];
 
@@ -647,8 +647,6 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
         }
     }
 
-cleanup:
-    /* 全部 Phase 2 资源已由 lv_DEFER 守卫在函数出口逆序自动释放
-     * （redundant 数组归调用者释放） */
+    /* 全部资源已由 lv_DEFER 守卫在函数出口逆序自动释放（redundant 数组归调用者释放） */
     return redundant;
 }

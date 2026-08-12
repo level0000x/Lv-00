@@ -107,7 +107,7 @@ int lv_math_input_detect_format(const char *input) {
         return 1;
 
     /* GCLC 风格几何构造 */
-    if (strncmp(input, "point", 5) == 0 || strncmp(input, "line", 4) == 0 || strncmp(input, "circle", 6) == 0) {
+    if (lv_str_startswith(input, "point") || lv_str_startswith(input, "line") || lv_str_startswith(input, "circle")) {
         return 2;
     }
 

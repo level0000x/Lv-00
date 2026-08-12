@@ -271,8 +271,7 @@ lvGraphNode *lv_node_graph_find_node(lvNodeGraphView *graph, int id) {
  * @return 成功返回0，失败返回-1
  */
 int lv_node_graph_layout(lvNodeGraphView *graph) {
-    if (!graph)
-        return -1;
+    lv_CHECK_NULL(graph, -1);
     if (graph->nodes_da.count <= 1)
         return 0;
 

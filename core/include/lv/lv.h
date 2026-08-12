@@ -227,7 +227,6 @@ extern "C" {
 
 /* 引擎 */
 #include "engine.h" /* 主引擎 */
-#include "magic.h"  /* Magic 模拟器模块 */
 
 /* 调试 */
 #include "debug.h" /* 调试工具 */

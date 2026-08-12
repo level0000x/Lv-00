@@ -151,7 +151,7 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
     /* exempt: 互操作字符串（tactic 名/步骤类型映射）属负面清单外部契约，内容逐字保留，仅机制收敛 */
     char name_buf[64];
     if (name_len <= 0 || name_len >= (int) sizeof(name_buf))
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "tactic 名长度非法: %d", name_len);
     memcpy(name_buf, name, (size_t) name_len);
     name_buf[name_len] = '\0';
     /* 注意：LEAN4_REVERSE_MAP_COUNT 为 35（非 sizeof 全表 36 条），保持原查找语义逐位一致 */

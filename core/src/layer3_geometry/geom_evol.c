@@ -857,15 +857,11 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
     double *y_half = lv_malloc((size_t) dim * sizeof(double));
     double *y_save = lv_malloc((size_t) dim * sizeof(double));
     if (!y_trial || !y_half || !y_save) {
-        if (y_trial)
-            lv_free((void **) &y_trial);
-        if (y_half)
-            lv_free((void **) &y_half);
-        if (y_save)
-            lv_free((void **) &y_save);
         lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "单步演化临时空间分配失败");
         return lv_EVOL_STATUS_ERROR;
     }
+    /* 作用域守卫：任意出口（含直接 return）逆序自动释放三个临时数组 */
+    lv_DEFER_FREE_MANY(&y_trial, &y_half, &y_save);
 
     /* 保存当前状态 */
     memcpy(y_save, evol->param, (size_t) dim * sizeof(double));
@@ -882,7 +878,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
         if (reject_count >= GEOEVOL_MAX_REJECTIONS) {
             lv_ERROR_SET(lv_ERROR_SOLVER_NOT_CONVERGED, "步长控制超过最大被拒次数 %d", GEOEVOL_MAX_REJECTIONS);
             evol->status = lv_EVOL_STATUS_ERROR;
-            goto cleanup;
+            return evol->status;
         }
 
         /* 选择积分方法和阶数（查表替代 switch） */
@@ -895,14 +891,14 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
         } else {
             lv_ERROR_SET(lv_BACKEND_UNSUPPORTED, "不支持的演化方法=%d", (int) method);
             evol->status = lv_EVOL_STATUS_ERROR;
-            goto cleanup;
+            return evol->status;
         }
 
         /* 执行试探步（全步长 h） */
         int ret = stepper(evol, h, y_save, y_trial);
         if (ret != 0) {
             evol->status = lv_EVOL_STATUS_ERROR;
-            goto cleanup;
+            return evol->status;
         }
 
         /* 误差估计（按方法查表选择方式）：
@@ -915,7 +911,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             if (!y_mid) {
                 evol->status = lv_EVOL_STATUS_ERROR;
                 lv_ERROR_SET(lv_ERROR_OUT_OF_MEMORY, "Richardson外推临时空间分配失败");
-                goto cleanup;
+                return evol->status;
             }
 
             /* 第一步：从 y_save 出发，步长 half_h */
@@ -923,7 +919,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             if (ret != 0) {
                 lv_free((void **) &y_mid);
                 evol->status = lv_EVOL_STATUS_ERROR;
-                goto cleanup;
+                return evol->status;
             }
 
             /* 恢复 evol->t 到中间状态，第二步：从 y_mid 出发，步长 half_h */
@@ -934,7 +930,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             lv_free((void **) &y_mid);
             if (ret != 0) {
                 evol->status = lv_EVOL_STATUS_ERROR;
-                goto cleanup;
+                return evol->status;
             }
         } else if (me->err_est == GEOEVOL_ERR_EST_NONE) {
             /* Euler 没有嵌入式估计，直接接受 */
@@ -953,7 +949,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
             ret = geoevol_step_euler(evol, h, y_save, y_half);
             if (ret != 0) {
                 evol->status = lv_EVOL_STATUS_ERROR;
-                goto cleanup;
+                return evol->status;
             }
         }
 
@@ -1008,13 +1004,7 @@ lvEvolStatus geoevol_step_once(lvGeomEvol *evol) {
         evol->post_step(evol, evol->t, evol->param);
     }
 
-cleanup:
-    if (y_trial)
-        lv_free((void **) &y_trial);
-    if (y_half)
-        lv_free((void **) &y_half);
-    if (y_save)
-        lv_free((void **) &y_save);
+    /* 三个临时数组已由 lv_DEFER 守卫在函数出口逆序自动释放 */
     return evol->status;
 }
 

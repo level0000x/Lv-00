@@ -55,6 +55,7 @@
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h" /* lv_DEFER / lv_DEFER_FREE_MANY */
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 
@@ -610,6 +611,8 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
     verifier.hypothesis_stack = lv_malloc((size_t) verifier.stack_capacity * sizeof(int));
     if (!verifier.hypothesis_stack)
         return MINI_VERIFY_FAIL_MEMORY;
+    /* 作用域守卫：任意出口（含直接 return）逆序自动释放（active_substitutions 尚为 NULL，跳过） */
+    lv_DEFER_FREE_MANY(&verifier.hypothesis_stack, &verifier.active_substitutions);
 
     verifier.subst_capacity = MINI_VERIFIER_SUBST_CAPACITY;
     verifier.active_substitutions = lv_malloc((size_t) verifier.subst_capacity * sizeof(Substitution));
@@ -631,12 +634,12 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
         if (ref_id < 0 || ref_id >= kernel->statement_count) {
             verifier.last_result = MINI_VERIFY_FAIL_STACK;
             snprintf(verifier.error_detail, sizeof(verifier.error_detail), "证明引用 %d 越界", ref_id);
-            goto cleanup;
+            return verifier.last_result;
         }
         MiniStatement *ref = kernel->statements[ref_id];
         if (!ref) {
             verifier.last_result = MINI_VERIFY_FAIL_STACK;
-            goto cleanup;
+            return verifier.last_result;
         }
 
         /* $e 类型的前提压入栈中 */
@@ -644,7 +647,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
             if (!mini_verifier_push_hypothesis(&verifier, ref_id)) {
                 verifier.last_result = MINI_VERIFY_FAIL_STACK;
                 snprintf(verifier.error_detail, sizeof(verifier.error_detail), "假设栈溢出");
-                goto cleanup;
+                return verifier.last_result;
             }
         }
 
@@ -653,7 +656,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
             verifier.last_result = MINI_VERIFY_FAIL_CYCLE;
             snprintf(verifier.error_detail, sizeof(verifier.error_detail), "超过最大证明深度 %d",
                      kernel->config.max_proof_depth);
-            goto cleanup;
+            return verifier.last_result;
         }
         verifier.current_depth++;
     }
@@ -683,9 +686,6 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
         verifier.last_result = MINI_VERIFY_FAIL_SUBSTITUTION;
     }
 
-cleanup:
-    lv_free((void **) &verifier.hypothesis_stack);
-    lv_free((void **) &verifier.active_substitutions);
     return verifier.last_result;
 }
 

@@ -541,7 +541,7 @@ int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEnt
 
     if (registry->count >= SMT_BACKEND_REGISTRY_CAPACITY) {
         lv_lazy_lock_unlock(&s_smt_registry_state.lock);
-        return -1;
+        lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "SMT 后端注册表容量已满");
     }
 
     registry->entries[registry->count] = *entry;

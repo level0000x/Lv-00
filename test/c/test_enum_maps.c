@@ -23,7 +23,6 @@
 #include "func_block_registry.h"
 #include "interop.h"
 #include "lv.h"
-#include "magic.h"
 #include "preset_category.h"
 #include "test_helpers.h"
 
@@ -297,33 +296,6 @@ static void test_k7_enum_roundtrip(void) {
     TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_POINT_POSITION), "PointPositionConflict");
     TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_TRANSITIVE_EQUALITY), "TransitiveEquality");
     TEST_ASSERT_STR_EQ(lv_conflict_type_name(CONFLICT_UNKNOWN), "Unknown");
-
-    /* magic_domain: element（6 项）往返（中英文双写） */
-    TEST_ASSERT_STR_EQ(element_to_string(ELEMENT_FIRE), "FIRE");
-    TEST_ASSERT_STR_EQ(element_to_string(ELEMENT_NONE), "NONE");
-    TEST_ASSERT_EQ((int) string_to_element("FIRE"), (int) ELEMENT_FIRE);
-    TEST_ASSERT_EQ((int) string_to_element("火"), (int) ELEMENT_FIRE);
-    TEST_ASSERT_EQ((int) string_to_element("以太"), (int) ELEMENT_ETHER);
-
-    /* magic_domain: stage（4 项） */
-    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_MOLDING), "开模");
-    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_INFUSING), "灌注");
-    TEST_ASSERT_STR_EQ(stage_to_string(SPELL_STAGE_RELEASING), "释放");
-
-    /* magic_domain: status（5 项） */
-    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_IDLE), "空闲");
-    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_FAILED), "失败");
-    TEST_ASSERT_STR_EQ(status_to_string(SPELL_STATUS_BACKLASH), "反噬");
-
-    /* magic_domain: reaction（4 项） */
-    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_NONE), "无反应");
-    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_WEAKEN), "削弱");
-    TEST_ASSERT_STR_EQ(reaction_to_string(ELEMENT_REACTION_CONFLICT), "冲突");
-
-    /* magic_domain: restriction（5 项） */
-    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_NONE), "无限制");
-    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_FORBIDDEN), "禁术级");
-    TEST_ASSERT_STR_EQ(restriction_to_string(RESTRICTION_ABSOLUTE), "绝对禁术");
 
     TEST_PASS("test_k7_enum_roundtrip");
 }

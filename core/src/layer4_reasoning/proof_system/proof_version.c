@@ -202,13 +202,13 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
     char *saveptr = NULL;
     char *line = lv_strtok_r(content, "\n", &saveptr);
     while (line) {
-        if (strncmp(line, "oid: ", 5) == 0) {
+        if (lv_str_startswith(line, "oid: ")) {
             lv_strlcpy(commit->oid, line + 5, lv_OID_LENGTH);
-        } else if (strncmp(line, "message: ", 9) == 0) {
+        } else if (lv_str_startswith(line, "message: ")) {
             lv_strlcpy(commit->message, line + 9, lv_COMMIT_MSG_MAX);
-        } else if (strncmp(line, "parent: ", 8) == 0) {
+        } else if (lv_str_startswith(line, "parent: ")) {
             lv_strlcpy(commit->parent_oid, line + 8, lv_OID_LENGTH);
-        } else if (strncmp(line, "timestamp: ", 11) == 0) {
+        } else if (lv_str_startswith(line, "timestamp: ")) {
             commit->timestamp = strtoll(line + 11, NULL, 10);
         }
         line = lv_strtok_r(NULL, "\n", &saveptr);

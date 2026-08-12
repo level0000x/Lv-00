@@ -478,8 +478,6 @@ set(lv_HEADERS
     core/include/lv/axiom_rule_engine.h
     core/include/lv/proof_engine_enhanced.h
     core/include/lv/test_framework.h
-    # Magic 模拟器模块
-    core/include/lv/magic.h
     # 内部/实现头文件（用于 IDE 索引和 OBJECT 库关联）
     core/include/lv/lv_internal.h
     core/include/lv/lv_block_utils.h
@@ -1284,11 +1282,6 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/proof_widget.c
     core/src/layer5_output/proof_export_enhanced.c
     core/src/layer5_output/interop/interop.c
-    # Magic 模拟器模块（从 magic.c 拆分）
-    core/src/layer5_output/magic/magic_rune.c
-    core/src/layer5_output/magic/magic_array.c
-    core/src/layer5_output/magic/magic_spell.c
-    core/src/layer5_output/magic/magic_domain.c
     # 几何可视化（完整版）
     core/src/layer5_output/geo_visual_complete.c
     # 渲染访问器（多后端统一遍历抽象）
@@ -1824,7 +1817,7 @@ if(BUILD_TESTS)
     # === New tests: Layer 4 misc (mini_kernel / relation_model / algebra_mode / rewrite) ===
     add_lv_test_auto(test_layer4_misc CTEST_NAME layer4_misc_test)
 
-    # === New tests: Layer 5 output (magic / plugin / tikz / proof_compiler / protocol) ===
+    # === New tests: Layer 5 output (plugin / tikz / proof_compiler / protocol) ===
     add_lv_test_auto(test_layer5_output CTEST_NAME layer5_output_test)
     add_lv_test_auto(test_layer5_core CTEST_NAME layer5_core_test)
     add_lv_test_auto(test_output_export CTEST_NAME output_export_test)

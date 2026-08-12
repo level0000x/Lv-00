@@ -92,8 +92,7 @@ static const char *trust_color_name(TrustColor color) {
 int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,
                                      const PropFormula *goal, const VerifierConfig *config,
                                      BHKVerificationResult *out_result) {
-    if (!graph)
-        return -1;
+    lv_CHECK_NULL(graph, -1);
 
     /* ����1: ִ�� BHK ��֤ */
     BHKVerificationResult bhk = prop_verifier_bhk_verify(premises, premise_count, goal, config);

@@ -775,7 +775,6 @@ lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const d
     /* 遍历所有注册事件（通过注册表条目，仅处理当前检测器） */
     char geodet_prefix[64];
     snprintf(geodet_prefix, sizeof(geodet_prefix), "%p:", (const void *) detector);
-    size_t geodet_prefix_len = strlen(geodet_prefix);
 
     int geo_reg_count = lv_registry_count(&g_geo_event_registry);
     for (int i = 0; i < geo_reg_count; ++i) {
@@ -784,7 +783,7 @@ lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const d
         if (!lv_registry_get_at(&g_geo_event_registry, i, &reg_name, &reg_value)) {
             continue;
         }
-        if (strncmp(reg_name, geodet_prefix, geodet_prefix_len) != 0) {
+        if (!lv_str_startswith(reg_name, geodet_prefix)) {
             continue;
         }
         lvEventEntry *evt = (lvEventEntry *) reg_value;

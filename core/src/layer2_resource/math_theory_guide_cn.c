@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file math_theory_guide_cn.c
  * @brief 数学理论指南（中文版）
  *
@@ -67,6 +67,17 @@ static const MathTheoryEntry g_theory_table[] = {
 
 #define THEORY_TABLE_SIZE (sizeof(g_theory_table) / sizeof(g_theory_table[0]))
 
+/* 共享查找助手：按 topic_id 定位表项下标（未找到返回 -1），消除三个 API 的重复线性查找 */
+static int find_theory_index(const char *topic_id) {
+    if (topic_id == NULL)
+        return -1;
+    for (size_t i = 0; i < THEORY_TABLE_SIZE; i++) {
+        if (strcmp(g_theory_table[i].topic_id, topic_id) == 0)
+            return (int) i;
+    }
+    return -1;
+}
+
 /* ========================================================================
  * 公共 API
  * ======================================================================== */
@@ -77,15 +88,8 @@ static const MathTheoryEntry g_theory_table[] = {
  * @return 中文标题，未找到返回 NULL
  */
 const char *lv_math_theory_get_title(const char *topic_id) {
-    if (topic_id == NULL)
-        return NULL;
-
-    for (size_t i = 0; i < THEORY_TABLE_SIZE; i++) {
-        if (strcmp(g_theory_table[i].topic_id, topic_id) == 0) {
-            return g_theory_table[i].title_cn;
-        }
-    }
-    return NULL;
+    int idx = find_theory_index(topic_id);
+    return idx >= 0 ? g_theory_table[idx].title_cn : NULL;
 }
 
 /**
@@ -94,15 +98,8 @@ const char *lv_math_theory_get_title(const char *topic_id) {
  * @return 中文摘要，未找到返回 NULL
  */
 const char *lv_math_theory_get_summary(const char *topic_id) {
-    if (topic_id == NULL)
-        return NULL;
-
-    for (size_t i = 0; i < THEORY_TABLE_SIZE; i++) {
-        if (strcmp(g_theory_table[i].topic_id, topic_id) == 0) {
-            return g_theory_table[i].summary_cn;
-        }
-    }
-    return NULL;
+    int idx = find_theory_index(topic_id);
+    return idx >= 0 ? g_theory_table[idx].summary_cn : NULL;
 }
 
 /**
@@ -111,15 +108,8 @@ const char *lv_math_theory_get_summary(const char *topic_id) {
  * @return 中文关键词，未找到返回 NULL
  */
 const char *lv_math_theory_get_keywords(const char *topic_id) {
-    if (topic_id == NULL)
-        return NULL;
-
-    for (size_t i = 0; i < THEORY_TABLE_SIZE; i++) {
-        if (strcmp(g_theory_table[i].topic_id, topic_id) == 0) {
-            return g_theory_table[i].keywords_cn;
-        }
-    }
-    return NULL;
+    int idx = find_theory_index(topic_id);
+    return idx >= 0 ? g_theory_table[idx].keywords_cn : NULL;
 }
 
 /**

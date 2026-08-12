@@ -85,7 +85,7 @@ static int lv_network_store_handle(lvNetworkBlock *block, lvNetSocket fd) {
             return 0;
         }
     }
-    return -1;
+    lv_RETURN_ERROR(lv_ERROR_RESOURCE_EXHAUSTED, "网络句柄表已满");
 }
 
 /**
@@ -226,9 +226,9 @@ int lv_network_block_connect(lvNetworkBlock *block) {
     const char *url = state->target;
     const char *host = NULL;
     int use_https = 0;
-    if (strncmp(url, "http://", 7) == 0) {
+    if (lv_str_startswith(url, "http://")) {
         host = url + 7;
-    } else if (strncmp(url, "https://", 8) == 0) {
+    } else if (lv_str_startswith(url, "https://")) {
         use_https = 1;
         host = url + 8;
     } else {

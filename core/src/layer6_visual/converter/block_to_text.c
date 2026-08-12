@@ -126,7 +126,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
             break;
 
         /* 检测 "block" 关键字 */
-        if (strncmp(p, "block ", 6) == 0) {
+        if (lv_str_startswith(p, "block ")) {
             p += 6;
             /* 提取块名称（统一走公共原语 lv_str_read_token，替代手写标识符循环） */
             char name[256] = {0};
@@ -158,10 +158,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                         break;
 
                     /* 检测 input */
-                    if (strncmp(p, "input ", 6) == 0) {
+                    if (lv_str_startswith(p, "input ")) {
                         p += 6;
                         int port_id = 0;
-                        if (strncmp(p, "port", 4) == 0) {
+                        if (lv_str_startswith(p, "port")) {
                             p += 4;
                             port_id = 0;
                             lv_parse_int(p, &port_id);
@@ -173,10 +173,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                             p++;
                     }
                     /* 检测 output */
-                    else if (strncmp(p, "output ", 7) == 0) {
+                    else if (lv_str_startswith(p, "output ")) {
                         p += 7;
                         int port_id = 0;
-                        if (strncmp(p, "port", 4) == 0) {
+                        if (lv_str_startswith(p, "port")) {
                             p += 4;
                             port_id = 0;
                             lv_parse_int(p, &port_id);

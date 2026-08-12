@@ -222,21 +222,14 @@ bool lv_proof_object_verify(const lvProofObject *obj) {
 
 /**
  * @brief 创建步骤记录
+ *
+ * 前提数组不预分配，由 lv_proof_step_record_set_premises() 统一管理，
+ * 保证 premise_step_ids 与 premise_capacity 始终一致（防止堆损坏）。
  */
 lvProofStepRecord *lv_proof_step_record_create(void) {
     lvProofStepRecord *record = (lvProofStepRecord *) lv_calloc(1, sizeof(lvProofStepRecord));
     if (!record)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: calloc failed");
-
-    /* 以借用视图预分配前提数组容量 8（公共结构体布局保持不变） */
-    lvDArray arr;
-    lv_darray_init(&arr, sizeof(int));
-    if (!lv_darray_reserve(&arr, 8)) {
-        lv_free((void **) &record);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_create: premise_step_ids reserve failed");
-    }
-    record->premise_step_ids = (int *) arr.data;
-    record->premise_capacity = (int) arr.capacity;
 
     return record;
 }
@@ -259,6 +252,41 @@ void lv_proof_step_record_destroy(lvProofStepRecord *record) {
     lv_obj_destroy_fields(record, s_step_record_destroy_fields,
                           sizeof(s_step_record_destroy_fields) / sizeof(s_step_record_destroy_fields[0]));
     lv_free((void **) &record);
+}
+
+/**
+ * @brief 设置步骤记录的前提步骤ID
+ *
+ * 统一管理 premise_step_ids 的分配与释放，并同步 premise_capacity，
+ * 避免外部直接覆盖指针导致容量不一致（堆损坏隐患）。
+ *
+ * @param record 步骤记录
+ * @param ids    前提ID数组（count 为 0 时可传 NULL）
+ * @param count  前提数量（>= 0）
+ * @return true 成功；false 参数非法或内存分配失败
+ */
+bool lv_proof_step_record_set_premises(lvProofStepRecord *record, const int *ids, int count) {
+    if (!record || count < 0 || (count > 0 && !ids))
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_proof_step_record_set_premises: invalid argument");
+
+    if (count == 0) {
+        lv_free((void **) &record->premise_step_ids);
+        record->premise_count = 0;
+        record->premise_capacity = 0;
+        return true;
+    }
+
+    if (count > record->premise_capacity) {
+        int *new_ids = (int *) lv_realloc(record->premise_step_ids, (size_t) count * sizeof(int));
+        if (!new_ids)
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_step_record_set_premises: realloc failed");
+        record->premise_step_ids = new_ids;
+        record->premise_capacity = count;
+    }
+
+    memcpy(record->premise_step_ids, ids, (size_t) count * sizeof(int));
+    record->premise_count = count;
+    return true;
 }
 
 /* ============== Proof Compiler 实现 ============== */

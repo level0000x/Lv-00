@@ -156,7 +156,6 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
     /* 遍历注册表条目，仅输出当前 config 的配置项 */
     char prefix[64];
     snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
-    size_t prefix_len = strlen(prefix);
 
     int total = lv_registry_count(&g_config_registry);
     for (int i = 0; i < total; i++) {
@@ -165,7 +164,7 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
         if (!lv_registry_get_at(&g_config_registry, i, &entry_name, &entry_value)) {
             continue;
         }
-        if (strncmp(entry_name, prefix, prefix_len) != 0) {
+        if (!lv_str_startswith(entry_name, prefix)) {
             continue;
         }
         lvPluginConfigEntry *entry = (lvPluginConfigEntry *) entry_value;

@@ -17,6 +17,7 @@
 #include "error_codes.h"
 #include "lv/constraint_graph.h"
 #include "lv_internal.h"
+#include "lv_numeric.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -138,7 +139,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
 
                 /* 简单的梯度下降细化 */
                 for (int iter = 0; iter < 10 && fabs(f) > lv_EPSILON_LOW; iter++) {
-                    double h = 1e-6;
+                    double h = lv_FD_GRADIENT_STEP;
                     double fx = (eval_node(equation_node, x + h, y) - f) / h;
                     double fy = (eval_node(equation_node, x, y + h) - f) / h;
 

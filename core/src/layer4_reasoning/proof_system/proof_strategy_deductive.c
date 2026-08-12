@@ -170,7 +170,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
         /* 规则1：传递性 —— 如果 A-B 和 B-C 共线，则 A-B-C 共线 */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "betweenness:", 12) != 0)
+            if (!lv_str_startswith(facts[i], "betweenness:"))
                 continue;
             /* 解析 betweenness:a,b,c */
             int a1, b1, c1;
@@ -178,7 +178,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 continue;
 
             for (int j = 0; j < fact_count; j++) {
-                if (i == j || !facts[j] || strncmp(facts[j], "betweenness:", 12) != 0)
+                if (i == j || !lv_str_startswith(facts[j], "betweenness:"))
                     continue;
                 int a2, b2, c2;
                 if (sscanf(facts[j], "betweenness:%d,%d,%d", &a2, &b2, &c2) != 3)
@@ -199,14 +199,14 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
         /* 规则2：相交传递 —— 如果线L1过点P，L2过点P，且L1和L2相交于P */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "incidence:", 10) != 0)
+            if (!lv_str_startswith(facts[i], "incidence:"))
                 continue;
             int p1, l1;
             if (sscanf(facts[i], "incidence:%d,%d", &p1, &l1) != 2)
                 continue;
 
             for (int j = i + 1; j < fact_count; j++) {
-                if (!facts[j] || strncmp(facts[j], "incidence:", 10) != 0)
+                if (!lv_str_startswith(facts[j], "incidence:"))
                     continue;
                 int p2, l2;
                 if (sscanf(facts[j], "incidence:%d,%d", &p2, &l2) != 2)
@@ -222,10 +222,10 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
         /* 规则3：等量代换 —— 如果两点的坐标相同，则两点重合 */
         for (int i = 0; i < fact_count; i++) {
-            if (!facts[i] || strncmp(facts[i], "point_coord:", 11) != 0)
+            if (!lv_str_startswith(facts[i], "point_coord:"))
                 continue;
             for (int j = i + 1; j < fact_count; j++) {
-                if (!facts[j] || strncmp(facts[j], "point_coord:", 11) != 0)
+                if (!lv_str_startswith(facts[j], "point_coord:"))
                     continue;
                 /* 比较坐标字符串：从逗号后截取坐标部分进行字符串比较 */
                 /* 格式：point_coord:id,x,y —— 逗号后为 ",x,y" */
@@ -254,7 +254,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             double pt_x[128], pt_y[128];
             int pt_count = 0;
             for (int fi = 0; fi < fact_count && pt_count < 128; fi++) {
-                if (!facts[fi] || strncmp(facts[fi], "point_coord:", 11) != 0)
+                if (!lv_str_startswith(facts[fi], "point_coord:"))
                     continue;
                 int pid;
                 double fx, fy;
@@ -386,17 +386,17 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 if (!facts[fi])
                     continue;
                 /* 如果目标涉及共线，检查 betweenness 事实 */
-                if (strstr(nav->target_prop->name, "collinear") && strncmp(facts[fi], "betweenness:", 12) == 0) {
+                if (strstr(nav->target_prop->name, "collinear") && lv_str_startswith(facts[fi], "betweenness:")) {
                     verified = true;
                     break;
                 }
                 /* 如果目标涉及相交，检查 intersection 事实 */
-                if (strstr(nav->target_prop->name, "intersect") && strncmp(facts[fi], "intersection:", 13) == 0) {
+                if (strstr(nav->target_prop->name, "intersect") && lv_str_startswith(facts[fi], "intersection:")) {
                     verified = true;
                     break;
                 }
                 /* 如果目标涉及重合，检查 coincident 事实 */
-                if (strstr(nav->target_prop->name, "coincident") && strncmp(facts[fi], "coincident:", 11) == 0) {
+                if (strstr(nav->target_prop->name, "coincident") && lv_str_startswith(facts[fi], "coincident:")) {
                     verified = true;
                     break;
                 }

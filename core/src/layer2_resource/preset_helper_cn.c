@@ -54,11 +54,9 @@ static const PresetNameEntry g_preset_names[] = {
  * @return 中文名称字符串，未找到时返回 "未知预设"
  */
 const char *lv_preset_get_name_cn(int preset_id) {
-    for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
-        if (g_preset_names[i].preset_id == preset_id) {
-            return g_preset_names[i].name_cn;
-        }
-    }
+    /* preset_id 连续 0..N-1，表项即数组下标，直接索引替代线性查找 */
+    if (preset_id >= 0 && preset_id < (int) PRESET_NAME_COUNT)
+        return g_preset_names[preset_id].name_cn;
     return "未知预设";
 }
 
@@ -68,11 +66,8 @@ const char *lv_preset_get_name_cn(int preset_id) {
  * @return 中文描述字符串，未找到时返回 "无描述"
  */
 const char *lv_preset_get_desc_cn(int preset_id) {
-    for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
-        if (g_preset_names[i].preset_id == preset_id) {
-            return g_preset_names[i].desc_cn;
-        }
-    }
+    if (preset_id >= 0 && preset_id < (int) PRESET_NAME_COUNT)
+        return g_preset_names[preset_id].desc_cn;
     return "无描述";
 }
 

@@ -289,7 +289,6 @@ static void *debug_realloc(void *ptr, size_t size) {
 static void debug_free(void *ptr) {
     if (!ptr)
         return;
-
     AllocHeader *hdr = get_header(ptr);
     if (hdr) {
         /* 正规路径：由本分配器分配的指针 */

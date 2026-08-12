@@ -279,6 +279,15 @@ lv_PUBLIC_API void lv_mpq_set_d_checked(mpq_t q, double v);
  */
 #define lv_NUMERICAL_DIFF_EPSILON 1e-8
 
+/** @brief 梯度下降专用前向差分步长（二元函数 f(x,y) 的偏导梯度，判据 C 收敛）。
+ *
+ * 与 lv_NUMERICAL_DIFF_EPSILON（1e-8）量级独立：该步长用于 2D 隐式曲线
+ * 细化（formula_curve.c 梯度下降），扰动为绝对量 (x+h, y) / (x, y+h)，
+ * 语义为"坐标域内的差分步长"，非"相对容差"。若需统一为自适应步长
+ * （h = eps * max(1, |x|)），须在迁移 lv_finite_difference_vec 时一并决策。
+ */
+#define lv_FD_GRADIENT_STEP 1e-6
+
 /** @brief 有限差分格式 */
 typedef enum lvDiffScheme {
     lv_FD_CENTRAL = 0, /**< 中心差分 (f(x+h)-f(x-h))/(2h)，截断误差 O(h^2) */

@@ -301,7 +301,7 @@ static void file_destroy_ctx(void *vctx) {
  */
 static const char *file_extract_path(const char *uri) {
     if (!uri) return NULL;
-    if (strncmp(uri, "file://", 7) == 0) {
+    if (lv_str_startswith(uri, "file://")) {
         return uri + 7;
     }
     return uri;

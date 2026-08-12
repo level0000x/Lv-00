@@ -19,10 +19,9 @@
 
 bool lv_str_startswith(const char *str, const char *prefix) {
     if (!str || !prefix) return false;
-    size_t slen = strlen(str);
-    size_t plen = strlen(prefix);
-    if (plen > slen) return false;
-    return strncmp(str, prefix, plen) == 0;
+    /* 仅依赖 strncmp：比较至多 plen 字节，遇 str 的 NUL 提前停止并判定不匹配，
+     * 与手写 strncmp(str, "lit", N)==0 形态的读取模式完全一致（无全文 strlen 开销）。 */
+    return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
 bool lv_str_endswith(const char *str, const char *suffix) {
