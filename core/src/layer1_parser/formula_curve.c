@@ -17,6 +17,7 @@
 #include "error_codes.h"
 #include "lv/constraint_graph.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv_internal.h"
 #include "lv_numeric.h"
 #include "lv_utils.h"
@@ -569,10 +570,7 @@ static bool flatten_to_polynomial(const FormulaNode *node, double *coeffs, int c
         [NODE_UNARY_OP_COS] = flatten_u_cos,
         [NODE_UNARY_OP_SQRT] = flatten_u_sqrt,
     };
-    if ((unsigned)node->type < sizeof(s_funcs)/sizeof(s_funcs[0]) && s_funcs[node->type]) {
-        return s_funcs[node->type](node, coeffs, coeffs_size, max_deg);
-    }
-    return false;
+    return LV_DISPATCH(s_funcs, node->type, false, node, coeffs, coeffs_size, max_deg);
 }
 /**
  * @brief 辅助函数：尝试识别圆方程 (x-a)^2 + (y-b)^2 = r^2

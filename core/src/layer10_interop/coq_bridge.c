@@ -152,13 +152,7 @@ static int coq_import_proof(const char *input, void **proof) {
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate coq proof");
 
     /* 保存定理名 */
-    {
-        size_t nlen = name_len;
-        if (nlen >= sizeof(p->theorem_name))
-            nlen = sizeof(p->theorem_name) - 1;
-        memcpy(p->theorem_name, name_start, nlen);
-        p->theorem_name[nlen] = '\0';
-    }
+    lv_strlcpy_n(p->theorem_name, sizeof(p->theorem_name), name_start, (size_t) name_len);
 
     /* 初始化步骤动态数组 */
     lv_darray_init(&p->steps_da, sizeof(lvProofStep));
@@ -194,8 +188,7 @@ static int coq_import_proof(const char *input, void **proof) {
             char tac_buf[64];
 
             if (tac_len < (int) sizeof(tac_buf)) {
-                memcpy(tac_buf, tac_start, (size_t) tac_len);
-                tac_buf[tac_len] = '\0';
+                lv_strlcpy_n(tac_buf, sizeof(tac_buf), tac_start, (size_t) tac_len);
                 step_type = lv_str_to_enum(reverse_map, reverse_count, tac_buf, -1);
             }
 
@@ -205,13 +198,7 @@ static int coq_import_proof(const char *input, void **proof) {
                 step.type = step_type;
                 step.id = p->steps_da.count;
                 /* 保存 tactic 名称作为描述 */
-                {
-                    size_t dlen = (size_t) (tac_end - tac_start);
-                    if (dlen >= sizeof(step.description))
-                        dlen = sizeof(step.description) - 1;
-                    memcpy(step.description, tac_start, dlen);
-                    step.description[dlen] = '\0';
-                }
+                lv_strlcpy_n(step.description, sizeof(step.description), tac_start, (size_t) (tac_end - tac_start));
                 if (lv_darray_push(&p->steps_da, &step) < 0) {
                     lv_darray_free(&p->steps_da);
                     lv_free((void **) &p);

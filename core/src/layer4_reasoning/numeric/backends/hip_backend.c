@@ -51,6 +51,12 @@
 /** @brief HIP 后端版本字符串 */
 #define HIP_BACKEND_VERSION "1.0.0"
 
+/* HIP 版本号整数解码基数（判据 C 具名化，Q16）：
+ * hipRuntimeGetVersion 返回 major*10000000 + minor*100000 + patch*1000。 */
+#define HIP_VERSION_MAJOR_BASE 10000000 /**< major 段基数 */
+#define HIP_VERSION_MINOR_BASE 100000   /**< minor 段基数 */
+#define HIP_VERSION_PATCH_BASE 1000     /**< patch 段基数 */
+
 /* ========================================================================
  * 通用（非 HIP）实现 — 当 LV_HAS_HIP 未定义时的存根
  * ======================================================================== */
@@ -1647,9 +1653,9 @@ const char *lv_hip_backend_version(void) {
         int hip_version = 0;
         hipError_t err = hipRuntimeGetVersion(&hip_version);
         if (err == hipSuccess) {
-            int major = hip_version / 10000000;
-            int minor = (hip_version % 10000000) / 100000;
-            int patch = (hip_version % 100000) / 1000;
+            int major = hip_version / HIP_VERSION_MAJOR_BASE;
+            int minor = (hip_version % HIP_VERSION_MAJOR_BASE) / HIP_VERSION_MINOR_BASE;
+            int patch = (hip_version % HIP_VERSION_MINOR_BASE) / HIP_VERSION_PATCH_BASE;
             snprintf(version_str, sizeof(version_str),
                      "HIP %d.%d.%d (ROCm)", major, minor, patch);
         } else {

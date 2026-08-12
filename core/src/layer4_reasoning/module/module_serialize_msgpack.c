@@ -443,8 +443,7 @@ static bool mp_decoder_read_str(MsgPackDecoder *dec, char **out) {
     char *str = (char *) lv_calloc(len + 1, 1);
     if (!str)
         return false;
-    memcpy(str, dec->r.buf + dec->r.pos, len);
-    str[len] = '\0';
+    lv_strlcpy_n(str, len + 1, (const char *) dec->r.buf + dec->r.pos, len);
     dec->r.pos += len;
     *out = str;
     return true;

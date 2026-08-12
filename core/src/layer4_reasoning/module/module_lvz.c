@@ -143,8 +143,7 @@ LvzToken lvz_lexer_next_token(LvzLexer *lex) {
             return tok;
         }
 
-        memcpy(tok.str_value, start, len);
-        tok.str_value[len] = '\0';
+        lv_strlcpy_n(tok.str_value, len + 1, start, (size_t) len);
         tok.type = TOK_IDENTIFIER;
 
         return tok;
@@ -1135,11 +1134,7 @@ static const struct {
 
 static PresetType lvz_type_from_string(const char *name) {
     if (!name) return PRESET_TYPE_ANY;
-    for (size_t i = 0; i < lv_ARRAY_SIZE(kTypeMap); i++) {
-        if (strcmp(name, kTypeMap[i].name) == 0)
-            return kTypeMap[i].type;
-    }
-    return PRESET_TYPE_ANY;
+    return (PresetType) lv_str_to_enum(kTypeMap, lv_ARRAY_SIZE(kTypeMap), name, PRESET_TYPE_ANY);
 }
 
 /* ==================== 预设节解析 ==================== */
@@ -1549,8 +1544,7 @@ bool lvz_load_presets_file(const char *filepath) {
         if (dir_start) {
             parser.module_dir = (char *) lv_malloc(dir_len + 1);
             if (parser.module_dir) {
-                memcpy(parser.module_dir, dir_start, dir_len);
-                parser.module_dir[dir_len] = '\0';
+                lv_strlcpy_n(parser.module_dir, dir_len + 1, dir_start, (size_t) dir_len);
             }
         }
     }

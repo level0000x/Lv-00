@@ -25,8 +25,8 @@
 lvTimestamp lv_timestamp_now(void) {
     lvTimestamp ts;
     uint64_t ns = lv_get_time_ns();
-    ts.seconds = (int64_t) (ns / 1000000000ULL);
-    ts.nanoseconds = (int64_t) (ns % 1000000000ULL);
+    ts.seconds = (int64_t) (ns / lv_NS_PER_S);
+    ts.nanoseconds = (int64_t) (ns % lv_NS_PER_S);
     return ts;
 }
 

@@ -598,8 +598,7 @@ int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx) {
                 if (slen >= sizeof(current_section)) {
                     slen = sizeof(current_section) - 1;
                 }
-                memcpy(current_section, trimmed + 1, slen);
-                current_section[slen] = '\0';
+                lv_strlcpy_n(current_section, sizeof(current_section), trimmed + 1, slen);
             }
             continue;
         }
@@ -619,8 +618,7 @@ int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx) {
         if (key_len >= sizeof(key_buf)) {
             key_len = sizeof(key_buf) - 1;
         }
-        memcpy(key_buf, trimmed, key_len);
-        key_buf[key_len] = '\0';
+        lv_strlcpy_n(key_buf, sizeof(key_buf), trimmed, key_len);
 
         if (!visit(ctx, current_section[0] != '\0' ? current_section : NULL, key_buf, eq + 1)) {
             break;

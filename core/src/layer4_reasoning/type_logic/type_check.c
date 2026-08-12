@@ -157,39 +157,11 @@ static TypeEquivResult struct_equiv_region(TypeSystem *ts, TypeRegion *type1, Ty
     {
         if (type1->contained_node_ids && type2->contained_node_ids) {
             int count = type1->contained_count;
-            int *sorted1 = lv_malloc((size_t) count * sizeof(int));
-            int *sorted2 = lv_malloc((size_t) count * sizeof(int));
-            if (!sorted1 || !sorted2) {
-                lv_free((void **) &sorted1);
-                lv_free((void **) &sorted2);
+            int r = lv_int_multiset_equal(type1->contained_node_ids, count,
+                                          type2->contained_node_ids, count);
+            if (r < 0)
                 return TYPE_EQUIV_ERROR;
-            }
-            memcpy(sorted1, type1->contained_node_ids, count * sizeof(int));
-            memcpy(sorted2, type2->contained_node_ids, count * sizeof(int));
-            qsort(sorted1, count, sizeof(int), lv_cmp_int);
-            qsort(sorted2, count, sizeof(int), lv_cmp_int);
-
-            bool equiv = true;
-            int i = 0, j = 0;
-            while (i < count && j < count) {
-                if (sorted1[i] == sorted2[j]) {
-                    i++;
-                    j++;
-                } else if (sorted1[i] < sorted2[j]) {
-                    equiv = false;
-                    break;
-                } else {
-                    equiv = false;
-                    break;
-                }
-            }
-            if (equiv && (i < count || j < count)) {
-                equiv = false;
-            }
-
-            lv_free((void **) &sorted1);
-            lv_free((void **) &sorted2);
-            return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
+            return r ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
         }
 
         if (type1->constraint_ids && type2->constraint_ids) {
@@ -198,39 +170,11 @@ static TypeEquivResult struct_equiv_region(TypeSystem *ts, TypeRegion *type1, Ty
             }
 
             int count = type1->constraint_count;
-            int *sorted1 = lv_malloc((size_t) count * sizeof(int));
-            int *sorted2 = lv_malloc((size_t) count * sizeof(int));
-            if (!sorted1 || !sorted2) {
-                lv_free((void **) &sorted1);
-                lv_free((void **) &sorted2);
+            int r = lv_int_multiset_equal(type1->constraint_ids, count,
+                                          type2->constraint_ids, count);
+            if (r < 0)
                 return TYPE_EQUIV_ERROR;
-            }
-            memcpy(sorted1, type1->constraint_ids, count * sizeof(int));
-            memcpy(sorted2, type2->constraint_ids, count * sizeof(int));
-            qsort(sorted1, count, sizeof(int), lv_cmp_int);
-            qsort(sorted2, count, sizeof(int), lv_cmp_int);
-
-            bool equiv = true;
-            int i = 0, j = 0;
-            while (i < count && j < count) {
-                if (sorted1[i] == sorted2[j]) {
-                    i++;
-                    j++;
-                } else if (sorted1[i] < sorted2[j]) {
-                    equiv = false;
-                    break;
-                } else {
-                    equiv = false;
-                    break;
-                }
-            }
-            if (equiv && (i < count || j < count)) {
-                equiv = false;
-            }
-
-            lv_free((void **) &sorted1);
-            lv_free((void **) &sorted2);
-            return equiv ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
+            return r ? TYPE_EQUIV_OK : TYPE_EQUIV_NOT_EQUIV;
         }
 
         if (!type1->contained_node_ids && !type2->contained_node_ids && !type1->constraint_ids &&

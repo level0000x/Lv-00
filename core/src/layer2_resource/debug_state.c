@@ -204,7 +204,7 @@ int create_directory(const char *path) {
  *       输出格式逐字符一致。
  */
 void get_timestamp(char *buf, size_t size) {
-    lv_format_time((uint64_t) time(NULL) * 1000000ULL, buf, size);
+    lv_format_time((uint64_t) time(NULL) * lv_US_PER_S, buf, size);
 }
 
 /* 日志文件轮转

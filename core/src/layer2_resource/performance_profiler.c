@@ -218,7 +218,7 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
         ns_per_iter = 1.0; /* 极端情况回退 */
     }
 
-    int iterations = (int) (1000000000.0 / ns_per_iter) + 1;
+    int iterations = (int) ((double) lv_NS_PER_S / ns_per_iter) + 1;
     iterations = lv_CLAMP(iterations, 100, 100000000);
 
     /* ---- 正式计时：使用 Welford 在线统计算法 ---- */

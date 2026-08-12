@@ -223,15 +223,8 @@ char *graph_export_dot(const ConstraintGraph *graph, const DOTExportConfig *conf
             if (!node || !node->is_active)
                 continue;
             int d = node->namespace_depth;
-            bool found = false;
-            for (int k = 0; k < nd; k++) {
-                if (depths[k] == d) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found && nd < (int) lv_ARRAY_SIZE(depths))
-                depths[nd++] = d;
+            if (nd < (int) lv_ARRAY_SIZE(depths))
+                lv_int_append_unique(depths, &nd, d);
         }
         for (int k = 0; k < nd; k++) {
             lv_strbuf_printf(&sb, "    subgraph cluster_ns%d {\n", depths[k]);

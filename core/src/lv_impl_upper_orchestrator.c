@@ -70,7 +70,7 @@ typedef struct lvOrchestratorInternal {
 } lvOrchestratorInternal;
 
 /* 毫秒级单调时钟（收敛：lv_get_time_ns 跨平台单调语义与原生 now_ms 一致） */
-static double now_ms(void) { return (double)(lv_get_time_ns() / 1000000ULL); }
+static double now_ms(void) { return (double)(lv_get_time_ns() / lv_NS_PER_MS); }
 
 static lvOrchestratorInternal *orch_internal(lvSession *s) {
     return (lvOrchestratorInternal *)(s ? s->internal : NULL);
@@ -86,19 +86,6 @@ static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char 
         snprintf(in->last_error, sizeof(in->last_error), "%s", msg);
     if (s && msg)
         snprintf(s->final_error, sizeof(s->final_error), "%s", msg);
-}
-
-/* 读取文件到缓冲区（含终止符），返回是否成功 */
-static bool read_file_text(const char *path, char *buf, size_t buf_size) {
-    if (!path || !buf || buf_size == 0)
-        return false;
-    FILE *fp = lv_file_open(path, "rb");
-    if (!fp)
-        return false;
-    size_t n = fread(buf, 1, buf_size - 1, fp);
-    lv_file_close(fp);
-    buf[n] = '\0';
-    return true;
 }
 
 /* ---------------- 阶段实现 ---------------- */
@@ -438,7 +425,7 @@ int lv_orchestrator_run(lvSession *session, const char *input_path) {
     in->last_error[0] = '\0';
     in->last_run = lv_STAGE_PENDING;
     if (input_path && input_path[0]) {
-        if (!read_file_text(input_path, in->input, sizeof(in->input))) {
+        if (!lv_file_read_text(input_path, in->input, sizeof(in->input))) {
             snprintf(in->last_error, sizeof(in->last_error), "无法读取输入文件: %s", input_path);
             snprintf(session->final_error, sizeof(session->final_error), "无法读取输入文件: %s", input_path);
             return -1;

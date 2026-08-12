@@ -588,8 +588,7 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
                 size_t tok_len = p->pos - tok_start;
                 char *tok = lv_malloc(tok_len + 1);
                 if (tok) {
-                    memcpy(tok, p->data + tok_start, tok_len);
-                    tok[tok_len] = '\0';
+                    lv_strlcpy_n(tok, tok_len + 1, p->data + tok_start, (size_t) tok_len);
                     Rational *rat = rational_parse(tok);
                     if (rat) {
                         ctx->coords[i] = symbolic_coord_create_rational(

@@ -156,8 +156,7 @@ bool lv_proof_engine_register_strategy(lvProofEngine *engine, const lvProofStrat
 
     /* 后移元素 */
     if (insert_pos < engine->strategy_count) {
-        memmove(&engine->strategies[insert_pos + 1], &engine->strategies[insert_pos],
-                (engine->strategy_count - insert_pos) * sizeof(lvProofStrategy));
+        lv_shift_right(engine->strategies, sizeof(lvProofStrategy), insert_pos, engine->strategy_count);
     }
 
     engine->strategies[insert_pos] = *strategy;

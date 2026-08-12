@@ -477,8 +477,7 @@ bool config_save(const ConfigManager *mgr) {
             size_t section_len = (size_t) (dot - item->key);
             if (section_len >= sizeof(section))
                 section_len = sizeof(section) - 1;
-            memcpy(section, item->key, section_len);
-            section[section_len] = '\0';
+            lv_strlcpy_n(section, sizeof(section), item->key, section_len);
 
             if (strcmp(section, last_section) != 0) {
                 fprintf(f, "\n[%s]\n", section);

@@ -276,8 +276,7 @@ int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len) {
         return (int) -SMT_ERROR_MEMORY_EXHAUSTED;
     }
 
-    memcpy(solver->encoded_formula, smtlib2, (size_t) actual_len);
-    solver->encoded_formula[actual_len] = '\0';
+    lv_strlcpy_n(solver->encoded_formula, (size_t) actual_len + 1, smtlib2, (size_t) actual_len);
     solver->encoded_len = actual_len;
     solver->has_assertions = true;
     solver->last_error = SMT_ERROR_NONE;

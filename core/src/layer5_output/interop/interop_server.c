@@ -70,8 +70,7 @@
 /** select 超时秒数（与上方宏配合使用） */
 #define INTEROP_SELECT_TIMEOUT_SEC 0
 
-/** 双精度转有理数的分母精度（10^6） */
-#define INTEROP_COORD_DENOM_PRECISION 1000000UL
+/* INTEROP_COORD_DENOM_PRECISION 统一来自 lv/interop.h 的公共常量（此处死宏已移除） */
 
 /* ==================== stdout 互斥锁（线程安全） ==================== */
 
@@ -918,8 +917,7 @@ static bool ws_http_handshake(WsSock sock, const char *req) {
                         ws_http_reply_error(sock, 400, "Bad Request");
                         return false;
                     }
-                    memcpy(key, value, value_len);
-                    key[value_len] = '\0';
+                    lv_strlcpy_n(key, sizeof(key), value, (size_t) value_len);
                 } else if (ws_header_equals(line, name_len, "Upgrade")) {
                     if (ws_header_equals(value, value_len, "websocket")) {
                         has_upgrade = true;
@@ -1469,11 +1467,7 @@ static const uint8_t *ws_memmem(const uint8_t *hay, size_t hay_len,
 static bool ws_client_read(InteropServer *server, WsClient *client) {
     /* 压缩接收缓冲：把未消费的数据移到开头 */
     if (client->recv_pos > 0) {
-        size_t remaining = client->recv_len - client->recv_pos;
-        if (remaining > 0) {
-            memmove(client->recv_buf, client->recv_buf + client->recv_pos, remaining);
-        }
-        client->recv_len = remaining;
+        lv_buffer_consume(client->recv_buf, 1, client->recv_pos, &client->recv_len);
         client->recv_pos = 0;
     }
 
@@ -1514,8 +1508,7 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
             ws_http_reply_error(client->sock, 400, "Bad Request");
             lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "WebSocket握手失败：请求头超过上限%d字节", WS_MAX_HEADER_SIZE);
         }
-        memcpy(req, client->recv_buf + client->recv_pos, header_len);
-        req[header_len] = '\0';
+        lv_strlcpy_n(req, sizeof(req), client->recv_buf + client->recv_pos, (size_t) header_len);
         client->recv_pos += header_len; /* 越过请求头，剩余字节为帧数据 */
 
         if (!ws_http_handshake(client->sock, req)) {

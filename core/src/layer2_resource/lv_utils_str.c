@@ -44,6 +44,19 @@ size_t lv_strlcpy(char *dest, const char *src, size_t dest_size) {
     return src_len;
 }
 
+size_t lv_strlcpy_n(char *dest, size_t dest_size, const char *src, size_t src_len) {
+    if (!dest || !src || dest_size == 0)
+        return 0;
+
+    size_t copy_len = src_len;
+    if (copy_len >= dest_size)
+        copy_len = dest_size - 1;
+    if (copy_len > 0)
+        memcpy(dest, src, copy_len);
+    dest[copy_len] = '\0';
+    return src_len;
+}
+
 size_t lv_strlcat(char *dest, const char *src, size_t dest_size) {
     if (!dest || !src || dest_size == 0)
         return 0;

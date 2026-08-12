@@ -464,8 +464,7 @@ static int opml_import_proof(const char *input, void **proof) {
             size_t len = (size_t) (end - brace);
             char *theory_buf = (char *) lv_calloc(1, len + 1);
             if (theory_buf) {
-                memcpy(theory_buf, brace, len);
-                theory_buf[len] = '\0';
+                lv_strlcpy_n(theory_buf, len + 1, brace, (size_t) len);
 
                 /* 从 theory 中提取公理和定义名称（动态数组，无 32 上限） */
                 lvDArray axiom_names;
@@ -514,8 +513,7 @@ static int opml_import_proof(const char *input, void **proof) {
             size_t len = (size_t) (end - brace);
             char *proof_buf = (char *) lv_calloc(1, len + 1);
             if (proof_buf) {
-                memcpy(proof_buf, brace, len);
-                proof_buf[len] = '\0';
+                lv_strlcpy_n(proof_buf, len + 1, brace, (size_t) len);
 
                 /* 从 proof 中提取步骤 */
                 parse_proof_steps(proof_buf, p, p->step_capacity);

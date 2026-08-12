@@ -480,10 +480,10 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph, const C
                     line_node->coord_count >= 4) {
                     double px = symbolic_coord_to_double(x_coord);
                     double py = symbolic_coord_to_double(y_coord);
-                    double ax = symbolic_coord_to_double(line_node->symbolic_coords[0]);
-                    double ay = symbolic_coord_to_double(line_node->symbolic_coords[1]);
-                    double bx = symbolic_coord_to_double(line_node->symbolic_coords[2]);
-                    double by = symbolic_coord_to_double(line_node->symbolic_coords[3]);
+                    double ax, ay, bx, by;
+                    if (!symbolic_coord_get_segment(line_node->symbolic_coords, line_node->coord_count, &ax, &ay, &bx,
+                                                    &by))
+                        continue;
                     double det = fabs(geo_signed_area_2x(ax, ay, bx, by, px, py));
                     if (det > eps * 1000.0) {
                         char desc[CONFLICT_MAX_DESCRIPTION_LEN];

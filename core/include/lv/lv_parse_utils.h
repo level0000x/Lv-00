@@ -121,6 +121,75 @@ static inline int lv_parse_int_before(const char *base, const char *pos, int *ou
     return 0;
 }
 
+static inline char lv_str_scan_peek(const char *p, const char *end) {
+    if (!p || (end && p >= end))
+        return '\0';
+    return *p;
+}
+
+static inline bool lv_str_scan_digit(const char *p, const char *end) {
+    char c = lv_str_scan_peek(p, end);
+    return c >= '0' && c <= '9';
+}
+
+/**
+ * @brief 数字字面量词法扫描器：返回数字字面量的结束位置
+ *
+ * 语义契约：从 p 扫描一个数字字面量（可选前导 '-'、整数部分、可选小数部分、
+ * 可选科学计数法 e/E[±]数字），返回首个非数字字面量字符的位置；起始处不是
+ * 数字 / '.' / '-' 加数字时返回 p 不动。仅做词法定位，不含数值累加。
+ *
+ * 前置条件：p 非 NULL；end 为 NULL 表示 NUL 终止，否则为扫描上界（不含）。
+ * 失败/截断语义：纯查询，无资源分配；非数字起始返回 p。
+ * 边界行为：'.' 后跟数字才消费（防 ".."）；e/E 后需 [±]数字才消费指数；
+ *           '-' 后需数字才消费符号；有界场景下任何越界读均返回 '\0'。
+ * 扩展点：无。
+ *
+ * @note 收敛对象（判据 I 变体）：gc_language.c / dsl_lexer.c 数字字面量词法
+ *       骨架；module_lvz.c / axiom_pkg_parser.c / lv_lexer.c 因累加交错（豁免
+ *       #9）或回退 token 契约豁免登记。科学计数法采用严格语义（e 后需数字），
+ *       dsl_lexer 原无条件吞 e 的实现为缺陷修复。
+ */
+static inline const char *lv_str_scan_number(const char *p, const char *end) {
+    if (!p)
+        return NULL;
+
+    if (lv_str_scan_peek(p, end) == '-') {
+        if (!lv_str_scan_digit(p + 1, end))
+            return p;
+        p++;
+    } else if (lv_str_scan_peek(p, end) == '.') {
+        if (!lv_str_scan_digit(p + 1, end))
+            return p;
+    } else if (!lv_str_scan_digit(p, end)) {
+        return p;
+    }
+
+    while (lv_str_scan_digit(p, end))
+        p++;
+
+    if (lv_str_scan_peek(p, end) == '.') {
+        if (lv_str_scan_digit(p + 1, end)) {
+            p++;
+            while (lv_str_scan_digit(p, end))
+                p++;
+        }
+    }
+
+    if (lv_str_scan_peek(p, end) == 'e' || lv_str_scan_peek(p, end) == 'E') {
+        const char *q = p + 1;
+        if (lv_str_scan_peek(q, end) == '+' || lv_str_scan_peek(q, end) == '-')
+            q++;
+        if (lv_str_scan_digit(q, end)) {
+            p = q;
+            while (lv_str_scan_digit(p, end))
+                p++;
+        }
+    }
+
+    return p;
+}
+
 /**
  * @brief 读取环境变量并安全解析为整数（严格解析 + 范围钳制）
  * @param name 环境变量名

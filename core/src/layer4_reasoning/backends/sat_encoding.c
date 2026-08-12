@@ -1178,16 +1178,14 @@ ConstraintGraph *sat_model_to_graph(const SatModel *model) {
                 if (!graph_get_node(graph, n1_id) || !graph_get_node(graph, n2_id))
                     continue;
 
-                /* 根据关系名称推断约束类型 */
+                /* 根据关系名称推断约束类型（子串关键词查找表） */
+                static const char *const kRelTypeKeywords[] = {"incidence", "on", "between", "intersect", "contain", NULL};
                 ConstraintType ctype = CONNECTION;
-                if (strstr(rel->name, "incidence") || strstr(rel->name, "on"))
-                    ctype = INCIDENCE;
-                else if (strstr(rel->name, "between"))
-                    ctype = BETWEENNESS;
-                else if (strstr(rel->name, "intersect"))
-                    ctype = INTERSECTION;
-                else if (strstr(rel->name, "contain"))
-                    ctype = CONTAINMENT;
+                int kidx = lv_str_match_any(rel->name, kRelTypeKeywords);
+                if (kidx >= 0) {
+                    static const ConstraintType kRelTypes[] = {INCIDENCE, INCIDENCE, BETWEENNESS, INTERSECTION, CONTAINMENT};
+                    ctype = kRelTypes[kidx];
+                }
 
                 int parts[2] = {n1_id, n2_id};
                 graph_add_constraint_with_id(graph, ti + 1, ctype, parts, 2);

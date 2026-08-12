@@ -573,8 +573,7 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
             size_t plen = len - 2;
             if (plen >= sizeof(path))
                 plen = sizeof(path) - 1;
-            memcpy(path, txt + 1, plen);
-            path[plen] = '\0';
+            lv_strlcpy_n(path, sizeof(path), txt + 1, plen);
         }
         advance(p);
     }

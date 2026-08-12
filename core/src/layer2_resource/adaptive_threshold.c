@@ -369,11 +369,11 @@ void lv_adaptive_threshold_should_prune(lvAdaptiveThresholdCtx *ctx, bool *shoul
         struct timespec now;
         {
             uint64_t ns = lv_get_time_ns();
-            now.tv_sec = (time_t)(ns / 1000000000ULL);
-            now.tv_nsec = (long)(ns % 1000000000ULL);
+            now.tv_sec = (time_t)(ns / lv_NS_PER_S);
+            now.tv_nsec = (long)(ns % lv_NS_PER_S);
         }
-        elapsed_ms = (double) (now.tv_sec - ctx->start_time.tv_sec) * 1000.0 +
-                     (double) (now.tv_nsec - ctx->start_time.tv_nsec) / 1000000.0;
+        elapsed_ms = (double) (now.tv_sec - ctx->start_time.tv_sec) * (double) lv_MS_PER_S +
+                     (double) (now.tv_nsec - ctx->start_time.tv_nsec) / (double) lv_NS_PER_MS;
         if (elapsed_ms > ctx->config.time_budget_ms) {
             *should_prune = true;
             return;

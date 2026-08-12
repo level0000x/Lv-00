@@ -95,11 +95,7 @@ static int lean4_add_step(lvBridgeProof *p, int step_type, const char *desc, int
     step.type = step_type;
     step.id = p->steps_da.count;
     if (desc && desc_len > 0) {
-        int copy_len = desc_len;
-        if (copy_len >= (int) sizeof(step.description))
-            copy_len = (int) sizeof(step.description) - 1;
-        memcpy(step.description, desc, copy_len);
-        step.description[copy_len] = '\0';
+        lv_strlcpy_n(step.description, sizeof(step.description), desc, (size_t) desc_len);
     } else {
         step.description[0] = '\0';
     }
@@ -152,8 +148,7 @@ static int lean4_lookup_tactic(const char *name, int name_len) {
     char name_buf[64];
     if (name_len <= 0 || name_len >= (int) sizeof(name_buf))
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "tactic 名长度非法: %d", name_len);
-    memcpy(name_buf, name, (size_t) name_len);
-    name_buf[name_len] = '\0';
+    lv_strlcpy_n(name_buf, sizeof(name_buf), name, (size_t) name_len);
     /* 注意：LEAN4_REVERSE_MAP_COUNT 为 35（非 sizeof 全表 36 条），保持原查找语义逐位一致 */
     return lv_str_to_enum(reverse_map, LEAN4_REVERSE_MAP_COUNT, name_buf, -1);
 }
@@ -420,13 +415,7 @@ static int lean4_import_proof(const char *input, void **proof) {
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to allocate lean4 proof");
 
     /* 保存定理名 */
-    {
-        size_t nlen = name_len;
-        if (nlen >= sizeof(p->theorem_name))
-            nlen = sizeof(p->theorem_name) - 1;
-        memcpy(p->theorem_name, name_start, nlen);
-        p->theorem_name[nlen] = '\0';
-    }
+    lv_strlcpy_n(p->theorem_name, sizeof(p->theorem_name), name_start, (size_t) name_len);
 
     /* 初始化步骤动态数组 */
     lv_darray_init(&p->steps_da, sizeof(lvProofStep));

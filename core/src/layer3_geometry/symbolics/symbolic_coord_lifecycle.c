@@ -361,6 +361,25 @@ double symbolic_coord_to_double(const SymbolicCoord *coord) {
     return val;
 }
 
+bool symbolic_coord_get_xy(const SymbolicCoord *const *coords, int coord_count, double *x, double *y) {
+    if (!coords || coord_count < 2 || !coords[0] || !coords[1])
+        return false;
+    *x = symbolic_coord_to_double(coords[0]);
+    *y = symbolic_coord_to_double(coords[1]);
+    return true;
+}
+
+bool symbolic_coord_get_segment(const SymbolicCoord *const *coords, int coord_count, double *x1, double *y1, double *x2,
+                                double *y2) {
+    if (!coords || coord_count < 4 || !coords[0] || !coords[1] || !coords[2] || !coords[3])
+        return false;
+    *x1 = symbolic_coord_to_double(coords[0]);
+    *y1 = symbolic_coord_to_double(coords[1]);
+    *x2 = symbolic_coord_to_double(coords[2]);
+    *y2 = symbolic_coord_to_double(coords[3]);
+    return true;
+}
+
 /**
  * 使符号坐标的数值缓存失效。
  *

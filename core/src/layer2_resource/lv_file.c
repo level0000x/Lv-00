@@ -72,6 +72,18 @@ int lv_file_write_all(const char *path, const void *data, size_t len) {
     return lv_file_close(fp);
 }
 
+bool lv_file_read_text(const char *path, char *buf, size_t buf_size) {
+    if (!path || !buf || buf_size < 2)
+        return false;
+    FILE *fp = lv_file_open(path, "rb");
+    if (!fp)
+        return false;
+    size_t n = fread(buf, 1, buf_size - 1, fp);
+    lv_file_close(fp);
+    buf[n] = '\0';
+    return true;
+}
+
 bool lv_file_exists(const char *path) {
     if (!path) return false;
 #ifdef _WIN32

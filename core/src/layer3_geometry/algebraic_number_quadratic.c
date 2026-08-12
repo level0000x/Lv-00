@@ -355,9 +355,7 @@ int lv_alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
 
     int len = (int) sb.len;
     if (buf && size > 0) {
-        size_t copy = (sb.len < size - 1) ? sb.len : size - 1;
-        memcpy(buf, lv_strbuf_cstr(&sb), copy);
-        buf[copy] = '\0';
+        lv_strlcpy(buf, lv_strbuf_cstr(&sb), size);
     }
     lv_strbuf_destroy(&sb);
     return len;

@@ -161,20 +161,5 @@ bool segment_intersection(double p1x, double p1y, double p2x, double p2y,
  * @param dst_size 输出缓冲区大小（字节）
  */
 
-/* ==================== GeoGebra 导入辅助：ZIP 解析 ==================== */
-
-/**
- * @brief ZIP 文件结构常量
- *
- * ZIP 格式规范（PKWARE APPNOTE.TXT）定义的核心结构签名。
- * 所有多字节整数均为小端序（Little-Endian）。
- */
-#define GGB_LOCAL_FILE_SIG 0x04034b50U      /**< 本地文件头签名 */
-#define GGB_CENTRAL_DIR_SIG 0x02014b50U     /**< 中央目录签名 */
-#define GGB_EOCD_SIG 0x06054b50U            /**< 结束中心目录签名 */
-#define GGB_LOCAL_HEADER_MIN 30             /**< 本地文件头最小字节数 */
-#define GGB_CENTRAL_DIR_MIN 46              /**< 中央目录条目最小字节数 */
-#define GGB_EOCD_MIN_SIZE 22                /**< EOCD 最小字节数 */
-#define GGB_MAX_XML_SIZE (16 * 1024 * 1024) /**< XML 最大大小 16MB */
-#define GGB_COMPRESSION_STORE 0             /**< 无压缩（STORE） */
-#define GGB_COMPRESSION_DEFLATE 8           /**< Deflate 压缩 */
+/* GeoGebra ZIP 解析常量定义于 interop_import.c（本文件曾重复定义 GGB_* 常量，
+ * 经核对全库无使用点，属死代码，已移除）。 */

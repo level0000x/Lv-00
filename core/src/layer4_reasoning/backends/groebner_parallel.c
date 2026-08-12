@@ -207,6 +207,22 @@ static int term_gt(const PolyTerm *a, const PolyTerm *b) {
     return 0; /* 指数向量相等 */
 }
 
+/** 剔除多项式 p 中系数近零的项（swap-last 删除）。 */
+static void simple_poly_remove_zero_terms(SimplePoly *p) {
+    for (int i = (int) p->terms.count - 1; i >= 0; i--) {
+        PolyTerm *t = (PolyTerm *) lv_darray_get(&p->terms, i);
+        if (lv_is_zero(t->coeff, lv_EPSILON_DOUBLE)) {
+            lv_free((void **) &t->exponents);
+            t->exponents = NULL;
+            if (i < (int) p->terms.count - 1) {
+                PolyTerm *last = (PolyTerm *) lv_darray_get(&p->terms, p->terms.count - 1);
+                *t = *last;
+            }
+            p->terms.count--;
+        }
+    }
+}
+
 /** 规范化多项式：grlex 降序排序（terms[0] = 领先单项式）、合并同类项、
  *  剔除系数近零的项。 */
 static void simple_poly_normalize(SimplePoly *p) {
@@ -253,17 +269,7 @@ static void simple_poly_normalize(SimplePoly *p) {
     p->terms.count = w;
 
     /* 3. 剔除系数近零的项 */
-    for (int i = (int) p->terms.count - 1; i >= 0; i--) {
-        PolyTerm *t = (PolyTerm *) lv_darray_get(&p->terms, i);
-        if (lv_is_zero(t->coeff, lv_EPSILON_DOUBLE)) {
-            lv_free((void **) &t->exponents);
-            if (i < (int) p->terms.count - 1) {
-                PolyTerm *last = (PolyTerm *) lv_darray_get(&p->terms, p->terms.count - 1);
-                *t = *last;
-            }
-            p->terms.count--;
-        }
-    }
+    simple_poly_remove_zero_terms(p);
 }
 
 /** 就地乘以二项式 (c0 + c1 * x_var)：p = p * (c0 + c1 * x_var)。
@@ -563,20 +569,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
             }
 
             /* 移除系数接近零的项 */
-            for (int k = f.terms.count - 1; k >= 0; k--) {
-                PolyTerm *fk = (PolyTerm *)lv_darray_get(&f.terms, k);
-                if (lv_is_zero(fk->coeff, lv_EPSILON_DOUBLE)) {
-                    lv_free((void **) &fk->exponents);
-                    fk->exponents = NULL;
-                    /* 将末尾项移到当前位置 */
-                    if (k < f.terms.count - 1) {
-                        PolyTerm *dst = (PolyTerm *)lv_darray_get(&f.terms, k);
-                        PolyTerm *src = (PolyTerm *)lv_darray_get(&f.terms, f.terms.count - 1);
-                        memcpy(dst, src, sizeof(PolyTerm));
-                    }
-                    f.terms.count--;
-                }
-            }
+            simple_poly_remove_zero_terms(&f);
 
             reduced = 1;
             break; /* 重新从头检查 */

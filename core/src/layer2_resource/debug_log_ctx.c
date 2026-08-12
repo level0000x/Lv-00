@@ -200,7 +200,7 @@ char *debug_counters_report(void) {
         &sb, report_format, (unsigned long long) counters.total_nodes_created,
         (unsigned long long) counters.current_nodes_alive, (unsigned long long) counters.total_constraints_created,
         (unsigned long long) counters.current_constraints_alive, (unsigned long long) counters.solver_call_count,
-        (double) counters.solver_total_time_us / 1000.0, counters.solver_avg_time_us,
+        (double) counters.solver_total_time_us / (double) lv_US_PER_MS, counters.solver_avg_time_us,
         (unsigned long long) counters.rewrite_total_steps, (unsigned long long) counters.rewrite_rule_applications,
         (unsigned long long) counters.unify_check_count, (unsigned long long) counters.unify_success_count,
         counters.unify_check_count > 0 ? (100.0 * counters.unify_success_count / counters.unify_check_count) : 0.0,

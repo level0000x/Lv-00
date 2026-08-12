@@ -228,9 +228,7 @@ static void add_child_edge(lvDynGraph *graph, int node_idx, int child_idx) {
 
     /* 后移后续边数据，为 node_idx 的新边腾出位置（total = 当前总边数槽） */
     int total = graph->child_adj_offsets[graph->node_count + 1];
-    for (int i = total; i > end; i--) {
-        graph->child_adj[i] = graph->child_adj[i - 1];
-    }
+    lv_shift_right(graph->child_adj, sizeof(int), end, total);
 
     /* 插入新子节点 */
     graph->child_adj[end] = child_idx;

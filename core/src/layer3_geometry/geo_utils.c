@@ -126,6 +126,25 @@ int geo_approx_equal(double a, double b, double eps) {
     return fabs(a - b) < eps ? 1 : 0;
 }
 
+/**
+ * @brief 判断点 (px, py) 是否落在线段 (ax,ay)-(bx,by) 的轴向包围盒内（含 epsilon 容差）
+ * @return 在 bbox 内返回 1，否则返回 0
+ */
+int geo_bbox_contains_2d(double px, double py, double ax, double ay, double bx, double by, double eps) {
+    return (px >= fmin(ax, bx) - eps && px <= fmax(ax, bx) + eps && py >= fmin(ay, by) - eps &&
+            py <= fmax(ay, by) + eps)
+               ? 1
+               : 0;
+}
+
+/**
+ * @brief 判断值 p 是否落在区间 [min(a,b), max(a,b)] 内（含 epsilon 容差）
+ * @return 在区间内返回 1，否则返回 0
+ */
+int geo_bbox_contains_1d(double p, double a, double b, double eps) {
+    return (p >= fmin(a, b) - eps && p <= fmax(a, b) + eps) ? 1 : 0;
+}
+
 /* ========================================================================
  * 几何谓词
  * ======================================================================== */

@@ -52,10 +52,7 @@
 /* 单次导入最多处理的 element 数量上限 */
 #define GGB_MAX_ELEMENTS 4096
 
-/** @brief 导入坐标精度分母（1e6 精度） */
-#ifndef INTEROP_COORD_DENOM_PRECISION
-#define INTEROP_COORD_DENOM_PRECISION 1000000ULL
-#endif
+/* INTEROP_COORD_DENOM_PRECISION 统一来自 lv/interop.h 的公共常量 */
 
 /* ── GeoGebra ZIP 解析器 ── */
 
@@ -903,11 +900,7 @@ static bool ggb_extract_child_text(const char *xml, size_t start, size_t end, co
         const char *close = memchr(text, '<', (size_t) ((xml + end) - text));
         if (!close)
             return false;
-        size_t n = (size_t) (close - text);
-        if (n >= out_size)
-            n = out_size - 1;
-        memcpy(out, text, n);
-        out[n] = '\0';
+        lv_strlcpy_n(out, out_size, text, (size_t) (close - text));
         return true;
     }
     return false;
@@ -1442,8 +1435,7 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
             lv_free((void **) &xml);
             return 0;
         }
-        memcpy(tmp, xml, xml_len);
-        tmp[xml_len] = '\0';
+        lv_strlcpy_n((char *) tmp, xml_len + 1, (const char *) xml, (size_t) xml_len);
         lv_free((void **) &xml);
         xml = tmp;
     }
@@ -1935,7 +1927,7 @@ static bool svg_path_arc(const char **s, SvgParserState *state, double *out_poin
     lv_UNUSED(ry);
     lv_UNUSED(rot);
     lv_UNUSED(laf_d); /* parsed for future SVG arc implementation */
-    int sf = (int) (sf_d + 0.5);
+    int sf = (int) round(sf_d);
     if (is_relative) {
         dx += state->cx;
         dy += state->cy;
@@ -2252,8 +2244,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                 if (ggb_extract_attr_len(svg + lt_off, tag_len, "d", &d, &d_len)) {
                     char *dbuf = (char *) lv_malloc(d_len + 1);
                     if (dbuf) {
-                        memcpy(dbuf, d, d_len);
-                        dbuf[d_len] = '\0';
+                        lv_strlcpy_n(dbuf, d_len + 1, d, (size_t) d_len);
                         svg_import_path(graph, dbuf, &imported, has_viewbox ? ox : 0, has_viewbox ? oy : 0);
                         lv_free((void **) &dbuf);
                     }
@@ -2296,8 +2287,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                 if (ggb_extract_attr_len(svg + lt_off, tag_len, "points", &pv, &pv_len)) {
                     char *pbuf = (char *) lv_malloc(pv_len + 1);
                     if (pbuf) {
-                        memcpy(pbuf, pv, pv_len);
-                        pbuf[pv_len] = '\0';
+                        lv_strlcpy_n(pbuf, pv_len + 1, pv, (size_t) pv_len);
                         double *pts = (double *) lv_malloc(sizeof(double) * 2 * (size_t) SVG_PATH_MAX_POINTS);
                         if (pts) {
                             int n = svg_parse_points_attr(pbuf, pts, SVG_PATH_MAX_POINTS);

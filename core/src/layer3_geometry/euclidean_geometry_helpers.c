@@ -597,10 +597,7 @@ void euclidean_set_inconsistency(EuclideanContext *ctx, int source_id, const cha
 
     if (message) {
         size_t msg_len = strlen(message);
-        size_t max_len = sizeof(ctx->inconsistency_message) - 1;
-        size_t copy_len = (msg_len < max_len) ? msg_len : max_len;
-        memcpy(ctx->inconsistency_message, message, copy_len);
-        ctx->inconsistency_message[copy_len] = '\0';
+        lv_strlcpy_n(ctx->inconsistency_message, sizeof(ctx->inconsistency_message), message, (size_t) msg_len);
     } else {
         ctx->inconsistency_message[0] = '\0';
     }

@@ -120,9 +120,7 @@ static int helper_ascii_coord_list(const FormulaNode *node, char *buffer, size_t
 
     int written = (int) sb.len;
     if (buffer && size > 0) {
-        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
-        memcpy(buffer, sb.data, copy_len);
-        buffer[copy_len] = '\0';
+        lv_strlcpy(buffer, sb.data, size);
     }
     lv_strbuf_destroy(&sb);
     return written;
@@ -312,9 +310,7 @@ static int helper_ascii_constraint(const FormulaNode *node, const char *kind, ch
 
     int written = (int) sb.len;
     if (buffer && size > 0) {
-        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
-        memcpy(buffer, sb.data, copy_len);
-        buffer[copy_len] = '\0';
+        lv_strlcpy(buffer, sb.data, size);
     }
     lv_strbuf_destroy(&sb);
     return written;
@@ -384,9 +380,7 @@ static int helper_ascii_compound(const FormulaNode *node, char *buffer, size_t s
 
     int written = (int) sb.len;
     if (buffer && size > 0) {
-        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
-        memcpy(buffer, sb.data, copy_len);
-        buffer[copy_len] = '\0';
+        lv_strlcpy(buffer, sb.data, size);
     }
     lv_strbuf_destroy(&sb);
     return written;

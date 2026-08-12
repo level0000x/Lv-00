@@ -332,9 +332,7 @@ bool lv_str_read_quoted(const char **pp, char **out) {
         *pp = p;
         return false;
     }
-    if (len > 0)
-        memcpy(result, start, len);
-    result[len] = '\0';
+    lv_strlcpy_n(result, len + 1, start, len);
     if (*p == '"')
         p++; /* 跳过结束引号 */
     *out = result;
@@ -360,9 +358,7 @@ const char *lv_str_read_token(const char **pp, char **out, const char *delims) {
         *pp = p;
         return p;
     }
-    if (len > 0)
-        memcpy(result, start, len);
-    result[len] = '\0';
+    lv_strlcpy_n(result, len + 1, start, len);
     *out = result;
     *pp = p;
     return p;

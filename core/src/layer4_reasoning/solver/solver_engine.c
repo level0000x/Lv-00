@@ -185,16 +185,7 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
         for (int i = 0; i < eqs_count; i++) {
             if (eqs_arr[i].poly.degree < 0)
                 continue;
-            int vid = eqs_arr[i].var_node_id;
-            bool found = false;
-            for (int j = 0; j < all_var_count; j++) {
-                if (all_var_ids[j] == vid) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-                all_var_ids[all_var_count++] = vid;
+            lv_int_append_unique(all_var_ids, &all_var_count, eqs_arr[i].var_node_id);
         }
 
         if (all_var_count > 0) {

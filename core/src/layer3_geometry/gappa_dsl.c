@@ -195,8 +195,7 @@ static ExprNode *parse_primary(const char **p) {
         size_t len = (size_t) (s - start);
         if (len < 64) {
             char vn[64];
-            memcpy(vn, start, len);
-            vn[len] = '\0';
+            lv_strlcpy_n(vn, sizeof(vn), start, (size_t) len);
             *p = s;
             return expr_var_node(vn);
         }

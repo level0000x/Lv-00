@@ -16,6 +16,7 @@
 
 #include "lv_internal.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/lv_parse_utils.h"
 
 /* ================================================================
  *  内部辅助宏
@@ -57,8 +58,7 @@ static const char *token_lexeme_dup(const char *s, size_t len) {
     char *dup = lv_malloc(len + 1);
     if (!dup)
         return "(out of memory)";
-    memcpy(dup, s, len);
-    dup[len] = '\0';
+    lv_strlcpy_n(dup, len + 1, s, len);
     return dup;
 }
 
@@ -223,47 +223,18 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count) {
             size_t start_pos = pos;
             int start_col_num = start_col;
 
-            /* 整数部分 */
-            while (pos < src_len && isdigit((unsigned char) source[pos])) {
-                pos++;
-                col++;
-            }
-            /* 小数部分 */
-            bool is_float = false;
-            if (pos < src_len && source[pos] == '.') {
-                /* 确保不是类似 ".." 的情况 */
-                if (pos + 1 < src_len && isdigit((unsigned char) source[pos + 1])) {
-                    is_float = true;
-                    pos++;
-                    col++;
-                    while (pos < src_len && isdigit((unsigned char) source[pos])) {
-                        pos++;
-                        col++;
-                    }
-                }
-            }
-            /* 科学计数法 */
-            if (pos < src_len && (source[pos] == 'e' || source[pos] == 'E')) {
-                is_float = true;
-                pos++;
-                col++;
-                if (pos < src_len && (source[pos] == '+' || source[pos] == '-')) {
-                    pos++;
-                    col++;
-                }
-                while (pos < src_len && isdigit((unsigned char) source[pos])) {
-                    pos++;
-                    col++;
-                }
-            }
+            /* 整数/小数/科学计数法词法骨架统一收敛（lv_str_scan_number） */
+            const char *num_end = lv_str_scan_number(source + start_pos, source + src_len);
+            size_t new_pos = (size_t) (num_end - source);
+            col += (int) (new_pos - pos);
+            pos = new_pos;
 
             size_t num_len = pos - start_pos;
             /* 创建一个长度为 1 的静态字符串，实际用 lexeme 较长但安全 */
             char *lex_buf = lv_malloc(num_len + 1);
             if (!lex_buf)
                 return false;
-            memcpy(lex_buf, source + start_pos, num_len);
-            lex_buf[num_len] = '\0';
+            lv_strlcpy_n(lex_buf, num_len + 1, source + start_pos, (size_t) num_len);
 
             if (!token_append(&tokens, &count, &capacity, DSL_TOK_NUMBER, lex_buf, line, start_col_num))
                 return false;

@@ -428,9 +428,7 @@ static int helper_dsl_compound(const FormulaNode *node, char *buffer, size_t siz
     /* 按 snprintf 语义写入调用方缓冲区：空间不足时截断安全，返回完整长度 */
     int written = (int) sb.len;
     if (buffer && size > 0) {
-        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
-        memcpy(buffer, sb.data, copy_len);
-        buffer[copy_len] = '\0';
+        lv_strlcpy(buffer, sb.data, size);
     }
     lv_strbuf_destroy(&sb);
     return written;

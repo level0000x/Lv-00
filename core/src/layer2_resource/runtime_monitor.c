@@ -26,6 +26,7 @@ void lv_log_shutdown(void);
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_file.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv_internal.h"
 #include "lv/lv_event_bus.h"
@@ -1179,8 +1180,8 @@ bool lv_event_trace_export_chrome(const char *path) {
             lv_json_buf_append_fmt(&buf,
                          ",\"cat\":\"%s\",\"ph\":\"%s\",\"ts\":%lld,\"dur\":%lld,\"pid\":1,\"tid\":%d}%s\n",
                          cat, type_str,
-                         (long long) (event->timestamp_ns / 1000),
-                         (long long) (event->duration_ns / 1000),
+                         (long long) (event->timestamp_ns / lv_NS_PER_US),
+                         (long long) (event->duration_ns / lv_NS_PER_US),
                          event->thread_id,
                          (i < s_runtime_state.event.event_count - 1) ? "," : "");
         }

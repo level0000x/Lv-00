@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "lv/lv_numeric.h"
+#include "lv/geo_utils.h"
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
 #include "lv_utils.h"
@@ -80,14 +81,8 @@ static bool point_on_segment_symbolic(SymbolicCoord *px, SymbolicCoord *py, Symb
     symbolic_coord_destroy(bay);
 
     /* 检查点是否在边界框内 */
-    double min_x = (x1_val < x2_val) ? x1_val : x2_val;
-    double max_x = (x1_val > x2_val) ? x1_val : x2_val;
-    double min_y = (y1_val < y2_val) ? y1_val : y2_val;
-    double max_y = (y1_val > y2_val) ? y1_val : y2_val;
-
     const double epsilon = 1e-10;
-    return (px_val >= min_x - epsilon && px_val <= max_x + epsilon && py_val >= min_y - epsilon &&
-            py_val <= max_y + epsilon);
+    return geo_bbox_contains_2d(px_val, py_val, x1_val, y1_val, x2_val, y2_val, epsilon);
 }
 
 /* 辅助函数：计算从点到线段端点的有向角度 */
@@ -121,10 +116,9 @@ static int compute_winding_number(double px, double py, GeomNode **segments, int
         if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
             continue;
 
-        double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(seg->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(seg->symbolic_coords[3]);
+        double x1, y1, x2, y2;
+        if (!symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2))
+            continue;
 
         total_angle += compute_angle(px, py, x1, y1, x2, y2);
     }
@@ -169,10 +163,9 @@ static bool point_in_region_ray_casting(double px, double py, GeomNode **segment
         if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
             continue;
 
-        double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(seg->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(seg->symbolic_coords[3]);
+        double x1, y1, x2, y2;
+        if (!symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2))
+            continue;
 
         /* 检查射线是否穿过边 */
         if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
@@ -318,8 +311,9 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
     bool is_inside = false;
 
     if (region->data.region.boundary_segments && region->data.region.segment_count > 0) {
-        double px = symbolic_coord_to_double(point->symbolic_coords[0]);
-        double py = symbolic_coord_to_double(point->symbolic_coords[1]);
+        double px, py;
+        if (!symbolic_coord_get_xy(point->symbolic_coords, point->coord_count, &px, &py))
+            return false;
 
         /* 第二步：使用卷绕数算法（更稳健） */
         int winding =

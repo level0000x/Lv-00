@@ -399,9 +399,8 @@ static bool json_parse_graph(lvJsonParser *p, Module **mod, char **name, char **
         size_t graph_len = p->pos - graph_start;
         char *graph_json = lv_calloc(graph_len + 1, 1);
         if (graph_json) {
-            /* 使用 memcpy 进行精确长度复制（已分配 graph_len+1，手动零终止更安全） */
-            memcpy(graph_json, p->data + graph_start, graph_len);
-            graph_json[graph_len] = '\0';
+            /* 使用 lv_strlcpy_n 进行精确长度复制（已分配 graph_len+1，自动零终止） */
+            lv_strlcpy_n(graph_json, graph_len + 1, p->data + graph_start, graph_len);
 
             /* 反序列化图 */
             if (*mod) {

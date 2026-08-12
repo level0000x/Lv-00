@@ -736,7 +736,7 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine, const Propositio
 
     /* 记录结束时间 */
     int64_t end_time = (int64_t) lv_get_time_ns();
-    double elapsed = (double) (end_time - start_time) / 1e6;
+    double elapsed = (double) (end_time - start_time) / (double) lv_NS_PER_MS;
 
     /* 更新溯源树状态 */
     if (success) {

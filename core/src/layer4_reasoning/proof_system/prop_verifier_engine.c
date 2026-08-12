@@ -17,6 +17,7 @@
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
  * 核心证明引擎（递归回溯，有剪枝）
@@ -393,10 +394,7 @@ bool prove(ProofContext *ctx, const PropFormula **premises, int premise_count, c
     bool result = false;
 
     /* VTable 分发：根据目标公式类型调用对应的证明策略函数 */
-    if ((unsigned) goal->type < sizeof(kProveGoalHandlers) / sizeof(kProveGoalHandlers[0]) &&
-        kProveGoalHandlers[goal->type]) {
-        result = kProveGoalHandlers[goal->type](ctx, premises, premise_count, goal);
-    }
+    result = LV_DISPATCH(kProveGoalHandlers, goal->type, false, ctx, premises, premise_count, goal);
     /* 未知公式类型：保持 result = false（与原 default 分支行为一致） */
 
     /* 爆炸原理：如果前提包含爆炸原理（ex falso），即前提含 ⊥，任何目标都可证 */

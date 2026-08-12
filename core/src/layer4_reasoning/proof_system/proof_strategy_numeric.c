@@ -209,8 +209,7 @@ static bool numeric_verify_extract_claim(const Proposition *prop, NumericClaim *
         lhs_len--;
     if (lhs_len == 0 || lhs_len >= NUMERIC_CLAIM_MAX_LEN)
         return false;
-    memcpy(out->lhs, text, lhs_len);
-    out->lhs[lhs_len] = '\0';
+    lv_strlcpy_n(out->lhs, NUMERIC_CLAIM_MAX_LEN, text, lhs_len);
 
     /* rhs：谓词之后到首个空白（去首空白，统一 lv_str_ltrim） */
     const char *rhs_start = lv_str_ltrim(found + found_len);
@@ -220,16 +219,14 @@ static bool numeric_verify_extract_claim(const Proposition *prop, NumericClaim *
     size_t rhs_len = (size_t) (rhs_end - rhs_start);
     if (rhs_len == 0 || rhs_len >= NUMERIC_CLAIM_MAX_LEN)
         return false;
-    memcpy(out->rhs, rhs_start, rhs_len);
-    out->rhs[rhs_len] = '\0';
+    lv_strlcpy_n(out->rhs, NUMERIC_CLAIM_MAX_LEN, rhs_start, rhs_len);
 
     /* 比较谓词规范化："==" -> "=" */
     if (found_len == 2 && found[0] == '=' && found[1] == '=') {
         out->comparator[0] = '=';
         out->comparator[1] = '\0';
     } else {
-        memcpy(out->comparator, found, (size_t) found_len);
-        out->comparator[found_len] = '\0';
+        lv_strlcpy_n(out->comparator, NUMERIC_COMPARATOR_MAX_LEN, found, (size_t) found_len);
     }
 
     /* 两侧必须是仅含实数常量的表达式（含变量/散文文本 -> 不适用） */

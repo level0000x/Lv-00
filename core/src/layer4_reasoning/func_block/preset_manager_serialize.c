@@ -156,8 +156,7 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
         set_error("内存分配失败");
         return false;
     }
-    memcpy(json_copy, data, size);
-    json_copy[size] = '\0';
+    lv_strlcpy_n(json_copy, size + 1, (const char *) data, size);
 
     /* 提取各字段 */
     PresetMetadata meta;

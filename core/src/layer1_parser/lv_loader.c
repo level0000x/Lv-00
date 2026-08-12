@@ -25,6 +25,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_lexer.h"
+#include "lv/lv_xmacro.h"
 
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -609,9 +610,7 @@ static bool fold_expr(LvAstNode *node, LvVal *out, int depth) {
         return false;
     if (depth > LV_PROVE_MAX_DEPTH)
         return false;
-    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kFoldDispatch[node->type])
-        return kFoldDispatch[node->type](node, out, depth);
-    return false; /* 原 default 分支 */
+    return LV_DISPATCH(kFoldDispatch, node->type, false, node, out, depth);
 }
 
 /* ── 命题求值：返回 -1 无法判定，0 假，1 真（VTable 化：按节点类型查表分发，替代 switch）── */
@@ -778,9 +777,7 @@ static const AstIsPureFn kIsPureDispatch[LV_AST_COUNT] = {
 static bool is_pure_propositional(LvAstNode *node, int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH)
         return false;
-    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kIsPureDispatch[node->type])
-        return kIsPureDispatch[node->type](node, depth);
-    return false; /* 原 default 分支 */
+    return LV_DISPATCH(kIsPureDispatch, node->type, false, node, depth);
 }
 
 /** @brief 收集表达式中的原子命题名（去重，按首次出现顺序）；变量数超限置 overflow（查表分发，替代 switch） */
@@ -851,11 +848,7 @@ static void collect_prop_vars(LvAstNode *node,
                               int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH || *overflow)
         return;
-    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kCollectVarsDispatch[node->type]) {
-        kCollectVarsDispatch[node->type](node, vars, count, overflow, depth);
-        return;
-    }
-    /* 原 default 分支：无操作 */
+    LV_DISPATCH_VOID(kCollectVarsDispatch, node->type, node, vars, count, overflow, depth);
 }
 
 /** @brief 在给定赋值下求值纯命题骨架：返回 -1 无法判定，0 假，1 真（查表分发，替代 switch） */
@@ -955,9 +948,7 @@ static int eval_prop_skeleton(LvAstNode *node,
                               int depth) {
     if (!node || depth > LV_PROVE_MAX_DEPTH)
         return -1;
-    if ((unsigned) node->type < (unsigned) LV_AST_COUNT && kEvalSkeletonDispatch[node->type])
-        return kEvalSkeletonDispatch[node->type](node, vars, vals, nvars, depth);
-    return -1; /* 原 default 分支 */
+    return LV_DISPATCH(kEvalSkeletonDispatch, node->type, -1, node, vars, vals, nvars, depth);
 }
 
 /** @brief 命题逻辑全真值表验证：恒真 → 1，有反例 → 0，无法判定 → -1 */

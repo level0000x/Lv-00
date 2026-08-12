@@ -260,7 +260,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
         double current_width = next->right_bound - next->left_bound;
         if (current_width > 0 && initial_width > 0) {
             double ratio = current_width / initial_width;
-            int decay_bits = (int) (log2(ratio) + 0.5);
+            int decay_bits = (int) round(log2(ratio));
             if (decay_bits < 0)
                 decay_bits = 0;
             if (decay_bits > result.max_precision_decay) {

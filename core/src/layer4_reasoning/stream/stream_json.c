@@ -106,9 +106,7 @@ int stream_event_to_json(const StreamEvent *event, char *buffer, size_t size) {
     size_t len = strlen(json);
     /* 截断语义：缓冲区不足时写满 size-1 字节 + NUL，返回所需大小 */
     if (buffer && size > 0) {
-        size_t copy = len < size ? len : size - 1;
-        memcpy(buffer, json, copy);
-        buffer[copy] = '\0';
+        lv_strlcpy(buffer, json, size);
     }
     lv_free((void **) &json);
     return (int) len;
@@ -172,9 +170,7 @@ int stream_event_to_jsonrpc(const StreamEvent *event, char *buffer, size_t size)
     }
     size_t slen = strlen(shell);
     if (buffer && size > 0) {
-        size_t copy = slen < size ? slen : size - 1;
-        memcpy(buffer, shell, copy);
-        buffer[copy] = '\0';
+        lv_strlcpy(buffer, shell, size);
     }
     lv_free((void **) &shell);
     if (event_json_ptr != event_json)

@@ -121,6 +121,117 @@ void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count) {
     }
 }
 
+/**
+ * @brief 在数组中右移腾位（数组中间插入的移位移除前辅助）
+ *
+ * 将 [index, count) 区间的元素整体右移一格到 [index+1, count+1)，
+ * 在 index 处腾出空位供插入。与 lv_shift_left 对称（lv_shift_left
+ * 删除 index 处元素前移；本函数在 index 处腾位右移）。统一用单次
+ * memmove 完成移位，收敛散落的"for 逐元素右移"样板。计数由调用方
+ * 维护并自行递增。
+ *
+ * @param base      数组起始地址
+ * @param elem_size 元素字节大小
+ * @param index     插入位置（腾位下标，越界时为空操作）
+ * @param count     当前元素个数（右移 [index, count)，不移入尾部残留）
+ */
+void lv_shift_right(void *base, size_t elem_size, size_t index, size_t count) {
+    if (!base || elem_size == 0 || index >= count)
+        return;
+    memmove((char *) base + (index + 1) * elem_size, (char *) base + index * elem_size,
+            (count - index) * elem_size);
+}
+
+/**
+ * @brief 消费缓冲前缀后将剩余数据前移压缩到头部
+ *
+ * 删除缓冲区前 pos 个元素，把 [pos, len) 剩余元素前移到头部并更新
+ * 长度（recv 缓冲 consume 语义）。pos 为 0 时空操作；pos >= len 时
+ * 全部消费（len 置 0）。与 lv_shift_left 同为 memmove 单次移位。
+ *
+ * @param buf       缓冲起始地址
+ * @param elem_size 元素字节大小
+ * @param pos       已消费的元素个数（前缀）
+ * @param len       指向当前元素个数的指针（原地更新为剩余个数）
+ */
+void lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len) {
+    if (!buf || !len || elem_size == 0 || pos == 0)
+        return;
+    if (pos >= *len) {
+        *len = 0;
+        return;
+    }
+    memmove(buf, (char *) buf + pos * elem_size, (*len - pos) * elem_size);
+    *len -= pos;
+}
+
+/**
+ * @brief 判断两个 int 多集是否相等（排序后逐元素比较）
+ *
+ * 拷贝两份输入后排序比较，不修改入参。长度不等直接判不等。
+ * 收敛 type_check / normalization 中手写"双 qsort + 双指针/逐元素
+ * 比较"的多集相等判定样板（判据 A）。
+ *
+ * @param a  第一组元素数组（an==0 时可为 NULL）
+ * @param an 第一组元素个数
+ * @param b  第二组元素数组（bn==0 时可为 NULL）
+ * @param bn 第二组元素个数
+ * @return 1 相等；0 不相等；-1 内存分配失败（调用方按错误处理）
+ */
+int lv_int_multiset_equal(const int *a, int an, const int *b, int bn) {
+    if (an != bn)
+        return 0;
+    if (an == 0)
+        return 1;
+    if (!a || !b)
+        return 0;
+    int *sa = lv_malloc((size_t) an * sizeof(int));
+    int *sb = lv_malloc((size_t) bn * sizeof(int));
+    if (!sa || !sb) {
+        lv_free((void **) &sa);
+        lv_free((void **) &sb);
+        return -1;
+    }
+    memcpy(sa, a, (size_t) an * sizeof(int));
+    memcpy(sb, b, (size_t) bn * sizeof(int));
+    qsort(sa, (size_t) an, sizeof(int), lv_cmp_int);
+    qsort(sb, (size_t) bn, sizeof(int), lv_cmp_int);
+    int result = 1;
+    for (int i = 0; i < an; i++) {
+        if (sa[i] != sb[i]) {
+            result = 0;
+            break;
+        }
+    }
+    lv_free((void **) &sa);
+    lv_free((void **) &sb);
+    return result;
+}
+
+/**
+ * @brief 向紧凑 int 数组追加不重复值（unique append）
+ *
+ * 线性扫描 [arr, arr+*count)，若 value 已存在则跳过返回 false；
+ * 否则写入 arr[*count] 并递增计数返回 true。收敛 solver / 导出模块
+ * 中手写"bool found + 内层 for 查重 + append"样板（判据 B）。
+ * 容量由调用方保证（原样板语义即为紧凑数组且调用方维护容量）。
+ *
+ * @param arr   目标数组起始地址
+ * @param count 指向当前元素个数的指针（追加成功后原地递增）
+ * @param value 待追加的值
+ * @return true 已追加；false 值已存在或参数非法
+ */
+bool lv_int_append_unique(int *arr, int *count, int value) {
+    if (!arr || !count)
+        return false;
+    for (int i = 0; i < *count; i++) {
+        if (arr[i] == value)
+            return false;
+    }
+    arr[(*count)++] = value;
+    return true;
+}
+
 /* ============================================================
  * 整数数组
  * ============================================================ */

@@ -68,30 +68,27 @@ int lv_type_inference_infer(lvTypeInference *inf, const char *expr, char *result
         }
     }
 
-    /* 内置默认规则 */
-    if (strstr(expr, "+") != NULL || strstr(expr, "-") != NULL || strstr(expr, "*") != NULL ||
-        strstr(expr, "/") != NULL) {
-        lv_strlcpy(result_type, "Number", size);
-        return 0;
-    }
-    if (strstr(expr, "point") != NULL || strstr(expr, "Point") != NULL) {
-        lv_strlcpy(result_type, "Point", size);
-        return 0;
-    }
-    if (strstr(expr, "line") != NULL || strstr(expr, "Line") != NULL) {
-        lv_strlcpy(result_type, "Line", size);
-        return 0;
-    }
-    if (strstr(expr, "circle") != NULL || strstr(expr, "Circle") != NULL) {
-        lv_strlcpy(result_type, "Circle", size);
-        return 0;
-    }
-    if (strstr(expr, "\"") != NULL || strstr(expr, "'") != NULL) {
-        lv_strlcpy(result_type, "String", size);
-        return 0;
-    }
-    if (strstr(expr, "true") != NULL || strstr(expr, "false") != NULL) {
-        lv_strlcpy(result_type, "Boolean", size);
+    /* 内置默认规则（子串关键词查找表：lv_str_match_any 顺序匹配，与手写链语义一致） */
+    static const char *const kBuiltinTypeKeywords[] = {
+        "+", "-", "*", "/",
+        "point", "Point",
+        "line", "Line",
+        "circle", "Circle",
+        "\"", "'",
+        "true", "false",
+        NULL
+    };
+    static const char *const kBuiltinTypeNames[] = {
+        "Number", "Number", "Number", "Number",
+        "Point", "Point",
+        "Line", "Line",
+        "Circle", "Circle",
+        "String", "String",
+        "Boolean", "Boolean"
+    };
+    int kidx = lv_str_match_any(expr, kBuiltinTypeKeywords);
+    if (kidx >= 0) {
+        lv_strlcpy(result_type, kBuiltinTypeNames[kidx], size);
         return 0;
     }
 

@@ -738,7 +738,7 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
     if (ctx->circuit_breaker.start_time_us > 0) {
         uptime_us = lv_get_time_us() - ctx->circuit_breaker.start_time_us;
     }
-    uint64_t uptime_ms = uptime_us / 1000;
+    uint64_t uptime_ms = uptime_us / lv_US_PER_MS;
 
     /* 格式化统计信息 */
     int written =

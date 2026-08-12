@@ -437,7 +437,7 @@ static int atp_run_subprocess(const char *executable, const char *tptp_text, dou
     }
     exec_argv[argc] = NULL;
 
-    int timeout_ms = (timeout_sec > 0.0) ? (int) (timeout_sec * 1000.0) : 0;
+    int timeout_ms = (timeout_sec > 0.0) ? (int) (timeout_sec * (double) lv_MS_PER_S) : 0;
 
     char *output = NULL;
     size_t out_len = 0;
@@ -563,8 +563,7 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
 
             steps[count].clause = (char *) lv_malloc((size_t) clause_len + 1);
             if (steps[count].clause) {
-                memcpy(steps[count].clause, clause_start, (size_t) clause_len);
-                steps[count].clause[clause_len] = '\0';
+                lv_strlcpy_n(steps[count].clause, (size_t) clause_len + 1, clause_start, (size_t) clause_len);
             }
 
             /* 检查是否包含 inference 规则 */
@@ -576,8 +575,7 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
                     int rule_len = (int) (rule_end - rule_start);
                     steps[count].inference_rule = (char *) lv_malloc((size_t) rule_len + 1);
                     if (steps[count].inference_rule) {
-                        memcpy(steps[count].inference_rule, rule_start, (size_t) rule_len);
-                        steps[count].inference_rule[rule_len] = '\0';
+                        lv_strlcpy_n(steps[count].inference_rule, (size_t) rule_len + 1, rule_start, (size_t) rule_len);
                     }
                 }
             }

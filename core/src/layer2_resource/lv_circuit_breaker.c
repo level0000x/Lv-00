@@ -109,7 +109,7 @@ bool lv_circuit_breaker_is_tripped(const lvCircuitBreaker *cb) {
 
     /* 检查总运行时间超限 */
     if (cb->total_timeout_ms > 0) {
-        uint64_t uptime_ms = (now_us() - cb->start_time_us) / 1000;
+        uint64_t uptime_ms = (now_us() - cb->start_time_us) / lv_US_PER_MS;
         if (uptime_ms >= cb->total_timeout_ms) {
             return true;
         }
@@ -252,7 +252,7 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
         case lv_CB_OPEN: {
             /* 检查冷却时间是否已过 */
             if (cb->cooldown_ms > 0 && cb->tripped_at_us > 0) {
-                uint64_t elapsed_ms = (now_us - cb->tripped_at_us) / 1000;
+                uint64_t elapsed_ms = (now_us - cb->tripped_at_us) / lv_US_PER_MS;
                 if (elapsed_ms >= cb->cooldown_ms) {
                     /* 冷却完成，进入半开态 */
                     cb->state = lv_CB_HALF_OPEN;

@@ -601,9 +601,7 @@ static int helper_latex_compound(const FormulaNode *node, char *buffer, size_t s
      * （formula_render_ex 两遍法中首遍返回完整长度触发扩容，第二遍容量充足） */
     written = (int) sb.len;
     if (buffer && size > 0) {
-        size_t copy_len = (sb.len < size) ? sb.len : size - 1;
-        memcpy(buffer, sb.data, copy_len);
-        buffer[copy_len] = '\0';
+        lv_strlcpy_n(buffer, size, sb.data, (size_t) sb.len);
     }
     lv_strbuf_destroy(&sb);
     return written;

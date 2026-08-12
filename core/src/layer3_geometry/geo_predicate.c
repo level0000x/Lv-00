@@ -902,14 +902,10 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
          * 检查 C 或 D 是否在 AB 的 bounding box 内，
          * 或 A 或 B 是否在 CD 的 bounding box 内。
          */
-        int c_on_ab = (cx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
-                       cy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && cy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
-        int d_on_ab = (dx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && dx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
-                       dy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && dy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
-        int a_on_cd = (ax >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && ax <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
-                       ay >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && ay <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
-        int b_on_cd = (bx >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && bx <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
-                       by >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && by <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
+        int c_on_ab = geo_bbox_contains_2d(cx, cy, ax, ay, bx, by, lv_GEO_DISTANCE_EPSILON);
+        int d_on_ab = geo_bbox_contains_2d(dx, dy, ax, ay, bx, by, lv_GEO_DISTANCE_EPSILON);
+        int a_on_cd = geo_bbox_contains_2d(ax, ay, cx, cy, dx, dy, lv_GEO_DISTANCE_EPSILON);
+        int b_on_cd = geo_bbox_contains_2d(bx, by, cx, cy, dx, dy, lv_GEO_DISTANCE_EPSILON);
 
         return (c_on_ab || d_on_ab || a_on_cd || b_on_cd);
     }
@@ -920,8 +916,7 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
      * 共线点还需要 bounding box 验证（防止延长线上的误判）。
      */
     if (d1 == lv_ORIENTATION_COLLINEAR) {
-        int c_on_ab = (cx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && cx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
-                       cy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && cy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
+        int c_on_ab = geo_bbox_contains_2d(cx, cy, ax, ay, bx, by, lv_GEO_DISTANCE_EPSILON);
         if (c_on_ab && ((d3 == lv_ORIENTATION_LEFT && d4 == lv_ORIENTATION_RIGHT) ||
                         (d3 == lv_ORIENTATION_RIGHT && d4 == lv_ORIENTATION_LEFT))) {
             return true;
@@ -929,8 +924,7 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
     }
 
     if (d2 == lv_ORIENTATION_COLLINEAR) {
-        int d_on_ab = (dx >= fmin(ax, bx) - lv_GEO_DISTANCE_EPSILON && dx <= fmax(ax, bx) + lv_GEO_DISTANCE_EPSILON &&
-                       dy >= fmin(ay, by) - lv_GEO_DISTANCE_EPSILON && dy <= fmax(ay, by) + lv_GEO_DISTANCE_EPSILON);
+        int d_on_ab = geo_bbox_contains_2d(dx, dy, ax, ay, bx, by, lv_GEO_DISTANCE_EPSILON);
         if (d_on_ab && ((d3 == lv_ORIENTATION_LEFT && d4 == lv_ORIENTATION_RIGHT) ||
                         (d3 == lv_ORIENTATION_RIGHT && d4 == lv_ORIENTATION_LEFT))) {
             return true;
@@ -938,8 +932,7 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
     }
 
     if (d3 == lv_ORIENTATION_COLLINEAR) {
-        int a_on_cd = (ax >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && ax <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
-                       ay >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && ay <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
+        int a_on_cd = geo_bbox_contains_2d(ax, ay, cx, cy, dx, dy, lv_GEO_DISTANCE_EPSILON);
         if (a_on_cd && ((d1 == lv_ORIENTATION_LEFT && d2 == lv_ORIENTATION_RIGHT) ||
                         (d1 == lv_ORIENTATION_RIGHT && d2 == lv_ORIENTATION_LEFT))) {
             return true;
@@ -947,8 +940,7 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
     }
 
     if (d4 == lv_ORIENTATION_COLLINEAR) {
-        int b_on_cd = (bx >= fmin(cx, dx) - lv_GEO_DISTANCE_EPSILON && bx <= fmax(cx, dx) + lv_GEO_DISTANCE_EPSILON &&
-                       by >= fmin(cy, dy) - lv_GEO_DISTANCE_EPSILON && by <= fmax(cy, dy) + lv_GEO_DISTANCE_EPSILON);
+        int b_on_cd = geo_bbox_contains_2d(bx, by, cx, cy, dx, dy, lv_GEO_DISTANCE_EPSILON);
         if (b_on_cd && ((d1 == lv_ORIENTATION_LEFT && d2 == lv_ORIENTATION_RIGHT) ||
                         (d1 == lv_ORIENTATION_RIGHT && d2 == lv_ORIENTATION_LEFT))) {
             return true;
@@ -1328,9 +1320,7 @@ lv_PUBLIC_API bool lv_point_in_polygon(double px, double py, const double *xs, c
              * 如果点在线段的 bounding box 内，则点在多边形边界上。
              * 直接返回 true（含边界）。
              */
-            double x_min = fmin(xi, xj);
-            double x_max = fmax(xi, xj);
-            if (px >= x_min - eps && px <= x_max + eps) {
+            if (geo_bbox_contains_1d(px, xi, xj, eps)) {
                 return true;
             }
         }

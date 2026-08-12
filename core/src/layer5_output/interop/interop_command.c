@@ -284,8 +284,8 @@ static int interop_add_node_point(lvEngine *engine, const InteropCommand *cmd, I
         if (lv_parse_double(cmd->params[i], &val) != 0) {
             val = 0.0;
         }
-        int64_t num = (int64_t) (val * 1000000.0);
-        coords[i - 1] = symbolic_coord_create_rational(num, 1000000UL);
+        int64_t num = (int64_t) (val * (double) INTEROP_COORD_DENOM_PRECISION);
+        coords[i - 1] = symbolic_coord_create_rational(num, INTEROP_COORD_DENOM_PRECISION);
         if (coords[i - 1])
             coord_count++;
     }

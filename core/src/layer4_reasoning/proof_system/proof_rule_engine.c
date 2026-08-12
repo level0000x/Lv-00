@@ -47,7 +47,7 @@ static bool is_search_timed_out(const lvRuleEngine *engine, uint64_t start_time_
     if (engine->timeout_ms == 0)
         return false;
     uint64_t elapsed_us = lv_circuit_breaker_now_us() - start_time_us;
-    return elapsed_us >= (uint64_t) engine->timeout_ms * 1000ULL;
+    return elapsed_us >= (uint64_t) engine->timeout_ms * lv_US_PER_MS;
 }
 
 
@@ -1079,12 +1079,7 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
                 rule_engine_destroy(engine);
                 return -1;
             }
-            int name_len = (int) strlen(rule);
-            if (name_len >= lv_PROOF_RULE_NAME_MAX) {
-                name_len = lv_PROOF_RULE_NAME_MAX - 1;
-            }
-            memcpy(tmp_rule->name, rule, (size_t) name_len);
-            tmp_rule->name[name_len] = '\0';
+            lv_strlcpy(tmp_rule->name, rule, lv_PROOF_RULE_NAME_MAX);
             tmp_rule->weight = 1.0;
             tmp_rule->type = RULE_REWRITE;
             tmp_rule->priority = 0;

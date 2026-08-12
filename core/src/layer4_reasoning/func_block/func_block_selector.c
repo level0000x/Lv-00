@@ -112,12 +112,8 @@ static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *
         if (!seg || seg->type != GEOM_LINE_SEGMENT)
             continue;
 
-        if (seg->coord_count >= 4 && seg->symbolic_coords) {
-            double x1 = symbolic_coord_to_double(seg->symbolic_coords[0]);
-            double y1 = symbolic_coord_to_double(seg->symbolic_coords[1]);
-            double x2 = symbolic_coord_to_double(seg->symbolic_coords[2]);
-            double y2 = symbolic_coord_to_double(seg->symbolic_coords[3]);
-
+        double x1, y1, x2, y2;
+        if (symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2)) {
             /* 检查水平射线 (px, py) -> (+inf, py) 是否与线段相交 */
             double dy = y2 - y1;
             /* 【修复】使用 fabs 统一做除零检查，避免浮点数直接用 == 比较的不可靠性 */

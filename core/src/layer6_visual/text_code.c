@@ -176,7 +176,6 @@ int lv_text_code_render(const lvTextCodeView *view, char *buffer, size_t size) {
     size_t len = strlen(src);
     if (len >= size)
         len = size - 1;
-    memcpy(buffer, src, len);
-    buffer[len] = '\0';
+    lv_strlcpy_n(buffer, size, src, (size_t) len);
     return (int) len;
 }

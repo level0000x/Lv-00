@@ -17,6 +17,7 @@
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
  * ����ȼ��Լ��
@@ -242,12 +243,6 @@ PropVerifierResult lv_prop_verify(const void *prop) {
     const PropFormula *f = (const PropFormula *) prop;
 
     /* 按公式类型分派到对应的验证函数 */
-    if ((unsigned)f->type < sizeof(kPropVerifyHandlers)/sizeof(kPropVerifyHandlers[0]) &&
-        kPropVerifyHandlers[f->type]) {
-        return kPropVerifyHandlers[f->type](f);
-    }
-
-    res.valid = false;
-    res.msg = "unsupported proposition type";
-    return res;
+    return LV_DISPATCH(kPropVerifyHandlers, f->type,
+                       (res.valid = false, res.msg = "unsupported proposition type", res), f);
 }

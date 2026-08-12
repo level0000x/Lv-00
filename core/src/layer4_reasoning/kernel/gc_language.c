@@ -7,6 +7,7 @@
  */
 
 #include "lv/gc_language.h"
+#include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 
 #include <ctype.h>
@@ -193,9 +194,7 @@ int lv_gc_parse(const char *source, void *engine) {
 
         /* 跳过数字字面量 */
         if (isdigit((unsigned char) *p) || *p == '.') {
-            while (*p && (isdigit((unsigned char) *p) || *p == '.')) {
-                p++;
-            }
+            p = lv_str_scan_number(p, NULL);
             continue;
         }
 

@@ -211,16 +211,14 @@ static void dtmc_build_unidirectional(SimpleDTMC *mc, int src, int dst, double p
     dtmc_add_transition(mc, src, dst, prob);
 }
 
-static const DTMCBuildEntry kDTMCBuildTable[] = {
-    {INCIDENCE,    dtmc_build_bidirectional},
-    {BETWEENNESS,  dtmc_build_betweenness},
-    {INTERSECTION, dtmc_build_bidirectional},
-    {CONTAINMENT,  dtmc_build_unidirectional},
-    {ANGLE,        dtmc_build_unidirectional},
-    {CONNECTION,   dtmc_build_bidirectional}
+static const DTMCBuildFn kDTMCBuildTable[] = {
+    [INCIDENCE] = dtmc_build_bidirectional,
+    [BETWEENNESS] = dtmc_build_betweenness,
+    [INTERSECTION] = dtmc_build_bidirectional,
+    [CONTAINMENT] = dtmc_build_unidirectional,
+    [ANGLE] = dtmc_build_unidirectional,
+    [CONNECTION] = dtmc_build_bidirectional
 };
-static const int kDTMCBuildTableCount =
-    (int)(sizeof(kDTMCBuildTable) / sizeof(kDTMCBuildTable[0]));
 
 /**
  * @brief 从约束图构建 DTMC
@@ -262,12 +260,7 @@ static SimpleDTMC *build_dtmc_from_graph(const ConstraintGraph *graph) {
 
         double prob = prob_from_satisfaction(c);
 
-        for (int ti = 0; ti < kDTMCBuildTableCount; ti++) {
-            if (kDTMCBuildTable[ti].type == c->type) {
-                kDTMCBuildTable[ti].build(mc, src, dst, prob, c, n);
-                break;
-            }
-        }
+        LV_DISPATCH_VOID(kDTMCBuildTable, c->type, mc, src, dst, prob, c, n);
     }
 
     /* 归一化每个状态的总出边概率并补充自环 */
@@ -328,11 +321,7 @@ static const struct {
 
 /** @brief 在精确匹配表中查找谓词种类（未命中返回 PRED_KIND_UNKNOWN） */
 static PredicateKind state_predicate_lookup(const char *predicate) {
-    for (size_t i = 0; i < lv_ARRAY_SIZE(kStatePredicateTable); i++) {
-        if (strcmp(predicate, kStatePredicateTable[i].name) == 0)
-            return kStatePredicateTable[i].kind;
-    }
-    return PRED_KIND_UNKNOWN;
+    return (PredicateKind) lv_str_to_enum(kStatePredicateTable, lv_ARRAY_SIZE(kStatePredicateTable), predicate, PRED_KIND_UNKNOWN);
 }
 
 /**
@@ -696,10 +685,6 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
 static double pctl_compute_probability(const SimpleDTMC *mc, const PCTLFormula *formula);
 
 typedef double (*PCTLSubEvalFn)(const SimpleDTMC *mc, const PCTLFormula *sub);
-typedef struct {
-    PCTLFormulaType type;
-    PCTLSubEvalFn eval;
-} PCTLSubEvalEntry;
 
 static double pctl_sub_eval_eventually(const SimpleDTMC *mc, const PCTLFormula *sub) {
     return pctl_compute_eventually(mc, sub->state_predicate);
@@ -714,14 +699,12 @@ static double pctl_sub_eval_prob_bound(const SimpleDTMC *mc, const PCTLFormula *
     return pctl_compute_probability(mc, sub);
 }
 
-static const PCTLSubEvalEntry kPCTLSubEvalTable[] = {
-    {PCTL_EVENTUALLY,  pctl_sub_eval_eventually},
-    {PCTL_ALWAYS,      pctl_sub_eval_always},
-    {PCTL_UNTIL,       pctl_sub_eval_until},
-    {PCTL_PROB_BOUND,  pctl_sub_eval_prob_bound}
+static const PCTLSubEvalFn kPCTLSubEvalTable[] = {
+    [PCTL_PROB_BOUND] = pctl_sub_eval_prob_bound,
+    [PCTL_EVENTUALLY] = pctl_sub_eval_eventually,
+    [PCTL_ALWAYS] = pctl_sub_eval_always,
+    [PCTL_UNTIL] = pctl_sub_eval_until
 };
-static const int kPCTLSubEvalTableCount =
-    (int)(sizeof(kPCTLSubEvalTable) / sizeof(kPCTLSubEvalTable[0]));
 
 /**
  * @brief 计算概率界 P>=p [ phi ] 或 P<=p [ phi ]
@@ -736,14 +719,8 @@ static double pctl_compute_probability(const SimpleDTMC *mc, const PCTLFormula *
     double actual_prob = 0.0;
 
     if (formula->sub_formula) {
-        /* 递归评估子公式 — 使用查找表 */
-        actual_prob = formula->p_bound; /* 默认值 */
-        for (int ti = 0; ti < kPCTLSubEvalTableCount; ti++) {
-            if (kPCTLSubEvalTable[ti].type == formula->sub_formula->type) {
-                actual_prob = kPCTLSubEvalTable[ti].eval(mc, formula->sub_formula);
-                break;
-            }
-        }
+        /* 递归评估子公式 — 直接索引查找表 */
+        actual_prob = LV_DISPATCH(kPCTLSubEvalTable, formula->sub_formula->type, formula->p_bound, mc, formula->sub_formula);
     } else {
         /* 无子公式，使用状态谓词直接评估 */
         actual_prob = pctl_compute_eventually(mc, formula->state_predicate);
@@ -1170,7 +1147,6 @@ static const PCTLEvalFn kPCTLEvalTable[] = {
     pctl_eval_steady_state, /* PCTL_STEADY_STATE */
     NULL                    /* PCTL_ATOMIC */
 };
-static const int kPCTLEvalTableCount = (int)(sizeof(kPCTLEvalTable) / sizeof(kPCTLEvalTable[0]));
 
 /* ========================================================================
  * pctl_evaluate —— 在约束图上评估 PCTL 公式
@@ -1198,12 +1174,7 @@ bool pctl_evaluate(const ConstraintGraph *graph, const PCTLFormula *formula, dou
         return true;
     }
 
-    if (formula->type >= 0 && formula->type < kPCTLEvalTableCount && kPCTLEvalTable[(int)formula->type]) {
-        if (!kPCTLEvalTable[(int)formula->type](mc, formula, out_probability)) {
-            dtmc_destroy(mc);
-            return false;
-        }
-    } else {
+    if (!LV_DISPATCH(kPCTLEvalTable, formula->type, false, mc, formula, out_probability)) {
         dtmc_destroy(mc);
         return false;
     }

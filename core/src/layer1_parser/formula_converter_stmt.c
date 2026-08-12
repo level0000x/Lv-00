@@ -20,6 +20,7 @@
 
 #include "formula_renderer.h"
 #include "lv_internal.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv_utils.h"
 #include "stream.h"
 #include "stream_context_util.h"
@@ -143,11 +144,7 @@ static const ProcessStmtFunc s_stmt_funcs[] = {
 
 static bool formula_to_graph_process_statement(const FormulaNode *stmt, ConstraintGraph *graph,
                                                FormulaToGraphResult *result) {
-
-        if ((unsigned)stmt->type < 36 && s_stmt_funcs[stmt->type]) {
-        return s_stmt_funcs[stmt->type](stmt, graph, result);
-    }
-    return false;
+    return LV_DISPATCH(s_stmt_funcs, stmt->type, false, stmt, graph, result);
 }
 
 /**

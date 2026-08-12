@@ -162,11 +162,7 @@ Transcendental *transcendental_create(const char *name) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "transcendental_create: calloc failed");
     /* 安全字符串复制：确保以 null 终止 */
     {
-        size_t name_len = strlen(name);
-        if (name_len >= sizeof(t->name))
-            name_len = sizeof(t->name) - 1;
-        memcpy(t->name, name, name_len);
-        t->name[name_len] = '\0';
+        lv_strlcpy_n(t->name, sizeof(t->name), name, (size_t) strlen(name));
     }
 
     /* 如果是裸常量（pi 或 e），expr 保持 NULL */
@@ -181,11 +177,7 @@ Transcendental *transcendental_create(const char *name) {
         }
         /* 安全字符串复制：确保以 null 终止 */
         {
-            size_t base_len = strlen(base);
-            if (base_len >= sizeof(expr->base_name))
-                base_len = sizeof(expr->base_name) - 1;
-            memcpy(expr->base_name, base, base_len);
-            expr->base_name[base_len] = '\0';
+            lv_strlcpy_n(expr->base_name, sizeof(expr->base_name), base, (size_t) strlen(base));
         }
         expr->out_of_scope = false;
 

@@ -243,16 +243,7 @@ static int *compute_elimination_order(const ConstraintGraph *graph, EquationSyst
     for (int i = 0; i < eq_count_total; i++) {
         if (eqs[i].poly.degree < 0)
             continue;
-        int vid = eqs[i].var_node_id;
-        bool found = false;
-        for (int j = 0; j < var_count; j++) {
-            if (var_ids[j] == vid) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-            var_ids[var_count++] = vid;
+        lv_int_append_unique(var_ids, &var_count, eqs[i].var_node_id);
     }
 
     if (var_count == 0) {

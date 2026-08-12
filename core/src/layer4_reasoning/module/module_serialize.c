@@ -246,8 +246,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
             if (dir_start) {
                 char dir_buf[1024];
                 size_t dlen = (dir_len < sizeof(dir_buf)) ? dir_len : (sizeof(dir_buf) - 1);
-                memcpy(dir_buf, dir_start, dlen);
-                dir_buf[dlen] = '\0';
+                lv_strlcpy_n(dir_buf, sizeof(dir_buf), dir_start, dlen);
                 lv_path_join(dir_buf, dep_name_buf, dep_path, sizeof(dep_path));
             } else {
                 snprintf(dep_path, sizeof(dep_path), "%s.lvz", dep->name);
@@ -873,8 +872,7 @@ bool module_parse_version_constraint(const char *constraint, const char *version
     if (dash) {
         size_t lower_len = (size_t) (dash - constraint);
         char *lower = lv_calloc(lower_len + 1, 1);
-        memcpy(lower, constraint, lower_len);
-        lower[lower_len] = '\0';
+        lv_strlcpy_n(lower, lower_len + 1, constraint, lower_len);
         const char *upper = dash + 3;
 
         bool result = (module_compare_versions(version, lower) >= 0 && module_compare_versions(version, upper) <= 0);

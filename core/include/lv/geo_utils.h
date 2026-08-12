@@ -74,6 +74,26 @@ lv_PUBLIC_API double geo_norm_sq_2d(double dx, double dy);
 lv_PUBLIC_API double geo_norm_sq_3d(double dx, double dy, double dz);
 lv_PUBLIC_API float geo_norm_2df(float dx, float dy);
 lv_PUBLIC_API int geo_approx_equal(double a, double b, double eps);
+
+/**
+ * @brief 判断点 (px, py) 是否落在线段 (ax,ay)-(bx,by) 的轴向包围盒内（含 epsilon 容差）
+ *
+ * 收敛说明（批次 Q 组⑦ P14）：收敛 lv_segments_intersect 内 8 处 +
+ * recursion_selector.c 1 处手写的「fmin/fmax + eps」二维 bbox 检查样板。
+ *
+ * @return 在 bbox 内返回 1，否则返回 0
+ */
+lv_PUBLIC_API int geo_bbox_contains_2d(double px, double py, double ax, double ay, double bx, double by, double eps);
+
+/**
+ * @brief 判断值 p 是否落在区间 [min(a,b), max(a,b)] 内（含 epsilon 容差）
+ *
+ * 一维轴向包围盒变体，供 lv_point_in_polygon 的水平边分支使用。
+ *
+ * @return 在区间内返回 1，否则返回 0
+ */
+lv_PUBLIC_API int geo_bbox_contains_1d(double p, double a, double b, double eps);
+
 lv_PUBLIC_API int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2);
 lv_PUBLIC_API double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3, double y3);
 lv_PUBLIC_API double geo_angle(double x1, double y1, double x2, double y2);

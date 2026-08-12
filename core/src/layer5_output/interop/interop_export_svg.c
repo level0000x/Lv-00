@@ -132,16 +132,12 @@ void constraint_intersection_point(const GeomNode *p0, const GeomNode *p1,
     double rx = dflt_x, ry = dflt_y;
     if (p0 && p1 && p0->type == GEOM_LINE_SEGMENT && p0->coord_count >= 4 &&
         p1->type == GEOM_LINE_SEGMENT && p1->coord_count >= 4) {
-        double a1x = symbolic_coord_to_double(p0->symbolic_coords[0]);
-        double a1y = symbolic_coord_to_double(p0->symbolic_coords[1]);
-        double a2x = symbolic_coord_to_double(p0->symbolic_coords[2]);
-        double a2y = symbolic_coord_to_double(p0->symbolic_coords[3]);
-        double b1x = symbolic_coord_to_double(p1->symbolic_coords[0]);
-        double b1y = symbolic_coord_to_double(p1->symbolic_coords[1]);
-        double b2x = symbolic_coord_to_double(p1->symbolic_coords[2]);
-        double b2y = symbolic_coord_to_double(p1->symbolic_coords[3]);
-        /* 与原内联实现一致：忽略返回值，无效交点保持默认点 */
-        segment_intersection(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y, &rx, &ry);
+        double a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y;
+        if (symbolic_coord_get_segment(p0->symbolic_coords, p0->coord_count, &a1x, &a1y, &a2x, &a2y) &&
+            symbolic_coord_get_segment(p1->symbolic_coords, p1->coord_count, &b1x, &b1y, &b2x, &b2y)) {
+            /* 与原内联实现一致：忽略返回值，无效交点保持默认点 */
+            segment_intersection(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y, &rx, &ry);
+        }
     }
     *ix = rx;
     *iy = ry;
@@ -331,10 +327,9 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
         if (node->coord_count < 4)
             continue;
 
-        double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
+        double x1, y1, x2, y2;
+        if (!symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2))
+            continue;
 
         const char *color = trust_color_to_svg(node->trust);
 

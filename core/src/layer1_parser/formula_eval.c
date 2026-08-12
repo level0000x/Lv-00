@@ -16,6 +16,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_numeric.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv_utils.h"
 
 double eval_node(const FormulaNode *node, double x, double y);
@@ -267,8 +268,5 @@ double eval_node(const FormulaNode *node, double x, double y) {
         [NODE_GEOM_REGION] = eval_g_region,
         [NODE_GEOM_ARC] = eval_g_arc,
     };
-    if ((unsigned)node->type < sizeof(s_funcs)/sizeof(s_funcs[0]) && s_funcs[node->type]) {
-        return s_funcs[node->type](node, x, y);
-    }
-    return 0.0;
+    return LV_DISPATCH(s_funcs, node->type, 0.0, node, x, y);
 }

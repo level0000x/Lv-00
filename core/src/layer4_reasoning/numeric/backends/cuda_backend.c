@@ -1664,8 +1664,10 @@ const char *lv_cuda_backend_version(void) {
     lv_SAFE_SNPRINTF(int ignore, version_buf, sizeof(version_buf),
                       "CUDA %s (driver=%d.%d, runtime=%d.%d)",
                       CUDA_BACKEND_VERSION,
-                      driver_version / 1000, (driver_version % 1000) / 10,
-                      runtime_version / 1000, (runtime_version % 1000) / 10);
+                      driver_version / CUDA_VERSION_MAJOR_BASE,
+                      (driver_version % CUDA_VERSION_MAJOR_BASE) / CUDA_VERSION_MINOR_BASE,
+                      runtime_version / CUDA_VERSION_MAJOR_BASE,
+                      (runtime_version % CUDA_VERSION_MAJOR_BASE) / CUDA_VERSION_MINOR_BASE);
     (void) ignore;
     return version_buf;
 }

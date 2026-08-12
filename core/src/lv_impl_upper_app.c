@@ -52,18 +52,6 @@
  *   VISUALIZE -> 构建约束图并渲染 TikZ 到文件
  * ============================================================ */
 
-static int read_file_text(const char *path, char *buf, size_t buf_size) {
-    if (!path || !buf || buf_size == 0)
-        return -1;
-    FILE *fp = lv_file_open(path, "rb");
-    if (!fp)
-        return -1;
-    size_t n = fread(buf, 1, buf_size - 1, fp);
-    lv_file_close(fp);
-    buf[n] = '\0';
-    return 0;
-}
-
 static int write_text_file(const char *path, const char *text) {
     if (!path || !text)
         return -1;
@@ -75,7 +63,7 @@ static ConstraintGraph *build_graph_from_file(const char *input_path) {
     if (!input_path || !input_path[0])
         return NULL;
     char src[8192];
-    if (read_file_text(input_path, src, sizeof(src)) != 0)
+    if (!lv_file_read_text(input_path, src, sizeof(src)))
         return NULL;
     ConstraintGraph *g = graph_create();
     if (!g)

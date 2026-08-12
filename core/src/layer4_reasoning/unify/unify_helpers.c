@@ -219,7 +219,7 @@ static uint64_t coord_hash_region(GeomNode *node) {
                     h ^= (uint64_t)symbolic_coord_hash(seg->symbolic_coords[c]);
                 }
             }
-            h ^= (uint64_t)(s + 1) * 0x9E3779B97F4A7C15ULL;
+            h ^= (uint64_t)(s + 1) * lv_HASH_GOLDEN_RATIO_64;
         }
     }
     return h;
@@ -244,7 +244,7 @@ static uint64_t coord_hash_func_block(GeomNode *node) {
                     h ^= (uint64_t)symbolic_coord_hash(inner->symbolic_coords[c]);
                 }
             }
-            h ^= (uint64_t)(n + 1) * 0x9E3779B97F4A7C15ULL;
+            h ^= (uint64_t)(n + 1) * lv_HASH_GOLDEN_RATIO_64;
         }
     }
     return h;

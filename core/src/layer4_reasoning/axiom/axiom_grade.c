@@ -90,12 +90,7 @@ lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grad
         return NULL;
 
     /* 安全地复制公理名称（最多 127 字符 + 空终止符） */
-    size_t name_len = strlen(name);
-    if (name_len >= sizeof(meta->axiom_name)) {
-        name_len = sizeof(meta->axiom_name) - 1;
-    }
-    memcpy(meta->axiom_name, name, name_len);
-    meta->axiom_name[name_len] = '\0';
+    lv_strlcpy_n(meta->axiom_name, sizeof(meta->axiom_name), name, (size_t) strlen(name));
 
     meta->grade = grade;
     meta->style = style;

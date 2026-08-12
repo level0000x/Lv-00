@@ -946,8 +946,7 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
         size_t name_len = (size_t) k;
         if (name_len >= sizeof(derived.expr_lhs))
             name_len = sizeof(derived.expr_lhs) - 1;
-        memcpy(derived.expr_lhs, src, name_len);
-        derived.expr_lhs[name_len] = '\0';
+        lv_strlcpy_n(derived.expr_lhs, sizeof(derived.expr_lhs), src, name_len);
 
         derived.bound_lo = center - goal->bound_abs;
         derived.bound_hi = center + goal->bound_abs;

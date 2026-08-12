@@ -335,6 +335,35 @@ bool symbolic_coord_are_collinear(const SymbolicCoord *ax, const SymbolicCoord *
 double symbolic_coord_to_double(const SymbolicCoord *c);
 char *symbolic_coord_serialize(const SymbolicCoord *c);
 
+/**
+ * @brief 从符号坐标数组提取前两个坐标到 (x, y)（double 近似）
+ *
+ * 收敛说明（批次 Q 组⑦ Q19，判据 H）：收敛各模块手写的
+ * 「coord_count < 2 守卫 + 数组/分量 NULL 守卫 + 逐分量 to_double」
+ * 点坐标提取样板。
+ *
+ * @param coords      符号坐标数组（可为 NULL）
+ * @param coord_count 数组长度
+ * @param x           输出 X（成功时写入，失败不变）
+ * @param y           输出 Y（成功时写入，失败不变）
+ * @return 数组有效且前两个坐标非 NULL 时返回 true，否则 false
+ */
+bool symbolic_coord_get_xy(const SymbolicCoord *const *coords, int coord_count, double *x, double *y);
+
+/**
+ * @brief 从符号坐标数组提取前四个坐标到线段端点 (x1,y1,x2,y2)（double 近似）
+ *
+ * 收敛说明（批次 Q 组⑦ Q19，判据 H）：收敛各模块手写的
+ * 「coord_count < 4 守卫 + 逐分量 to_double」线段端点提取样板。
+ *
+ * @param coords      符号坐标数组（可为 NULL）
+ * @param coord_count 数组长度
+ * @param x1/y1/x2/y2 输出（成功时写入，失败不变）
+ * @return 数组有效且前四个坐标非 NULL 时返回 true，否则 false
+ */
+bool symbolic_coord_get_segment(const SymbolicCoord *const *coords, int coord_count, double *x1, double *y1, double *x2,
+                                double *y2);
+
 /* ── Trust ── */
 TrustColor symbolic_coord_get_trust(const SymbolicCoord *c);
 void symbolic_coord_set_trust(SymbolicCoord *c, TrustColor t);

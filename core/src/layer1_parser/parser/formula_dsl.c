@@ -116,9 +116,8 @@ FormulaNode *formula_parse_number(ParserContext *ctx) {
         formula_set_error(ctx, "Memory allocation failed");
         return NULL;
     }
-    /* 使用 memcpy 进行精确长度复制（已分配 len+1 字节，手动零终止更安全） */
-    memcpy(num_str, ctx->input + start, len);
-    num_str[len] = '\0';
+    /* 使用 lv_strlcpy_n 进行精确长度复制（已分配 len+1 字节，自动零终止） */
+    lv_strlcpy_n(num_str, len + 1, ctx->input + start, len);
 
     /* 转换为数值（失败回退 0.0，与 strtod 无转换时返回 0.0 一致） */
     double value = 0.0;
@@ -326,9 +325,8 @@ char *formula_parse_identifier_str(ParserContext *ctx) {
         formula_set_error(ctx, "Memory allocation failed");
         return NULL;
     }
-    /* 使用 memcpy 进行精确长度复制（已分配 len+1 字节，手动零终止更安全） */
-    memcpy(ident, ctx->input + start, len);
-    ident[len] = '\0';
+    /* 使用 lv_strlcpy_n 进行精确长度复制（已分配 len+1 字节，自动零终止） */
+    lv_strlcpy_n(ident, len + 1, ctx->input + start, len);
     return ident;
 }
 

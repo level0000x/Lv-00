@@ -1123,7 +1123,7 @@ lvSolverResult lv_solver_solve(lvSolver *solver) {
     lv_CHECK_NULL(solver, lv_SOLVER_UNKNOWN);
 
     /* 资源限制检查 */
-    if (solver->config.max_time_sec > 0.0 && solver->cdcl.time_ms / 1000.0 > solver->config.max_time_sec) {
+    if (solver->config.max_time_sec > 0.0 && solver->cdcl.time_ms / (double) lv_MS_PER_S > solver->config.max_time_sec) {
         return lv_SOLVER_UNKNOWN;
     }
 

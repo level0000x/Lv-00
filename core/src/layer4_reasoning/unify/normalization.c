@@ -802,23 +802,20 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                 continue;
             if (ni->data.region.segment_count == 0)
                 continue;
-            /* 比较排序后的边界线段 ID 集合 */
+            /* 比较排序后的边界线段 ID 集合（多集相等，统一走 lv_int_multiset_equal） */
             int seg_count = ni->data.region.segment_count;
             int *ids_a = lv_calloc((size_t) seg_count, sizeof(int));
             int *ids_b = lv_calloc((size_t) seg_count, sizeof(int));
+            if (!ids_a || !ids_b) {
+                lv_free((void **) &ids_a);
+                lv_free((void **) &ids_b);
+                continue;
+            }
             for (int k = 0; k < seg_count; k++) {
                 ids_a[k] = ni->data.region.boundary_segments[k]->id;
                 ids_b[k] = nj->data.region.boundary_segments[k]->id;
             }
-            qsort(ids_a, seg_count, sizeof(int), lv_cmp_int);
-            qsort(ids_b, seg_count, sizeof(int), lv_cmp_int);
-            bool same = true;
-            for (int k = 0; k < seg_count; k++) {
-                if (ids_a[k] != ids_b[k]) {
-                    same = false;
-                    break;
-                }
-            }
+            bool same = lv_int_multiset_equal(ids_a, seg_count, ids_b, seg_count) == 1;
             lv_free((void **) &ids_a);
             lv_free((void **) &ids_b);
             if (!same)

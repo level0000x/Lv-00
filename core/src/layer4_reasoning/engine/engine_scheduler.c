@@ -764,7 +764,7 @@ static int groebner_solve(EngineScheduler *scheduler, const ConstraintGraph *gra
     uint64_t elapsed_us = lv_get_time_us() - start_us;
 
     out_result->sat_result = solver_status_to_sat(status);
-    out_result->solve_time_ms = (double) elapsed_us / 1000.0;
+    out_result->solve_time_ms = (double) elapsed_us / (double) lv_US_PER_MS;
 
     /* 从图中提取赋值 */
     if (out_result->sat_result == SMT_RESULT_SAT) {
@@ -1033,9 +1033,7 @@ int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_s
                      (long long) scheduler->stats.selection_miss_count);
 
     size_t written = sb.len;
-    size_t copy = written < buf_size ? written : buf_size - 1;
-    memcpy(buf, sb.data, copy);
-    buf[copy] = '\0';
+    lv_strlcpy(buf, sb.data, buf_size);
     lv_strbuf_destroy(&sb);
 
     return (int) written;

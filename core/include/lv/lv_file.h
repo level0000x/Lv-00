@@ -54,6 +54,18 @@ uint8_t *lv_file_read_all(const char *path, size_t *out_len);
 uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_size);
 
 /**
+ * @brief 读取文本文件到调用方缓冲区（固定缓冲整读）
+ * @param path     文件路径
+ * @param buf      目标缓冲区
+ * @param buf_size 缓冲区大小（必须 >= 2）
+ * @return true 成功，false 失败（参数非法 / 打开失败）
+ * @note 读取 min(文件大小, buf_size-1) 字节并保证 NUL 终止；
+ *       收敛对象：lv_impl_upper_app.c / lv_impl_upper_orchestrator.c 孪生 read_file_text
+ *       （fopen + fread(buf_size-1) + 手写 NUL 样板），不分配堆内存。
+ */
+bool lv_file_read_text(const char *path, char *buf, size_t buf_size);
+
+/**
  * @brief 写入缓冲区到文件
  * @param path  文件路径
  * @param data  数据

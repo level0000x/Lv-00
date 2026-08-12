@@ -390,9 +390,9 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_sugg
 
     int n = 0;
 
-    /* 目标含等号 → 反射性 / 重写 */
-    bool goal_has_equal = (strchr(goal_text, '=') != NULL) || strstr(goal_text, "equal") != NULL ||
-                          strstr(goal_text, "congruent") != NULL || strstr(goal_text, "等于") != NULL;
+    /* 目标含等号 → 反射性 / 重写（子串关键词查找表） */
+    static const char *const kGoalEqualMarkers[] = {"=", "equal", "congruent", "等于", NULL};
+    bool goal_has_equal = lv_str_match_any(goal_text, kGoalEqualMarkers) >= 0;
     if (goal_has_equal) {
         out_suggestions[n] = lv_strdup("reflexivity");
         out_confidences[n] = 0.9;
@@ -415,8 +415,7 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_sugg
     if (arrow && arrow != goal_text) {
         size_t premise_len = (size_t) (arrow - goal_text);
         if (premise_len > 0 && premise_len < sizeof(premise_buf)) {
-            memcpy(premise_buf, goal_text, premise_len);
-            premise_buf[premise_len] = '\0';
+            lv_strlcpy_n(premise_buf, sizeof(premise_buf), goal_text, (size_t) premise_len);
             premise = premise_buf;
         }
     }

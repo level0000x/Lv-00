@@ -994,7 +994,7 @@ char *lv_test_report_to_html(const lvTestReport *report) {
                              "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%.3f</td></tr>\n",
                              esc_suite ? esc_suite : (suite->name ? suite->name : ""),
                              esc_test ? esc_test : (test->name ? test->name : ""), status_class, status_text,
-                             (double) test->elapsed_ns / 1e6);
+                             (double) test->elapsed_ns / (double) lv_NS_PER_MS);
             lv_free((void **) &esc_suite);
             lv_free((void **) &esc_test);
         }

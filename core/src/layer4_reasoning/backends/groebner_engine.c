@@ -34,6 +34,7 @@
 #include "lv/lv.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 #include "lv/geo_utils.h"
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -419,14 +420,7 @@ static bool groebner_engine_segment_coords(const ConstraintGraph *graph, int seg
     if (!graph || seg_id < 0) return false;
     GeomNode *seg = graph_get_node(graph, seg_id);
     if (!seg || seg->type != GEOM_LINE_SEGMENT) return false;
-    if (!seg->symbolic_coords || seg->coord_count < 4) return false;
-    if (!seg->symbolic_coords[0] || !seg->symbolic_coords[1] ||
-        !seg->symbolic_coords[2] || !seg->symbolic_coords[3]) return false;
-    *ax = symbolic_coord_to_double(seg->symbolic_coords[0]);
-    *ay = symbolic_coord_to_double(seg->symbolic_coords[1]);
-    *bx = symbolic_coord_to_double(seg->symbolic_coords[2]);
-    *by = symbolic_coord_to_double(seg->symbolic_coords[3]);
-    return true;
+    return symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, ax, ay, bx, by);
 }
 
 /* 编码辅助：构造线性方程 cx*x + cy*y + c0 = 0（近零系数由 add_term 自动剔除） */
@@ -627,22 +621,16 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
     groebner_engine_ideal_append(ctx, poly);
 }
 
-/* ── Groebner 引擎编码函数查找表 ── */
+/* ── Groebner 引擎编码函数查找表（直接索引：ConstraintType 枚举连续 0-5）── */
 typedef void (*GroebnerEngineEncodeFn)(const GroebnerEngineEncodeCtx *ctx, const Constraint *con);
-typedef struct {
-    ConstraintType type;
-    GroebnerEngineEncodeFn encode;
-} GroebnerEngineEncodeEntry;
-static const GroebnerEngineEncodeEntry kGroebnerEngineEncodeTable[] = {
-    {INCIDENCE,    groebner_engine_encode_incidence},
-    {BETWEENNESS,  groebner_engine_encode_betweenness},
-    {INTERSECTION, groebner_engine_encode_intersection},
-    {CONTAINMENT,  groebner_engine_encode_containment},
-    {CONNECTION,   groebner_engine_encode_connection},
-    {ANGLE,        groebner_engine_encode_angle}
+static const GroebnerEngineEncodeFn kGroebnerEngineEncodeTable[] = {
+    [INCIDENCE] = groebner_engine_encode_incidence,
+    [BETWEENNESS] = groebner_engine_encode_betweenness,
+    [INTERSECTION] = groebner_engine_encode_intersection,
+    [CONTAINMENT] = groebner_engine_encode_containment,
+    [CONNECTION] = groebner_engine_encode_connection,
+    [ANGLE] = groebner_engine_encode_angle
 };
-static const int kGroebnerEngineEncodeTableCount =
-    (int)(sizeof(kGroebnerEngineEncodeTable) / sizeof(kGroebnerEngineEncodeTable[0]));
 
 /**
  * @brief 将约束图转换为多项式理想
@@ -800,12 +788,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         gctx.graph = graph;
         gctx.ideal = ideal;
 
-        for (int ti = 0; ti < kGroebnerEngineEncodeTableCount; ti++) {
-            if (kGroebnerEngineEncodeTable[ti].type == con->type) {
-                kGroebnerEngineEncodeTable[ti].encode(&gctx, con);
-                break;
-            }
-        }
+        LV_DISPATCH_VOID(kGroebnerEngineEncodeTable, con->type, &gctx, con);
     }
 
     lv_free_many(&var_x, &var_y, NULL);

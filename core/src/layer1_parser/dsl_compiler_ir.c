@@ -435,12 +435,7 @@ static bool compile_node(DslIR *ir, const DslAST *node, int *result_id) {
     if (!ir || !node)
         return false;
 
-    if ((size_t)node->type < sizeof(s_compile_handlers) / sizeof(s_compile_handlers[0])) {
-        CompileHandler handler = s_compile_handlers[node->type];
-        if (handler)
-            return handler(ir, node, result_id);
-    }
-    return false;
+    return LV_DISPATCH(s_compile_handlers, node->type, false, ir, node, result_id);
 }
 
 /**

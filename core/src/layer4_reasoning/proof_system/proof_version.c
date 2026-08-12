@@ -227,7 +227,7 @@ static bool read_commit_file(const char *path, lvProofCommit *commit) {
  * 平台双分支时间戳逻辑。
  */
 static int64_t get_timestamp(void) {
-    return (int64_t) (lv_get_wallclock_ms() / 1000);
+    return (int64_t) (lv_get_wallclock_ms() / lv_MS_PER_S);
 }
 
 /* ============================================================

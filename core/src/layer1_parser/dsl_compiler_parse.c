@@ -604,12 +604,7 @@ static DslAST *parse_stmt(ParserCtx *ctx) {
     DslToken t = parser_peek(ctx);
 
     /* 使用策略模式查找表替换 switch 语句 */
-    if (t.type >= 0 && (size_t)t.type < sizeof(kParseStmtHandlers)/sizeof(kParseStmtHandlers[0])) {
-        StmtParseFn handler = kParseStmtHandlers[t.type];
-        if (handler)
-            return handler(ctx);
-    }
-    return NULL;
+    return LV_DISPATCH(kParseStmtHandlers, t.type, NULL, ctx);
 }
 
 /* ================================================================

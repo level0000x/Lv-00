@@ -17,6 +17,7 @@
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
  * BHK ���ι�����֤�Ž�
@@ -100,10 +101,7 @@ static void bhk_desc_true(const PropFormula *f, char *buf, size_t size) {
 static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
     if (!f || size == 0)
         return;
-    if ((unsigned)f->type < sizeof(s_bhk_desc_funcs) / sizeof(s_bhk_desc_funcs[0])
-        && s_bhk_desc_funcs[f->type]) {
-        s_bhk_desc_funcs[f->type](f, buf, size);
-    }
+    LV_DISPATCH_VOID(s_bhk_desc_funcs, f->type, f, buf, size);
 }
 
 /**

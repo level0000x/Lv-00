@@ -154,8 +154,7 @@ static Token lexer_next_token(Lexer *lex) {
             return tok;
         }
 
-        memcpy(tok.str_value, start, len);
-        tok.str_value[len] = '\0';
+        lv_strlcpy_n(tok.str_value, len + 1, start, (size_t) len);
 
         /* 检查关键字 */
         if (strcmp(tok.str_value, "true") == 0) {

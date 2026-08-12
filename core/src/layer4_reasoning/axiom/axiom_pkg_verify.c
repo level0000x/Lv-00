@@ -270,8 +270,7 @@ bool axiom_template_validate_normal_form(const ConstraintTemplate *tmpl, const C
             p = close_paren;
         }
         if (len > 0 && len < AXIOM_PARTICIPANT_TYPE_LEN) {
-            memcpy(participant_types[participant_type_count], p - len, len);
-            participant_types[participant_type_count][len] = '\0';
+            lv_strlcpy_n(participant_types[participant_type_count], AXIOM_PARTICIPANT_TYPE_LEN, p - len, len);
             participant_type_count++;
         }
     }

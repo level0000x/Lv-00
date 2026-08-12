@@ -23,73 +23,16 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
+#include "layer3_geometry/constraint_graph/graph_node_internal.h"
 /* ---------------------------------------------------------------------------
  * Graph Snapshot — 用于重写替换操作的事务性回滚
  * ------------------------------------------------------------------------- */
 
-/* ========================================================================
- * H4: Snapshot 操作 VTable — 替代 GeomType switch 语句
- * ======================================================================== */
-typedef void (*SnapshotNodeDestroyFn)(GeomNode *node);
-typedef void (*SnapshotNodeCleanupFn)(GeomNode *node);
-
-typedef struct {
-    SnapshotNodeDestroyFn destroy_data;
-    SnapshotNodeCleanupFn cleanup_data;
-} SnapshotNodeOps;
-
-/* ---- 类型特定 handler 函数（节点深拷贝统一走 node_deep_copy_geom_node，
- *     原 copy_port_data/copy_region_data/copy_func_block_data 三套 handler
- *     与其 DataCopyHandler 完全同构，已收敛删除） ---- */
-
-static void destroy_port_data(GeomNode *node) {
-    lv_free((void **) &node->data.port);
-}
-static void cleanup_port_data(GeomNode *node) {
-    lv_free((void **) &node->data.port);
-}
-
-static void destroy_region_data(GeomNode *node) {
-    lv_free((void **) &node->data.region.boundary_segments);
-}
-static void cleanup_region_data(GeomNode *node) {
-    lv_free((void **) &node->data.region.boundary_segments);
-}
-
-static void destroy_func_block_data(GeomNode *node) {
-    lv_free((void **) &node->data.func_block.internal_nodes);
-    lv_free((void **) &node->data.func_block.input_port_ids);
-    lv_free((void **) &node->data.func_block.output_port_ids);
-}
-static void cleanup_func_block_data(GeomNode *node) {
-    lv_free((void **) &node->data.func_block.internal_nodes);
-    lv_free((void **) &node->data.func_block.input_port_ids);
-    lv_free((void **) &node->data.func_block.output_port_ids);
-}
-
-/* ---- VTable 实例表 ---- */
-static const SnapshotNodeOps kPointSnapshotOps =           {NULL, NULL};
-static const SnapshotNodeOps kLineSegmentSnapshotOps =     {NULL, NULL};
-static const SnapshotNodeOps kRegionSnapshotOps =           {destroy_region_data, cleanup_region_data};
-static const SnapshotNodeOps kCircleSnapshotOps =           {NULL, NULL};
-static const SnapshotNodeOps kPortSnapshotOps =             {destroy_port_data, cleanup_port_data};
-static const SnapshotNodeOps kFuncBlockSnapshotOps =        {destroy_func_block_data, cleanup_func_block_data};
-
-static const SnapshotNodeOps *kSnapshotNodeOpsTable[] = {
-    [GEOM_POINT]          = &kPointSnapshotOps,
-    [GEOM_LINE_SEGMENT]   = &kLineSegmentSnapshotOps,
-    [GEOM_REGION]         = &kRegionSnapshotOps,
-    [GEOM_CIRCLE]         = &kCircleSnapshotOps,
-    [GEOM_PORT]           = &kPortSnapshotOps,
-    [GEOM_FUNCTION_BLOCK] = &kFuncBlockSnapshotOps,
-};
-
-static const SnapshotNodeOps *get_snapshot_ops(GeomType type) {
-    if (type >= 0 && (size_t)type < sizeof(kSnapshotNodeOpsTable)/sizeof(kSnapshotNodeOpsTable[0])) {
-        return kSnapshotNodeOpsTable[type];
-    }
-    return NULL;
-}
+/* 节点销毁统一走 node_destroy（graph_index.c 的统一释放路径：符号坐标数组 /
+ * numeric_assumption_declaration + vtable->free 类型特定数据 + 外壳归还）；
+ * 原 SnapshotNodeOps {destroy_data, cleanup_data} 双函数 VTable 与其 vtable->free
+ * 六分发（point/line/circle 空实现、region_free / port_free / func_block_free）
+ * 完全同构，已删除收敛。 */
 
 /* 深拷贝单个 GeomNode
  *
@@ -106,26 +49,25 @@ static GeomNode *graph_node_deep_copy(const GeomNode *src) {
 }
 
 /**
- * @brief 销毁快照中的单个节点
+ * @brief 释放快照交叉引用信息（port_refs / region_refs / fb_refs）
  *
- * @param node 待销毁的节点指针
+ * 收敛 graph_snapshot_create 错误回滚与 graph_snapshot_destroy 中
+ * 四处同构的 refs 释放块。所有指针字段释放后置 NULL，重复调用安全。
+ *
+ * @param snapshot 快照指针（NULL 安全）
  */
-static void snapshot_node_destroy(GeomNode *node) {
-    if (!node)
+static void graph_snapshot_free_refs(GraphSnapshot *snapshot) {
+    if (!snapshot)
         return;
-    if (node->symbolic_coords) {
-        for (int c = 0; c < node->coord_count; c++) {
-            symbolic_coord_destroy(node->symbolic_coords[c]);
-        }
-        lv_free((void **) &node->symbolic_coords);
+    lv_free((void **) &snapshot->port_refs);
+    for (int i = 0; i < snapshot->region_ref_count; i++) {
+        lv_free((void **) &snapshot->region_refs[i].segment_ids);
     }
-    lv_free((void **) &node->numeric_assumption_declaration);
-    /* 通过 VTable 分发类型特定数据销毁 */
-    const SnapshotNodeOps *ops = get_snapshot_ops(node->type);
-    if (ops && ops->destroy_data) {
-        ops->destroy_data(node);
+    lv_free((void **) &snapshot->region_refs);
+    for (int i = 0; i < snapshot->fb_ref_count; i++) {
+        lv_free((void **) &snapshot->fb_refs[i].internal_node_ids);
     }
-    lv_free((void **) &node);
+    lv_free((void **) &snapshot->fb_refs);
 }
 
 /**
@@ -249,14 +191,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     /* 深拷贝节点数组 */
     snap->nodes = lv_malloc((size_t) snap->node_capacity * sizeof(GeomNode *));
     if (!snap->nodes) {
-        /* cleanup refs */
-        lv_free((void **) &snap->port_refs);
-        for (int i = 0; i < snap->region_ref_count; i++)
-            lv_free((void **) &snap->region_refs[i].segment_ids);
-        lv_free((void **) &snap->region_refs);
-        for (int i = 0; i < snap->fb_ref_count; i++)
-            lv_free((void **) &snap->fb_refs[i].internal_node_ids);
-        lv_free((void **) &snap->fb_refs);
+        graph_snapshot_free_refs(snap);
         lv_free((void **) &snap);
         return NULL;
     }
@@ -265,7 +200,7 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
         if (!snap->nodes[i]) {
             /* 回滚已分配的节点 */
             for (int j = 0; j < i; j++)
-                snapshot_node_destroy(snap->nodes[j]);
+                node_destroy(snap->nodes[j]);
             lv_free((void **) &snap->nodes);
             lv_free((void **) &snap);
             return NULL;
@@ -276,16 +211,9 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
     snap->constraints = lv_malloc((size_t) snap->constraint_capacity * sizeof(Constraint *));
     if (!snap->constraints) {
         for (int i = 0; i < snap->node_count; i++)
-            snapshot_node_destroy(snap->nodes[i]);
+            node_destroy(snap->nodes[i]);
         lv_free((void **) &snap->nodes);
-        /* cleanup refs */
-        lv_free((void **) &snap->port_refs);
-        for (int i = 0; i < snap->region_ref_count; i++)
-            lv_free((void **) &snap->region_refs[i].segment_ids);
-        lv_free((void **) &snap->region_refs);
-        for (int i = 0; i < snap->fb_ref_count; i++)
-            lv_free((void **) &snap->fb_refs[i].internal_node_ids);
-        lv_free((void **) &snap->fb_refs);
+        graph_snapshot_free_refs(snap);
         lv_free((void **) &snap);
         return NULL;
     }
@@ -293,12 +221,10 @@ GraphSnapshot *graph_snapshot_create(const ConstraintGraph *graph) {
         Constraint *src = graph->constraints[i];
         Constraint *dst = lv_calloc(1, sizeof(Constraint));
         if (!dst) {
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &snap->constraints[j]->participants);
-                lv_free((void **) &snap->constraints[j]);
-            }
+            for (int j = 0; j < i; j++)
+                constraint_destroy(snap->constraints[j]);
             for (int j = 0; j < snap->node_count; j++)
-                snapshot_node_destroy(snap->nodes[j]);
+                node_destroy(snap->nodes[j]);
             lv_free((void **) &snap->constraints);
             lv_free((void **) &snap->nodes);
             lv_free((void **) &snap);
@@ -340,26 +266,12 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     if (!snapshot || !graph)
         return false;
 
-    /* 1. 销毁当前图中的所有节点和约束 */
+    /* 1. 销毁当前图中的所有节点和约束（统一走 node_destroy / constraint_destroy） */
     for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (node->symbolic_coords) {
-            for (int c = 0; c < node->coord_count; c++) {
-                symbolic_coord_destroy(node->symbolic_coords[c]);
-            }
-            lv_free((void **) &node->symbolic_coords);
-        }
-        lv_free((void **) &node->numeric_assumption_declaration);
-        /* 通过 VTable 分发类型特定数据清理 */
-        const SnapshotNodeOps *ops = get_snapshot_ops(node->type);
-        if (ops && ops->cleanup_data) {
-            ops->cleanup_data(node);
-        }
-        lv_free((void **) &node);
+        node_destroy(graph->nodes[i]);
     }
     for (int i = 0; i < graph->constraint_count; i++) {
-        lv_free((void **) &graph->constraints[i]->participants);
-        lv_free((void **) &graph->constraints[i]);
+        constraint_destroy(graph->constraints[i]);
     }
     lv_free((void **) &graph->nodes);
     lv_free((void **) &graph->constraints);
@@ -394,7 +306,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         if (!graph->nodes[i]) {
             /* 清理已分配的部分节点数据 */
             for (int j = 0; j < i; j++) {
-                snapshot_node_destroy(graph->nodes[j]);
+                node_destroy(graph->nodes[j]);
             }
             lv_free((void **) &graph->nodes);
             graph->nodes = NULL;
@@ -415,7 +327,7 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
     if (!graph->constraints) {
         /* 清理已恢复的节点数据，将图重置为空图状态 */
         for (int i = 0; i < graph->node_count; i++) {
-            snapshot_node_destroy(graph->nodes[i]);
+            node_destroy(graph->nodes[i]);
         }
         lv_free((void **) &graph->nodes);
         graph->nodes = NULL;
@@ -436,12 +348,11 @@ bool graph_snapshot_restore(GraphSnapshot *snapshot, ConstraintGraph *graph) {
         if (!dst) {
             /* 清理已分配的部分约束数据 */
             for (int j = 0; j < i; j++) {
-                lv_free((void **) &graph->constraints[j]->participants);
-                lv_free((void **) &graph->constraints[j]);
+                constraint_destroy(graph->constraints[j]);
             }
             lv_free((void **) &graph->constraints);
             for (int j = 0; j < graph->node_count; j++) {
-                snapshot_node_destroy(graph->nodes[j]);
+                node_destroy(graph->nodes[j]);
             }
             lv_free((void **) &graph->nodes);
             graph->nodes = NULL;
@@ -558,23 +469,13 @@ void graph_snapshot_destroy(GraphSnapshot *snapshot) {
     if (!snapshot)
         return;
     for (int i = 0; i < snapshot->node_count; i++) {
-        snapshot_node_destroy(snapshot->nodes[i]);
+        node_destroy(snapshot->nodes[i]);
     }
     lv_free((void **) &snapshot->nodes);
     for (int i = 0; i < snapshot->constraint_count; i++) {
-        lv_free((void **) &snapshot->constraints[i]->participants);
-        lv_free((void **) &snapshot->constraints[i]);
+        constraint_destroy(snapshot->constraints[i]);
     }
     lv_free((void **) &snapshot->constraints);
-    /* 释放交叉引用信息 */
-    for (int i = 0; i < snapshot->region_ref_count; i++) {
-        lv_free((void **) &snapshot->region_refs[i].segment_ids);
-    }
-    lv_free((void **) &snapshot->region_refs);
-    for (int i = 0; i < snapshot->fb_ref_count; i++) {
-        lv_free((void **) &snapshot->fb_refs[i].internal_node_ids);
-    }
-    lv_free((void **) &snapshot->fb_refs);
-    lv_free((void **) &snapshot->port_refs);
+    graph_snapshot_free_refs(snapshot);
     lv_free((void **) &snapshot);
 }

@@ -71,12 +71,8 @@ static void tikz_render_point(const ConstraintGraph *graph, const GeomNode *node
  */
 static void tikz_render_line_segment(const ConstraintGraph *graph, const GeomNode *node, lvStrBuf *out) {
     lv_UNUSED(graph);
-    if (node->coord_count >= 4 && node->symbolic_coords && node->symbolic_coords[0] &&
-        node->symbolic_coords[1] && node->symbolic_coords[2] && node->symbolic_coords[3]) {
-        double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
+    double x1, y1, x2, y2;
+    if (symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2)) {
         lv_strbuf_printf(out, "  \\draw (%.4f, %.4f) -- (%.4f, %.4f);\n", x1, y1, x2, y2);
     }
 }
@@ -171,25 +167,19 @@ static void tikz_render_function_block(const ConstraintGraph *graph, const GeomN
     }
 }
 
-/** @brief GeomType → 渲染函数映射项 */
-typedef struct {
-    GeomType type;          /**< 几何节点类型 */
-    TikzNodeRenderFunc render; /**< 对应渲染函数 */
-} TikzNodeRenderEntry;
-
 /**
- * @brief TikZ 渲染函数查找表
+ * @brief TikZ 渲染函数查找表（GeomType 直接索引，未覆盖槽位自动 NULL）
  *
  * 当前支持 GEOM_POINT、GEOM_LINE_SEGMENT、GEOM_CIRCLE、
- * GEOM_REGION 与 GEOM_FUNCTION_BLOCK。
+ * GEOM_REGION 与 GEOM_FUNCTION_BLOCK（GEOM_PORT 槽位为 NULL，不单独导出）。
  * 新增节点类型时在此追加映射项即可，无需修改共享核心。
  */
-static const TikzNodeRenderEntry s_tikz_renderers[] = {
-    {GEOM_POINT, tikz_render_point},
-    {GEOM_LINE_SEGMENT, tikz_render_line_segment},
-    {GEOM_CIRCLE, tikz_render_circle},
-    {GEOM_REGION, tikz_render_region},
-    {GEOM_FUNCTION_BLOCK, tikz_render_function_block},
+static const TikzNodeRenderFunc s_tikz_renderers[] = {
+    [GEOM_POINT] = tikz_render_point,
+    [GEOM_LINE_SEGMENT] = tikz_render_line_segment,
+    [GEOM_REGION] = tikz_render_region,
+    [GEOM_CIRCLE] = tikz_render_circle,
+    [GEOM_FUNCTION_BLOCK] = tikz_render_function_block,
 };
 
 /**
@@ -217,12 +207,7 @@ static int tikz_export_to_buf(const ConstraintGraph *graph, lvStrBuf *out) {
         if (!node || !node->is_active)
             continue;
 
-        for (size_t r = 0; r < lv_ARRAY_SIZE(s_tikz_renderers); r++) {
-            if (node->type == s_tikz_renderers[r].type) {
-                s_tikz_renderers[r].render(graph, node, out);
-                break;
-            }
-        }
+        LV_DISPATCH_VOID(s_tikz_renderers, node->type, graph, node, out);
     }
 
     /* 写入尾部 */

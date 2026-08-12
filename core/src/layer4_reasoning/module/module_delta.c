@@ -410,7 +410,7 @@ static bool fill_delta_baseline(DeltaBaseline *bl, const Module *mod, uint64_t h
                 if (n && n->symbolic_coords) {
                     for (int c = 0; c < n->coord_count; c++) {
                         if (n->symbolic_coords[c]) {
-                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
+                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + lv_HASH_GOLDEN_RATIO_32 + (ch << 6) + (ch >> 2);
                         }
                     }
                 }
@@ -457,7 +457,7 @@ static bool store_baseline(const Module *mod, uint64_t hash) {
             /* 回收最旧的条目 */
             free_delta_baseline(&s_delta_baseline_state.entries[0]);
             /* 移动其他条目 */
-            memmove(&s_delta_baseline_state.entries[0], &s_delta_baseline_state.entries[1], (s_delta_baseline_state.count - 1) * sizeof(DeltaBaseline));
+            lv_shift_left(s_delta_baseline_state.entries, sizeof(DeltaBaseline), 0, s_delta_baseline_state.count);
             s_delta_baseline_state.count--;
         }
         bl = &s_delta_baseline_state.entries[s_delta_baseline_state.count++];
@@ -634,7 +634,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
                 if (n && n->symbolic_coords) {
                     for (int c = 0; c < n->coord_count; c++) {
                         if (n->symbolic_coords[c]) {
-                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + 0x9e3779b9ULL + (ch << 6) + (ch >> 2);
+                            ch ^= symbolic_coord_hash(n->symbolic_coords[c]) + lv_HASH_GOLDEN_RATIO_32 + (ch << 6) + (ch >> 2);
                         }
                     }
                 }

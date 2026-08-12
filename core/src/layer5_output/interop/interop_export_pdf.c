@@ -211,10 +211,9 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         if (node->coord_count < 4)
             continue;
 
-        double x1 = symbolic_coord_to_double(node->symbolic_coords[0]);
-        double y1 = symbolic_coord_to_double(node->symbolic_coords[1]);
-        double x2 = symbolic_coord_to_double(node->symbolic_coords[2]);
-        double y2 = symbolic_coord_to_double(node->symbolic_coords[3]);
+        double x1, y1, x2, y2;
+        if (!symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2))
+            continue;
 
         /* 线段颜色：GREEN 保持历史蓝色（与 SVG 的绿色存在历史漂移，此处维持原输出），
          * 其余颜色查公共信任颜色全字段表（AMBER 已修复为橙色，其余维持灰色）。 */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file file_block.c
  * @brief 文件块实现
  *
@@ -49,6 +49,21 @@ lvFileBlock *lv_file_block_create(lvEffectType effect) {
 }
 
 /**
+ * @brief 销毁 IO 块共享内部状态（共享释放函数实现，声明见 io_block.h）
+ *
+ * 释放 target 字符串与状态结构体本身，供 lv_file_block_destroy 与
+ * lv_network_block_destroy 复用（判据 G 收敛同构释放样板）。
+ *
+ * @param state IO 块共享内部状态指针（可为 NULL）
+ */
+void lv_io_block_state_destroy(lvIOBlockState *state) {
+    if (!state)
+        return;
+    lv_free((void **) &state->target);
+    lv_free((void **) &state);
+}
+
+/**
  * @brief 销毁文件块
  *
  * 释放内部状态中的路径字符串、状态结构体和文件块本身。
@@ -58,11 +73,7 @@ lvFileBlock *lv_file_block_create(lvEffectType effect) {
 void lv_file_block_destroy(lvFileBlock *block) {
     if (!block)
         return;
-    if (block->base) {
-        lvIOBlockState *state = (lvIOBlockState *) block->base;
-        lv_free((void **) &state->target);
-        lv_free((void **) &state);
-    }
+    lv_io_block_state_destroy((lvIOBlockState *) block->base);
     lv_free((void **) &block);
 }
 

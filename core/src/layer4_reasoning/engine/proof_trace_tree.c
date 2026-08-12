@@ -216,7 +216,7 @@ void lv_trace_node_set_status(lvProofTraceNode *node, lvTraceNodeStatus status) 
     if (status == TRACE_STATUS_PROVED || status == TRACE_STATUS_DISPROVED || status == TRACE_STATUS_BLOCKED) {
         node->complete_time_ns = (int64_t) lv_get_time_ns();
         if (node->create_time_ns > 0) {
-            node->elapsed_ms = (double) (node->complete_time_ns - node->create_time_ns) / 1e6;
+            node->elapsed_ms = (double) (node->complete_time_ns - node->create_time_ns) / (double) lv_NS_PER_MS;
         }
     }
 }

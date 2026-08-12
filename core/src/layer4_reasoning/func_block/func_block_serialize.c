@@ -502,8 +502,7 @@ static void fb_field_port_dep(FuncBlock *fb, const char **pp) {
                     size_t len = (size_t) (p - start);
                     char *type_str = lv_malloc(len + 1);
                     if (type_str) {
-                        memcpy(type_str, start, len);
-                        type_str[len] = '\0';
+                        lv_strlcpy_n(type_str, len + 1, start, (size_t) len);
                         dep.type = port_dep_type_from_string(type_str);
                         lv_free((void **) &type_str);
                     }

@@ -135,11 +135,7 @@ static const char *read_token(const char *p, char *buf, int buf_size) {
     char *tok = NULL;
     const char *next = lv_str_read_token(&p, &tok, " \t\r\n");
     if (tok) {
-        size_t len = strlen(tok);
-        size_t n = (len < (size_t) buf_size - 1) ? len : (size_t) buf_size - 1;
-        if (n > 0)
-            memcpy(buf, tok, n);
-        buf[n] = '\0';
+        lv_strlcpy(buf, tok, (size_t) buf_size);
         lv_free((void **) &tok);
     } else {
         buf[0] = '\0';

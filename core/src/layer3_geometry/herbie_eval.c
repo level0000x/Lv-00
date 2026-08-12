@@ -258,8 +258,7 @@ static int parse_herbie_output(const char *herbie_output, HerbieOptimizer *opt) 
         if (len > 0 && len < 1024) {
             char *opt_expr = lv_calloc(len + 1, sizeof(char));
             if (opt_expr) {
-                memcpy(opt_expr, suggest, len);
-                opt_expr[len] = '\0';
+                lv_strlcpy_n(opt_expr, len + 1, suggest, len);
                 add_entry(opt, opt_expr, 1e-16, "Herbie 子进程优化");
                 lv_free((void **) &opt_expr);
                 found++;

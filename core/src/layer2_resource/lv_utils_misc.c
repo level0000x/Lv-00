@@ -171,7 +171,7 @@ uint64_t lv_get_time_ns(void) {
     if (ns_per_count == 0.0) {
         LARGE_INTEGER freq;
         QueryPerformanceFrequency(&freq);
-        ns_per_count = 1e9 / (double)freq.QuadPart;
+        ns_per_count = (double) lv_NS_PER_S / (double)freq.QuadPart;
     }
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
@@ -220,7 +220,7 @@ uint64_t lv_get_wallclock_ns(void) {
 #endif
 
 uint64_t lv_get_wallclock_ms(void) {
-    return lv_get_wallclock_ns() / 1000000ULL;
+    return lv_get_wallclock_ns() / lv_NS_PER_MS;
 }
 
 uint64_t lv_get_time_ms(void) {

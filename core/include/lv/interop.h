@@ -41,6 +41,11 @@ typedef struct lvEngine lvEngine;
 /** 单个约束节点涉及的最大约束数量（统一管理，避免两个文件定义不一致） */
 #define lv_MAX_CONSTRAINT_INDICES 64
 
+/** 双精度转有理数的分母精度（10^6），interop 各模块统一使用 */
+#ifndef INTEROP_COORD_DENOM_PRECISION
+#define INTEROP_COORD_DENOM_PRECISION 1000000ULL
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

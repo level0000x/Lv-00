@@ -437,17 +437,17 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 | P1 | preset 家族 strdup+OOM → `preset_module_get_names` 委托（28 文件） | 完成 |
 | P2 | 欧氏距离平方/模长 → `geo_norm` 家族（4 新设施 / 43 处） | 完成 |
 | P3 | 手写二分收敛（error_codes 提取 `find_error_index` 合并 2 份同表二分） | 完成 |
-| P4 | JSON 数组迭代骨架（opml_codec 等，新判据 L 提案） | 待执行 |
-| P5 | 约束编码分发表×5 补全 LV_DISPATCH | 待执行 |
-| P6 | SMT/ATP 插件入口状态机×8 → 描述符表宏 | 待执行 |
-| P7 | 手写线性查找表（18-20 处） | 待执行 |
-| P8 | realloc 倍增新位置（7 处） | 待执行 |
-| P9 | 带符号舍入缺陷修正 | 待执行 |
-| P10 | 高斯消元统一 | 待执行 |
-| P11 | 线性选优/选择排序 argmin/argmax | 待执行 |
-| P12 | rewrite_snapshot.c 析构 shim 遗漏 | 待执行 |
-| P13 | 角度桶量化+位分解 | 待执行 |
-| P14 | 点在线段 bbox 检查 | 待执行 |
+| P4 | JSON 数组迭代骨架（opml_codec 等，新判据 L 提案） | 登记不迁移（新判据 L 不成立，见组⑨ 明细） |
+| P5 | 约束编码分发表×5 补全 LV_DISPATCH | 完成（迁移 4 处：groebner + probabilistic×3；复核 5 处不同构豁免，见组② 明细） |
+| P6 | SMT/ATP 插件入口状态机×8 → 描述符表宏 | 完成（复核 8 处全部与 LV_DISPATCH 不同构，登记不迁移，见组② 明细） |
+| P7 | 手写线性查找表（18-20 处） | 完成（值形态 3 表 96 条迁移至 lv_str_to_enum，出参/哨兵/哈希回退形态登记豁免，见组④ 明细） |
+| P8 | realloc 倍增新位置（7 处） | 登记不迁移（7 处形态各异无同构样板，见组④ 明细） |
+| P9 | 带符号舍入缺陷修正 | 完成（7 处 `(int)(x+0.5)` → `(int)round(x)`，见组⑧ 明细） |
+| P10 | 高斯消元统一 | 登记不迁移（mpq 已统一 cg_mpq_row_echelon、double 列主序 LU 已统一 host_lu_factor/solve，其余异构，见组⑧ 明细） |
+| P11 | 线性选优/选择排序 argmin/argmax | 登记不迁移（28 处语义差异大，无通用契约，见组④ 明细） |
+| P12 | rewrite_snapshot.c 析构 shim 遗漏 | 完成（删 SnapshotNodeOps 全套，统一复用 node_destroy/constraint_destroy，见组③ 明细） |
+| P13 | 角度桶量化+位分解 | 登记不迁移（无法定位，见组⑦ 明细） |
+| P14 | 点在线段 bbox 检查 | 完成（geo_bbox_contains_2d/1d，见组⑦ 明细） |
 
 **P1 明细（preset 名称委托，判据 A 泛化）**：共享 `preset_module_get_names`（preset_common.c:387-416，NULL 守卫 + OOM 回滚）收敛 preset 家族 28 文件。三形态统一：① 手写 `lv_malloc` + for + `lv_strdup` + OOM 回滚（主流）；② `PRESET_CHECK_NULL` + error 标签（preset_polynomial 等 3）；③ `lv_malloc` + `memcpy`（preset_field_theory 等 6）。统一替换为 `static const char *const preset_names[] = {...}` + 尾部 `return preset_module_get_names(...)`。删除 786 行 / 新增 81 行。未迁移：preset_group_theory.c 独立辅助 `get_group_theory_names`（非目标函数）。验证：ninja 927/927 + ctest 170/170。
 
@@ -463,3 +463,262 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 **P3 明细（手写二分收敛）**：error_codes.c 提取无副作用静态辅助 `find_error_index`（返回表索引或 -1），`find_error_info` 与 `lv_error_is_unknown` 两处同表二分统一复用；`lv_error_is_unknown` 改为 `find_error_index(code) < 0`（保持无副作用——原方案直接委托 `find_error_info` 会经 `lv_RETURN_ERROR_NULL` 意外设置全局错误，status_codes.c 探测路径受影响，已规避）。豁免：algebraic_number_util.c `alg_is_perfect_square`（整数平方根数值二分 + 溢出检测，非表查找语义）。
 
 **回归（批次 P1-P3）**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+---
+
+## 十二、批次 Q 候选立项与实施（2026-08-12）
+
+**候选来源**：4 路并行代理按判据分组只读扫描 core/src（AB 路 / CDF 路 / EGH 路 / IJK+自由路），共 32 候选。用户「全部立项」→ Q1-Q32。已抽样验证 Q-C1（时间常量族裸字面量）/ Q-J1（memcpy+手写 NUL）/ Q-A1（环形缓冲扩容）/ Q-E1（CUDA 存根四连）四个主推项属实。CUDA/HIP 存根未检索到正式第 9 章豁免登记，Q3 按判据 E 正常立项。
+
+### 批次 Q 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| Q1 | 定长子串提取 + 手写 NUL 终止 → 新增 `lv_strlcpy_n`（判据 J；~25 文件/40+ 处） | 完成 |
+| Q2 | 节点类型分发表 LV_DISPATCH 化（判据 F；≥20 处：formula / DSL / 证明 / 输出 4 域） | 完成（迁移 16 处，复核不迁移 15 处，见组② 明细） |
+| Q3 | CUDA/HIP 双后端「四连 API + 存根降级 + 句柄守卫」→ `gpu_backend_guard.h`（判据 E；2 文件各 4 存根 + ~50 处守卫） | 登记不迁移（守卫已由 lv_CHECK_NULL/lv_CHECK_ALLOC 收敛；存根降级函数名/vendor/错误方式异构；linsol 方法范围检查每文件仅 1 处，见组⑥ 明细） |
+| Q4 | 环形缓冲「索引运算 + 扩容展开」→ 扩展 `lvRingBuf` 支持扩容线性化（判据 A/B；≥5 处） | 登记不迁移（环形业务耦合 + 哈希探测属表内核，见组④ 明细） |
+| Q5 | 去重收集「unique append」→ `lv_darray_add_unique`（判据 B；≥5 处） | 完成（新建 lv_int_append_unique 迁移 4 处裸 int 形态，3 处登记不迁移，见组④ 明细） |
+| Q6 | 时间单位换算裸字面量族 → 补全 `lv_NS_PER_US`/`lv_NS_PER_MS` + 收敛 lv_get_wallclock_ms:223 裸 `/1000000ULL`（判据 C；36 处/16 文件） | 完成（lv_utils.h 新增 6 时间常量宏，迁移 21 文件；延时/平台刻度字面量登记豁免，见组⑤ 明细） |
+| Q7 | 数组移位 memmove 补漏 → `lv_shift_right`/`lv_array_insert_at`/`lv_buffer_consume`（判据 A/B；≥4 处） | 完成（新建 lv_shift_right/lv_buffer_consume 迁移 5 处，3 处登记不迁移，见组④ 明细） |
+| Q8 | 排序后多集相等判定 → `lv_multiset_equal`（判据 A；≥3 处，type_check 双份） | 完成（新建 lv_int_multiset_equal 迁移 3 处，见组④ 明细） |
+| Q9 | 哈希预分组扫描 → `lv_hash_group_scan`（判据 A；≥2 处同算法多阶段） | 登记不迁移（组内业务逻辑差异大，见组④ 明细） |
+| Q10 | JSON int 数组解析补漏 → 复用既有 `lv_json_parse_int_array`（判据 A；2 处手写） | 登记不迁移（固定缓冲设施与 3 处动态分配手写不同构，见组⑨ 明细） |
+| Q11 | 多项式项规范化（含 swap-last 删除骨架）（判据 A/B；≥4 处） | 完成（新建 simple_poly_remove_zero_terms 去重 2 处，其余不可合并，见组⑧ 明细） |
+| Q12 | 坐标有理化精度分母 1000/1e6/1e9 三档（判据 C；4 文件，interop_import 宏已定义却失步） | 完成（lv_SOLVER_SCALE_FACTOR/INTEROP_COORD_DENOM_PRECISION 统一权威定义，见组⑤ 明细） |
+| Q13 | GGB ZIP 常量双文件重复（命名不一致）→ interop_internal.h 统一（判据 C/D；2 文件） | 完成（interop_export.c 死宏整块删除，见组⑤ 明细） |
+| Q14 | 黄金比例哈希常量族（4 种变体含疑笔误）→ 统一具名常量（判据 C；≥11 处/5 文件） | 完成（lv_HASH_GOLDEN_RATIO_64/32 具名化，修复 radius_node_id +1 笔误，见组⑤ 明细） |
+| Q15 | high_dim view_id 编码规则族 → `lv_VIEW_ID_BLOCK_STRIDE` + encode/decode helper（判据 C；5 处） | 登记不迁移（view_id 编码集中单文件函数族，见组⑤ 明细） |
+| Q16 | cuda/hip 版本整数解码双份 → 各保留 vendor 基数但具名化（判据 C；2 处） | 完成（CUDA/HIP 各新增版本解码基数宏，见组⑥ 明细） |
+| Q17 | IO block `lvIOBlockState` 释放样板（5 行精确同构）→ 共享释放函数（判据 G；2 处） | 完成（新建 lv_io_block_state_destroy，见组③ 明细） |
+| Q18 | graph_node_alloc 六分发 free vtable（判据 G；1 文件 6 分发） | 登记已收敛（vtable 槽位由 node_destroy 统一消费，P12 已消除平行实现，见组③ 明细） |
+| Q19 | `symbolic_coords[N]` 连续下标提取 → `symbolic_coord_get_xy/get_segment`（判据 H；≥4 处） | 完成（新建 get_xy/get_segment 迁移 9 处，见组⑦ 明细） |
+| Q20 | 数字字面量词法识别骨架 → `lv_str_read_number`（判据 I 变体；8+ 文件/10+ 处；**仅收敛词法骨架层，豁免 #9 算术保持豁免**） | 完成（设施名 lv_str_scan_number） |
+| Q21 | `lv_strtok_r` 逐 token 迭代解析（判据 A；9 文件/13+ 处；**与已登记 lv_str_split_once 单次切分区分，形态为多 token 迭代器**） | 完成（已收敛：9 候选调用点均已是 lv_strtok_r 调用形态，无手写迭代残留） |
+| Q22 | 错误槽复位样板（判据 A；12 文件/19 处） | 登记不迁移（槽位复位是防御性语义非算法骨架，见组④ 明细） |
+| Q23 | tactic 逐行 import 解析（判据 A；coq_bridge vs lean4_bridge，弱） | 登记不迁移（Coq 逐行扫描 vs Lean4 递归下降不同构，见组⑨ 明细） |
+| Q24 | 长度分级编码阈值族 varint/msgpack/WebSocket（判据 C；3 文件，弱） | 登记不迁移（三协议独立规范阈值，见组⑤ 明细） |
+| Q25 | euclidean 公理体系元数据表（判据 F；3 文件，弱） | 登记不迁移（3 表不同构，见组⑦ 明细） |
+| Q26 | layer6_visual 成对块家族（判据 G；~7 处，弱） | 登记不迁移（单点销毁无跨模块重复；历史已由 LV_SIMPLE_BLOCK 宏抽象后函数化，见组③ 明细） |
+| Q27 | Block 单行 destroy 族（判据 G；4 文件，弱） | 完成（登记已收敛：单行 lv_free 为设施调用终态，随 P12 处理，见组③ 明细） |
+| Q28 | 矩形 coords[0..7] 手写展开（判据 H；1 文件，弱） | 登记不迁移（单文件单点，见组⑦ 明细） |
+| Q29 | formula_converter coords[2] init/clear 配对（判据 H；~8 处，弱） | 登记不迁移（已收敛，见组⑦ 明细） |
+| Q30 | geometry_canvas 类型分发展开（判据 H；弱，已部分收敛） | 登记不迁移（已收敛终态，见组⑦ 明细） |
+| Q31 | 子串关键词查找表（判据 F；3 文件/3 处，弱） | 完成（lv_str_match_any 表驱动迁移 3 处） |
+| Q32 | 文本文件整读（判据 F；2 文件，弱） | 完成（新建 lv_file_read_text + 迁移 2 处） |
+
+### 备注（非新候选，不立项）
+
+- Q-E2 numerical_backend 三重 find 循环 → 与已登记 `lv_registry` 重叠，不立项
+- 判据 I → 已收敛（`lv_parse_int_before`），无新候选
+- 判据 K → 无新候选（既有豁免覆盖，含与已登记 #2 边界复核）
+
+### 边界声明（立项复核）
+
+- Q20 与豁免 #9：仅收敛数字字面量词法识别骨架（前缀/符号/数字扫描 + 结束定位）；`v = v*10 + (c-'0')` 算术累加段保持豁免，不迁移
+- Q21 与 `lv_str_split_once`：lv_str_split_once 为单次切分（返回两个指针）；Q21 为多 token 迭代器形态（循环消费 + 跳过空段），设施形态不同
+- Q3 与批次 P 存根提及：「cuda/hip 存根 2 特例」未落入第 9 章正式豁免登记，本次按判据 E 正常立项；存根段与完整实现段分属编译期分支，骨架差异以存根段同构为准
+
+### 跨批次领域合并调度方案（2026-08-12 用户选定）
+
+批次 P 遗留（P4-P14）与批次 Q（Q1-Q32）不按批次分组，按领域相近度合并为 9 组，逐组实施、每组完成验证后登记：
+
+| 组 | 领域 | 合并执行项 |
+|----|------|-----------|
+| ① | 字符串处理（J/I/A） | Q1 · Q20 · Q21 · Q31 · Q32 |
+| ② | 分发表/调度（F） | P5 · Q2 · P6 |
+| ③ | 析构/释放（G） | P12（含 Q27）· Q17 · Q18 · Q26 |
+| ④ | 数组/容器算法（A/B） | Q4 · Q5 · Q7 · Q8 · Q9 · Q22 · P7 · P8 · P11 |
+| ⑤ | 语义常量族（C） | Q6 · Q12 · Q13 · Q14 · Q15 · Q24 |
+| ⑥ | GPU 后端（E） | Q3 · Q16 |
+| ⑦ | 坐标/几何展开（H） | Q19 · Q28 · Q29 · Q30 · Q25 · P13 · P14 |
+| ⑧ | 数学算法 | P9 · P10 · Q11 |
+| ⑨ | 序列化/解析 | P4 · Q10 · Q23 |
+
+执行顺序 ①→⑨（用户授权自主决定）。Q25 归组⑦实施时复核边界（「方向②」无正式登记）。Q27 随 P12 在组③处理。
+
+### 组① 字符串处理域执行明细
+
+**Q1 完成（lv_strlcpy_n 定长安全复制，判据 J）**：lv_utils.h 新增声明 + lv_utils_str.c 新增实现（契约：源不要求 NUL 终止、复制 min(src_len, dest_size-1) 字节 + NUL 终止、返回 src_len 可检测截断；NULL 参数返回 0 不写目标）。迁移 53 处 `lv_strlcpy_n`（34 文件，含设施自身 1 处）+ 13 处形态 B 改用既有 `lv_strlcpy`（NUL 终止源钳制复制，更贴语义）。三类形态：钳制（`size_t nlen` 判断 + memcpy + NUL）、直拷、堆分配（`lv_malloc(len+1)`）。语义保留：前置长度校验（lean4_bridge INVALID_PARAM、gappa_dsl `len<64`）、NULL/长度条件分支（lean4_add_step 保留 else 写空串）、返回值复用变量（text_code len）。豁免/禁止形态：多段拼接（lv_parser:619/655 qname、lambda_term:213、rewrite_strategy:131）、memmove 偏移插入（text_code:130）、复制后尾部清理（proof_version_isar:317）、二进制复制、设施自身。验证：ninja 927/927 + ctest 170/170，零修复项。
+
+**Q20 完成（lv_str_scan_number 数字字面量词法扫描器，判据 I 变体）**：lv_parse_utils.h 新增 static inline 设施（契约：扫描可选符号/整数/可选小数/可选指数，返回结束位置；'.' 后需数字防 ".."、e/E 后需 [±]数字、'-' 后需数字；end 为 NULL 表示 NUL 终止；纯词法定位不含数值累加）。迁移 2 处：gc_language.c 数字跳过段（含 include lv_parse_utils.h；".." 从宽松跳过变为报错，属畸形输入行为变化登记）、dsl_lexer.c 数字字面量骨架（pos/col 一次性更新，删除死变量 is_float）。缺陷修复登记：dsl_lexer 原无条件消费 e/E（`3e+` 吞符号）→ 设施严格语义（e 后需数字），正常数字输入行为不变。豁免登记：module_lvz.c（'.' 无条件消费与严格语义冲突，且累加交错属豁免 #9 边界）、axiom_pkg_parser.c（仅整数骨架极简 + 溢出钳制交错，抽象收益为负）、lv_lexer.c（有理数/小数回退与 token 类型契约强耦合）。strtod 收敛确认：gappa_dsl/gappa_propagate/proof_strategy_numeric/float_error 已用标准库，非本判据目标。验证：ninja 927/927 + ctest 170/170，零修复项。
+
+**Q21 完成（lv_strtok_r 逐 token 迭代解析，判据 A——已收敛，无新迁移）**：全库扫描确认 9 个候选调用点均已是既有 `lv_strtok_r` 设施调用形态：lv_loader.c（"," 逗号流）、lv_sema.c（","）、gappa_dsl.c×2（";" 双层）、interop_theorem.c（"\n"+";" 双层嵌套）、atp_backend.c（" " 空格流）、proof_version.c（"\n" 行流）、preset_common.c（"|,& " 四分隔符）、interop_command.c×2（" " 命令参数 + "," id 列表）、stream_filter.c（"," + ltrim/rtrim）。无手写 `while(strchr)+memcpy` 迭代残留；剩余 strchr/memchr/strstr 单字符定位或子串检测均非逐 token 迭代形态。结论：该方向已在历史批次收敛，登记完成不迁移。验证：ninja 927/927 + ctest 170/170。
+
+**Q31 完成（子串关键词查找表，判据 F）**：复用既有 `lv_str_match_any`（lv_str_utils.c:89，strstr 顺序匹配返回索引，NULL 安全）表驱动迁移 3 处手写子串关键词链（关键词表保持原链顺序，语义逐位等价）：
+- type_inference.c 内置默认规则：6 个 if 块 → `kBuiltinTypeKeywords[]`（14 关键词）+ `kBuiltinTypeNames[]` 平行表 + `lv_str_match_any` 索引分发
+- sat_encoding.c 关系名→约束类型：4 个 if 块 → `kRelTypeKeywords[]`（incidence/on/between/intersect/contain）+ `kRelTypes[]` 平行表
+- proof_widget.c 目标含等号检测：strchr+strstr 四条件 → `kGoalEqualMarkers[]`（"=", equal, congruent, 等于）
+语义不兼容保持：meta_verify.c:385-391（计数语义 found_markers<2，非索引）、proof_strategy_numeric.c:196-202（最早出现位置语义，非顺序索引）。三个文件均已含 lv_utils.h（聚合 lv_str_utils.h），无需新增 include。验证：ninja 927/927 + ctest 170/170，零修复项。
+
+**Q32 完成（文本文件整读，判据 F）**：lv_file.h/lv_file.c 新增 `lv_file_read_text(path, buf, buf_size)` 设施（契约：rb 打开、读取 min(文件大小, buf_size-1) 字节、保证 NUL 终止、buf_size 必须 ≥2、返回 bool 成功状态；不分配堆内存）。迁移 2 处孪生 `static read_file_text`（fopen+fread(buf_size-1)+手写 NUL 样板，仅返回契约 int/-1 vs bool/false 不同，统一为 bool）：lv_impl_upper_app.c 定义删除 + 调用点 `if (!lv_file_read_text(input_path, src, sizeof(src)))`、lv_impl_upper_orchestrator.c 定义删除 + 调用点同步。非目标确认：lv_file_read_all（堆分配整读）为既有设施；file_block.c 块读（不 NUL 终止 + bytes_read 输出）语义不同保持；runtime_monitor /proc 逐行读为系统文件豁免。验证：ninja 927/927 + ctest 170/170，零修复项。
+
+**组① 字符串处理域全部完成（Q1/Q20/Q21/Q31/Q32）**：验证基线 ninja 927/927 + ctest 170/170 全部通过。
+
+**组② 分发表/调度域执行明细（P5/P6/Q2，验证 ninja 927/927 + ctest 170/170 全部通过）**：
+
+**Q2 完成（节点类型分发表 LV_DISPATCH 化，判据 F）**：迁移 16 处「边界检查 + NULL 槽检查 + 调用」三行样板为 `LV_DISPATCH`/`LV_DISPATCH_VOID`（fallback 值/参数序列/前置守卫逐位保留）：
+- formula 域（5 文件）：formula_eval.c s_funcs（fallback 0.0）、formula_curve.c s_funcs（fallback false）、formula_converter_stmt.c s_stmt_funcs（fallback false；原硬编码 <36 与表 sizeof 26 的越界语义逐点等价已核实）、formula_converter_export.c s_funcs（VOID）；均补 include lv_xmacro.h
+- DSL 域（3 文件）：lv_loader.c kFoldDispatch/kIsPureDispatch/kCollectVarsDispatch(VOID)/kEvalSkeletonDispatch 4 处 + include、dsl_compiler_ir.c s_compile_handlers、dsl_compiler_parse.c kParseStmtHandlers（fallback NULL，负值经 unsigned 兜底）
+- 证明域（3 文件）：prop_verifier_engine.c kProveGoalHandlers（fallback false）、prop_verifier_equivalence.c kPropVerifyHandlers（fallback 逗号表达式保留 res.valid=false+msg）、prop_verifier_bhk.c s_bhk_desc_funcs（VOID）；均补 include
+- 输出域（1 文件）：tikz_export.c s_tikz_renderers（{type,fn} 线性扫描 → 直接索引 + VOID，GeomType 连续 0-5，GEOM_PORT 槽 NULL 静默跳过，与原未命中不渲染等价；移除 TikzNodeRenderEntry typedef）
+- 已迁移文件合计补 include：lv_loader.c、formula_eval.c、formula_curve.c、formula_converter_stmt.c、formula_converter_export.c、prop_verifier_engine.c、prop_verifier_equivalence.c、prop_verifier_bhk.c（其余文件宏已可达）
+
+**Q2 复核不迁移（15 处，语义不同构，登记）**：
+- formula 域：formula_string.c node_to_string（void 表但 fallback 是动作 str_default 写 "?"，非值，LV_DISPATCH_VOID 无 fallback 参数会改变输出 → 不迁移）、formula_renderer.c s_render_funcs（校验前置 + lv_set_error 错误副作用 + 双调用）、formula_renderer_latex/ascii/dsl/python（已用共享 dispatch_via 设施）、formula_ast.c kFormulaVTable（X-MACRO 多字段 VTable）
+- DSL 域：lv_ast.c kAstVTable（多字段 8 槽 VTable）、lv_loader.c kEntityDeclHandlers（取指针循环复用非三行样板）、kChurchFnTable（{name,fn,arity} 字符串扫描）、kEvalPropDispatch（fallback 是 fold_expr 回退分支块）、dsl_compiler_load.c kIROpHandlers（错误传播副作用：handler 返回 bool 取反驱动提前中止）
+- 证明域：prop_formula_ops.c vtables（{equal/hash/is_descendant} 多字段 VTable）、proof_multi_strategy.c kSearchAlgorithmHandlers（校验前置 + 非法值回退 DFS 归一，无 NULL 槽检查）
+- 输出域：interop_command.c kCommandHandlers（未命中设置 status_code=UNSUPPORTED + snprintf error_message + data_len，错误副作用无法宏化）、kAddNodeTypeHandlers / kAddConstraintTypeHandlers（字符串键非枚举）、proof_export_enhanced.c 规则名 if 链（字符串匹配）
+
+**P5 完成（约束编码分发表 LV_DISPATCH 化）**：迁移 4 处（主会话示范）：
+- groebner_engine.c kGroebnerEngineEncodeTable：{type,fn} 线性扫描 → 直接索引函数表（ConstraintType 连续 0-5）+ `LV_DISPATCH_VOID`（原未命中静默等价）+ 补 include lv_xmacro.h
+- probabilistic_constraint.c kDTMCBuildTable：线性扫描 → 直接索引 + LV_DISPATCH_VOID（未命中静默等价）
+- probabilistic_constraint.c kPCTLSubEvalTable：线性扫描 → 直接索引（PCTLFormulaType 连续 0-6，仅 4 槽有 handler）+ LV_DISPATCH（fallback formula->p_bound 默认值等价）
+- probabilistic_constraint.c kPCTLEvalTable：直接索引表 + 失败处理 → `LV_DISPATCH(kPCTLEvalTable, type, false, ...)` + `if (!ok) { dtmc_destroy; return false; }`（原「越界/NULL → destroy+false」与 handler 失败路径合并等价）
+
+**P5 复核不迁移（5 处，登记）**：sat_encoding.c constraint_encoders / kFormulaEncoders（线性扫描 + 未命中 lv_LOG_WARNING 副作用）、smt_backend_impl_smtlib2.c kSmtlib2EncodeTable（直接索引但未命中写 warning）、smt_backend_impl_groebner.c（GROEBNER 直通 + 外部后端线性扫描混合状态机）、probabilistic_constraint.c 状态谓词（字符串查找 + kind if 链非枚举分发表）。
+
+**P6 完成（SMT/ATP 插件入口状态机——复核 8 处全部与 LV_DISPATCH 不同构，登记不迁移）**：atp_backend.c 约束→TPTP 谓词表（{type,谓词名} 多字段线性扫描 + 元数格式化表 4 槽 2 有效）、atp_executable_name（纯数据表非函数表）、atp_parse_szs_status（SZS 状态字符串 if 链）；smt_backend_impl_groebner.c smtsolver_check（后端类型直通 + 外部求解器线性扫描混合）、smt_backend_impl_external.c 输出解析（sat/unsat/unknown 字符串匹配）；engine_scheduler.c kSchedulerBackendVTables（{type,name,solve,NULL,NULL} 多字段 VTable + 未命中错误填充副作用）；smt_backend_impl.c kBuiltinBackends / lv_backend_plugin.c 插件类型查找（注册表数据查找非分发表）。结论：该方向候选均为数据表/字符串匹配/多字段 VTable，不构成 LV_DISPATCH 分发表，无需新设施。
+
+**组③ 析构/释放域执行明细（P12/Q17，Q18/Q26/Q27 登记，验证 ninja 927/927 + ctest 170/170 全部通过）**：
+
+**P12 完成（rewrite_snapshot.c 析构 shim 收敛，判据 G）**：删除 SnapshotNodeOps 全套自建 VTable（结构体 + destroy_data/cleanup_data 双函数 ×3 handler + 6 实例 + 查表函数 get_snapshot_ops，共约 60 行），其类型特定释放与 graph_node_alloc.c vtable->free 六分发（region_free/port_free/func_block_free）完全同构，属双份实现：
+- `snapshot_node_destroy`（L113-129）与 `graph_snapshot_restore` 内联节点销毁（L344-367）均收敛为既有统一释放路径 `node_destroy`（graph_index.c：符号坐标数组循环 + numeric_assumption_declaration + vtable->free 类型特定数据 + 外壳归还；lv_pool_free 对非池深拷贝节点自动按普通分配释放，已核实）
+- 约束销毁统一走 `constraint_destroy`（快照约束为 lv_calloc 分配，lv_pool_free 归属校验自动按普通分配释放，语义等价）
+- 新增静态 `graph_snapshot_free_refs` 收敛 graph_snapshot_create 错误回滚（2 处）与 graph_snapshot_destroy 中的 port_refs/region_refs[i].segment_ids/fb_refs[i].internal_node_ids 释放块（原 4 处同构样板）
+- 调用点共 7 处改 node_destroy、2 处改 constraint_destroy；补 include layer3_geometry/constraint_graph/graph_node_internal.h（仿 bit_burning.c 相对路径）
+
+**Q17 完成（IO block 共享释放函数，判据 G）**：新建 `lv_io_block_state_destroy(lvIOBlockState *)`（io_block.h 声明 + file_block.c 实现，释放 target 字符串 + state 外壳，NULL 安全），file_block.c lv_file_block_destroy 与 network_block.c lv_network_block_destroy 的 5 行同构样板（`if (block->base) { ... }`）收敛为单次调用；network_block 的 socket 移除前置逻辑保留。
+
+**Q18 登记已收敛（graph_node_alloc 六分发 free vtable）**：point_free/line_segment_free/circle_free（空实现）+ region_free/port_free/func_block_free（1-3 字段）是 GeomNode vtable 的合法多态槽位，已由 node_destroy 统一消费（既有 vtable 分发设施形态，非手写分散样板）；与 SnapshotNodeOps 的重复由 P12 消除；1-3 字段用 lvFieldDesc 表驱动无收益（行数不降且计数归零需额外处理），登记不迁移。
+
+**Q26 登记不迁移（layer6_visual 成对块家族，~7 处）**：if/match/record/effect 等块 destroy 均为各文件单点销毁（无跨模块重复），字段释放序列 2-4 行；「成对块」历史已由 lv_block_utils.h 的 LV_SIMPLE_BLOCK 宏抽象后函数化为各文件具名函数（头文件注释自述），是既有收敛终态，登记不迁移。
+
+**Q27 完成（登记已收敛，Block 单行 destroy 族，4 文件）**：lv_list_block_destroy / lv_map_block_destroy / lv_while_block_destroy / lv_ui_event_block_destroy 及 extended_types.c 的 lv_list_type_destroy / lv_map_type_destroy / lv_function_type_destroy 均为单行 `lv_free((void **)&ptr)`——已是 lv_free 设施调用终态，与 Q21 已收敛判定同理，登记不迁移。
+
+### 组④ 数组/容器算法域执行明细
+
+**新设施（lv_utils.h 声明 + lv_utils_array.c 实现，追加于 lv_shift_left 旁）**：
+- `lv_shift_right(void *base, size_t elem_size, size_t index, size_t count)`：与 lv_shift_left 对称的右移腾位（[index,count) → [index+1,count)），单次 memmove
+- `lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len)`：recv 缓冲 consume 语义（删前 pos 个元素、剩余前移、len 原地更新；pos>=len 时 len 置 0）
+- `lv_int_multiset_equal(const int *a, int an, const int *b, int bn)`：int 多集排序后相等判定（三态返回 1 相等 / 0 不等 / -1 内存失败，内部 lv_malloc 两份 + qsort + 逐元素比较）
+- `lv_int_append_unique(int *arr, int *count, int value)`：compact int 数组 unique append（线性查重 + 追加，容量由调用方保证）
+
+**Q5 完成（unique append 去重收集，判据 B）**：`lv_int_append_unique` 迁移 4 处裸 int 形态（`bool found + 内层 for 查重 + 追加` 样板，各约 13 行 → 1 行）：
+- solver_engine.c:184-198（all_var_ids，示范迁移）
+- solver_order.c:243-256（var_ids，容量由 eq_count_total 保证）
+- solver_coord_extract.c:1310-1323（var_ids，容量由 sys->eqs.count 保证）
+- graph_dot_export.c:218-235（namespace depth 去重，栈数组 depths[256]；容量检查保留于外圈 `if (nd < lv_ARRAY_SIZE(depths))`，语义与原 `!found && nd<size` 逐位等价）
+登记不迁移：module_delta.c×6（dep_names 字符串数组 + JSON 缓冲耦合，与裸 int 形态不同构）、bdd_encoding.c:1118（结构体字段去重非 int 数组）、solver_groebner.c:630（二元组配对查重）。
+
+**Q8 完成（排序后多集相等判定，判据 A）**：`lv_int_multiset_equal` 迁移 3 处：
+- type_check.c×2（contained_node_ids / constraint_ids 分支，各约 40 行逐行复制 → 8 行，含内存失败三态返回）
+- normalization.c:785-834（boundary_segments 多集相等，双 qsort + for 比较删除；新增 ids_a/ids_b 分配 + NULL 检查，失败时 continue 跳过该候选）
+
+**Q7 完成（数组移位 memmove 补漏，判据 A/B）**：迁移 5 处：
+- proof_engine.c:148-164（策略按优先级右移插入，memmove → lv_shift_right）
+- module_delta.c:456-462（DeltaBaseline 头删除，memmove → lv_shift_left 收敛既有设施）
+- geo_dynamic.c×2（parent_adj / child_adj 插入右移 for 循环 → lv_shift_right）
+- interop_server.c:1469-1477（recv 缓冲 consume，memmove+长度更新 → lv_buffer_consume）
+登记不迁移：text_code.c:126（text_len 宽度多元素腾位，与单元素 lv_shift_right 不同构）、text_code.c:155（actual_len 宽度多元素删除，与单元素 lv_shift_left 不同构）、debug_state.c:226（日志文件轮转重命名循环，非内存数组移位）。
+
+**Q4 登记不迁移（环形缓冲/线性化，判据 A/B）**：7 组候选（propagation.c 两段 memmove 线性化、stream_lazy/stream_buffer/stream_async 扩容、rewrite_wl.c、geom_evol.c、graph_node_hash 哈希探测、bdd_encoding/rewrite_strategy/rewrite_vf2 线性探测）均与环形索引/扩容业务强耦合；哈希探测序列属表内核实现（lvHashtable 内部回退），非应用层散落骨架；扩展 lvRingBuf 引入扩容线性化设施收益与改造风险不成比例，登记不迁移。
+
+**Q9 登记不迁移（哈希预分组扫描，判据 A）**：3 组候选（normalization.c find_merge_candidates 点/线段两阶段、graph_memory.c 约束哈希签名去重、expr_canon.c 同类项分桶）组内阶段间业务逻辑差异大（点/线段匹配条件、哈希签名内容、分桶目标各不相同），无共享骨架，登记不迁移。
+
+**Q22 登记不迁移（错误槽复位样板，判据 A）**：19 处候选均为「槽位指针置 NULL + 计数归零」的防御性清理语义（错误标签内逐槽释放+复位），非遍历/搜索/排序/判定/消元算法骨架，抽象为容器设施无收益，登记不迁移。
+
+**P8 登记不迁移（realloc 倍增新位置，判据 B）**：7 处（text_code.c:116 / propagation.c:499 / interop_theorem.c:98 / geo_visual_complete.c:1107 / text_code.c:63 / proof_compiler.c:280 / lv_utils_config.c:326）形态各异（栈数组→堆迁移、倍增系数差异、增长步长差异），无 ≥2 处同构样板，登记不迁移。
+
+**P11 登记不迁移（线性选优/选择排序 argmin/argmax）**：28 处（4 选择排序 + 24 线性选优）语义差异大（比较键不同、相等处理不同、返回下标 vs 值 vs 指针），无通用 argmin/argmax 设施契约可覆盖，登记不迁移。
+
+**P7 完成（手写线性查找表值形态，判据 B）**：4 路搜索确认全库 22 处严格命中（字符串→枚举/索引），其中纯 return 值形态 3 表 96 条迁移至既有 `lv_str_to_enum`（表声明统一为 `lvStrToEnumEntry{name,value}`，查找函数体收敛为一行 `return (枚举) lv_str_to_enum(table, lv_ARRAY_SIZE(table), str, default)`）：
+- probabilistic_constraint.c kStatePredicateTable（11 条，state_predicate_lookup，原 for+strcmp+return kind）
+- module_lvz.c kCategoryMap（24 条，lvz_category_from_string，保留外层 NULL 检查 + 新增 include lv_xmacro.h）
+- module_lvz.c kTypeMap（61 条，lvz_type_from_string）
+登记豁免（与 lv_str_to_enum 纯 return 契约不同构）：出参形态（preset_common.c g_type_map 60 条 / func_block_registry.c cn_map+en_map X-macro 生成 / preset_manager_serialize.c 反向反查隐式表）、break+哨兵（float_error.c kFuncNameOps / gappa_dsl.c kPredefinedFormats / preset_common.c g_property_map 位标志 OR）、哈希快查回退路径（lv_registry / global_state / performance_profiler / preset_blocks / func_block_preset_internal / dsl_compiler_ir / formula_converter_util / mini_kernel / interop_import 等动态数组，属容器设施内核）、常量字符串表（formula_renderer_internal.c greek_letters/trig_functions，阶段 G 已登记豁免形态）、error_codes.c g_error_table（ErrorInfo 四字段布局与 lvStrToEnumEntry 不兼容，X-macro 单点生成 + P3 已二分统一）。
+
+**组④ 验证**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+### 组⑤ 语义常量族域执行明细
+
+**Q6 完成（时间单位换算常量族，判据 C）**：`lv/lv_utils.h` 新增公共语义常量族 6 宏（lv_NS_PER_US/lv_NS_PER_MS/lv_US_PER_MS/lv_MS_PER_S/lv_US_PER_S/lv_NS_PER_S），三批迁移 21 文件：
+- 首批 13 文件：adaptive_threshold.c（3 处 ns→s 换算）、context.c（2 处 µs→ms）、lv_circuit_breaker.c（4 处）、circuit_breaker.c（layer4_reasoning）、exact_arithmetic.c（ns→s 双处）、proof_version.c、proof_rule_engine.c、engine_scheduler.c、debug_log_ctx.c、lv_impl_upper_orchestrator.c
+- 二批 3 文件：runtime_monitor.c（5 处 lv_NS_PER_MS + 2 处 lv_NS_PER_US，新增 include lv_utils.h）、proof_strategy.c、proof_trace_tree.c
+- 三批 6 文件：lv_utils_misc.c（删局部 4 宏 + QPC 频率换算收敛，FILETIME 刻度 `*100` 豁免）、test_framework.c（报告输出 5 处）、debug_state.c、performance_profiler.c、atp_backend.c、solver_core.c、lv_utils.h（lv_clock_elapsed_ms 内联收敛）
+登记豁免（非换算因子语义）：延时字面量（runtime_monitor.c Sleep(100)/usleep(100000)×2、lv_process.c nanosleep 500ms、interop_server.c select 超时 100ms，均为平台 API 延时参数带注释语义）、lv_thread.h ms→tv_sec/tv_nsec（lv_thread.h 仅依赖 lv_platform.h 的底层自包含头，引入 lv_utils.h 破坏头文件分层）。
+
+**Q14 完成（黄金比哈希常量族，判据 C）**：`lv_utils.h` 新增 `lv_HASH_GOLDEN_RATIO_64 0x9E3779B97F4A7C15ULL` / `lv_HASH_GOLDEN_RATIO_32 0x9E3779B9ULL`。unify_helpers.c 4 处替换（coord_hash_region/coord_hash_circle×2/coord_hash_func_block），其中 coord_hash_circle 的 radius_node_id 原用 `0x9E3779B97F4A7C16ULL`（+1 疑笔误，同一函数内与 center_node_id 不一致），修复统一为 64 位黄金比常量；module_delta.c 2 处 `0x9e3779b9ULL` 替换（32 位黄金比 ULL 形式）。
+
+**Q13 完成（GGB ZIP 常量死代码，判据 C/D）**：全库 grep 确认 interop_export.c L172-180 的 9 个 GGB_* 宏零使用点（唯一命中为定义行），删除整块并留注释指引；interop_import.c L38-43 的 6 个活跃副本（L317-407 实际使用）保留。
+
+**Q12 完成（坐标有理化精度分母，判据 C）**：`lv_SOLVER_SCALE_FACTOR`（=1000）双头失步统一——solver_core.h:41 裸定义删除，保留 lv_internal.h:77 的 #ifndef 定义（solver 全部 20 使用点所在文件均经 solver_common.h→lv_internal.h 可见）；`INTEROP_COORD_DENOM_PRECISION`（=10^6）三文件失步收敛——定义上提至 lv/interop.h 公共常量区（interop_command/import/server 三文件均 include），interop_command.c:287-288 手写 `1000000.0`/`1000000UL` 复用宏，interop_server.c:74 死宏删除，interop_import.c:56-58 局部 #ifndef 删除。
+
+**Q24 登记不迁移（编码阈值族，判据 C 弱）**：varint（lv_bytes.c）/msgpack（module_serialize_msgpack.c）/WebSocket（interop_server.c）是三协议独立规范阈值（各协议标准各自定义分级规则），无跨文件同语义重复，登记不迁移。
+
+**Q15 登记不迁移（view_id 编码规则，判据 C）**：`block_id * 1000 + preset_index`（冲突时 `+ offset * 10000`）编码集中在 high_dim_view.c 单文件函数族，属模块内编码规则而非跨文件重复语义常量，登记不迁移。
+
+**组⑤ 验证**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+### 组⑥ GPU 后端域执行明细
+
+**Q3 登记不迁移（CUDA/HIP 双后端守卫/存根/状态机，判据 E）**：cuda_backend.c / hip_backend.c 逐项分析后不满足判据 E「家族内每文件重复 ≥2 处同构」迁移条件：
+- 句柄/上下文守卫已由 `lv_CHECK_NULL` / `lv_CHECK_ALLOC` 宏收敛（NULL 守卫已是设施调用终态，非手写样板）
+- 存根降级每文件 4 函数（vector/matrix/linsol/destroy），但 CUDA 用 `lv_RETURN_ERROR` 返回错误码、HIP 用 `LOG_WARN + return -1`，函数名/vendor 名/错误方式均异构，无法共享同一宏骨架
+- linsol 方法范围检查每文件仅 1 处，不满足「每文件 ≥2 处」
+结论：判据 E 抽象门槛未达，登记不迁移。
+
+**Q16 完成（版本整数解码基数具名化，判据 C）**：
+- cuda_backend.c 新增 `CUDA_VERSION_MAJOR_BASE 1000` / `CUDA_VERSION_MINOR_BASE 10`（cudaDriverGetVersion/cudaRuntimeGetVersion 返回 major*1000 + minor*10），版本解码表达式复用宏
+- hip_backend.c 新增 `HIP_VERSION_MAJOR_BASE 10000000` / `HIP_VERSION_MINOR_BASE 100000` / `HIP_VERSION_PATCH_BASE 1000`（hipRuntimeGetVersion 返回 major*10000000 + minor*100000 + patch*1000），版本解码表达式复用宏
+- vendor 各自保留独立基数宏（CUDA/HIP 版本编码规则不同），仅具名化消除裸字面量，不强行合并
+
+**组⑥ 验证**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+### 组⑦ 坐标/几何展开域执行明细
+
+**P14 完成（geo_bbox_contains_2d/1d 轴向包围盒检查，判据 H）**：geo_utils.h 声明 + geo_utils.c 实现 `geo_bbox_contains_2d(px,py,ax,ay,bx,by,eps)` / `geo_bbox_contains_1d(p,a,b,eps)`（fmin/fmax 归一化 + epsilon 容差，无 NULL 依赖）。迁移 10 处手写 fmin/fmax 包围盒：
+- geo_predicate.c `lv_segments_intersect` 全共线分支 4 处（c_on_ab/d_on_ab/a_on_cd/b_on_cd）+ 单共线分支 4 处（d1-d4）→ `geo_bbox_contains_2d(..., lv_GEO_DISTANCE_EPSILON)`
+- geo_predicate.c `lv_point_in_polygon` 水平边 1 处 1D bbox（原 x_min/x_max fmin/fmax）→ `geo_bbox_contains_1d`
+- recursion_selector.c `point_on_segment_symbolic` 1 处手写 min/max bbox（4 个三元 + epsilon=1e-10）→ `geo_bbox_contains_2d`（补 include lv/geo_utils.h）
+
+**Q19 完成（symbolic_coord_get_xy/get_segment 坐标提取，判据 H）**：symbolic_coord.h 声明 + symbolic_coord_lifecycle.c 实现 `symbolic_coord_get_xy`（点 [0][1]）/ `symbolic_coord_get_segment`（线段 [0..3]）：NULL 守卫 + coord_count 检查，失败返回 false 不写输出。迁移 9 处连续下标 + to_double 展开：
+- 线段提取 8 处：func_block_selector.c / tikz_export.c / groebner_engine.c / recursion_selector.c×2（卷绕数 + 射线法）/ conflict_detector.c / interop_export_svg.c×2（交点双线段 + 线段渲染）/ interop_export_pdf.c
+- 点提取 1 处：recursion_selector.c（点坐标 → `symbolic_coord_get_xy`，失败 return false）
+- 豁免（非纯提取形态）：graph_memory.c（double 展开与 mpq 精确路径耦合，无法整体收敛）、interop_export_pdf.c 标签中点（lx/ly 与 x2/y2 混合点/线段提取）、interop_export_geojson.c 圆半径（[2] 为半径非线段端点）
+
+**Q28 登记不迁移（矩形 coords[0..7] 手写展开，判据 H 弱）**：候选集中在单文件单点，无跨文件同构重复，不满足判据 H「多处复制」迁移门槛，登记不迁移。
+
+**Q29 登记不迁移（formula_converter coords[2] init/clear 配对，判据 H 弱）**：候选已在历史批次收敛（既有设施/函数化形态），无新迁移价值，登记不迁移。
+
+**Q30 登记不迁移（geometry_canvas 类型分发展开，判据 H 弱）**：候选已收敛至既有分发终态（部分收敛标记属实），无手写展开残留，登记不迁移。
+
+**Q25 登记不迁移（euclidean 公理体系元数据表，判据 F 弱）**：3 文件元数据表结构不同构（字段布局/索引语义各异），无共享 X-macro 骨架可收敛，登记不迁移。
+
+**P13 登记不迁移（角度桶量化+位分解，判据 H）**：全库检索无法定位「角度桶量化+位分解」对应的具体实现点（候选描述与现存代码无精确命中），登记不迁移。
+
+**组⑦ 验证**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+### 组⑧ 数学算法域执行明细
+
+**P9 完成（带符号舍入缺陷修正，判据 C 关联）**：修正 `(int)(x + 0.5)` 截断语义对负值的舍入偏差（C 语言向零截断），改为 `(int) round(x)`（round-half-away-from-zero）。共 7 处 / 3 文件：
+- interop_import.c SVG arc sweep flag 解析：`(int)(sf_d + 0.5)` → `(int) round(sf_d)`
+- symbolic_coord.c 衰减位宽：`(int)(log2(ratio) + 0.5)` → `(int) round(log2(ratio))`
+- meta_repr.c 5 处坐标反量化：`meta_repr_decode_graph`（node_id/type_idx）、`meta_repr_decode_node`（node_id/type_idx）、`meta_repr_decode_func_block`（block_id），均 `(int)((x - base_x)/spacing + 0.5)` → `(int) round((x - base_x)/spacing)`
+- 与既有银行家舍入（SOLVER_SPLIT_PLAN.md 中 coord_to_mpz_scaled/double_to_mpz_scaled round-to-nearest-even）区分：本组修正的是带符号截断舍入，非银行家舍入，二者模式不同。
+
+**P10 登记不迁移（高斯消元统一，判据 A/B）**：mpq 高斯消元已统一为 `cg_mpq_row_echelon`（graph_rank.c，graph_memory.c 与 graph_conflict.c 已调用）；double 列主序 LU 已统一为 `host_lu_factor`/`host_lu_solve`（host_linalg.c，numerical_backend.c 委托，CUDA/HIP 回读 CPU 后亦委托）——两路均已收敛无残留。剩余 4 处因类型/布局/主元/回退异构不可合并：geom_evol.c 手写行主序 LU + piv 数组 + 对角回退、groebner_engine_variety.c double 行主序 RREF（唯一调用点）、geo_constraint_solver_linear.c `gauss_eliminate`（层内已共享 3 调用点）、mpz_poly_resultant.c Bareiss 行列式（mpz，目标非方程组求解）。登记不迁移。
+
+**Q11 完成（simple_poly_remove_zero_terms 删零去重，判据 A）**：groebner_parallel.c 新建同文件 `static void simple_poly_remove_zero_terms(SimplePoly *p)`，吸收两处同构 swap-last 删零：`simple_poly_normalize` 第三步（反向遍历 + lv_free + `*t = *last` + count--）与 `reduce_poly` 内联删零（`memcpy(dst, src, sizeof(PolyTerm))` 等价 `*dst = *src`），两者语义等价（free exponents → swap-last → count--）。其余四套多元规范化不可合并：groebner_poly.c `poly_sort_terms`（SoA 扁平 + 可配置 mono_compare，已知豁免）、groebner_parallel.c（AoS PolyTerm）、mv_polynomial.c（GMP 精确 + 职责拆分）、expr_canon.c（哈希分桶合并）——排序算法/单项式序/合并删零方式均不同。
+
+**组⑧ 验证**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。
+
+### 组⑨ 序列化/解析域执行明细
+
+**P4 登记不迁移（JSON 数组迭代骨架，新判据 L 不成立）**：全库无 DOM 风格数组 API（`lv_json_array_size`/`lv_json_array_get`/`lv_json_enter_array` 均不存在），实际是游标式解析器。约 20 处「enter `[` + peek 边界 + 吞逗号」循环在 7 个维度分叉：循环边界（`for(;;)+break` / `while(peek!=']' && peek!='\0')` / `while(count<max)`）、`'\0'` 守卫有无、元素类型（string/int/int64/double/object/嵌套数组）、输出容器（lvDArray/int*/module_add_*/固定数组/图节点）、数量上限（无上限/max_steps/GJ_MAX_*/HIGH_DIM_*/固定 2/4）、错误处理（void/int/bool/NULL+错误码）、内层结构（对象数组内层已由 `lv_json_parse_field` 收敛）。不满足「骨架一致仅业务填充不同」强同构前提，抽象仅能消除约 6-10 行逗号/括号样板，却需引入无法对齐边界/上限/错误语义的回调契约，收益为负。登记不迁移。
+
+**Q10 登记不迁移（JSON int 数组解析补漏，判据 A）**：既有设施 `lv_json_parse_int_array`（lv_json.c:545，固定缓冲 `int *out + max_count + out_count`，当前零调用）与三处手写实现全部「动态分配 `int **out`」不同构：(1) graph_serialize.c:333 `json_parser_parse_int_array`（动态 malloc + 三态错误码 + 空数组当 NOT_FOUND 错误，5 调用点变长无上限）；(2) command_log.c:733 `json_parse_int_array`（泛型动态数组，服务 int/double/uint64，失败返回 0）；(3) func_block_serialize.c:211 `parse_int_array`（文本 `key=[...]` 格式，const char* 游标，非 JSON）。唯一固定缓冲同构点是 command_log.c `participant_ids[8]`，但迁移需补失败回滚守卫（设施失败不回滚 out，与现有「失败则 dst 不动」语义不同）且基础设施不因此删除，价值有限。登记不迁移。
+
+**Q23 登记不迁移（tactic 逐行 import 解析，判据 A）**：Coq 侧 coq_bridge.c `coq_import_proof` 是严格逐行扫描（line_end 找 `\n`/`\r` + 每行首 token + `line = line_end + 1`）；Lean4 侧 lean4_bridge.c `lean4_parse_tactics` 是缩进感知递归下降解析器（`while(pos<end)` 逐 token + by/match 分支递归 + 平衡括号跳过 + 注释/缩进）。二者在「行切分」这一判据 A 核心维度即不同构，关键字/边界/token 字符集/嵌套/错误处理均实质分叉。可共享部分（定理名提取 `bridge_extract_theorem_name` / 导出 / 注册骨架）已收敛至 interop_bridge_common.h，且该头注释已明确「import/validate 因两语言语法差异大各自保留」。登记不迁移。
+
+**组⑨ 验证**：本组三候选均登记不迁移，零代码改动，无需构建/测试回归（沿用 927/927 + 170/170 基线）。

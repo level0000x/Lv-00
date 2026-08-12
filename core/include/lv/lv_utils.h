@@ -189,6 +189,17 @@ lv_PUBLIC_API bool lv_poison_is_enabled(void);
 lv_PUBLIC_API size_t lv_strlcpy(char *dest, const char *src, size_t dest_size);
 
 /**
+ * @brief 定长安全字符串复制（源不要求 NUL 终止）
+ * @param dest 目标缓冲区
+ * @param dest_size 目标缓冲区大小
+ * @param src 源数据指针（可为非 NUL 终止的定长子串）
+ * @param src_len 源数据长度
+ * @return 请求复制的源长度 src_len；调用方可比较 src_len >= dest_size 检测截断
+ * @note 等价于 memcpy + 手写 NUL 终止的样板；复制 min(src_len, dest_size-1) 字节并保证 NUL 终止
+ */
+lv_PUBLIC_API size_t lv_strlcpy_n(char *dest, size_t dest_size, const char *src, size_t src_len);
+
+/**
  * @brief 安全字符串连接
  * @param dest 目标缓冲区
  * @param src 源字符串
@@ -287,6 +298,66 @@ void lv_insertion_sort(void *base, size_t n, size_t elem_size,
  * @param count     当前元素个数（不移除尾部残留，调用方负责递减）
  */
 void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count);
+
+/**
+ * @brief 在数组中右移腾位（数组中间插入的移位移除前辅助）
+ *
+ * 将 [index, count) 区间的元素整体右移一格到 [index+1, count+1)，
+ * 在 index 处腾出空位供插入。与 lv_shift_left 对称（lv_shift_left
+ * 删除 index 处元素前移；本函数在 index 处腾位右移）。统一用单次
+ * memmove 完成移位，收敛散落的"for 逐元素右移"样板。计数由调用方
+ * 维护并自行递增。
+ *
+ * @param base      数组起始地址
+ * @param elem_size 元素字节大小
+ * @param index     插入位置（腾位下标，越界时为空操作）
+ * @param count     当前元素个数（右移 [index, count)，不移入尾部残留）
+ */
+void lv_shift_right(void *base, size_t elem_size, size_t index, size_t count);
+
+/**
+ * @brief 消费缓冲前缀后将剩余数据前移压缩到头部
+ *
+ * 删除缓冲区前 pos 个元素，把 [pos, len) 剩余元素前移到头部并更新
+ * 长度（recv 缓冲 consume 语义）。pos 为 0 时空操作；pos >= len 时
+ * 全部消费（len 置 0）。与 lv_shift_left 同为 memmove 单次移位。
+ *
+ * @param buf       缓冲起始地址
+ * @param elem_size 元素字节大小
+ * @param pos       已消费的元素个数（前缀）
+ * @param len       指向当前元素个数的指针（原地更新为剩余个数）
+ */
+void lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len);
+
+/**
+ * @brief 判断两个 int 多集是否相等（排序后逐元素比较）
+ *
+ * 拷贝两份输入后排序比较，不修改入参。长度不等直接判不等。
+ * 收敛 type_check / normalization 中手写"双 qsort + 双指针/逐元素
+ * 比较"的多集相等判定样板（判据 A）。
+ *
+ * @param a  第一组元素数组（an==0 时可为 NULL）
+ * @param an 第一组元素个数
+ * @param b  第二组元素数组（bn==0 时可为 NULL）
+ * @param bn 第二组元素个数
+ * @return 1 相等；0 不相等；-1 内存分配失败（调用方按错误处理）
+ */
+int lv_int_multiset_equal(const int *a, int an, const int *b, int bn);
+
+/**
+ * @brief 向紧凑 int 数组追加不重复值（unique append）
+ *
+ * 线性扫描 [arr, arr+*count)，若 value 已存在则跳过返回 false；
+ * 否则写入 arr[*count] 并递增计数返回 true。收敛 solver / 导出模块
+ * 中手写"bool found + 内层 for 查重 + append"样板（判据 B）。
+ * 容量由调用方保证（原样板语义即为紧凑数组且调用方维护容量）。
+ *
+ * @param arr   目标数组起始地址
+ * @param count 指向当前元素个数的指针（追加成功后原地递增）
+ * @param value 待追加的值
+ * @return true 已追加；false 值已存在或参数非法
+ */
+bool lv_int_append_unique(int *arr, int *count, int value);
 
 /* ============================================================
  * 位掩码内联助手（消除手写 1<<n 有符号移位的 UB 隐患）
@@ -927,6 +998,28 @@ lv_PUBLIC_API uint64_t lv_get_time_ms(void);
  */
 lv_PUBLIC_API uint64_t lv_get_wallclock_ns(void);
 
+/* ============================================================
+ * 时间单位换算常量
+ *
+ * 语义常量族（批次 Q6）：时间单位换算一律使用具名常量，
+ * 禁止裸字面量（1000/1000000/1000000000 等）。
+ * ============================================================ */
+#define lv_NS_PER_US 1000ULL        /**< 纳秒 → 微秒 */
+#define lv_NS_PER_MS 1000000ULL     /**< 纳秒 → 毫秒 */
+#define lv_US_PER_MS 1000           /**< 微秒 → 毫秒 */
+#define lv_MS_PER_S 1000            /**< 毫秒 → 秒 */
+#define lv_US_PER_S 1000000         /**< 微秒 → 秒 */
+#define lv_NS_PER_S 1000000000ULL   /**< 纳秒 → 秒 */
+
+/* ============================================================
+ * 哈希黄金比乘数常量
+ *
+ * 语义常量族（批次 Q14）：哈希混合乘数一律使用具名常量，
+ * 禁止裸字面量（0x9E3779B9 等）。
+ * ============================================================ */
+#define lv_HASH_GOLDEN_RATIO_64 0x9E3779B97F4A7C15ULL /**< 64 位黄金比（Knuth 乘法哈希） */
+#define lv_HASH_GOLDEN_RATIO_32 0x9E3779B9ULL         /**< 32 位黄金比（Knuth 乘法哈希） */
+
 /**
  * @brief 获取墙钟时间（毫秒，Unix epoch）
  */
@@ -956,7 +1049,7 @@ static inline double lv_clock_elapsed_sec(clock_t start) {
  * @return 经过的毫秒数
  */
 static inline double lv_clock_elapsed_ms(clock_t start) {
-    return (double) (clock() - start) / CLOCKS_PER_SEC * 1000.0;
+    return (double) (clock() - start) / CLOCKS_PER_SEC * (double) lv_MS_PER_S;
 }
 
 /**

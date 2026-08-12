@@ -24,6 +24,17 @@ typedef struct lvIOBlockState {
     bool active;  /**< 打开/连接状态标记 */
 } lvIOBlockState;
 
+/**
+ * @brief 销毁 IO 块共享内部状态（共享释放函数）
+ *
+ * 释放 target 字符串与状态结构体本身。收敛 file_block.c / network_block.c
+ * 中同构的「释放 state->target + 释放 state 外壳」释放样板（判据 G）。
+ * NULL 安全（state 为 NULL 时空操作），lv_free 内部跳过 NULL 指针。
+ *
+ * @param state IO 块共享内部状态指针（可为 NULL）
+ */
+void lv_io_block_state_destroy(lvIOBlockState *state);
+
 #ifdef __cplusplus
 }
 #endif

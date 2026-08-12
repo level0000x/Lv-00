@@ -1310,16 +1310,7 @@ static VarInfo *build_var_info(const EquationSystem *sys, int node_count, int *o
     for (int i = 0; i < sys->eqs.count; i++) {
         PolyEquation *eq = (PolyEquation *)lv_darray_get(&sys->eqs, i);
         if (!eq) continue;
-        int vid = eq->var_node_id;
-        bool found = false;
-        for (int j = 0; j < var_count; j++) {
-            if (var_ids[j] == vid) {
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-            var_ids[var_count++] = vid;
+        lv_int_append_unique(var_ids, &var_count, eq->var_node_id);
     }
 
     /* 提前返回：如果没有变量，避免 lv_calloc(0, ...) 的未定义行为 */

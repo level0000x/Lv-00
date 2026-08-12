@@ -13,17 +13,14 @@
 
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_utils.h"
 
 void lv_export_xml_escape(const char *src, char *dst, size_t dst_size) {
     if (!src || !dst || dst_size == 0)
         return;
     lvStrBuf sb = {0};
     lv_str_escape_xml(&sb, src, strlen(src));
-    size_t n = sb.len;
-    if (n >= dst_size)
-        n = dst_size - 1;
-    memcpy(dst, lv_strbuf_cstr(&sb), n);
-    dst[n] = '\0';
+    lv_strlcpy(dst, lv_strbuf_cstr(&sb), dst_size);
     lv_strbuf_destroy(&sb);
 }
 

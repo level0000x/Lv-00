@@ -102,7 +102,7 @@ int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {
     }
 
     const char *state_str = lv_circuit_breaker_state_name(ctx);
-    uint64_t uptime_ms = lv_circuit_breaker_uptime_us(cb) / 1000;
+    uint64_t uptime_ms = lv_circuit_breaker_uptime_us(cb) / lv_US_PER_MS;
 
     return snprintf(buf, buf_size,
                     "熔断器状态：%s | "

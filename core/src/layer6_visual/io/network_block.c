@@ -162,11 +162,7 @@ void lv_network_block_destroy(lvNetworkBlock *block) {
 #endif
     }
     lv_network_remove_handle(block);
-    if (block->base) {
-        lvIOBlockState *state = (lvIOBlockState *) block->base;
-        lv_free((void **) &state->target);
-        lv_free((void **) &state);
-    }
+    lv_io_block_state_destroy((lvIOBlockState *) block->base);
     lv_free((void **) &block);
 }
 

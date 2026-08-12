@@ -40,11 +40,7 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
 
     if (format < 0) {
         /* 未知格式，直接复制 */
-        size_t len = strlen(input);
-        if (len >= buf_size)
-            len = buf_size - 1;
-        memcpy(normalized, input, len);
-        normalized[len] = '\0';
+        lv_strlcpy(normalized, input, buf_size);
         return 0;
     }
 
@@ -64,8 +60,7 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
         size_t out_len = (size_t) (end - start);
         if (out_len >= buf_size)
             out_len = buf_size - 1;
-        memcpy(normalized, start, out_len);
-        normalized[out_len] = '\0';
+        lv_strlcpy_n(normalized, buf_size, start, out_len);
         return (int) out_len;
     }
 
@@ -77,8 +72,7 @@ int lv_math_input_parse(const char *input, char *normalized, size_t buf_size) {
 
     if (len >= buf_size)
         len = buf_size - 1;
-    memcpy(normalized, p, len);
-    normalized[len] = '\0';
+    lv_strlcpy_n(normalized, buf_size, p, len);
     return (int) len;
 }
 

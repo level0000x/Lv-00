@@ -21,6 +21,7 @@
 
 #include "formula_renderer.h"
 #include "lv_internal.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH_VOID */
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "stream.h"
@@ -260,9 +261,7 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         char name[MAX_NAME_LENGTH];
         formula_node_to_name(node, name, sizeof(name));
 
-        if ((unsigned)node->type < sizeof(s_funcs) / sizeof(s_funcs[0]) && s_funcs[node->type]) {
-            s_funcs[node->type](node, name, &latex_tgt, &python_tgt, &dsl_tgt);
-        }
+        LV_DISPATCH_VOID(s_funcs, node->type, node, name, &latex_tgt, &python_tgt, &dsl_tgt);
     }
 
     /* 约束名称/LaTeX 查找表 */

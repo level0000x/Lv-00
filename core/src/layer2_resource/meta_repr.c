@@ -531,8 +531,8 @@ ConstraintGraph *meta_repr_decode_graph(MetaReprDecoder *decoder, const Constrai
         double x = symbolic_coord_to_double(enc_node->symbolic_coords[0]);
         double y = symbolic_coord_to_double(enc_node->symbolic_coords[1]);
 
-        int node_id = (int) ((x - base_x) / id_spacing + 0.5);
-        int type_idx = (int) ((y - base_y) / type_spacing + 0.5);
+        int node_id = (int) round((x - base_x) / id_spacing);
+        int type_idx = (int) round((y - base_y) / type_spacing);
         if (type_idx < 0)
             type_idx = 0;
         if (type_idx > GEOM_FUNCTION_BLOCK)
@@ -593,8 +593,8 @@ GeomNode *meta_repr_decode_node(MetaReprDecoder *decoder, const GeomNode *encode
         double x = symbolic_coord_to_double(encoded_node->symbolic_coords[0]);
         double y = symbolic_coord_to_double(encoded_node->symbolic_coords[1]);
 
-        int node_id = (int) ((x - base_x) / id_spacing + 0.5);
-        int type_idx = (int) ((y - base_y) / type_spacing + 0.5);
+        int node_id = (int) round((x - base_x) / id_spacing);
+        int type_idx = (int) round((y - base_y) / type_spacing);
         if (type_idx < 0)
             type_idx = 0;
         if (type_idx > GEOM_FUNCTION_BLOCK)
@@ -635,7 +635,7 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder, const GeomNode 
 
     if (encoded_block->symbolic_coords && encoded_block->coord_count >= 2) {
         double x = symbolic_coord_to_double(encoded_block->symbolic_coords[0]);
-        block_id = (int) ((x - base_x) / id_spacing + 0.5);
+        block_id = (int) round((x - base_x) / id_spacing);
     }
 
     FuncBlock *decoded = func_block_create(block_id);
