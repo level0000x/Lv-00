@@ -192,12 +192,11 @@ char *graph_node_serialize_to_json(const GeomNode *node) {
     lv_json_buf_append_key(&buf, "parent_block_id");
     lv_json_buf_append_int(&buf, node->parent_block_id);
 
-    /* coords：元素为预序列化的坐标 JSON（raw 写入），需手动管理数组内逗号 */
+    /* coords：元素为预序列化的坐标 JSON（raw 写入），分隔符由 lv_json_buf_begin_value 统一管理 */
     lv_json_buf_append_key(&buf, "coords");
     lv_json_buf_begin_array(&buf);
     for (int i = 0; i < node->coord_count; i++) {
-        if (i > 0)
-            lv_json_buf_append_char(&buf, ',');
+        lv_json_buf_begin_value(&buf);
         json_buf_append_coord(&buf, node->symbolic_coords[i]);
     }
     lv_json_buf_end_array(&buf);
@@ -282,34 +281,30 @@ char *graph_serialize_to_json(const ConstraintGraph *graph) {
     lv_json_buf_append_key(&buf, "next_constraint_id");
     lv_json_buf_append_int(&buf, graph->next_constraint_id);
 
-    /* 节点数组：元素为预序列化的节点 JSON（raw 写入），需手动管理数组内逗号 */
+    /* 节点数组：元素为预序列化的节点 JSON，分隔符由 append_raw_value 统一管理 */
     lv_json_buf_append_key(&buf, "nodes");
     lv_json_buf_begin_array(&buf);
     for (int i = 0; i < graph->node_count; i++) {
-        if (i > 0)
-            lv_json_buf_append_char(&buf, ',');
         char *node_json = graph_node_serialize_to_json(graph->nodes[i]);
         if (node_json) {
-            lv_json_buf_append_raw(&buf, node_json);
+            lv_json_buf_append_raw_value(&buf, node_json);
             lv_free((void **) &node_json);
         } else {
-            lv_json_buf_append_raw(&buf, "null");
+            lv_json_buf_append_raw_value(&buf, "null");
         }
     }
     lv_json_buf_end_array(&buf);
 
-    /* 约束数组：同上，元素为预序列化的约束 JSON */
+    /* 约束数组：同上 */
     lv_json_buf_append_key(&buf, "constraints");
     lv_json_buf_begin_array(&buf);
     for (int i = 0; i < graph->constraint_count; i++) {
-        if (i > 0)
-            lv_json_buf_append_char(&buf, ',');
         char *constraint_json = graph_constraint_serialize_to_json(graph->constraints[i]);
         if (constraint_json) {
-            lv_json_buf_append_raw(&buf, constraint_json);
+            lv_json_buf_append_raw_value(&buf, constraint_json);
             lv_free((void **) &constraint_json);
         } else {
-            lv_json_buf_append_raw(&buf, "null");
+            lv_json_buf_append_raw_value(&buf, "null");
         }
     }
     lv_json_buf_end_array(&buf);

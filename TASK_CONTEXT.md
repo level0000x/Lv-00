@@ -352,15 +352,37 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 | A | `now_ms()` → `lv_get_time_ns()/1000000ULL`（单调语义一致）；新建 `lv_FD_GRADIENT_STEP 1e-6`（语义常量，区别于相对容差 eps），formula_curve.c 迁移 | 完成 |
 | B | 手写 capacity+realloc 倍增 | 完成（复核为已收敛，无迁移；异常值已登记豁免） |
 | C | 手写前缀匹配 → `lv_str_startswith` | 完成（见下） |
-| D | NULL 守卫 → `lv_CHECK_NULL` | 待推进 |
-| E | 裸 `return -1` → `lv_RETURN_ERROR` | 待推进 |
-| F | 连续 free 序列 → `lv_DEFER` | 待推进 |
-| G | 手写线性查找 → 容器设施 | 待推进 |
+| D | NULL 守卫 → `lv_CHECK_NULL` | 完成（lv_arena×4 / bdd_encoding×11 / prop_verifier_trust / node_graph；豁免见下） |
+| E | 裸 `return -1` → `lv_RETURN_ERROR` | 完成（lean4_bridge / smt_backend_impl / prop_verifier_trust / node_graph / network_block / tikz_export×3；豁免见下） |
+| F | 连续 free 序列 → `lv_DEFER` | 完成（graph_memory 展平 + mini_kernel / geom_evol / algebraic / inequality_reasoning_serialize；另由仓库侧扩展 ode_integrator / lv_graph_traversal / groebner_engine_ideal；豁免见下） |
+| G | 手写线性查找 → 容器设施 | 部分完成（math_theory_guide_cn 共享助手 / preset_helper_cn 下标化；magic_spell 等候选随 magic 模块删除而消失；g_var_map / plugin_system 评估为热路径重构，暂缓登记） |
+| H | 序列化"逗号分隔"骨架 → `lv_strbuf_join` / `lv_json_buf_append_raw_value` | 完成（见下） |
+| I | 构造器失败回滚 → guard-detach（`lv_DEFER` + 成功路径赋 NULL） | 完成（见下） |
+| J | 枚举↔字符串平行表 → struct 单表（designated initializer） | 完成（见下） |
+| K | 手写数字解析 → `lv_str_read_int` | 完成（评估后全部豁免，见下） |
 
 **阶段 C 明细（2026-08-11）**：字面量前缀 13 文件约 30 处迁移（block_to_text / axiom_pkg_serialize / magic_rune / proof_version / network_block / math_input / module_serialize / runtime_monitor / probabilistic_constraint / interop_import / lv_storage / proof_strategy_deductive×10 / formula_curve 前批）。动态长度形态 8 处迁移（plugin_system_interface×3 / plugin_system_config / geo_event_detect / solver_symbolic×2 / solver_coord_extract×2，消去手写 prefix_len 缓存变量 4 处）。`lv_str_startswith` 实现同步优化为 `strncmp(str, prefix, strlen(prefix))`（不再全文 strlen 预扫）。
 
 **阶段 C 剩余 strncmp 登记豁免**：精确长度标识符匹配（proof_strategy_numeric.c `len==N &&` 形态，前缀化会放宽匹配）；有界缓冲/非 NUL 终止解析（lean4_bridge.c / interop_server.c HTTP / mini_kernel.c / proof_version_isar.c）；截断到 `*` 的有界前缀（test_framework.c）；复合"前缀+分隔+精确尾部"（gappa_propagate.c）；设施自身内部（lv_registry.c `lv_registry_remove_prefix`）。
 
+**阶段 D 明细（2026-08-11/12）**：参数前置守卫迁移 15 处 —— lv_arena.c×4（alloc/alloc_aligned/calloc/strdup 拆分双守卫）、bdd_encoding.c×11（bdd_and/or/not/xor/nand/unique_lookup/new_var/literal/add_constant/add_node_create，新增 `#include "lv/lv_check.h"`）、prop_verifier_trust.c 与 node_graph.c 各 1（graph 前置）。豁免：分配失败守卫（bdd_node_create / bdd_cache_create 附近）、NULL-tolerance destroy（bdd_manager_destroy / bdd_node_deref 接受 NULL）、预期失败控制流（JSON parse 等非参数形态）。
+
+**阶段 E 明细（2026-08-11/12）**：真错误路径 8 处迁移至 `lv_RETURN_ERROR`/`lv_CHECK_NULL` —— lean4_bridge（tactic 名长度非法 INVALID_PARAM）、smt_backend_impl（后端注册表容量满 RESOURCE_EXHAUSTED）、prop_verifier_trust 与 node_graph（graph NULL）、network_block（网络句柄表满 RESOURCE_EXHAUSTED）、tikz_export×3（NULL 前置×2 + INTERNAL 内部失败×2，其中 1 处为"缺少坐标"哨兵豁免）。豁免：qsort comparator（`return -1` = "小于"，非错误，unify_fine 等 3 处）、探索路径预期失败。
+
+**阶段 F 明细（2026-08-11/12）**：graph_memory.c `lv_graph_detect_redundant_constraints` 收尾展平（8 处 `goto cleanup` → 直接 `return redundant;`，删除空 cleanup 标签）；新迁移 4 处 —— mini_kernel.c（`lv_DEFER_FREE_MANY` 2 指针 + 4 处 goto→return，新增 lv_lifecycle.h）、geom_evol.c `geoevol_step_once`（`lv_DEFER_FREE_MANY` 3 指针 + 7 处 goto→return，分配失败块同步简化）、algebraic.c `continued_fraction_approx`（新增 `mpz_clear_deferred` 回调 + 7 个 `lv_DEFER`，消除 L183 手写清理块与 cleanup 标签）、inequality_reasoning_serialize.c（空 done 标签展平）。仓库侧扩展：ode_integrator.c / lv_graph_traversal.c / groebner_engine_ideal.c 的 lv_DEFER 守卫族。豁免：条件清理成功保留（module_delta.c `free_delta_baseline`，lv_DEFER 无法取消）、fd 清理 + rc 错误语义（lv_process.c）、统一出口错误语义（geom_evol.c `cleanup_bdf` Newton 收敛判断）、公共宏 `PRESET_CHECK_NULL` 引用（preset_manager_query/doc）、链表/hashtable 特殊清理（proof_trace_tree / rewrite_strategy_impl / groebner_engine_poly）。
+
+**阶段 G 明细（2026-08-12）**：判据 D 直接命中项收敛 —— math_theory_guide_cn.c 提取共享 `find_theory_index` 助手（消除 3 个 API 的重复 strcmp 循环）、preset_helper_cn.c 正向 int 查找改直接下标（preset_id 连续 0..N-1）。magic_spell.c spellbook 双循环候选随废弃 magic 模块删除而消失（不复存在）。深度调研豁免/暂缓：静态常量关键字表（greek_letters / kXxxTable / lv_str_to_enum 共享表等，合理模式）；运行时热路径注册表（formula_converter g_var_map TLS 表、plugin_system 6 处查找）需改存储布局 + 维护索引，风险收益比不佳，暂缓登记；performance_profiler region_index 已迁移，作范本。
+
+**回归（阶段 D–G）**：每次阶段后 ninja build3 928/928（删除 magic 模块后目标数 931→928）、ctest 170/170 全部通过。
+
 **2026-08-12 增补扫描结论**：全库复查确认阶段 D/E/F/G 候选仍成立（`lv_CHECK_NULL` 已用 20 文件/308 处，说明宏已被采纳、剩余裸守卫迁移成本可控）。新增 4 个登记候选：① 枚举↔字符串平行表（判据 F/D，lv_protocol.c 5 张平行表为首要案例，需处理测试精确断言）；② 序列化"逗号分隔"骨架（判据泛化，12 文件/21 处）；③ 构造器失败回滚（判据 E，与阶段 F 协同）；④ 手写数字解析（中低优先级）。另确认手写排序已全面收敛至 qsort、无抽象必要。上述候选均已登记至本节约"候选方向"表。
+
+**阶段 H 明细（2026-08-12，候选① 逗号分隔骨架）**：lv_json.c 公开 `lv_json_buf_begin_value`（static → public，内部调用批量同步）并新增 `lv_json_buf_append_raw_value`（begin + raw 组合），lv_json.h 同步声明；graph_serialize.c 3 处 `if (i>0) append_char(',')` 骨架迁移（nodes / constraints 走 append_raw_value，coords 走 begin_value + append_coord）。lv_str_utils.c 提取共享 static `strbuf_join_items` 骨架，新增 `lv_strbuf_join`（追加到既有 lvStrBuf），`lv_str_join` 收敛至同一骨架；formula_string.c 2 处游标循环迁移至既有 `lv_str_append_sep`；opml_codec.c axioms 输出改为收集名称数组 + `lv_strbuf_join`。豁免：vtable raw JSON 片段（graph_node_alloc / proof_widget / geojson / bootstrap 等，不经 JsonBuf 状态机）、FILE* 流输出、每元素格式化拼接循环。
+
+**阶段 I 明细（2026-08-12，候选② 构造器失败回滚）**：确立 guard-detach 模式（自定义守卫 struct + `lv_DEFER` 清理回调 + 成功路径守卫指针赋 NULL 解除；因 `lv_DEFER_FREE_MANY` 不可取消、不适用于"返回堆对象"构造器）。迁移 6 处 —— plugin_system_core.c `lv_plugin_system_create`（PluginSystemGuard）、proof_compiler.c `lv_proof_object_create`（ProofObjectGuard）、debug_mempool.c `mem_pool_create`（MemPoolGuard，3 字段）、dsl_compiler_ir.c `dsl_compile`（DslIrGuard，3 字段 + 顺带补 `symbol_index = lv_hashtable_str_create()` 未检查分配的 NULL 检查：失败时保持 NULL 并 lv_set_error，回退线性扫描语义不变）、axiom_template_test.c `axiom_template_test_case_copy`（TemplateCaseGuard）、expr_canon.c `lv_expr_canonical_create`（ExprCanonGuard，B 档代表）。豁免：单失败点构造器（lv_rule_library_create 仅 rules 一层、lv_visual_group_create 仅 children 一层）、无堆分配构造器（lv_rule_create 定长内嵌数组）、非构造器填充（lv_proto_topology 写入调用方 out 结构、debug_invariants 收集函数统一回滚块）。
+
+**阶段 J 明细（2026-08-12，候选③ 枚举↔字符串平行表）**：lv_protocol.c 4 张真平行表（kTrustColorName / kTrustColorRGBA / kTrustColorSVG / kTrustColorTikZ，按 lvTrustColor 枚举索引对齐）合并为 `TrustColorEntry {name, rgba, svg, tikz}` struct 单表 `kTrustColorTable`，采用 designated initializer（`[lv_COLOR_GREEN] = {...}`）杜绝索引漂移；4 个访问函数（lv_trust_color_name/rgba/svg/tikz）改为字段访问。测试精确断言走公共 API 返回值、与表布局无关，无需改测试。kTrustToLv / kLvToTrust 维持 designated 映射表（非平行索引）。豁免（已是健康形态）：debug_state.c（X-Macro 生成表 `lv_XMACRO_TO_NAME_ARRAY`，即候选理想形态）、conflict_detector.c（唯一单张名称表）、modal_operators.c（单张 Unicode 表）、lv_number.c（函数内 designated initializer 表）。
+
+**阶段 K 明细（2026-08-12，候选④ 手写数字解析）**：评估确认共享原语 `lv_str_read_int`（lv_str_utils.c:272，无符号累加防溢出 + 钳位）自阶段 F/G 起已被 rewrite_apply.c / func_block_serialize.c 采用，收敛设施已成立。剩余 5 处手写解析全部豁免（语义与共享原语不兼容）：formula_dsl.c×3（`p < end` 有界输入 + 公式级溢出报错语义）、lv_json.c×3（公共 API 溢出返回 false vs 钳位 + 先定位再累加两遍模式）、module_lvz.c（double 浮点累加，后续小数处理）、axiom_pkg_parser.c（溢出错误标记 + INT_MAX 回退、sign 后置）、interop_server.c（value_len 非 NUL 终止边界 + 版本上限 999 检查）。
 
 **回归（阶段 A–C）**：ninja build3 931/931、ctest 170/170、示例 8/8 全部通过。

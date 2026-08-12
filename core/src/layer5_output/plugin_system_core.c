@@ -20,6 +20,7 @@
 #include "lv/lv_error.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_lifecycle.h" /* lv_DEFER */
 
 #include "plugin_system_internal.h"
 
@@ -42,6 +43,22 @@ void plugin_system_set_error(lvPluginSystem *system, const char *format, ...) {
 
 /* ============ 生命周期管理 ============ */
 
+/* 插件系统部分构建守卫：guard 持有 system 值拷贝，任一成员分配失败时
+ * 统一释放已分配成员与外壳（lv_free NULL 安全），替代递增回滚样板 */
+typedef struct {
+    lvPluginSystem *sys;
+} PluginSystemGuard;
+
+static void plugin_system_guard_cleanup(void *p) {
+    PluginSystemGuard *g = (PluginSystemGuard *) p;
+    if (g->sys) {
+        lv_free((void **) &g->sys->plugins);
+        lv_free((void **) &g->sys->interfaces);
+        lv_free((void **) &g->sys->mutex);
+        lv_free((void **) &g->sys);
+    }
+}
+
 /**
  * @brief 创建插件系统实例
  * @param ctx LV-00 上下文指针
@@ -58,34 +75,30 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
     system->version =
         (lv_PLUGIN_SYSTEM_VERSION_MAJOR << 16) | (lv_PLUGIN_SYSTEM_VERSION_MINOR << 8) | lv_PLUGIN_SYSTEM_VERSION_PATCH;
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.sys = NULL 解除 */
+    PluginSystemGuard guard = {system};
+    lv_DEFER(plugin_system_guard_cleanup, &guard);
+
     system->plugin_capacity = lv_MAX_PLUGINS;
     system->plugins = (lvPlugin **) lv_malloc(sizeof(lvPlugin *) * system->plugin_capacity);
-    if (!system->plugins) {
-        lv_free((void **) &system);
+    if (!system->plugins)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: plugins malloc failed");
-    }
 
     system->interface_capacity = lv_MAX_INTERFACES;
     system->interfaces = (lvPluginInterface **) lv_malloc(sizeof(lvPluginInterface *) * system->interface_capacity);
-    if (!system->interfaces) {
-        lv_free((void **) &system->plugins);
-        lv_free((void **) &system);
+    if (!system->interfaces)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: interfaces malloc failed");
-    }
 
     lv_darray_init(&system->search_paths, sizeof(char *));
 
     PluginSystemInternal *internal = (PluginSystemInternal *) lv_calloc(1, sizeof(PluginSystemInternal));
-    if (!internal) {
-        lv_free((void **) &system->interfaces);
-        lv_free((void **) &system->plugins);
-        lv_free((void **) &system);
+    if (!internal)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: internal calloc failed");
-    }
 
     memset(internal, 0, sizeof(PluginSystemInternal));
     system->mutex = internal;
 
+    guard.sys = NULL; /* 守卫解除：结果移交调用方 */
     return system;
 }
 

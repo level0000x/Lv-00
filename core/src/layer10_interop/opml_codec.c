@@ -474,15 +474,18 @@ static int opml_import_proof(const char *input, void **proof) {
                 lv_darray_init(&def_names, sizeof(char *));
                 parse_theory_section(theory_buf, &axiom_names, &def_names);
 
-                /* 将公理名称写入 axioms 字段（逗号分隔，lvStrBuf 动态拼接，
-                 * 消除 lv_PATH_BUF_SIZE 上限） */
+                /* 将公理名称写入 axioms 字段（逗号分隔，统一走 lv_strbuf_join 骨架） */
                 lvStrBuf ax_sb = {0};
-                for (int i = 0; i < axiom_names.count; i++) {
-                    const char *name = *(const char **) lv_darray_get(&axiom_names, i);
-                    if (i > 0)
-                        lv_strbuf_printf(&ax_sb, ", ");
-                    lv_strbuf_printf(&ax_sb, "%s", name);
+                const char **ax_names = NULL;
+                if (axiom_names.count > 0) {
+                    ax_names = lv_malloc((size_t) axiom_names.count * sizeof(char *));
+                    if (ax_names) {
+                        for (int i = 0; i < axiom_names.count; i++)
+                            ax_names[i] = *(const char **) lv_darray_get(&axiom_names, i);
+                    }
                 }
+                lv_strbuf_join(&ax_sb, ax_names, (size_t) axiom_names.count, ", ");
+                lv_free((void **) &ax_names);
                 p->axioms = lv_strdup_safe(lv_strbuf_cstr(&ax_sb));
                 lv_strbuf_destroy(&ax_sb);
 

@@ -239,17 +239,9 @@ static void str_coord_list(const FormulaNode *node, char *buf, size_t buf_size) 
     for (int i = 0; i < node->data.coord_list.coord_count; i++) {
         char coord[FORMULA_EXPR_BUF_SIZE];
         node_to_string(node->data.coord_list.coords[i], coord, sizeof(coord));
-        if (i > 0) {
-            if (pos + 2 >= buf_size)
-                break;
-            buf[pos++] = ',';
-            buf[pos++] = ' ';
-        }
-        size_t len = strlen(coord);
-        if (pos + len + 1 > buf_size)
+        /* 统一走 lv_str_append_sep：分隔符 + 元素原子性追加（放不下即截断返回） */
+        if (!lv_str_append_sep(buf, buf_size, &pos, ", ", coord))
             break;
-        memcpy(buf + pos, coord, len);
-        pos += len;
     }
     if (pos + 1 < buf_size) {
         buf[pos] = ')';
@@ -306,17 +298,9 @@ static void str_constraint(const FormulaNode *node, const char *kind, char *buf,
     for (int i = 0; i < node->data.constraint.participant_count; i++) {
         char p[FORMULA_EXPR_BUF_SIZE];
         node_to_string(node->data.constraint.participants[i], p, sizeof(p));
-        if (i > 0) {
-            if (pos + 2 >= buf_size)
-                break;
-            buf[pos++] = ',';
-            buf[pos++] = ' ';
-        }
-        size_t len = strlen(p);
-        if (pos + len + 1 > buf_size)
+        /* 统一走 lv_str_append_sep：分隔符 + 元素原子性追加（放不下即截断返回） */
+        if (!lv_str_append_sep(buf, buf_size, &pos, ", ", p))
             break;
-        memcpy(buf + pos, p, len);
-        pos += len;
     }
     if (pos + 1 < buf_size) {
         buf[pos] = ')';

@@ -23,6 +23,7 @@
 
 #include "lv_internal.h" /* lv_UNUSED */
 #include "lv_utils.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_strbuf.h"
 
 /* 默认初始容量 */
@@ -145,6 +146,25 @@ static int cmp_canon_terms_sort(const void *a, const void *b, void *ctx) {
  * 生命周期
  * ======================================================================== */
 
+/* lvExprCanonical 部分构建守卫：任一成员分配失败时统一释放已分配成员与外壳，
+ * 替代递增回滚样板 */
+typedef struct {
+    lvExprCanonical *expr;
+} ExprCanonGuard;
+
+static void expr_canon_guard_cleanup(void *p) {
+    ExprCanonGuard *g = (ExprCanonGuard *) p;
+    if (g->expr) {
+        if (g->expr->var_names) {
+            for (int i = 0; i < g->expr->var_count; i++)
+                lv_free((void **) &g->expr->var_names[i]);
+            lv_free((void **) &g->expr->var_names);
+        }
+        lv_free((void **) &g->expr->terms);
+        lv_free((void **) &g->expr);
+    }
+}
+
 lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names) {
     if (var_count < 0)
         return NULL;
@@ -156,11 +176,13 @@ lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names)
     expr->var_count = var_count;
     expr->canonicalized = true;
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.expr = NULL 解除 */
+    ExprCanonGuard guard = {expr};
+    lv_DEFER(expr_canon_guard_cleanup, &guard);
+
     expr->terms = (lvExprTerm *) lv_malloc((size_t) expr->term_capacity * sizeof(lvExprTerm));
-    if (!expr->terms) {
-        lv_free((void **) &expr);
+    if (!expr->terms)
         return NULL;
-    }
 
     /* 初始化所有项 */
     for (int i = 0; i < expr->term_capacity; i++) {
@@ -172,11 +194,8 @@ lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names)
     /* 拷贝变量名 */
     if (var_names && var_count > 0) {
         expr->var_names = (char **) lv_malloc((size_t) var_count * sizeof(char *));
-        if (!expr->var_names) {
-            lv_free((void **) &expr->terms);
-            lv_free((void **) &expr);
+        if (!expr->var_names)
             return NULL;
-        }
         for (int i = 0; i < var_count; i++) {
             if (var_names[i]) {
                 size_t name_len = strlen(var_names[i]) + 1;
@@ -191,6 +210,7 @@ lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names)
         expr->var_names = NULL;
     }
 
+    guard.expr = NULL; /* 守卫解除：结果移交调用方 */
     return expr;
 }
 

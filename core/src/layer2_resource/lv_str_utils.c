@@ -395,19 +395,33 @@ char *lv_str_replace(const char *str, const char *old_str, const char *new_str) 
 
 /* ===== 字符串拼接 ===== */
 
+/* 共享骨架：向 lvStrBuf 追加 count 个项，项间插入 separator（首项省略分隔符） */
+static void strbuf_join_items(lvStrBuf *sb, const char *const *items, size_t count, const char *separator) {
+    for (size_t i = 0; i < count; i++) {
+        if (i > 0)
+            lv_strbuf_printf(sb, "%s", separator);
+        if (items[i])
+            lv_strbuf_printf(sb, "%s", items[i]);
+    }
+}
+
+bool lv_strbuf_join(lvStrBuf *sb, const char *const *items, size_t count, const char *separator) {
+    if (!sb)
+        return false;
+    if (count == 0 || !items)
+        return true;
+    if (!separator)
+        separator = "";
+    strbuf_join_items(sb, items, count, separator);
+    return true;
+}
+
 char *lv_str_join(const char **items, size_t count, const char *separator) {
     if (!items || count == 0) return NULL;
     if (!separator) separator = "";
 
     lvStrBuf sb = {0};
-    for (size_t i = 0; i < count; i++) {
-        if (i > 0) {
-            lv_strbuf_printf(&sb, "%s", separator);
-        }
-        if (items[i]) {
-            lv_strbuf_printf(&sb, "%s", items[i]);
-        }
-    }
+    strbuf_join_items(&sb, items, count, separator);
     return lv_strbuf_to_string(&sb);
 }
 

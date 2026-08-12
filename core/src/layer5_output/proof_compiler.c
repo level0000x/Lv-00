@@ -31,6 +31,22 @@
 
 /* ============== Proof Object 实现 ============== */
 
+/* ProofObject 部分构建守卫：任一成员分配失败时统一释放已分配成员与外壳，
+ * 替代递增回滚样板 */
+typedef struct {
+    lvProofObject *obj;
+} ProofObjectGuard;
+
+static void proof_object_guard_cleanup(void *p) {
+    ProofObjectGuard *g = (ProofObjectGuard *) p;
+    if (g->obj) {
+        lv_free((void **) &g->obj->steps);
+        lv_free((void **) &g->obj->axiom_ids);
+        lv_free((void **) &g->obj->assumption_ids);
+        lv_free((void **) &g->obj);
+    }
+}
+
 /**
  * @brief 创建证明对象
  */
@@ -39,29 +55,25 @@ lvProofObject *lv_proof_object_create(void) {
     if (!obj)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: calloc failed");
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.obj = NULL 解除 */
+    ProofObjectGuard guard = {obj};
+    lv_DEFER(proof_object_guard_cleanup, &guard);
+
     obj->step_capacity = 64;
     obj->steps = (lvProofStepRecord **) lv_malloc(obj->step_capacity * sizeof(lvProofStepRecord *));
-    if (!obj->steps) {
-        lv_free((void **) &obj);
+    if (!obj->steps)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: steps malloc failed");
-    }
 
     obj->axiom_ids = (int *) lv_malloc(32 * sizeof(int));
-    if (!obj->axiom_ids) {
-        lv_free((void **) &obj->steps);
-        lv_free((void **) &obj);
+    if (!obj->axiom_ids)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: axiom_ids malloc failed");
-    }
     obj->axiom_capacity = 32;
     obj->assumption_ids = (int *) lv_malloc(32 * sizeof(int));
-    if (!obj->assumption_ids) {
-        lv_free((void **) &obj->axiom_ids);
-        lv_free((void **) &obj->steps);
-        lv_free((void **) &obj);
+    if (!obj->assumption_ids)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_proof_object_create: assumption_ids malloc failed");
-    }
     obj->assumption_capacity = 32;
 
+    guard.obj = NULL; /* 守卫解除：结果移交调用方 */
     return obj;
 }
 

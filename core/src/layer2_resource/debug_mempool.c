@@ -18,6 +18,7 @@
 
 #include "lv/engine.h"
 #include "lv/lv_json.h"
+#include "lv/lv_lifecycle.h"
 
 #include "context.h"
 #include "debug.h"
@@ -47,6 +48,22 @@ struct lvMemPool {
 typedef struct lvMemPool lvMemPool;
 #define MemPool lvMemPool
 
+/* MemPool 部分构建守卫：任一成员分配失败时统一释放已分配成员与外壳，
+ * 替代递增回滚样板 */
+typedef struct {
+    MemPool *pool;
+} MemPoolGuard;
+
+static void mem_pool_guard_cleanup(void *p) {
+    MemPoolGuard *g = (MemPoolGuard *) p;
+    if (g->pool) {
+        lv_free((void **) &g->pool->blocks);
+        lv_free((void **) &g->pool->free_list);
+        lv_free((void **) &g->pool->used);
+        lv_free((void **) &g->pool);
+    }
+}
+
 /**
  * @brief 创建固定块大小的内存池
  * @param block_size      每个内存块的大小（字节），必须大于 0
@@ -62,24 +79,23 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
     if (!pool)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配 MemPool 失败");
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.pool = NULL 解除 */
+    MemPoolGuard guard = {pool};
+    lv_DEFER(mem_pool_guard_cleanup, &guard);
+
     pool->block_size = block_size;
     pool->total_count = initial_blocks;
     pool->free_count = initial_blocks;
 
     /* 分配连续内存块数组 */
     pool->blocks = (uint8_t *) lv_calloc((size_t) initial_blocks, block_size);
-    if (!pool->blocks) {
-        lv_free((void **) &pool);
+    if (!pool->blocks)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配内存池块失败");
-    }
 
     /* 分配空闲块索引栈 */
     pool->free_list = (int *) lv_calloc((size_t) initial_blocks, sizeof(int));
-    if (!pool->free_list) {
-        lv_free((void **) &pool->blocks);
-        lv_free((void **) &pool);
+    if (!pool->free_list)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配空闲列表失败");
-    }
 
     /* 初始化空闲列表：所有块初始都是空闲的 */
     for (int i = 0; i < initial_blocks; i++) {
@@ -88,13 +104,10 @@ MemPool *mem_pool_create(size_t block_size, int initial_blocks) {
 
     /* 分配使用标志位数组 */
     pool->used = (uint8_t *) lv_calloc((size_t) initial_blocks, sizeof(uint8_t));
-    if (!pool->used) {
-        lv_free((void **) &pool->free_list);
-        lv_free((void **) &pool->blocks);
-        lv_free((void **) &pool);
+    if (!pool->used)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "分配使用标志位失败");
-    }
 
+    guard.pool = NULL; /* 守卫解除：结果移交调用方 */
     return pool;
 }
 

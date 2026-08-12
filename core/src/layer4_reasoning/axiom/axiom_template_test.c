@@ -20,6 +20,7 @@
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/lv_lifecycle.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -307,6 +308,22 @@ bool axiom_template_verify_normal_form(AxiomPackage *pkg, const char *template_n
 
 /* ============== 测试用例生命周期管理 ============== */
 
+/* TemplateTestCase 部分构建守卫：任一成员分配失败时统一释放已分配成员与外壳，
+ * 替代递增回滚样板 */
+typedef struct {
+    TemplateTestCase *tc;
+} TemplateCaseGuard;
+
+static void template_case_guard_cleanup(void *p) {
+    TemplateCaseGuard *g = (TemplateCaseGuard *) p;
+    if (g->tc) {
+        lv_free((void **) &g->tc->template_name);
+        lv_free((void **) &g->tc->description);
+        lv_free((void **) &g->tc->params);
+        lv_free((void **) &g->tc);
+    }
+}
+
 TemplateTestCase *axiom_template_test_case_create(const char *name, TestCaseType type, int param_count, bool expected) {
     if (!name || param_count < 0)
         return NULL;
@@ -339,40 +356,36 @@ TemplateTestCase *axiom_template_test_case_copy(const TemplateTestCase *src) {
     if (!dst)
         return NULL;
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.tc = NULL 解除 */
+    TemplateCaseGuard guard = {dst};
+    lv_DEFER(template_case_guard_cleanup, &guard);
+
     /* 深拷贝基本字段 */
     dst->template_name = lv_strdup_safe(src->template_name);
-    if (src->template_name && !dst->template_name) {
-        lv_free((void **) &dst);
-        return NULL;
-    }
+    if (src->template_name && !dst->template_name)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "axiom_template_test_case_copy: template_name strdup failed");
 
     dst->type = src->type;
     dst->param_count = src->param_count;
     dst->expected_result = src->expected_result;
 
     dst->description = lv_strdup_safe(src->description);
-    if (src->description && !dst->description) {
-        lv_free((void **) &dst->template_name);
-        lv_free((void **) &dst);
-        return NULL;
-    }
+    if (src->description && !dst->description)
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "axiom_template_test_case_copy: description strdup failed");
 
     /* params 浅拷贝（单个元素由调用者管理） */
     dst->params = NULL;
     if (src->params && src->param_count > 0) {
         dst->params = lv_calloc((size_t) src->param_count, sizeof(SymbolicCoord *));
-        if (!dst->params) {
-            lv_free((void **) &dst->template_name);
-            lv_free((void **) &dst->description);
-            lv_free((void **) &dst);
-            return NULL;
-        }
+        if (!dst->params)
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "axiom_template_test_case_copy: params calloc failed");
         memcpy(dst->params, src->params, (size_t) src->param_count * sizeof(SymbolicCoord *));
     }
 
     /* expected_graph 浅拷贝（由调用者管理生命周期） */
     dst->expected_graph = src->expected_graph;
 
+    guard.tc = NULL; /* 守卫解除：结果移交调用方 */
     return dst;
 }
 

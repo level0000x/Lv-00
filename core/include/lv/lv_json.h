@@ -264,6 +264,27 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str);
 void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str);
 
 /**
+ * @brief 元素写入前的分隔处理（逗号/换行/缩进与状态维护）
+ *
+ * 公开该状态机入口，供需要"多段 raw 追加"的数组/对象元素复用统一分隔逻辑，
+ * 替代手写 `if (i > 0) append_char(',')` 骨架。调用后应随即写入元素内容。
+ *
+ * @param buf lvJsonBuf 指针
+ */
+void lv_json_buf_begin_value(lvJsonBuf *buf);
+
+/**
+ * @brief 追加 raw 元素（自动处理数组/对象分隔符）
+ *
+ * 等价于 lv_json_buf_begin_value(buf) + lv_json_buf_append_raw(buf, str)。
+ * 适用于数组内元素为预序列化 JSON 片段的场景。
+ *
+ * @param buf lvJsonBuf 指针
+ * @param str 要追加的原始 JSON 元素
+ */
+void lv_json_buf_append_raw_value(lvJsonBuf *buf, const char *str);
+
+/**
  * @brief 追加单个字符
  * @param buf lvJsonBuf 指针
  * @param c   要追加的字符

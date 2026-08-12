@@ -23,6 +23,7 @@
 #include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_hashtable.h"
+#include "lv/lv_lifecycle.h"
 
 #include "lv_internal.h"
 
@@ -452,6 +453,25 @@ static bool compile_node(DslIR *ir, const DslAST *node, int *result_id) {
  * @param out_ir 输出：IR 指针
  * @return 成功返回 true，失败返回 false
  */
+
+/* DslIR 部分构建守卫：任一成员分配失败时统一释放已分配成员与外壳，
+ * 替代递增回滚样板 */
+typedef struct {
+    DslIR *ir;
+} DslIrGuard;
+
+static void dsl_ir_guard_cleanup(void *p) {
+    DslIrGuard *g = (DslIrGuard *) p;
+    if (g->ir) {
+        if (g->ir->symbol_index)
+            lv_hashtable_str_destroy(g->ir->symbol_index);
+        lv_free((void **) &g->ir->symbol_to_ir_id);
+        lv_free((void **) &g->ir->symbols);
+        lv_free((void **) &g->ir->operations);
+        lv_free((void **) &g->ir);
+    }
+}
+
 bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir) {
     if (!ast || !out_ir)
         return false;
@@ -460,33 +480,31 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
     if (!ir)
         return false;
 
+    /* 部分构建守卫：后续任一分配失败自动释放已分配成员；成功路径 guard.ir = NULL 解除 */
+    DslIrGuard guard = {ir};
+    lv_DEFER(dsl_ir_guard_cleanup, &guard);
+
     int initial_cap = (ast->child_count > 0) ? (int) ((size_t) ast->child_count * 4) : 16;
     if (initial_cap < 16)
         initial_cap = 16;
 
     ir->op_capacity = initial_cap;
     ir->operations = lv_calloc((size_t) ir->op_capacity, sizeof(DslIROperation));
-    if (!ir->operations) {
-        lv_free(ir);
-        return false;
-    }
+    if (!ir->operations)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "dsl_compile: operations calloc failed");
 
     ir->symbol_capacity = initial_cap;
     ir->symbols = lv_calloc((size_t) ir->symbol_capacity, sizeof(char *));
-    if (!ir->symbols) {
-        lv_free(ir->operations);
-        lv_free(ir);
-        return false;
-    }
+    if (!ir->symbols)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "dsl_compile: symbols calloc failed");
     ir->symbol_to_ir_id = lv_calloc((size_t) ir->symbol_capacity, sizeof(int));
-    if (!ir->symbol_to_ir_id) {
-        lv_free(ir->symbols);
-        lv_free(ir->operations);
-        lv_free(ir);
-        return false;
-    }
+    if (!ir->symbol_to_ir_id)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "dsl_compile: symbol_to_ir_id calloc failed");
 
+    /* 哈希索引为可选加速结构：分配失败时保持 NULL，后续访问由 NULL 保护回退线性扫描 */
     ir->symbol_index = lv_hashtable_str_create(ir->symbol_capacity);
+    if (!ir->symbol_index)
+        lv_set_error(lv_ERROR_OUT_OF_MEMORY, "dsl_compile: symbol_index hashtable create failed");
     ir->next_id = 0;
 
     /* 遍历 AST 子节点生成 IR 操作 */
@@ -498,6 +516,7 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
         }
     }
 
+    guard.ir = NULL; /* 守卫解除：结果移交调用方 */
     *out_ir = ir;
     (void) config;
     return true;

@@ -181,6 +181,20 @@ char *lv_str_replace(const char *str, const char *old_str, const char *new_str);
  */
 char *lv_str_join(const char **items, size_t count, const char *separator);
 
+/**
+ * @brief 向已有 lvStrBuf 追加式连接字符串数组（首项自动省略分隔符）
+ *
+ * 与 lv_str_join 共享内部骨架；适合元素逐个收集到数组后统一输出的场景，
+ * 替代手写 `if (i > 0) printf(sep)` 骨架。
+ *
+ * @param sb        目标 lvStrBuf（须已初始化）
+ * @param items     字符串数组
+ * @param count     数组元素个数
+ * @param separator 分隔符
+ * @return 是否成功（sb 为空返回 false；count==0 视为空 join 返回 true）
+ */
+bool lv_strbuf_join(lvStrBuf *sb, const char *const *items, size_t count, const char *separator);
+
 /* ===== 游标式缓冲追加 ===== */
 
 /**

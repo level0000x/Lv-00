@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lv_json.c
  * @brief Lv-00 统一 JSON 解析与写入库实现
  *
@@ -756,6 +756,15 @@ void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str) {
     buf->pos += len;
 }
 
+/* 追加 raw 元素（自动处理数组/对象分隔符）：先经 begin_value 状态机写入分隔符，再写 raw 片段。
+ * 适用于数组内元素为预序列化 JSON 的场景，替代手写 `if (i > 0) append_char(',')` 骨架。 */
+void lv_json_buf_append_raw_value(lvJsonBuf *buf, const char *str) {
+    if (!buf || !str)
+        return;
+    lv_json_buf_begin_value(buf);
+    lv_json_buf_append_raw(buf, str);
+}
+
 void lv_json_buf_append_char(lvJsonBuf *buf, char c) {
     if (buf->pos + 2 >= buf->capacity) {
         lv_json_buf_grow(buf);
@@ -832,8 +841,11 @@ static void json_buf_write_indent(lvJsonBuf *buf, unsigned depth) {
         lv_json_buf_append_raw(buf, "  ");
 }
 
-/* 元素写入前的分隔处理：逗号、换行、缩进与状态维护 */
-static void json_buf_begin_value(lvJsonBuf *buf) {
+/* 元素写入前的分隔处理：逗号、换行、缩进与状态维护
+ * （公开版：供调用方以 raw/多段方式写入元素时复用同一分隔状态机） */
+void lv_json_buf_begin_value(lvJsonBuf *buf) {
+    if (!buf)
+        return;
     if (buf->key_pending) {
         /* 值为 append_key 的紧邻值：分隔符已由 append_key 输出 */
         buf->key_pending = false;
@@ -856,7 +868,7 @@ static void json_buf_begin_value(lvJsonBuf *buf) {
 bool lv_json_buf_begin_object(lvJsonBuf *buf) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     lv_json_buf_append_char(buf, '{');
     buf->depth++;
     buf->has_elem = false; /* 新容器为空 */
@@ -882,7 +894,7 @@ bool lv_json_buf_end_object(lvJsonBuf *buf) {
 bool lv_json_buf_begin_array(lvJsonBuf *buf) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     lv_json_buf_append_char(buf, '[');
     buf->depth++;
     buf->has_elem = false; /* 新容器为空 */
@@ -907,7 +919,7 @@ bool lv_json_buf_end_array(lvJsonBuf *buf) {
 bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key) {
     if (!buf || !key)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     json_buf_append_quoted(buf, key);
     lv_json_buf_append_char(buf, ':');
     if (buf->key_space)
@@ -919,7 +931,7 @@ bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key) {
 bool lv_json_buf_append_int(lvJsonBuf *buf, long long v) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     char num[32];
     snprintf(num, sizeof(num), "%lld", v);
     lv_json_buf_append_raw(buf, num);
@@ -929,7 +941,7 @@ bool lv_json_buf_append_int(lvJsonBuf *buf, long long v) {
 bool lv_json_buf_append_double(lvJsonBuf *buf, double v) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     /* 与 graph_serialize.c numeric_value 序列化风格一致 */
     char num[64];
     snprintf(num, sizeof(num), "%.15g", v);
@@ -940,7 +952,7 @@ bool lv_json_buf_append_double(lvJsonBuf *buf, double v) {
 bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     lv_json_buf_append_raw(buf, v ? "true" : "false");
     return true;
 }
@@ -948,7 +960,7 @@ bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v) {
 bool lv_json_buf_append_null(lvJsonBuf *buf) {
     if (!buf)
         return false;
-    json_buf_begin_value(buf);
+    lv_json_buf_begin_value(buf);
     lv_json_buf_append_raw(buf, "null");
     return true;
 }
