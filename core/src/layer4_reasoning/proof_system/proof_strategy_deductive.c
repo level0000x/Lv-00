@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/geo_utils.h"
 #include "lv/proof.h"
 #include "lv/solver.h"
 
@@ -278,7 +279,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                         double dy = pt_y[a] - pt_y[b];
                         pair_a[pair_count] = pt_ids[a];
                         pair_b[pair_count] = pt_ids[b];
-                        pair_dist2[pair_count] = dx * dx + dy * dy;
+                        pair_dist2[pair_count] = geo_norm_sq_2d(dx, dy);
                         pair_count++;
                     }
                 }

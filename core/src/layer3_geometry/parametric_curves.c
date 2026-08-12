@@ -21,6 +21,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/geo_utils.h"
 #include "lv_vec3.h" /* 收敛：本地 lvPoint3D 副本统一 typedef 到公共 lvVec3 */
 
 /* ============================================================
@@ -257,18 +258,18 @@ double lv_curve_arc_length(const lvParametricCurve *curve, int n_steps) {
     /* 计算端点的 |C'(t)| */
     double dx, dy;
     curve->deriv_func(a, curve->user_data, &dx, &dy);
-    double sum = 0.5 * sqrt(dx * dx + dy * dy);
+    double sum = 0.5 * geo_norm_2d(dx, dy);
 
     /* 内部点 */
     for (int i = 1; i < n_steps; i++) {
         double t = a + i * h;
         curve->deriv_func(t, curve->user_data, &dx, &dy);
-        sum += sqrt(dx * dx + dy * dy);
+        sum += geo_norm_2d(dx, dy);
     }
 
     /* 另一端点 */
     curve->deriv_func(b, curve->user_data, &dx, &dy);
-    sum += 0.5 * sqrt(dx * dx + dy * dy);
+    sum += 0.5 * geo_norm_2d(dx, dy);
 
     return sum * h;
 }
@@ -446,7 +447,7 @@ double lv_surface_area(const lvParametricSurface *surf, int n_u, int n_v) {
             double nx = du.y * dv.z - du.z * dv.y;
             double ny = du.z * dv.x - du.x * dv.z;
             double nz = du.x * dv.y - du.y * dv.x;
-            double mag = sqrt(nx * nx + ny * ny + nz * nz);
+            double mag = geo_norm_3d(nx, ny, nz);
 
             total += w_u * w_v * mag;
         }

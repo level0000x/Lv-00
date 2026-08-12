@@ -193,7 +193,7 @@ static bool is_point_between_segment(double ax, double ay, double bx, double by,
         return false;
     /* 投影参数 t = (B-A)·(C-A) / |C-A|² ∈ [0,1] ⇔ B 位于线段 AC 上 */
     double dx = cx - ax, dy = cy - ay;
-    double len2 = dx * dx + dy * dy;
+    double len2 = geo_norm_sq_2d(dx, dy);
     if (len2 < META_PROOF_GEOM_EPS * META_PROOF_GEOM_EPS)
         return false; /* A 与 C 重合，无法判定有序关系 */
     double t = ((bx - ax) * dx + (by - ay) * dy) / len2;

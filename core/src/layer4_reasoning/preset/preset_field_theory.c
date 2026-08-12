@@ -45,20 +45,7 @@ int preset_field_theory_count(void) {
  * @return false 获取失败
  */
 bool preset_field_theory_get_names(char ***out_names, int *out_count) {
-    if (out_names == NULL || out_count == NULL) {
-        return false;
-    }
-
-    *out_count = FIELD_THEORY_PRESET_COUNT;
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(FIELD_THEORY_PRESET_COUNT * sizeof(char *));
-    if (names == NULL) {
-        return false;
-    }
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 域基础运算 */
         PRESET_FIELD_ADD,
         PRESET_FIELD_MULTIPLY,
@@ -94,24 +81,6 @@ bool preset_field_theory_get_names(char ***out_names, int *out_count) {
         PRESET_ALGEBRAIC_CLOSURE,
     };
 
-    for (int i = 0; i < FIELD_THEORY_PRESET_COUNT; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            /* 分配失败时释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv_free(&tmp);
-                }
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

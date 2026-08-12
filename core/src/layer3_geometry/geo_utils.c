@@ -78,6 +78,42 @@ double geo_norm_2d(double dx, double dy) {
 }
 
 /**
+ * @brief 计算三维向量 (dx, dy, dz) 的模长
+ * @param dx, dy, dz  向量分量
+ * @return 向量模长
+ */
+double geo_norm_3d(double dx, double dy, double dz) {
+    return sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+/**
+ * @brief 计算二维向量 (dx, dy) 的模长平方（省去 sqrt，用于距离比较）
+ * @param dx, dy  向量分量
+ * @return 向量模长平方
+ */
+double geo_norm_sq_2d(double dx, double dy) {
+    return dx * dx + dy * dy;
+}
+
+/**
+ * @brief 计算三维向量 (dx, dy, dz) 的模长平方（省去 sqrt，用于距离比较）
+ * @param dx, dy, dz  向量分量
+ * @return 向量模长平方
+ */
+double geo_norm_sq_3d(double dx, double dy, double dz) {
+    return dx * dx + dy * dy + dz * dz;
+}
+
+/**
+ * @brief 计算二维 float 向量 (dx, dy) 的模长（float 精度，对应 sqrtf）
+ * @param dx, dy  向量分量
+ * @return 向量模长
+ */
+float geo_norm_2df(float dx, float dy) {
+    return sqrtf(dx * dx + dy * dy);
+}
+
+/**
  * @brief 判断两个双精度值是否近似相等
  * @param a, b  待比较的值
  * @param eps   容差

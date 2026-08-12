@@ -16,6 +16,7 @@
 
 #include "error_codes.h"
 #include "lv/constraint_graph.h"
+#include "lv/geo_utils.h"
 #include "lv_internal.h"
 #include "lv_numeric.h"
 #include "lv_utils.h"
@@ -143,7 +144,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
                     double fx = (eval_node(equation_node, x + h, y) - f) / h;
                     double fy = (eval_node(equation_node, x, y + h) - f) / h;
 
-                    double grad_sq = fx * fx + fy * fy;
+                    double grad_sq = geo_norm_sq_2d(fx, fy);
                     if (grad_sq < lv_EPSILON_ULTRA)
                         break;
 

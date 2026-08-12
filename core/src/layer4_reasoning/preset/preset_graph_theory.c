@@ -39,14 +39,7 @@ int preset_graph_theory_count(void) {
  * @brief 获取图论预设名称列表
  */
 bool preset_graph_theory_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    char **names = (char **) lv_malloc(GRAPH_THEORY_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         PRESET_GRAPH_CONSTRUCT,
         PRESET_GRAPH_ADJACENCY_MATRIX,
         PRESET_GRAPH_DEGREE_SEQUENCE,
@@ -80,26 +73,8 @@ bool preset_graph_theory_get_names(char ***out_names, int *out_count) {
         PRESET_GRAPH_AUTOMORPHISM_GROUP,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }
 
 PresetCategory preset_graph_theory_category(void) {

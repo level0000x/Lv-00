@@ -29,6 +29,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/euclidean_geometry.h"
+#include "lv/geo_utils.h"
 #include "lv/geometry_compress.h"
 #include "lv/geometry_types.h"
 #include "lv/symbolic_coord.h"
@@ -991,6 +992,31 @@ void test_compress_null_safety(void) {
     PASS();
 }
 
+/** 测试 geo_norm_* 模长 / 模长平方家族（批次 P2） */
+void test_geo_norm_family(void) {
+    /* 2D 模长：3-4-5 三角形 */
+    TEST_ASSERT_DOUBLE(geo_norm_2d(3.0, 4.0), 5.0, 1e-12);
+    TEST_ASSERT_DOUBLE(geo_norm_2d(-3.0, -4.0), 5.0, 1e-12);
+
+    /* 3D 模长：3-4-12 三角形（模长 13） */
+    TEST_ASSERT_DOUBLE(geo_norm_3d(3.0, 4.0, 12.0), 13.0, 1e-12);
+
+    /* 2D / 3D 模长平方：与模长平方一致，且零向量返回 0 */
+    TEST_ASSERT_DOUBLE(geo_norm_sq_2d(3.0, 4.0), 25.0, 1e-12);
+    TEST_ASSERT_DOUBLE(geo_norm_sq_2d(0.0, 0.0), 0.0, 1e-12);
+    TEST_ASSERT_DOUBLE(geo_norm_sq_3d(3.0, 4.0, 12.0), 169.0, 1e-12);
+    TEST_ASSERT_DOUBLE(geo_norm_sq_3d(0.0, 0.0, 0.0), 0.0, 1e-12);
+
+    /* float 变体：与 sqrtf 参考值一致（float 精度） */
+    TEST_ASSERT_DOUBLE((double)geo_norm_2df(3.0f, 4.0f), 5.0, 1e-6);
+    TEST_ASSERT_DOUBLE((double)geo_norm_2df(0.0f, 0.0f), 0.0, 1e-6);
+
+    /* 与既有 geo_distance_2d / geo_norm_2d 一致性 */
+    TEST_ASSERT_DOUBLE(geo_norm_2d(2.0, -2.0), geo_distance_2d(0.0, 0.0, 2.0, -2.0), 1e-12);
+
+    PASS();
+}
+
 /* ============================================================
  * 主函数
  * ============================================================ */
@@ -1054,5 +1080,8 @@ TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
     /* TEST_RUN(test_csg_null_safety); */
     TEST_MAIN_RUN(test_euclidean_null_safety);
     TEST_MAIN_RUN(test_compress_null_safety);
+
+    /* ── geo_norm 家族（批次 P2） ── */
+    TEST_MAIN_RUN(test_geo_norm_family);
 
 TEST_MAIN_END()

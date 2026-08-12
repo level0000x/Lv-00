@@ -14,6 +14,7 @@
 #include "geometry_csg_internal.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
+#include "lv/geo_utils.h" /* geo_norm_3d / geo_norm_sq_3d（向量模长统一工具） */
 #include "lv/lv_numeric.h"
 
 void csg_evaluate(const CSGNode *node, CSGTriList *out);
@@ -202,7 +203,7 @@ void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
     double dir_z = node->data.prim.params[3];
 
     CSGVec3 dir = {dir_x, dir_y, dir_z};
-    double dir_len = sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    double dir_len = geo_norm_3d(dir.x, dir.y, dir.z);
     if (dir_len < CSG_BSP_EPSILON) {
         dir.x = 0.0; dir.y = 0.0; dir.z = 1.0;
     } else {
@@ -255,11 +256,11 @@ void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
                             int idx_a = -1, idx_b = -1;
                             for (int s = 0; s < section_vert_count; s++) {
                                 CSGVec3 da = csg_vec3_sub(va, section_verts[s]);
-                                if (da.x * da.x + da.y * da.y + da.z * da.z < CSG_BSP_EPSILON * CSG_BSP_EPSILON) {
+                                if (geo_norm_sq_3d(da.x, da.y, da.z) < CSG_BSP_EPSILON * CSG_BSP_EPSILON) {
                                     idx_a = s;
                                 }
                                 CSGVec3 db = csg_vec3_sub(vb, section_verts[s]);
-                                if (db.x * db.x + db.y * db.y + db.z * db.z < CSG_BSP_EPSILON * CSG_BSP_EPSILON) {
+                                if (geo_norm_sq_3d(db.x, db.y, db.z) < CSG_BSP_EPSILON * CSG_BSP_EPSILON) {
                                     idx_b = s;
                                 }
                             }
@@ -357,7 +358,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
     if (segments > 128) segments = 128;
 
     CSGVec3 axis = {node->data.prim.params[2], node->data.prim.params[3], node->data.prim.params[4]};
-    double axis_len = sqrt(axis.x * axis.x + axis.y * axis.y + axis.z * axis.z);
+    double axis_len = geo_norm_3d(axis.x, axis.y, axis.z);
     if (axis_len < CSG_BSP_EPSILON) {
         axis.x = 0.0; axis.y = 1.0; axis.z = 0.0;
     } else {
@@ -389,7 +390,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
                 CSGVec3 vb = section_tris.tris[i].v[(e + 1) % 3];
 
                 CSGVec3 ediff = csg_vec3_sub(vb, va);
-                if (ediff.x * ediff.x + ediff.y * ediff.y + ediff.z * ediff.z < CSG_BSP_EPSILON * CSG_BSP_EPSILON)
+                if (geo_norm_sq_3d(ediff.x, ediff.y, ediff.z) < CSG_BSP_EPSILON * CSG_BSP_EPSILON)
                     continue;
 
                 CSGVec3 va1, va2, vb1, vb2;

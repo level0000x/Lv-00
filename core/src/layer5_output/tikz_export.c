@@ -20,6 +20,7 @@
 #include "lv/lv_check.h"
 
 #include "lv/constraint_graph.h"
+#include "lv/geo_utils.h"
 #include "lv/lv_export_common.h"
 #include "lv/lv_utils.h"
 #include "lv/symbolic_coord.h"
@@ -104,7 +105,7 @@ static void tikz_render_circle(const ConstraintGraph *graph, const GeomNode *nod
             return;
         double dx = rx - cx;
         double dy = ry - cy;
-        r = sqrt(dx * dx + dy * dy);
+        r = geo_norm_2d(dx, dy);
     }
     if (r <= 0.0)
         return;

@@ -189,7 +189,7 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                 double cbx = xb - xc, cby = yb - yc;
                 double dot = cax * cbx + cay * cby;
 
-                if (fabs(dot) < lv_EPSILON_LOW * (sqrt(cax * cax + cay * cay) * sqrt(cbx * cbx + cby * cby) + 1.0)) {
+                if (fabs(dot) < lv_EPSILON_LOW * (geo_norm_2d(cax, cay) * geo_norm_2d(cbx, cby) + 1.0)) {
                     int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     mpz_t ab2_x_mpz, ab2_y_mpz;
                     mpz_init(ab2_x_mpz);

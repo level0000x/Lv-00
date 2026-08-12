@@ -272,11 +272,11 @@ static double AABB_FUNC(point_distance_sq)(AABB_PRIM_TYPE bb, double px, double 
         dz = pz - bb.zmax;
 #endif
 
-    return dx * dx + dy * dy
 #if AABB_DIMS == 3
-        + dz * dz
+    return geo_norm_sq_3d(dx, dy, dz);
+#else
+    return geo_norm_sq_2d(dx, dy);
 #endif
-        ;
 }
 
 static double AABB_FUNC(point_distance)(AABB_PRIM_TYPE bb, double px, double py

@@ -423,3 +423,43 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 **阶段 K 明细（2026-08-12，候选④ 手写数字解析）**：评估确认共享原语 `lv_str_read_int`（lv_str_utils.c:272，无符号累加防溢出 + 钳位）自阶段 F/G 起已被 rewrite_apply.c / func_block_serialize.c 采用，收敛设施已成立。剩余 5 处手写解析全部豁免（语义与共享原语不兼容）：formula_dsl.c×3（`p < end` 有界输入 + 公式级溢出报错语义）、lv_json.c×3（公共 API 溢出返回 false vs 钳位 + 先定位再累加两遍模式）、module_lvz.c（double 浮点累加，后续小数处理）、axiom_pkg_parser.c（溢出错误标记 + INT_MAX 回退、sign 后置）、interop_server.c（value_len 非 NUL 终止边界 + 版本上限 999 检查）。
 
 **回归（阶段 A–C）**：ninja build3 931/931、ctest 170/170、示例 8/8 全部通过。
+
+---
+
+## 十一、批次 P 候选立项与实施（2026-08-12）
+
+**候选来源**：批次 O 遗留登记 + 4 路并行代理新扫描（AB 路 / EFGH 路 / 自由路 / CD 路），共 15 候选。用户「全部立项」→ P1-P14。已抽查验证关键候选属实。
+
+### 批次 P 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| P1 | preset 家族 strdup+OOM → `preset_module_get_names` 委托（28 文件） | 完成 |
+| P2 | 欧氏距离平方/模长 → `geo_norm` 家族（4 新设施 / 43 处） | 完成 |
+| P3 | 手写二分收敛（error_codes 提取 `find_error_index` 合并 2 份同表二分） | 完成 |
+| P4 | JSON 数组迭代骨架（opml_codec 等，新判据 L 提案） | 待执行 |
+| P5 | 约束编码分发表×5 补全 LV_DISPATCH | 待执行 |
+| P6 | SMT/ATP 插件入口状态机×8 → 描述符表宏 | 待执行 |
+| P7 | 手写线性查找表（18-20 处） | 待执行 |
+| P8 | realloc 倍增新位置（7 处） | 待执行 |
+| P9 | 带符号舍入缺陷修正 | 待执行 |
+| P10 | 高斯消元统一 | 待执行 |
+| P11 | 线性选优/选择排序 argmin/argmax | 待执行 |
+| P12 | rewrite_snapshot.c 析构 shim 遗漏 | 待执行 |
+| P13 | 角度桶量化+位分解 | 待执行 |
+| P14 | 点在线段 bbox 检查 | 待执行 |
+
+**P1 明细（preset 名称委托，判据 A 泛化）**：共享 `preset_module_get_names`（preset_common.c:387-416，NULL 守卫 + OOM 回滚）收敛 preset 家族 28 文件。三形态统一：① 手写 `lv_malloc` + for + `lv_strdup` + OOM 回滚（主流）；② `PRESET_CHECK_NULL` + error 标签（preset_polynomial 等 3）；③ `lv_malloc` + `memcpy`（preset_field_theory 等 6）。统一替换为 `static const char *const preset_names[] = {...}` + 尾部 `return preset_module_get_names(...)`。删除 786 行 / 新增 81 行。未迁移：preset_group_theory.c 独立辅助 `get_group_theory_names`（非目标函数）。验证：ninja 927/927 + ctest 170/170。
+
+**P2 明细（geo_norm 模长家族，判据 B 泛化）**：geo_utils.h/.c 新增 `geo_norm_3d` / `geo_norm_sq_2d` / `geo_norm_sq_3d` / `geo_norm_2df`（契约卡五字段；`_sq` 返回模长平方省 sqrt，`_2df` 为 float 精度对应 sqrtf 逐位一致）。迁移 43 处/18 文件：2D 平方 27、2D float 模长 6（geo_visual_complete 含屏幕对角线 `sqrtf(w*w+h*h)`）、2D double 模长 6、3D 平方 6（含 aabb_tree_impl.h 模板 `#if AABB_DIMS` 分支改写）、3D 模长 4。新增 include 9 文件（tikz_export / parametric_curves / geo_visual_complete / formula_curve / groebner_engine / proof_strategy_deductive / solver_coord_extract / func_block_selector / geometry_csg_eval / geometry_csg_hull）。测试：test_geometry_core.c `test_geo_norm_family`（3-4-5 / 3-4-12、零向量、float 精度、与 geo_distance_2d 一致性）。
+
+**P2 豁免登记**：
+- 点积形态 ×6（`ax*bx + ay*by` 语义不同）：simd_ops.c:2152 / geo_constraint_solver_residual.c:172 / groebner_engine.c:614 / meta_proof.c:176 / solver_geom_templates.c:190 / lv_vec3.h:32 `lv_vec3_dot`。
+- 协方差逐项累积：high_dim_fidelity.c:649-650（`cxx += dx*dx` 非距离语义）。
+- 旋转矩阵单分量平方：geo_visual_complete.c:222-230 / algebra_mode.c:364-432（`c + ax*ax*(1-c)` 等）。
+- 非距离缩放：high_dim_project.c:316/354（`px*factor`）。
+- 公共基础头自包含：lv_vec3.h:76 `lv_vec3_normalize` 内联模长（lv_vec3 仅依赖 math.h+config.h，引入 geo_utils.h 造成重型 include 耦合，属领域内核豁免）。
+
+**P3 明细（手写二分收敛）**：error_codes.c 提取无副作用静态辅助 `find_error_index`（返回表索引或 -1），`find_error_info` 与 `lv_error_is_unknown` 两处同表二分统一复用；`lv_error_is_unknown` 改为 `find_error_index(code) < 0`（保持无副作用——原方案直接委托 `find_error_info` 会经 `lv_RETURN_ERROR_NULL` 意外设置全局错误，status_codes.c 探测路径受影响，已规避）。豁免：algebraic_number_util.c `alg_is_perfect_square`（整数平方根数值二分 + 溢出检测，非表查找语义）。
+
+**回归（批次 P1-P3）**：ninja build3 927/927 + ctest 170/170 全部通过，零修复项。

@@ -925,7 +925,7 @@ lvVertex lv_he_mesh_nearest_vertex(const lvHeMesh *mesh, lvPoint3D point, double
         double dx = p.x - point.x;
         double dy = p.y - point.y;
         double dz = p.z - point.z;
-        double dist = dx * dx + dy * dy + dz * dz;
+        double dist = geo_norm_sq_3d(dx, dy, dz);
 
         if (dist < min_dist) {
             min_dist = dist;

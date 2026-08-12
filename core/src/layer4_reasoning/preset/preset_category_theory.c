@@ -44,14 +44,7 @@ PresetCategory preset_category_theory_category(void) {
  * @return true 成功，false 内存分配失败
  */
 bool preset_category_theory_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-    *out_count = CATEGORY_THEORY_PRESET_COUNT;
-    char **names = (char **) lv_malloc(CATEGORY_THEORY_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         PRESET_CAT_IDENTITY_MORPHISM,
         PRESET_CAT_COMPOSITION,
         PRESET_CAT_ISOMORPHISM_TEST,
@@ -69,20 +62,6 @@ bool preset_category_theory_get_names(char ***out_names, int *out_count) {
         PRESET_CAT_ADJOINT,
     };
 
-    for (int i = 0; i < CATEGORY_THEORY_PRESET_COUNT; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (!names[i]) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

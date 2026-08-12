@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_optimization.c
  * @brief 优化理论预设函数块 - 实现
  *
@@ -41,14 +41,7 @@ PresetCategory preset_optimization_category(void) {
  * @return true 成功，false 内存分配失败
  */
 bool preset_optimization_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-    *out_count = OPTIMIZATION_PRESET_COUNT;
-    char **names = (char **) lv_malloc(OPTIMIZATION_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 无约束优化 */
         PRESET_OPT_GRADIENT_DESCENT,
         PRESET_OPT_NEWTON_METHOD,
@@ -80,22 +73,6 @@ bool preset_optimization_get_names(char ***out_names, int *out_count) {
         PRESET_OPT_GENETIC_ALGORITHM,
     };
 
-    for (int i = 0; i < OPTIMIZATION_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
-        if (!names[i]) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-        memcpy(names[i], preset_names[i], len);
-    }
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

@@ -12,6 +12,7 @@
 
 #include "geometry_types.h"
 #include "geometry_csg_internal.h"
+#include "lv/geo_utils.h" /* geo_norm_3d / geo_norm_sq_3d（向量模长统一工具） */
 #include "lv/lv_numeric.h" /* lv_rel_tol_scale（K5-3B 相对容差共享设施） */
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -77,7 +78,7 @@ void csg_compute_convex_hull(const CSGVec3 *vertices, int vertex_count, CSGTriLi
                 CSGVec3 normal = csg_vec3_normalize(csg_vec3_cross(e1, e2));
 
                 /* 退化三角形（面积为零），跳过 */
-                double nlen = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+                double nlen = geo_norm_3d(normal.x, normal.y, normal.z);
                 if (nlen < csg_hull_eps)
                     continue;
 
@@ -170,7 +171,7 @@ void csg_extract_vertices(const CSGTriList *tris, CSGVec3 **out_verts, int *out_
             double eps_sq = CSG_BSP_EPSILON * CSG_BSP_EPSILON * (1.0 + max_coord * max_coord);
             for (int j = 0; j < count; j++) {
                 CSGVec3 d = csg_vec3_sub(pt, verts[j]);
-                double dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
+                double dist2 = geo_norm_sq_3d(d.x, d.y, d.z);
                 if (dist2 < eps_sq) {
                     found = 1;
                     break;

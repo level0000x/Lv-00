@@ -54,11 +54,25 @@ extern "C" {
 
 /* ========================================================================
  * 几何计算工具函数（实现位于 layer3_geometry/geo_utils.c）
- * ======================================================================== */
+ * ========================================================================
+ * geo_norm_* 家族（批次 P2 收敛，2026-08-12）契约卡：
+ *   语义契约：计算向量模长（欧氏 2-范数）；geo_norm_sq_* 返回模长平方
+ *              （省去 sqrt，用于距离比较 / 阈值判断），其余返回 sqrt 模长。
+ *   前置条件：无（普通标量输入，不检查指针 / NaN）。
+ *   失败 / 截断语义：无失败路径；float 变体（geo_norm_2df）按 float 精度
+ *              计算并返回 float，与 sqrtf 语义逐位一致。
+ *   边界行为：负分量与零向量均正常；零向量返回 0。
+ *   扩展点：无（维度后缀 _2d/_3d 即完整家族；如需 3D float 模长，
+ *              按 geo_norm_3df 同型扩展）。
+ */
 
 lv_PUBLIC_API double geo_distance_2d(double x1, double y1, double x2, double y2);
 lv_PUBLIC_API double geo_distance_3d(double x1, double y1, double z1, double x2, double y2, double z2);
 lv_PUBLIC_API double geo_norm_2d(double dx, double dy);
+lv_PUBLIC_API double geo_norm_3d(double dx, double dy, double dz);
+lv_PUBLIC_API double geo_norm_sq_2d(double dx, double dy);
+lv_PUBLIC_API double geo_norm_sq_3d(double dx, double dy, double dz);
+lv_PUBLIC_API float geo_norm_2df(float dx, float dy);
 lv_PUBLIC_API int geo_approx_equal(double a, double b, double eps);
 lv_PUBLIC_API int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2);
 lv_PUBLIC_API double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3, double y3);

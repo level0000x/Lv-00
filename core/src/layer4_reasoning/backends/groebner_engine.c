@@ -34,6 +34,7 @@
 #include "lv/lv.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_numeric.h"
+#include "lv/geo_utils.h"
 #include "error_codes.h"
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -548,7 +549,7 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
         poly_internal_add_term(poly, ctx->ring, xp, 1, -2.0 * ox);
         poly_internal_add_term(poly, ctx->ring, yp, 2, 1.0);
         poly_internal_add_term(poly, ctx->ring, yp, 1, -2.0 * oy);
-        poly_internal_add_term(poly, ctx->ring, -1, 0, ox * ox + oy * oy - r2);
+        poly_internal_add_term(poly, ctx->ring, -1, 0, geo_norm_sq_2d(ox, oy) - r2);
         groebner_engine_ideal_append(ctx, poly);
         return;
     }
@@ -611,8 +612,8 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
     double theta = lv_deg_to_rad(con->numeric_value);
     double cos_sq = cos(theta) * cos(theta);
     double dot = ux * vx + uy * vy;
-    double norm_u_sq = ux * ux + uy * uy;
-    double norm_v_sq = vx * vx + vy * vy;
+    double norm_u_sq = geo_norm_sq_2d(ux, uy);
+    double norm_v_sq = geo_norm_sq_2d(vx, vy);
     double lhs = dot * dot - cos_sq * norm_u_sq * norm_v_sq;
 
     if (fabs(lhs) < GROEBNER_ZERO_THRESHOLD) return;

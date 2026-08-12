@@ -18,6 +18,7 @@
 #include "lv/lv_file.h"
 #include "lv/lv_lifecycle.h"
 
+#include "lv/geo_utils.h"
 #include "lv/geo_visual.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -388,11 +389,11 @@ static void svg_render_line(FILE *fp, const lvVisualObject *obj, const lvVisualS
     float dx = x2 - x1, dy = y2 - y1;
     /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，
        与 double 域 lv_normalize_3d 不一致，保持原样（零长度分支提前 return）。 */
-    float len = sqrtf(dx * dx + dy * dy);
+    float len = geo_norm_2df(dx, dy);
     if (len < 1e-6f)
         return;
     float ux = dx / len, uy = dy / len;
-    float t_max = sqrtf(w * w + h * h);
+    float t_max = geo_norm_2df(w, h);
     float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
     float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
     apply_camera(&lx1, &ly1, scene);
@@ -542,7 +543,7 @@ static void cairo_render_line(FILE *fp, const lvVisualObject *obj, const lvVisua
     float x2 = cache[2], y2 = cache[3];
     float dx = x2 - x1, dy = y2 - y1;
     /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
-    float len = sqrtf(dx * dx + dy * dy);
+    float len = geo_norm_2df(dx, dy);
     if (len < 1e-6f)
         return;
     float ux = dx / len, uy = dy / len;
@@ -714,7 +715,7 @@ static void threejs_render_segment(FILE *fp, const lvVisualObject *obj, const lv
     float mx = (x1 + x2) * 0.5f, my = (y1 + y2) * 0.5f;
     float dx = x2 - x1, dy = y2 - y1;
     /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
-    float length = sqrtf(dx * dx + dy * dy);
+    float length = geo_norm_2df(dx, dy);
     if (length < 1e-6f)
         return;
     float angle = atan2f(dy, dx);
@@ -744,7 +745,7 @@ static void threejs_render_line(FILE *fp, const lvVisualObject *obj, const lvVis
     float x2 = cache[2], y2 = cache[3];
     float dx = x2 - x1, dy = y2 - y1;
     /* exempt: float 渲染精度 2D 归一化（sqrtf/1e-6f），渲染输出层 float 语义，保持原样。 */
-    float len = sqrtf(dx * dx + dy * dy);
+    float len = geo_norm_2df(dx, dy);
     if (len < 1e-6f)
         return;
     float ux = dx / len, uy = dy / len;
@@ -755,7 +756,7 @@ static void threejs_render_line(FILE *fp, const lvVisualObject *obj, const lvVis
     apply_camera(&lx2, &ly2, scene);
     float mx = (lx1 + lx2) * 0.5f, my = (ly1 + ly2) * 0.5f;
     float ldx = lx2 - lx1, ldy = ly2 - ly1;
-    float llength = sqrtf(ldx * ldx + ldy * ldy);
+    float llength = geo_norm_2df(ldx, ldy);
     float lang = atan2f(ldy, ldx);
     fprintf(fp, "%s{\n", ind);
     fprintf(fp, "%s    const geo = new THREE.PlaneGeometry(%.2f, %.2f);\n", ind, (double) llength,

@@ -42,14 +42,7 @@ PresetCategory preset_math_logic_category(void) {
  * @return true 成功，false 内存分配失败
  */
 bool preset_math_logic_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-    *out_count = ADVANCED_MATH_LOGIC_PRESET_COUNT;
-    char **names = (char **) lv_malloc(ADVANCED_MATH_LOGIC_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 命题逻辑 */
         PRESET_LOGIC_CONJUNCTION,
         PRESET_LOGIC_DISJUNCTION,
@@ -77,24 +70,8 @@ bool preset_math_logic_get_names(char ***out_names, int *out_count) {
         PRESET_LOGIC_HALTING_PROBLEM,
     };
 
-    for (int i = 0; i < ADVANCED_MATH_LOGIC_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
-        if (!names[i]) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-        memcpy(names[i], preset_names[i], len);
-    }
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }
 
 int preset_math_logic_count(void) {

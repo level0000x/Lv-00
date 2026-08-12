@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "func_block.h"
+#include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
 #include "lv_internal.h"
@@ -164,7 +165,7 @@ static double point_distance(GeomNode *a, GeomNode *b) {
     /* 计算距离平方（避免 sqrt 开销，用于比较大小足够） */
     double dx = ax - bx;
     double dy = ay - by;
-    return dx * dx + dy * dy;
+    return geo_norm_sq_2d(dx, dy);
 }
 
 /* ============== 选择器 API ============== */

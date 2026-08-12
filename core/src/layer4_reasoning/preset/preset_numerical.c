@@ -41,14 +41,7 @@ PresetCategory preset_numerical_category(void) {
  * @return true 成功，false 内存分配失败
  */
 bool preset_numerical_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-    *out_count = NUMERICAL_PRESET_COUNT;
-    char **names = (char **) lv_malloc(NUMERICAL_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 方程求根 */
         PRESET_NUMERICAL_BISECTION,
         PRESET_NUMERICAL_NEWTON,
@@ -83,22 +76,6 @@ bool preset_numerical_get_names(char ***out_names, int *out_count) {
         PRESET_NUMERICAL_SVD,
     };
 
-    for (int i = 0; i < NUMERICAL_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
-        if (!names[i]) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-        memcpy(names[i], preset_names[i], len);
-    }
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

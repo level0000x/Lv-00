@@ -28,7 +28,7 @@ static double eval_points_coincident(const lvSolverSystem *sys, const lvConstrai
     }
     double dx = ea->params[0] - eb->params[0];
     double dy = ea->params[1] - eb->params[1];
-    double err = dx * dx + dy * dy;
+    double err = geo_norm_sq_2d(dx, dy);
     if (error_val) *error_val = err;
     return 2;
 }
@@ -233,7 +233,7 @@ static double eval_concentric(const lvSolverSystem *sys, const lvConstraint *c, 
     }
     double dx = ea->params[0] - eb->params[0];
     double dy = ea->params[1] - eb->params[1];
-    double err = dx * dx + dy * dy;
+    double err = geo_norm_sq_2d(dx, dy);
     if (error_val) *error_val = err;
     return 2;
 }

@@ -36,14 +36,7 @@ PresetCategory preset_probability_category(void) {
 }
 
 bool preset_probability_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    char **names = (char **) lv_malloc(PROBABILITY_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 概率基础 */
         PRESET_PROB_SAMPLE_SPACE,
         PRESET_PROB_EVENT_PROBABILITY,
@@ -77,24 +70,6 @@ bool preset_probability_get_names(char ***out_names, int *out_count) {
         PRESET_PROB_CHI_SQUARED_TEST,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

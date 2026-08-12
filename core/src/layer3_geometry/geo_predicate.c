@@ -661,7 +661,7 @@ static lvSideOfCircle side_of_circle_approx(double px, double py, double cx, dou
 
     double dx = px - cx;
     double dy = py - cy;
-    double dist_sq = dx * dx + dy * dy;
+    double dist_sq = geo_norm_sq_2d(dx, dy);
     double r_sq = r * r;
     double diff = dist_sq - r_sq;
 
@@ -732,7 +732,7 @@ lv_PUBLIC_API lvSideOfCircle lv_side_of_circle(double px, double py, double cx, 
     {
         double dx = px - cx;
         double dy = py - cy;
-        double dist_sq = dx * dx + dy * dy;
+        double dist_sq = geo_norm_sq_2d(dx, dy);
         double r_sq = r * r;
         double diff = dist_sq - r_sq;
 
@@ -1009,10 +1009,10 @@ static bool four_points_concyclic_approx(double ax, double ay, double bx, double
                                          double dy, double eps) {
     lv_PREDICATE_STAT_INC(approx_count);
 
-    double a2 = ax * ax + ay * ay;
-    double b2 = bx * bx + by * by;
-    double c2 = cx * cx + cy * cy;
-    double d2 = dx * dx + dy * dy;
+    double a2 = geo_norm_sq_2d(ax, ay);
+    double b2 = geo_norm_sq_2d(bx, by);
+    double c2 = geo_norm_sq_2d(cx, cy);
+    double d2 = geo_norm_sq_2d(dx, dy);
 
     /*
      * Laplace 展开沿最后一列：
@@ -1099,10 +1099,10 @@ lv_PUBLIC_API bool lv_four_points_concyclic(double ax, double ay, double bx, dou
 
     /* 自适应模式 */
     {
-        double a2 = ax * ax + ay * ay;
-        double b2 = bx * bx + by * by;
-        double c2 = cx * cx + cy * cy;
-        double d2 = dx * dx + dy * dy;
+        double a2 = geo_norm_sq_2d(ax, ay);
+        double b2 = geo_norm_sq_2d(bx, by);
+        double c2 = geo_norm_sq_2d(cx, cy);
+        double d2 = geo_norm_sq_2d(dx, dy);
 
         double m11 = by * (c2 - d2) - b2 * (cy - dy) + (cy * d2 - c2 * dy);
         double m21 = bx * (c2 - d2) - a2 * (cx - dx) + (cx * d2 - c2 * dx);

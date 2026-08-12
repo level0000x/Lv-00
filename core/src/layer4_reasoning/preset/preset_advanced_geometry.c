@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_advanced_geometry.c
  * @brief 高级几何预设函数块 - 实现
  *
@@ -54,15 +54,7 @@ int preset_advanced_geometry_count(void) {
 }
 
 bool preset_advanced_geometry_get_names(char ***out_names, int *out_count) {
-    PRESET_CHECK_NULL(out_names, error);
-    PRESET_CHECK_NULL(out_count, error);
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(ADVANCED_GEOMETRY_PRESET_COUNT * sizeof(char *));
-    PRESET_CHECK_NULL(names, error);
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 圆锥曲线 */
         PRESET_ELLIPSE_FOCUS_DIRECTRIX,
         PRESET_ELLIPSE_CENTER_AXES,
@@ -127,27 +119,6 @@ bool preset_advanced_geometry_get_names(char ***out_names, int *out_count) {
         PRESET_ASYMPTOTIC_LINES,
     };
 
-    int count = sizeof(preset_names) / sizeof(preset_names[0]);
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &names[j]);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
-
-error:
-    return false;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

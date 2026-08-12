@@ -80,25 +80,38 @@ static const ErrorInfo g_error_table[] = {
  * ============================================================ */
 
 /**
- * @brief 二分查找错误信息
+ * @brief 二分查找错误码在表中的索引（无副作用）
  * @param code 错误码
- * @return 错误信息指针，未找到返回NULL
+ * @return 命中返回表索引，未命中返回 -1
  */
-static const ErrorInfo *find_error_info(lvErrorCode code) {
+static int find_error_index(lvErrorCode code) {
     int left = 0;
     int right = (int) ERROR_TABLE_SIZE - 1;
 
     while (left <= right) {
         int mid = left + (right - left) / 2;
         if (g_error_table[mid].code == code) {
-            return &g_error_table[mid];
+            return mid;
         } else if (g_error_table[mid].code < code) {
             left = mid + 1;
         } else {
             right = mid - 1;
         }
     }
-    lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "error code %d not found in table", code);
+    return -1;
+}
+
+/**
+ * @brief 二分查找错误信息
+ * @param code 错误码
+ * @return 错误信息指针，未找到返回NULL
+ */
+static const ErrorInfo *find_error_info(lvErrorCode code) {
+    int idx = find_error_index(code);
+    if (idx < 0) {
+        lv_RETURN_ERROR_NULL(lv_ERROR_NOT_FOUND, "error code %d not found in table", code);
+    }
+    return &g_error_table[idx];
 }
 
 /* ============================================================
@@ -130,20 +143,7 @@ const char *lv_error_category(lvErrorCode code) {
 }
 
 bool lv_error_is_unknown(lvErrorCode code) {
-    int left = 0;
-    int right = (int) ERROR_TABLE_SIZE - 1;
-
-    while (left <= right) {
-        int mid = left + (right - left) / 2;
-        if (g_error_table[mid].code == code) {
-            return false;
-        } else if (g_error_table[mid].code < code) {
-            left = mid + 1;
-        } else {
-            right = mid - 1;
-        }
-    }
-    return true;
+    return find_error_index(code) < 0;
 }
 
 /**

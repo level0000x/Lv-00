@@ -169,7 +169,7 @@ static int geodet_find_event_index(const lvEventDetector *detector, int event_id
 static double geodet_point_segment_dist2(double px, double py, double x1, double y1, double x2, double y2) {
     double dx = x2 - x1;
     double dy = y2 - y1;
-    double len2 = dx * dx + dy * dy;
+    double len2 = geo_norm_sq_2d(dx, dy);
     double t = 0.0;
     if (len2 > 0.0) {
         t = ((px - x1) * dx + (py - y1) * dy) / len2;
@@ -182,7 +182,7 @@ static double geodet_point_segment_dist2(double px, double py, double x1, double
     double qy = y1 + t * dy;
     double ex = px - qx;
     double ey = py - qy;
-    return ex * ex + ey * ey;
+    return geo_norm_sq_2d(ex, ey);
 }
 
 /**
@@ -227,7 +227,7 @@ static int geodet_check_intersection(double t, const double *param, int dim, dou
         }
         double dx = param[0] - param[2];
         double dy = param[1] - param[3];
-        *g = dx * dx + dy * dy;
+        *g = geo_norm_sq_2d(dx, dy);
         return 0;
     }
     *g = geodet_segment_segment_dist2(param[0], param[1], param[2], param[3], param[4], param[5], param[6], param[7]);
@@ -252,7 +252,7 @@ static int geodet_check_contact(double t, const double *param, int dim, double *
         }
         double dx = param[0] - param[2];
         double dy = param[1] - param[3];
-        *g = dx * dx + dy * dy - threshold * threshold;
+        *g = geo_norm_sq_2d(dx, dy) - threshold * threshold;
         return 0;
     }
     *g = geodet_point_segment_dist2(param[0], param[1], param[2], param[3], param[4], param[5]) - threshold * threshold;

@@ -54,16 +54,7 @@ PresetCategory preset_analysis_category(void) {
 }
 
 bool preset_analysis_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(ANALYSIS_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 极限运算 */
         PRESET_SEQUENCE_LIMIT,
         PRESET_FUNCTION_LIMIT,
@@ -123,25 +114,6 @@ bool preset_analysis_get_names(char ***out_names, int *out_count) {
         PRESET_ERROR_FUNCTION,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

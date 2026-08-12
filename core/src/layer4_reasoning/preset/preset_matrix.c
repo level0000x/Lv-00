@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_matrix.c
  * @brief 矩阵运算预设函数块 - 实现
  *
@@ -53,16 +53,7 @@ PresetCategory preset_matrix_category(void) {
  * @return false 参数无效或内存不足
  */
 bool preset_matrix_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(MATRIX_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 基础矩阵运算 */
         PRESET_MATRIX_ADD,
         PRESET_MATRIX_SUBTRACT,
@@ -97,27 +88,6 @@ bool preset_matrix_get_names(char ***out_names, int *out_count) {
         PRESET_MATRIX_HILBERT,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            /* 释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv_free(&tmp);
-                }
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

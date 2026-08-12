@@ -36,14 +36,7 @@ PresetCategory preset_combinatorics_category(void) {
 }
 
 bool preset_combinatorics_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    char **names = (char **) lv_malloc(COMBINATORICS_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 排列组合 */
         PRESET_COMB_PERMUTATION,
         PRESET_COMB_COMBINATION,
@@ -70,24 +63,6 @@ bool preset_combinatorics_get_names(char ***out_names, int *out_count) {
         PRESET_COMB_PARTITION_NUMBER,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) {
-                void *tmp = names[j];
-                lv_free(&tmp);
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

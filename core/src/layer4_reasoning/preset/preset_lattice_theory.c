@@ -43,20 +43,7 @@ int preset_lattice_theory_count(void) {
  * @return false 获取失败
  */
 bool preset_lattice_theory_get_names(char ***out_names, int *out_count) {
-    if (out_names == NULL || out_count == NULL) {
-        return false;
-    }
-
-    *out_count = LATTICE_THEORY_PRESET_COUNT;
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(LATTICE_THEORY_PRESET_COUNT * sizeof(char *));
-    if (names == NULL) {
-        return false;
-    }
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 格基础运算 */
         "lattice_join", "lattice_meet", "lattice_top", "lattice_bottom", "lattice_complement", "lattice_partial_order",
         "lattice_check", "lattice_bounded_check", "lattice_distributive_check", "lattice_modular_check",
@@ -69,22 +56,8 @@ bool preset_lattice_theory_get_names(char ***out_names, int *out_count) {
         /* 格与序 */
         "hasse_diagram", "chain_check", "antichain_check", "lattice_height", "lattice_width"};
 
-    for (int i = 0; i < LATTICE_THEORY_PRESET_COUNT; i++) {
-        size_t len = strlen(preset_names[i]) + 1;
-        names[i] = (char *) lv_malloc(len);
-        if (names[i] == NULL) {
-            /* 分配失败时释放已分配的内存 */
-            for (int j = 0; j < i; j++) {
-                lv_free((void **) &names[j]);
-            }
-            lv_free((void **) &names);
-            return false;
-        }
-        memcpy(names[i], preset_names[i], len);
-    }
-
-    *out_names = names;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }
 
 /**

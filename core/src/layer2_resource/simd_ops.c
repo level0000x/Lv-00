@@ -2099,7 +2099,7 @@ void lv_simd_point_line_distance_array(const double *px, const double *py, doubl
 
     double dx = x2 - x1;
     double dy = y2 - y1;
-    double len_sq = dx * dx + dy * dy;
+    double len_sq = geo_norm_sq_2d(dx, dy);
 
     if (len_sq < lv_EPSILON_ULTRA) {
         /* 线段退化为点 */
@@ -2252,7 +2252,7 @@ void lv_simd_point_in_circle_array(const double *px, const double *py, double cx
     for (; i < count; i++) {
         double ddx = px[i] - cx;
         double ddy = py[i] - cy;
-        double dist_sq = ddx * ddx + ddy * ddy;
+        double dist_sq = geo_norm_sq_2d(ddx, ddy);
         out[i] = (dist_sq <= r_sq) ? 1 : 0;
     }
 

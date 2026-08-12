@@ -11,6 +11,7 @@
 #include "lv/coeff_pool.h" /* 共享的多项式系数内存池（实现与池拥有权见 lv/coeff_pool.h） */
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
+#include "lv/geo_utils.h"
 
 /* ── 多项式系数内存池 ──
  * 使用 lv/coeff_pool.h 提供的共享池：g_coeff_pool 拥有权在
@@ -1146,7 +1147,7 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
         return 0;
     mpz_set_si(poly.coeffs[2], scale);
     double_to_mpz_scaled(-2.0 * ax, poly.coeffs[1], scale);
-    double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+    double_to_mpz_scaled(geo_norm_sq_2d(ax, ay) - dist_sq, poly.coeffs[0], scale);
     if (solver_poly_pool_push(sys, &poly, nodeB->id, 0) != 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
 
@@ -1154,7 +1155,7 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
         return 0;
     mpz_set_si(poly.coeffs[2], scale);
     double_to_mpz_scaled(-2.0 * ay, poly.coeffs[1], scale);
-    double_to_mpz_scaled(ax * ax + ay * ay - dist_sq, poly.coeffs[0], scale);
+    double_to_mpz_scaled(geo_norm_sq_2d(ax, ay) - dist_sq, poly.coeffs[0], scale);
     if (solver_poly_pool_push(sys, &poly, nodeB->id, 1) != 0)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
     return 0;

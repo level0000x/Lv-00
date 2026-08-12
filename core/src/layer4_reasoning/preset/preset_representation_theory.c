@@ -55,14 +55,7 @@ PresetCategory preset_representation_theory_category(void) {
  * @return false 失败
  */
 bool preset_representation_theory_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    char **names = (char **) lv_malloc(RT_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* 群表示 */
         PRESET_RT_LINEAR_REPRESENTATION,
         PRESET_RT_PERMUTATION_REP,
@@ -88,19 +81,6 @@ bool preset_representation_theory_get_names(char ***out_names, int *out_count) {
         PRESET_RT_HIGHEST_WEIGHT_REP,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            for (int j = 0; j < i; j++)
-                lv_free((void **) &names[j]);
-            lv_free((void **) &names);
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }

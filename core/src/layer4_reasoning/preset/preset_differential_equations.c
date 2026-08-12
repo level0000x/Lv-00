@@ -42,16 +42,7 @@ PresetCategory preset_differential_equations_category(void) {
 }
 
 bool preset_differential_equations_get_names(char ***out_names, int *out_count) {
-    if (!out_names || !out_count)
-        return false;
-
-    /* 分配名称数组 */
-    char **names = (char **) lv_malloc(DIFFERENTIAL_EQUATIONS_PRESET_COUNT * sizeof(char *));
-    if (!names)
-        return false;
-
-    /* 填充预设名称列表 */
-    const char *preset_names[] = {
+    static const char *const preset_names[] = {
         /* ODE求解方法 */
         PRESET_DE_SEPARABLE_METHOD,
         PRESET_DE_INTEGRATING_FACTOR,
@@ -81,26 +72,6 @@ bool preset_differential_equations_get_names(char ***out_names, int *out_count) 
         PRESET_DE_SERIES_SOLUTION,
     };
 
-    int count = (int) (sizeof(preset_names) / sizeof(preset_names[0]));
-
-    for (int i = 0; i < count; i++) {
-        names[i] = lv_strdup(preset_names[i]);
-        if (names[i] == NULL) {
-            for (int j = 0; j < i; j++) {
-                {
-                    void *tmp = names[j];
-                    lv_free(&tmp);
-                }
-            }
-            {
-                void *tmp = names;
-                lv_free(&tmp);
-            }
-            return false;
-        }
-    }
-
-    *out_names = names;
-    *out_count = count;
-    return true;
+    return preset_module_get_names(preset_names,
+        (int) (sizeof(preset_names) / sizeof(preset_names[0])), out_names, out_count);
 }
