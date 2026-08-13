@@ -34,7 +34,7 @@
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_json.h"
-#include "../../layer4_reasoning/proof/trust_color_x.h"
+#include "lv/trust_color_x.h"
 
 /* graph_validate_region_closure: 实现在 graph_conflict.c 中 */
 

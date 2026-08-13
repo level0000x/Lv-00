@@ -75,8 +75,7 @@ bool formula_convert_polygon(const FormulaNode *polygon_node, ConstraintGraph *g
             SymbolicCoord *coords[2];
             if (symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
                 AddNodeResult r = graph_add_point(graph, coords, 2);
-                symbolic_coord_destroy(coords[0]);
-                symbolic_coord_destroy(coords[1]);
+                symbolic_coord_pair_destroy(coords[0], coords[1]);
                 if (r == ADD_NODE_OK) {
                     v_id = graph_get_node_count(graph) - 1;
                     GeomNode *n = graph_get_node(graph, v_id);
@@ -245,8 +244,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
         SymbolicCoord *coords[2];
         if (symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1])) {
             AddNodeResult r = graph_add_point(graph, coords, 2);
-            symbolic_coord_destroy(coords[0]);
-            symbolic_coord_destroy(coords[1]);
+            symbolic_coord_pair_destroy(coords[0], coords[1]);
             if (r == ADD_NODE_OK) {
                 center_id = graph_get_node_count(graph) - 1;
                 GeomNode *n = graph_get_node(graph, center_id);
@@ -307,8 +305,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
     radius_coords[1] = symbolic_coord_from_double_scaled(ry, 1000);
 
     AddNodeResult r = graph_add_point(graph, radius_coords, 2);
-    symbolic_coord_destroy(radius_coords[0]);
-    symbolic_coord_destroy(radius_coords[1]);
+    symbolic_coord_pair_destroy(radius_coords[0], radius_coords[1]);
 
     if (r == ADD_NODE_OK) {
         int rp_id = graph_get_node_count(graph) - 1;

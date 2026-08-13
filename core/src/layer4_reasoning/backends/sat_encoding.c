@@ -540,7 +540,7 @@ static int encode_angle(SatEncoding *enc, const Constraint *con) {
 
         /* 计算目标离散桶索引 = floor(角度值 / 桶宽) */
         int bucket_count = 1 << DEFAULT_BITWIDTH;
-        double bucket_width = 180.0 / (double) bucket_count;
+        double bucket_width = lv_HALF_CIRCLE_DEG / (double) bucket_count;
         int target_bucket = (int) (con->numeric_value / bucket_width);
         if (target_bucket < 0)
             target_bucket = 0;

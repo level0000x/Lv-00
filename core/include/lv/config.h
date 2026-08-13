@@ -219,6 +219,9 @@ extern "C" {
 #ifndef lv_QUARTER_PI
 #define lv_QUARTER_PI 0.78539816339744830962 /* π/4 */
 #endif
+#ifndef lv_HALF_CIRCLE_DEG
+#define lv_HALF_CIRCLE_DEG 180.0 /* 半圆周角度（度），角度域 [0,180) 上限 */
+#endif
 
 /* 颜色通道（RGB 0-255 归一化） */
 #ifndef lv_COLOR_CHANNEL_MAX

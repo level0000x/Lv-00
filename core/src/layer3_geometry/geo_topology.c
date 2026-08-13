@@ -32,9 +32,7 @@
  */
 static void canonicalize_edge(int *v0, int *v1) {
     if (*v0 > *v1) {
-        int tmp = *v0;
-        *v0 = *v1;
-        *v1 = tmp;
+        lv_SWAP(int, *v0, *v1);
     }
 }
 
@@ -44,19 +42,13 @@ static void canonicalize_edge(int *v0, int *v1) {
 static void canonicalize_triangle(int *v0, int *v1, int *v2) {
     /* Sort three values */
     if (*v0 > *v1) {
-        int t = *v0;
-        *v0 = *v1;
-        *v1 = t;
+        lv_SWAP(int, *v0, *v1);
     }
     if (*v1 > *v2) {
-        int t = *v1;
-        *v1 = *v2;
-        *v2 = t;
+        lv_SWAP(int, *v1, *v2);
     }
     if (*v0 > *v1) {
-        int t = *v0;
-        *v0 = *v1;
-        *v1 = t;
+        lv_SWAP(int, *v0, *v1);
     }
 }
 
@@ -250,7 +242,7 @@ lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTrian
                 int v1 = edge_pairs[e][1];
                 /* 规范化边顺序 */
                 if (v0 > v1) {
-                    int t = v0; v0 = v1; v1 = t;
+                    lv_SWAP(int, v0, v1);
                 }
                 /* 去重 */
                 bool dup = false;

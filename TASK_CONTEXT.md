@@ -1172,3 +1172,159 @@ U10 两子项经全库甄别后判定均不满足粒度门槛（真实等价调�
 
 ### U10 验证
 本轮 U10 为纯评估登记，无代码改动；构建与测试基线沿用 U9 收尾结果：ninja build3 925/925（exit 0）+ `ctest --test-dir build3` 170/170 全通过。批次 U（U1–U10）至此全部完成。
+
+---
+
+## 十七、批次 V 候选立项与实施（2026-08-13）
+
+**候选来源**：历史批次「继续寻找更多可抽象化的方向」按判据 A–K 全库扫描，共 8 候选（V1–V8），用户选定「全部按优先级逐步完整执行」。V1–V3 已完成并验证，V4–V8 待执行。
+
+### 批次 V 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| V1 | 手写三行 swap → `lv_SWAP`（约 10 处追加） | 完成 |
+| V2 | 语义常量具名化（1e-300 / 1e6 / 1000 / 1000000） | 完成 |
+| V3 | 判据 D 单源化（RelAtomType / high_dim_utils / TrustColor/ProofColor） | 完成 |
+| V4 | 线性查找 → `lv_array_find_index_if`（实测 13 按 id + 11 按名） | 完成（不迁移） |
+| V5 | swap-last 删除 → `lv_array_swap_remove`（约 6 处） | 完成（不迁移） |
+| V6 | 纯 free 析构 3 处 → `lv_obj_destroy_fields` | 完成（不迁移） |
+| V7 | min/max 归约 → `lv_argmax / lv_argmin`（甄别后执行或豁免） | 完成（不迁移） |
+| V8 | C 组评估登记（edgebreaker push ×8、空白跳过判别、倍增残留 2 处、坐标缩放/阈值语义确认） | 完成（评估登记） |
+
+### V1 明细（手写三行 swap → lv_SWAP，判据 A）
+在既有 11 处基础上追加约 10 处手写三行 swap（`tmp = a; a = b; b = tmp;`）→ 既有 `lv_SWAP(type, a, b)`（lv_utils.h）。涉及文件：geo_topology.c、equiv_class.c、probabilistic_constraint.c、graph_node_alloc.c、proof_search_algo.c、solver_engine.c、graph_rank.c、gappa_propagate.c、algebraic_number_interval.c 等。
+
+### V2 明细（语义常量具名化，判据 C）
+- `1e-300` → `lv_TINY_SENTINEL`（config.h；symbolic_coord_trust.c 2 处「接近零」哨兵）
+- `1e6` → `GEODET_DIVERGENCE_FACTOR`（geo_event_detect.c 局部发散检测因子，3 处）
+- `1000` → `LV_DIFFICULTY_MAX_SCORE`（axiom_rule_engine.c 局部难度评分上限，4 处）
+- 漏网 `/1000000` → `lv_NS_PER_MS`（runtime_monitor.c）
+
+### V3 明细（判据 D 单源化）
+
+**V3a MiniStmtType 三重维护子候选 → 豁免**：mini_kernel.c 两套名称表分别对应不同枚举且不同构；`import_mm` 反向 if 链仅显式处理 4 个语句类型并有意不识别 `MINI_STMT_COMMENT`（`$=` 由解析流程消费为终止符），不满足「同构平行表」门槛，避免负面清单 #4 调用点迁就。
+
+**V3b RelAtomType 双头统一**：新建 `lv/rel_atom_type.h`（`REL_ATOM_POINT..FUNC_BLOCK` 0–4、`REL_ATOM_UNKNOWN` 99）；`relation_model.h` 与 `sat_encoding.h` 各自删除本地枚举，改 include 公共头（sat_encoding.h 原 `REL_ATOM_CUSTOM = 99` 命名统一为 `REL_ATOM_UNKNOWN`）。
+
+**V3c high_dim_utils 反查链 → lv_str_to_enum**：`high_dim_mapping_type_from_string` 的 4 分支 if 链改为 `lv_str_to_enum` 查表。
+
+**V3d TrustColor/ProofColor 枚举双定义单源化**：新建公共头 `lv/trust_color_x.h` 作为 X-macro 单一事实源（`LV_TRUST_COLOR_X` 5 列 10 项 + `LV_PROOF_COLOR_X` 4 列 12 项）；`symbolic_coord.h` 与 `proof.h` 删除手写枚举，从主源列表局部宏生成枚举；5 个消费方（trust_color.c / graph_dot_export.c / graph_serialize.c / interop_export_coq.c / proof_export.c）改 include 公共头；删除私有头 `core/src/layer4_reasoning/proof/trust_color_x.h`。
+
+**豁免（判据 D）**：mini_kernel 两名称表（不同构）、graph_dot_export switch（单点）、MiniStmtType（`import_mm` 有意排除 `$=`）。
+
+### V4 明细（线性查找 → lv_array_find_index_if，不迁移）
+
+全库扫描实测 24 处「返回下标」线性查找（13 按 id + 11 按名），形态严重异构，无一满足「结构体数组 + 谓词 → `return i` / `return -1`」干净契约：
+
+- **类型 A（按 id，13 处）**：`geometry_compress_triangle.c:84`（多顶点 id）、`lv_utils_array.c:336`（纯 int 数组，且是设施自身）不适用结构体泛型谓词；其余散布各层但元素类型（int64_t id / theory_id / 顶点 id）各异。
+- **类型 B（按名，11 处）**：`global_state` / `lv_registry` / `performance_profiler`×2 / `func_block_preset_internal` / `preset_blocks` 共 6 处带哈希快查回退，属容器内核而非线性样板；`lv_registry.c:107` 是设施自身实现；`lv_str_match_any` / `lv_str_match_delimited` 为 `strstr` 子串匹配而非 `strcmp == 0`。
+- **边界情况**：大量返回指针 / 状态码 / break 后返回状态 / 内联循环 / 输出参数 / 哈希 / 二分，均非干净 `return i/-1` 形态。
+
+强行建设会触发 §4.3（禁止宏泛型）、§6 #4（调用点迁就）或需 mode 分支（§2.3 终审一），且按名/按 id 下标查找已被 `lv_registry`、`lv_darray`、哈希快查等既有设施覆盖，无新设施必要 → **登记不迁移**。
+
+### V5 明细（swap-last 删除 → lv_array_swap_remove，不迁移）
+
+grep `= arr[count-1]` / `--count` / `*cur = *last` / `arr[i] = arr[...--]` 仅得 5 行，逐一甄别无统一契约：
+
+- `plugin_system_autoload.c:76`：`char*` 元素先 free 当前元素 → `*cur = *last` → pop，所有权/释放顺序特化。
+- `inequality_reasoning_sign.c:222`：`lvExpr*` 元素 + 表达式合并 + `goto next_op` 嵌套双循环，语义特化。
+- `groebner_parallel.c:219`：`*t = *last` 已由批次 Q11 `simple_poly_remove_zero_terms` 吸收（同文件 AoS PolyTerm）。
+- 其余命中为 `line[--len]='\0'` 字符串修尾或前缀和，与删除无关。
+
+元素类型/所有权/删除语义各异，无 `lv_array_swap_remove` 契约可覆盖 → **登记不迁移**。
+
+### V6 明细（纯 free 析构 3 处 → lv_obj_destroy_fields，不迁移）
+
+`lv_obj_destroy_fields` 已全库 46 处使用，历史 U4 已收敛纯 PLAIN_FREE 对象销毁。批次 V 所列 3 处残余未形成 ≥2 处同构、尚未独立定位（实质为候选尾部孤例），避免 §6 #5 无候选孤例 → **登记不迁移**。
+
+### V7 明细（min/max 归约 → lv_argmax/lv_argmin，不迁移）
+
+历史批次 P11 已对 28 处（4 选择排序 + 24 线性选优）判定「比较键不同、相等处理不同、返回下标 vs 值 vs 指针」无通用契约；该语义差异依旧成立，不新增原语 → **登记不迁移**。
+
+### V8 明细（C 组评估登记）
+
+- **edgebreaker push ×8**：`geometry_compress_edgebreaker.c` 中 seq 单值 push（`seq[len++] = EDGEBREAKER_C/S/L/R`）与 boundary 双字段 push 元素类型/字段不同构，非同一 `push ×8` 原语可收敛。
+- **空白跳过判别**：已收敛——`lv_str_skip_ws` 22 处 + `lv_str_skip_ws_n` 5 处均为设施调用终态，无手写 `while(isspace)` 残留。
+- **倍增残留 2 处**：历史批次登记的语义特化豁免，维持。
+- **坐标缩放/阈值语义确认**：历史 Q12/Q24/C 豁免覆盖，维持。
+
+→ **评估登记（无新代码改动）**。
+
+### 决策登记（第 9 章格式）
+`lv_SWAP` 复用 / A / ~10 处 9 文件 / 无 / 全量构建 + 各相关测试；`lv_TINY_SENTINEL` 复用 / C / symbolic_coord_trust 2 处 / 无 / 数值测试链；`GEODET_DIVERGENCE_FACTOR` / C / geo_event_detect 3 处 / 无 / test_geo_event_detect 族；`LV_DIFFICULTY_MAX_SCORE` / C / axiom_rule_engine 4 处 / 无 / test_axiom_rule_engine 族；`lv_NS_PER_MS` 复用 / C / runtime_monitor 1 处 / 无 / test_runtime_monitor 族；`lv/rel_atom_type.h` 单源 / D / relation_model + sat_encoding 2 文件 / 无 / test_relation_model + test_sat 族；`lv_str_to_enum` 查表化 / D / high_dim_utils 1 处 / 无 / test_high_dim 族；`lv/trust_color_x.h` 主源 / D / symbolic_coord + proof + 5 消费方 7 文件 / 无 / test_*_export 族；判据 D 豁免（mini_kernel 两名称表不同构 / graph_dot_export switch 单点 / MiniStmtType import_mm 有意排除 `$=`）/ D / 0 文件 / 负面清单 #4/#5 / 无；`lv_array_find_index_if` / 评估后豁免 / 0 / 24 处（13 id + 11 name）形态异构（多顶点 id、纯 int 设施自身、哈希快查回退、strstr 子串、返回指针/状态/输出参数）无 ≥2 同构 return i/-1 契约（负面清单 #4 + §4.3）/ 无；`lv_array_swap_remove` / 评估后豁免 / 0 / 5 行命中无统一契约（char* 所有权释放顺序 + lvExpr* 表达式合并嵌套 + 已由 simple_poly_remove_zero_terms 吸收）（负面清单 #4/#5）/ 无；`lv_obj_destroy_fields` 残余 3 处 / 评估后豁免 / 0 / 未形成 ≥2 同构、候选尾部孤例（负面清单 #5）/ 无；`lv_argmax/lv_argmin` / 评估后豁免 / 0 / 比较键不同、相等处理不同、返回下标 vs 值 vs 指针无通用契约（历史 P11 28 处）/ 无；V8 C 组评估 / 评估登记 / 0 / edgebreaker push 异构 + 空白跳过已收敛 + 倍增残留历史豁免 + 坐标缩放历史豁免 / 无。
+
+### 验证
+ninja build3 925/925（exit 0，仅含既有宏重定义警告）+ ctest 170/170 全部通过，零修复项。
+
+---
+
+## 十八、批次 W 候选立项（2026-08-13）
+
+**候选来源**：「继续寻找更多可抽象化的方向」按判据 A–L 全库扫描（三路只读子代理），排除批次 V/R/S/T/U/Q/P/K/L/N 已收敛/已判不迁移模式后，共 6 个新候选。
+
+### 批次 W 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| W1 | SolverBackendType 四份平行元数据表 → 单一 X-macro 单源（判据 F+D） | 已执行 |
+| W2 | π 常量族 → 收敛到 `lv_PI`（判据 C） | 已执行 |
+| W3 | formula_string.c 18 处 snprintf 截断防御样板 → static helper（判据 L） | 已执行 |
+| W4 | 坐标对销毁 helper `symbolic_coord_pair_destroy`（判据 H） | 已执行 |
+| W5 | 180.0 角度桶宽具名化（判据 C） | 已执行 |
+| W6 | ConflictSeverity 两列元数据（判据 F 弱） | 登记暂缓（未达 §1.6 门槛） |
+
+### W1 候选（SolverBackendType 四份平行表，判据 F+D，强候选）
+
+同一枚举 `SolverBackendType`（`smt_backend.h:14`，4 值 GROEBNER/SMT_Z3/SMT_CVC5/SMT_SINGULAR）在 2 文件共 4 份平行元数据，任一新后端需同步 4 处：
+- 表 a（名表）：`smt_backend_impl.c:391-396`；
+- 表 b（type/name/version/priority）：`smt_backend_impl.c:500-510`；
+- 表 c（插件注册 9 字段）：`smt_backend_impl.c:618-665`；
+- 表 d（type/display_name/executable/encode_error/fallback）：`smt_backend_impl_groebner.c:1095-1107`。
+- 附加重复：可执行名 `"z3"`/`"cvc5"` 另在 `smt_backend_impl_external.c:62-64` 硬编码比对。
+
+仿已收敛的 `ATPBackendType`（S-D3，`LV_ATP_BACKEND_ENTRY` 单源 X 列表）收敛为单一 X-macro，生成 name/version/priority/executable/encode_error/fallback 各列。
+
+### W2 候选（π 常量族，判据 C）
+
+同一语义常量 π 在 7 文件 ≥6 处独立定义/裸写（double 精度下数值逐位一致）：
+- `config.h:211` `#define lv_PI`（权威源）；
+- `lv_numeric.h:37-38` `#ifndef lv_PI` 重复定义（注释自述「与 lv_config.h 保持一致」）；
+- `meta_proof.c:138` `#define META_PROOF_PI`；
+- `conflict_detector.c:613-614` 局部 `const double PI`；
+- `geo_halfedge_mesh.c:785` / `interop_export_geojson.c:227` 裸 `3.14159…`；
+- `lv_platform.h:87-88` `#define M_PI`（平台回退 shim，部分豁免）。
+- 旁证：`lv_DEG_TO_RAD`/`lv_RAD_TO_DEG`（config.h）零调用点，因 `lv_numeric.c` 直写 `lv_PI/180`。
+
+收敛到 `lv_PI`/`lv_TWO_PI` 为唯一权威源。
+
+### W3 候选（formula_string.c 18 处 L2 样板，判据 L）
+
+`formula_string.c` 18 处同构「`snprintf` + `if (n<0 || n>=buf_size)` 截断防御 + `lv_strlcpy` 兜底」骨架（行 55/66/76/86/96/106/114/122/134/142/150/158/176/191/233/264/279/292），差异仅格式串/兜底串（常量差异）。单文件 → 落 `static` helper（内部走 `lv_snprintf` + 截断判定 + 兜底，返回值区分是否触发兜底覆盖带 `return` 的两处变体），不新增公共 API。
+
+### W4 候选（坐标对销毁 helper，判据 H）
+
+「同一坐标对逐分量销毁」约 16–18 对 / 6 文件，与既有 pair 创建 helper（`symbolic_coord_pair_create_rational` 等）成对但归还侧仍手写两行 `symbolic_coord_destroy(a); symbolic_coord_destroy(b);`（`symbolic_coord_destroy` 已 NULL-safe）：
+- `meta_repr.c:189-190/335-336/359-360`（3 对）、`formula_curve.c:729-730/744-745/797-798/806-807/849-850`（5 对）、`formula_converter_geom.c:200-201/234-235`（2 对）、`formula_converter_constraint.c:186-187/207-208`（2 对）、`formula_converter_complex.c:78-79/248-249/310-311`（3 对）、`singular_backend.c:864-865`（1 对）。
+
+事实同构（差异仅数组名，常量差异）。落 `symbolic_coord.h` 声明 + `symbolic_coord_lifecycle.c` 实现，与既有 pair 创建 helper 对称。`impl_preset_transformations.c` 宏内额外 `lv_free` 堆数组所有权不并入。
+
+### W5 候选（180.0 角度桶宽，判据 C，粒度临界）
+
+2 处同构「`180.0 / bucket_count` 角度域 [0,180) 离散化桶宽」：
+- `sat_encoding.c:543`（`bucket_count = 1 << DEFAULT_BITWIDTH`）；
+- `bdd_encoding.c:793`（`bucket_count = 1 << 8`）。
+
+`bucket_count` 取值不同属常量差异可参数化，但仅 2 处、紧贴粒度门槛 §1.13 下限 → 待甄别。
+
+**决策（已执行）**：核验 `DEFAULT_BITWIDTH == 8`，两处 `bucket_count` 均为 `1<<8`（256 桶），语义完全同构为「角度域 [0,180) 上限 = 半圆周角度（度）」。新增权威常量 `lv_HALF_CIRCLE_DEG 180.0`（config.h 角度系数区），替换 `sat_encoding.c` / `bdd_encoding.c` 两处裸 `180.0`。未提取整段离散化 helper（仅 2 处，避免过度抽象），也未触及 `lv_numeric.c` / `meta_proof.c` 中 `180.0`（属弧度↔度转换式，语义不同）。
+
+### W6 候选（ConflictSeverity 两列元数据，判据 F 弱，孤例）
+
+`ConflictSeverity`（3 值）在 `conflict_detector.c` 2 份平行表（标志偏移表 `:51-55` + 名称表 `:58-62`），单枚举、仅 2 列、1 文件，未达 §1.6「≥3 处同构」家族门槛 → 待甄别（登记暂缓倾向）。
+
+**决策（登记暂缓）**：核验仅 2 列（标志偏移 + 名称字符串）、1 文件、3 值，未达 §1.6「≥3 处同构」与 §1.13 粒度门槛；且两列类型异质（`size_t offsetof` vs `const char *`），X-macro 收敛收益低于成本。登记为暂缓，待未来 severity 元数据列 ≥3 时再评估。
+
+### 备注
+- 判据 A/B/D/E/G/I/J/K 本轮无新候选（子代理已逐条核验并排除历史已收敛/已判不迁移模式）。
+- 判据 H 另发现「节点 x/y double 提取」高频残留，但系既有 `symbolic_coord_get_xy`（Q19）的未迁移调用点，非新骨架，仅登记为遗留迁移面，不立项。

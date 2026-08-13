@@ -385,9 +385,7 @@ bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
             }
         }
         if (max_idx != i) {
-            PQEntry tmp = pq[i];
-            pq[i] = pq[max_idx];
-            pq[max_idx] = tmp;
+            lv_SWAP(PQEntry, pq[i], pq[max_idx]);
         }
     }
 
@@ -440,9 +438,7 @@ bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
                 }
             }
             if (max_idx != i) {
-                PQEntry tmp = pq[i];
-                pq[i] = pq[max_idx];
-                pq[max_idx] = tmp;
+                lv_SWAP(PQEntry, pq[i], pq[max_idx]);
             }
         }
     }
@@ -645,9 +641,7 @@ bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
             /* 简单洗牌（使用模拟步数作为种子） */
             for (int i = PROOF_STRATEGY_COUNT - 1; i > 0; i--) {
                 int j = (sim + i) % (i + 1); /* 伪随机交换 */
-                int tmp = random_order[i];
-                random_order[i] = random_order[j];
-                random_order[j] = tmp;
+                lv_SWAP(int, random_order[i], random_order[j]);
             }
 
             for (int r = 0; r < PROOF_STRATEGY_COUNT && sim_depth < MCTS_SIM_MAX_DEPTH; r++) {

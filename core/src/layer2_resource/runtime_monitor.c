@@ -386,7 +386,7 @@ int64_t lv_timer_stop(lvTimer *timer) {
     timer->total_ns += timer->elapsed_ns;
     timer->state = TIMER_STOPPED;
 
-    return timer->elapsed_ns / 1000000;
+    return timer->elapsed_ns / (int64_t)lv_NS_PER_MS;
 }
 
 void lv_timer_pause(lvTimer *timer) {
@@ -424,9 +424,9 @@ int64_t lv_timer_elapsed_ms(const lvTimer *timer) {
     }
 
     if (timer->state == TIMER_RUNNING) {
-        return (lv_get_time_ns() - timer->start_time_ns) / 1000000;
+        return (lv_get_time_ns() - timer->start_time_ns) / lv_NS_PER_MS;
     }
-    return timer->elapsed_ns / 1000000;
+    return timer->elapsed_ns / (int64_t)lv_NS_PER_MS;
 }
 
 int64_t lv_timer_elapsed_ns(const lvTimer *timer) {
@@ -693,7 +693,7 @@ lvHealthReport *lv_runtime_health_check(void) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_runtime_health_check: calloc checks failed");
     }
 
-    report->timestamp_ms = lv_get_time_ns() / 1000000;
+    report->timestamp_ms = lv_get_time_ns() / lv_NS_PER_MS;
     report->overall = HEALTH_OK;
 
     /* 内存检查 */
@@ -808,7 +808,7 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     /* 基本信息 */
     lv_strlcpy(diag->version, "3.3.0", sizeof(diag->version));
     lv_strlcpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date));
-    diag->uptime_ms = lv_get_time_ns() / 1000000;
+    diag->uptime_ms = lv_get_time_ns() / lv_NS_PER_MS;
 
     /* 内存统计 - 从 lv 内存管理器获取实际数据 */
     {

@@ -48,6 +48,9 @@
 /** @brief Illinois 法参数：迭代中缩小低效端点的比例因子 */
 #define GEODET_ILLINOIS_FACTOR 0.5
 
+/** @brief 发散检测阈值因子：函数值超过初始参考值 1e6 倍视为极点而非根 */
+#define GEODET_DIVERGENCE_FACTOR 1e6
+
 /** @brief 周期性事件检测的分辨率（每周期内检测的精细点数） */
 #define GEODET_PERIODIC_PTS 16
 
@@ -347,7 +350,7 @@ static int geodet_root_bisection(lvEventDetector *detector, int event_id, const 
 
         /* 发散检测：如果 |fmid| 比初始函数值大 1e6 倍，
          * 说明区间内可能存在极点而非根。终止搜索。 */
-        if (fa_initial > 0.0 && fabs(fmid) > fa_initial * 1e6) {
+        if (fa_initial > 0.0 && fabs(fmid) > fa_initial * GEODET_DIVERGENCE_FACTOR) {
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_bisection: divergence detected, mid=%.17g fmid=%.17g", mid, fmid);
         }
 
@@ -431,7 +434,7 @@ static int geodet_root_illinois(lvEventDetector *detector, int event_id, const d
 
         /* 发散检测：如果 |f_new| 比初始函数值大 1e6 倍，
          * 说明区间内可能存在极点而非根。终止搜索。 */
-        if (f_l_initial > 0.0 && fabs(f_new) > f_l_initial * 1e6) {
+        if (f_l_initial > 0.0 && fabs(f_new) > f_l_initial * GEODET_DIVERGENCE_FACTOR) {
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geodet_root_illinois: divergence detected, x_new=%.17g f_new=%.17g", x_new, f_new);
         }
 
@@ -542,12 +545,8 @@ int geo_event_root_brent(lvEventDetector *detector, int event_id, const double *
     double fb = gb;
     /* 保证 |fa| >= |fb|：交换端点使 b 为更接近根的一端 */
     if (fabs(fa) < fabs(fb)) {
-        double tmp = a;
-        a = b;
-        b = tmp;
-        tmp = fa;
-        fa = fb;
-        fb = tmp;
+        lv_SWAP(double, a, b);
+        lv_SWAP(double, fa, fb);
     }
     double c = a;
     double fc = fa;
@@ -614,7 +613,7 @@ int geo_event_root_brent(lvEventDetector *detector, int event_id, const double *
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geo_event_root_brent: eval_event_func failed at x=%.17g", b);
 
         /* 发散检测：|fnew| 超过初始参考值 1e6 倍视为极点而非根 */
-        if (f_initial > 0.0 && fabs(fnew) > f_initial * 1e6)
+        if (f_initial > 0.0 && fabs(fnew) > f_initial * GEODET_DIVERGENCE_FACTOR)
             lv_RETURN_ERROR(lv_ERROR_INTERNAL, "geo_event_root_brent: divergence detected, x=%.17g f=%.17g", b, fnew);
 
         fb = fnew;

@@ -658,9 +658,7 @@ static double pctl_compute_until(const SimpleDTMC *mc, const char *phi_predicate
         }
 
         /* 交换 */
-        double *tmp = prob;
-        prob = next_prob;
-        next_prob = tmp;
+        lv_SWAP(double *, prob, next_prob);
 
         /* 收敛检查 */
         if (max_diff < convergence_threshold)
@@ -1119,7 +1117,7 @@ static bool pctl_eval_steady_state(SimpleDTMC *mc, const PCTLFormula *formula, d
                 double diff = fabs(next_pi[i] - pi[i]);
                 if (diff > max_diff) max_diff = diff;
             }
-            double *tmp = pi; pi = next_pi; next_pi = tmp;
+            lv_SWAP(double *, pi, next_pi);
             if (max_diff < convergence_threshold) { converged = true; break; }
         }
         if (!converged)

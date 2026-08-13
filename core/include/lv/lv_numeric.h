@@ -25,6 +25,8 @@ extern "C" {
 #include <stdbool.h>
 #include <gmp.h>
 
+#include "config.h" /* lv_PI / lv_TWO_PI / lv_HALF_PI / lv_QUARTER_PI 权威源（W2 单源化） */
+
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
 #endif
@@ -32,11 +34,6 @@ extern "C" {
 /* ============================================================
  * 数学常量
  * ============================================================ */
-
-/** @brief 圆周率 π（精度与 lv_config.h 的 lv_PI 保持一致，22 位） */
-#ifndef lv_PI
-#define lv_PI 3.1415926535897932384626
-#endif
 
 /** @brief 自然常数 e */
 #define lv_E 2.71828182845904523536

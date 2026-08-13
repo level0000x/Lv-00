@@ -9,6 +9,7 @@
 #include "formula_converter_internal.h"
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,24 @@
  */
 void node_to_string(const FormulaNode *node, char *buf, size_t buf_size);
 typedef void (*NodeToStringFunc)(const FormulaNode *node, char *buf, size_t buf_size);
+
+/* 判据 L2：snprintf 定长写入 + 截断防御收敛。
+ * 语义：将 fmt/args 格式化为定长缓冲 buf（容量 buf_size）；若截断
+ * （n >= buf_size）或出错（n < 0），则用 fallback 兜底串覆盖 buf，
+ * 保证 NUL 终止。返回 snprintf 的返回值：截断时 >= buf_size、出错时 <0，
+ * 供调用点（str_coord_list / str_constraint 的游标续写）判定是否提前返回。
+ * 前置：buf 非空且 buf_size > 0；fallback/fmt 非空。 */
+static int str_snprintf_fallback(char *buf, size_t buf_size, const char *fallback, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(buf, buf_size, fmt, ap);
+    va_end(ap);
+    if (n < 0 || (size_t) n >= buf_size) {
+        lv_strlcpy(buf, fallback, buf_size);
+    }
+    return n;
+}
+
 static void str_number(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.number.is_integer) {
                 snprintf(buf, buf_size, "%lld", (long long) node->data.number.numerator);
@@ -52,77 +71,52 @@ static void str_b_add(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s + %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                /* 缓冲区不足时使用安全截断标记 */
-                lv_strlcpy(buf, "(... + ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... + ...)", "(%s + %s)", left, right);
         }
 
 static void str_b_sub(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s - %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "(... - ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... - ...)", "(%s - %s)", left, right);
         }
 
 static void str_b_mul(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s * %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "(... * ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... * ...)", "(%s * %s)", left, right);
         }
 
 static void str_b_div(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s / %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "(... / ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... / ...)", "(%s / %s)", left, right);
         }
 
 static void str_b_pow(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.binary_op.left, left, sizeof(left));
             node_to_string(node->data.binary_op.right, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s ^ %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "(... ^ ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... ^ ...)", "(%s ^ %s)", left, right);
         }
 
 static void str_equation(const FormulaNode *node, char *buf, size_t buf_size) {
             char left[FORMULA_EXPR_BUF_SIZE], right[FORMULA_EXPR_BUF_SIZE];
             node_to_string(node->data.equation.lhs, left, sizeof(left));
             node_to_string(node->data.equation.rhs, right, sizeof(right));
-            int n = snprintf(buf, buf_size, "(%s = %s)", left, right);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "(... = ...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "(... = ...)", "(%s = %s)", left, right);
         }
 
 static void str_g_point(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_point.name ? node->data.geom_point.name : "?";
-            int n = snprintf(buf, buf_size, "point(%s)", name);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "point(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "point(...)", "point(%s)", name);
         }
 
 static void str_g_segment(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_segment.name ? node->data.geom_segment.name : "?";
-            int n = snprintf(buf, buf_size, "segment(%s)", name);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "segment(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "segment(...)", "segment(%s)", name);
         }
 
 static void str_g_circle(const FormulaNode *node, char *buf, size_t buf_size) {
@@ -131,34 +125,24 @@ static void str_g_circle(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.geom_circle.radius) {
                 node_to_string(node->data.geom_circle.radius, r, sizeof(r));
             }
-            int n = snprintf(buf, buf_size, "circle(%s, r=%s)", name, r);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "circle(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "circle(...)", "circle(%s, r=%s)", name, r);
         }
 
 static void str_g_triangle(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_triangle.name ? node->data.geom_triangle.name : "?";
-            int n = snprintf(buf, buf_size, "triangle(%s)", name);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "triangle(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "triangle(...)", "triangle(%s)", name);
         }
 
 static void str_g_polygon(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_polygon.name ? node->data.geom_polygon.name : "?";
-            int n = snprintf(buf, buf_size, "polygon(%s, %d vertices)", name, node->data.geom_polygon.vertex_count);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "polygon(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "polygon(...)", "polygon(%s, %d vertices)", name,
+                                  node->data.geom_polygon.vertex_count);
         }
 
 static void str_g_region(const FormulaNode *node, char *buf, size_t buf_size) {
             const char *name = node->data.geom_region.name ? node->data.geom_region.name : "?";
-            int n = snprintf(buf, buf_size, "region(%s, %d segments)", name, node->data.geom_region.segment_count);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "region(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "region(...)", "region(%s, %d segments)", name,
+                                  node->data.geom_region.segment_count);
         }
 
 static void str_g_arc(const FormulaNode *node, char *buf, size_t buf_size) {
@@ -173,10 +157,7 @@ static void str_g_arc(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.geom_arc.end_angle) {
                 node_to_string(node->data.geom_arc.end_angle, t2, sizeof(t2));
             }
-            int n = snprintf(buf, buf_size, "arc(%s, r=%s, %s, %s)", name, r, t1, t2);
-            if (n < 0 || (size_t) n >= buf_size) {
-                lv_strlcpy(buf, "arc(...)", buf_size);
-            }
+            str_snprintf_fallback(buf, buf_size, "arc(...)", "arc(%s, r=%s, %s, %s)", name, r, t1, t2);
         }
 
 /* ---------- 一元运算（统一前缀/后缀模板） ----------
@@ -188,10 +169,7 @@ static void str_unary_fmt(const FormulaNode *node, const char *prefix, const cha
                           size_t buf_size) {
     char operand[FORMULA_EXPR_BUF_SIZE];
     node_to_string(node->data.unary_op.operand, operand, sizeof(operand));
-    int n = snprintf(buf, buf_size, "%s%s%s", prefix, operand, suffix);
-    if (n < 0 || (size_t) n >= buf_size) {
-        lv_strlcpy(buf, "(...)", buf_size);
-    }
+    str_snprintf_fallback(buf, buf_size, "(...)", "%s%s%s", prefix, operand, suffix);
 }
 
 static void str_unary_neg(const FormulaNode *node, char *buf, size_t buf_size) {
@@ -230,11 +208,9 @@ static void str_unary_log(const FormulaNode *node, char *buf, size_t buf_size) {
  * 格式："(x, y, z)"（逗号分隔，与渲染后端坐标列表风格一致）。 */
 static void str_coord_list(const FormulaNode *node, char *buf, size_t buf_size) {
     size_t pos = 0;
-    int n = snprintf(buf, buf_size, "(");
-    if (n < 0 || (size_t) n >= buf_size) {
-        lv_strlcpy(buf, "(...)", buf_size);
+    int n = str_snprintf_fallback(buf, buf_size, "(...)", "(");
+    if (n < 0 || (size_t) n >= buf_size)
         return;
-    }
     pos = (size_t) n;
     for (int i = 0; i < node->data.coord_list.coord_count; i++) {
         char coord[FORMULA_EXPR_BUF_SIZE];
@@ -261,10 +237,7 @@ static void str_g_line(const FormulaNode *node, char *buf, size_t buf_size) {
     if (node->data.geom_line.point2) {
         node_to_string(node->data.geom_line.point2, p2, sizeof(p2));
     }
-    int n = snprintf(buf, buf_size, "line(%s, %s, %s)", name, p1, p2);
-    if (n < 0 || (size_t) n >= buf_size) {
-        lv_strlcpy(buf, "line(...)", buf_size);
-    }
+    str_snprintf_fallback(buf, buf_size, "line(...)", "line(%s, %s, %s)", name, p1, p2);
 }
 
 static void str_g_vector(const FormulaNode *node, char *buf, size_t buf_size) {
@@ -276,10 +249,7 @@ static void str_g_vector(const FormulaNode *node, char *buf, size_t buf_size) {
     if (node->data.geom_vector.end) {
         node_to_string(node->data.geom_vector.end, end, sizeof(end));
     }
-    int n = snprintf(buf, buf_size, "vector(%s, %s, %s)", name, start, end);
-    if (n < 0 || (size_t) n >= buf_size) {
-        lv_strlcpy(buf, "vector(...)", buf_size);
-    }
+    str_snprintf_fallback(buf, buf_size, "vector(...)", "vector(%s, %s, %s)", name, start, end);
 }
 
 /* ---------- 几何约束（统一 participants 遍历模板） ----------
@@ -289,11 +259,9 @@ static void str_g_vector(const FormulaNode *node, char *buf, size_t buf_size) {
  *   congruent(s1, s2) / angle(a, b, c)。 */
 static void str_constraint(const FormulaNode *node, const char *kind, char *buf, size_t buf_size) {
     size_t pos = 0;
-    int n = snprintf(buf, buf_size, "%s(", kind);
-    if (n < 0 || (size_t) n >= buf_size) {
-        lv_strlcpy(buf, "(...)", buf_size);
+    int n = str_snprintf_fallback(buf, buf_size, "(...)", "%s(", kind);
+    if (n < 0 || (size_t) n >= buf_size)
         return;
-    }
     pos = (size_t) n;
     for (int i = 0; i < node->data.constraint.participant_count; i++) {
         char p[FORMULA_EXPR_BUF_SIZE];

@@ -30,7 +30,7 @@
 
 #include "lv_internal.h"
 #include "lv_utils.h"
-#include "../../layer4_reasoning/proof/trust_color_x.h"
+#include "lv/trust_color_x.h"
 
 /* ================================================================
  * 内部辅助

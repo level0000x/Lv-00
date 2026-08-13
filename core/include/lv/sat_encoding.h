@@ -82,14 +82,7 @@ typedef enum {
 } RelFormulaType;
 
 /* ── Rel Atom Type ── */
-typedef enum {
-    REL_ATOM_POINT = 0,
-    REL_ATOM_LINE = 1,
-    REL_ATOM_REGION = 2,
-    REL_ATOM_PORT = 3,
-    REL_ATOM_FUNC_BLOCK = 4,
-    REL_ATOM_CUSTOM = 99
-} RelAtomType;
+#include "lv/rel_atom_type.h"
 
 /* ── Forward declarations ── */
 typedef struct RelAtom RelAtom;

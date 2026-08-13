@@ -269,9 +269,7 @@ void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
 
                             /* 确保边的方向一致（较小索引在前） */
                             if (idx_a > idx_b) {
-                                int tmp = idx_a;
-                                idx_a = idx_b;
-                                idx_b = tmp;
+                                lv_SWAP(int, idx_a, idx_b);
                             }
 
                             /* 检查边是否已存在 */
@@ -311,9 +309,7 @@ void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
                         CSGVec3 edge_out = csg_vec3_sub(edge_mid, csg_vec3_scale(dir, csg_vec3_dot(edge_mid, dir)));
                         if (csg_vec3_dot(tri.normal, edge_out) < 0.0) {
                             /* 翻转三角形绕序 */
-                            CSGVec3 tmp = tri.v[1];
-                            tri.v[1] = tri.v[2];
-                            tri.v[2] = tmp;
+                            lv_SWAP(CSGVec3, tri.v[1], tri.v[2]);
                             tri.normal = csg_vec3_scale(tri.normal, -1.0);
                         }
                         tri.face_id = out->count;
@@ -324,9 +320,7 @@ void eval_csg_extrude_linear(const CSGNode *node, CSGTriList *out) {
                         tri.v[2] = v3;
                         tri.normal = csg_tri_normal(&tri);
                         if (csg_vec3_dot(tri.normal, edge_out) < 0.0) {
-                            CSGVec3 tmp = tri.v[1];
-                            tri.v[1] = tri.v[2];
-                            tri.v[2] = tmp;
+                            lv_SWAP(CSGVec3, tri.v[1], tri.v[2]);
                             tri.normal = csg_vec3_scale(tri.normal, -1.0);
                         }
                         tri.face_id = out->count;
@@ -437,7 +431,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
             CSGVec3 face_normal = csg_tri_normal(&tri);
             if (csg_vec3_dot(face_normal, axis) < 0.0) {
                 face_normal = csg_vec3_scale(face_normal, -1.0);
-                CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                lv_SWAP(CSGVec3, tri.v[1], tri.v[2]);
             }
             tri.normal = csg_vec3_normalize(face_normal);
             tri.face_id = out->count;
@@ -458,7 +452,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
             CSGVec3 face_normal = csg_tri_normal(&tri);
             if (csg_vec3_dot(face_normal, axis) > 0.0) {
                 face_normal = csg_vec3_scale(face_normal, -1.0);
-                CSGVec3 tmp = tri.v[1]; tri.v[1] = tri.v[2]; tri.v[2] = tmp;
+                lv_SWAP(CSGVec3, tri.v[1], tri.v[2]);
             }
             tri.normal = csg_vec3_normalize(face_normal);
             tri.face_id = out->count;

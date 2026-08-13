@@ -22,7 +22,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
-#include "../../layer4_reasoning/proof/trust_color_x.h"
+#include "lv/trust_color_x.h"
 
 
 /* ==================== 内部辅助函数 ==================== */

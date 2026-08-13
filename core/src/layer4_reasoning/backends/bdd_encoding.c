@@ -790,7 +790,7 @@ static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, 
         int l2_var = (l2_id >= 0) ? lookup_node_base_var(l2_id, n, node_base_var, graph) : -1;
 
         int bucket_count = 1 << 8;
-        double bucket_width = 180.0 / (double) bucket_count;
+        double bucket_width = lv_HALF_CIRCLE_DEG / (double) bucket_count;
         int target_bucket = (int) (con->numeric_value / bucket_width);
         if (target_bucket < 0)
             target_bucket = 0;

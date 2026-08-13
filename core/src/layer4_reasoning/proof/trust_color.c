@@ -12,7 +12,7 @@
  */
 #include "lv/trust_color.h"
 #include "lv/lv_xmacro.h"
-#include "trust_color_x.h"
+#include "lv/trust_color_x.h"
 
 /* ================================================================
  * 映射函数：TrustColor ↔ ProofColor

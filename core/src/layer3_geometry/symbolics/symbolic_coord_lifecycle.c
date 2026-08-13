@@ -329,6 +329,11 @@ void symbolic_coord_destroy(SymbolicCoord *coord) {
     lv_free((void **) &coord); /* lv_malloc分配 */
 }
 
+void symbolic_coord_pair_destroy(SymbolicCoord *a, SymbolicCoord *b) {
+    symbolic_coord_destroy(a);
+    symbolic_coord_destroy(b);
+}
+
 /* ============================================================
  * Double Conversion & Cache Management
  * ============================================================ */

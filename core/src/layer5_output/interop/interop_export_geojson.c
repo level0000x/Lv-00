@@ -224,7 +224,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
         lv_json_buf_append_raw(&buf, "        \"coordinates\": [ [\n");
 
         for (int k = 0; k < 32; k++) {
-            double ang = 2.0 * 3.14159265358979323846 * k / 32.0;
+            double ang = lv_TWO_PI * k / 32.0;
             double px = cx + r * cos(ang);
             double py = cy + r * sin(ang);
             if (k > 0)

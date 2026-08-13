@@ -388,12 +388,9 @@ bool smtsolver_is_backend_available(SolverBackendType type) {
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief smtsolver_backend_type_name 名称表（按枚举值升序） */
+/** @brief smtsolver_backend_type_name 名称表（由 LV_SMT_BACKEND_ENTRY 单一事实源生成） */
 static const lvStrToEnumEntry s_smtsolver_backend_type_name_entries[] = {
-    {"Groebner", GROEBNER},
-    {"Z3", SMT_Z3},
-    {"cvc5", SMT_CVC5},
-    {"Singular", SMT_SINGULAR},
+    lv_XMACRO_TO_ENUM_TABLE(LV_SMT_BACKEND_ENTRY)
 };
 
 const char *smtsolver_backend_type_name(SolverBackendType type) {
@@ -499,14 +496,13 @@ SMTBackendRegistry *smtsolver_get_registry(void) {
          * 避免注册表单例长期为空导致 smtsolver_find_backend 永远查不到后端。 */
         static const struct {
             SolverBackendType type;
-            const char *name;
             const char *version;
             int priority;
         } kBuiltinBackends[] = {
-            {GROEBNER, "Groebner", "3.x", 1},
-            {SMT_Z3, "Z3", "4.x", 2},
-            {SMT_CVC5, "cvc5", "1.x", 3},
-            {SMT_SINGULAR, "Singular", "4.x", 4},
+            {GROEBNER, "3.x", 1},
+            {SMT_Z3, "4.x", 2},
+            {SMT_CVC5, "1.x", 3},
+            {SMT_SINGULAR, "4.x", 4},
         };
         for (size_t i = 0;
              i < sizeof(kBuiltinBackends) / sizeof(kBuiltinBackends[0]) &&
@@ -515,7 +511,7 @@ SMTBackendRegistry *smtsolver_get_registry(void) {
             SMTBackendEntry *entry = &s_smt_registry_state.registry.entries[s_smt_registry_state.registry.count];
             memset(entry, 0, sizeof(*entry));
             entry->type = kBuiltinBackends[i].type;
-            lv_strlcpy(entry->name, kBuiltinBackends[i].name, sizeof(entry->name));
+            lv_strlcpy(entry->name, smtsolver_backend_type_name(kBuiltinBackends[i].type), sizeof(entry->name));
             lv_strlcpy(entry->version, kBuiltinBackends[i].version, sizeof(entry->version));
             entry->available = smtsolver_is_backend_available(kBuiltinBackends[i].type);
             entry->priority = kBuiltinBackends[i].priority;
@@ -615,7 +611,7 @@ static void smt_plugins_register_once(void) {
     memset(s_smt_plugins, 0, sizeof(s_smt_plugins));
 
     /* Groebner */
-    s_smt_plugins[GROEBNER].name = "Groebner";
+    s_smt_plugins[GROEBNER].name = smtsolver_backend_type_name(GROEBNER);
     s_smt_plugins[GROEBNER].version = "1.0";
     s_smt_plugins[GROEBNER].type = lv_PLUGIN_TYPE_GROEBNER;
     s_smt_plugins[GROEBNER].capabilities = lv_PLUGIN_CAP_EXACT;
@@ -627,7 +623,7 @@ static void smt_plugins_register_once(void) {
     lv_backend_plugin_register(reg, &s_smt_plugins[GROEBNER]);
 
     /* Z3 */
-    s_smt_plugins[SMT_Z3].name = "Z3";
+    s_smt_plugins[SMT_Z3].name = smtsolver_backend_type_name(SMT_Z3);
     s_smt_plugins[SMT_Z3].version = "4.x";
     s_smt_plugins[SMT_Z3].type = lv_PLUGIN_TYPE_SMT;
     s_smt_plugins[SMT_Z3].capabilities = lv_PLUGIN_CAP_INCREMENTAL | lv_PLUGIN_CAP_PROOF_PROD
@@ -640,7 +636,7 @@ static void smt_plugins_register_once(void) {
     lv_backend_plugin_register(reg, &s_smt_plugins[SMT_Z3]);
 
     /* cvc5 */
-    s_smt_plugins[SMT_CVC5].name = "cvc5";
+    s_smt_plugins[SMT_CVC5].name = smtsolver_backend_type_name(SMT_CVC5);
     s_smt_plugins[SMT_CVC5].version = "1.x";
     s_smt_plugins[SMT_CVC5].type = lv_PLUGIN_TYPE_SMT;
     s_smt_plugins[SMT_CVC5].capabilities = lv_PLUGIN_CAP_INCREMENTAL | lv_PLUGIN_CAP_PROOF_PROD
@@ -653,7 +649,7 @@ static void smt_plugins_register_once(void) {
     lv_backend_plugin_register(reg, &s_smt_plugins[SMT_CVC5]);
 
     /* Singular */
-    s_smt_plugins[SMT_SINGULAR].name = "Singular";
+    s_smt_plugins[SMT_SINGULAR].name = smtsolver_backend_type_name(SMT_SINGULAR);
     s_smt_plugins[SMT_SINGULAR].version = "4.x";
     s_smt_plugins[SMT_SINGULAR].type = lv_PLUGIN_TYPE_GROEBNER;
     s_smt_plugins[SMT_SINGULAR].capabilities = lv_PLUGIN_CAP_EXACT;

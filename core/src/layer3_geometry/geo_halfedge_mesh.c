@@ -782,7 +782,7 @@ double lv_he_mesh_vertex_curvature(const lvHeMesh *mesh, lvVertex v) {
 
     /* 简化的离散曲率：2π - 邻接角和 */
     double angle_sum = lv_he_mesh_vertex_angle(mesh, v);
-    return 2.0 * 3.14159265358979 - angle_sum;
+    return lv_TWO_PI - angle_sum;
 }
 
 lvPoint3D lv_he_mesh_vertex_normal(const lvHeMesh *mesh, lvVertex v) {

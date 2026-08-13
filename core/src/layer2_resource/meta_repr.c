@@ -186,8 +186,7 @@ ConstraintGraph *meta_repr_encode_graph(MetaReprEncoder *encoder, const Constrai
 
         GeomNode *new_node = graph_add_node_with_id(encoded, src_node->id, GEOM_POINT, coords, 2);
         /* graph_add_node_with_id 深拷贝坐标，此处释放原始对象 */
-        symbolic_coord_destroy(coords[0]);
-        symbolic_coord_destroy(coords[1]);
+        symbolic_coord_pair_destroy(coords[0], coords[1]);
         if (!new_node) {
             continue;
         }
@@ -332,8 +331,7 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 }
                 GeomNode *port_node = (GeomNode *) lv_calloc(1, sizeof(GeomNode));
                 if (!port_node) {
-                    symbolic_coord_destroy(pcoords[0]);
-                    symbolic_coord_destroy(pcoords[1]);
+                    symbolic_coord_pair_destroy(pcoords[0], pcoords[1]);
                     lv_free((void **) &pcoords);
                     continue;
                 }
@@ -356,8 +354,7 @@ GeomNode *meta_repr_encode_func_block(MetaReprEncoder *encoder, const FuncBlock 
                 }
                 GeomNode *port_node = (GeomNode *) lv_calloc(1, sizeof(GeomNode));
                 if (!port_node) {
-                    symbolic_coord_destroy(pcoords[0]);
-                    symbolic_coord_destroy(pcoords[1]);
+                    symbolic_coord_pair_destroy(pcoords[0], pcoords[1]);
                     lv_free((void **) &pcoords);
                     continue;
                 }

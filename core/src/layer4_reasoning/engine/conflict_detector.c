@@ -610,9 +610,8 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
         return 0;
 
     const double angle_eps = config ? config->angle_tolerance : g_default_config.angle_tolerance;
-    /* 180 度对应的弧度 */
-    const double PI = 3.14159265358979323846;
-    const double PI_EPS = PI + angle_eps;
+    /* 180 度对应的弧度（lv_PI 来自 config.h 权威源） */
+    const double PI_EPS = lv_PI + angle_eps;
 
     /* ---- 角度冲突检测 ---- */
     if (c1->type == CONSTRAINT_ANGLE && c2->type == CONSTRAINT_ANGLE && c1->participant_count >= 2 &&
@@ -626,13 +625,13 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
             /* 计算角度差值（归一化到 [0, 2*PI)） */
             double diff = fabs(c1->numeric_value - c2->numeric_value);
             /* 归一化到 [0, PI) */
-            while (diff >= PI)
-                diff -= PI;
+            while (diff >= lv_PI)
+                diff -= lv_PI;
             if (diff < 0)
                 diff = -diff;
 
             /* 角度差不是 0（相同角度）也不是 180 度（互补角度），则矛盾 */
-            if (diff > angle_eps && fabs(diff - PI) > angle_eps) {
+            if (diff > angle_eps && fabs(diff - lv_PI) > angle_eps) {
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
                 snprintf(desc, sizeof(desc),
                          "实体 %d 和 %d 之间存在矛盾的角度约束："

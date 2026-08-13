@@ -197,8 +197,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
         }
 
         AddNodeResult result = graph_add_point(graph, coords, 2);
-        symbolic_coord_destroy(coords[0]);
-        symbolic_coord_destroy(coords[1]);
+        symbolic_coord_pair_destroy(coords[0], coords[1]);
 
         if (result != ADD_NODE_OK) {
             return false;
@@ -231,8 +230,7 @@ bool formula_convert_circle(const FormulaNode *circle_node, ConstraintGraph *gra
     radius_coords[1] = symbolic_coord_create_rational(0, 1);                            /* 圆心 y */
 
     AddNodeResult result = graph_add_point(graph, radius_coords, 2);
-    symbolic_coord_destroy(radius_coords[0]);
-    symbolic_coord_destroy(radius_coords[1]);
+    symbolic_coord_pair_destroy(radius_coords[0], radius_coords[1]);
 
     if (result != ADD_NODE_OK) {
         *out_node_id = center_id; /* 至少返回圆心 */

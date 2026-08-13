@@ -861,8 +861,7 @@ static void *singular_constraint_graph_to_ideal(const int *constraint_ids,
                                  "singular_constraint_graph_to_ideal: 符号坐标创建失败");
         }
         GeomNode *node = graph_add_node_with_id(graph, i, GEOM_POINT, coords, 2);
-        symbolic_coord_destroy(coords[0]);
-        symbolic_coord_destroy(coords[1]);
+        symbolic_coord_pair_destroy(coords[0], coords[1]);
         if (!node) {
             graph_destroy(graph);
             lv_RETURN_ERROR_NULL(lv_ERROR_INTERNAL,

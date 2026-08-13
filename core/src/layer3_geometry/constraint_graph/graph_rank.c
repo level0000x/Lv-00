@@ -59,9 +59,7 @@ int cg_mpq_row_echelon(mpq_t *matrix, int num_linear, int num_vars, int *pivot_r
                 mpq_swap(matrix[rank * (num_vars + 1) + j], matrix[pivot * (num_vars + 1) + j]);
             }
             if (pivot_row) {
-                int tmp = pivot_row[rank];
-                pivot_row[rank] = pivot_row[pivot];
-                pivot_row[pivot] = tmp;
+                lv_SWAP(int, pivot_row[rank], pivot_row[pivot]);
             }
         }
 

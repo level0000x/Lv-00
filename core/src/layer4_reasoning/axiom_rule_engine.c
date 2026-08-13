@@ -22,6 +22,9 @@
 /* 默认规则库容量 */
 #define DEFAULT_LIBRARY_CAPACITY 64
 
+/* 难度评分上限（overall_score 量程 0–1000，对应 level 1–10） */
+#define LV_DIFFICULTY_MAX_SCORE 1000
+
 /* ============ 内部辅助 ============ */
 
 /* 释放规则内部动态资源 */
@@ -396,8 +399,8 @@ lvDifficultyAssessment *lv_rule_assess_difficulty(const lvRule *rule) {
         avg += assess->dimensions[i];
     avg /= DIFF_DIM_COUNT;
     assess->overall_score = (uint32_t) (avg * 10);
-    if (assess->overall_score > 1000)
-        assess->overall_score = 1000;
+    if (assess->overall_score > LV_DIFFICULTY_MAX_SCORE)
+        assess->overall_score = LV_DIFFICULTY_MAX_SCORE;
     assess->level = (assess->overall_score / 100) + 1;
     if (assess->level > 10)
         assess->level = 10;
@@ -449,7 +452,7 @@ lvDifficultyAssessment *lv_proof_step_assess_difficulty(const ProofStep *step, c
         int node_cnt = graph_get_node_count(graph);
         if (node_cnt > 20) {
             score = (uint32_t)(score * 1.5);
-            if (score > 1000) score = 1000;
+            if (score > LV_DIFFICULTY_MAX_SCORE) score = LV_DIFFICULTY_MAX_SCORE;
         }
     }
 
@@ -487,7 +490,7 @@ lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop
              int nc = graph_get_node_count(prop->pattern);
             if (nc > 10) {
                 score = (uint32_t)(score * (1.0 + nc * 0.05));
-                if (score > 1000) score = 1000;
+                if (score > LV_DIFFICULTY_MAX_SCORE) score = LV_DIFFICULTY_MAX_SCORE;
                 level = (uint32_t)(level + nc / 5);
                 if (level > 10) level = 10;
             }

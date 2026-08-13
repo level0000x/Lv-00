@@ -404,9 +404,7 @@ lvODESolution *ode_solve(const lvODEProblem *problem, const lvODEConfig *config)
         sol->t_values[i] = t;
 
         /* Swap buffers */
-        double *tmp = y_curr;
-        y_curr = y_next;
-        y_next = tmp;
+        lv_SWAP(double *, y_curr, y_next);
 
         /* Store state */
         for (size_t j = 0; j < dim; j++) {

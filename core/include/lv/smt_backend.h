@@ -15,6 +15,20 @@ typedef enum { GROEBNER = 0, SMT_Z3 = 1, SMT_CVC5 = 2, SMT_SINGULAR = 3, COUNT }
 
 #define SMT_GROEBNER GROEBNER
 
+/**
+ * @brief SolverBackendType 显示名单一事实源（枚举 ↔ 名称映射）
+ *
+ * 每行 2 列：ENUM（枚举值）、NAME（显示名）。本宏是 SMT 后端显示名的
+ * 唯一权威源：smt_backend_impl.c 的 name↔enum 表、内置后端注册表、
+ * 插件注册表，以及 groebner 子模块的外部后端表均由此派生；禁止在其他
+ * 文件重复硬编码后端显示名（新增后端只需改本列表一处）。
+ */
+#define LV_SMT_BACKEND_ENTRY(x) \
+    x(GROEBNER, "Groebner") \
+    x(SMT_Z3, "Z3") \
+    x(SMT_CVC5, "cvc5") \
+    x(SMT_SINGULAR, "Singular")
+
 /* ── SMT Logic ── */
 typedef enum {
     SMT_LOGIC_QF_NRA = 0,

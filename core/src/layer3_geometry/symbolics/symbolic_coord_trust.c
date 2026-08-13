@@ -234,7 +234,7 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
         if (remaining < precision / 2.0)
             break;
-        if (remaining < 1e-300)
+        if (remaining < lv_TINY_SENTINEL)
             break;
 
         remaining = 1.0 / remaining;

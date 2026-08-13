@@ -39,7 +39,7 @@
 #include "lv_internal.h"
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
-#include "../proof/trust_color_x.h"
+#include "lv/trust_color_x.h"
 
 /* ============== 查找表 ============== */
 

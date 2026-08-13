@@ -238,12 +238,8 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
                             best = j;
                     }
                     if (best != i) {
-                        PolyEquation tmp = eqs_arr[i];
-                        eqs_arr[i] = eqs_arr[best];
-                        eqs_arr[best] = tmp;
-                        int tmp_pri = priority[i];
-                        priority[i] = priority[best];
-                        priority[best] = tmp_pri;
+                        lv_SWAP(PolyEquation, eqs_arr[i], eqs_arr[best]);
+                        lv_SWAP(int, priority[i], priority[best]);
                     }
                 }
 

@@ -726,8 +726,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
                 return false;
 
             AddNodeResult add_result = graph_add_point(graph, center_coords, 2);
-            symbolic_coord_destroy(center_coords[0]);
-            symbolic_coord_destroy(center_coords[1]);
+            symbolic_coord_pair_destroy(center_coords[0], center_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
                 return false;
@@ -741,8 +740,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
                 return false;
 
             add_result = graph_add_point(graph, radius_coords, 2);
-            symbolic_coord_destroy(radius_coords[0]);
-            symbolic_coord_destroy(radius_coords[1]);
+            symbolic_coord_pair_destroy(radius_coords[0], radius_coords[1]);
 
             if (add_result == ADD_NODE_OK) {
                 int radius_pt_id = graph->next_node_id - 1;
@@ -794,8 +792,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             }
 
             AddNodeResult add_result = graph_add_point(graph, p1_coords, 2);
-            symbolic_coord_destroy(p1_coords[0]);
-            symbolic_coord_destroy(p1_coords[1]);
+            symbolic_coord_pair_destroy(p1_coords[0], p1_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
                 return false;
@@ -803,8 +800,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             int p1_id = graph->next_node_id - 1;
 
             add_result = graph_add_point(graph, p2_coords, 2);
-            symbolic_coord_destroy(p2_coords[0]);
-            symbolic_coord_destroy(p2_coords[1]);
+            symbolic_coord_pair_destroy(p2_coords[0], p2_coords[1]);
 
             if (add_result != ADD_NODE_OK) {
                 return false;
@@ -846,8 +842,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
         return false;
 
     AddNodeResult add_result = graph_add_point(graph, coords, 2);
-    symbolic_coord_destroy(coords[0]);
-    symbolic_coord_destroy(coords[1]);
+    symbolic_coord_pair_destroy(coords[0], coords[1]);
 
     if (add_result != ADD_NODE_OK) {
         return false;

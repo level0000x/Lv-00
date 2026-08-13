@@ -1077,9 +1077,7 @@ int lv_gappa_propagate(const char *expr, double *lo, double *hi) {
 
     /* 确保 lo <= hi */
     if (*lo > *hi) {
-        double tmp = *lo;
-        *lo = *hi;
-        *hi = tmp;
+        lv_SWAP(double, *lo, *hi);
     }
 
     return 0;

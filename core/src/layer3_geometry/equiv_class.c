@@ -262,9 +262,7 @@ EquivMergeResult equiv_merge_classes(EquivClassManager *mgr, int node_a, int nod
 
     /* 确保合并到 representative_id 更小的类 */
     if (mgr->classes[class_a].representative_id > mgr->classes[class_b].representative_id) {
-        int tmp = class_a;
-        class_a = class_b;
-        class_b = tmp;
+        lv_SWAP(int, class_a, class_b);
     }
 
     EquivClass *target = &mgr->classes[class_a];

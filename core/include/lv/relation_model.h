@@ -33,18 +33,10 @@ struct ConstraintGraph;
 typedef struct ConstraintGraph ConstraintGraph;
 
 /* ========================================================================
- * 关系原子类型枚举
+ * 关系原子类型枚举（单一事实源见 lv/rel_atom_type.h）
  * ======================================================================== */
 
-/** @brief 关系原子类型，与 GeomType 一一对应 */
-typedef enum {
-    REL_ATOM_POINT = 0,      /**< 几何点 */
-    REL_ATOM_LINE = 1,       /**< 线段 */
-    REL_ATOM_REGION = 2,     /**< 区域 */
-    REL_ATOM_PORT = 3,       /**< 端口 */
-    REL_ATOM_FUNC_BLOCK = 4, /**< 函数块 */
-    REL_ATOM_UNKNOWN = 99    /**< 未知类型 */
-} RelAtomType;
+#include "lv/rel_atom_type.h"
 
 /* ========================================================================
  * 关系数据结构

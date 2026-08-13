@@ -39,6 +39,7 @@
 #include "unify.h"
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 #include "lv/lv_utils.h"
+#include "lv/trust_color_x.h" /* ProofColor 枚举单源列表 */
 
 /* 前向声明 */
 typedef struct ConstraintGraph ConstraintGraph;
@@ -76,21 +77,15 @@ typedef struct lvProofEngine lvProofEngine;  /* 经典证明引擎（proof_engin
 
 /* ============== 证明状态颜色 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
+ *
+ * ProofColor 枚举由 lv/trust_color_x.h 的 LV_PROOF_COLOR_X 单源列表生成，
+ * 各颜色含义详见该头文件。
  */
+#define LV_PROOF_ENUM_ITEM(sym, disp, hex, coq) sym,
 typedef enum {
-    PROOF_COLOR_GREEN,             /**< 全构造，无任何非常规依赖 */
-    PROOF_COLOR_BLUE_UNEXPLORED,   /**< 蓝色（未探索） */
-    PROOF_COLOR_BLUE_RESOURCE,     /**< 蓝色（资源受限） */
-    PROOF_COLOR_BLUE_OUT_OF_RANGE, /**< 蓝色（超出范围） */
-    PROOF_COLOR_GREEN_VERIFIED,    /**< 绿色实框：已证不可构造 */
-    PROOF_COLOR_YELLOW,            /**< 黄色虚线框：条件性不可构造 */
-    PROOF_COLOR_ORANGE_ORACLE,     /**< 浅橙色实心端口：依赖非构造性oracle */
-    PROOF_COLOR_ORANGE_EX_FALSO,   /**< 浅橙色虚线箭头：爆炸原理步骤 */
-    PROOF_COLOR_AMBER,             /**< 橙黄色：含数值假设 */
-    PROOF_COLOR_DARK_ORANGE,       /**< 深橙色：非构造性依赖与数值假设叠加 */
-    PROOF_COLOR_GREEN_COMPLETE,    /**< 绿色：证明完成 */
-    PROOF_COLOR_RED_CONFLICT       /**< 红色：冲突/矛盾 */
+    LV_PROOF_COLOR_X(LV_PROOF_ENUM_ITEM)
 } ProofColor;
+#undef LV_PROOF_ENUM_ITEM
 
 /* ============== 命题类型 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE

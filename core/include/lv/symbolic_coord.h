@@ -89,36 +89,16 @@ typedef enum { PLAN_A_FULL_ALGEBRAIC = 0, PLAN_B_QUADRATIC_ONLY = 1, PLAN_C_RATI
 
 /* ── Trust color ── */
 
-/**
- * @brief X-macro 列表：TrustColor 枚举值与对应字符串
- *
- * 颜色含义：
- *   TRUST_GREEN                全构造
- *   TRUST_BLUE_UNEXPLORED      未探索
- *   TRUST_BLUE_EXCEEDED        资源受限
- *   TRUST_BLUE_OUT_OF_SCOPE    超出范围
- *   TRUST_YELLOW               条件性不可构造
- *   TRUST_LIGHT_ORANGE_ORACLE  非构造性 oracle（实心端口）
- *   TRUST_LIGHT_ORANGE_EXPLOSION  爆炸原理（虚线箭头）
- *   TRUST_AMBER                数值假设
- *   TRUST_DEEP_ORANGE          叠加（非构造性+数值假设）
- *   TRUST_RED                  矛盾 / 验证伪
- */
-#define LV_TRUST_COLOR_X(x) \
-    x(TRUST_GREEN, "Green") \
-    x(TRUST_BLUE_UNEXPLORED, "BlueUnexplored") \
-    x(TRUST_BLUE_EXCEEDED, "BlueExceeded") \
-    x(TRUST_BLUE_OUT_OF_SCOPE, "BlueOutOfScope") \
-    x(TRUST_YELLOW, "Yellow") \
-    x(TRUST_LIGHT_ORANGE_ORACLE, "LightOrangeOracle") \
-    x(TRUST_LIGHT_ORANGE_EXPLOSION, "LightOrangeExplosion") \
-    x(TRUST_AMBER, "Amber") \
-    x(TRUST_DEEP_ORANGE, "DeepOrange") \
-    x(TRUST_RED, "Red")
+/* TrustColor 枚举与其元数据列表统一由 lv/trust_color_x.h 单源定义
+ * （5 列列表：symbol, display_name, serial_name, dot_hex, latex）。
+ * 此处仅从主源列表生成枚举，颜色含义详见该头文件。 */
+#include "lv/trust_color_x.h"
 
+#define LV_TRUST_ENUM_ITEM(sym, disp, ser, dot, tex) sym,
 typedef enum {
-    LV_TRUST_COLOR_X(LV_X_ENUM_ITEM)
+    LV_TRUST_COLOR_X(LV_TRUST_ENUM_ITEM)
 } TrustColor;
+#undef LV_TRUST_ENUM_ITEM
 
 typedef enum {
     LO_NONE = 0,     /* 无子类型 */
@@ -303,6 +283,19 @@ SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, do
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name);
 SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *c);
 void symbolic_coord_destroy(SymbolicCoord *c);
+
+/**
+ * @brief 一次销毁一对符号坐标（NULL-safe，等价逐分量 symbolic_coord_destroy）
+ *
+ * 收敛说明（判据 H）：收敛各模块手写的「symbolic_coord_destroy(x);
+ * symbolic_coord_destroy(y);」坐标对归还两行样板，与既有 pair 创建 helper
+ * （symbolic_coord_pair_create_rational / symbolic_coord_pair_from_double_scaled）
+ * 对称，归还侧无需再逐分量展开。
+ *
+ * @param a 第一个坐标（可为 NULL）
+ * @param b 第二个坐标（可为 NULL）
+ */
+void symbolic_coord_pair_destroy(SymbolicCoord *a, SymbolicCoord *b);
 void symbolic_coord_invalidate_cache(SymbolicCoord *coord);
 
 /* ── SymbolicCoord arithmetic ── */

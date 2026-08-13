@@ -42,9 +42,7 @@ AlgInterval lv_alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_va
 
     /* 确保 lo <= hi */
     if (lv_alg_rational_cmp(&result.lo, &result.hi) > 0) {
-        AlgRational tmp = result.lo;
-        result.lo = result.hi;
-        result.hi = tmp;
+        lv_SWAP(AlgRational, result.lo, result.hi);
     }
 
     alg_set_error_interval(err, lv_alg_interval_OK);

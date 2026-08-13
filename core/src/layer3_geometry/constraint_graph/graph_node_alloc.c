@@ -890,9 +890,7 @@ static uint32_t line_segment_hash(const GeomNode *node) {
     }
     /* 端点顺序无关：排序后混合（同向/反向线段哈希一致，与 compare 对齐） */
     if (e1 > e2) {
-        uint64_t t = e1;
-        e1 = e2;
-        e2 = t;
+        lv_SWAP(uint64_t, e1, e2);
     }
     h = lv_fnv1a_hash_int(h, e1);
     h = lv_fnv1a_hash_int(h, e2);

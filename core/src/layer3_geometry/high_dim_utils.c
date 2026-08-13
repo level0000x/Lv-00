@@ -72,16 +72,10 @@ HighDimMappingType high_dim_mapping_type_from_string(const char *str) {
     if (!str)
         return (HighDimMappingType) -1;
 
-    if (lv_str_eq(str, "x"))
-        return HIGH_DIM_MAP_TO_X;
-    if (lv_str_eq(str, "y"))
-        return HIGH_DIM_MAP_TO_Y;
-    if (lv_str_eq(str, "fold"))
-        return HIGH_DIM_MAP_FOLD;
-    if (lv_str_eq(str, "discard"))
-        return HIGH_DIM_MAP_DISCARD;
-
-    return (HighDimMappingType) -1;
+    return (HighDimMappingType) lv_str_to_enum(
+        s_high_dim_mapping_type_to_string_entries,
+        lv_ARRAY_SIZE(s_high_dim_mapping_type_to_string_entries),
+        str, -1);
 }
 
 int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size) {

@@ -183,8 +183,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
             }
         } else {
             /* 节点不存在或无坐标数组，释放所有 mid_coords */
-            symbolic_coord_destroy(mid_coords[0]);
-            symbolic_coord_destroy(mid_coords[1]);
+            symbolic_coord_pair_destroy(mid_coords[0], mid_coords[1]);
         }
         *out_node_id = m_id;
     } else {
@@ -204,8 +203,7 @@ bool formula_convert_midpoint(const FormulaNode *constraint_node, ConstraintGrap
             }
         }
 
-        symbolic_coord_destroy(mid_coords[0]);
-        symbolic_coord_destroy(mid_coords[1]);
+        symbolic_coord_pair_destroy(mid_coords[0], mid_coords[1]);
     }
 
     return true;
