@@ -547,7 +547,7 @@ static void cairo_render_line(FILE *fp, const lvVisualObject *obj, const lvVisua
     if (len < 1e-6f)
         return;
     float ux = dx / len, uy = dy / len;
-    float t_max = 1000.0f;
+    float t_max = (float) lv_RENDER_INFINITE_LINE_EXTENT;
     float lx1 = x1 - ux * t_max, ly1 = y1 - uy * t_max;
     float lx2 = x1 + ux * t_max, ly2 = y1 + uy * t_max;
     apply_camera(&lx1, &ly1, scene);

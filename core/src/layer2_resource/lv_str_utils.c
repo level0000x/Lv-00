@@ -269,6 +269,12 @@ const char *lv_str_skip_ws(const char *p) {
     return p;
 }
 
+const char *lv_str_skip_until(const char *p, const char *any_of) {
+    if (!p || !any_of)
+        return p;
+    return p + strcspn(p, any_of);
+}
+
 bool lv_str_read_int(const char **pp, int64_t *out) {
     if (!pp || !out)
         return false;

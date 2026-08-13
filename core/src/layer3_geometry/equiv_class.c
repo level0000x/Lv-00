@@ -53,6 +53,14 @@ static void equiv_uf_union(EquivClassManager *mgr, int x, int y) {
     uf_union(mgr->uf_parent, mgr->uf_rank, x, y);
 }
 
+/* 只读谓词：节点是否为拥有有效符号 x/y 坐标的点（coord_count >= 2 且
+ * symbolic_coords[0..1] 均非空）。equiv_derive_from_coords /
+ * equiv_derive_transform 两处共享，消除坐标有效性检查的重复展开。 */
+static bool symbolic_point_has_xy(const GeomNode *n) {
+    return n && n->coord_count >= 2 && n->symbolic_coords &&
+           n->symbolic_coords[0] && n->symbolic_coords[1];
+}
+
 /* ================================================================
  * 等价类内部辅助
  * ================================================================ */
@@ -317,18 +325,14 @@ int equiv_merge_by_coord(EquivClassManager *mgr) {
         GeomNode *ni = mgr->graph->nodes[i];
         if (!ni || !ni->is_active || ni->type != GEOM_POINT)
             continue;
-        if (ni->coord_count < 2 || !ni->symbolic_coords)
-            continue;
-        if (!ni->symbolic_coords[0] || !ni->symbolic_coords[1])
+        if (!symbolic_point_has_xy(ni))
             continue;
 
         for (int j = i + 1; j < mgr->graph->node_count; j++) {
             GeomNode *nj = mgr->graph->nodes[j];
             if (!nj || !nj->is_active || nj->type != GEOM_POINT)
                 continue;
-            if (nj->coord_count < 2 || !nj->symbolic_coords)
-                continue;
-            if (!nj->symbolic_coords[0] || !nj->symbolic_coords[1])
+            if (!symbolic_point_has_xy(nj))
                 continue;
 
             /* 比较坐标 */
@@ -511,18 +515,14 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
         GeomNode *ni = mgr->graph->nodes[i];
         if (!ni || !ni->is_active || ni->type != GEOM_POINT)
             continue;
-        if (ni->coord_count < 2 || !ni->symbolic_coords)
-            continue;
-        if (!ni->symbolic_coords[0] || !ni->symbolic_coords[1])
+        if (!symbolic_point_has_xy(ni))
             continue;
 
         for (int j = i + 1; j < mgr->graph->node_count; j++) {
             GeomNode *nj = mgr->graph->nodes[j];
             if (!nj || !nj->is_active || nj->type != GEOM_POINT)
                 continue;
-            if (nj->coord_count < 2 || !nj->symbolic_coords)
-                continue;
-            if (!nj->symbolic_coords[0] || !nj->symbolic_coords[1])
+            if (!symbolic_point_has_xy(nj))
                 continue;
 
             if (equiv_are_equivalent(mgr, ni->id, nj->id))
@@ -537,8 +537,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
             int point_count = 0;
             for (int k = 0; k < mgr->graph->node_count; k++) {
                 GeomNode *nk = mgr->graph->nodes[k];
-                if (nk && nk->is_active && nk->type == GEOM_POINT && nk->coord_count >= 2 && nk->symbolic_coords &&
-                    nk->symbolic_coords[0] && nk->symbolic_coords[1]) {
+                if (nk && nk->is_active && nk->type == GEOM_POINT && symbolic_point_has_xy(nk)) {
                     point_count++;
                 }
             }
@@ -560,9 +559,7 @@ int equiv_merge_by_transform(EquivClassManager *mgr) {
                 GeomNode *nk = mgr->graph->nodes[k];
                 if (!nk || !nk->is_active || nk->type != GEOM_POINT)
                     continue;
-                if (nk->coord_count < 2 || !nk->symbolic_coords)
-                    continue;
-                if (!nk->symbolic_coords[0] || !nk->symbolic_coords[1])
+                if (!symbolic_point_has_xy(nk))
                     continue;
 
                 double kx = symbolic_coord_to_double(nk->symbolic_coords[0]);

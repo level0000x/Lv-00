@@ -71,6 +71,21 @@ static int cmp_constraint_hash(const void *a, const void *b, void *ctx) {
     return 0;
 }
 
+/* 双轨坐标提取：既得 double 数值，又在坐标类型为 RATIONAL 时初始化精确 mpq_t。
+ * 由 graph_detect_redundant_constraints 的 INCIDENCE/BETWEENNESS 两处共享，
+ * 消除「to_double + 条件 mpq_init/mpq_set」的重复展开。out_exact 由调用方
+ * 用于决定后续是否 mpq_clear。 */
+static double symbolic_coord_dual_extract(const SymbolicCoord *sc, mpq_t out_q, bool *out_exact) {
+    if (sc && sc->type == RATIONAL) {
+        mpq_init(out_q);
+        mpq_set(out_q, sc->data.rational->value);
+        *out_exact = true;
+    } else {
+        *out_exact = false;
+    }
+    return symbolic_coord_to_double(sc);
+}
+
 /**
  * @brief 销毁约束图并释放所有资源
  *
@@ -377,34 +392,13 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
                 pt->coord_count >= 2 && pt->symbolic_coords) {
                 /* Get coordinates - use exact mpq_t for RATIONAL, double for others */
                 mpq_t ax_q, ay_q, bx_q, by_q;
-                bool ax_exact = false, ay_exact = false, bx_exact = false, by_exact = false;
+                bool ax_exact, ay_exact, bx_exact, by_exact;
                 double ax_d, ay_d, bx_d, by_d;
 
-                ax_d = symbolic_coord_to_double(seg->symbolic_coords[0]);
-                ay_d = symbolic_coord_to_double(seg->symbolic_coords[1]);
-                bx_d = symbolic_coord_to_double(seg->symbolic_coords[2]);
-                by_d = symbolic_coord_to_double(seg->symbolic_coords[3]);
-
-                if (seg->symbolic_coords[0]->type == RATIONAL) {
-                    mpq_init(ax_q);
-                    mpq_set(ax_q, seg->symbolic_coords[0]->data.rational->value);
-                    ax_exact = true;
-                }
-                if (seg->symbolic_coords[1]->type == RATIONAL) {
-                    mpq_init(ay_q);
-                    mpq_set(ay_q, seg->symbolic_coords[1]->data.rational->value);
-                    ay_exact = true;
-                }
-                if (seg->symbolic_coords[2]->type == RATIONAL) {
-                    mpq_init(bx_q);
-                    mpq_set(bx_q, seg->symbolic_coords[2]->data.rational->value);
-                    bx_exact = true;
-                }
-                if (seg->symbolic_coords[3]->type == RATIONAL) {
-                    mpq_init(by_q);
-                    mpq_set(by_q, seg->symbolic_coords[3]->data.rational->value);
-                    by_exact = true;
-                }
+                ax_d = symbolic_coord_dual_extract(seg->symbolic_coords[0], ax_q, &ax_exact);
+                ay_d = symbolic_coord_dual_extract(seg->symbolic_coords[1], ay_q, &ay_exact);
+                bx_d = symbolic_coord_dual_extract(seg->symbolic_coords[2], bx_q, &bx_exact);
+                by_d = symbolic_coord_dual_extract(seg->symbolic_coords[3], by_q, &by_exact);
 
                 /* Direction vector of line: (Bx-Ax, By-Ay) */
                 int p_idx = node_id_to_var_idx[point_id];
@@ -485,34 +479,13 @@ int *graph_detect_redundant_constraints(const ConstraintGraph *graph, int *out_c
                 p2->symbolic_coords && p3->coord_count >= 2 && p3->symbolic_coords) {
                 /* Get coordinates - use exact mpq_t for RATIONAL, double for others */
                 mpq_t p1x_q, p1y_q, p3x_q, p3y_q;
-                bool p1x_exact = false, p1y_exact = false, p3x_exact = false, p3y_exact = false;
+                bool p1x_exact, p1y_exact, p3x_exact, p3y_exact;
                 double p1x, p1y, p3x, p3y;
 
-                p1x = symbolic_coord_to_double(p1->symbolic_coords[0]);
-                p1y = symbolic_coord_to_double(p1->symbolic_coords[1]);
-                p3x = symbolic_coord_to_double(p3->symbolic_coords[0]);
-                p3y = symbolic_coord_to_double(p3->symbolic_coords[1]);
-
-                if (p1->symbolic_coords[0]->type == RATIONAL) {
-                    mpq_init(p1x_q);
-                    mpq_set(p1x_q, p1->symbolic_coords[0]->data.rational->value);
-                    p1x_exact = true;
-                }
-                if (p1->symbolic_coords[1]->type == RATIONAL) {
-                    mpq_init(p1y_q);
-                    mpq_set(p1y_q, p1->symbolic_coords[1]->data.rational->value);
-                    p1y_exact = true;
-                }
-                if (p3->symbolic_coords[0]->type == RATIONAL) {
-                    mpq_init(p3x_q);
-                    mpq_set(p3x_q, p3->symbolic_coords[0]->data.rational->value);
-                    p3x_exact = true;
-                }
-                if (p3->symbolic_coords[1]->type == RATIONAL) {
-                    mpq_init(p3y_q);
-                    mpq_set(p3y_q, p3->symbolic_coords[1]->data.rational->value);
-                    p3y_exact = true;
-                }
+                p1x = symbolic_coord_dual_extract(p1->symbolic_coords[0], p1x_q, &p1x_exact);
+                p1y = symbolic_coord_dual_extract(p1->symbolic_coords[1], p1y_q, &p1y_exact);
+                p3x = symbolic_coord_dual_extract(p3->symbolic_coords[0], p3x_q, &p3x_exact);
+                p3y = symbolic_coord_dual_extract(p3->symbolic_coords[1], p3y_q, &p3y_exact);
 
                 int p2_idx = node_id_to_var_idx[p2_id];
                 if (p2_idx >= 0) {

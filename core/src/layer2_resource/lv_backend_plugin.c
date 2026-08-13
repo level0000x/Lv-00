@@ -182,9 +182,7 @@ int lv_backend_plugin_count(lvBackendPluginRegistry *reg) {
 static int plugin_priority_compare(const void *a, const void *b) {
     const lvBackendPlugin *pa = *(const lvBackendPlugin *const *) a;
     const lvBackendPlugin *pb = *(const lvBackendPlugin *const *) b;
-    if (pa->priority < pb->priority) return -1;
-    if (pa->priority > pb->priority) return 1;
-    return 0;
+    return lv_cmp_int_asc(pa->priority, pb->priority);
 }
 
 void lv_backend_plugin_init_all(lvBackendPluginRegistry *reg) {

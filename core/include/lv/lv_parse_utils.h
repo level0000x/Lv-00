@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 /**
@@ -78,6 +79,46 @@ static inline int lv_parse_double_strict(const char *str, double *out) {
 static inline int lv_parse_int_default(const char *str, int default_value) {
     int result = 0;
     if (lv_parse_int(str, &result) != 0)
+        return default_value;
+    return result;
+}
+
+/**
+ * @brief 安全地将字符串前缀解析为 int64_t，失败返回默认值
+ * @param str 输入字符串
+ * @param default_value 解析失败（空指针/空串/无数字前缀/溢出）时返回的默认值
+ * @return 解析成功的前缀整数值，或默认值
+ *
+ * @note 前缀解析语义：strtol 停止处之后的字符被忽略（不要求整串消费），
+ *       与 lv_parse_double 的前缀语义一致；区别于 lv_parse_int 的严格整串语义。
+ *       收敛对象（判据 I 变体）：transcendental.c 六处 strtol + errno + endptr
+ *       前缀解析样板，以及 symbolic_coord_ops.c 的 safe_atol（default=0 特例）。
+ */
+static inline int64_t lv_parse_long_default(const char *str, int64_t default_value) {
+    if (!str || !*str)
+        return default_value;
+    char *end = NULL;
+    errno = 0;
+    long val = strtol(str, &end, 10);
+    if (errno != 0 || end == str)
+        return default_value;
+    return (int64_t) val;
+}
+
+/**
+ * @brief 安全地将字符串前缀解析为 double，失败返回默认值
+ * @param str 输入字符串
+ * @param default_value 解析失败（空指针/空串/无数字前缀/溢出）时返回的默认值
+ * @return 解析成功的前缀浮点数值，或默认值
+ *
+ * @note 前缀解析语义：strtod 停止处之后的字符被忽略（不要求整串消费），
+ *       与 lv_parse_double 的前缀语义一致。收敛对象（判据 I 变体）：
+ *       gappa_dsl.c / gappa_propagate.c 四处 strtod + errno + endptr +
+ *       回退 0.0 的 ABS 中心 / 约束界解析样板。
+ */
+static inline double lv_parse_double_default(const char *str, double default_value) {
+    double result = 0.0;
+    if (lv_parse_double(str, &result) != 0)
         return default_value;
     return result;
 }

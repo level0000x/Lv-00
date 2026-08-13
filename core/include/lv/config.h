@@ -175,6 +175,12 @@ extern "C" {
 #ifndef lv_BIG_NUMBER
 #define lv_BIG_NUMBER 1e9 /* 10亿级阈值 */
 #endif
+#ifndef lv_ZERO_GUARD_EPS
+#define lv_ZERO_GUARD_EPS 1e-30 /* 接近零保护阈值（除数/值过滤守卫） */
+#endif
+#ifndef lv_SAFE_MIN_POSITIVE
+#define lv_SAFE_MIN_POSITIVE 1e-308 /* 下溢保护哨兵（避免 log(0)/除零，DBL_MIN 附近） */
+#endif
 
 /* ---- 常用数学系数与比例因子 ---- */
 /* 缩放系数 */
@@ -217,6 +223,11 @@ extern "C" {
 #endif
 #ifndef lv_COLOR_CHANNEL_HALF
 #define lv_COLOR_CHANNEL_HALF 0.5f /* 0.5f */
+#endif
+
+/* 渲染：无限直线扩展范围（将无限延伸直线近似为有限线段时，从端点沿方向扩展的单位数） */
+#ifndef lv_RENDER_INFINITE_LINE_EXTENT
+#define lv_RENDER_INFINITE_LINE_EXTENT 1000.0 /* 无限直线渲染扩展范围 */
 #endif
 
 /* 哈希表负载因子 */

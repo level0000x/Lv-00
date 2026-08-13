@@ -169,8 +169,7 @@ static int opml_export_proof(void *proof, char *output, int output_size) {
 
             /* 找到公理名结尾 */
             const char *ax_end = ax;
-            while (*ax_end && *ax_end != ',' && *ax_end != '\n')
-                ax_end++;
+            ax_end = lv_str_skip_until(ax_end, ",\n");
 
             if (ax_end > ax) {
                 if (!first_axiom) {

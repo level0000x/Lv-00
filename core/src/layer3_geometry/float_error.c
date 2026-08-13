@@ -57,9 +57,6 @@
 /** 最多提取的约束方程数（支持复杂方程组，从 64 增至 128） */
 #define MAX_EQUATIONS 128
 
-/** 安全下限（避免 log(0) 等问题） */
-#define SAFE_MIN_POSITIVE 1e-308
-
 /* ========================================================================
  * 内部辅助函数
  * ======================================================================== */
@@ -222,7 +219,7 @@ static bool rpn_eval_mul(double *stack, int *top) {
 
 static bool rpn_eval_div(double *stack, int *top) {
     if (*top < 2) return false;
-    if (fabs(stack[*top - 1]) < 1e-308) return false;
+    if (fabs(stack[*top - 1]) < lv_SAFE_MIN_POSITIVE) return false;
     stack[*top - 2] /= stack[*top - 1];
     (*top)--;
     return true;

@@ -40,33 +40,23 @@ static const int s_precedence_table[] = {
     [PROP_TRUE]         = PROP_PREC_ATOM,
 };
 
-/** @brief 公式类型→字符串格式描述 */
+/** @brief 公式类型→字符串/LaTeX 格式描述（单一事实源，arity/优先级不双份维护） */
 typedef struct {
-    const char *op_str;    /**< 运算符字符串（叶子类型为 NULL） */
+    const char *op_str;    /**< ASCII 运算符字符串（叶子类型为 NULL） */
+    const char *latex_str; /**< LaTeX 运算符字符串（叶子类型为 NULL） */
     int arity;             /**< 子公式数：0=叶子, 1=一元, 2=二元 */
     bool right_inc_prec;   /**< 右子公式是否需要提升优先级（仅蕴含） */
-} StringFormatSpec;
+} FormatSpec;
 
-/** @brief 字符串格式描述查找表 */
-static const StringFormatSpec s_string_format_spec[] = {
-    [PROP_ATOM]         = {NULL,         0, false},
-    [PROP_CONJUNCTION]  = {" /\\ ",      2, false},
-    [PROP_DISJUNCTION]  = {" \\/ ",      2, false},
-    [PROP_IMPLICATION]  = {" -> ",       2, true},
-    [PROP_NEGATION]     = {"~",          1, false},
-    [PROP_BOTTOM]       = {"_|_",        0, false},
-    [PROP_TRUE]         = {"T",          0, false},
-};
-
-/** @brief 公式类型→LaTeX 格式描述 */
-static const StringFormatSpec s_latex_format_spec[] = {
-    [PROP_ATOM]         = {NULL,          0, false},
-    [PROP_CONJUNCTION]  = {" \\wedge ",   2, false},
-    [PROP_DISJUNCTION]  = {" \\vee ",     2, false},
-    [PROP_IMPLICATION]  = {" \\to ",      2, true},
-    [PROP_NEGATION]     = {"\\neg ",      1, false},
-    [PROP_BOTTOM]       = {"\\bot",       0, false},
-    [PROP_TRUE]         = {"\\top",       0, false},
+/** @brief 公式类型→格式描述查找表（ASCII 与 LaTeX 合并单表） */
+static const FormatSpec s_format_spec[] = {
+    [PROP_ATOM]         = {NULL,       NULL,          0, false},
+    [PROP_CONJUNCTION]  = {" /\\ ",    " \\wedge ",   2, false},
+    [PROP_DISJUNCTION]  = {" \\/ ",    " \\vee ",     2, false},
+    [PROP_IMPLICATION]  = {" -> ",     " \\to ",      2, true},
+    [PROP_NEGATION]     = {"~",        "\\neg ",      1, false},
+    [PROP_BOTTOM]       = {"_|_",      "\\bot",       0, false},
+    [PROP_TRUE]         = {"T",        "\\top",       0, false},
 };
 
 static int formula_precedence(const PropFormula *f) {
@@ -86,8 +76,8 @@ static void formula_to_string_buf(const PropFormula *f, lvStrBuf *sb, int parent
         lv_strbuf_printf(sb, "(");
     }
 
-    if ((unsigned)f->type < sizeof(s_string_format_spec) / sizeof(s_string_format_spec[0])) {
-        const StringFormatSpec *spec = &s_string_format_spec[f->type];
+    if ((unsigned)f->type < sizeof(s_format_spec) / sizeof(s_format_spec[0])) {
+        const FormatSpec *spec = &s_format_spec[f->type];
         switch (spec->arity) {
             case 0: /* 叶子类型 */
                 if (f->type == PROP_ATOM) {
@@ -144,26 +134,26 @@ static void formula_to_latex_buf(const PropFormula *f, lvStrBuf *sb, int parent_
         lv_strbuf_printf(sb, "\\left(");
     }
 
-    if ((unsigned)f->type < sizeof(s_latex_format_spec) / sizeof(s_latex_format_spec[0])) {
-        const StringFormatSpec *spec = &s_latex_format_spec[f->type];
+    if ((unsigned)f->type < sizeof(s_format_spec) / sizeof(s_format_spec[0])) {
+        const FormatSpec *spec = &s_format_spec[f->type];
         switch (spec->arity) {
             case 0: /* 叶子类型 */
                 if (f->type == PROP_ATOM) {
                     lv_strbuf_printf(sb, "%s", f->data.atom.name);
-                } else if (spec->op_str) {
-                    lv_strbuf_printf(sb, "%s", spec->op_str);
+                } else if (spec->latex_str) {
+                    lv_strbuf_printf(sb, "%s", spec->latex_str);
                 }
                 break;
             case 1: /* 一元运算符 */
-                if (spec->op_str) {
-                    lv_strbuf_printf(sb, "%s", spec->op_str);
+                if (spec->latex_str) {
+                    lv_strbuf_printf(sb, "%s", spec->latex_str);
                 }
                 formula_to_latex_buf(f->data.unary.operand, sb, prec);
                 break;
             case 2: /* 二元运算符 */
                 formula_to_latex_buf(f->data.binary.left, sb, prec);
-                if (spec->op_str) {
-                    lv_strbuf_printf(sb, "%s", spec->op_str);
+                if (spec->latex_str) {
+                    lv_strbuf_printf(sb, "%s", spec->latex_str);
                 }
                 formula_to_latex_buf(f->data.binary.right, sb,
                                      spec->right_inc_prec ? prec + 1 : prec);

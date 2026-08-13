@@ -87,7 +87,7 @@ static bool render_line(const lvVisualObject *obj, const lvVisualScene *scene, c
     if (len < lv_EPSILON_DOUBLE)
         return true;
     double ux = dx / len, uy = dy / len;
-    double t_max = 1000.0;
+    double t_max = lv_RENDER_INFINITE_LINE_EXTENT;
     cache[0] = cache[0] - ux * t_max;
     cache[1] = cache[1] - uy * t_max;
     cache[2] = cache[0] + ux * t_max * 2.0;

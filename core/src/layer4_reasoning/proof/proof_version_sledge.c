@@ -104,7 +104,7 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
 
     clock_t total_start = clock();
     int best_index = -1;
-    double best_time = 1e18; /* 最简证明 = 耗时最短的成功策略 */
+    double best_time = lv_LARGE_NUMBER; /* 最简证明 = 耗时最短的成功策略 */
 
     /* 遍历所有策略类型 */
     for (int st = 0; st < PROOF_STRATEGY_COUNT; st++) {

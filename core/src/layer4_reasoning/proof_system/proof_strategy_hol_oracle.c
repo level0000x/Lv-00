@@ -154,17 +154,17 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
     bool atp_available = false;
     (void) atp_available; /* suppress unused warning */
     ATPBackendType atp_types[] = {ATP_BACKEND_VAMPIRE, ATP_BACKEND_EPROVER, ATP_BACKEND_IPROVER};
-    const char *atp_names[] = {"Vampire", "E Prover", "iProver"};
 
     /* 尝试编码约束图为 TPTP 格式并求解 */
     for (int backend = 0; backend < 3 && !verified; backend++) {
+        const char *atp_name = atp_backend_type_name(atp_types[backend]);
         /* 检查后端是否可用 */
         if (!atp_is_backend_available(atp_types[backend])) {
             ProofStep *skip_step = proof_step_create(PROOF_STEP_ORACLE);
             if (skip_step) {
                 skip_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
-                snprintf(buf, sizeof(buf), "[Oracle] %s 后端不可用，跳过", atp_names[backend]);
+                snprintf(buf, sizeof(buf), "[Oracle] %s 后端不可用，跳过", atp_name);
                 skip_step->note = lv_strdup_safe(buf);
                 proof_navigator_add_step(nav, skip_step);
             }
@@ -175,7 +175,7 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
         if (try_step) {
             try_step->color = PROOF_COLOR_ORANGE_ORACLE;
             char buf[256];
-            snprintf(buf, sizeof(buf), "[Oracle] 尝试 %s 后端...", atp_names[backend]);
+            snprintf(buf, sizeof(buf), "[Oracle] 尝试 %s 后端...", atp_name);
             try_step->note = lv_strdup_safe(buf);
             proof_navigator_add_step(nav, try_step);
         }
@@ -189,7 +189,7 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
             if (enc_fail) {
                 enc_fail->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
-                snprintf(buf, sizeof(buf), "[Oracle] %s 编码失败，跳过", atp_names[backend]);
+                snprintf(buf, sizeof(buf), "[Oracle] %s 编码失败，跳过", atp_name);
                 enc_fail->note = lv_strdup_safe(buf);
                 proof_navigator_add_step(nav, enc_fail);
             }
@@ -219,7 +219,7 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     if (success_step) {
                         success_step->color = PROOF_COLOR_GREEN_COMPLETE;
                         char buf[256];
-                        snprintf(buf, sizeof(buf), "[Oracle] %s 证明成功（%.2fs, %d 子句）", atp_names[backend],
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 证明成功（%.2fs, %d 子句）", atp_name,
                                  result.solve_time_seconds, result.processed_clauses);
                         success_step->note = lv_strdup_safe(buf);
                         proof_navigator_add_step(nav, success_step);
@@ -238,7 +238,7 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     if (sat_step) {
                         sat_step->color = PROOF_COLOR_RED_CONFLICT;
                         char buf[256];
-                        snprintf(buf, sizeof(buf), "[Oracle] %s 返回 SAT，命题不成立", atp_names[backend]);
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 返回 SAT，命题不成立", atp_name);
                         sat_step->note = lv_strdup_safe(buf);
                         proof_navigator_add_step(nav, sat_step);
                     }
@@ -247,7 +247,7 @@ bool execute_oracle(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     if (unknown_step) {
                         unknown_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                         char buf[256];
-                        snprintf(buf, sizeof(buf), "[Oracle] %s 无法确定（超时/资源耗尽）", atp_names[backend]);
+                        snprintf(buf, sizeof(buf), "[Oracle] %s 无法确定（超时/资源耗尽）", atp_name);
                         unknown_step->note = lv_strdup_safe(buf);
                         proof_navigator_add_step(nav, unknown_step);
                     }

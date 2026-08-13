@@ -375,7 +375,7 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_block_canvas_render_svg: NULL canvas");
 
     /* 计算包围盒 */
-    double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
+    double min_x = lv_LARGE_NUMBER, min_y = lv_LARGE_NUMBER, max_x = -lv_LARGE_NUMBER, max_y = -lv_LARGE_NUMBER;
     for (int i = 0; i < canvas->blocks.count; i++) {
         lvVisualBlock *b = (lvVisualBlock *) lv_darray_get(&canvas->blocks, i);
         if (b->x < min_x)

@@ -350,8 +350,7 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
                 arr[cnt++] = elem;
             } else {
                 /* 非字符串元素：跳过到下一个逗号或结束 */
-                while (*p && *p != ',' && *p != ']')
-                    p++;
+                p = lv_str_skip_until(p, ",]");
             }
         }
 

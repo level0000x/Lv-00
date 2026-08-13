@@ -25,6 +25,7 @@
 
 #include "lv/lv_check.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_parse_utils.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
@@ -708,11 +709,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                 char *abs_end = strrchr(token, '|');
                 char *leq = strstr(token, "<=");
                 if (abs_start && abs_end && abs_end > abs_start && leq) {
-                    char *end = NULL;
-                    errno = 0;
-                    double bound = strtod(leq + 2, &end);
-                    if (errno != 0 || end == leq + 2)
-                        bound = 0.0;
+                    double bound = lv_parse_double_default(leq + 2, 0.0);
                     /* 提取 | 内的表达式 */
                     size_t expr_len = (size_t) (abs_end - abs_start - 1);
                     char inner_expr[256] = {0};
@@ -833,11 +830,7 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
                             break;
                         }
                     } else if (gpred.type == lv_PRED_ABS) {
-                        char *end = NULL;
-                        errno = 0;
-                        double center = strtod(gpred.expr_rhs, &end);
-                        if (errno != 0 || end == gpred.expr_rhs)
-                            center = 0.0;
+                        double center = lv_parse_double_default(gpred.expr_rhs, 0.0);
                         double dev_lo = fabs(hyp[j].bound_lo - center);
                         double dev_hi = fabs(hyp[j].bound_hi - center);
                         double max_dev = fmax(dev_lo, dev_hi);
@@ -880,7 +873,7 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
                         } else if (gpred.type == lv_PRED_REL) {
                             apply_round_err(&lo, &hi, &fmt);
                             double abs_mag = fmax(fabs(lo), fabs(hi));
-                            double rel_err = (fabs(lo) > 1e-30) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
+                            double rel_err = (fabs(lo) > lv_ZERO_GUARD_EPS) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
                             if (rel_err <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                                 proven = true;
                             }
@@ -913,7 +906,7 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
                         }
                     } else if (gpred.type == lv_PRED_REL) {
                         /* REL: 检查相对误差 */
-                        double rel_err = (fabs(lo) > 1e-30) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
+                        double rel_err = (fabs(lo) > lv_ZERO_GUARD_EPS) ? fabs(hi - lo) / fabs(lo) : fabs(hi - lo);
                         if (rel_err <= gpred.bound_abs + lv_GAPPA_BOUND_SLACK) {
                             proven = true;
                         }

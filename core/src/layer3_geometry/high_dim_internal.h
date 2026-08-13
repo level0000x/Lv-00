@@ -16,9 +16,6 @@ extern "C" {
 /* Thread-local stream context (defined in high_dim.c) */
 extern lv_THREAD_LOCAL StreamContext *high_dim_stream_ctx;
 
-/* Internal helper (defined in high_dim.c) */
-int high_dim_snprintf(char *str, size_t size, const char *format, ...);
-
 #ifdef __cplusplus
 }
 #endif

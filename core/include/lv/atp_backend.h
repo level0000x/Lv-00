@@ -37,15 +37,19 @@ typedef enum {
     ATP_BACKEND_COUNT        /**< 后端总数 */
 } ATPBackendType;
 /**
- * @brief ATPBackendType 条目宏（枚举↔显示名映射的单一事实来源）
- * atp_backend.c 的 atp_backend_type_name 表由本宏生成；"e"/"eprover" 缩写
- * 在 atp_backend_type_from_name 内独立处理（非表项）。
+ * @brief ATPBackendType 条目宏（枚举↔可执行名↔显示名映射的单一事实来源）
+ *
+ * 每行携带 3 列：ENUM（枚举值）、EXEC（可执行文件名，PATH 检测使用；
+ * 自定义后端无对应可执行文件，为 NULL）、DISPLAY（对外显示名，
+ * atp_backend_type_name 输出）。atp_backend.c 的显示名表与可执行名表
+ * 统一由本宏生成，禁止在其他文件重复定义（"e"/"eprover" 缩写仍在
+ * atp_backend_type_from_name 内独立处理，非表项）。
  */
 #define LV_ATP_BACKEND_ENTRY(x) \
-    x(ATP_BACKEND_VAMPIRE, "Vampire") \
-    x(ATP_BACKEND_EPROVER, "E Prover") \
-    x(ATP_BACKEND_IPROVER, "iProver") \
-    x(ATP_BACKEND_CUSTOM, "Custom")
+    x(ATP_BACKEND_VAMPIRE, "vampire", "Vampire") \
+    x(ATP_BACKEND_EPROVER, "eprover", "E Prover") \
+    x(ATP_BACKEND_IPROVER, "iprover", "iProver") \
+    x(ATP_BACKEND_CUSTOM, NULL, "Custom")
 /** ATP 输入格式 */
 typedef enum {
     ATP_FORMAT_TPTP_FOF = 0, /**< TPTP FOF（一阶公式）— 最通用 */

@@ -677,6 +677,27 @@ static inline size_t lv_max_z(size_t a, size_t b) {
 }
 
 /**
+ * @brief 返回两个 int 的三态升序比较结果（qsort 风格，值版）
+ *
+ * 语义契约：比较两个 int 值，返回 a<b 为 -1、a==b 为 0、a>b 为 +1；
+ *           不修改任何状态，不分配资源。
+ * 前置条件：无（a、b 为任意合法 int）。
+ * 失败/截断语义：纯比较，无失败通道。
+ * 边界行为：INT_MIN 与 INT_MAX 比较正确返回 -1，无有符号减法溢出
+ *          （区别于 `ra->priority - rb->priority` 的 UB 形态）。
+ * 扩展点：无（降序比较由调用方取负；uint64 三态比较已有 lv_cmp_uint64）。
+ *
+ * @note 收敛对象（判据 A）：六个「priority 升序」qsort 比较器
+ *       （backend_plugin / module / routing / type_inference / rewrite /
+ *       theory），原三分支、`a-b`、`(a>b)-(a<b)` 三种形态统一为本设施；
+ *       `a-b` 形态的 engine_scheduler.rule_compare 与 smt_theory_combiner
+ *       为缺陷修复（消除有符号溢出）。
+ */
+static inline int lv_cmp_int_asc(int a, int b) {
+    return (a > b) - (a < b);
+}
+
+/**
  * @brief 确保数组容量足够——通用动态数组扩容辅助宏
  *
  * @details 项目中多处重复实现了数组扩容逻辑，此宏提供统一的扩容模式。

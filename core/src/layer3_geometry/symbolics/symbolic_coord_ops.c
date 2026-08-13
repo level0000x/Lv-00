@@ -36,6 +36,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_parse_utils.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
@@ -450,42 +451,18 @@ static void bit_burning_check_result(SymbolicCoord *result, const char *operatio
     }
 }
 
-/* ── 安全解析辅助 ── */
-
-/**
- * @brief 安全地将字符串解析为 int64_t。
- */
-static int64_t safe_atol(const char *str) {
-    if (!str || !*str)
-        return 0;
-    char *end = NULL;
-    errno = 0;
-    long val = strtol(str, &end, 10);
-    if (errno != 0 || end == str)
-        return 0;
-    return (int64_t) val;
-}
-
 /* ── 超越数转 double 辅助 ── */
 
 /* ================================================================
  * 表达式类型 -> 运算语义 静态查找表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 超越数表达式运算语义 */
-typedef enum {
-    TRANS_OP_UNKNOWN = 0, /**< 未知语义（沿用名称解析回退路径） */
-    TRANS_OP_ADD,         /**< 加法：base + 有理数 */
-    TRANS_OP_MUL,         /**< 乘法：base * 有理数 */
-} TransOpKind;
-
-/** @brief 表达式类型 -> 运算语义 查找表 */
+/** @brief 表达式类型 -> 运算语义 查找表（自 LV_TRANS_EXPR_TYPE_X 生成） */
+#define LV_TRANS_EXPR_TO_OP_KIND(name, op, mul, kind) [name] = kind,
 static const TransOpKind s_trans_expr_op_kind[] = {
-    [TRANS_EXPR_ADD_RATIONAL] = TRANS_OP_ADD,
-    [TRANS_EXPR_MUL_RATIONAL] = TRANS_OP_MUL,
-    [TRANS_EXPR_ADD_ALGEBRAIC] = TRANS_OP_UNKNOWN,
-    [TRANS_EXPR_MUL_ALGEBRAIC] = TRANS_OP_UNKNOWN,
+    LV_TRANS_EXPR_TYPE_X(LV_TRANS_EXPR_TO_OP_KIND)
 };
+#undef LV_TRANS_EXPR_TO_OP_KIND
 
 /**
  * 将超越数转换为 double 近似值。
@@ -531,13 +508,13 @@ static double transcendental_expr_to_double(const Transcendental *t) {
             int64_t coeff_num = 1;
             int64_t coeff_den = 1;
             if (star_pos == name + 1 && name[0] != '-') {
-                coeff_num = safe_atol(name);
+                coeff_num = lv_parse_long_default(name, 0);
             } else if (star_pos == name + 2 && name[0] == '-') {
-                coeff_num = safe_atol(name);
+                coeff_num = lv_parse_long_default(name, 0);
             }
             const char *after = star_pos + 3;
             if (*after == '/') {
-                coeff_den = safe_atol(after + 1);
+                coeff_den = lv_parse_long_default(after + 1, 0);
             }
             if (coeff_den > 0) {
                 return M_PI * (double) coeff_num / (double) coeff_den;
@@ -545,24 +522,24 @@ static double transcendental_expr_to_double(const Transcendental *t) {
         }
 
         if (lv_str_startswith(name, "pi/")) {
-            int64_t den = safe_atol(name + 3);
+            int64_t den = lv_parse_long_default(name + 3, 0);
             if (den > 0)
                 return M_PI / (double) den;
         }
 
         if (lv_str_startswith(name, "-pi/")) {
-            int64_t den = safe_atol(name + 4);
+            int64_t den = lv_parse_long_default(name + 4, 0);
             if (den > 0)
                 return -M_PI / (double) den;
         }
 
         if (name[0] == '-' && strstr(name, "*pi")) {
             char *sp = strstr(name, "*pi");
-            int64_t coeff_num = safe_atol(name);
+            int64_t coeff_num = lv_parse_long_default(name, 0);
             int64_t coeff_den = 1;
             const char *after = sp + 3;
             if (*after == '/') {
-                coeff_den = safe_atol(after + 1);
+                coeff_den = lv_parse_long_default(after + 1, 0);
             }
             if (coeff_den > 0) {
                 return M_PI * (double) coeff_num / (double) coeff_den;

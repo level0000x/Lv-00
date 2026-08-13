@@ -37,6 +37,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_parse_utils.h"
 #include "lv_utils.h"
 #include "mpz_poly.h"
 
@@ -68,13 +69,7 @@ Transcendental *transcendental_create(const char *name) {
         coeff_num = -1;
         if (name[3] == '/') {
             is_mul = false;
-            {
-                char *e = NULL;
-                errno = 0;
-                long v = strtol(name + 4, &e, 10);
-                if (errno == 0 && e != name + 4)
-                    coeff_den = (int64_t) v;
-            }
+            coeff_den = lv_parse_long_default(name + 4, coeff_den);
             if (coeff_den <= 0)
                 lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
         }
@@ -82,13 +77,7 @@ Transcendental *transcendental_create(const char *name) {
         /* pi/N 形式 */
         base = "pi";
         is_mul = false;
-        {
-            char *e = NULL;
-            errno = 0;
-            long v = strtol(name + 3, &e, 10);
-            if (errno == 0 && e != name + 3)
-                coeff_den = (int64_t) v;
-        }
+        coeff_den = lv_parse_long_default(name + 3, coeff_den);
         if (coeff_den <= 0)
             lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
     } else if (lv_str_startswith(name, "-pi/")) {
@@ -101,24 +90,12 @@ Transcendental *transcendental_create(const char *name) {
             /* N*pi 或 N*pi/M */
             base = "pi";
             is_mul = true;
-            {
-                char *e = NULL;
-                errno = 0;
-                long v = strtol(name, &e, 10);
-                if (errno == 0 && e != name)
-                    coeff_num = (int64_t) v;
-            }
+            coeff_num = lv_parse_long_default(name, coeff_num);
             if (coeff_num <= 0)
                 lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid num");
             const char *after = star_pos + 3; /* skip "*pi" */
             if (*after == '/') {
-                {
-                    char *e = NULL;
-                    errno = 0;
-                    long v = strtol(after + 1, &e, 10);
-                    if (errno == 0 && e != after + 1)
-                        coeff_den = (int64_t) v;
-                }
+                coeff_den = lv_parse_long_default(after + 1, coeff_den);
                 if (coeff_den <= 0)
                     lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
             }
@@ -126,24 +103,12 @@ Transcendental *transcendental_create(const char *name) {
             /* -N*pi 或 -N*pi/M */
             base = "pi";
             is_mul = true;
-            {
-                char *e = NULL;
-                errno = 0;
-                long v = strtol(name, &e, 10);
-                if (errno == 0 && e != name)
-                    coeff_num = (int64_t) v;
-            }
+            coeff_num = lv_parse_long_default(name, coeff_num);
             if (coeff_num >= 0)
                 lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid num");
             const char *after = star_pos + 3;
             if (*after == '/') {
-                {
-                    char *e = NULL;
-                    errno = 0;
-                    long v = strtol(after + 1, &e, 10);
-                    if (errno == 0 && e != after + 1)
-                        coeff_den = (int64_t) v;
-                }
+                coeff_den = lv_parse_long_default(after + 1, coeff_den);
                 if (coeff_den <= 0)
                     lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "transcendental_create: invalid den");
             }
@@ -257,21 +222,19 @@ int transcendental_compare(const Transcendental *a, const Transcendental *b) {
  * 表达式类型 -> 运算符/语义 静态查找表（数据表化，替代 switch）
  * ================================================================ */
 
-/** @brief 表达式类型 -> 序列化运算符字符串 */
+/** @brief 表达式类型 -> 序列化运算符字符串（自 LV_TRANS_EXPR_TYPE_X 生成） */
+#define LV_TRANS_EXPR_TO_OP_STR(name, op, mul, kind) [name] = op,
 static const char *const s_trans_expr_op_str[] = {
-    [TRANS_EXPR_ADD_RATIONAL] = "+",
-    [TRANS_EXPR_MUL_RATIONAL] = "*",
-    [TRANS_EXPR_ADD_ALGEBRAIC] = "+",
-    [TRANS_EXPR_MUL_ALGEBRAIC] = "*",
+    LV_TRANS_EXPR_TYPE_X(LV_TRANS_EXPR_TO_OP_STR)
 };
+#undef LV_TRANS_EXPR_TO_OP_STR
 
-/** @brief 表达式类型 -> 是否为乘法（true=系数*基础常数，false=基础常数+系数） */
+/** @brief 表达式类型 -> 是否为乘法（自 LV_TRANS_EXPR_TYPE_X 生成） */
+#define LV_TRANS_EXPR_TO_IS_MUL(name, op, mul, kind) [name] = mul,
 static const bool s_trans_expr_is_mul[] = {
-    [TRANS_EXPR_ADD_RATIONAL] = false,
-    [TRANS_EXPR_MUL_RATIONAL] = true,
-    [TRANS_EXPR_ADD_ALGEBRAIC] = false,
-    [TRANS_EXPR_MUL_ALGEBRAIC] = true,
+    LV_TRANS_EXPR_TYPE_X(LV_TRANS_EXPR_TO_IS_MUL)
 };
+#undef LV_TRANS_EXPR_TO_IS_MUL
 
 char *transcendental_serialize(const Transcendental *t) {
     if (!t->expr) {

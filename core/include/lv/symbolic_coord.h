@@ -58,12 +58,31 @@ typedef enum {
 typedef CircuitResponse (*CircuitTripCallback)(const SymbolicCoord *, int, void *);
 
 /* ── Trans expr type ── */
+
+/** @brief 超越数表达式运算语义 */
 typedef enum {
-    TRANS_EXPR_ADD_RATIONAL = 0,
-    TRANS_EXPR_MUL_RATIONAL = 1,
-    TRANS_EXPR_ADD_ALGEBRAIC = 2,
-    TRANS_EXPR_MUL_ALGEBRAIC = 3
-} TransExprType;
+    TRANS_OP_UNKNOWN = 0, /**< 未知语义（沿用名称解析回退路径） */
+    TRANS_OP_ADD,         /**< 加法：base + 有理数 */
+    TRANS_OP_MUL,         /**< 乘法：base * 有理数 */
+} TransOpKind;
+
+/**
+ * @brief X-macro 列表：TransExprType 枚举值与对应元数据（单一事实源）
+ *
+ * 列顺序：(symbol, op_str, is_mul, op_kind)
+ *   - op_str   序列化运算符字符串
+ *   - is_mul   是否为乘法（true=系数*基础常数，false=基础常数+系数）
+ *   - op_kind  运算语义（TransOpKind）
+ */
+#define LV_TRANS_EXPR_TYPE_X(x) \
+    x(TRANS_EXPR_ADD_RATIONAL, "+", false, TRANS_OP_ADD) \
+    x(TRANS_EXPR_MUL_RATIONAL, "*", true,  TRANS_OP_MUL) \
+    x(TRANS_EXPR_ADD_ALGEBRAIC, "+", false, TRANS_OP_UNKNOWN) \
+    x(TRANS_EXPR_MUL_ALGEBRAIC, "*", true,  TRANS_OP_UNKNOWN)
+
+#define LV_TRANS_EXPR_ENUM_ITEM(name, op, mul, kind) name,
+typedef enum { LV_TRANS_EXPR_TYPE_X(LV_TRANS_EXPR_ENUM_ITEM) } TransExprType;
+#undef LV_TRANS_EXPR_ENUM_ITEM
 
 /* ── Algebraic plan ── */
 typedef enum { PLAN_A_FULL_ALGEBRAIC = 0, PLAN_B_QUADRATIC_ONLY = 1, PLAN_C_RATIONAL_ONLY = 2 } AlgebraicPlan;

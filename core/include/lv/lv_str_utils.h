@@ -155,6 +155,22 @@ bool lv_str_check_balanced(const char *p, char open, char close);
 
 /* ===== 流式文本解析原语 ===== */
 const char *lv_str_skip_ws(const char *p);
+
+/**
+ * @brief 从 p 向前推进，直到命中 any_of 中任一字符或 NUL（停在定界符处，不越过）
+ *
+ * 语义契约：返回 p 之后首个属于 any_of 字符集的字符位置（或 NUL 终止位置）；
+ *           不越过定界符、不修改字符串、不分配资源。
+ * 前置条件：p、any_of 非 NULL（任一为 NULL 时返回 p 原样）；any_of 为 NUL 终止定界符集。
+ * 失败/截断语义：纯查询，无失败通道。
+ * 边界行为：p 已指向 NUL 或定界符时返回 p 不动；空 any_of 推进到 NUL。
+ * 扩展点：无（「越过定界符」由调用方自行 ++；空白跳过已有 lv_str_skip_ws）。
+ *
+ * @note 收敛对象（判据 A）：全库「while (*p && *p != X) p++」扫描到定界符的手写
+ *       循环（单字符与多字符定界符两类），等价于 p + strcspn(p, any_of)。
+ */
+const char *lv_str_skip_until(const char *p, const char *any_of);
+
 bool lv_str_read_int(const char **pp, int64_t *out);
 bool lv_str_read_quoted(const char **pp, char **out);
 const char *lv_str_read_token(const char **pp, char **out, const char *delims);

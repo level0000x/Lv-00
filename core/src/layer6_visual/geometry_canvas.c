@@ -484,7 +484,7 @@ static void compute_bounds(lvGeometryCanvas *canvas) {
         canvas->bounds.valid = 0;
         return;
     }
-    double min_x = 1e18, min_y = 1e18, max_x = -1e18, max_y = -1e18;
+    double min_x = lv_LARGE_NUMBER, min_y = lv_LARGE_NUMBER, max_x = -lv_LARGE_NUMBER, max_y = -lv_LARGE_NUMBER;
     for (int i = 0; i < canvas->entity_count; i++) {
         lvGeomEntity *e = &canvas->entities[i];
         for (int j = 0; j < e->coord_count; j += 2) {

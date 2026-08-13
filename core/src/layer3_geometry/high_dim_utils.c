@@ -99,14 +99,14 @@ int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, c
                 lv_strlcat(folded_list, ", ", sizeof(folded_list));
             }
             char dim_str[16];
-            high_dim_snprintf(dim_str, sizeof(dim_str), "%d", preset->mappings[i].axis_index);
+            lv_snprintf(dim_str, sizeof(dim_str), "%d", preset->mappings[i].axis_index);
             lv_strlcat(folded_list, dim_str, sizeof(folded_list));
             folded_count++;
         }
     }
 
     if (folded_count > 0) {
-        high_dim_snprintf(buffer, buffer_size, "折叠维度: %s", folded_list);
+        lv_snprintf(buffer, buffer_size, "折叠维度: %s", folded_list);
     } else {
         lv_strlcpy(buffer, "无折叠维度", buffer_size);
     }

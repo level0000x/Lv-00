@@ -112,7 +112,7 @@ static const RewriteRuleEntry builtin_rules[] = {
  * @return 估计的相对误差
  */
 static double estimate_relative_error(const char *expr, double value, int var_count) {
-    if (!expr || fabs(value) < 1e-30)
+    if (!expr || fabs(value) < lv_ZERO_GUARD_EPS)
         return 1.0;
 
     /* 简化估计：基于表达式复杂度和变量数量 */
@@ -251,8 +251,7 @@ static int parse_herbie_output(const char *herbie_output, HerbieOptimizer *opt) 
 
         /* 提取优化后的表达式（到行尾或分隔符） */
         const char *end = suggest;
-        while (*end && *end != '\n' && *end != '\r')
-            end++;
+        end = lv_str_skip_until(end, "\r\n");
 
         size_t len = (size_t) (end - suggest);
         if (len > 0 && len < 1024) {

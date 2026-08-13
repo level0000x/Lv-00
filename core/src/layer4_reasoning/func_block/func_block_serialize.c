@@ -357,8 +357,7 @@ static void fb_field_determinism(FuncBlock *fb, const char **pp) {
         }
         if (!matched) {
             /* 跳过未知值到行尾 */
-            while (*p && *p != '\n')
-                p++;
+            p = lv_str_skip_until(p, "\n");
         }
     }
     *pp = p;
@@ -382,8 +381,7 @@ static void fb_field_view_state(FuncBlock *fb, const char **pp) {
         }
         if (!matched) {
             fb->view_state = FB_VIEW_EXPANDED;
-            while (*p && *p != '\n')
-                p++;
+            p = lv_str_skip_until(p, "\n");
         }
     }
     *pp = p;
@@ -497,8 +495,7 @@ static void fb_field_port_dep(FuncBlock *fb, const char **pp) {
                     p = skip_whitespace(p);
                     /* 读取类型字符串 */
                     const char *start = p;
-                    while (*p && *p != '\n' && *p != ' ' && *p != '}')
-                        p++;
+                    p = lv_str_skip_until(p, "\n }");
                     size_t len = (size_t) (p - start);
                     char *type_str = lv_malloc(len + 1);
                     if (type_str) {
@@ -646,8 +643,7 @@ bool func_block_deserialize_state(FuncBlock *fb, const char *data) {
             kFuncBlockFieldTable[idx].handler(fb, &p);
         } else {
             /* 跳过未知键到行尾 */
-            while (*p && *p != '\n')
-                p++;
+            p = lv_str_skip_until(p, "\n");
         }
     }
 

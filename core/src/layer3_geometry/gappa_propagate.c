@@ -30,6 +30,7 @@
 #include "lv/lv_thread.h"
 
 #include "lv_utils.h"
+#include "lv/lv_parse_utils.h"
 
 
 
@@ -656,11 +657,7 @@ static PropInterval gappa_op_square(const lvGappaPredicate *a, const lvGappaPred
 static PropInterval gappa_op_abs_to_bnd(const lvGappaPredicate *a, const lvGappaPredicate *b, bool *skip) {
     (void) b;
     *skip = false;
-    char *end = NULL;
-    errno = 0;
-    double center = strtod(a->expr_rhs, &end);
-    if (errno != 0 || end == a->expr_rhs)
-        center = 0.0;
+    double center = lv_parse_double_default(a->expr_rhs, 0.0);
     double eps = a->bound_abs;
     PropInterval r = {center - eps, center + eps};
     return r;
@@ -928,11 +925,7 @@ int lv_gappa_propagate_backward(const lvGappaPredicate *goal, const lvGappaPredS
 
     if (goal->type == lv_PRED_ABS) {
         /* ABS 目标: |x - c| <= bound → x in [c - bound, c + bound] */
-        char *end = NULL;
-        errno = 0;
-        double center = strtod(goal->expr_rhs, &end);
-        if (errno != 0 || end == goal->expr_rhs)
-            center = 0.0;
+        double center = lv_parse_double_default(goal->expr_rhs, 0.0);
 
         lvGappaPredicate derived;
         memset(&derived, 0, sizeof(derived));

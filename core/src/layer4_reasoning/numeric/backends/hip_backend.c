@@ -305,7 +305,7 @@ static __global__ void vector_inv_kernel(double *v, const double *d, int64_t n) 
     int64_t idx = (int64_t)blockIdx.x * (int64_t)blockDim.x + (int64_t)threadIdx.x;
     if (idx < n) {
         double denom = d[idx];
-        v[idx] = (fabs(denom) > 1e-30) ? (v[idx] / denom) : 1e30;
+        v[idx] = (fabs(denom) > lv_ZERO_GUARD_EPS) ? (v[idx] / denom) : 1e30;
     }
 }
 
@@ -329,7 +329,7 @@ static __global__ void matvec_kernel(const double *A, const double *x,
         double sum = 0.0;
         for (int64_t j = 0; j < cols; ++j) {
             double xj = x[j];
-            if (fabs(xj) > 1e-30) {
+            if (fabs(xj) > lv_ZERO_GUARD_EPS) {
                 sum += A[j * rows + i] * xj;
             }
         }

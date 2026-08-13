@@ -148,17 +148,21 @@ ConflictReport *lv_conflict_report_create(void) {
     return report;
 }
 
+/* 释放单个冲突记录的动态字段（destroy 与 clear 共用） */
+static void conflict_record_release_fields(ConflictRecord *rec) {
+    lv_free((void **) &rec->node_ids);
+    lv_free((void **) &rec->constraint_ids);
+    lv_free((void **) &rec->description);
+    lv_free((void **) &rec->suggestion);
+}
+
 void lv_conflict_report_destroy(ConflictReport *report) {
     if (!report)
         return;
 
     /* 释放每个矛盾记录的动态内存 */
     for (int i = 0; i < report->conflict_count; i++) {
-        ConflictRecord *rec = &report->conflicts[i];
-        lv_free((void **) &rec->node_ids);
-        lv_free((void **) &rec->constraint_ids);
-        lv_free((void **) &rec->description);
-        lv_free((void **) &rec->suggestion);
+        conflict_record_release_fields(&report->conflicts[i]);
     }
 
     lv_free((void **) &report->conflicts);
@@ -171,11 +175,7 @@ void lv_conflict_report_clear(ConflictReport *report) {
 
     /* 释放每个记录的动态内存但保留数组 */
     for (int i = 0; i < report->conflict_count; i++) {
-        ConflictRecord *rec = &report->conflicts[i];
-        lv_free((void **) &rec->node_ids);
-        lv_free((void **) &rec->constraint_ids);
-        lv_free((void **) &rec->description);
-        lv_free((void **) &rec->suggestion);
+        conflict_record_release_fields(&report->conflicts[i]);
     }
 
     memset(report->conflicts, 0, sizeof(ConflictRecord) * report->capacity);

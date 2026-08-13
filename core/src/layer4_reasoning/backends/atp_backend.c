@@ -367,14 +367,13 @@ ATPBackendType atp_solver_get_type(const ATPBackendSolver *solver) {
  * @brief 获取 ATP 后端对应的可执行文件名
  */
 static const char *atp_executable_name(ATPBackendType type) {
-    /* 后端类型 -> 可执行文件名 查找表（按枚举值升序） */
+    /* 后端类型 -> 可执行文件名 查找表（按枚举值升序，由 LV_ATP_BACKEND_ENTRY 单一事实源生成） */
+#define LV_ATP_BACKEND_EXEC_ROW(ENUM, EXEC, NAME) EXEC,
     static const char *const s_executable_name_table[] = {
-        "vampire",   /* ATP_BACKEND_VAMPIRE = 0 */
-        "eprover",   /* ATP_BACKEND_EPROVER = 1 */
-        "iprover",   /* ATP_BACKEND_IPROVER = 2 */
-        NULL,        /* ATP_BACKEND_CUSTOM = 3 */
+        LV_ATP_BACKEND_ENTRY(LV_ATP_BACKEND_EXEC_ROW)
     };
-    if ((int)type >= 0 && (int)type < ATP_BACKEND_CUSTOM) {
+#undef LV_ATP_BACKEND_EXEC_ROW
+    if ((int)type >= 0 && (int)type < ATP_BACKEND_COUNT) {
         return s_executable_name_table[type];
     }
     return NULL;
@@ -550,8 +549,7 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
         clause_start = lv_str_ltrim((char *) clause_start);
 
         const char *clause_end = clause_start;
-        while (*clause_end && *clause_end != '\n')
-            clause_end++;
+        clause_end = lv_str_skip_until(clause_end, "\n");
 
         int clause_len = (int) (clause_end - clause_start);
         if (clause_len > 0 && count < capacity) {
@@ -1044,7 +1042,7 @@ const ATPBackendEntry *atp_find_backend(ATPBackendType type) {
  * ================================================================ */
 
 /** @brief atp_backend_type_name 名称表（按枚举值升序，由 LV_ATP_BACKEND_ENTRY 单一事实源生成） */
-#define LV_ATP_BACKEND_NAME_ROW(ENUM, NAME) {NAME, ENUM},
+#define LV_ATP_BACKEND_NAME_ROW(ENUM, EXEC, NAME) {NAME, ENUM},
 static const lvStrToEnumEntry s_atp_backend_type_name_entries[] = {
     LV_ATP_BACKEND_ENTRY(LV_ATP_BACKEND_NAME_ROW)
 };

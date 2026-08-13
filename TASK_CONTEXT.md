@@ -722,3 +722,129 @@ ninja 931/931 目标 · ctest 170/170 通过 · 示例 8/8 退出码 0
 **Q23 登记不迁移（tactic 逐行 import 解析，判据 A）**：Coq 侧 coq_bridge.c `coq_import_proof` 是严格逐行扫描（line_end 找 `\n`/`\r` + 每行首 token + `line = line_end + 1`）；Lean4 侧 lean4_bridge.c `lean4_parse_tactics` 是缩进感知递归下降解析器（`while(pos<end)` 逐 token + by/match 分支递归 + 平衡括号跳过 + 注释/缩进）。二者在「行切分」这一判据 A 核心维度即不同构，关键字/边界/token 字符集/嵌套/错误处理均实质分叉。可共享部分（定理名提取 `bridge_extract_theorem_name` / 导出 / 注册骨架）已收敛至 interop_bridge_common.h，且该头注释已明确「import/validate 因两语言语法差异大各自保留」。登记不迁移。
 
 **组⑨ 验证**：本组三候选均登记不迁移，零代码改动，无需构建/测试回归（沿用 927/927 + 170/170 基线）。
+
+---
+
+## 十三、批次 R 候选立项与实施（2026-08-13）
+
+**候选来源**：上一会话 4 份只读子代理报告形成的候选清单，本轮落地候选 A/B/C/E 及候选 D 死宏清除部分。
+
+### 批次 R 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| R1 | qsort comparator 同构合并（cmp_seg_hash → hash_idx_compare_asc） | 完成 |
+| R2 | 新增 `lv_parse_long_default` 收敛 strtol 前缀解析样板（transcendental 6 + safe_atol 7） | 完成 |
+| R3 | 新增 `lv_parse_double_default` 收敛 strtod 回退样板（gappa 4） | 完成 |
+| R4 | `high_dim_snprintf` → `lv_snprintf`（9 处调用） | 完成 |
+| R5 | 删除死宏 `lv_MIN_TRUST`（symbolic_coord.c） | 完成 |
+| R6 | 类型安全 clamp/min 设施（`lv_CLAMP` 9 处） | 待决策 |
+
+### R1 明细（qsort comparator 同构合并，判据 A）
+normalization.c 的 `cmp_seg_hash` 与 `hash_idx_compare_asc` 均按 `HashIdx.hash` 升序比较（分支比较避免溢出），完全同构。qsort 调用点改用 `hash_idx_compare_asc`，删除死函数 `cmp_seg_hash`（约 12 行）。
+
+### R2 明细（lv_parse_long_default，判据 I 变体）
+lv_parse_utils.h 新增 static inline `lv_parse_long_default(const char *str, int64_t default_value)`（strtol 前缀解析 + errno + end==str 防御 + default 回退）。收敛 transcendental.c 6 处 strtol 前缀解析样板（`-pi/N` / `pi/N` / `N*pi` 正负分支），symbolic_coord_ops.c 删除 static `safe_atol`、7 处调用改用 `lv_parse_long_default(name/name+3/name+4/after+1, 0)`。
+
+### R3 明细（lv_parse_double_default，判据 I 变体）
+lv_parse_utils.h 新增 static inline `lv_parse_double_default(const char *str, double default_value)`（复用 `lv_parse_double` + default）。收敛 gappa_dsl.c 2 处 + gappa_propagate.c 2 处 strtod 回退 0.0 样板。
+
+### R4 明细（high_dim_snprintf → lv_snprintf，判据 J 泛化）
+`high_dim_snprintf` 仅是裸 vsnprintf 包装，与 `lv_snprintf`（NULL/大小检查 + vsnprintf 负值防御 + 截断 NUL）正常路径语义等价。删除 high_dim.c 定义 + high_dim_internal.h 声明，9 处调用（high_dim_fidelity 1 / high_dim_utils 2 / high_dim_project 2 / high_dim_view 4）改用 `lv_snprintf`。
+
+### R5 明细（死宏清除，判据 C/D）
+symbolic_coord.c 删除死宏 `lv_MIN_TRUST`（全库 grep 确认零调用点）。
+
+### 验证
+ninja build3 927/927 + ctest 170/170 全部通过，零修复项。构建警告（`lv_LOG_MSG_MAX_LEN` 等宏重定义）属既有问题，未处理。
+
+---
+
+## 十四、批次 S 候选立项与实施（2026-08-13）
+
+**候选来源**：上一会话 4 路只读子代理报告（按判据 A/C/D/G/H/I/J 分组），共 17 候选，按优先级分高/中/低三档。三档已全部执行并验证。
+
+### 批次 S 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| A1 | 优先级升序比较器族 → `lv_cmp_int_asc`（修 `a-b` 溢出） | 完成 |
+| A2 | 扫描至定界符/NUL 循环 → `lv_str_skip_until` | 完成 |
+| D1 | TransExprType 三份平行表 X-macro 化 | 完成 |
+| D2 | PropFormulaType string/LaTeX 双份格式表单表化 | 完成 |
+| G1 | ConflictRecord 析构双份收敛 | 完成 |
+| I1 | sscanf/snprintf 格式串单一事实源（+ 入黑名单） | 完成 |
+| C4 | lv_json_buf_init 容量裸字面量族具名 | 登记不迁移（判据 C 不成立） |
+| C1 | 1e-308 下溢哨兵具名化 → `lv_SAFE_MIN_POSITIVE` | 完成 |
+| C2 | 1e-30 零保护哨兵具名化 → `lv_ZERO_GUARD_EPS` | 完成 |
+| C3 | 1e18 大数初值 → `lv_LARGE_NUMBER`（4 文件） | 完成 |
+| D3 | ATPBackendType 可执行名/显示名 X-macro 化（3 列） | 完成 |
+| H1 | graph_memory 双轨坐标提取共享函数 | 完成 |
+| C5 | 1000.0 渲染 t_max → `lv_RENDER_INFINITE_LINE_EXTENT` | 完成 |
+| H2 | equiv_class 点坐标有效性谓词 | 完成 |
+| B3 | 手写倍增扩容三段 → `lv_ensure_capacity` | 登记不迁移（三段形态异构） |
+| J1 | 判据 J 无候选（core 内裸 strncpy 已归零） | 登记已收敛 |
+| I2 | atp_backend 数字提取样板 → 判据 I 三连 | 登记不迁移（非判据 I 形态） |
+
+### A1 明细（优先级升序比较器族，判据 A）
+`lv_utils.h` 新增 static inline `lv_cmp_int_asc(a, b)`（`(a > b) - (a < b)`，无有符号减法溢出）。收敛六个「priority 升序」qsort 比较器（backend_plugin / module / routing / type_inference / rewrite / theory），原三分支 / `a-b` / `(a>b)-(a<b)` 三种形态统一为本设施；`a-b` 形态的 `engine_scheduler.rule_compare` 与 `smt_theory_combiner` 为缺陷修复（消除有符号溢出）。
+
+### A2 明细（扫描至定界符/NUL 循环，判据 A）
+`lv_str_utils.h/c` 新增 `lv_str_skip_until(p, any_of)`（等价于 `p + strcspn(p, any_of)`，停在定界符处不越过）。收敛全库「`while (*p && *p != X) p++`」扫描到定界符的手写循环（单字符与多字符定界符两类）。
+
+### D1 明细（TransExprType 三份平行表 X-macro 化，判据 D）
+`symbolic_coord.h` 上提 `TransOpKind` 枚举并新增 X-macro 主源 `LV_TRANS_EXPR_TYPE_X`（4 项，列顺序 symbol/op_str/is_mul/op_kind）；`transcendental.c` 的 `s_trans_expr_op_str[]`/`s_trans_expr_is_mul[]` 与 `symbolic_coord_ops.c` 的私有 `TransOpKind` + `s_trans_expr_op_kind[]` 三份平行表改由 X-macro 局部展开生成，消除增删枚举值时三表失步。
+
+### D2 明细（PropFormulaType 格式表单表化，判据 D）
+`prop_verifier_serialize.c` 的 `StringFormatSpec` 改名 `FormatSpec` 并新增 `latex_str` 字段，合并 ASCII/LaTeX 双表为单一 `s_format_spec` 表（7 项 designated initializer）；`formula_to_string_buf` 用 `op_str`，`formula_to_latex_buf` 用 `latex_str`。
+
+### G1 明细（ConflictRecord 析构双份收敛，判据 G）
+`conflict_detector.c` 新增静态 `conflict_record_release_fields(ConflictRecord*)` 统一释放 `node_ids`/`constraint_ids`/`description`/`suggestion` 四动态字段；`lv_conflict_report_destroy` 与 `lv_conflict_report_clear` 循环体改调用该函数。
+
+### I1 明细（格式串单一事实源，判据 I 扩展）
+`proof_strategy_deductive.c` 新增 `DEDUCT_FMT_*` 格式串宏族，将 9 处裸 sscanf/snprintf/DEDUCT_ADD_FACT 中的事实格式串字面量统一为单一事实源，消除「约束事实规格表 vs 规则体」生成/解析两侧的格式串双份维护漂移；裸格式串字面量加入治理黑名单。
+
+### C4 登记不迁移（lv_json_buf_init 容量裸字面量族，判据 C 不成立）
+`lv_json_buf_init` 的初始容量裸字面量（64/128/256/512/1024/2048/4096/8192 及动态表达式）经判定**不满足判据 C**：① 判据 C 要求「同一魔法值」≥2 处，而这些是**不同**容量值，各调用点按自身预期输出规模独立选值；② §2.1 差异分类法明确将「容量初值」列为「常量差异」，应「常量参数化吸收」——而参数化已由 `lv_json_buf_init(buf, initial_size)` 的 `initial_size` 形参完成；③ 无跨文件同语义重复（如 geojson 导出的 4096 与配置序列化的 4096 语义无关）。与批次 Q 的 Q24（编码阈值族）/Q15（view_id 编码规则）「模块内参数而非跨文件重复语义常量」同判，登记不迁移。
+
+### C1 明细（1e-308 下溢哨兵具名化，判据 C）
+`config.h` 新增 `lv_SAFE_MIN_POSITIVE 1e-308`（下溢保护哨兵，避免 log(0)/除零，DBL_MIN 附近）。`float_error.c` 删除局部 `#define SAFE_MIN_POSITIVE 1e-308`，`rpn_eval_div` 改为 `if (fabs(stack[*top - 1]) < lv_SAFE_MIN_POSITIVE) return false;`；`fptaylor_eval.c` 的除零保护改为 `if (fabs(rhs) < lv_SAFE_MIN_POSITIVE) return NAN;`。
+
+### C2 明细（1e-30 零保护哨兵具名化，判据 C）
+`config.h` 新增 `lv_ZERO_GUARD_EPS 1e-30`（接近零保护阈值，除数/值过滤守卫）。迁移 3 文件：`gappa_dsl.c` 两处同构 `rel_err` 判断（第 876/909 行）、`herbie_eval.c` 值过滤守卫、`hip_backend.c` 的 `vector_inv_kernel`/`matvec_kernel`（`fabs(denom) > lv_ZERO_GUARD_EPS`）。
+
+### C3 明细（1e18 大数初值，判据 C）
+复用既有 `lv_LARGE_NUMBER 1e18`，迁移 4 文件裸 `1e18`：`geometry_canvas.c` 与 `block_canvas.c` 的边界盒四元初值（min/max 初始化）、`proof_version_sledge.c` 的 `best_time` 初值、`test_framework.c` 的 `min_ns` 初值。
+
+### D3 明细（ATPBackendType 可执行名/显示名 X-macro 化，判据 D）
+`atp_backend.h` 的 `LV_ATP_BACKEND_ENTRY` 从 2 列扩展到 3 列（ENUM/EXEC/NAME），新增可执行名列。`atp_backend.c` 的可执行名表由 X-macro 生成（`LV_ATP_BACKEND_EXEC_ROW`）；`proof_strategy_hol_oracle.c` 删除手写 `atp_names[]` 第二份显示名数组，循环内改用 `atp_backend_type_name(atp_types[backend])`（6 处 snprintf 的 `atp_names[backend]` 全部改为 `atp_name`）。消除枚举↔可执行名↔显示名三表增删枚举失步。
+
+### H1 明细（graph_memory 双轨坐标提取共享函数，判据 H）
+`graph_memory.c` 新增 `symbolic_coord_dual_extract(const SymbolicCoord *, mpq_t, bool *)`（RATIONAL 时 `mpq_init/mpq_set` 并置 `*out_exact=true`，否则置 false，统一返回 `symbolic_coord_to_double`）。INCIDENCE 段 4 处 + BETWEENNESS 段 4 处共 8 处「to_double + 条件 mpq_init/mpq_set」样板替换为单次调用。
+
+### C5 明细（1000.0 渲染 t_max 具名化，判据 C）
+`config.h` 新增 `lv_RENDER_INFINITE_LINE_EXTENT 1000.0`（无限直线渲染扩展范围）。`lv_render_visitor.c` 与 `geo_visual_complete.c` 的 `t_max` 裸 `1000.0` 改用该常量（后者 `(float) lv_RENDER_INFINITE_LINE_EXTENT`）。
+
+### H2 明细（equiv_class 点坐标有效性谓词，判据 H）
+`equiv_class.c` 新增 `symbolic_point_has_xy(const GeomNode *)`（`coord_count >= 2 && symbolic_coords[0] && symbolic_coords[1]`）。`equiv_derive_from_coords`/`equiv_derive_transform` 及 `point_count` 统计、距离向量填充共 6 处完整性检查替换。**有意保留**：ALGEBRAIC 共轭检测段（第 424/436 行）仅需排除 NULL 的单个 `symbolic_coords[d]`，不能套用该谓词。
+
+### B3 登记不迁移（手写倍增扩容三段，判据 B）
+三段手写扩容形态异构，均不可迁移至 `lv_ensure_capacity`：
+- `lv_graph_traversal.c` `collect_neighbor_batch`：`int **out_ids` + `void ***out_edges` **双数组同步**手写倍增（`int *buf_cap`，初始 256，溢出保护），与单数组接口不同构。
+- `interop_theorem.c`：`ctx->calls_capacity`（`size_t`）char* 倍增 + NUL 语义，size_t 容量 vs `lv_ensure_capacity` int 参数体系不匹配（项目记忆批次 M 已有豁免先例）。
+- `lv_storage.c` `mem_ensure_capacity`：`int64_t` 容量、byte 语义、自定义 `lv_STORAGE_MEM_INIT_CAPACITY`/`lv_STORAGE_MEM_GROW_FACTOR`，与统一设施不同构。
+
+### J1 登记已收敛（判据 J 无候选）
+全库 grep `strncpy(` 在 core/ 内零匹配（裸 strncpy 已由历史批次 J/Q1 归零），判据 J 无新候选。
+
+### I2 登记不迁移（atp_backend 数字提取样板，判据 I）
+`atp_backend.c` 数字相关代码仅用既有 `lv_parse_int`（第 542/930 行），配套手写 `while (*p >= '0' && *p <= '9') p++;` 扫描，但**非**判据 I「关键词定位→向左回退数字起始→解析整数」三连样板（已由 `lv_parse_int_before` 收敛），登记不迁移。
+
+### 决策登记（第 9 章格式）
+`lv_cmp_int_asc` / A / 6 比较器（约 15 文件） / 无 / 各排序测试；`lv_str_skip_until` / A / 全库扫描到定界符循环 / 无 / 字符串测试链；`LV_TRANS_EXPR_TYPE_X` X-macro / D / 3 表 2 文件 / 无 / test_symbolic_coord_ops 族；`s_format_spec` 单表 / D / prop_verifier_serialize 1 文件 / 无 / test_prop_verifier 族；`conflict_record_release_fields` / G / conflict_detector 1 文件 / 无 / test_conflict_detector；`DEDUCT_FMT_*` 宏族 / I 扩展 / proof_strategy_deductive 9 处 / 无 / test_proof_strategy 族；`lv_json_buf_init` 容量字面量 / C 豁免 / 0 文件 / 容量初值属 §2.1 常量差异、参数化已由 initial_size 承担，无跨文件同语义重复。
+
+### 决策登记（第 9 章格式 · 中/低价值组）
+`lv_SAFE_MIN_POSITIVE` / C / float_error + fptaylor_eval 2 处 / 无 / 数值测试链；`lv_ZERO_GUARD_EPS` / C / gappa_dsl×2 + herbie_eval + hip_backend×2 5 处 / 无 / 数值测试链；`lv_LARGE_NUMBER` 复用 / C / 4 文件 4 处 / 无 / 各几何/性能测试；`LV_ATP_BACKEND_ENTRY` 3 列扩展 / D / atp_backend + proof_strategy_hol_oracle 2 文件 / 无 / test_bdd_sat_atp 族；`symbolic_coord_dual_extract` / H / graph_memory 8 处 / 无 / test_constraint_graph 族；`lv_RENDER_INFINITE_LINE_EXTENT` / C / lv_render_visitor + geo_visual_complete 2 处 / 无 / test_layer6_visual 族；`symbolic_point_has_xy` / H / equiv_class 6 处 / 无 / test_equiv_class；手写倍增扩容三段 / B 豁免 / 0 文件 / 双数组·size_t·int64_t 三形态异构；判据 J 无候选 / J / 0 文件 / core 内裸 strncpy 已归零；atp_backend 数字提取 / I 豁免 / 0 文件 / 非三连样板（已由 lv_parse_int_before 覆盖）。
+
+### 验证
+ninja build3 927/927 + ctest 170/170 全部通过，零修复项。构建警告（`lv_LOG_MSG_MAX_LEN` 等宏重定义）属既有问题，未处理。

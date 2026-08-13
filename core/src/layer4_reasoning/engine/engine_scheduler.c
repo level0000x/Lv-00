@@ -65,7 +65,7 @@ static lv_THREAD_LOCAL lvEngine *g_tls_engine = NULL;
 static int rule_compare(const void *a, const void *b) {
     const RoutingRule *ra = (const RoutingRule *) a;
     const RoutingRule *rb = (const RoutingRule *) b;
-    return ra->priority - rb->priority;
+    return lv_cmp_int_asc(ra->priority, rb->priority);
 }
 
 /** @brief RoutingRule 堆拷贝的注册表 destroy 回调适配器（void(*)(void*) 形态） */

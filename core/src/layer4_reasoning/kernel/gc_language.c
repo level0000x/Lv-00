@@ -101,10 +101,7 @@ static const char *gc_parse_identifier(const char *p, char *buf, int bufsz) {
  * @brief 跳过行注释（// 风格）
  */
 static const char *gc_skip_line_comment(const char *p) {
-    while (*p && *p != '\n') {
-        p++;
-    }
-    return p;
+    return lv_str_skip_until(p, "\n");
 }
 
 /* ================================================================

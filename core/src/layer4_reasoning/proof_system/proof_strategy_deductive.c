@@ -33,6 +33,21 @@
  * 约束类型 -> 初始事实格式 映射表（数据表化，替代 switch）
  * ================================================================ */
 
+/* ── 事实格式串单一事实源 ──
+ * 生成（DEDUCT_ADD_FACT / snprintf）与解析（sscanf）共用同一格式串常量，
+ * 避免规格表与规则体之间的双份维护漂移。 */
+#define DEDUCT_FMT_INCIDENCE       "incidence:%d,%d"
+#define DEDUCT_FMT_BETWEENNESS     "betweenness:%d,%d,%d"
+#define DEDUCT_FMT_INTERSECTION    "intersection:%d,%d,%d"
+#define DEDUCT_FMT_CONTAINMENT     "containment:%d,%d"
+#define DEDUCT_FMT_ANGLE           "angle:%d,%d"
+#define DEDUCT_FMT_CONNECTION      "connection:%d,%d"
+#define DEDUCT_FMT_COINCIDENT      "coincident:%d,%d"
+#define DEDUCT_FMT_CONGRUENT       "congruent:%d,%d,%d,%d,%d,%d"
+#define DEDUCT_FMT_POINT_COORD_STR "point_coord:%d,%s,%s"
+#define DEDUCT_FMT_POINT_COORD_ID  "point_coord:%d,"
+#define DEDUCT_FMT_POINT_COORD_DBL "point_coord:%d,%lf,%lf"
+
 /* 约束类型 → 初始事实格式 映射表。
  * min_participants 为该约束生成事实所需的最少参与者数量。 */
 typedef struct {
@@ -41,12 +56,12 @@ typedef struct {
 } DeductFactSpec;
 
 static const DeductFactSpec s_constraint_fact_specs[] = {
-    [INCIDENCE]    = {"incidence:%d,%d", 2},
-    [BETWEENNESS]  = {"betweenness:%d,%d,%d", 3},
-    [INTERSECTION] = {"intersection:%d,%d,%d", 3},
-    [CONTAINMENT]  = {"containment:%d,%d", 2},
-    [ANGLE]        = {"angle:%d,%d", 2},
-    [CONNECTION]   = {"connection:%d,%d", 2},
+    [INCIDENCE]    = {DEDUCT_FMT_INCIDENCE, 2},
+    [BETWEENNESS]  = {DEDUCT_FMT_BETWEENNESS, 3},
+    [INTERSECTION] = {DEDUCT_FMT_INTERSECTION, 3},
+    [CONTAINMENT]  = {DEDUCT_FMT_CONTAINMENT, 2},
+    [ANGLE]        = {DEDUCT_FMT_ANGLE, 2},
+    [CONNECTION]   = {DEDUCT_FMT_CONNECTION, 2},
 };
 
 /**
@@ -192,7 +207,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 }
                 /* 如果 c1 == a2，则推导 a1-c1(=a2)-c2 */
                 if (c1 == a2 && a1 != c2) {
-                    DEDUCT_ADD_FACT("betweenness:%d,%d,%d", a1, c1, c2);
+                    DEDUCT_ADD_FACT(DEDUCT_FMT_BETWEENNESS, a1, c1, c2);
                     new_derived++;
                 }
             }
@@ -210,7 +225,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 if (!lv_str_startswith(facts[j], "incidence:"))
                     continue;
                 int p2, l2;
-                if (sscanf(facts[j], "incidence:%d,%d", &p2, &l2) != 2)
+                if (sscanf(facts[j], DEDUCT_FMT_INCIDENCE, &p2, &l2) != 2)
                     continue;
 
                 /* 同一点在两条不同线上 => 相交 */
@@ -259,7 +274,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     continue;
                 int pid;
                 double fx, fy;
-                if (sscanf(facts[fi], "point_coord:%d,%lf,%lf", &pid, &fx, &fy) == 3) {
+                if (sscanf(facts[fi], DEDUCT_FMT_POINT_COORD_DBL, &pid, &fx, &fy) == 3) {
                     pt_ids[pt_count] = pid;
                     pt_x[pt_count] = fx;
                     pt_y[pt_count] = fy;
@@ -368,7 +383,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                             }
 
                             if (sss_match) {
-                                DEDUCT_ADD_FACT("congruent:%d,%d,%d,%d,%d,%d", tri[t1][0], tri[t1][1], tri[t1][2],
+                                DEDUCT_ADD_FACT(DEDUCT_FMT_CONGRUENT, tri[t1][0], tri[t1][1], tri[t1][2],
                                                 tri[t2][0], tri[t2][1], tri[t2][2]);
                                 new_derived++;
                             }

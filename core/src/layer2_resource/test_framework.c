@@ -734,7 +734,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     }
 
     int64_t total_ns = 0;
-    double min_ns = 1e18;
+    double min_ns = lv_LARGE_NUMBER;
     double max_ns = 0;
 
     for (uint64_t i = 0; i < iterations; i++) {

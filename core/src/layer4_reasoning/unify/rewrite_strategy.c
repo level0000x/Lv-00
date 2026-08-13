@@ -462,7 +462,7 @@ static int cmp_rewrite_rule_priority(const void *a, const void *b, void *ctx) {
     (void) ctx;
     const lvRewriteRuleEx *ra = (const lvRewriteRuleEx *) a;
     const lvRewriteRuleEx *rb = (const lvRewriteRuleEx *) b;
-    return (ra->priority > rb->priority) - (ra->priority < rb->priority);
+    return lv_cmp_int_asc(ra->priority, rb->priority);
 }
 
 /**

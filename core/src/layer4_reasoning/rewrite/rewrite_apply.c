@@ -107,8 +107,7 @@ static const char *skip_whitespace(const char *p) {
  * @return 跳过当前行后的指针
  */
 static const char *skip_line(const char *p) {
-    while (*p && *p != '\n')
-        p++;
+    p = lv_str_skip_until(p, "\n");
     if (*p == '\n')
         p++;
     return p;

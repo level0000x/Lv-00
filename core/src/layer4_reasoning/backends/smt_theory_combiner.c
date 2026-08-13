@@ -37,10 +37,11 @@
 static int compare_entries_by_priority(const void *a, const void *b) {
     const lvTheoryEntry *ea = (const lvTheoryEntry *) a;
     const lvTheoryEntry *eb = (const lvTheoryEntry *) b;
-    if (ea->priority != eb->priority)
-        return ea->priority - eb->priority;
+    int c = lv_cmp_int_asc(ea->priority, eb->priority);
+    if (c != 0)
+        return c;
     /* Tie-break by theory ID for deterministic ordering */
-    return (int) ea->theory_id - (int) eb->theory_id;
+    return lv_cmp_int_asc((int) ea->theory_id, (int) eb->theory_id);
 }
 
 /**

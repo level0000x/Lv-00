@@ -69,29 +69,5 @@ lv_THREAD_LOCAL StreamContext *high_dim_stream_ctx = NULL;
  * 值: 3.14159265358979323846
  */
 
-/* ==================== 内部辅助函数 ==================== */
 
-/**
- * @brief 安全的 snprintf 包装函数
- *
- * 本函数是对 vsnprintf 的薄包装层，虽然功能上等价于直接调用 vsnprintf，
- * 但保留此包装层有以下设计考量：
- * 1. 统一格式化接口：项目内所有字符串格式化通过此函数进行，便于统一管理。
- * 2. 未来可扩展性：可在不修改调用点的情况下，添加格式化日志、长度校验、
- *    或替换为自定义格式化后端。
- * 3. 代码可读性：函数名前缀 high_dim_ 明确标识所属模块，增强代码自描述性。
- *
- * @param str     目标缓冲区
- * @param size    缓冲区大小（字节）
- * @param format  printf 风格的格式字符串
- * @param ...     可变参数
- * @return 成功时返回将写入的字符数（不含终止符），失败返回负值
- */
-int high_dim_snprintf(char *str, size_t size, const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    int result = vsnprintf(str, size, format, args);
-    va_end(args);
-    return result;
-}
 

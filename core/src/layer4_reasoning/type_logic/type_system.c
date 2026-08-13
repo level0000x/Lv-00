@@ -1159,7 +1159,7 @@ static int cmp_inference_rule_priority(const void *a, const void *b, void *ctx) 
     (void) ctx;
     const TypeInferenceRule *ra = (const TypeInferenceRule *) a;
     const TypeInferenceRule *rb = (const TypeInferenceRule *) b;
-    return (ra->priority > rb->priority) - (ra->priority < rb->priority);
+    return lv_cmp_int_asc(ra->priority, rb->priority);
 }
 
 /**

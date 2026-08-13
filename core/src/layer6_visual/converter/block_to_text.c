@@ -137,8 +137,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                 lv_free((void **) &name_tok);
             }
             /* 跳到花括号 */
-            while (*p && *p != '{')
-                p++;
+            p = lv_str_skip_until(p, "{");
             if (*p == '{')
                 p++;
 
@@ -169,8 +168,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                         if (in_cnt < 64)
                             inputs[in_cnt++] = port_id;
                         /* 跳到行尾 */
-                        while (*p && *p != '\n')
-                            p++;
+                        p = lv_str_skip_until(p, "\n");
                     }
                     /* 检测 output */
                     else if (lv_str_startswith(p, "output ")) {
@@ -184,12 +182,10 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                         if (out_cnt < MAX_BLOCK_PORTS)
                             outputs[out_cnt++] = port_id;
                         /* 跳到行尾 */
-                        while (*p && *p != '\n')
-                            p++;
+                        p = lv_str_skip_until(p, "\n");
                     } else {
                         /* 跳过其他行 */
-                        while (*p && *p != '\n')
-                            p++;
+                        p = lv_str_skip_until(p, "\n");
                     }
                 }
 
@@ -209,8 +205,7 @@ lvConvertResult lv_convert_text_to_block(const char *code) {
                 p++;
         } else {
             /* 跳过非块行 */
-            while (*p && *p != '\n')
-                p++;
+            p = lv_str_skip_until(p, "\n");
         }
     }
 

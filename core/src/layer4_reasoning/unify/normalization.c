@@ -170,18 +170,6 @@ static bool coords_equal(GeomNode *a, GeomNode *b) {
     return true;
 }
 
-/* 用于 qsort 的线段哈希比较函数（复用 HashIdx 类型） */
-
-static int cmp_seg_hash(const void *a, const void *b) {
-    uint64_t ha = ((const HashIdx *) a)->hash;
-    uint64_t hb = ((const HashIdx *) b)->hash;
-    if (ha < hb)
-        return -1;
-    if (ha > hb)
-        return 1;
-    return 0;
-}
-
 /* Union-Find -------------------------------------------------------- */
 
 /**
@@ -751,7 +739,7 @@ NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out
                     seg_pairs[i].hash = seg_hashes[i];
                     seg_pairs[i].idx = seg_indices[i];
                 }
-                qsort(seg_pairs, (size_t) seg_count, sizeof(HashIdx), cmp_seg_hash);
+                qsort(seg_pairs, (size_t) seg_count, sizeof(HashIdx), hash_idx_compare_asc);
                 for (int i = 0; i < seg_count; i++) {
                     seg_hashes[i] = seg_pairs[i].hash;
                     seg_indices[i] = seg_pairs[i].idx;

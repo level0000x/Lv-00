@@ -86,7 +86,7 @@ static void project_tsne(const ProjectContext *ctx) {
 static void project_fold_discard(const ProjectContext *ctx) {
     if (*ctx->folded_count < 3) {
         char dim_info[32];
-        high_dim_snprintf(dim_info, sizeof(dim_info), "%d:%.2f", ctx->mapping->axis_index, ctx->coord_value);
+        lv_snprintf(dim_info, sizeof(dim_info), "%d:%.2f", ctx->mapping->axis_index, ctx->coord_value);
         lv_str_append_sep(ctx->folded_dims, 256, ctx->folded_pos, ", ", dim_info);
     }
     (*ctx->folded_count)++;
@@ -117,7 +117,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
      *      则本函数信任调用者保证的数组有效性
      *   5. 如果当前块没有有效的投影预设（preset == NULL），返回 INVALID_STATE
      *   6. projected->folded_info 缓冲区大小为 HIGH_DIM_FOLDED_INFO_MAX，
-     *      确保 high_dim_snprintf 不会越界写入
+     *      确保 lv_snprintf 不会越界写入
      */
     if (!manager || !high_dim_coords || !projected || coord_count < 0) {
         return lv_ERROR_INVALID_PARAM;
@@ -170,7 +170,7 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
 
     /* 设置折叠维度信息 */
     if (folded_count > 0) {
-        high_dim_snprintf(projected->folded_info, sizeof(projected->folded_info), "折叠维度(%d): %s", folded_count,
+        lv_snprintf(projected->folded_info, sizeof(projected->folded_info), "折叠维度(%d): %s", folded_count,
                           folded_dims);
     }
 

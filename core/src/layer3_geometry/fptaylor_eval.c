@@ -181,7 +181,7 @@ static double parse_term(Lexer *lex) {
         if (op == FP_TOKEN_MUL) {
             v *= rhs;
         } else {
-            if (fabs(rhs) < 1e-308) return NAN;
+            if (fabs(rhs) < lv_SAFE_MIN_POSITIVE) return NAN;
             v /= rhs;
         }
     }

@@ -414,9 +414,7 @@ bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
 static int module_compare(const void *a, const void *b) {
     const ModuleEntry *ma = (const ModuleEntry *) a;
     const ModuleEntry *mb = (const ModuleEntry *) b;
-    if (ma->priority < mb->priority) return -1;
-    if (ma->priority > mb->priority) return 1;
-    return 0;
+    return lv_cmp_int_asc(ma->priority, mb->priority);
 }
 
 bool lv_module_init_all(void) {

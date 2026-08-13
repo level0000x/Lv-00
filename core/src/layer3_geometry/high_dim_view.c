@@ -594,7 +594,7 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
         if (vid <= 0) {
             if (views_skipped < 10) {
                 char buf[64];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id[%d]=%d无效; ", views_skipped > 0 ? "" : "", i, vid);
+                lv_snprintf(buf, sizeof(buf), "%sview_id[%d]=%d无效; ", views_skipped > 0 ? "" : "", i, vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -606,7 +606,7 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
         if (view_idx < 0) {
             if (views_skipped < 10) {
                 char buf[64];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d未注册; ", views_skipped > 0 ? "" : "", vid);
+                lv_snprintf(buf, sizeof(buf), "%sview_id=%d未注册; ", views_skipped > 0 ? "" : "", vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
@@ -620,7 +620,7 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
         if (!block) {
             if (views_skipped < 10) {
                 char buf[80];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d的block_id=%d已注销; ", views_skipped > 0 ? "" : "",
+                lv_snprintf(buf, sizeof(buf), "%sview_id=%d的block_id=%d已注销; ", views_skipped > 0 ? "" : "",
                                   vid, view_ctx->block_id);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
@@ -650,7 +650,7 @@ static int high_dim_link_highlight_locked(HighDimManager *manager, const int *vi
         } else {
             if (views_skipped < 10) {
                 char buf[80];
-                high_dim_snprintf(buf, sizeof(buf), "%sview_id=%d高亮列表已满; ", views_skipped > 0 ? "" : "", vid);
+                lv_snprintf(buf, sizeof(buf), "%sview_id=%d高亮列表已满; ", views_skipped > 0 ? "" : "", vid);
                 lv_strlcat(skipped_info, buf, sizeof(skipped_info));
             }
             views_skipped++;
