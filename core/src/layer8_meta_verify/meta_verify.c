@@ -685,7 +685,7 @@ static int handle_verify_complete(const lvProofObject *p, lvStrBuf *sb) {
     }
     if (p->goal && last->conclusion != p->goal &&
         !(last->conclusion->label && p->goal->label &&
-          strcmp(last->conclusion->label, p->goal->label) == 0)) {
+          lv_str_eq(last->conclusion->label, p->goal->label))) {
         lv_strbuf_printf(sb, "Last step conclusion does not match goal");
         return 0;
     }

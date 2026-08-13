@@ -558,7 +558,7 @@ lvTestReport *lv_test_run_by_tag(const char *tag) {
             /* 检查标签 */
             bool has_tag = false;
             for (uint32_t k = 0; k < test_case->tag_count; k++) {
-                if (strcmp(test_case->tags[k], tag) == 0) {
+                if (lv_str_eq(test_case->tags[k], tag)) {
                     has_tag = true;
                     break;
                 }
@@ -626,7 +626,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
                     matches = true;
                 }
             } else {
-                matches = (strcmp(full_name, pattern) == 0);
+                matches = lv_str_eq(full_name, pattern);
             }
 
             if (matches) {
@@ -770,7 +770,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
 
 lvBenchmark *lv_benchmark_run(const char *name) {
     for (uint32_t i = 0; i < g_benchmarks.count; i++) {
-        if (strcmp(g_benchmarks.benchmarks[i].name, name) == 0) {
+        if (lv_str_eq(g_benchmarks.benchmarks[i].name, name)) {
             return &g_benchmarks.benchmarks[i];
         }
     }
@@ -1016,11 +1016,11 @@ bool lv_test_report_write_file(const lvTestReport *report, const char *path, con
     }
 
     char *content = NULL;
-    if (strcmp(format, "json") == 0) {
+    if (lv_str_eq(format, "json")) {
         content = lv_test_report_to_json(report);
-    } else if (strcmp(format, "xml") == 0) {
+    } else if (lv_str_eq(format, "xml")) {
         content = lv_test_report_to_xml(report);
-    } else if (strcmp(format, "html") == 0) {
+    } else if (lv_str_eq(format, "html")) {
         content = lv_test_report_to_html(report);
     }
 

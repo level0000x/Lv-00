@@ -443,7 +443,7 @@ static LvProofVerifyResult verify_assume_handler(const char **premises, const ch
         return VERIFY_UNDECIDED;
     }
     for (int i = 0; premises[i] != NULL; i++) {
-        if (strcmp(premises[i], conclusion) == 0) {
+        if (lv_str_eq(premises[i], conclusion)) {
             if (out_trace) {
                 *out_trace = lv_asprintf("VERIFY_VALID [ASSUME]: 结论 \"%s\" 在前提[%d]中", conclusion, i);
             }

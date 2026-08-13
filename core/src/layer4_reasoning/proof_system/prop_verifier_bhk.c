@@ -14,6 +14,7 @@
 #include <time.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream_context_util.h"
@@ -162,7 +163,7 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && lv_str_eq(premises[j]->data.atom.name, goal_atoms[i])) {
                     found = true;
                     break;
                 }
@@ -181,7 +182,7 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
                 for (int i = 0; i < atom_count && idx < missing; i++) {
                     bool found = false;
                     for (int j = 0; j < premise_count; j++) {
-                        if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                        if (premises[j]->type == PROP_ATOM && lv_str_eq(premises[j]->data.atom.name, goal_atoms[i])) {
                             found = true;
                             break;
                         }

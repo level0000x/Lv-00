@@ -192,7 +192,7 @@ static void check_let(LvSemaContext *ctx, LvAstNode *node) {
 /** @brief 在 NULL 结尾关键字表中精确匹配（strcmp 语义，避免 strstr 子串误匹配） */
 static bool lv_sema_match_name(const char *fname, const char *const *names) {
     for (int i = 0; names[i] != NULL; i++) {
-        if (strcmp(fname, names[i]) == 0)
+        if (lv_str_eq(fname, names[i]))
             return true;
     }
     return false;
@@ -309,7 +309,7 @@ static LvSemanticType check_call(LvSemaContext *ctx, LvAstNode *node) {
 
     /* 几何构造：point, line, circle, segment, ray, triangle（查找表） */
     for (size_t i = 0; i < lv_ARRAY_SIZE(kGeomConstructorTable); i++) {
-        if (strcmp(fname, kGeomConstructorTable[i].name) == 0) {
+        if (lv_str_eq(fname, kGeomConstructorTable[i].name)) {
             return kGeomConstructorTable[i].handler(ctx, node);
         }
     }

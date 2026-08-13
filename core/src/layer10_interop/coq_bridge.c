@@ -31,6 +31,10 @@
  *
  * 将 Lv-00 内部证明步骤映射为 Coq 证明策略（tactic）。
  * 每种步骤类型对应一个或多个 Coq 等价策略。
+ *
+ * exempt: Coq 的 tactic 集合与 Lean 4/OPML 不同（含 UNIFY/EX_FALSO、
+ * 缺 EXACT/HAVE/CALC，且 NORMALIZATION=4 与 lv/interop_step_type.h 的
+ * EXACT=4 数值分叉），属互操作外部契约，禁止与 lvProofStepType 单源合并。
  */
 typedef enum {
     lv_STEP_ADD_NODE = 0,   /**< 添加节点 → intro */

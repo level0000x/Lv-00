@@ -864,6 +864,25 @@ int graph_find_constraints_involving(const ConstraintGraph *graph, int node_id, 
     return count;
 }
 
+int graph_find_app_sink_input(const ConstraintGraph *graph, int parent_id) {
+    if (!graph || parent_id < 0)
+        return -1;
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *node = graph->nodes[i];
+        if (!node || !node->is_active)
+            continue;
+        if (node->type != GEOM_PORT)
+            continue;
+        if (node->parent_block_id != parent_id)
+            continue;
+        if (node->data.port && node->data.port->type == PORT_INPUT &&
+            !node->data.port->is_formal_param) {
+            return node->id;
+        }
+    }
+    return -1;
+}
+
 /**
  * 检测约束是否冗余。
  *

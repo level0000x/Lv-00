@@ -164,7 +164,7 @@ int lv_gc_parse(const char *source, void *engine) {
                 int i;
                 int is_keyword = 0;
                 for (i = 0; gc_keywords[i] != NULL; i++) {
-                    if (strcmp(ident, gc_keywords[i]) == 0) {
+                    if (lv_str_eq(ident, gc_keywords[i])) {
                         is_keyword = 1;
                         break;
                     }

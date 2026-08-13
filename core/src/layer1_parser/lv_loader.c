@@ -343,7 +343,7 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
 
                 /* 根据关系类型添加约束 */
                 const char *fname = expr->data.call.func_name;
-                if (fname && strcmp(fname, "collinear") == 0 && arg_count >= 3) {
+                if (fname && lv_str_eq(fname, "collinear") && arg_count >= 3) {
                     /* 简化处理：collinear 约束，用 incidence */
                     for (int i = 1; i < arg_count; i++) {
                         lv_add_constraint_incidence(engine, arg_ids[i], arg_ids[0]);
@@ -529,21 +529,21 @@ static bool fold_binary_op(LvAstNode *node, LvVal *out, int depth) {
     if (l.kind != LV_VAL_NUM || r.kind != LV_VAL_NUM)
         return false;
     const char *op = node->data.binary.op;
-    if (strcmp(op, "+") == 0) {
+    if (lv_str_eq(op, "+")) {
         out->kind = LV_VAL_NUM; out->num = l.num + r.num; return true;
     }
-    if (strcmp(op, "-") == 0) {
+    if (lv_str_eq(op, "-")) {
         out->kind = LV_VAL_NUM; out->num = l.num - r.num; return true;
     }
-    if (strcmp(op, "*") == 0) {
+    if (lv_str_eq(op, "*")) {
         out->kind = LV_VAL_NUM; out->num = l.num * r.num; return true;
     }
-    if (strcmp(op, "/") == 0) {
+    if (lv_str_eq(op, "/")) {
         if (r.num == 0)
             return false;
         out->kind = LV_VAL_NUM; out->num = l.num / r.num; return true;
     }
-    if (strcmp(op, "^") == 0) {
+    if (lv_str_eq(op, "^")) {
         if (r.num < 0)
             return false;
         long long v = 1;
@@ -560,10 +560,10 @@ static bool fold_unary_op(LvAstNode *node, LvVal *out, int depth) {
         return false;
     if (v.kind != LV_VAL_NUM)
         return false;
-    if (strcmp(node->data.unary.op, "-") == 0) {
+    if (lv_str_eq(node->data.unary.op, "-")) {
         out->kind = LV_VAL_NUM; out->num = -v.num; return true;
     }
-    if (strcmp(node->data.unary.op, "+") == 0) {
+    if (lv_str_eq(node->data.unary.op, "+")) {
         *out = v; return true;
     }
     return false;
@@ -575,7 +575,7 @@ static bool fold_function_call(LvAstNode *node, LvVal *out, int depth) {
         return false;
     const ChurchFnEntry *entry = NULL;
     for (size_t i = 0; i < lv_ARRAY_SIZE(kChurchFnTable); i++) {
-        if (strcmp(kChurchFnTable[i].name, fname) == 0) {
+        if (lv_str_eq(kChurchFnTable[i].name, fname)) {
             entry = &kChurchFnTable[i];
             break;
         }
@@ -630,17 +630,17 @@ static int eval_compare(const LvAstNode *node, int depth) {
     if (!fold_expr(node->data.compare.right, &r, depth + 1))
         return -1;
     if (l.kind == LV_VAL_NUM && r.kind == LV_VAL_NUM) {
-        if (strcmp(op, "==") == 0) return l.num == r.num ? 1 : 0;
-        if (strcmp(op, "!=") == 0) return l.num != r.num ? 1 : 0;
-        if (strcmp(op, "<") == 0)  return l.num < r.num ? 1 : 0;
-        if (strcmp(op, "<=") == 0) return l.num <= r.num ? 1 : 0;
-        if (strcmp(op, ">") == 0)  return l.num > r.num ? 1 : 0;
-        if (strcmp(op, ">=") == 0) return l.num >= r.num ? 1 : 0;
+        if (lv_str_eq(op, "==")) return l.num == r.num ? 1 : 0;
+        if (lv_str_eq(op, "!=")) return l.num != r.num ? 1 : 0;
+        if (lv_str_eq(op, "<"))  return l.num < r.num ? 1 : 0;
+        if (lv_str_eq(op, "<=")) return l.num <= r.num ? 1 : 0;
+        if (lv_str_eq(op, ">"))  return l.num > r.num ? 1 : 0;
+        if (lv_str_eq(op, ">=")) return l.num >= r.num ? 1 : 0;
         return -1;
     }
     if (l.kind == LV_VAL_BOOL && r.kind == LV_VAL_BOOL) {
-        if (strcmp(op, "==") == 0) return l.boolean == r.boolean ? 1 : 0;
-        if (strcmp(op, "!=") == 0) return l.boolean != r.boolean ? 1 : 0;
+        if (lv_str_eq(op, "==")) return l.boolean == r.boolean ? 1 : 0;
+        if (lv_str_eq(op, "!=")) return l.boolean != r.boolean ? 1 : 0;
         return -1;
     }
     return -1;
@@ -692,7 +692,7 @@ static int eval_relation(const LvAstNode *node, int depth) {
             return -1;
         if (!first_name)
             first_name = a->data.ident.name;
-        else if (strcmp(first_name, a->data.ident.name) != 0)
+        else if (lv_str_ne(first_name, a->data.ident.name))
             return -1;
     }
     return first_name ? 1 : -1;
@@ -799,7 +799,7 @@ static void collect_ident(LvAstNode *node,
         return;
     }
     for (int i = 0; i < *count; i++) {
-        if (strcmp(vars[i], name) == 0)
+        if (lv_str_eq(vars[i], name))
             return;
     }
     if (*count >= LV_PROP_MAX_VARS) {
@@ -873,7 +873,7 @@ static int skeleton_ident(const LvAstNode *node,
     if (!name)
         return -1;
     for (int i = 0; i < nvars; i++) {
-        if (strcmp(vars[i], name) == 0)
+        if (lv_str_eq(vars[i], name))
             return vals[i] ? 1 : 0;
     }
     return -1;

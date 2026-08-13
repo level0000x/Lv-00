@@ -59,6 +59,18 @@ int lv_str_icmp(const char *a, const char *b) {
 #endif
 }
 
+bool lv_str_eq(const char *a, const char *b) {
+    if (a == b)
+        return true;
+    if (!a || !b)
+        return false;
+    return strcmp(a, b) == 0;
+}
+
+bool lv_str_ne(const char *a, const char *b) {
+    return !lv_str_eq(a, b);
+}
+
 int lv_str_icmp_n(const char *a, const char *b, size_t n) {
     if (a == b)
         return 0;

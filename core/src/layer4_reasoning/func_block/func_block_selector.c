@@ -34,102 +34,25 @@
  * @return false 点不在区域内或参数无效
  */
 static bool point_in_region(GeomNode *point, GeomNode *region, ConstraintGraph *graph) {
+    (void) graph;
     if (!point || !region || region->type != GEOM_REGION)
         return false;
     if (point->coord_count < 2 || !point->symbolic_coords)
         return false;
     if (!point->symbolic_coords[0] || !point->symbolic_coords[1])
         return false;
+    if (!region->data.region.boundary_segments)
+        return false;
 
     /* 将候选点的符号坐标转换为浮点数用于射线法计算 */
     double px = symbolic_coord_to_double(point->symbolic_coords[0]);
     double py = symbolic_coord_to_double(point->symbolic_coords[1]);
 
-    int crossings = 0;
-
-    /*
-     * 射线法（Ray Casting Algorithm）原理说明：
-     *
-     * ====================================================================
-     * 1. 什么是射线法？
-     * ====================================================================
-     * 射线法是一种用于判断二维点是否位于多边形内部的经典算法。
-     * 其基本思想是：从待判断点向任意方向发射一条射线，然后统计该射线
-     * 与多边形各条边的相交次数。根据相交次数的奇偶性来判断点的位置。
-     *
-     * 本实现选择向右（+x 方向）发射水平射线，这是一种工程上最常用的
-     * 方向选择，因为：
-     *   - 水平射线简化了交点计算（只需线性插值）
-     *   - +x 方向与大多数坐标系的自然增长方向一致
-     *   - 便于用半开区间技巧处理顶点退化情况
-     *
-     * ====================================================================
-     * 2. 奇偶规则（Even-Odd Rule / Jordan 曲线定理）
-     * ====================================================================
-     * 根据 Jordan 曲线定理，任何简单闭合曲线将平面分为内部和外部两个
-     * 区域。从外部任意点出发的射线，每次穿过曲线边界时都会在内部和
-     * 外部之间切换一次。因此：
-     *
-     *   - 交点数为奇数 => 点在多边形内部（含边界情况）
-     *   - 交点数为偶数 => 点在多边形外部
-     *
-     * 示例说明：
-     *   - 在圆形内部的一点，向右射线与圆相交 1 次（奇数）=> 内部
-     *   - 在圆形外部的一点，向右射线与圆相交 0 次或 2 次（偶数）=> 外部
-     *
-     * ====================================================================
-     * 3. 边相交检测的逻辑
-     * ====================================================================
-     * 对多边形每条边界线段 (x1, y1) -> (x2, y2)，按以下步骤检测：
-     *
-     *   Step 1 - 跳过退化线段：
-     *     - 水平线段（y1 == y2）：水平射线不可能与水平线段有明确交点
-     *     - 极短线段（|y2-y1| < 1e-12）：防止浮点除法产生数值不稳定
-     *
-     *   Step 2 - 检查线段 y 范围（半开区间技巧）：
-     *     条件: (y1 <= py && y2 > py) || (y2 <= py && y1 > py)
-     *     使用半开区间而非闭区间，是为了避免顶点被重复计数：
-     *       - 当射线恰好穿过顶点时，如果两端都用 <=，该顶点会被相邻
-     *         两条线段各计一次，导致计数错误。
-     *       - 半开区间（一个端点用 <=，另一个用 < 或 >）确保每个顶点
-     *         只被一条线段计入。
-     *
-     *   Step 3 - 计算交点 x 坐标：
-     *     参数 t = (py - y1) / (y2 - y1)   // 射线 y 在线段上的参数
-     *     交点 x = x1 + t * (x2 - x1)     // 线性插值
-     *
-     *   Step 4 - 仅计数右侧交点：
-     *     条件: px < x_intersect
-     *     只统计在候选点右侧的交点。如果交点在左侧，说明射线已经
-     *     "穿过"了，但方向不对，不应计入。
-     */
-    /* 【修复】检查 boundary_segments 数组指针是否为空，防止空指针解引用崩溃 */
-    if (!region->data.region.boundary_segments)
-        return false;
-
-    for (int i = 0; i < region->data.region.segment_count; i++) {
-        GeomNode *seg = region->data.region.boundary_segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT)
-            continue;
-
-        double x1, y1, x2, y2;
-        if (symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2)) {
-            /* 检查水平射线 (px, py) -> (+inf, py) 是否与线段相交 */
-            double dy = y2 - y1;
-            /* 【修复】使用 fabs 统一做除零检查，避免浮点数直接用 == 比较的不可靠性 */
-            if (lv_is_zero(dy, lv_EPSILON_ULTRA))
-                continue;
-            if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
-                double t = (py - y1) / dy;
-                double x_intersect = x1 + t * (x2 - x1);
-                if (px < x_intersect) {
-                    crossings++;
-                }
-            }
-        }
-    }
-
-    return (crossings % 2) == 1;
+    /* 收敛说明（批次 T F-2）：射线法实现已收敛到共享设施
+     * geo_point_in_region_segments（geo_utils），采用 lv_is_zero 防卫跳过
+     * 近水平退化边；此处仅保留 GeomNode 输入校验与坐标提取。 */
+    return geo_point_in_region_segments(px, py, region->data.region.boundary_segments,
+                                        region->data.region.segment_count);
 }
 
 /**

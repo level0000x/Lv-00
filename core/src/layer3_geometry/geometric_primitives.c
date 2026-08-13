@@ -21,6 +21,7 @@
  */
 
 #include "lv/geometric_primitives.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h"
 
@@ -378,7 +379,7 @@ GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path) 
     bool ok = false;
     size_t i;
     for (i = 0; i < lv_ARRAY_SIZE(kProofExportFns); i++) {
-        if (strcmp(format, kProofExportFns[i].name) == 0) {
+        if (lv_str_eq(format, kProofExportFns[i].name)) {
             ok = kProofExportFns[i].fn(nav, path);
             break;
         }
@@ -418,21 +419,21 @@ GeoResult geo_query(const ConstraintGraph *graph, const char *query, int target_
     if (!query)
         return geo_err(GEO_STATUS_NULL_ARG, "查询类型 NULL");
 
-    if (strcmp(query, "node") == 0) {
+    if (lv_str_eq(query, "node")) {
         GeomNode *n = graph_get_node(graph, target_id);
         if (!n)
             return geo_err(GEO_STATUS_NOT_FOUND, "节点未找到");
         GeoResult r = {GEO_STATUS_OK, (void *) n, NULL};
         return r;
     }
-    if (strcmp(query, "constraint") == 0) {
+    if (lv_str_eq(query, "constraint")) {
         Constraint *c = graph_get_constraint(graph, target_id);
         if (!c)
             return geo_err(GEO_STATUS_NOT_FOUND, "约束未找到");
         GeoResult r = {GEO_STATUS_OK, (void *) c, NULL};
         return r;
     }
-    if (strcmp(query, "count") == 0) {
+    if (lv_str_eq(query, "count")) {
         int *cnt = (int *) lv_malloc(2 * sizeof(int));
         if (!cnt)
             return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");

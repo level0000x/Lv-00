@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/formula_parser.h"
+#include "lv/lv_str_utils.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -100,16 +101,16 @@ static FormulaNode *parse_python_atom(ParserContext *ctx) {
         formula_skip_whitespace(ctx);
 
         /* 检查布尔值 */
-        if (strcmp(ident, "True") == 0 || strcmp(ident, "False") == 0) {
-            int val = (strcmp(ident, "True") == 0) ? 1 : 0;
+        if (lv_str_eq(ident, "True") || lv_str_eq(ident, "False")) {
+            int val = lv_str_eq(ident, "True") ? 1 : 0;
             lv_free((void **) &ident);
             return formula_create_number(val, 1);
         }
-        if (strcmp(ident, "None") == 0) {
+        if (lv_str_eq(ident, "None")) {
             lv_free((void **) &ident);
             return formula_create_variable("None");
         }
-        if (strcmp(ident, "pi") == 0) {
+        if (lv_str_eq(ident, "pi")) {
             lv_free((void **) &ident);
             return formula_create_variable("pi");
         }

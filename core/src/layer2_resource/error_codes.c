@@ -19,6 +19,7 @@
 #include "lv.h"
 #include "lv_internal.h"
 #include "lv/lv_error.h"
+#include "lv/lv_str_utils.h"
 
 /* 命名常量 */
 #define lv_ERROR_MSG_BUFFER_SIZE 512   /**< 线程局部错误消息缓冲区大小 */
@@ -292,7 +293,7 @@ lvErrorCode lv_error_code_from_string(const char *name) {
         return lv_ERROR_UNKNOWN;
 
     for (size_t i = 0; i < ERROR_TABLE_SIZE; i++) {
-        if (strcmp(g_error_table[i].name, name) == 0) {
+        if (lv_str_eq(g_error_table[i].name, name)) {
             return g_error_table[i].code;
         }
     }

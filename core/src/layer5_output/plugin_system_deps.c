@@ -18,6 +18,7 @@
 
 #include "lv/lv_check.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 #include "plugin_system_internal.h"
@@ -108,7 +109,7 @@ lvPlugin **lv_plugin_get_dependents(lvPluginSystem *system, const lvPlugin *plug
         if (!system->plugins[i]->info.dependencies)
             continue;
         for (size_t j = 0; j < system->plugins[i]->info.dependency_count; j++) {
-            if (strcmp(system->plugins[i]->info.dependencies[j]->name, plugin->info.name) == 0) {
+            if (lv_str_eq(system->plugins[i]->info.dependencies[j]->name, plugin->info.name)) {
                 dependent_count++;
                 break;
             }
@@ -133,7 +134,7 @@ lvPlugin **lv_plugin_get_dependents(lvPluginSystem *system, const lvPlugin *plug
         if (!system->plugins[i]->info.dependencies)
             continue;
         for (size_t j = 0; j < system->plugins[i]->info.dependency_count; j++) {
-            if (strcmp(system->plugins[i]->info.dependencies[j]->name, plugin->info.name) == 0) {
+            if (lv_str_eq(system->plugins[i]->info.dependencies[j]->name, plugin->info.name)) {
                 result[idx++] = system->plugins[i];
                 break;
             }

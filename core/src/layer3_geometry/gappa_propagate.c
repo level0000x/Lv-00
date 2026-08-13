@@ -27,6 +27,7 @@
 #include "lv/gappa_dsl.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_registry.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 
 #include "lv_utils.h"
@@ -466,7 +467,7 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lh
             for (int r = 0; r < output->count; r++) {
                 if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
                     continue;
-                if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                if (lv_str_ne(output->preds[r].expr_lhs, rest))
                     continue;
 
                 /* lhs = (lhs + rest) - rest */
@@ -487,7 +488,7 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lh
         /* 检查 pexpr 是否以 " + lhs" 结尾 */
         if (plen > lhs_len + 3) {
             const char *suffix_start = pexpr + plen - lhs_len - 3;
-            if (strncmp(suffix_start, " + ", 3) == 0 && strcmp(suffix_start + 3, lhs) == 0) {
+            if (strncmp(suffix_start, " + ", 3) == 0 && lv_str_eq(suffix_start + 3, lhs)) {
                 /* 提取 rest = pexpr[0..plen-lhs_len-4) */
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
@@ -518,7 +519,7 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lh
             for (int r = 0; r < output->count; r++) {
                 if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
                     continue;
-                if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                if (lv_str_ne(output->preds[r].expr_lhs, rest))
                     continue;
 
                 /* lhs = (lhs - rest) + rest */
@@ -538,7 +539,7 @@ static void backward_refine_pred(lvGappaPredSet *output, int idx, const char *lh
         /* ── 模式 4: pexpr = rest - lhs → 反推 lhs = rest - pexpr ── */
         if (plen > lhs_len + 3) {
             const char *suffix_start = pexpr + plen - lhs_len - 3;
-            if (strncmp(suffix_start, " - ", 3) == 0 && strcmp(suffix_start + 3, lhs) == 0) {
+            if (strncmp(suffix_start, " - ", 3) == 0 && lv_str_eq(suffix_start + 3, lhs)) {
                 size_t rest_len = plen - lhs_len - 3;
                 for (int r = 0; r < output->count; r++) {
                     if (r == idx || r == p || output->preds[r].type != lv_PRED_BND)
@@ -848,7 +849,7 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
                         for (int r = 0; r < bw_count; r++) {
                             if (r == i || r == p || output->preds[r].type != lv_PRED_BND)
                                 continue;
-                            if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                            if (lv_str_ne(output->preds[r].expr_lhs, rest))
                                 continue;
                             if (output->preds[r].bound_lo <= 0.0 && output->preds[r].bound_hi >= 0.0)
                                 continue;
@@ -877,7 +878,7 @@ int lv_gappa_propagate_set(const lvGappaPredSet *input, lvGappaPredSet *output, 
                         for (int r = 0; r < bw_count; r++) {
                             if (r == i || r == p || output->preds[r].type != lv_PRED_BND)
                                 continue;
-                            if (strcmp(output->preds[r].expr_lhs, rest) != 0)
+                            if (lv_str_ne(output->preds[r].expr_lhs, rest))
                                 continue;
 
                             PropInterval quot = {output->preds[p].bound_lo, output->preds[p].bound_hi};

@@ -333,7 +333,7 @@ lvProofRepo *proof_repo_open(const char *path) {
             /* Check if already loaded */
             bool already = false;
             for (int k = 0; k < repo->branch_count; k++) {
-                if (strcmp(repo->branches[k], known_branches[j]) == 0) {
+                if (lv_str_eq(repo->branches[k], known_branches[j])) {
                     already = true;
                     break;
                 }
@@ -437,7 +437,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
 
     /* Update current branch head */
     for (int i = 0; i < repo->branch_count; i++) {
-        if (strcmp(repo->branch_heads[i], commit.parent_oid) == 0) {
+        if (lv_str_eq(repo->branch_heads[i], commit.parent_oid)) {
             lv_strlcpy(repo->branch_heads[i], commit.oid, lv_OID_LENGTH);
             char branch_path[lv_PATH_BUF_SIZE], branches_dir[lv_PATH_BUF_SIZE];
             lv_path_join(dir, "branches", branches_dir, sizeof(branches_dir));
@@ -553,7 +553,7 @@ bool proof_repo_branch(lvProofRepo *repo, const char *name) {
 
     /* Check if branch already exists */
     for (int i = 0; i < repo->branch_count; i++) {
-        if (strcmp(repo->branches[i], name) == 0) {
+        if (lv_str_eq(repo->branches[i], name)) {
             return false; /* Branch already exists */
         }
     }
@@ -580,7 +580,7 @@ bool proof_repo_checkout(lvProofRepo *repo, const char *name) {
 
     /* Find branch */
     for (int i = 0; i < repo->branch_count; i++) {
-        if (strcmp(repo->branches[i], name) == 0) {
+        if (lv_str_eq(repo->branches[i], name)) {
             /* Update HEAD */
             lv_strlcpy(repo->head_commit, repo->branch_heads[i], lv_OID_LENGTH);
 

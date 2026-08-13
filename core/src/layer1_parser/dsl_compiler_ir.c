@@ -67,7 +67,7 @@ static int ir_find_symbol(const DslIR *ir, const char *name) {
         }
     }
     for (int i = 0; i < ir->symbol_count; i++) {
-        if (ir->symbols[i] && strcmp(ir->symbols[i], name) == 0)
+        if (ir->symbols[i] && lv_str_eq(ir->symbols[i], name))
             return ir->symbol_to_ir_id[i];
     }
     return -1;

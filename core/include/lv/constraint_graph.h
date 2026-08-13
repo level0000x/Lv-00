@@ -726,6 +726,20 @@ lv_PUBLIC_API int graph_find_constraints_involving(const ConstraintGraph *graph,
                                                    int max_results);
 
 /**
+ * @brief 查找 parent_block_id 为 parent_id 的非形式参数输入端口（app_sink 实参侧 sink_in）
+ *
+ * 对应 λ 编译/归约中 app_sink 端口对的实参侧：编译 non-redex APP 时 sink_in 的
+ * parent_block_id 指向配套的 sink_out 结果端口，且 is_formal_param 为 false，
+ * 与 binder（形式参数）端口可区分。原为 lambda_to_graph.c 与 beta_reduce.c
+ * 的逐字同构副本，现收敛为单例。
+ *
+ * @param graph     约束图
+ * @param parent_id 期望的 parent_block_id（sink_out 端口 ID）
+ * @return 匹配的 sink_in 端口节点 ID；未找到或参数无效返回 -1
+ */
+lv_PUBLIC_API int graph_find_app_sink_input(const ConstraintGraph *graph, int parent_id);
+
+/**
  * @brief 检查约束图的相容性状态
  *
  * 该接口属于约束拓扑规约层，只返回相容性诊断，不执行证明搜索，

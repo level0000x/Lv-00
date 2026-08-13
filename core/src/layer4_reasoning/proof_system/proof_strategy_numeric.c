@@ -481,19 +481,19 @@ bool execute_numeric_verification(ProofMultiStrategy *mse, ProofNavigator *nav) 
     /* 区间判定：diff = lhs - rhs，按比较谓词判成立 */
     bool holds = false;
     const char *rel = NULL;
-    if (strcmp(claim.comparator, "<") == 0) {
+    if (lv_str_eq(claim.comparator, "<")) {
         holds = diff.hi < 0.0;
         rel = "<";
-    } else if (strcmp(claim.comparator, "<=") == 0) {
+    } else if (lv_str_eq(claim.comparator, "<=")) {
         holds = diff.hi <= 0.0;
         rel = "<=";
-    } else if (strcmp(claim.comparator, ">") == 0) {
+    } else if (lv_str_eq(claim.comparator, ">")) {
         holds = diff.lo > 0.0;
         rel = ">";
-    } else if (strcmp(claim.comparator, ">=") == 0) {
+    } else if (lv_str_eq(claim.comparator, ">=")) {
         holds = diff.lo >= 0.0;
         rel = ">=";
-    } else if (strcmp(claim.comparator, "!=") == 0) {
+    } else if (lv_str_eq(claim.comparator, "!=")) {
         holds = (diff.lo > 0.0 || diff.hi < 0.0);
         rel = "!=";
     } else { /* "="：零在容差扩展区间内即视为容差内成立（同 interval_verify_solution 语义） */

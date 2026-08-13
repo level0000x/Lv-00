@@ -28,6 +28,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
 #include "lv/geometry_config.h"
@@ -154,7 +155,7 @@ bool lv_config_set_int(const char *key, int val) {
     lvConfig *c = cfg_mut();
 
 #define SET_IF(k, t, f, d)     \
-    if (strcmp(key, #k) == 0) { \
+    if (lv_str_eq(key, #k)) { \
         c->f = val;            \
         return true;           \
     }
@@ -176,7 +177,7 @@ bool lv_config_set_double(const char *key, double val) {
     lvConfig *c = cfg_mut();
 
 #define SET_IF(k, t, f, d)     \
-    if (strcmp(key, #k) == 0) { \
+    if (lv_str_eq(key, #k)) { \
         c->f = val;            \
         return true;           \
     }

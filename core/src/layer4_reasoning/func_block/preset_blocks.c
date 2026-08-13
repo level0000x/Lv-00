@@ -25,6 +25,7 @@
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 #include "lv/preset_category.h" /* LV_PRESET_EXTENDED_CATEGORY_ENTRY 单一事实来源 */
 #include "lv/lv_lifecycle.h"    /* lv_obj_destroy_fields / lv_FIELD_* */
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "preset_common.h"
 
@@ -279,7 +280,7 @@ static int find_preset_index(const char *name) {
             return (int) v - 1;
     }
     for (int i = 0; i < g_preset_registry.count; i++) {
-        if (g_preset_registry.entries[i].name && strcmp(g_preset_registry.entries[i].name, name) == 0) {
+        if (g_preset_registry.entries[i].name && lv_str_eq(g_preset_registry.entries[i].name, name)) {
             return i;
         }
     }

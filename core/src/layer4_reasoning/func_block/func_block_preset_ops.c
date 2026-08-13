@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_str_utils.h"
 
 #include "error_codes.h"
 #include "lv_internal.h"
@@ -878,7 +879,7 @@ static bool preset_recommend_related_scorer(const PresetBlockMetadata *meta, con
     const PresetRecommendRelatedCtx *ctx = (const PresetRecommendRelatedCtx *) ctx_v;
 
     /* 跳过参考预设自身 */
-    if (strcmp(name, ctx->preset_name) == 0)
+    if (lv_str_eq(name, ctx->preset_name))
         return false;
 
     double score = 0.0;

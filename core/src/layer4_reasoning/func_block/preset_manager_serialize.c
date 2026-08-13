@@ -196,7 +196,7 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
     if (cat_str) {
         for (int c = 0; c < PRESET_CATEGORY_COUNT; c++) {
             const char *cat_name = func_block_preset_category_string((PresetCategory) c);
-            if (cat_name && strcmp(cat_name, cat_str) == 0) {
+            if (cat_name && lv_str_eq(cat_name, cat_str)) {
                 meta.category = (PresetCategory) c;
                 break;
             }
@@ -209,7 +209,7 @@ bool preset_deserialize(const uint8_t *data, size_t size, PresetEntryHandle *out
     if (lv_json_get_string(json_copy, "complexity", complexity_buf, sizeof(complexity_buf)) && complexity_buf[0]) {
         for (int c = 0; c <= COMPLEXITY_UNKNOWN; c++) {
             const char *cname = func_block_preset_complexity_string((PresetComplexity) c);
-            if (cname && strcmp(cname, complexity_buf) == 0) {
+            if (cname && lv_str_eq(cname, complexity_buf)) {
                 meta.complexity = (PresetComplexity) c;
                 break;
             }

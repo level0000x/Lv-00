@@ -39,6 +39,7 @@
 #include "parser_safety.h"
 #include "stream.h"
 #include "stream_context_util.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 
 /* ============================================================
@@ -353,15 +354,15 @@ FormulaNode *formula_parse(const char *input, const char *syntax) {
     FormulaNode *ast = NULL;
 
     /* 根据语法类型选择解析器 */
-    if (syntax == NULL || strcmp(syntax, "auto") == 0) {
+    if (syntax == NULL || lv_str_eq(syntax, "auto")) {
         syntax = formula_detect_syntax(input);
     }
 
-    if (strcmp(syntax, "dsl") == 0) {
+    if (lv_str_eq(syntax, "dsl")) {
         ast = parse_dsl_compound(&ctx);
-    } else if (strcmp(syntax, "latex") == 0) {
+    } else if (lv_str_eq(syntax, "latex")) {
         ast = parse_latex_expression(&ctx);
-    } else if (strcmp(syntax, "python") == 0) {
+    } else if (lv_str_eq(syntax, "python")) {
         ast = parse_python_expression(&ctx);
     } else {
         /* 默认尝试 DSL */

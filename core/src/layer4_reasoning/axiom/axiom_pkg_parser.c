@@ -22,6 +22,7 @@
 #include "error_codes.h"
 #include "lexer_shared.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "stream.h"
 
@@ -157,12 +158,12 @@ static Token lexer_next_token(Lexer *lex) {
         lv_strlcpy_n(tok.str_value, len + 1, start, (size_t) len);
 
         /* 检查关键字 */
-        if (strcmp(tok.str_value, "true") == 0) {
+        if (lv_str_eq(tok.str_value, "true")) {
             tok.type = PKG_BOOLEAN;
             tok.bool_value = true;
             lv_free((void **) &tok.str_value);
             tok.str_value = NULL;
-        } else if (strcmp(tok.str_value, "false") == 0) {
+        } else if (lv_str_eq(tok.str_value, "false")) {
             tok.type = PKG_BOOLEAN;
             tok.bool_value = false;
             lv_free((void **) &tok.str_value);
@@ -219,7 +220,7 @@ static bool parser_expect(Parser *p, PkgTokenType type) {
 }
 
 static bool parser_expect_identifier(Parser *p, const char *name) {
-    if (p->current.type != PKG_IDENTIFIER || strcmp(p->current.str_value, name) != 0) {
+    if (p->current.type != PKG_IDENTIFIER || lv_str_ne(p->current.str_value, name)) {
         lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'", p->current.line, p->current.col, name);
         p->has_error = true;
         return false;
@@ -281,7 +282,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
         const char *prop = safe_lv_strdup_safe(p->current.str_value);
         parser_advance(p);
 
-        if (strcmp(prop, "reduces_to") == 0) {
+        if (lv_str_eq(prop, "reduces_to")) {
             if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
@@ -289,7 +290,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             }
             uc.reduces_to = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
-        } else if (strcmp(prop, "dependency") == 0) {
+        } else if (lv_str_eq(prop, "dependency")) {
             if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
@@ -300,7 +301,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             char *dep = safe_lv_strdup_safe(p->current.str_value);
             lv_darray_push(&uc.dependency_chain, &dep);
             parser_advance(p);
-        } else if (strcmp(prop, "external_ref") == 0) {
+        } else if (lv_str_eq(prop, "external_ref")) {
             if (!parser_expect(p, PKG_STRING)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
@@ -308,7 +309,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             }
             uc.external_ref = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
-        } else if (strcmp(prop, "green_verified") == 0) {
+        } else if (lv_str_eq(prop, "green_verified")) {
             if (!parser_expect(p, PKG_BOOLEAN)) {
                 lv_free((void **) &prop);
                 p->has_error = true;
@@ -398,17 +399,17 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
 
         const char *keyword = p->current.str_value;
 
-        if (strcmp(keyword, "template") == 0) {
+        if (lv_str_eq(keyword, "template")) {
             if (!parse_template(p, pkg)) {
                 p->has_error = true;
                 break;
             }
-        } else if (strcmp(keyword, "unconstructible") == 0) {
+        } else if (lv_str_eq(keyword, "unconstructible")) {
             if (!parse_unconstructible(p, pkg)) {
                 p->has_error = true;
                 break;
             }
-        } else if (strcmp(keyword, "bottom_geometry") == 0) {
+        } else if (lv_str_eq(keyword, "bottom_geometry")) {
             parser_advance(p);
             if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
@@ -417,7 +418,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             lv_free((void **) &pkg->bottom_geometry);
             pkg->bottom_geometry = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
-        } else if (strcmp(keyword, "negation_encoding") == 0) {
+        } else if (lv_str_eq(keyword, "negation_encoding")) {
             parser_advance(p);
             if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
@@ -426,7 +427,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             lv_free((void **) &pkg->negation_encoding);
             pkg->negation_encoding = safe_lv_strdup_safe(p->current.str_value);
             parser_advance(p);
-        } else if (strcmp(keyword, "contradiction_behavior") == 0) {
+        } else if (lv_str_eq(keyword, "contradiction_behavior")) {
             parser_advance(p);
             if (!parser_expect(p, PKG_STRING)) {
                 p->has_error = true;
@@ -434,11 +435,11 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
             }
 
             const char *behavior = p->current.str_value;
-            if (strcmp(behavior, "explosion_principle") == 0) {
+            if (lv_str_eq(behavior, "explosion_principle")) {
                 pkg->contradiction_behavior = EXPLOSION_PRINCIPLE;
-            } else if (strcmp(behavior, "constructive") == 0) {
+            } else if (lv_str_eq(behavior, "constructive")) {
                 pkg->contradiction_behavior = CONSTRUCTIVE;
-            } else if (strcmp(behavior, "non_constructive_oracle") == 0) {
+            } else if (lv_str_eq(behavior, "non_constructive_oracle")) {
                 pkg->contradiction_behavior = NON_CONSTRUCTIVE_ORACLE;
             } else {
                 lv_set_error(lv_ERROR_PARSE, "解析错误 (行 %d): 未知的矛盾行为 '%s'", p->current.line, behavior);
@@ -468,7 +469,7 @@ static void axiom_package_emit_load_hints(AxiomPackage *pkg) {
 
     /* 1. 检查是否覆盖 ⊥ 定义或矛盾行为 —— 非标准否定语义 */
     if (pkg->contradiction_behavior != CONSTRUCTIVE ||
-        (pkg->bottom_geometry && strcmp(pkg->bottom_geometry, "default") != 0)) {
+        (pkg->bottom_geometry && lv_str_ne(pkg->bottom_geometry, "default"))) {
         LOG_WARN("axiom", "公理包 '%s' 使用了非标准否定语义", pkg->name ? pkg->name : "unnamed");
         if (axiom_stream_ctx) {
             stream_emit_warning(axiom_stream_ctx, "该公理包使用了非标准否定语义", 0);

@@ -23,6 +23,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -55,7 +56,7 @@ static AutoSaveState s_autosave_state = {0};
 
 AutoSaveConfig *find_autosave_config(const char *module_name) {
     for (int i = 0; i < s_autosave_state.count; i++) {
-        if (strcmp(s_autosave_state.entries[i].module_name, module_name) == 0) {
+        if (lv_str_eq(s_autosave_state.entries[i].module_name, module_name)) {
             return &s_autosave_state.entries[i].config;
         }
     }

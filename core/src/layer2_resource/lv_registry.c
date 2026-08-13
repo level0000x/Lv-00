@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "lv/lv_hashtable.h" /* lv_hashtable_str_* 哈希副索引 */
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"   /* lv_malloc, lv_calloc, lv_realloc, lv_free */
 #include "lv/lv_thread.h"  /* lv_once_t, lv_once */
 
@@ -112,7 +113,7 @@ static int registry_find_index_locked(const lvRegistry *reg, const char *name) {
         return -1;
     }
     for (int i = 0; i < reg->count; i++) {
-        if (strcmp(reg->entries[i].name, name) == 0) {
+        if (lv_str_eq(reg->entries[i].name, name)) {
             return i;
         }
     }
@@ -394,7 +395,7 @@ bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
 
     /* 检查名称是否已存在 */
     for (int i = 0; i < s_module_registry.count; i++) {
-        if (strcmp(s_module_registry.entries[i].name, name) == 0) {
+        if (lv_str_eq(s_module_registry.entries[i].name, name)) {
             module_registry_unlock();
             return false; /* 不允许重复注册 */
         }

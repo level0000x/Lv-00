@@ -18,6 +18,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_str_utils.h"
 #include "lv/proof.h"
 
 #include "lv_utils.h"
@@ -604,7 +605,7 @@ int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name
     /* 策略名到步骤类型的映射（查找表，替代 7 分支 strcmp 链） */
     ProofStepType step_type = (ProofStepType) -1;
     for (size_t i = 0; i < lv_ARRAY_SIZE(kTacticStepTypeTable); i++) {
-        if (strcmp(tactic_name, kTacticStepTypeTable[i].name) == 0) {
+        if (lv_str_eq(tactic_name, kTacticStepTypeTable[i].name)) {
             step_type = kTacticStepTypeTable[i].step_type;
             break;
         }

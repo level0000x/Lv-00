@@ -16,6 +16,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_numeric.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv_utils.h"
 
@@ -35,9 +36,9 @@ static double eval_number(const FormulaNode *node, double x, double y) {
 static double eval_variable(const FormulaNode *node, double x, double y) {
             /* 变量名可能是 'x' 或 'y' */
             if (node->data.variable.name) {
-                if (strcmp(node->data.variable.name, "x") == 0) {
+                if (lv_str_eq(node->data.variable.name, "x")) {
                     return x;
-                } else if (strcmp(node->data.variable.name, "y") == 0) {
+                } else if (lv_str_eq(node->data.variable.name, "y")) {
                     return y;
                 }
             }
@@ -47,9 +48,9 @@ static double eval_variable(const FormulaNode *node, double x, double y) {
 static double eval_identifier(const FormulaNode *node, double x, double y) {
             /* 标识符作为变量处理 */
             if (node->data.identifier.name) {
-                if (strcmp(node->data.identifier.name, "x") == 0) {
+                if (lv_str_eq(node->data.identifier.name, "x")) {
                     return x;
-                } else if (strcmp(node->data.identifier.name, "y") == 0) {
+                } else if (lv_str_eq(node->data.identifier.name, "y")) {
                     return y;
                 }
             }

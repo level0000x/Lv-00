@@ -41,6 +41,8 @@
 
 #include "lv/config.h"
 #include "lv/constraint_graph.h"
+#include "lv/lv_str_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -419,7 +421,7 @@ static double evaluate_expression(const char *expr, const double *var_values, in
                 };
                 int func_op = 0;
                 for (size_t fi = 0; fi < lv_ARRAY_SIZE(kFuncNameOps); fi++) {
-                    if (strcmp(name, kFuncNameOps[fi].name) == 0) {
+                    if (lv_str_eq(name, kFuncNameOps[fi].name)) {
                         func_op = kFuncNameOps[fi].op;
                         break;
                     }
@@ -585,11 +587,8 @@ static double evaluate_expression(const char *expr, const double *var_values, in
             /* 运算符：从求值栈弹出操作数并计算 */
             /* 使用函数指针表分派 RPN 运算符 */
             int idx = -op - 1;
-            if (!lv_index_in_range(idx, (int)(sizeof(kRpnEvalOps) / sizeof(kRpnEvalOps[0]))) || !kRpnEvalOps[idx]) {
-                return NAN; /* 未知运算符 */
-            }
-            if (!kRpnEvalOps[idx](eval_stack, &eval_top)) {
-                return NAN; /* 求值失败（栈不足或数学域错误） */
+            if (!LV_DISPATCH(kRpnEvalOps, idx, false, eval_stack, &eval_top)) {
+                return NAN; /* 未知运算符或求值失败 */
             }
         }
     }

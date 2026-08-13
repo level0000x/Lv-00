@@ -14,6 +14,7 @@
 
 #include "sym_expr.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv_internal.h"
 
@@ -130,7 +131,7 @@ static double eval_const(const lvSymExpr *expr, const char **var_names, const do
 
 static double eval_var(const lvSymExpr *expr, const char **var_names, const double *var_values, int var_count) {
     for (int i = 0; i < var_count; i++) {
-        if (strcmp(expr->var_name, var_names[i]) == 0)
+        if (lv_str_eq(expr->var_name, var_names[i]))
             return var_values[i];
     }
     return NAN;
@@ -192,7 +193,7 @@ static lvSymExpr *diff_const(const lvSymExpr *expr, const char *var_name) {
 }
 
 static lvSymExpr *diff_var(const lvSymExpr *expr, const char *var_name) {
-    return sym_expr_create_const(strcmp(expr->var_name, var_name) == 0 ? 1.0 : 0.0);
+    return sym_expr_create_const(lv_str_eq(expr->var_name, var_name) ? 1.0 : 0.0);
 }
 
 static lvSymExpr *diff_add(const lvSymExpr *expr, const char *var_name) {
@@ -680,7 +681,7 @@ lv_PUBLIC_API lvSymExpr *sym_expr_substitute(const lvSymExpr *expr, const char *
 
     /* Leaf: variable matches -> return deep copy of replacement */
     if (expr->kind == lv_SYM_VAR) {
-        if (strcmp(expr->var_name, var_name) == 0) {
+        if (lv_str_eq(expr->var_name, var_name)) {
             return sym_expr_deep_copy(replacement);
         }
         return sym_expr_deep_copy(expr);

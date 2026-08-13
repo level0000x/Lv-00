@@ -154,31 +154,6 @@ static bool point_on_region_boundary(GeomNode *point, GeomNode *region) {
     return false;
 }
 
-/* 辅助函数：射线法判断点是否在区域内（改进版） */
-static bool point_in_region_ray_casting(double px, double py, GeomNode **segments, int seg_count) {
-    int crossings = 0;
-
-    for (int i = 0; i < seg_count; i++) {
-        GeomNode *seg = segments[i];
-        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
-            continue;
-
-        double x1, y1, x2, y2;
-        if (!symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2))
-            continue;
-
-        /* 检查射线是否穿过边 */
-        if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
-            double x_intersect = x1 + (py - y1) / (y2 - y1) * (x2 - x1);
-            if (px < x_intersect) {
-                crossings++;
-            }
-        }
-    }
-
-    return (crossings % 2) == 1;
-}
-
 SelectorBlock *selector_block_create(int id, ConstraintGraph *graph) {
     SelectorBlock *sb = lv_calloc(1, sizeof(SelectorBlock));
     if (!sb)
@@ -324,8 +299,8 @@ bool selector_block_evaluate(SelectorBlock *sb, ConstraintGraph *graph) {
         } else {
             /* 第三步：使用射线法作为备用验证 */
             /* 这可以处理一些卷绕数算法可能遗漏的边缘情况 */
-            is_inside = point_in_region_ray_casting(px, py, region->data.region.boundary_segments,
-                                                    region->data.region.segment_count);
+            is_inside = geo_point_in_region_segments(px, py, region->data.region.boundary_segments,
+                                                     region->data.region.segment_count);
         }
 
         /* 第四步：根据信任颜色设置分支状态 */

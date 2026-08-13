@@ -18,6 +18,7 @@
 
 #include "lv/lv_check.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 #include "plugin_system_internal.h"
@@ -44,7 +45,7 @@ lvPlugin *lv_plugin_load(lvPluginSystem *system, const char *path) {
     for (size_t i = 0; i < system->plugin_count; i++) {
         if (system->plugins[i]->path[0] == '\0')
             continue;
-        if (strcmp(system->plugins[i]->path, path) == 0) {
+        if (lv_str_eq(system->plugins[i]->path, path)) {
             plugin_system_set_error(system, "Plugin already loaded: %s", path);
             return NULL;
         }

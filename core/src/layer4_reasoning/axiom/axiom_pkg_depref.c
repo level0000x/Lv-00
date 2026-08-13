@@ -22,6 +22,7 @@
 #include "error_codes.h"
 #include "lexer_shared.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "stream.h"
 
@@ -90,7 +91,7 @@ int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, Dependenc
         DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
-        if (strcmp(ref->content_hash, current_hash) != 0) {
+        if (lv_str_ne(ref->content_hash, current_hash)) {
             fail_count++;
         }
     }
@@ -113,7 +114,7 @@ int axiom_package_validate_dependencies_with_hashes(AxiomPackage *pkg, Dependenc
         DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
         if (ref->ref_type != REF_INTERNAL)
             continue;
-        if (strcmp(ref->content_hash, current_hash) != 0) {
+        if (lv_str_ne(ref->content_hash, current_hash)) {
             output[out_idx++] = *ref;
         }
     }
@@ -380,7 +381,7 @@ static bool lemma_reverify(AxiomPackage *pkg, DependencyRef *ref) {
         return false;
 
     /* 对比哈希 */
-    bool match = (strcmp(ref->content_hash, current_hash) == 0);
+    bool match = lv_str_eq(ref->content_hash, current_hash);
     lv_free((void **) &current_hash);
     return match;
 }
@@ -456,7 +457,7 @@ int axiom_package_mark_lemma_stale(AxiomPackage *pkg, const char *ref_id) {
 
     for (int i = 0; i < pkg->dep_refs.count; i++) {
         DependencyRef *ref = (DependencyRef *)lv_darray_get(&pkg->dep_refs, i);
-        if (strcmp(ref->ref_id, ref_id) != 0)
+        if (lv_str_ne(ref->ref_id, ref_id))
             continue;
 
         /* 设置信任注释，标识为遗留状态 */

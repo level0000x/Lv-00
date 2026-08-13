@@ -21,6 +21,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "lv/lv_xmacro.h"
 #include "mpz_poly.h"
@@ -175,7 +176,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
         } /* 注释 */
         char token[64];
         p = read_token(p, token, sizeof(token));
-        if (strcmp(token, "rule") == 0) {
+        if (lv_str_eq(token, "rule")) {
             rule_count++;
         }
         p = skip_line(p);
@@ -209,13 +210,13 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
         char token[256];
         p = read_token(p, token, sizeof(token));
 
-        if (strcmp(token, "rule") == 0) {
+        if (lv_str_eq(token, "rule")) {
             current_rule++;
             /* 读取规则名和优先级 */
             p = read_token(p, rules[current_rule].name, sizeof(rules[current_rule].name));
             p = read_int(p, &rules[current_rule].priority);
         } else if (current_rule >= 0) {
-            if (strcmp(token, "pattern_vars") == 0) {
+            if (lv_str_eq(token, "pattern_vars")) {
                 /* pattern_vars: v1 v2 v3 ... */
                 int count = 0;
                 int vars[64];
@@ -230,7 +231,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     memcpy(rules[current_rule].pattern_var_ids, vars, (size_t) count * sizeof(int));
                     rules[current_rule].pattern_var_count = count;
                 }
-            } else if (strcmp(token, "pattern_constraint") == 0) {
+            } else if (lv_str_eq(token, "pattern_constraint")) {
                 /* pattern_constraint: type p1 p2 [p3] */
                 char type_str[32];
                 p = read_token(p, type_str, sizeof(type_str));
@@ -261,7 +262,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 rules[current_rule].pattern_constraints[idx].participant_count = pcount;
                 memcpy(rules[current_rule].pattern_constraints[idx].participants, parts, (size_t) pcount * sizeof(int));
                 rules[current_rule].pattern_constraint_count++;
-            } else if (strcmp(token, "replacement_constraint") == 0) {
+            } else if (lv_str_eq(token, "replacement_constraint")) {
                 /* replacement_constraint: type p1 p2 [p3] */
                 char type_str[32];
                 p = read_token(p, type_str, sizeof(type_str));
@@ -293,7 +294,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 memcpy(rules[current_rule].replacement_constraints[idx].participants, parts,
                        (size_t) pcount * sizeof(int));
                 rules[current_rule].replacement_constraint_count++;
-            } else if (strcmp(token, "node_binding") == 0) {
+            } else if (lv_str_eq(token, "node_binding")) {
                 /* node_binding: pattern_var target_id */
                 int var_id, target;
                 p = read_int(p, &var_id);
@@ -313,7 +314,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                 rules[current_rule].node_bindings[idx].pattern_var_id = var_id;
                 rules[current_rule].node_bindings[idx].target_id = target;
                 rules[current_rule].node_binding_count++;
-            } else if (strcmp(token, "new_nodes") == 0) {
+            } else if (lv_str_eq(token, "new_nodes")) {
                 /* new_nodes: id1 id2 ... */
                 int nodes[64];
                 int ncount = 0;
@@ -331,7 +332,7 @@ static ParsedRule *parse_lvz_file(const char *filepath, int *out_count) {
                     memcpy(rules[current_rule].new_nodes, nodes, (size_t) ncount * sizeof(int));
                     rules[current_rule].new_node_count = ncount;
                 }
-            } else if (strcmp(token, "new_node_types") == 0) {
+            } else if (lv_str_eq(token, "new_node_types")) {
                 /* new_node_types: type1 type2 ... (0=POINT, 1=LINE_SEGMENT, 2=REGION) */
                 GeomType types[64];
                 int tcount = 0;
@@ -573,7 +574,7 @@ bool rewrite_rule_unload(RewriteRule ***rules, int *count, const char *rule_name
 
     int found_idx = -1;
     for (int i = 0; i < *count; i++) {
-        if ((*rules)[i] && (*rules)[i]->name && strcmp((*rules)[i]->name, rule_name) == 0) {
+        if ((*rules)[i] && (*rules)[i]->name && lv_str_eq((*rules)[i]->name, rule_name)) {
             found_idx = i;
             break;
         }

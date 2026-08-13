@@ -27,6 +27,7 @@
 
 #include "circuit_breaker.h"
 #include "lv.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 
 /* 数值验证策略公共入口（proof_strategy_numeric.c：区间算术求值 + FPTaylor 误差界分级）：
@@ -1058,7 +1059,7 @@ int lv_proof_rule_apply(const char *rule, const void *input, void **output) {
     if (!existing) {
         /* 内置数值验证规则：规则引擎默认无内置规则集（rule_engine_create 为空），
          * 仅当调用方显式点名该规则时才实例化启用，其余行为保持不变 */
-        if (strcmp(rule, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION) == 0) {
+        if (lv_str_eq(rule, lv_PROOF_RULE_NAME_NUMERIC_VERIFICATION)) {
             lvProofRule *numeric_rule = lv_proof_rule_numeric_verification_create();
             if (!numeric_rule) {
                 rule_engine_destroy(engine);

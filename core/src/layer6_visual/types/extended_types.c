@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/type_system.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_xmacro.h"
@@ -138,7 +139,7 @@ static int compat_dependent(const TypeRegion *ta, const TypeRegion *tb) {
 static int compat_variable(const TypeRegion *ta, const TypeRegion *tb) {
     if (ta->variable_id == tb->variable_id)
         return 1;
-    if (ta->variable_name && tb->variable_name && strcmp(ta->variable_name, tb->variable_name) == 0) {
+    if (ta->variable_name && tb->variable_name && lv_str_eq(ta->variable_name, tb->variable_name)) {
         return 1;
     }
     return 0;

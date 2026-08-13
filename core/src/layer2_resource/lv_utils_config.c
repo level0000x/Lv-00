@@ -112,7 +112,7 @@ static ConfigItem *config_find_item(const ConfigManager *mgr, const char *key) {
 
     ConfigItem *item = mgr->items;
     while (item) {
-        if (strcmp(item->key, key) == 0)
+        if (lv_str_eq(item->key, key))
             return item;
         item = item->next;
     }
@@ -242,7 +242,7 @@ bool config_remove(ConfigManager *mgr, const char *key) {
 
     ConfigItem **current = &mgr->items;
     while (*current) {
-        if (strcmp((*current)->key, key) == 0) {
+        if (lv_str_eq((*current)->key, key)) {
             ConfigItem *to_remove = *current;
             *current = to_remove->next;
             config_item_destroy(to_remove);
@@ -369,11 +369,11 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
     }
 
     /* 尝试解析为布尔值 */
-    if (strcmp(trimmed_val, "true") == 0 || strcmp(trimmed_val, "yes") == 0) {
+    if (lv_str_eq(trimmed_val, "true") || lv_str_eq(trimmed_val, "yes")) {
         config_set_bool(mgr, full_key, true);
         return true;
     }
-    if (strcmp(trimmed_val, "false") == 0 || strcmp(trimmed_val, "no") == 0) {
+    if (lv_str_eq(trimmed_val, "false") || lv_str_eq(trimmed_val, "no")) {
         config_set_bool(mgr, full_key, false);
         return true;
     }
@@ -478,7 +478,7 @@ bool config_save(const ConfigManager *mgr) {
                 section_len = sizeof(section) - 1;
             lv_strlcpy_n(section, sizeof(section), item->key, section_len);
 
-            if (strcmp(section, last_section) != 0) {
+            if (lv_str_ne(section, last_section)) {
                 fprintf(f, "\n[%s]\n", section);
                 snprintf(last_section, sizeof(last_section), "%s", section);
             }

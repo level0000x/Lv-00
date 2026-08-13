@@ -10,6 +10,7 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
+#include "lv/interop_step_type.h"
 
 /**
  * @file opml_codec.c
@@ -55,18 +56,7 @@ static char *json_escape_alloc(const char *src, size_t src_len) {
     return lv_str_json_escape_alloc(src, src_len, NULL);
 }
 
-/* Lv-00 证明步骤类型枚举（与 lean4_bridge.c 相同；注意 coq_bridge.c 是 8 项子集且含 UNIFY/EX_FALSO，值定义不重叠时勿混用） */
-typedef enum {
-    lv_STEP_ADD_NODE = 0,   /* 添加节点 */
-    lv_STEP_ADD_CONSTRAINT, /* 添加约束 */
-    lv_STEP_REWRITE,        /* 重写 */
-    lv_STEP_FUNCTION_APP,   /* 函数应用 */
-    lv_STEP_EXACT,          /* 精确匹配 */
-    lv_STEP_HAVE,           /* 中间引理 */
-    lv_STEP_CALC,           /* 计算链 */
-    lv_STEP_NORMALIZATION,  /* 规范化 */
-    lv_STEP_ORACLE          /* 外部预言 */
-} lvProofStepType;
+/* lvProofStepType 枚举定义在 lv/interop_step_type.h（Lean 4 / OPML 共用单源） */
 
 /* 证明步骤结构体 */
 typedef struct {
@@ -397,7 +387,7 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
         /* 遍历 step 对象字段（键序无关） */
         char *key = NULL;
         while (lv_json_parse_field(&p, &key)) {
-            if (strcmp(key, "name") == 0 && lv_json_peek(&p) == '"') {
+            if (lv_str_eq(key, "name") && lv_json_peek(&p) == '"') {
                 char *val = lv_json_parse_string(&p);
                 if (val) {
                     /* 描述动态存储，消除 512 定长截断 */
@@ -405,7 +395,7 @@ static void parse_proof_steps(const char *proof_json, lvOpmlProof *proof, int ma
                     step->description = lv_strdup_safe(val);
                     lv_free((void **) &val);
                 }
-            } else if (strcmp(key, "type") == 0 && lv_json_peek(&p) == '"') {
+            } else if (lv_str_eq(key, "type") && lv_json_peek(&p) == '"') {
                 char *val = lv_json_parse_string(&p);
                 if (val) {
                     /* 映射类型名到 lvProofStepType */

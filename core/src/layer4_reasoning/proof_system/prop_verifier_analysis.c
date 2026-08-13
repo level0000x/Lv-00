@@ -15,6 +15,7 @@
 #include <time.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/stream.h"
@@ -40,7 +41,7 @@ static void collect_atoms_visit_atom(const PropFormula *f, void *context) {
     CollectAtomsCtx *ctx = (CollectAtomsCtx *)context;
     /* dedup */
     for (int i = 0; i < ctx->count; i++) {
-        if (strcmp(ctx->atoms[i], f->data.atom.name) == 0)
+        if (lv_str_eq(ctx->atoms[i], f->data.atom.name))
             return;
     }
     if (ctx->count < ctx->max_atoms) {
@@ -253,7 +254,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
             for (int j = 0; j < premise_count; j++) {
-                if (premises[j]->type == PROP_ATOM && strcmp(premises[j]->data.atom.name, goal_atoms[i]) == 0) {
+                if (premises[j]->type == PROP_ATOM && lv_str_eq(premises[j]->data.atom.name, goal_atoms[i])) {
                     found = true;
                     break;
                 }

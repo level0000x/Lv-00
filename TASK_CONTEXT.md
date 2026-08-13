@@ -848,3 +848,91 @@ ninja build3 927/927 + ctest 170/170 全部通过，零修复项。构建警告�
 
 ### 验证
 ninja build3 927/927 + ctest 170/170 全部通过，零修复项。构建警告（`lv_LOG_MSG_MAX_LEN` 等宏重定义）属既有问题，未处理。
+
+---
+
+## 十五、批次 T 候选立项与实施（2026-08-13）
+
+**候选来源**：历史批次「继续寻找更多可抽象化的方向」按判据 A–K 全库扫描，共 9 候选，按优先级逐步执行（用户选定「全部按照优先级逐步完整执行」）。
+
+### 批次 T 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| D-1 | lvProofStepType 枚举单源化（lean4/opml 共用单源，coq 豁免） | 完成 |
+| D-2 | LvEntityType 元数据 X-macro 单源 | 完成 |
+| A-1 | find_app_sink 跨文件逐字副本收敛 | 完成 |
+| M1+M2 | 死代码文件删除 + CMake/脚本移除 | 完成 |
+| K1 | formula 域错误样板 → lv_RESULT_FAIL | 登记不迁移 |
+| B1+B2 | clamp 双份收敛（proof_score/aabb_tree） | 完成 |
+| B5 | 新增 lv_str_eq/lv_str_ne 收敛 strcmp==0 | 完成 |
+| F-1 | 手写分发表迁移 LV_DISPATCH | 完成 |
+| B4+A-2 | 剩余中价值候选（match_any/selector 双份） | 完成 |
+
+### D-1 明细（lvProofStepType 枚举单源化，判据 D）
+新建 `lv/interop_step_type.h` 定义 `lvProofStepType` 枚举作为 Lean4 / OPML 共用单源；`lean4_bridge.c` / `opml_codec.c` 删除各自本地枚举定义，改为引用共享头。**豁免**：`coq_bridge.c` 因 `EXACT=4` 数值分叉（互操作外部契约），禁止与 lvProofStepType 单源合并，保留独立枚举（代码注释已注明）。
+
+### D-2 明细（LvEntityType X-macro 单源，判据 D）
+`lv_ast.h` 新增 `LV_ENTITY_TYPE_X(x)` X-macro 列表，`lv_XMACRO_ENUM(LV_ENTITY_TYPE_X)` 生成 `LvEntityType` 枚举；`lv_ast.c` 用 `lv_XMACRO_TO_NAME_ARRAY` 生成名称表。
+
+### A-1 明细（find_app_sink 跨文件逐字副本收敛，判据 A）
+`constraint_graph.h` 新增声明 `graph_find_app_sink_input`，`graph_index.c` 实现之；`beta_reduce.c` 删除本地 `find_app_sink_in`、`lambda_to_graph.c` 删除本地 `find_app_sink_input`，统一改调共享 API。
+
+### M1+M2 明细（死代码文件删除）
+删除死文件 `core/src/layer2_resource/error_messages_cn.c`、`core/src/layer2_resource/result_messages_cn.c`；`CMakeLists.txt` 移除对应源文件、`tool/gen_stubs.ps1` 移除对应 stub 生成。
+
+### K1 明细（formula 域错误样板 → lv_RESULT_FAIL，判据 K）
+评估后**登记不迁移**：formula 域错误结果形态与 `lv_RESULT_FAIL`（静态消息、单 `error_msg` 字段、不含 return）契约不吻合，保留原状。
+
+### B1+B2 明细（clamp 双份收敛，判据 B）
+复用既有 `lv_clamp`（ly_numeric.h/c）：`proof_score.c` 手写 `clamp_score` → `lv_clamp`；`aabb_tree_impl.h` `closest_point` 的 2D/3D 三元钳制 → `lv_clamp`。
+
+### B5 明细（新增 lv_str_eq/lv_str_ne，判据 B）
+`lv_str_utils.h` / `lv_str_utils.c` 新增 `lv_str_eq` / `lv_str_ne`（NULL 安全，两者均 NULL 视为相等，语义与 `lv_str_icmp` 一致）。全库 60 处 `strcmp(a,b)==0` / `!=0` 相等/不等判定形态迁移为 `lv_str_eq` / `lv_str_ne`，新增 10 处 `#include "lv/lv_str_utils.h"`（覆盖 lv_impl_native / lv_impl_upper_app / extended_types / proof_widget / plugin_system_{query,load,interface,deps,autoload} / interop_import 等文件）。
+
+**有意保留的 strcmp（4 处，需三态符号或原始比较结果）**：
+- `rewrite_strategy.c:355`：`strcmp(...) < 0`（排序型）
+- `lv_utils_misc.c:120`：`int cmp = strcmp(v1->prerelease, v2->prerelease);`（三态捕获）
+- `transcendental.c:192`：`int name_cmp = strcmp(a->name, b->name);`（三态捕获）
+- `test_framework.h:243`：`_lv_cmp = strcmp(_lv_actual, _lv_expected);`（测试框架比较捕获）
+
+另有 2 处内部实现（`lv_str_utils.c:32` / `:67`）与 3 处注释（`config.h:477` / `lv_json.h:141` / `lv_str_utils.h:81`）保留。
+
+### F-1 明细（手写分发表迁移 LV_DISPATCH，判据 F）
+迁移 5 处「边界检查 + NULL 槽检查 + 调用」纯值三行样板为 `LV_DISPATCH`（fallback 为表项同类型常量，无副作用，前置守卫逐位保留），并补 3 处 `#include "lv/lv_xmacro.h"`：
+- `gappa_dsl.c` ×3：`interval_unary`（`LV_DISPATCH(kUnaryIntervalOps, op, false, ...)`）、`interval_binary`（`kBinaryIntervalOps`）、`expr_eval_ival`（`kEvalIntervalOps`）——原 `op>=0` 前缀守卫由 `LV_DISPATCH` 的 unsigned 越界检查等价吸收。
+- `engine_scheduler.c` ×1：`check_condition`（`kRouteConditionHandlers`）——原 `lv_index_in_range(...) && table[type]` 收敛为 `LV_DISPATCH(..., cond->type, false, ...)`。
+- `float_error.c` ×1：RPN 分派（`kRpnEvalOps`）——原「越界/NULL → NAN」与「handler 返回 false → NAN」两条路径合并为 `if (!LV_DISPATCH(kRpnEvalOps, idx, false, ...)) return NAN;`。
+
+**评估后不迁移（非纯值分发表，语义不吻合 LV_DISPATCH 契约）**：
+- `lv_impl_native.c:812` `kExprEvalHandlers`：fallback 含 `mpq_set_si` + `lv_RETURN_ERROR` + `return -1`（副作用）。
+- `geometry_compress_main.c:233` `kEntropyEncoders`：`ENTROPY_NONE` 分支所有权转移（`combined = NULL`）。
+- `ga_codegen.c:196` `kCodegenHandlers`：fallback 设置 `res->error_msg`。
+- `graph_node_alloc.c:1329` `kVTables`：返回指针表元素本身，非「按 key 调用 handler」。
+- `formula_renderer.c:149` `s_render_funcs`：fallback 为 `lv_RETURN_ERROR`（错误副作用）。
+- `formula_string.c:405` `s_funcs`：void 表但 fallback 是 `str_default` 动作（非值）。
+- `dsl_compiler_load.c:540` `kIROpHandlers`：handler 返回 bool 被 early-return 检查 + 越界/NULL no-op。
+- `axiom_rule_engine.c:432/478` `step_difficulty`/`prop_difficulty`：`.score` 字段访问，非函数指针调用。
+
+其余 `sizeof(...)/sizeof(...[0])` 命中均为数据表/计数宏/for 循环/析构字段表，非函数指针分发表，不属 F 判据范围。
+
+### B4+A-2 明细（match_any/selector 双份，判据 A/F）
+
+**selector 射线法双份（判据 A，已收敛）**：`func_block_selector.c` 的 `point_in_region` 与 `recursion_selector.c` 的 `point_in_region_ray_casting` 是同一「射线法 point-in-region」算法的两份实现（真实调用点各 1、合计 2，满足粒度门槛）。收敛为共享设施 `geo_point_in_region_segments(px, py, GeomNode **segments, seg_count)`（geo_utils.h 声明 + geo_utils.c 实现，两个调用文件均已 include `lv/geo_utils.h`，无需新增 include 依赖链）：
+- 采用 func_block 版本更稳健的 `lv_is_zero(dy, lv_EPSILON_ULTRA)` 防卫跳过近水平退化边——原 recursion 版本仅靠半开区间条件自然跳过**精确水平**边，对 |dy|<1e-12 的近水平边存在近零分母风险，收敛后此缺陷同步修复。
+- 循环守卫采用更严格的 `seg->coord_count < 4`（与 `symbolic_coord_get_segment` 内部检查冗余但等价），func_block 原仅查 `type`，二者行为逐点等价。
+- `func_block_selector.c` `point_in_region` 收敛为薄封装（保留 GeomNode 输入校验 + 坐标提取 + boundary_segments 空指针守卫，`graph` 形参标记 `(void)`）；`recursion_selector.c` 删除 `point_in_region_ray_casting`，调用点直调共享设施。
+- 第三份 `lv_point_in_polygon`（geo_predicate.c）输入为闭多边形顶点数组（`double *xs/ys`，`j=(i+1)%n`），与「线段列表（可多环/非闭合）」不同构，不可复用，登记。
+
+**match_any 双份（判据 F，登记不迁移）**：剩余手写 `strstr` 循环经逐一比对均非 `lv_str_match_any`（顺序返回首个命中下标）的干净双份，语义变体豁免：
+- `meta_verify.c` `structure_markers`：计数累积语义（`found_markers++`），非首命中下标。
+- `proof_classical.h` `lv_classical_problem_match`：关键词 → 映射枚举返回（`kClassicalProblemKeywords[i].problem`），非下标。
+- `lv_protocol.c` `sysinfo_find_field`：字段过滤 + 返回首次匹配字符串指针，非下标。
+- `proof_version_ghost.c` `kGoalKeywords`：命中后 OR 位掩码累积（`goal_matched_groups |= group`），非下标。
+（已由历史 Q31 迁移的 3 处真正表驱动 match_any 保持不变。）
+
+### 决策登记（第 9 章格式）
+`lv/interop_step_type.h` 单源 / D / lean4_bridge + opml_codec 2 文件（coq 豁免）/ 无 / test_interop 族；`LV_ENTITY_TYPE_X` X-macro / D / lv_ast.h + lv_ast.c / 无 / test_lv_parser 族；`graph_find_app_sink_input` / A / beta_reduce + lambda_to_graph 2 文件 / 无 / test_rewrite + test_lambda 族；死文件 error/result_messages_cn / M / CMakeLists + gen_stubs.ps1 / 无 / 全量构建；formula 域错误样板 / K 豁免 / 0 文件 / 与 lv_RESULT_FAIL 契约不吻合；`lv_clamp` 复用 / B / proof_score + aabb_tree_impl 2 文件 / 无 / test_proof + test_geo_aabb_tree 族；`lv_str_eq`/`lv_str_ne` / B / 60 处 + 10 include / 4 处有意例外 + 2 内部 + 3 注释 / 全库字符串比较链；`LV_DISPATCH` 分发表收敛 / F / gappa_dsl + engine_scheduler + float_error 3 文件 5 处 / 8 处非纯值形态豁免 / test_gappa_dsl + test_engine_scheduler + test_interval_arith 族；`geo_point_in_region_segments` / A / func_block_selector + recursion_selector 2 文件 / lv_point_in_polygon 闭多边形数组不同构不可复用 / test_func_block + test_recursion 族；match_any 语义变体（计数/映射枚举/字段指针/位掩码）/ F 豁免 / 0 文件 / 非首命中下标语义。
+
+### 验证
+ninja build3 通过（exit 0，仅含既有宏重定义警告）+ ctest 170/170 全部通过，零修复项。

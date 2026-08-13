@@ -18,6 +18,7 @@
 
 #include "lv/lv_check.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/config.h"
 #include "lv/lv_path.h"
@@ -38,7 +39,7 @@ int lv_plugin_system_add_search_path(lvPluginSystem *system, const char *path) {
 
     /* 检查是否已存在 */
     for (int i = 0; i < system->search_paths.count; i++) {
-        if (strcmp(*(char **)lv_darray_get(&system->search_paths, i), path) == 0) {
+        if (lv_str_eq(*(char **)lv_darray_get(&system->search_paths, i), path)) {
             return 0;
         }
     }
@@ -67,7 +68,7 @@ int lv_plugin_system_remove_search_path(lvPluginSystem *system, const char *path
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "lv_plugin_system_remove_search_path: system or path is NULL");
 
     for (int i = 0; i < system->search_paths.count; i++) {
-        if (strcmp(*(char **)lv_darray_get(&system->search_paths, i), path) == 0) {
+        if (lv_str_eq(*(char **)lv_darray_get(&system->search_paths, i), path)) {
             lv_free((void **) lv_darray_get(&system->search_paths, i));
             /* 将最后一个元素移到当前位置 */
             char **last = (char **)lv_darray_get(&system->search_paths, system->search_paths.count - 1);
@@ -143,7 +144,7 @@ static bool autoload_dir_entry_cb(void *ctx, const char *name) {
 #endif
     size_t name_len = strlen(name);
     size_t suffix_len = strlen(suffix);
-    if (name_len <= suffix_len || strcmp(name + name_len - suffix_len, suffix) != 0)
+    if (name_len <= suffix_len || lv_str_ne(name + name_len - suffix_len, suffix))
         return true;
 
     /* 构造完整路径 */

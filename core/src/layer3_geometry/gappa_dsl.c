@@ -29,6 +29,7 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 
 #include <ctype.h>
 #include <errno.h>
@@ -385,17 +386,13 @@ static const BinaryOpHandler kBinaryIntervalOps[] = {
 static bool interval_unary(ExprNodeType op, double lo, double hi, double *rlo, double *rhi) {
     if (!rlo || !rhi || lo > hi)
         return false;
-    if (op >= 0 && (size_t)op < sizeof(kUnaryIntervalOps) / sizeof(kUnaryIntervalOps[0]) && kUnaryIntervalOps[op])
-        return kUnaryIntervalOps[op](lo, hi, rlo, rhi);
-    return false;
+    return LV_DISPATCH(kUnaryIntervalOps, op, false, lo, hi, rlo, rhi);
 }
 
 static bool interval_binary(ExprNodeType op, double llo, double lhi, double rlo, double rhi, double *ol, double *oh) {
     if (!ol || !oh || llo > lhi || rlo > rhi)
         return false;
-    if (op >= 0 && (size_t)op < sizeof(kBinaryIntervalOps) / sizeof(kBinaryIntervalOps[0]) && kBinaryIntervalOps[op])
-        return kBinaryIntervalOps[op](llo, lhi, rlo, rhi, ol, oh);
-    return false;
+    return LV_DISPATCH(kBinaryIntervalOps, op, false, llo, lhi, rlo, rhi, ol, oh);
 }
 
 /* ── Eval interval operation handlers (lookup table) ── */
@@ -425,7 +422,7 @@ static bool eval_handler_var(const ExprNode *n, const lvGappaPredicate *hyp, int
     (void)sc;
     (void)d;
     for (int i = 0; i < hc; i++)
-        if (strcmp(hyp[i].expr_lhs, n->var_name) == 0) {
+        if (lv_str_eq(hyp[i].expr_lhs, n->var_name)) {
             *lo = hyp[i].bound_lo;
             *hi = hyp[i].bound_hi;
             return true;
@@ -474,9 +471,7 @@ static bool expr_eval_ival(const ExprNode *n, const lvGappaPredicate *hyp, int h
                            ProofStep *steps, int *sc, int d) {
     if (!n || !lo || !hi || d > 20)
         return false;
-    if (n->type >= 0 && (size_t)(n->type) < sizeof(kEvalIntervalOps) / sizeof(kEvalIntervalOps[0]) && kEvalIntervalOps[n->type])
-        return kEvalIntervalOps[n->type](n, hyp, hc, lo, hi, steps, sc, d);
-    return false;
+    return LV_DISPATCH(kEvalIntervalOps, n->type, false, n, hyp, hc, lo, hi, steps, sc, d);
 }
 
 static void apply_round_err(double *lo, double *hi, const lvGappaFormat *fmt) {
@@ -591,7 +586,7 @@ bool gappa_format_predefined(const char *name, lvGappaFormat *out) {
         };
         bool matched = false;
         for (size_t gi = 0; gi < lv_ARRAY_SIZE(kPredefinedFormats); gi++) {
-            if (strcmp(name, kPredefinedFormats[gi].name) == 0) {
+            if (lv_str_eq(name, kPredefinedFormats[gi].name)) {
                 out->format_id = kPredefinedFormats[gi].format_id;
                 out->name = kPredefinedFormats[gi].name;
                 out->precision_bits = kPredefinedFormats[gi].precision_bits;
@@ -821,7 +816,7 @@ lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const
 
                 /* 步骤 1：先尝试简单的变量名匹配（快速路径） */
                 for (int j = 0; j < hyp_count; j++) {
-                    if (strcmp(hyp[j].expr_lhs, gpred.expr_lhs) != 0)
+                    if (lv_str_ne(hyp[j].expr_lhs, gpred.expr_lhs))
                         continue;
 
                     if (gpred.type == lv_PRED_BND) {

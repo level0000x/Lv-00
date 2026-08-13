@@ -420,8 +420,8 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
     lv_strbuf_init(&sb);
 
     const char *lang = language ? language : "zh";
-    const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
-    const char *qed = strcmp(lang, "en") == 0 ? "\\qed" : "证毕";
+    const char *proof_begin = lv_str_eq(lang, "en") ? "Proof" : "证明";
+    const char *qed = lv_str_eq(lang, "en") ? "\\qed" : "证毕";
 
     lv_strbuf_printf(&sb, "\\begin{Proof}\n");
     lv_strbuf_printf(&sb, "%s.\n\n", proof_begin);
@@ -497,7 +497,7 @@ char *lv_proof_compiler_to_text(const lvProofObject *proof, const char *language
     lv_strbuf_init(&sb);
 
     const char *lang = language ? language : "zh";
-    const char *proof_begin = strcmp(lang, "en") == 0 ? "Proof" : "证明";
+    const char *proof_begin = lv_str_eq(lang, "en") ? "Proof" : "证明";
 
     lv_strbuf_printf(&sb, "=== %s ===\n\n", proof_begin);
 

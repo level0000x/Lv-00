@@ -18,6 +18,7 @@
 
 #include "lv/lv_thread.h"   /* lv_once, lv_once_t, lv_ONCE_INIT */
 #include "lv/lv_utils.h"    /* lv_malloc, lv_calloc, lv_realloc, lv_free */
+#include "lv/lv_str_utils.h"
 
 /* ============================================================
  * 内部常量
@@ -83,7 +84,7 @@ bool lv_backend_plugin_register(lvBackendPluginRegistry *reg, lvBackendPlugin *p
 
     /* 检查名称是否已存在 */
     for (int i = 0; i < reg->count; i++) {
-        if (reg->plugins[i] && strcmp(reg->plugins[i]->name, plugin->name) == 0) {
+        if (reg->plugins[i] && lv_str_eq(reg->plugins[i]->name, plugin->name)) {
             lv_MUTEX_UNLOCK(&reg->mutex);
             return false;
         }
@@ -109,7 +110,7 @@ bool lv_backend_plugin_unregister(lvBackendPluginRegistry *reg, const char *name
     lv_MUTEX_LOCK(&reg->mutex);
 
     for (int i = 0; i < reg->count; i++) {
-        if (reg->plugins[i] && strcmp(reg->plugins[i]->name, name) == 0) {
+        if (reg->plugins[i] && lv_str_eq(reg->plugins[i]->name, name)) {
             /* 将最后一个元素移到当前位置，覆盖要删除的项 */
             reg->count--;
             if (i < reg->count) {
@@ -135,7 +136,7 @@ lvBackendPlugin *lv_backend_plugin_find(lvBackendPluginRegistry *reg, const char
     lv_MUTEX_LOCK(&reg->mutex);
 
     for (int i = 0; i < reg->count; i++) {
-        if (reg->plugins[i] && strcmp(reg->plugins[i]->name, name) == 0) {
+        if (reg->plugins[i] && lv_str_eq(reg->plugins[i]->name, name)) {
             lvBackendPlugin *result = reg->plugins[i];
             lv_MUTEX_UNLOCK(&reg->mutex);
             return result;

@@ -5,6 +5,7 @@
 
 #include "inequality_reasoning_internal.h"
 #include "lv/expr_vtable.h"
+#include "lv/lv_str_utils.h"
 
 
 /* ============== 内部辅助函数 ============== */
@@ -51,7 +52,7 @@ bool ineq_is_less_family(lvInequalityType t) {
 
 static bool var_structurally_equal(const lvExpr *a, const lvExpr *b) {
     return (a->data.variable.name && b->data.variable.name &&
-            strcmp(a->data.variable.name, b->data.variable.name) == 0);
+            lv_str_eq(a->data.variable.name, b->data.variable.name));
 }
 
 static bool rational_structurally_equal(const lvExpr *a, const lvExpr *b) {
@@ -75,7 +76,7 @@ static bool composite_structurally_equal(const lvExpr *a, const lvExpr *b) {
 
 static bool function_structurally_equal(const lvExpr *a, const lvExpr *b) {
     return (a->data.function.func_name && b->data.function.func_name &&
-            strcmp(a->data.function.func_name, b->data.function.func_name) == 0 &&
+            lv_str_eq(a->data.function.func_name, b->data.function.func_name) &&
             lv_expr_structurally_equal(a->data.function.argument, b->data.function.argument));
 }
 

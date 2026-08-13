@@ -343,7 +343,7 @@ char *formula_parse_identifier_str(ParserContext *ctx) {
  */
 static bool is_dsl_keyword(const char *str) {
     for (int i = 0; formula_dsl_keywords[i] != NULL; i++) {
-        if (strcmp(str, formula_dsl_keywords[i]) == 0) {
+        if (lv_str_eq(str, formula_dsl_keywords[i])) {
             return true;
         }
     }
@@ -1125,7 +1125,7 @@ static const ConstraintTypeEntry kConstraintTypes[] = {
  */
 static NodeType get_constraint_type(const char *name) {
     for (size_t i = 0; i < sizeof(kConstraintTypes) / sizeof(kConstraintTypes[0]); i++) {
-        if (strcmp(name, kConstraintTypes[i].name) == 0)
+        if (lv_str_eq(name, kConstraintTypes[i].name))
             return kConstraintTypes[i].type;
     }
     return (NodeType) -1; /* 未知约束类型，由调用方处理 */
@@ -1263,7 +1263,7 @@ static const MathFuncEntry kDslMathFuncTable[] = {
 FormulaNode *formula_apply_math_func(const char *ident, FormulaNode **args, int arg_count,
                                      const MathFuncEntry *table, size_t table_size) {
     for (size_t i = 0; i < table_size; i++) {
-        if (strcmp(ident, table[i].name) == 0 && arg_count == table[i].arg_count) {
+        if (lv_str_eq(ident, table[i].name) && arg_count == table[i].arg_count) {
             if (table[i].is_binary)
                 return formula_create_binary_op(table[i].op, args[0], args[1]);
             return formula_create_unary_op(table[i].op, args[0]);
@@ -1339,7 +1339,7 @@ static FormulaNode *parse_dsl_atom(ParserContext *ctx) {
 
         /* 几何元素关键字查表分发（替代 7 分支 strcmp 链） */
         for (size_t i = 0; i < sizeof(kDslGeometryKeywords) / sizeof(kDslGeometryKeywords[0]); i++) {
-            if (strcmp(ident, kDslGeometryKeywords[i].name) == 0) {
+            if (lv_str_eq(ident, kDslGeometryKeywords[i].name)) {
                 lv_free((void **) &ident);
                 return kDslGeometryKeywords[i].parse(ctx);
             }

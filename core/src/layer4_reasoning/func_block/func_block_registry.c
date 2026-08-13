@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
@@ -702,7 +703,7 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
     };
 
     for (size_t i = 0; i < sizeof(cn_map) / sizeof(cn_map[0]); i++) {
-        if (strcmp(cn_map[i].name, str) == 0) {
+        if (lv_str_eq(cn_map[i].name, str)) {
             *category = cn_map[i].cat;
             return true;
         }
@@ -719,7 +720,7 @@ bool preset_category_from_string(const char *str, PresetCategory *category) {
     };
 
     for (size_t i = 0; i < sizeof(en_map) / sizeof(en_map[0]); i++) {
-        if (strcmp(en_map[i].name, str) == 0) {
+        if (lv_str_eq(en_map[i].name, str)) {
             *category = en_map[i].cat;
             return true;
         }

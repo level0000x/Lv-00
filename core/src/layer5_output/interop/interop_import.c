@@ -24,6 +24,7 @@
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
 
@@ -1046,7 +1047,7 @@ static int ggb_resolve_point_ref(const char *xml, const GgbElementEntry *e, cons
     if (ggb_extract_attr(xml + cs, clen, "label", buf, sizeof(buf))) {
         for (int i = 0; i < el_count; i++) {
             if (node_by_idx[i] >= 0 && entries[i].label[0] != '\0' &&
-                strcmp(entries[i].label, buf) == 0)
+                lv_str_eq(entries[i].label, buf))
                 return node_by_idx[i];
         }
     }
@@ -1226,7 +1227,7 @@ static int ggb_import_polygon(ConstraintGraph *graph, const char *xml, const Ggb
         if (node_id < 0 && ggb_extract_attr(xml + ps, plen, "label", buf, sizeof(buf))) {
             for (int i = 0; i < el_count; i++) {
                 if (node_by_idx[i] >= 0 && entries[i].label[0] != '\0' &&
-                    strcmp(entries[i].label, buf) == 0) {
+                    lv_str_eq(entries[i].label, buf)) {
                     node_id = node_by_idx[i];
                     break;
                 }
@@ -1263,11 +1264,11 @@ static int ggb_import_polygon(ConstraintGraph *graph, const char *xml, const Ggb
 static int ggb_import_shaped_element(ConstraintGraph *graph, const char *xml, const GgbElementEntry *e,
                                      const GgbElementEntry *entries, const int *node_by_idx,
                                      int el_count) {
-    if (strcmp(e->type, "segment") == 0 || strcmp(e->type, "line") == 0)
+    if (lv_str_eq(e->type, "segment") || lv_str_eq(e->type, "line"))
         return ggb_import_segment_or_line(graph, xml, e, entries, node_by_idx, el_count);
-    if (strcmp(e->type, "circle") == 0)
+    if (lv_str_eq(e->type, "circle"))
         return ggb_import_circle(graph, xml, e, entries, node_by_idx, el_count);
-    if (strcmp(e->type, "polygon") == 0)
+    if (lv_str_eq(e->type, "polygon"))
         return ggb_import_polygon(graph, xml, e, entries, node_by_idx, el_count);
     return 0;
 }
@@ -1341,7 +1342,7 @@ static int ggb_import_xml(lvEngine *engine, const char *xml, size_t xml_len) {
 
     /* 第一遍：point */
     for (int i = 0; i < el_count; i++) {
-        if (strcmp(entries[i].type, "point") != 0)
+        if (lv_str_ne(entries[i].type, "point"))
             continue;
         double px = 0, py = 0;
         if (!ggb_element_point_coord(xml, &entries[i], &px, &py))
@@ -1355,7 +1356,7 @@ static int ggb_import_xml(lvEngine *engine, const char *xml, size_t xml_len) {
 
     /* 第二遍：segment/line/circle/polygon */
     for (int i = 0; i < el_count; i++) {
-        if (strcmp(entries[i].type, "point") == 0)
+        if (lv_str_eq(entries[i].type, "point"))
             continue;
         int added = ggb_import_shaped_element(graph, xml, &entries[i], entries, node_by_idx, el_count);
         if (added < 0)
@@ -1522,22 +1523,22 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
     /* 遍历 geometry 对象字段（键序无关：先收集 type，再记录 coordinates 值位置） */
     char *key = NULL;
     while (lv_json_parse_field(p, &key)) {
-        if (strcmp(key, "type") == 0 && lv_json_peek(p) == '"') {
+        if (lv_str_eq(key, "type") && lv_json_peek(p) == '"') {
             char *t = lv_json_parse_string(p);
             if (t) {
-                if (strcmp(t, "Point") == 0)
+                if (lv_str_eq(t, "Point"))
                     is_point = true;
-                else if (strcmp(t, "MultiPoint") == 0)
+                else if (lv_str_eq(t, "MultiPoint"))
                     is_multipoint = true;
-                else if (strcmp(t, "LineString") == 0)
+                else if (lv_str_eq(t, "LineString"))
                     is_linestring = true;
-                else if (strcmp(t, "MultiLineString") == 0)
+                else if (lv_str_eq(t, "MultiLineString"))
                     is_multilinestring = true;
-                else if (strcmp(t, "Polygon") == 0)
+                else if (lv_str_eq(t, "Polygon"))
                     is_polygon = true;
                 lv_free((void **) &t);
             }
-        } else if (strcmp(key, "coordinates") == 0) {
+        } else if (lv_str_eq(key, "coordinates")) {
             coords_val = p->data + p->pos; /* 记录值起始位置 */
             lv_json_skip_value(p);
         } else {
@@ -1737,7 +1738,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config) 
         /* 遍历 feature 对象字段，处理 geometry 子对象 */
         char *key = NULL;
         while (lv_json_parse_field(&p, &key)) {
-            if (strcmp(key, "geometry") == 0) {
+            if (lv_str_eq(key, "geometry")) {
                 gj_import_geometry(&p, graph, &imported_count, &prev_node_id, coords_x, coords_y);
             } else {
                 lv_json_skip_value(&p);
@@ -2231,14 +2232,14 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
             char name[64];
             svg_tag_name(tag, tag_len, name, sizeof(name));
 
-            if (strcmp(name, "svg") == 0) {
+            if (lv_str_eq(name, "svg")) {
                 char vb[128];
                 if (ggb_extract_attr(svg + lt_off, tag_len, "viewBox", vb, sizeof(vb))) {
                     double w = 0, h = 0;
                     if (sscanf(vb, "%lf %lf %lf %lf", &ox, &oy, &w, &h) == 4)
                         has_viewbox = true;
                 }
-            } else if (strcmp(name, "path") == 0) {
+            } else if (lv_str_eq(name, "path")) {
                 const char *d = NULL;
                 size_t d_len = 0;
                 if (ggb_extract_attr_len(svg + lt_off, tag_len, "d", &d, &d_len)) {
@@ -2249,7 +2250,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                         lv_free((void **) &dbuf);
                     }
                 }
-            } else if (strcmp(name, "circle") == 0) {
+            } else if (lv_str_eq(name, "circle")) {
                 char buf[64];
                 double cx = 0, cy = 0, r = 0;
                 if (ggb_extract_attr(svg + lt_off, tag_len, "cx", buf, sizeof(buf)) && lv_parse_double(buf, &cx) == 0 &&
@@ -2260,7 +2261,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                     int n = svg_parse_circle(cx, cy, r, pts, (int) lv_ARRAY_SIZE(pts));
                     imported += svg_import_samples(graph, pts, n, true, has_viewbox ? ox : 0, has_viewbox ? oy : 0);
                 }
-            } else if (strcmp(name, "line") == 0) {
+            } else if (lv_str_eq(name, "line")) {
                 char buf[64];
                 double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
                 if (ggb_extract_attr(svg + lt_off, tag_len, "x1", buf, sizeof(buf)) && lv_parse_double(buf, &x1) == 0 &&
@@ -2270,7 +2271,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                     double pts[4] = {x1, y1, x2, y2};
                     imported += svg_import_samples(graph, pts, 2, false, has_viewbox ? ox : 0, has_viewbox ? oy : 0);
                 }
-            } else if (strcmp(name, "rect") == 0) {
+            } else if (lv_str_eq(name, "rect")) {
                 char buf[64];
                 double rx = 0, ry = 0, rw = 0, rh = 0;
                 if (ggb_extract_attr(svg + lt_off, tag_len, "x", buf, sizeof(buf)) && lv_parse_double(buf, &rx) == 0 &&
@@ -2281,7 +2282,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                     double pts[8] = {rx, ry, rx + rw, ry, rx + rw, ry + rh, rx, ry + rh};
                     imported += svg_import_samples(graph, pts, 4, true, has_viewbox ? ox : 0, has_viewbox ? oy : 0);
                 }
-            } else if (strcmp(name, "polyline") == 0 || strcmp(name, "polygon") == 0) {
+            } else if (lv_str_eq(name, "polyline") || lv_str_eq(name, "polygon")) {
                 const char *pv = NULL;
                 size_t pv_len = 0;
                 if (ggb_extract_attr_len(svg + lt_off, tag_len, "points", &pv, &pv_len)) {
@@ -2292,7 +2293,7 @@ int interop_import_svg(lvEngine *engine, const InteropImportConfig *config) {
                         if (pts) {
                             int n = svg_parse_points_attr(pbuf, pts, SVG_PATH_MAX_POINTS);
                             if (n > 0)
-                                imported += svg_import_samples(graph, pts, n, strcmp(name, "polygon") == 0,
+                                imported += svg_import_samples(graph, pts, n, lv_str_eq(name, "polygon"),
                                                               has_viewbox ? ox : 0, has_viewbox ? oy : 0);
                             lv_free((void **) &pts);
                         }

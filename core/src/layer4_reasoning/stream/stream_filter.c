@@ -4,6 +4,7 @@
  */
 
 #include "stream_internal.h"
+#include "lv/lv_str_utils.h"
 
 
 /* ==================== 过滤掩码解析 ==================== */
@@ -21,7 +22,7 @@ static int stream_find_event_type_by_id(const char *id_str) {
     /* 遍历所有事件类型，通过 stream_event_type_id 反向查找 */
     for (int i = 0; i < STREAM_EVENT_TYPE_COUNT; i++) {
         const char *eid = stream_event_type_id((StreamEventType) i);
-        if (eid && strcmp(eid, id_str) == 0) {
+        if (eid && lv_str_eq(eid, id_str)) {
             return i;
         }
     }
@@ -132,11 +133,11 @@ uint64_t stream_parse_filter_mask(const char *str) {
         return STREAM_FILTER_NONE;
 
     /* 检查特殊值 "all" 或 "*" */
-    if (strcmp(str, "all") == 0 || strcmp(str, "*") == 0) {
+    if (lv_str_eq(str, "all") || lv_str_eq(str, "*")) {
         return STREAM_FILTER_ALL;
     }
     /* 检查特殊值 "none" */
-    if (strcmp(str, "none") == 0) {
+    if (lv_str_eq(str, "none")) {
         return STREAM_FILTER_NONE;
     }
 

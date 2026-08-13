@@ -51,6 +51,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 #include "lv/stream.h"
 #include "stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
@@ -1130,7 +1131,7 @@ bool type_rewrite_path_replay(TypeRewritePath *path, int target_step) {
             types_match = (prev->after->kind == curr->before->kind && prev->after->level == curr->before->level);
             /* 如果两者都有别名则比较别名 */
             if (types_match && prev->after->alias_name && curr->before->alias_name) {
-                types_match = (strcmp(prev->after->alias_name, curr->before->alias_name) == 0);
+                types_match = lv_str_eq(prev->after->alias_name, curr->before->alias_name);
             } else if (types_match && (prev->after->alias_name || curr->before->alias_name)) {
                 types_match = false; /* one has alias_name, other doesn't */
             }

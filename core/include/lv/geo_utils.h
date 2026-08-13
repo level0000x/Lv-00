@@ -94,6 +94,22 @@ lv_PUBLIC_API int geo_bbox_contains_2d(double px, double py, double ax, double a
  */
 lv_PUBLIC_API int geo_bbox_contains_1d(double p, double a, double b, double eps);
 
+/**
+ * @brief 射线法判断点 (px, py) 是否位于线段列表围成的区域内（奇数交点）
+ *
+ * 收敛说明（批次 T F-2）：收敛 func_block_selector.c 的 point_in_region 与
+ * recursion_selector.c 的 point_in_region_ray_casting 两份射线法副本。
+ * 采用更稳健的 lv_is_zero(dy, lv_EPSILON_ULTRA) 防卫跳过近水平退化边
+ * （原 recursion 版本缺少该防卫，存在近零分母风险）；半开区间条件保证
+ * 顶点不被重复计数。
+ *
+ * @param px, py    查询点浮点坐标
+ * @param segments  区域边界线段数组（GEOM_LINE_SEGMENT），可含多环 / 非闭合
+ * @param seg_count 线段数量
+ * @return true 点在区域内（奇数交点）；false 参数无效或偶数交点
+ */
+lv_PUBLIC_API bool geo_point_in_region_segments(double px, double py, GeomNode **segments, int seg_count);
+
 lv_PUBLIC_API int geo_point_on_segment(double px, double py, double x1, double y1, double x2, double y2);
 lv_PUBLIC_API double geo_signed_area_2x(double x1, double y1, double x2, double y2, double x3, double y3);
 lv_PUBLIC_API double geo_angle(double x1, double y1, double x2, double y2);

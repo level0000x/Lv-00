@@ -17,6 +17,7 @@
 
 #include "error_codes.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -46,7 +47,7 @@ int find_preset_index(const char *name) {
     }
     for (int i = 0; i < g_preset_library.count; i++) {
         if (g_preset_library.entries[i].is_active && g_preset_library.entries[i].metadata.name &&
-            strcmp(g_preset_library.entries[i].metadata.name, name) == 0) {
+            lv_str_eq(g_preset_library.entries[i].metadata.name, name)) {
             return i;
         }
     }

@@ -575,7 +575,7 @@ EngineSolveResult lv_solve(lvEngine *engine) {
 static bool lv_config_resolve_a_int(const char *key, int *out) {
     const lvConfig *c = lv_config_current();
 #define A_INT_GET_IF(k, t, f, d) \
-    if (strcmp(key, #k) == 0) {  \
+    if (lv_str_eq(key, #k)) {  \
         *out = c->f;             \
         return true;             \
     }
@@ -589,7 +589,7 @@ static bool lv_config_resolve_a_int(const char *key, int *out) {
 static bool lv_config_resolve_a_double(const char *key, double *out) {
     const lvConfig *c = lv_config_current();
 #define A_DBL_GET_IF(k, t, f, d) \
-    if (strcmp(key, #k) == 0) {  \
+    if (lv_str_eq(key, #k)) {  \
         *out = c->f;             \
         return true;             \
     }
@@ -605,14 +605,14 @@ static bool lv_config_resolve_a_double(const char *key, double *out) {
 static bool lv_config_resolve_a_bool(const char *key, bool *out) {
     const lvConfig *c = lv_config_current();
 #define A_BOOL_INT_IF(k, t, f, d) \
-    if (strcmp(key, #k) == 0) {   \
+    if (lv_str_eq(key, #k)) {   \
         *out = (c->f != 0);       \
         return true;              \
     }
     LV_CONFIG_INT_KEYS(A_BOOL_INT_IF)
 #undef A_BOOL_INT_IF
 #define A_BOOL_DBL_IF(k, t, f, d) \
-    if (strcmp(key, #k) == 0) {   \
+    if (lv_str_eq(key, #k)) {   \
         *out = (c->f != 0.0);     \
         return true;              \
     }

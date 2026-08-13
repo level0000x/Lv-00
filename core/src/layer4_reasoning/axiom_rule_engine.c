@@ -13,6 +13,7 @@
 
 #include "lv/lv_json.h"
 #include "lv/lv_hashtable.h" /* 规则库 id/name 哈希索引 */
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 #include "lv_internal.h"
@@ -207,7 +208,7 @@ lvRule *lv_rule_library_get_by_name(const lvRuleLibrary *library, const char *na
     }
     /* 索引不可用（创建失败）时回退线性扫描，语义与纯线性实现一致 */
     for (uint32_t i = 0; i < library->rule_count; i++) {
-        if (library->rules[i] && strcmp(library->rules[i]->name, name) == 0) {
+        if (library->rules[i] && lv_str_eq(library->rules[i]->name, name)) {
             return library->rules[i];
         }
     }
@@ -251,7 +252,7 @@ uint32_t lv_rule_library_search_by_tag(const lvRuleLibrary *library, const char 
         if (!r)
             continue;
         for (uint32_t t = 0; t < r->tag_count; t++) {
-            if (r->tags[t] && strcmp(r->tags[t], tag) == 0) {
+            if (r->tags[t] && lv_str_eq(r->tags[t], tag)) {
                 out_rules[found++] = r;
                 break;
             }

@@ -636,36 +636,6 @@ bool beta_reduce_match(ConstraintGraph *graph, int *out_func_block_id, int *out_
  * =========================================================================== */
 
 /**
- * @brief 在图中查找 parent_block_id 指定的 PORT_INPUT 非形式参数端口
- *
- * 对应 app_sink 端口对的实参侧（sink_in）：编译时其 parent_block_id
- * 指向配套的 sink_out 结果端口，is_formal_param 为 false 与 binder 端口
- * 可区分。
- *
- * @param graph     约束图
- * @param parent_id 期望的 parent_block_id（sink_out 端口 ID）
- * @return sink_in 端口节点 ID，未找到返回 -1
- */
-static int find_app_sink_in(const ConstraintGraph *graph, int parent_id) {
-    if (!graph || parent_id < 0)
-        return -1;
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (!node || !node->is_active)
-            continue;
-        if (node->type != GEOM_PORT)
-            continue;
-        if (node->parent_block_id != parent_id)
-            continue;
-        if (node->data.port && node->data.port->type == PORT_INPUT &&
-            !node->data.port->is_formal_param) {
-            return node->id;
-        }
-    }
-    return -1;
-}
-
-/**
  * @brief 查找进入某端口的第一条活跃 CONNECTION 的源端口
  *
  * @param graph        约束图
@@ -868,7 +838,7 @@ bool beta_reduce_apply(ConstraintGraph *graph, int func_block_id, int arg_node_i
                     if (snk->parent_block_id != output_port_id)
                         continue;
 
-                    int sink_in = find_app_sink_in(graph, snk->id);
+                    int sink_in = graph_find_app_sink_input(graph, snk->id);
                     int arg_src = (sink_in >= 0) ? find_connection_src(graph, sink_in) : -1;
                     if (arg_src < 0)
                         continue;

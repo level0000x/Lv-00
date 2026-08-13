@@ -22,6 +22,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -199,7 +200,7 @@ bool lvz_parser_expect(LvzParser *p, LvzTokenType type) {
 }
 
 bool lvz_parser_expect_identifier(LvzParser *p, const char *name) {
-    if (p->current.type != TOK_IDENTIFIER || strcmp(p->current.str_value, name) != 0) {
+    if (p->current.type != TOK_IDENTIFIER || lv_str_ne(p->current.str_value, name)) {
         p->has_error = true;
         lv_RETURN_ERROR_BOOL(lv_ERROR_PARSE, "解析错误 (行 %d, 列 %d): 期望关键字 '%s'", p->current.line,
                              p->current.col, name);
@@ -541,7 +542,7 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
         /* 节点类型→处理函数 查表（替代 3 分支 strcmp 链） */
         bool handled = false;
         for (size_t i = 0; i < lv_ARRAY_SIZE(kNodeTypeHandlers); i++) {
-            if (strcmp(node_type, kNodeTypeHandlers[i].name) == 0) {
+            if (lv_str_eq(node_type, kNodeTypeHandlers[i].name)) {
                 handled = true;
                 if (!kNodeTypeHandlers[i].handler(p, mod, node_id))
                     return false;
@@ -563,9 +564,9 @@ static bool lvz_parse_nodes_section(LvzParser *p, Module *mod) {
 static bool lvz_is_native_constraint_type(const char *type) {
     if (!type)
         return false;
-    return strcmp(type, "incidence") == 0 || strcmp(type, "betweenness") == 0 ||
-           strcmp(type, "intersection") == 0 || strcmp(type, "containment") == 0 ||
-           strcmp(type, "connection") == 0 || strcmp(type, "angle") == 0;
+    return lv_str_eq(type, "incidence") || lv_str_eq(type, "betweenness") ||
+           lv_str_eq(type, "intersection") || lv_str_eq(type, "containment") ||
+           lv_str_eq(type, "connection") || lv_str_eq(type, "angle");
 }
 
 /**
@@ -912,7 +913,7 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
         /* 创建约束：原生约束查表（替代 5 分支 strcmp 链；未命中走模板展开） */
         bool native = false;
         for (size_t i = 0; i < lv_ARRAY_SIZE(kNativeConstraintTable); i++) {
-            if (strcmp(constraint_type, kNativeConstraintTable[i].name) == 0 &&
+            if (lv_str_eq(constraint_type, kNativeConstraintTable[i].name) &&
                 param_count >= kNativeConstraintTable[i].min_params) {
                 kNativeConstraintTable[i].fn(mod, params, param_count);
                 native = true;
@@ -988,7 +989,7 @@ static bool lvz_parse_func_blocks_section(LvzParser *p, Module *mod) {
         while (p->current.type == TOK_IDENTIFIER && !p->has_error) {
             bool matched = false;
             for (size_t fi = 0; fi < lv_ARRAY_SIZE(kFuncBlockIntFields); fi++) {
-                if (strcmp(p->current.str_value, kFuncBlockIntFields[fi].name) == 0) {
+                if (lv_str_eq(p->current.str_value, kFuncBlockIntFields[fi].name)) {
                     if (!kFuncBlockIntFields[fi].fn(p, field_dst[fi]))
                         break; /* 解析失败：跳出循环（与手写链的 break 行为一致） */
                     matched = true;
@@ -1054,7 +1055,7 @@ static const struct {
 static PresetCategory lvz_category_from_string(const char *name) {
     if (!name) return PRESET_CATEGORY_CUSTOM;
     for (size_t i = 0; i < lv_ARRAY_SIZE(kCategoryMap); i++) {
-        if (strcmp(name, kCategoryMap[i].name) == 0)
+        if (lv_str_eq(name, kCategoryMap[i].name))
             return kCategoryMap[i].category;
     }
     return PRESET_CATEGORY_CUSTOM;
@@ -1230,7 +1231,7 @@ static bool preset_field_complexity(LvzParser *p, LvzPresetCtx *ctx) {
 static bool preset_field_constructive(LvzParser *p, LvzPresetCtx *ctx) {
     lvz_parser_advance(p);
     if (p->current.type == TOK_IDENTIFIER) {
-        *ctx->out_constructive = (strcmp(p->current.str_value, "true") == 0);
+        *ctx->out_constructive = lv_str_eq(p->current.str_value, "true");
         lvz_parser_advance(p);
     }
     return true;
@@ -1239,7 +1240,7 @@ static bool preset_field_constructive(LvzParser *p, LvzPresetCtx *ctx) {
 static bool preset_field_reversible(LvzParser *p, LvzPresetCtx *ctx) {
     lvz_parser_advance(p);
     if (p->current.type == TOK_IDENTIFIER) {
-        *ctx->out_reversible = (strcmp(p->current.str_value, "true") == 0);
+        *ctx->out_reversible = lv_str_eq(p->current.str_value, "true");
         lvz_parser_advance(p);
     }
     return true;
@@ -1324,7 +1325,7 @@ static bool lvz_parse_preset_body(LvzParser *p, const char *name,
         /* 字段查表（替代 8 分支 strcmp 链） */
         bool matched = false;
         for (size_t i = 0; i < lv_ARRAY_SIZE(kPresetFieldTable); i++) {
-            if (strcmp(field, kPresetFieldTable[i].name) == 0) {
+            if (lv_str_eq(field, kPresetFieldTable[i].name)) {
                 if (!kPresetFieldTable[i].fn(p, &ctx))
                     return false;
                 matched = true;
@@ -1365,7 +1366,7 @@ static bool lvz_parse_presets_section(LvzParser *p, Module *mod) {
     lvz_parser_advance(p);
 
     /* 解析每个 preset 块 */
-    while (p->current.type == TOK_IDENTIFIER && strcmp(p->current.str_value, "preset") == 0 && !p->has_error) {
+    while (p->current.type == TOK_IDENTIFIER && lv_str_eq(p->current.str_value, "preset") && !p->has_error) {
         lvz_parser_advance(p); /* 跳过 'preset' */
 
         /* 期望预设名称 (字符串) */
@@ -1469,31 +1470,31 @@ bool lvz_parse(LvzParser *p, Module *mod) {
 
         const char *section = p->current.str_value;
 
-        if (strcmp(section, "module") == 0) {
+        if (lv_str_eq(section, "module")) {
             if (!lvz_parse_module_decl(p, mod))
                 return false;
-        } else if (strcmp(section, "deps") == 0) {
+        } else if (lv_str_eq(section, "deps")) {
             if (!lvz_parse_deps_section(p, mod))
                 return false;
-        } else if (strcmp(section, "exports") == 0) {
+        } else if (lv_str_eq(section, "exports")) {
             if (!lvz_parse_exports_section(p, mod))
                 return false;
-        } else if (strcmp(section, "axioms") == 0) {
+        } else if (lv_str_eq(section, "axioms")) {
             if (!lvz_parse_axioms_section(p, mod))
                 return false;
-        } else if (strcmp(section, "nodes") == 0) {
+        } else if (lv_str_eq(section, "nodes")) {
             if (!lvz_parse_nodes_section(p, mod))
                 return false;
-        } else if (strcmp(section, "constraints") == 0) {
+        } else if (lv_str_eq(section, "constraints")) {
             if (!lvz_parse_constraints_section(p, mod))
                 return false;
-        } else if (strcmp(section, "func_blocks") == 0) {
+        } else if (lv_str_eq(section, "func_blocks")) {
             if (!lvz_parse_func_blocks_section(p, mod))
                 return false;
-        } else if (strcmp(section, "presets") == 0) {
+        } else if (lv_str_eq(section, "presets")) {
             if (!lvz_parse_presets_section(p, mod))
                 return false;
-        } else if (strcmp(section, "end") == 0) {
+        } else if (lv_str_eq(section, "end")) {
             lvz_parser_advance(p);
             break;
         } else {

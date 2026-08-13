@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "lv/lv_str_utils.h"
+
 /* ========================================================================
  * 理论主题条目
  * ======================================================================== */
@@ -72,7 +74,7 @@ static int find_theory_index(const char *topic_id) {
     if (topic_id == NULL)
         return -1;
     for (size_t i = 0; i < THEORY_TABLE_SIZE; i++) {
-        if (strcmp(g_theory_table[i].topic_id, topic_id) == 0)
+        if (lv_str_eq(g_theory_table[i].topic_id, topic_id))
             return (int) i;
     }
     return -1;

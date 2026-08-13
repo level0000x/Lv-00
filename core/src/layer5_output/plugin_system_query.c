@@ -18,6 +18,7 @@
 
 #include "lv/lv_check.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 #include "plugin_system_internal.h"
@@ -37,7 +38,7 @@ lvPlugin *lv_plugin_find(lvPluginSystem *system, const char *name) {
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_plugin_find: name is NULL");
 
     for (size_t i = 0; i < system->plugin_count; i++) {
-        if (strcmp(system->plugins[i]->info.name, name) == 0) {
+        if (lv_str_eq(system->plugins[i]->info.name, name)) {
             return system->plugins[i];
         }
     }

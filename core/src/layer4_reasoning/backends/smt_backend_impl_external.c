@@ -59,9 +59,9 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
     char *exec_argv[4];
     int argc = 0;
     exec_argv[argc++] = (char *) executable;
-    if (strcmp(executable, "z3") == 0) {
+    if (lv_str_eq(executable, "z3")) {
         exec_argv[argc++] = "-in";
-    } else if (strcmp(executable, "cvc5") == 0) {
+    } else if (lv_str_eq(executable, "cvc5")) {
         exec_argv[argc++] = "--lang";
         exec_argv[argc++] = "smt2";
     }

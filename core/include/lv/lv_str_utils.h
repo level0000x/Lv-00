@@ -74,6 +74,19 @@ int lv_str_icmp(const char *a, const char *b);
 int lv_str_icmp_n(const char *a, const char *b, size_t n);
 
 /**
+ * @brief 大小写敏感比较两个字符串是否相等（NULL 安全）
+ * @param a 字符串（可为 NULL）
+ * @param b 字符串（可为 NULL）
+ * @return 两者内容相同（或均 NULL）返回 true，否则 false
+ * @note 收敛对象（判据 B）：全库 strcmp(a,b)==0 / strcmp(a,b)!=0 的相等判定形态；
+ *       NULL 语义与 lv_str_icmp 一致（两者均 NULL 视为相等）
+ */
+bool lv_str_eq(const char *a, const char *b);
+
+/** @brief lv_str_eq 的取反（NULL 安全，两者均 NULL 视为相等） */
+bool lv_str_ne(const char *a, const char *b);
+
+/**
  * @brief 在关键字表中查找第一个 strstr 命中的索引
  * @param input    输入字符串
  * @param keywords NULL 结尾的关键字数组

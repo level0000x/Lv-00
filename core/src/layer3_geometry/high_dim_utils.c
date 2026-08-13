@@ -72,13 +72,13 @@ HighDimMappingType high_dim_mapping_type_from_string(const char *str) {
     if (!str)
         return (HighDimMappingType) -1;
 
-    if (strcmp(str, "x") == 0)
+    if (lv_str_eq(str, "x"))
         return HIGH_DIM_MAP_TO_X;
-    if (strcmp(str, "y") == 0)
+    if (lv_str_eq(str, "y"))
         return HIGH_DIM_MAP_TO_Y;
-    if (strcmp(str, "fold") == 0)
+    if (lv_str_eq(str, "fold"))
         return HIGH_DIM_MAP_FOLD;
-    if (strcmp(str, "discard") == 0)
+    if (lv_str_eq(str, "discard"))
         return HIGH_DIM_MAP_DISCARD;
 
     return (HighDimMappingType) -1;

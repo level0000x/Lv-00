@@ -271,7 +271,7 @@ bool preset_type_from_string(const char *str, PresetType *type) {
     }
 
     for (size_t i = 0; i < sizeof(g_type_map) / sizeof(g_type_map[0]); i++) {
-        if (strcmp(g_type_map[i].name, str) == 0) {
+        if (lv_str_eq(g_type_map[i].name, str)) {
             *type = g_type_map[i].type;
             return true;
         }
@@ -350,7 +350,7 @@ bool preset_properties_from_string(const char *str, PresetProperty *properties) 
     while (token != NULL) {
         bool found = false;
         for (size_t i = 0; i < sizeof(g_property_map) / sizeof(g_property_map[0]); i++) {
-            if (strcmp(g_property_map[i].name, token) == 0) {
+            if (lv_str_eq(g_property_map[i].name, token)) {
                 *properties |= g_property_map[i].flag;
                 found = true;
                 break;

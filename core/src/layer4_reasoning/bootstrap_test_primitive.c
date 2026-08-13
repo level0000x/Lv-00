@@ -23,6 +23,7 @@
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
 #include "lv/lv.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -136,7 +137,7 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
 
     /* 原语差分测试：查找并执行对应原语 */
     for (uint32_t i = 0; i < g_primitive_count; i++) {
-        if (strcmp(g_primitives[i].name, name) == 0) {
+        if (lv_str_eq(g_primitives[i].name, name)) {
             g_primitives[i].test_count++;
 
             /* --- 基础原语测试：验证约束图基本操作 --- */
@@ -293,7 +294,7 @@ void primitive_wrapper_get_stats(const char *name, uint32_t *out_total, uint32_t
     }
 
     for (uint32_t i = 0; i < g_primitive_count; i++) {
-        if (strcmp(g_primitives[i].name, name) == 0) {
+        if (lv_str_eq(g_primitives[i].name, name)) {
             if (out_total)
                 *out_total = g_primitives[i].test_count;
             if (out_passed)

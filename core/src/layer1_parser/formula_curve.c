@@ -207,11 +207,11 @@ static bool flatten_number(const FormulaNode *node, double *coeffs, int coeffs_s
 
 static bool flatten_variable(const FormulaNode *node, double *coeffs, int coeffs_size, int max_deg) {
             if (node->data.variable.name) {
-                if (strcmp(node->data.variable.name, "x") == 0) {
+                if (lv_str_eq(node->data.variable.name, "x")) {
                     if (max_deg >= 1)
                         coeffs[1 * max_deg + 0] = 1.0; /* x^1 * y^0 */
                     return true;
-                } else if (strcmp(node->data.variable.name, "y") == 0) {
+                } else if (lv_str_eq(node->data.variable.name, "y")) {
                     if (max_deg >= 1)
                         coeffs[0 * max_deg + 1] = 1.0; /* x^0 * y^1 */
                     return true;

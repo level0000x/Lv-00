@@ -741,8 +741,6 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/debug_trace.c
     core/src/layer2_resource/preset_helper_cn.c
     core/src/layer2_resource/math_theory_guide_cn.c
-    core/src/layer2_resource/error_messages_cn.c
-    core/src/layer2_resource/result_messages_cn.c
     # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
     # geo_spec.c / math_input.c 与上层重复，规范实现位于 layer3_geometry / layer1_parser

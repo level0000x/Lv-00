@@ -16,6 +16,7 @@
 
 #include "lv_internal.h"
 #include "lv/geo_predicate.h"
+#include "lv/lv_numeric.h" /* lv_is_zero / lv_EPSILON_ULTRA（geo_point_in_region_segments） */
 
 /* ========================================================================
  * 数值容差常量
@@ -143,6 +144,48 @@ int geo_bbox_contains_2d(double px, double py, double ax, double ay, double bx, 
  */
 int geo_bbox_contains_1d(double p, double a, double b, double eps) {
     return (p >= fmin(a, b) - eps && p <= fmax(a, b) + eps) ? 1 : 0;
+}
+
+/**
+ * @brief 射线法判断点 (px, py) 是否位于线段列表围成的区域内（奇数交点）
+ *
+ * 收敛说明（批次 T F-2）：收敛 func_block_selector.c 的 point_in_region 与
+ * recursion_selector.c 的 point_in_region_ray_casting 两份射线法副本。
+ * 采用更稳健的 lv_is_zero(dy, lv_EPSILON_ULTRA) 防卫跳过近水平退化边；
+ * 半开区间条件保证顶点不被重复计数。
+ *
+ * @return true 点在区域内（奇数交点）；false 参数无效或偶数交点
+ */
+bool geo_point_in_region_segments(double px, double py, GeomNode **segments, int seg_count) {
+    if (!segments || seg_count <= 0)
+        return false;
+
+    int crossings = 0;
+
+    for (int i = 0; i < seg_count; i++) {
+        GeomNode *seg = segments[i];
+        if (!seg || seg->type != GEOM_LINE_SEGMENT || seg->coord_count < 4)
+            continue;
+
+        double x1, y1, x2, y2;
+        if (!symbolic_coord_get_segment(seg->symbolic_coords, seg->coord_count, &x1, &y1, &x2, &y2))
+            continue;
+
+        /* 检查水平射线 (px, py) -> (+inf, py) 是否与线段相交 */
+        double dy = y2 - y1;
+        /* 跳过近水平退化边，避免浮点除法产生数值不稳定 */
+        if (lv_is_zero(dy, lv_EPSILON_ULTRA))
+            continue;
+        if ((y1 <= py && y2 > py) || (y2 <= py && y1 > py)) {
+            double t = (py - y1) / dy;
+            double x_intersect = x1 + t * (x2 - x1);
+            if (px < x_intersect) {
+                crossings++;
+            }
+        }
+    }
+
+    return (crossings % 2) == 1;
 }
 
 /* ========================================================================

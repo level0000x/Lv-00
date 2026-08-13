@@ -33,6 +33,7 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
+#include "lv/lv_str_utils.h"
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
@@ -60,7 +61,7 @@ Transcendental *transcendental_create(const char *name) {
     int64_t coeff_den = 1; /* 系数分母（默认为 1） */
     bool is_mul = false;   /* true = coeff*base, false = base/coeff */
 
-    if (strcmp(name, "pi") == 0 || strcmp(name, "e") == 0) {
+    if (lv_str_eq(name, "pi") || lv_str_eq(name, "e")) {
         /* 裸常量 */
         base = name;
     } else if (lv_str_startswith(name, "-pi") && (name[3] == '\0' || name[3] == '/')) {
@@ -131,7 +132,7 @@ Transcendental *transcendental_create(const char *name) {
     }
 
     /* 如果是裸常量（pi 或 e），expr 保持 NULL */
-    if (strcmp(name, "pi") == 0 || strcmp(name, "e") == 0) {
+    if (lv_str_eq(name, "pi") || lv_str_eq(name, "e")) {
         t->expr = NULL;
     } else {
         /* 构造表达式树 */
@@ -289,9 +290,9 @@ char *transcendental_serialize(const Transcendental *t) {
 double transcendental_to_double(const Transcendental *t) {
     /* Get base constant value */
     double base_val = 0.0;
-    if (strcmp(t->name, "pi") == 0) {
+    if (lv_str_eq(t->name, "pi")) {
         base_val = M_PI;
-    } else if (strcmp(t->name, "e") == 0) {
+    } else if (lv_str_eq(t->name, "e")) {
         base_val = M_E;
     } else {
         return 0.0;

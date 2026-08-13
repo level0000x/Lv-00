@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 #include "lv/stream.h"
 
@@ -640,7 +641,7 @@ static TypeEquivResult type_check_equivalence_internal(TypeSystem *ts, TypeRegio
 
     /* 检查别名 */
     if (type1->alias_name && type2->alias_name) {
-        if (strcmp(type1->alias_name, type2->alias_name) == 0) {
+        if (lv_str_eq(type1->alias_name, type2->alias_name)) {
             return TYPE_EQUIV_OK;
         }
     }

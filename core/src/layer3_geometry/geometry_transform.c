@@ -22,6 +22,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/symbolic_coord.h"
 #include "lv_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH_VOID */
@@ -1339,7 +1340,7 @@ lvTransformGroup *lv_transform_group_create_preset(const char *type) {
 
     /* 按预设群名查表分发构造（替代 strcmp 分支链） */
     for (size_t gi = 0; gi < lv_ARRAY_SIZE(kPresetGroupBuilders); gi++) {
-        if (strcmp(type, kPresetGroupBuilders[gi].name) == 0) {
+        if (lv_str_eq(type, kPresetGroupBuilders[gi].name)) {
             kPresetGroupBuilders[gi].builder(group, zero, one);
             break;
         }

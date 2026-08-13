@@ -64,7 +64,7 @@ char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t
     }
 
     /* 判断输出格式 */
-    bool json_format = (format != NULL && strcmp(format, "json") == 0);
+    bool json_format = (format != NULL && lv_str_eq(format, "json"));
 
     /* 完整的报告生成：汇总所有测试结果 */
     uint32_t passed = 0, failed = 0, errors = 0;

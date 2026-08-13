@@ -149,7 +149,7 @@ bool proof_session_submit_step(lvProofSession *session, const char *tactic, lvSt
      * This is a simplified implementation that handles basic tactic patterns.
      * A full implementation would parse the tactic and dispatch to the
      * appropriate rule engine or tactic interpreter. */
-    if (lv_str_startswith(tactic, "intro ") || strcmp(tactic, "intro") == 0) {
+    if (lv_str_startswith(tactic, "intro ") || lv_str_eq(tactic, "intro")) {
         /* Introduction tactic: pop current goal (assumed proved) */
         proof_state_pop_goal(session->state);
         local_result = proof_state_is_complete(session->state) ? STEP_RESULT_PROVED : STEP_RESULT_GOAL_CHANGED;

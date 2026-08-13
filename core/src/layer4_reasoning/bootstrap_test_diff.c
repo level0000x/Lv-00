@@ -23,6 +23,7 @@
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
 #include "lv/lv.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -112,7 +113,7 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
 
     /* 比较两个输出 */
     if (result->c_api_output && result->geo_layer_output) {
-        if (strcmp(result->c_api_output, result->geo_layer_output) == 0) {
+        if (lv_str_eq(result->c_api_output, result->geo_layer_output)) {
             result->comparison = DIFF_RESULT_EQUAL;
             result->passed = true;
             s_test_state.pass_count++;

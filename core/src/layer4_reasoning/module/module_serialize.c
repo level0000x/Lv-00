@@ -27,6 +27,7 @@
 #include "debug.h"
 #include "lv_internal.h"
 #include "lv/lv_xmacro.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -179,7 +180,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
 
     /* 检查是否已经加载过此模块 (避免循环依赖) */
     for (int i = 0; i < *count; i++) {
-        if (strcmp(loaded[i]->name, mod->name) == 0) {
+        if (lv_str_eq(loaded[i]->name, mod->name)) {
             /* 模块已加载，设置引用 */
             return true;
         }
@@ -227,7 +228,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
         /* 检查依赖是否已经在已加载列表中 */
         bool dep_loaded = false;
         for (int j = 0; j < *count; j++) {
-            if (strcmp(loaded[j]->name, dep->name) == 0) {
+            if (lv_str_eq(loaded[j]->name, dep->name)) {
                 dep->module = loaded[j];
                 dep_loaded = true;
                 break;
@@ -583,7 +584,7 @@ bool module_validate_dependency_chain(Module *mod, Module **all_modules, int mod
     for (int i = 0; i < mod->dependencies.count; i++) {
         bool found = false;
         for (int j = 0; j < module_count; j++) {
-            if (strcmp(all_modules[j]->name, ((ModuleDependency *) mod->dependencies.data)[i].name) == 0) {
+            if (lv_str_eq(all_modules[j]->name, ((ModuleDependency *) mod->dependencies.data)[i].name)) {
                 found = true;
                 break;
             }

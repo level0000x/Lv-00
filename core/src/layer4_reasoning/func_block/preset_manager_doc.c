@@ -18,6 +18,7 @@
 #include "func_block_registry.h"
 #include "lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -202,7 +203,7 @@ bool preset_generate_documentation(const char *name, const char *format, char **
 
     char *doc = NULL;
 
-    if (strcmp(fmt, "markdown") == 0) {
+    if (lv_str_eq(fmt, "markdown")) {
         doc = lv_asprintf(
             "# %s\n\n"
             "## 描述\n\n%s\n\n"
@@ -223,7 +224,7 @@ bool preset_generate_documentation(const char *name, const char *format, char **
             meta->input_count, meta->output_count, meta->version_major, meta->version_minor, meta->version_patch,
             meta->precondition_count, meta->precondition_count > 0 ? "（已定义）" : "（无）", meta->postcondition_count,
             meta->postcondition_count > 0 ? "（已定义）" : "（无）");
-    } else if (strcmp(fmt, "text") == 0) {
+    } else if (lv_str_eq(fmt, "text")) {
         doc = lv_asprintf(
             "预设: %s\n"
             "描述: %s\n"
@@ -237,7 +238,7 @@ bool preset_generate_documentation(const char *name, const char *format, char **
             meta->mathematical_def ? meta->mathematical_def : "（无定义）",
             func_block_preset_category_string(meta->category), func_block_preset_complexity_string(meta->complexity),
             meta->input_count, meta->output_count, meta->version_major, meta->version_minor, meta->version_patch);
-    } else if (strcmp(fmt, "html") == 0) {
+    } else if (lv_str_eq(fmt, "html")) {
         doc = lv_asprintf(
             "<!DOCTYPE html>\n<html>\n<head>\n"
             "<meta charset=\"UTF-8\">\n"

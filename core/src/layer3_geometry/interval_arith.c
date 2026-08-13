@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include "lv/error_codes.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
 /* ========================================================================
@@ -972,7 +973,7 @@ static lvInterval parse_primary(ExprParser *p) {
 
             /* 查表匹配一元数学函数 */
             for (size_t i = 0; i < lv_ARRAY_SIZE(kIntervalFuncs); i++) {
-                if (strcmp(name, kIntervalFuncs[i].name) == 0)
+                if (lv_str_eq(name, kIntervalFuncs[i].name))
                     return kIntervalFuncs[i].fn(arg);
             }
 
@@ -983,7 +984,7 @@ static lvInterval parse_primary(ExprParser *p) {
 
         /* Variable lookup */
         for (int i = 0; i < p->var_count; i++) {
-            if (strcmp(name, p->var_names[i]) == 0) {
+            if (lv_str_eq(name, p->var_names[i])) {
                 return p->var_intervals[i];
             }
         }

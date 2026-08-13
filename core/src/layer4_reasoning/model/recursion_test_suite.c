@@ -16,6 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/lv_str_utils.h"
 
 #include "lv_internal.h"
 #include "lv_utils.h"
@@ -560,7 +561,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 if (angle_45_val) {
                     /* 45度应返回 "pi/4" 超越数 */
                     if (angle_45_val->type == TRANSCENDENTAL && angle_45_val->data.transcendental &&
-                        strcmp(angle_45_val->data.transcendental->name, "pi/4") == 0) {
+                        lv_str_eq(angle_45_val->data.transcendental->name, "pi/4")) {
                         test_45_ok = true;
                     }
                 }
@@ -568,7 +569,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 if (angle_90_val) {
                     /* 90度应返回 "pi/2" 超越数 */
                     if (angle_90_val->type == TRANSCENDENTAL && angle_90_val->data.transcendental &&
-                        strcmp(angle_90_val->data.transcendental->name, "pi/2") == 0) {
+                        lv_str_eq(angle_90_val->data.transcendental->name, "pi/2")) {
                         test_90_ok = true;
                     }
                 }

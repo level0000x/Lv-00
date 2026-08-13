@@ -799,7 +799,7 @@ typedef struct {
 /** @brief 在字段表中查找键名对应的条目 */
 static const JsonFieldEntry *json_field_lookup(const JsonFieldEntry *table, size_t count, const char *key) {
     for (size_t i = 0; i < count; i++) {
-        if (strcmp(table[i].key, key) == 0)
+        if (lv_str_eq(table[i].key, key))
             return &table[i];
     }
     return NULL;
@@ -1052,10 +1052,10 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
 
     char *key = NULL;
     while (lv_json_parse_field(&j, &key)) {
-        if (strcmp(key, "version") == 0) {
+        if (lv_str_eq(key, "version")) {
             int ver;
             lv_json_parse_int(&j, &ver);
-        } else if (strcmp(key, "entries") == 0) {
+        } else if (lv_str_eq(key, "entries")) {
             /* 解析 entries 数组 */
             if (!lv_json_expect(&j, '[')) {
                 lv_free((void **) &key);
@@ -1075,7 +1075,7 @@ CommandLog *command_log_deserialize_json(const char *filepath) {
                     /* 条目字段查表分发（替代 4 分支 strcmp 链） */
                     EntryFieldHandler eh = NULL;
                     for (size_t fi = 0; fi < lv_ARRAY_SIZE(kEntryFieldTable); fi++) {
-                        if (strcmp(k, kEntryFieldTable[fi].key) == 0) {
+                        if (lv_str_eq(k, kEntryFieldTable[fi].key)) {
                             eh = kEntryFieldTable[fi].handler;
                             break;
                         }

@@ -22,6 +22,7 @@
 #include "error_codes.h"
 #include "lexer_shared.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "stream.h"
 
@@ -65,7 +66,7 @@ ConstraintGraph *axiom_package_lookup_expansion_cache(AxiomPackage *pkg, const c
     for (int i = 0; i < pkg->expansion_cache.count; i++) {
         TemplateExpansionCache *c = (TemplateExpansionCache *)lv_darray_get(&pkg->expansion_cache, i);
         if (c->param_hash == target_hash && c->template_name &&
-            strcmp(c->template_name, template_name) == 0) {
+            lv_str_eq(c->template_name, template_name)) {
             return c->expanded_graph;
         }
     }

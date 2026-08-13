@@ -22,6 +22,7 @@
 #include "error_codes.h"
 #include "lexer_shared.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "stream.h"
 
@@ -70,7 +71,7 @@ UnconstructibleTemplate *axiom_package_lookup_unconstructible_template(AxiomPack
 
     for (int i = 0; i < pkg->unconstructible_templates.count; i++) {
         UnconstructibleTemplate *t = (UnconstructibleTemplate *)lv_darray_get(&pkg->unconstructible_templates, i);
-        if (strcmp(t->target_problem_name, target_name) == 0) {
+        if (lv_str_eq(t->target_problem_name, target_name)) {
             return t;
         }
     }

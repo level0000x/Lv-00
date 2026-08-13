@@ -19,6 +19,7 @@
 #include "lv/lv_hashtable.h" /* eval_var 的 name→下标 哈希索引 */
 #include "lv/lv_log.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_str_utils.h"
 #include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
 /* ================================================================
@@ -687,7 +688,7 @@ static int eval_var(mpq_t result, Expr *e, const char **varnames, const mpq_t *v
     } else {
         /* 索引不可用（建表失败）时回退线性扫描，语义与纯线性实现一致 */
         for (int i = 0; i < nvars; i++) {
-            if (strcmp(e->name, varnames[i]) == 0) {
+            if (lv_str_eq(e->name, varnames[i])) {
                 mpq_set(result, values[i]);
                 return 0;
             }

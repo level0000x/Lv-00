@@ -16,6 +16,7 @@
 
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv_internal.h"
 
@@ -92,14 +93,14 @@ int lv_geo_spec_parse(const char *json, void *out) {
     {
         char type_buf[32];
         if (lv_json_get_string(json, "type", type_buf, sizeof(type_buf))) {
-            if (strcmp(type_buf, "point") == 0 || strcmp(type_buf, "Point") == 0) {
+            if (lv_str_eq(type_buf, "point") || lv_str_eq(type_buf, "Point")) {
                 lvGeoSpecPoint *pt = parse_point(json);
                 if (pt == NULL)
                     lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_geo_spec_parse: parse_point failed");
                 *(lvGeoSpecPoint **) out = pt;
                 return 0;
             }
-            if (strcmp(type_buf, "polygon") == 0 || strcmp(type_buf, "Polygon") == 0) {
+            if (lv_str_eq(type_buf, "polygon") || lv_str_eq(type_buf, "Polygon")) {
                 lvGeoSpecPolygon *poly = parse_polygon(json);
                 if (poly == NULL)
                     lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_geo_spec_parse: parse_polygon failed");

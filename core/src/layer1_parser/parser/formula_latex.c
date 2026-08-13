@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file formula_latex.c
  * @brief LaTeX 语法解析器
  *
@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "lv/formula_parser.h"
+#include "lv/lv_str_utils.h"
 
 #include "debug.h"
 #include "lv_internal.h"
@@ -132,15 +133,15 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
 
     FormulaNode *result = NULL;
 
-    if (strcmp(cmd, "frac") == 0) {
+    if (lv_str_eq(cmd, "frac")) {
         lv_free((void **) &cmd);
         return parse_latex_frac(ctx);
     }
-    if (strcmp(cmd, "sqrt") == 0) {
+    if (lv_str_eq(cmd, "sqrt")) {
         lv_free((void **) &cmd);
         return parse_latex_sqrt(ctx);
     }
-    if (strcmp(cmd, "sin") == 0) {
+    if (lv_str_eq(cmd, "sin")) {
         lv_free((void **) &cmd);
         formula_skip_whitespace(ctx);
         if (formula_peek(ctx) == '{') {
@@ -162,7 +163,7 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         }
         return result;
     }
-    if (strcmp(cmd, "cos") == 0) {
+    if (lv_str_eq(cmd, "cos")) {
         lv_free((void **) &cmd);
         formula_skip_whitespace(ctx);
         if (formula_peek(ctx) == '{') {
@@ -184,7 +185,7 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         }
         return result;
     }
-    if (strcmp(cmd, "tan") == 0) {
+    if (lv_str_eq(cmd, "tan")) {
         lv_free((void **) &cmd);
         formula_skip_whitespace(ctx);
         if (formula_peek(ctx) == '{') {
@@ -206,7 +207,7 @@ static FormulaNode *parse_latex_command(ParserContext *ctx) {
         }
         return result;
     }
-    if (strcmp(cmd, "pi") == 0) {
+    if (lv_str_eq(cmd, "pi")) {
         lv_free((void **) &cmd);
         return formula_create_variable("pi");
     }

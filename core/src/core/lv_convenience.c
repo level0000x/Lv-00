@@ -278,7 +278,7 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
         PresetEntryHandle entry = (PresetEntryHandle) ctx->module_refs[i];
         if (entry) {
             const PresetMetadata *meta = preset_get_metadata(entry);
-            if (meta && meta->name && strcmp(meta->name, name) == 0) {
+            if (meta && meta->name && lv_str_eq(meta->name, name)) {
                 found_idx = i;
                 break;
             }
@@ -338,7 +338,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
         PresetEntryHandle entry = (PresetEntryHandle) ctx->module_refs[i];
         if (entry) {
             const PresetMetadata *meta = preset_get_metadata(entry);
-            if (meta && meta->name && strcmp(meta->name, name) == 0) {
+            if (meta && meta->name && lv_str_eq(meta->name, name)) {
                 target = entry;
                 break;
             }

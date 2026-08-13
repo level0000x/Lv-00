@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 
 /* ============================================================
  * Internal helpers
@@ -203,7 +204,7 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
             if (match) {
                 char *next = apply_substitution(current, rules[i].pattern, rules[i].replacement, false);
                 if (next) {
-                    if (strcmp(next, current) != 0) {
+                    if (lv_str_ne(next, current)) {
                         changed = true;
                     }
                     lv_FREE_AND_NULL(current);
@@ -283,7 +284,7 @@ static size_t egraph_find_or_insert(Egraph *g, const char *expr, bool *is_new) {
     size_t idx = hash % g->capacity;
 
     while (g->entries[idx].occupied) {
-        if (strcmp(g->entries[idx].expr, expr) == 0) {
+        if (lv_str_eq(g->entries[idx].expr, expr)) {
             *is_new = false;
             return idx;
         }
@@ -416,7 +417,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
                 char *result = apply_substitution(current_expr, rules[ri].pattern, rules[ri].replacement, false);
                 if (!result)
                     continue;
-                if (strcmp(result, current_expr) == 0) {
+                if (lv_str_eq(result, current_expr)) {
                     lv_FREE_AND_NULL(result);
                     continue;
                 }
@@ -572,7 +573,7 @@ static bool strategy_apply_ordered(lvRewriteEngineEx *engine, const char *input,
         for (size_t r = 0; r < engine->rule_count; r++) {
             char *next = apply_single_rule(current, &engine->rules[r], use_last);
             if (next) {
-                if (strcmp(next, current) != 0) {
+                if (lv_str_ne(next, current)) {
                     any_applied = true;
                     lv_FREE_AND_NULL(current);
                     current = next;
@@ -614,7 +615,7 @@ static bool strategy_apply_parallel(lvRewriteEngineEx *engine, const char *input
             result->converged = true;
             break;
         }
-        if (strcmp(next, current) == 0) {
+        if (lv_str_eq(next, current)) {
             lv_FREE_AND_NULL(next);
             result->iterations = i + 1;
             result->converged = true;

@@ -828,8 +828,9 @@ void lv_ast_print(const LvAstNode *node, int indent) {
  * @return 类型名称字符串（静态存储，无需释放）
  */
 const char *lv_entity_type_name(LvEntityType type) {
-    static const char *names[] = {"Point",    "Line",    "Circle", "Segment", "Ray",         "Angle",
-                                  "Triangle", "Polygon", "Scalar", "Bool",    "Proposition", "Proof"};
+    static const char *const names[] = {
+        lv_XMACRO_TO_NAME_ARRAY(LV_ENTITY_TYPE_X)
+    };
     if (type >= 0 && type < LV_ENTITY_COUNT)
         return names[type];
     return "Unknown";

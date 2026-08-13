@@ -10,6 +10,7 @@
 #include "lv/config.h"      /* lv_PATH_SEPARATOR（唯一权威来源）、lv_PATH_BUF_SIZE */
 #include "lv/lv_platform.h" /* lv_mkdir */
 #include "lv/lv_utils.h"    /* lv_strlcpy */
+#include "lv/lv_str_utils.h"
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 
 #include <errno.h>
@@ -157,7 +158,7 @@ int lv_path_remove(const char *path) {
         char *child = NULL;
         size_t child_cap = 0;
         while ((entry = readdir(d)) != NULL) {
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            if (lv_str_eq(entry->d_name, ".") || lv_str_eq(entry->d_name, "..")) {
                 continue;
             }
             size_t need = strlen(path) + strlen(entry->d_name) + 2;
@@ -201,7 +202,7 @@ int lv_dir_foreach(const char *dir, lv_dir_entry_fn fn, void *ctx) {
         return 0; /* 目录不存在或为空：与历史手写遍历语义一致，不算错误 */
     }
     do {
-        if (strcmp(find_data.cFileName, ".") == 0 || strcmp(find_data.cFileName, "..") == 0) {
+        if (lv_str_eq(find_data.cFileName, ".") || lv_str_eq(find_data.cFileName, "..")) {
             continue;
         }
         if (!fn(ctx, find_data.cFileName)) {
@@ -216,7 +217,7 @@ int lv_dir_foreach(const char *dir, lv_dir_entry_fn fn, void *ctx) {
     }
     struct dirent *entry;
     while ((entry = readdir(d)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        if (lv_str_eq(entry->d_name, ".") || lv_str_eq(entry->d_name, "..")) {
             continue;
         }
         if (!fn(ctx, entry->d_name)) {

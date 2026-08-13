@@ -154,17 +154,17 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                     /* 遍历对象字段，逐一提取 */
                     char *k = NULL;
                     while (lv_json_parse_field(&p, &k)) {
-                        if (strcmp(k, "axis_index") == 0) {
+                        if (lv_str_eq(k, "axis_index")) {
                             lv_json_parse_int(&p, &axis_index);
-                        } else if (strcmp(k, "mapping_type") == 0) {
+                        } else if (lv_str_eq(k, "mapping_type")) {
                             char *s = lv_json_parse_string(&p);
                             if (s) {
                                 lv_strlcpy(type_str, s, sizeof(type_str));
                                 lv_free((void **) &s);
                             }
-                        } else if (strcmp(k, "scale") == 0) {
+                        } else if (lv_str_eq(k, "scale")) {
                             lv_json_parse_double(&p, &scale);
-                        } else if (strcmp(k, "offset") == 0) {
+                        } else if (lv_str_eq(k, "offset")) {
                             lv_json_parse_double(&p, &offset);
                         } else {
                             /* 跳过未知字段 */
@@ -203,7 +203,7 @@ int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *
                 /* 遍历对象字段，查找 "m" 字段 */
                 char *k = NULL;
                 while (lv_json_parse_field(&p, &k)) {
-                    bool is_m = (strcmp(k, "m") == 0);
+                    bool is_m = lv_str_eq(k, "m");
                     lv_free((void **) &k);
                     if (!is_m) {
                         lv_json_skip_value(&p);

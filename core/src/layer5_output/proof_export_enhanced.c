@@ -336,7 +336,7 @@ static bool is_zero_arg_coq_tactic(const char *rule) {
         "constructor", "now", "intuition", "omega", "lia"
     };
     for (size_t i = 0; i < sizeof(kZeroArg) / sizeof(kZeroArg[0]); i++) {
-        if (strcmp(rule, kZeroArg[i]) == 0)
+        if (lv_str_eq(rule, kZeroArg[i]))
             return true;
     }
     return false;
@@ -353,7 +353,7 @@ static bool is_one_arg_coq_tactic(const char *rule) {
         "specialize", "pose", "injection", "discriminate", "subst", "clear", "rename"
     };
     for (size_t i = 0; i < sizeof(kOneArg) / sizeof(kOneArg[0]); i++) {
-        if (strcmp(rule, kOneArg[i]) == 0)
+        if (lv_str_eq(rule, kOneArg[i]))
             return true;
     }
     return false;
@@ -406,7 +406,7 @@ static lvExportResult *export_coq(const lvProof *proof, const lvExportConfig *co
         }
         /* 根据规则字符串翻译为真实 Coq tactic（exact/apply/assert/tactic 字符串） */
         const char *rule = safe_str(s->rule);
-        if (strcmp(rule, "assert") == 0 || strcmp(rule, "have") == 0) {
+        if (lv_str_eq(rule, "assert") || lv_str_eq(rule, "have")) {
             lv_strbuf_printf(&d, "  assert (step_%d : %s).%s", s->step_id, safe_str(s->conclusion), nl);
             if (s->premise && s->premise[0])
                 lv_strbuf_printf(&d, "  { exact %s. }%s", s->premise, nl);
@@ -473,17 +473,17 @@ static lvExportResult *export_lean4(const lvProof *proof, const lvExportConfig *
         /* 每步翻译为 have 中间假设，证明体用 by/exact/apply/calc/tactic 字符串 */
         const char *rule = safe_str(s->rule);
         lv_strbuf_printf(&d, "  have h%d : %s := by%s", s->step_id, safe_str(s->conclusion), nl);
-        if (strcmp(rule, "exact") == 0) {
+        if (lv_str_eq(rule, "exact")) {
             lv_strbuf_printf(&d, "    exact %s%s", safe_str(s->premise ? s->premise : s->conclusion), nl);
-        } else if (strcmp(rule, "apply") == 0) {
+        } else if (lv_str_eq(rule, "apply")) {
             lv_strbuf_printf(&d, "    apply %s%s", safe_str(s->premise ? s->premise : s->conclusion), nl);
-        } else if (strcmp(rule, "rewrite") == 0) {
+        } else if (lv_str_eq(rule, "rewrite")) {
             lv_strbuf_printf(&d, "    rw [%s]%s", safe_str(s->conclusion), nl);
-        } else if (strcmp(rule, "calc") == 0) {
+        } else if (lv_str_eq(rule, "calc")) {
             lv_strbuf_printf(&d, "    calc%s", nl);
             lv_strbuf_printf(&d, "      %s := by trivial%s", safe_str(s->conclusion), nl);
-        } else if (strcmp(rule, "assumption") == 0 || strcmp(rule, "trivial") == 0 ||
-                   strcmp(rule, "rfl") == 0) {
+        } else if (lv_str_eq(rule, "assumption") || lv_str_eq(rule, "trivial") ||
+                   lv_str_eq(rule, "rfl")) {
             lv_strbuf_printf(&d, "    %s%s", rule, nl);
         } else if (s->premise && s->premise[0]) {
             /* 默认：前提即结论的证明 */
@@ -596,7 +596,7 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
             if (i == j)
                 continue;
             const lvProofStep *sj = &proof->steps[j];
-            if (strcmp(si->premise, sj->conclusion) == 0) {
+            if (lv_str_eq(si->premise, sj->conclusion)) {
                 char frombuf[32], tobuf[32];
                 snprintf(frombuf, sizeof(frombuf), "step%d", sj->step_id);
                 snprintf(tobuf, sizeof(tobuf), "step%d", si->step_id);

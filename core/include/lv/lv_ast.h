@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "lv/lv_lexer.h"
+#include "lv/lv_xmacro.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,20 +66,23 @@ typedef enum {
     LV_AST_COUNT
 } LvAstNodeType;
 
-/* 实体类型（对应 BNF 中 EntityType） */
+/* 实体类型（对应 BNF 中 EntityType）——X-macro 单一事实源 */
+#define LV_ENTITY_TYPE_X(x)       \
+    x(LV_ENTITY_POINT, "Point")   \
+    x(LV_ENTITY_LINE, "Line")     \
+    x(LV_ENTITY_CIRCLE, "Circle") \
+    x(LV_ENTITY_SEGMENT, "Segment") \
+    x(LV_ENTITY_RAY, "Ray")       \
+    x(LV_ENTITY_ANGLE, "Angle")   \
+    x(LV_ENTITY_TRIANGLE, "Triangle") \
+    x(LV_ENTITY_POLYGON, "Polygon") \
+    x(LV_ENTITY_SCALAR, "Scalar") \
+    x(LV_ENTITY_BOOL, "Bool")     \
+    x(LV_ENTITY_PROPOSITION, "Proposition") \
+    x(LV_ENTITY_PROOF, "Proof")
+
 typedef enum {
-    LV_ENTITY_POINT = 0,
-    LV_ENTITY_LINE,
-    LV_ENTITY_CIRCLE,
-    LV_ENTITY_SEGMENT,
-    LV_ENTITY_RAY,
-    LV_ENTITY_ANGLE,
-    LV_ENTITY_TRIANGLE,
-    LV_ENTITY_POLYGON,
-    LV_ENTITY_SCALAR,
-    LV_ENTITY_BOOL,
-    LV_ENTITY_PROPOSITION,
-    LV_ENTITY_PROOF,
+    lv_XMACRO_ENUM(LV_ENTITY_TYPE_X)
     LV_ENTITY_COUNT
 } LvEntityType;
 

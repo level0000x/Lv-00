@@ -592,7 +592,7 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
 
     /* 检查是否已存在 */
     for (int i = 0; i < tree->strategy_count; i++) {
-        if (tree->available_strategies[i] && strcmp(tree->available_strategies[i], strategy_name) == 0) {
+        if (tree->available_strategies[i] && lv_str_eq(tree->available_strategies[i], strategy_name)) {
             return; /* 已存在，不重复添加 */
         }
     }

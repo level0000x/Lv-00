@@ -454,7 +454,7 @@ static void node_field_output_port_ids(lvJsonParser *p, NodeDeserCtx *ctx) {
 static void node_field_port_type(lvJsonParser *p, NodeDeserCtx *ctx) {
     char *pt = lv_json_parse_string(p);
     if (pt) {
-        ctx->port_type = (strcmp(pt, "OUTPUT") == 0) ? PORT_OUTPUT : PORT_INPUT;
+        ctx->port_type = lv_str_eq(pt, "OUTPUT") ? PORT_OUTPUT : PORT_INPUT;
         lv_free((void **) &pt);
     }
 }
@@ -510,7 +510,7 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
             p->pos++; /* skip '{' */
             char *coord_key = lv_json_parse_string(p);
             int coord_type = -1; /* 0=RATIONAL, 1=ALGEBRAIC, 2=QUADRATIC */
-            if (coord_key && strcmp(coord_key, "type") == 0) {
+            if (coord_key && lv_str_eq(coord_key, "type")) {
                 p->pos++; /* skip ':' */
                 char *ct = lv_json_parse_string(p);
                 if (ct) {
@@ -529,7 +529,7 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
                     if (p->pos < p->size && p->data[p->pos] == ':')
                         p->pos++;
 
-                    if (coord_type == 0 && strcmp(coord_key, "num") == 0) {
+                    if (coord_type == 0 && lv_str_eq(coord_key, "num")) {
                         int64_t num, den = 1;
                         /* 手动解析 int64_t 值，避免 int* 截断 */
                         {
@@ -544,7 +544,7 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
                         if (lv_json_peek(p) == ',') {
                             p->pos++;
                             char *dk = lv_json_parse_string(p);
-                            if (dk && strcmp(dk, "den") == 0) {
+                            if (dk && lv_str_eq(dk, "den")) {
                                 p->pos++;
                                 if (p->pos < p->size && p->data[p->pos] == ':')
                                     p->pos++;
@@ -630,7 +630,7 @@ static const struct {
 /** @brief 在节点字段表中查找键名对应的 handler */
 static NodeFieldHandler node_field_lookup(const char *key) {
     for (size_t i = 0; i < lv_ARRAY_SIZE(kNodeFieldTable); i++) {
-        if (strcmp(kNodeFieldTable[i].key, key) == 0)
+        if (lv_str_eq(kNodeFieldTable[i].key, key))
             return kNodeFieldTable[i].handler;
     }
     return NULL;
@@ -690,7 +690,7 @@ static const struct {
 /** @brief 在约束字段表中查找键名对应的 handler */
 static ConstraintFieldHandler constraint_field_lookup(const char *key) {
     for (size_t i = 0; i < lv_ARRAY_SIZE(kConstraintFieldTable); i++) {
-        if (strcmp(kConstraintFieldTable[i].key, key) == 0)
+        if (lv_str_eq(kConstraintFieldTable[i].key, key))
             return kConstraintFieldTable[i].handler;
     }
     return NULL;
@@ -727,7 +727,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
     /* 解析节点和约束数组 */
     char *key = NULL;
     while (lv_json_parse_field(&p, &key)) {
-        if (strcmp(key, "nodes") == 0) {
+        if (lv_str_eq(key, "nodes")) {
             if (!lv_json_expect(&p, '[')) {
                 lv_free((void **) &key);
                 graph_destroy(graph);
@@ -890,7 +890,7 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
             }
 
             lv_json_expect(&p, ']');
-        } else if (strcmp(key, "constraints") == 0) {
+        } else if (lv_str_eq(key, "constraints")) {
             if (!lv_json_expect(&p, '[')) {
                 lv_free((void **) &key);
                 graph_destroy(graph);

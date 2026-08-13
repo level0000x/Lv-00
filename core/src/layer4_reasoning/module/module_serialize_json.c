@@ -255,10 +255,10 @@ static bool json_parse_dependencies(lvJsonParser *p, Module **mod, char **name, 
 
             char *dk = NULL;
             while (lv_json_parse_field(p, &dk)) {
-                if (strcmp(dk, "name") == 0) {
+                if (lv_str_eq(dk, "name")) {
                     lv_free((void **) &dep_name);
                     dep_name = lv_json_parse_string(p);
-                } else if (strcmp(dk, "version_constraint") == 0) {
+                } else if (lv_str_eq(dk, "version_constraint")) {
                     lv_free((void **) &dep_ver);
                     dep_ver = lv_json_parse_string(p);
                 } else {
@@ -290,7 +290,7 @@ static bool json_parse_exports(lvJsonParser *p, Module **mod, char **name, char 
 
         char *ek = NULL;
         while (lv_json_parse_field(p, &ek)) {
-            if (strcmp(ek, "function_blocks") == 0 && *mod) {
+            if (lv_str_eq(ek, "function_blocks") && *mod) {
                 if (lv_json_peek(p) == '[') {
                     lv_json_next(p);
                     while (lv_json_peek(p) != ']' && lv_json_peek(p) != '\0') {
@@ -308,7 +308,7 @@ static bool json_parse_exports(lvJsonParser *p, Module **mod, char **name, char 
                     if (lv_json_peek(p) == ']')
                         lv_json_next(p);
                 }
-            } else if (strcmp(ek, "type_regions") == 0 && *mod) {
+            } else if (lv_str_eq(ek, "type_regions") && *mod) {
                 if (lv_json_peek(p) == '[') {
                     lv_json_next(p);
                     while (lv_json_peek(p) != ']' && lv_json_peek(p) != '\0') {
@@ -444,7 +444,7 @@ ModuleLoadStatus module_deserialize_from_json(const char *json, Module **out_mod
         bool matched = false;
         bool parse_failed = false;
         for (size_t j = 0; j < lv_ARRAY_SIZE(kModuleJsonParsers); j++) {
-            if (strcmp(key, kModuleJsonParsers[j].name) == 0) {
+            if (lv_str_eq(key, kModuleJsonParsers[j].name)) {
                 matched = true;
                 if (!kModuleJsonParsers[j].fn(&p, &mod, &name, &version)) {
                     parse_failed = true;

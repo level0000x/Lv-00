@@ -17,6 +17,7 @@
 
 #include "error_codes.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 
@@ -227,15 +228,15 @@ const char *func_block_preset_get_inverse(const char *preset_name) {
         return NULL;
 
     /* 简化实现：返回常见逆操作 */
-    if (strcmp(preset_name, "translation") == 0)
+    if (lv_str_eq(preset_name, "translation"))
         return "translation";
-    if (strcmp(preset_name, "rotation") == 0)
+    if (lv_str_eq(preset_name, "rotation"))
         return "rotation";
-    if (strcmp(preset_name, "scaling") == 0)
+    if (lv_str_eq(preset_name, "scaling"))
         return "scaling";
-    if (strcmp(preset_name, "inversion") == 0)
+    if (lv_str_eq(preset_name, "inversion"))
         return "inversion";
-    if (strcmp(preset_name, "reflection_point") == 0)
+    if (lv_str_eq(preset_name, "reflection_point"))
         return "reflection_point";
     return NULL;
 }

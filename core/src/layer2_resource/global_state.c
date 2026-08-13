@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include "lv/lv_utils.h"
+#include "lv/lv_str_utils.h"
 
 /* ── 线程安全 ─────────────────────────────────────────────────────── */
 
@@ -111,7 +112,7 @@ static int find_param_index(const char *key) {
             return (int) v - 1;
     }
     for (int i = 0; i < g_state.param_count; i++) {
-        if (strcmp(g_state.params[i].key, key) == 0)
+        if (lv_str_eq(g_state.params[i].key, key))
             return i;
     }
     lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "param key not found");

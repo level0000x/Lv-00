@@ -11,6 +11,7 @@
 
 #include "lv/lv_platform.h"
 #include "lv/lv_arith_safe.h"
+#include "lv/lv_str_utils.h"
 #include "formula_converter.h"
 #include "formula_converter_internal.h"
 
@@ -55,7 +56,7 @@ int formula_get_node_id(const char *var_name) {
 
     const VarMapEntry *arr = (const VarMapEntry *) g_var_map.ptr;
     for (int i = 0; i < g_var_map.count; i++) {
-        if (strcmp(arr[i].name, var_name) == 0) {
+        if (lv_str_eq(arr[i].name, var_name)) {
             return arr[i].node_id;
         }
     }
@@ -75,7 +76,7 @@ void formula_set_node_id(const char *var_name, int node_id) {
     VarMapEntry *arr = (VarMapEntry *) g_var_map.ptr;
     /* 检查是否已存在 */
     for (int i = 0; i < g_var_map.count; i++) {
-        if (strcmp(arr[i].name, var_name) == 0) {
+        if (lv_str_eq(arr[i].name, var_name)) {
             arr[i].node_id = node_id;
             return;
         }

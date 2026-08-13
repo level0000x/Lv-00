@@ -27,6 +27,7 @@
 
 #include "atp_backend.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
@@ -721,7 +722,7 @@ static bool proof_multi_strategy_axiom_deps_loaded(const ProofMultiStrategy *mse
         bool found = false;
         for (int j = 0; j < engine->axiom_package_count; j++) {
             const AxiomPackage *pkg = engine->axiom_packages[j];
-            if (pkg && pkg->name && strcmp(pkg->name, want) == 0) {
+            if (pkg && pkg->name && lv_str_eq(pkg->name, want)) {
                 found = true;
                 break;
             }

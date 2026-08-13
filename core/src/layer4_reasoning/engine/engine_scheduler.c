@@ -20,7 +20,9 @@
 #include "lv/lv_numeric.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv/normalization.h"
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
@@ -153,11 +155,7 @@ static bool check_condition(const RouteCondition *cond, const GraphFeatures *fea
     if (!cond)
         return false;
 
-    if (lv_index_in_range(cond->type, (int)(sizeof(kRouteConditionHandlers)/sizeof(kRouteConditionHandlers[0])))
-        && kRouteConditionHandlers[cond->type]) {
-        return kRouteConditionHandlers[cond->type](cond, features, scheduler);
-    }
-    return false;
+    return LV_DISPATCH(kRouteConditionHandlers, cond->type, false, cond, features, scheduler);
 }
 
 /* ============================================================
@@ -1195,7 +1193,7 @@ int lv_engine_schedule(const char *task_name, int priority) {
     /* 描述符表分发 —— 替代 if/else 任务名链；
      * 未知任务名保持原语义：无操作，返回 0 */
     for (size_t i = 0; i < sizeof(kSchedulerTasks) / sizeof(kSchedulerTasks[0]); i++) {
-        if (strcmp(task_name, kSchedulerTasks[i].name) == 0) {
+        if (lv_str_eq(task_name, kSchedulerTasks[i].name)) {
             kSchedulerTasks[i].handler(scheduler, engine, &result);
             break;
         }

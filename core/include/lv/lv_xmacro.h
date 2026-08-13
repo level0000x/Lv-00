@@ -115,7 +115,7 @@ typedef struct {
 static inline int lv_str_to_enum(const lvStrToEnumEntry *table, size_t count,
                                   const char *str, int default_value) {
     for (size_t i = 0; i < count; i++) {
-        if (strcmp(table[i].name, str) == 0)
+        if (lv_str_eq(table[i].name, str))
             return table[i].value;
     }
     return default_value;

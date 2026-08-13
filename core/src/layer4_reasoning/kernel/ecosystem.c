@@ -8,6 +8,7 @@
 
 #include "lv/ecosystem.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_str_utils.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -107,7 +108,7 @@ int lv_ecosystem_register_module(const char *name, int layer) {
     {
         int i;
         for (i = 0; i < s_ecosystem_state.count; i++) {
-            if (strcmp(s_ecosystem_state.modules[i].name, name) == 0) {
+            if (lv_str_eq(s_ecosystem_state.modules[i].name, name)) {
                 return -1; /* 重复注册 */
             }
         }

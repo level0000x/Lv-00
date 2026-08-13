@@ -32,6 +32,7 @@
 
 #include "lv/bit_burning.h"
 #include "lv/constraint_graph.h"
+#include "lv/lv_str_utils.h"
 #include "lv/symbolic_coord.h"
 
 #include "debug.h"
@@ -473,9 +474,9 @@ static double transcendental_expr_to_double(const Transcendental *t) {
 
     const char *base = t->expr ? t->expr->base_name : t->name;
     double base_val;
-    if (strcmp(base, "pi") == 0) {
+    if (lv_str_eq(base, "pi")) {
         base_val = M_PI;
-    } else if (strcmp(base, "e") == 0) {
+    } else if (lv_str_eq(base, "e")) {
         base_val = M_E;
     } else {
         return 0.0;
@@ -782,7 +783,7 @@ SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b
                 return NULL;
             TranscendentalExpr *expr = t->expr;
             expr->out_of_scope = false;
-            if (strcmp(base_a, base_b) == 0) {
+            if (lv_str_eq(base_a, base_b)) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
@@ -875,7 +876,7 @@ SymbolicCoord *symbolic_coord_subtract(const SymbolicCoord *a, const SymbolicCoo
                 return NULL;
             TranscendentalExpr *expr = t->expr;
             expr->out_of_scope = false;
-            if (strcmp(base_a, base_b) == 0) {
+            if (lv_str_eq(base_a, base_b)) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 
@@ -1046,7 +1047,7 @@ SymbolicCoord *symbolic_coord_divide(const SymbolicCoord *a, const SymbolicCoord
             const char *base_b = tb->expr ? tb->expr->base_name : tb->name;
 
             /* T / T：同底数且双 MUL_RATIONAL 时系数相除可化简为有理数 */
-            if (strcmp(base_a, base_b) == 0) {
+            if (lv_str_eq(base_a, base_b)) {
                 bool a_is_mul = !ta->expr || ta->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
                 bool b_is_mul = !tb->expr || tb->expr->expr_type == TRANS_EXPR_MUL_RATIONAL;
 

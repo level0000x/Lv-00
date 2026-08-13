@@ -33,6 +33,7 @@
 #include "lv/lv_json.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_dot_writer.h"
 
@@ -732,7 +733,7 @@ bool meta_repr_verify_roundtrip(const void *original, const void *decoded, const
 
     if (type_name) {
         /* 根据类型名称选择合适的比较策略 */
-        if (strcmp(type_name, "ConstraintGraph") == 0) {
+        if (lv_str_eq(type_name, "ConstraintGraph")) {
             return meta_repr_graph_equivalent((const ConstraintGraph *) original, (const ConstraintGraph *) decoded);
         }
     }

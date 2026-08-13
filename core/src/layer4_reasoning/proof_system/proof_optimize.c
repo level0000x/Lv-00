@@ -17,6 +17,7 @@
 
 #include "lv/lv_internal.h"
 #include "lv/proof_trace.h"
+#include "lv/lv_str_utils.h"
 
 /* ================================================================
  *  内部常量
@@ -104,7 +105,7 @@ static bool opt_can_merge(const struct ProofOptimizer *ctx, int idx_a, int idx_b
     b = &ctx->steps[idx_b];
 
     /* 规则必须相同 */
-    if (strcmp(a->rule, b->rule) != 0)
+    if (lv_str_ne(a->rule, b->rule))
         return false;
 
     /* B 必须仅依赖 A */

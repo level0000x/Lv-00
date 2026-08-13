@@ -25,6 +25,7 @@
 #include "error_codes.h"
 #include "lv.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "solver_core.h"
 
@@ -1347,7 +1348,7 @@ RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model
                         /* 检查该关系的绑定是否满足断言语义 */
                         bool found = false;
                         for (int bi = 0; bi < inst->binding_count; bi++) {
-                            if (inst->rel_bindings[bi] && strcmp(inst->rel_bindings[bi]->name, assert_rel->name) == 0) {
+                            if (inst->rel_bindings[bi] && lv_str_eq(inst->rel_bindings[bi]->name, assert_rel->name)) {
                                 found = true;
                                 break;
                             }

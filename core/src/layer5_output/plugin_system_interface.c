@@ -19,6 +19,7 @@
 #include "lv/lv_check.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_utils.h"
 
@@ -175,7 +176,7 @@ lvPluginInterface *lv_plugin_query_interface(lvPluginSystem *system, const char 
             continue;
         }
         lvPluginInterface *iface = (lvPluginInterface *) entry_value;
-        if (strcmp(iface->name, name) == 0 && iface->version == version) {
+        if (lv_str_eq(iface->name, name) && iface->version == version) {
             return iface;
         }
     }

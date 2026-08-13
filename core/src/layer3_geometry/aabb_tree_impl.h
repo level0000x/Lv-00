@@ -297,16 +297,16 @@ static double AABB_FUNC(point_distance)(AABB_PRIM_TYPE bb, double px, double py
 #if AABB_DIMS == 2
 static lvAABBPoint2D AABB_FUNC(closest_point)(lvAABB2D bb, double px, double py) {
     lvAABBPoint2D cp;
-    cp.x = (px < bb.xmin) ? bb.xmin : (px > bb.xmax) ? bb.xmax : px;
-    cp.y = (py < bb.ymin) ? bb.ymin : (py > bb.ymax) ? bb.ymax : py;
+    cp.x = lv_clamp(px, bb.xmin, bb.xmax);
+    cp.y = lv_clamp(py, bb.ymin, bb.ymax);
     return cp;
 }
 #elif AABB_DIMS == 3
 static lvAABBPoint3D AABB_FUNC(closest_point)(lvAABB3D bb, double px, double py, double pz) {
     lvAABBPoint3D cp;
-    cp.x = (px < bb.xmin) ? bb.xmin : (px > bb.xmax) ? bb.xmax : px;
-    cp.y = (py < bb.ymin) ? bb.ymin : (py > bb.ymax) ? bb.ymax : py;
-    cp.z = (pz < bb.zmin) ? bb.zmin : (pz > bb.zmax) ? bb.zmax : pz;
+    cp.x = lv_clamp(px, bb.xmin, bb.xmax);
+    cp.y = lv_clamp(py, bb.ymin, bb.ymax);
+    cp.z = lv_clamp(pz, bb.zmin, bb.zmax);
     return cp;
 }
 #endif

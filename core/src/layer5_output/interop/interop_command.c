@@ -496,7 +496,7 @@ static int handle_cmd_add_node(lvEngine *engine, const InteropCommand *cmd, Inte
     const char *type_str = cmd->params[0];
     /* 节点类型→处理函数 查表（替代 4 分支 strcmp 链） */
     for (size_t i = 0; i < lv_ARRAY_SIZE(kAddNodeTypeHandlers); i++) {
-        if (strcmp(type_str, kAddNodeTypeHandlers[i].name) == 0)
+        if (lv_str_eq(type_str, kAddNodeTypeHandlers[i].name))
             return kAddNodeTypeHandlers[i].handler(engine, cmd, resp);
     }
     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -674,7 +674,7 @@ static int handle_cmd_add_constraint(lvEngine *engine, const InteropCommand *cmd
     }
     /* 约束类型→处理函数 查表（替代 6 分支 strcmp 链） */
     for (size_t i = 0; i < lv_ARRAY_SIZE(kAddConstraintTypeHandlers); i++) {
-        if (strcmp(ct, kAddConstraintTypeHandlers[i].name) == 0)
+        if (lv_str_eq(ct, kAddConstraintTypeHandlers[i].name))
             return kAddConstraintTypeHandlers[i].handler(engine, participants, pcount, resp);
     }
     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -1211,7 +1211,7 @@ static int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, 
     }
     /* 导出格式→处理函数 查表（替代 4 分支 strcmp 链） */
     for (size_t i = 0; i < lv_ARRAY_SIZE(kExportFormatHandlers); i++) {
-        if (strcmp(fmt, kExportFormatHandlers[i].name) == 0)
+        if (lv_str_eq(fmt, kExportFormatHandlers[i].name))
             return kExportFormatHandlers[i].handler(engine, cmd, resp);
     }
     resp->status_code = lv_ERROR_UNSUPPORTED;
@@ -1457,7 +1457,7 @@ const char *interop_trust_color_to_tikz(TrustColor trust) {
 const char *interop_geom_type_name(GeomType type) {
     const char *alias = lv_geom_type_alias((int) type);
     /* lv_geom_type_alias 越界返回 "UNKNOWN"，此处保持本接口既有的 "unknown" 回退语义 */
-    return (alias && strcmp(alias, "UNKNOWN") != 0) ? alias : "unknown";
+    return (alias && lv_str_ne(alias, "UNKNOWN")) ? alias : "unknown";
 }
 
 /**
@@ -1473,5 +1473,5 @@ const char *interop_geom_type_name(GeomType type) {
  *        （lv_constraint_type_alias），原手写小写表已删除。 */
 const char *interop_constraint_type_name(ConstraintType type) {
     const char *alias = lv_constraint_type_alias((int) type);
-    return (alias && strcmp(alias, "UNKNOWN") != 0) ? alias : "unknown";
+    return (alias && lv_str_ne(alias, "UNKNOWN")) ? alias : "unknown";
 }

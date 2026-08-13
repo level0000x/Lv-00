@@ -24,6 +24,7 @@
 
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -941,10 +942,10 @@ static bool mp_parse_dependencies(MsgPackDecoder *dec, Module **mod, char **name
                 lv_free((void **) &dk);
                 return false;
             }
-            if (strcmp(dk, "name") == 0) {
+            if (lv_str_eq(dk, "name")) {
                 lv_free((void **) &dk);
                 mp_decoder_read_str(dec, &dep_name);
-            } else if (strcmp(dk, "version_constraint") == 0) {
+            } else if (lv_str_eq(dk, "version_constraint")) {
                 lv_free((void **) &dk);
                 mp_decoder_read_str(dec, &dep_ver);
             } else {
@@ -980,7 +981,7 @@ static bool mp_parse_exports(MsgPackDecoder *dec, Module **mod, char **name, cha
                 module_destroy(*mod);
             return false;
         }
-        if (strcmp(ek, "function_blocks") == 0) {
+        if (lv_str_eq(ek, "function_blocks")) {
             lv_free((void **) &ek);
             uint16_t fb_count = 0;
             if (!mp_decoder_read_array_header(dec, &fb_count)) {
@@ -996,7 +997,7 @@ static bool mp_parse_exports(MsgPackDecoder *dec, Module **mod, char **name, cha
                     module_export_function_block(*mod, (int) val);
                 }
             }
-        } else if (strcmp(ek, "type_regions") == 0) {
+        } else if (lv_str_eq(ek, "type_regions")) {
             lv_free((void **) &ek);
             uint16_t tr_count = 0;
             if (!mp_decoder_read_array_header(dec, &tr_count)) {
@@ -1087,7 +1088,7 @@ ModuleLoadStatus module_load_from_binary(const uint8_t *data, size_t size, Modul
         /* 键分发：查 X-macro 生成的字段处理表（替代 5 分支 strcmp 链） */
         bool handled = false;
         for (size_t j = 0; j < lv_ARRAY_SIZE(kModuleMpParsers); j++) {
-            if (strcmp(key, kModuleMpParsers[j].name) == 0) {
+            if (lv_str_eq(key, kModuleMpParsers[j].name)) {
                 handled = true;
                 lv_free((void **) &key);
                 if (kModuleMpParsers[j].fn) {

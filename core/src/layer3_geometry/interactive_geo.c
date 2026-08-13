@@ -17,6 +17,7 @@
 #include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
+#include "lv/lv_str_utils.h"
 
 #define HIT_RADIUS 12.0
 #define MAX_ZOOM 20.0
@@ -544,13 +545,13 @@ int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
         jp.pos++; /* 跳过 '{' */
         char *key = NULL;
         while (lv_json_parse_field(&jp, &key)) {
-            if (strcmp(key, "mode") == 0) {
+            if (lv_str_eq(key, "mode")) {
                 if (!lv_json_parse_int(&jp, &mv))
                     mv = 0;
-            } else if (strcmp(key, "drag_target") == 0) {
+            } else if (lv_str_eq(key, "drag_target")) {
                 if (!lv_json_parse_int(&jp, &di))
                     di = -1;
-            } else if (strcmp(key, "drag_pos") == 0) {
+            } else if (lv_str_eq(key, "drag_pos")) {
                 double arr[2];
                 size_t cnt = 0;
                 if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
@@ -560,10 +561,10 @@ int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
                     dx = arr[0];
                     dy = arr[1];
                 }
-            } else if (strcmp(key, "zoom") == 0) {
+            } else if (lv_str_eq(key, "zoom")) {
                 if (!lv_json_parse_double(&jp, &zm))
                     zm = 1;
-            } else if (strcmp(key, "offset") == 0) {
+            } else if (lv_str_eq(key, "offset")) {
                 double arr[2];
                 size_t cnt = 0;
                 if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
@@ -573,7 +574,7 @@ int interactive_geo_restore(lvInteractiveGeo *g, int idx) {
                     ox = arr[0];
                     oy = arr[1];
                 }
-            } else if (strcmp(key, "selected_count") == 0) {
+            } else if (lv_str_eq(key, "selected_count")) {
                 if (!lv_json_parse_int(&jp, &sc))
                     sc = 0;
             } else {

@@ -219,7 +219,7 @@ const char *formula_latex_greek_name(const char *name) {
         return name;
 
     for (int i = 0; greek_letters[i].name != NULL; i++) {
-        if (strcmp(name, greek_letters[i].name) == 0) {
+        if (lv_str_eq(name, greek_letters[i].name)) {
             return greek_letters[i].latex;
         }
     }
@@ -231,7 +231,7 @@ const char *get_trig_latex(const char *name) {
         return name;
 
     for (int i = 0; trig_functions[i].name != NULL; i++) {
-        if (strcmp(name, trig_functions[i].name) == 0) {
+        if (lv_str_eq(name, trig_functions[i].name)) {
             return trig_functions[i].latex;
         }
     }
@@ -242,7 +242,7 @@ bool is_greek_letter(const char *name) {
         return false;
 
     for (int i = 0; greek_letters[i].name != NULL; i++) {
-        if (strcmp(name, greek_letters[i].name) == 0) {
+        if (lv_str_eq(name, greek_letters[i].name)) {
             return true;
         }
     }

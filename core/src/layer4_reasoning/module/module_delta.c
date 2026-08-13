@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "lv/lv_thread.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "module_helpers.h"
 
@@ -317,7 +318,7 @@ static void delta_baseline_mutex_init(void) {
 
 static DeltaBaseline *find_delta_baseline(const char *module_name) {
     for (int i = 0; i < s_delta_baseline_state.count; i++) {
-        if (strcmp(s_delta_baseline_state.entries[i].module_name, module_name) == 0) {
+        if (lv_str_eq(s_delta_baseline_state.entries[i].module_name, module_name)) {
             return &s_delta_baseline_state.entries[i];
         }
     }
@@ -520,7 +521,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
     lv_json_buf_begin_object(&w);
 
     /* 检查 name 变化 */
-    if ((bl->name && mod->name && strcmp(bl->name, mod->name) != 0) || (bl->name && !mod->name) ||
+    if ((bl->name && mod->name && lv_str_ne(bl->name, mod->name)) || (bl->name && !mod->name) ||
         (!bl->name && mod->name)) {
         lv_json_buf_append_key(&w, "name");
         lv_json_buf_begin_object(&w);
@@ -532,7 +533,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
     }
 
     /* 检查 version 变化 */
-    if ((bl->version && mod->version && strcmp(bl->version, mod->version) != 0) || (bl->version && !mod->version) ||
+    if ((bl->version && mod->version && lv_str_ne(bl->version, mod->version)) || (bl->version && !mod->version) ||
         (!bl->version && mod->version)) {
         lv_json_buf_append_key(&w, "version");
         lv_json_buf_begin_object(&w);
@@ -554,7 +555,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
             char *dep_name = *(char **) lv_darray_get(&bl->dep_names, i);
             bool found = false;
             for (int j = 0; j < mod->dependencies.count; j++) {
-                if (strcmp(dep_name, ((ModuleDependency *) mod->dependencies.data)[j].name) == 0) {
+                if (lv_str_eq(dep_name, ((ModuleDependency *) mod->dependencies.data)[j].name)) {
                     found = true;
                     break;
                 }
@@ -574,7 +575,7 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         for (int i = 0; i < mod->dependencies.count; i++) {
             bool found = false;
             for (int j = 0; j < bl->dep_names.count; j++) {
-                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j)) == 0) {
+                if (lv_str_eq(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j))) {
                     found = true;
                     break;
                 }
@@ -595,8 +596,8 @@ static ModuleDelta *module_compute_delta_locked(const Module *mod, uint64_t base
         lv_json_buf_begin_array(&w);
         for (int i = 0; i < mod->dependencies.count; i++) {
             for (int j = 0; j < bl->dep_names.count; j++) {
-                if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j)) == 0 &&
-                    strcmp(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, *(char **) lv_darray_get(&bl->dep_versions, j)) != 0) {
+                if (lv_str_eq(((ModuleDependency *) mod->dependencies.data)[i].name, *(char **) lv_darray_get(&bl->dep_names, j)) &&
+                    lv_str_ne(((ModuleDependency *) mod->dependencies.data)[i].version_constraint, *(char **) lv_darray_get(&bl->dep_versions, j))) {
                     lv_json_buf_begin_object(&w);
                     lv_json_buf_append_key(&w, "name");
                     lv_json_buf_append_string(&w, ((ModuleDependency *) mod->dependencies.data)[i].name);
@@ -798,7 +799,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
 
     char *key = NULL;
     while (lv_json_parse_field(&p, &key)) {
-        if (strcmp(key, "changes") == 0) {
+        if (lv_str_eq(key, "changes")) {
             if (lv_json_peek(&p) != '{') {
                 lv_free((void **) &key);
                 break;
@@ -808,14 +809,14 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
             char *ck = NULL;
             while (lv_json_parse_field(&p, &ck)) {
 
-                if (strcmp(ck, "name") == 0) {
+                if (lv_str_eq(ck, "name")) {
                     /* 应用名称变更 */
                     if (lv_json_peek(&p) == '{') {
                         lv_json_next(&p);
                         char *fk = NULL;
                         while (lv_json_parse_field(&p, &fk)) {
                             char *val = lv_json_parse_string(&p);
-                            if (strcmp(fk, "new") == 0 && val) {
+                            if (lv_str_eq(fk, "new") && val) {
                                 lv_free((void **) &mod->name);
                                 mod->name = val;
                                 val = NULL;
@@ -826,13 +827,13 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         if (lv_json_peek(&p) == '}')
                             lv_json_next(&p);
                     }
-                } else if (strcmp(ck, "version") == 0) {
+                } else if (lv_str_eq(ck, "version")) {
                     if (lv_json_peek(&p) == '{') {
                         lv_json_next(&p);
                         char *fk = NULL;
                         while (lv_json_parse_field(&p, &fk)) {
                             char *val = lv_json_parse_string(&p);
-                            if (strcmp(fk, "new") == 0 && val) {
+                            if (lv_str_eq(fk, "new") && val) {
                                 lv_free((void **) &mod->version);
                                 mod->version = val;
                                 val = NULL;
@@ -843,7 +844,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         if (lv_json_peek(&p) == '}')
                             lv_json_next(&p);
                     }
-                } else if (strcmp(ck, "dependencies_added") == 0) {
+                } else if (lv_str_eq(ck, "dependencies_added")) {
                     if (lv_json_peek(&p) == '[') {
                         lv_json_next(&p);
                         while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
@@ -857,10 +858,10 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 char *fk = NULL;
                                 while (lv_json_parse_field(&p, &fk)) {
                                     char *val = lv_json_parse_string(&p);
-                                    if (strcmp(fk, "name") == 0) {
+                                    if (lv_str_eq(fk, "name")) {
                                         lv_free((void **) &dn);
                                         dn = val;
-                                    } else if (strcmp(fk, "version_constraint") == 0) {
+                                    } else if (lv_str_eq(fk, "version_constraint")) {
                                         lv_free((void **) &dv);
                                         dv = val;
                                     } else
@@ -881,7 +882,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         if (lv_json_peek(&p) == ']')
                             lv_json_next(&p);
                     }
-                } else if (strcmp(ck, "dependencies_removed") == 0) {
+                } else if (lv_str_eq(ck, "dependencies_removed")) {
                     if (lv_json_peek(&p) == '[') {
                         lv_json_next(&p);
                         while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
@@ -893,7 +894,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                             if (dep_name) {
                                 /* 查找并移除依赖 */
                                 for (int i = 0; i < mod->dependencies.count; i++) {
-                                    if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, dep_name) == 0) {
+                                    if (lv_str_eq(((ModuleDependency *) mod->dependencies.data)[i].name, dep_name)) {
                                         lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].name);
                                         lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                                         /* 将最后一个元素移到当前位置 */
@@ -910,7 +911,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         if (lv_json_peek(&p) == ']')
                             lv_json_next(&p);
                     }
-                } else if (strcmp(ck, "dependencies_modified") == 0) {
+                } else if (lv_str_eq(ck, "dependencies_modified")) {
                     if (lv_json_peek(&p) == '[') {
                         lv_json_next(&p);
                         while (lv_json_peek(&p) != ']' && lv_json_peek(&p) != '\0') {
@@ -924,10 +925,10 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                 char *fk = NULL;
                                 while (lv_json_parse_field(&p, &fk)) {
                                     char *val = lv_json_parse_string(&p);
-                                    if (strcmp(fk, "name") == 0) {
+                                    if (lv_str_eq(fk, "name")) {
                                         lv_free((void **) &dn);
                                         dn = val;
-                                    } else if (strcmp(fk, "new_version_constraint") == 0) {
+                                    } else if (lv_str_eq(fk, "new_version_constraint")) {
                                         lv_free((void **) &nv);
                                         nv = val;
                                     } else
@@ -938,7 +939,7 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                                     lv_json_next(&p);
                                 if (dn && nv) {
                                     for (int i = 0; i < mod->dependencies.count; i++) {
-                                        if (strcmp(((ModuleDependency *) mod->dependencies.data)[i].name, dn) == 0) {
+                                        if (lv_str_eq(((ModuleDependency *) mod->dependencies.data)[i].name, dn)) {
                                             lv_free((void **) &((ModuleDependency *) mod->dependencies.data)[i].version_constraint);
                                             ((ModuleDependency *) mod->dependencies.data)[i].version_constraint = lv_strdup_safe(nv);
                                             break;
@@ -954,9 +955,9 @@ bool module_apply_delta(Module *mod, const ModuleDelta *delta) {
                         if (lv_json_peek(&p) == ']')
                             lv_json_next(&p);
                     }
-                } else if (strcmp(ck, "nodes_added") == 0 || strcmp(ck, "nodes_removed") == 0 ||
-                           strcmp(ck, "nodes_modified") == 0 || strcmp(ck, "constraints_added") == 0 ||
-                           strcmp(ck, "constraints_removed") == 0) {
+                } else if (lv_str_eq(ck, "nodes_added") || lv_str_eq(ck, "nodes_removed") ||
+                           lv_str_eq(ck, "nodes_modified") || lv_str_eq(ck, "constraints_added") ||
+                           lv_str_eq(ck, "constraints_removed")) {
                     /* 图增量字段：检测到图变化时回退到完整图重序列化 */
                     if (lv_json_peek(&p) == '[') {
                         /* 统计数组元素个数并跳过整个数组（替代原私有计数函数） */

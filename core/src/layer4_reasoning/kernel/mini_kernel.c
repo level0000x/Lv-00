@@ -402,7 +402,7 @@ static int mini_find_symbol(MiniKernel *kernel, const char *name) {
     }
     /* 索引不可用（建表失败）时回退线性扫描，语义与纯线性实现一致 */
     for (int i = 0; i < kernel->symbol_count; i++) {
-        if (kernel->symbol_names[i] && strcmp(kernel->symbol_names[i], name) == 0) {
+        if (kernel->symbol_names[i] && lv_str_eq(kernel->symbol_names[i], name)) {
             return kernel->symbol_stmt_ids[i];
         }
     }
@@ -426,7 +426,7 @@ static int mini_register_symbol(MiniKernel *kernel, const char *name, int stmt_i
         int existing = mini_find_symbol(kernel, name);
         if (existing >= 0) {
             for (int i = 0; i < kernel->symbol_count; i++) {
-                if (kernel->symbol_names[i] && strcmp(kernel->symbol_names[i], name) == 0) {
+                if (kernel->symbol_names[i] && lv_str_eq(kernel->symbol_names[i], name)) {
                     kernel->symbol_stmt_ids[i] = stmt_id;
                     return i;
                 }
@@ -516,8 +516,8 @@ MiniVerifyResult mini_kernel_check_substitution(MiniKernel *kernel, const Substi
     /* 2. 验证同一变量未映射到不同表达式（冲突检测） */
     for (int i = 0; i < subst_count; i++) {
         for (int j = i + 1; j < subst_count; j++) {
-            if (strcmp(substitutions[i].variable_name, substitutions[j].variable_name) == 0) {
-                if (strcmp(substitutions[i].replacement_term, substitutions[j].replacement_term) != 0) {
+            if (lv_str_eq(substitutions[i].variable_name, substitutions[j].variable_name)) {
+                if (lv_str_ne(substitutions[i].replacement_term, substitutions[j].replacement_term)) {
                     lv_set_error_ctx(lv_ERROR_INVALID_PARAM, __FILE__, __LINE__, __func__, "变量 %s 映射到不同表达式",
                                      substitutions[i].variable_name);
                     return MINI_VERIFY_FAIL_SUBSTITUTION;
@@ -783,14 +783,14 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath) {
             continue;
 
         /* 识别 $f / $e / $a / $p */
-        if (strcmp(token_buffer, "$f") == 0 || strcmp(token_buffer, "$e") == 0 || strcmp(token_buffer, "$a") == 0 ||
-            strcmp(token_buffer, "$p") == 0) {
+        if (lv_str_eq(token_buffer, "$f") || lv_str_eq(token_buffer, "$e") || lv_str_eq(token_buffer, "$a") ||
+            lv_str_eq(token_buffer, "$p")) {
             MiniStmtType type;
-            if (strcmp(token_buffer, "$f") == 0)
+            if (lv_str_eq(token_buffer, "$f"))
                 type = MINI_STMT_VAR;
-            else if (strcmp(token_buffer, "$e") == 0)
+            else if (lv_str_eq(token_buffer, "$e"))
                 type = MINI_STMT_HYP;
-            else if (strcmp(token_buffer, "$a") == 0)
+            else if (lv_str_eq(token_buffer, "$a"))
                 type = MINI_STMT_AXIOM;
             else
                 type = MINI_STMT_THEOREM;

@@ -26,6 +26,7 @@
 #include "lv/lv_file.h"
 #include "lv/lv_json.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_str_utils.h"
 #include "lv/meta_verify.h"
 #include "lv/orchestrator.h"
 #include "lv/preset_algebraic.h"
@@ -83,7 +84,7 @@ static int do_export(ConstraintGraph *g, const char *fmt, const char *out_path) 
         return -1;
     if (!fmt || !fmt[0])
         fmt = "json";
-    if (strcmp(fmt, "json") == 0) {
+    if (lv_str_eq(fmt, "json")) {
         char *j = graph_serialize_to_json(g);
         if (!j)
             return -1;
@@ -91,9 +92,9 @@ static int do_export(ConstraintGraph *g, const char *fmt, const char *out_path) 
         lv_free((void **)&j);
         return rc;
     }
-    if (strcmp(fmt, "canonical") == 0)
+    if (lv_str_eq(fmt, "canonical"))
         return interop_export_canonical(g, out_path);
-    if (strcmp(fmt, "dot") == 0) {
+    if (lv_str_eq(fmt, "dot")) {
         DOTExportConfig dc = dot_export_config_default();
         int rc = graph_export_dot_file(g, &dc, out_path);
         return rc == lv_OK ? 0 : -1;

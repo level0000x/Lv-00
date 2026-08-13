@@ -19,6 +19,7 @@
  */
 
 #include "lv/proof_score.h"
+#include "lv/lv_numeric.h"
 
 #include <string.h>
 
@@ -51,20 +52,6 @@
 /* ================================================================
  *  内部辅助函数
  * ================================================================ */
-
-/**
- * @brief 将原始分数钳制到 [0.0, 1.0] 范围
- *
- * @param raw 原始分数
- * @return 钳制后的分数
- */
-static double clamp_score(double raw) {
-    if (raw < 0.0)
-        return 0.0;
-    if (raw > 1.0)
-        return 1.0;
-    return raw;
-}
 
 /**
  * @brief 根据分数返回等级标签
@@ -176,7 +163,7 @@ double lv_proof_score_evaluate(int proof_id, void *engine) {
                 efficiency = 1.0 - 0.2 * ((ratio - 0.5) / 1.0);
             else
                 efficiency = 0.8 - 0.3 * ((ratio - 1.5) / (ratio + 0.5));
-            efficiency = clamp_score(efficiency);
+            efficiency = lv_clamp(efficiency, 0.0, 1.0);
         } else {
             efficiency = 0.6;
         }
@@ -194,7 +181,7 @@ double lv_proof_score_evaluate(int proof_id, void *engine) {
                 /* graph_detect_redundant_constraints 使用 lv_malloc 分配，须用 lv_free 释放 */
                 lv_free((void **) &redundant_ids);
             }
-            simplicity = clamp_score(simplicity);
+            simplicity = lv_clamp(simplicity, 0.0, 1.0);
         } else {
             simplicity = 0.7;
         }
@@ -211,7 +198,7 @@ double lv_proof_score_evaluate(int proof_id, void *engine) {
                   efficiency * WEIGHT_EFFICIENCY + simplicity * WEIGHT_SIMPLICITY;
 
     /* 钳制到有效范围 */
-    final_score = clamp_score(final_score);
+    final_score = lv_clamp(final_score, 0.0, 1.0);
 
     return final_score;
 }

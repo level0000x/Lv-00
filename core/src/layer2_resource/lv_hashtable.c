@@ -22,6 +22,7 @@
 
 #include "lv/config.h"    /* lv_FNV_HASH_MULTIPLIER, lv_FNV64_OFFSET_BASIS */
 #include "lv/lv_utils.h"  /* lv_malloc, lv_calloc, lv_free, lv_fnv1a_hash_str, lv_fnv1a_hash_int */
+#include "lv/lv_str_utils.h"
 
 #include <string.h>
 
@@ -392,7 +393,7 @@ void *lv_hashtable_str_get(const lvHashtable *ht, const char *key) {
     lvStrNode **buckets = (lvStrNode **) ht->storage;
     unsigned b = (unsigned) (lv_fnv1a_hash_str(key) % (uint64_t) ht->capacity);
     for (lvStrNode *node = buckets[b]; node; node = node->next) {
-        if (strcmp(node->key, key) == 0)
+        if (lv_str_eq(node->key, key))
             return node->value;
     }
     return NULL;
@@ -443,7 +444,7 @@ bool lv_hashtable_str_remove(lvHashtable *ht, const char *key) {
     lvStrNode *node = buckets[b];
     lvStrNode *prev = NULL;
     while (node) {
-        if (strcmp(node->key, key) == 0) {
+        if (lv_str_eq(node->key, key)) {
             if (prev)
                 prev->next = node->next;
             else

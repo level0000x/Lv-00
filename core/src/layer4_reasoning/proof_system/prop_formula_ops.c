@@ -7,6 +7,7 @@
 
 #include "lv/prop_formula_ops.h"
 #include "prop_verifier_internal.h"
+#include "lv/lv_str_utils.h"
 
 #include <string.h>
 
@@ -16,7 +17,7 @@
 
 static bool equal_atom(const PropFormula *a, const PropFormula *b) {
     (void)b; /* b is guaranteed to be same type as a by caller */
-    return strcmp(a->data.atom.name, b->data.atom.name) == 0;
+    return lv_str_eq(a->data.atom.name, b->data.atom.name);
 }
 
 static bool equal_binary(const PropFormula *a, const PropFormula *b) {

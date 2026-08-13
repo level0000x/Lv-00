@@ -18,6 +18,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_hashtable.h"
+#include "lv/lv_str_utils.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -98,7 +99,7 @@ static int find_region(const lvPerfSession *session, const char *name) {
             return (int) v - 1;
     }
     for (int i = 0; i < session->region_count; i++) {
-        if (strcmp(session->regions[i].name, name) == 0) {
+        if (lv_str_eq(session->regions[i].name, name)) {
             return i;
         }
     }
@@ -150,7 +151,7 @@ static int find_mem_stat(const lvPerfSession *session, const char *type_name) {
             return (int) v - 1;
     }
     for (int i = 0; i < session->mem_count; i++) {
-        if (strcmp(session->mem_stats[i].type_name, type_name) == 0) {
+        if (lv_str_eq(session->mem_stats[i].type_name, type_name)) {
             return i;
         }
     }

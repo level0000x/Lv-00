@@ -13,6 +13,7 @@
 
 #include "lv/lv.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_str_utils.h"
 
 /* ========================================================================
  * 预设几何名称表
@@ -81,7 +82,7 @@ int lv_preset_find_by_name_cn(const char *name_cn) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "name_cn is NULL");
 
     for (size_t i = 0; i < PRESET_NAME_COUNT; i++) {
-        if (strcmp(g_preset_names[i].name_cn, name_cn) == 0) {
+        if (lv_str_eq(g_preset_names[i].name_cn, name_cn)) {
             return g_preset_names[i].preset_id;
         }
     }

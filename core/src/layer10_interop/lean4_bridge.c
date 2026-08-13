@@ -24,28 +24,12 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 #include "lv/interop_bridge_common.h"
+#include "lv/interop_step_type.h"
 
 #include "lv_utils.h"
 
-/**
- * @brief Lv-00 证明步骤类型枚举（Lean 4 映射版）
- *
- * 将 Lv-00 内部证明步骤映射为 Lean 4 证明策略（tactic）。
- * 相比 Coq 版本增加了 EXACT、HAVE、CALC 三种步骤类型。
- */
-typedef enum {
-    lv_STEP_ADD_NODE = 0,   /**< 添加节点 → intro */
-    lv_STEP_ADD_CONSTRAINT, /**< 添加约束 → constructor */
-    lv_STEP_REWRITE,        /**< 重写 → rw */
-    lv_STEP_FUNCTION_APP,   /**< 函数应用 → apply */
-    lv_STEP_EXACT,          /**< 精确匹配 → exact */
-    lv_STEP_HAVE,           /**< 中间引理 → have */
-    lv_STEP_CALC,           /**< 计算链 → calc */
-    lv_STEP_NORMALIZATION,  /**< 规范化 → simp */
-    lv_STEP_ORACLE          /**< 外部预言 → sorry */
-} lvProofStepType;
-
-/* lvProofStep 和 lvBridgeProof 定义在 lv/interop_bridge_common.h */
+/* lvProofStepType 枚举定义在 lv/interop_step_type.h（Lean 4 / OPML 共用单源）；
+   lvProofStep 和 lvBridgeProof 定义在 lv/interop_bridge_common.h */
 
 /* 映射表大小常量 */
 #define LEAN4_TACTIC_MAP_COUNT 9

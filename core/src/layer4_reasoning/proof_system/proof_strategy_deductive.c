@@ -22,6 +22,7 @@
 #include "atp_backend.h"
 #include "debug.h"
 #include "lv_internal.h"
+#include "lv/lv_str_utils.h"
 #include "lv_utils.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
@@ -115,7 +116,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
         snprintf(_buf, sizeof(_buf), fmt_str, __VA_ARGS__);    \
         bool _dup = false;                                     \
         for (int _fi = 0; _fi < fact_count; _fi++) {           \
-            if (facts[_fi] && strcmp(facts[_fi], _buf) == 0) { \
+            if (facts[_fi] && lv_str_eq(facts[_fi], _buf)) { \
                 _dup = true;                                   \
                 break;                                         \
             }                                                  \
@@ -153,7 +154,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 snprintf(buf, sizeof(buf), "point_coord:%d,%s,%s", node->id, sx, sy);
                 bool dup = false;
                 for (int fi = 0; fi < fact_count; fi++) {
-                    if (facts[fi] && strcmp(facts[fi], buf) == 0) {
+                    if (facts[fi] && lv_str_eq(facts[fi], buf)) {
                         dup = true;
                         break;
                     }
@@ -249,7 +250,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 char *comma1_j = strchr(facts[j] + 11, ',');
                 if (comma1_i && comma1_j) {
                     /* 比较坐标部分 */
-                    if (strcmp(comma1_i, comma1_j) == 0) {
+                    if (lv_str_eq(comma1_i, comma1_j)) {
                         int id_i = -1, id_j = -1;
                         int ret_i = sscanf(facts[i], "point_coord:%d,", &id_i);
                         int ret_j = sscanf(facts[j], "point_coord:%d,", &id_j);

@@ -19,6 +19,7 @@
 #include "lv/lv_internal.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_str_utils.h"
 #include "lv/simd_ops.h" /* lv_mat4_identity / lv_mat4_mul（4x4 列主序，收敛共享） */
 
 /* ================================================================
@@ -603,7 +604,7 @@ AlgebraicGeom *algebra_constrain(AlgebraicGeom *geom, const char *constraint_typ
      * 未匹配（含 name 为 NULL 的 CONNECTION/ANGLE）时保持原行为：不做任何添加。 */
     for (int i = 0; i < LV_CONSTRAINT_ADD_OPS_COUNT; i++) {
         const ConstraintAddOps *op = &kConstraintAddOps[i];
-        if (op->name && strcmp(constraint_type, op->name) == 0 && count >= op->min_participants) {
+        if (op->name && lv_str_eq(constraint_type, op->name) && count >= op->min_participants) {
             op->fn(geom->graph, entity_ids, count, 0.0);
             break;
         }

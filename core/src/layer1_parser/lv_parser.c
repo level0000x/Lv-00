@@ -1,5 +1,6 @@
 #include "lv/lv_parser.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_str_utils.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -552,7 +553,7 @@ static LvAstNode *parse_export_stmt(LvParser *p) {
     }
 
     /* "as" is a regular identifier, not a keyword */
-    if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "as") == 0) {
+    if (p->current.type == LV_TOKEN_IDENTIFIER && lv_str_eq(token_text(&p->current), "as")) {
         advance(p); /* consume "as" */
     }
 
@@ -655,7 +656,7 @@ static LvAstNode *parse_import_decl(LvParser *p) {
 
     /* optional "as" alias */
     /* "as" is not a keyword, so check for identifier "as" */
-    if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "as") == 0) {
+    if (p->current.type == LV_TOKEN_IDENTIFIER && lv_str_eq(token_text(&p->current), "as")) {
         advance(p); /* consume "as" */
         if (p->current.type == LV_TOKEN_IDENTIFIER) {
             advance(p); /* consume alias */
@@ -738,7 +739,7 @@ static LvAstNode *parse_iff_expr(LvParser *p) {
     while (1) {
         int is_iff = 0;
         /* Check for "iff" identifier */
-        if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "iff") == 0) {
+        if (p->current.type == LV_TOKEN_IDENTIFIER && lv_str_eq(token_text(&p->current), "iff")) {
             is_iff = 1;
             /* consume "iff" after all checks */
         }
@@ -775,7 +776,7 @@ static LvAstNode *parse_implies_expr(LvParser *p) {
 
     while (1) {
         int is_implies = 0;
-        if (p->current.type == LV_TOKEN_IDENTIFIER && strcmp(token_text(&p->current), "implies") == 0) {
+        if (p->current.type == LV_TOKEN_IDENTIFIER && lv_str_eq(token_text(&p->current), "implies")) {
             is_implies = 1;
         }
         if (p->current.type == LV_TOKEN_ARROW) {
@@ -997,7 +998,7 @@ static LvAstNode *parse_predicate_expr(LvParser *p) {
      * 排除 implies/iff 标识符——它们由上层 parse_implies_expr 处理。 */
     if (p->current.type == LV_TOKEN_IDENTIFIER) {
         const char *txt = token_text(&p->current);
-        if (strcmp(txt, "implies") != 0 && strcmp(txt, "iff") != 0) {
+        if (lv_str_ne(txt, "implies") && lv_str_ne(txt, "iff")) {
             char pname[128];
             lv_strlcpy(pname, txt, sizeof(pname));
             LvSourceLoc ploc = p->current.loc;
@@ -1107,7 +1108,7 @@ static const char *const kGeometryFuncs[] = {
 /** 检查 identifier 是否为关系/度量/几何函数名 */
 static int is_relation_func(const char *name) {
     for (size_t i = 0; lv_geometry_relation_keywords[i] != NULL; i++) {
-        if (strcmp(name, lv_geometry_relation_keywords[i]) == 0)
+        if (lv_str_eq(name, lv_geometry_relation_keywords[i]))
             return 1;
     }
     return 0;
@@ -1115,7 +1116,7 @@ static int is_relation_func(const char *name) {
 
 static int is_measure_func(const char *name) {
     for (size_t i = 0; lv_measurement_keywords[i] != NULL; i++) {
-        if (strcmp(name, lv_measurement_keywords[i]) == 0)
+        if (lv_str_eq(name, lv_measurement_keywords[i]))
             return 1;
     }
     return 0;
@@ -1123,7 +1124,7 @@ static int is_measure_func(const char *name) {
 
 static int is_geometry_func(const char *name) {
     for (size_t i = 0; i < sizeof(kGeometryFuncs) / sizeof(kGeometryFuncs[0]); i++) {
-        if (strcmp(name, kGeometryFuncs[i]) == 0)
+        if (lv_str_eq(name, kGeometryFuncs[i]))
             return 1;
     }
     return 0;

@@ -21,6 +21,7 @@
 #include <errno.h>
 
 #include "lv/lv_utils.h"   /* lv_malloc, lv_free, lv_calloc, lv_realloc */
+#include "lv/lv_str_utils.h"
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
 #include "lv/lv_thread.h"  /* lv_once_t / lv_once */
 #include "lv/lv_registry.h" /* 通用注册表（查重/扩容/删除/析构回调） */
@@ -940,7 +941,7 @@ bool lv_roundtrip_verify(const char *type_name,
     bool ok = true;
     if (compare) {
         ok = compare(obj, slot);
-    } else if (strcmp(type_name, "ConstraintGraph") == 0) {
+    } else if (lv_str_eq(type_name, "ConstraintGraph")) {
         /* 内置分派：graph 走现有语义等价比较（meta_repr 既有实现） */
         ok = meta_repr_graph_equivalent((const ConstraintGraph *) obj,
                                         (const ConstraintGraph *) slot);
@@ -948,7 +949,7 @@ bool lv_roundtrip_verify(const char *type_name,
     /* else：无比较策略，仅验证序列化往返不崩 */
 
     /* 释放反序列化结果（内置类型专属；其余类型由调用者经 compare 自行管理） */
-    if (strcmp(type_name, "ConstraintGraph") == 0) {
+    if (lv_str_eq(type_name, "ConstraintGraph")) {
         graph_destroy((ConstraintGraph *) slot);
     }
 
