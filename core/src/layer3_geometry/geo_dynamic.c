@@ -866,18 +866,33 @@ int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order) {
         in_degree[i] = node->parent_count;
     }
 
-    /* 找到所有入度为 0 的节点（根节点） */
-    int queue[1024];
+    /* 找到所有入度为 0 的节点（根节点）。
+     * 【修复】原 `int queue[1024]` + `rear < 1024` 在节点数 >1024 时静默截断
+     * （大图下后段节点不被排序，`sorted_count != node_count` 被误判为环），且
+     * 根节点数 >1024 时 `queue[rear++]` 越界写。参照 lv_dyn_graph_has_path 的
+     * 既有模式改用动态队列（dyn_int_stack_push 内部经 lv_ensure_capacity 增长）；
+     * 每个节点最多入队一次，队列容量不可能超过 node_count。 */
+    int queue_cap = graph->node_count > 16 ? graph->node_count : 16;
+    int *queue = (int *) lv_malloc((size_t) queue_cap * sizeof(int));
+    if (!queue) {
+        lv_free((void **) &in_degree);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_topological_sort: queue alloc failed");
+    }
     int front = 0, rear = 0;
-    for (int i = 0; i < graph->node_count; i++) {
+    bool oom = false;
+
+    for (int i = 0; i < graph->node_count && !oom; i++) {
         if (in_degree[i] == 0) {
-            queue[rear++] = i;
+            if (!dyn_int_stack_push(&queue, &rear, &queue_cap, i)) {
+                oom = true;
+                break;
+            }
         }
     }
 
     int sorted_count = 0;
 
-    while (front < rear && rear < 1024) {
+    while (!oom && front < rear) {
         int current = queue[front++];
         out_order[sorted_count++] = graph->nodes[current].id;
 
@@ -887,13 +902,21 @@ int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order) {
             if (child_idx != lv_DYN_INVALID) {
                 in_degree[child_idx]--;
                 if (in_degree[child_idx] == 0) {
-                    queue[rear++] = child_idx;
+                    if (!dyn_int_stack_push(&queue, &rear, &queue_cap, child_idx)) {
+                        oom = true;
+                        break;
+                    }
                 }
             }
         }
     }
 
-    lv_free((void **) &(in_degree));
+    lv_free((void **) &queue);
+    lv_free((void **) &in_degree);
+
+    if (oom) {
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_dyn_graph_topological_sort: queue realloc failed");
+    }
 
     /* 如果排序的节点数不等于总节点数，说明存在循环 */
     if (sorted_count != graph->node_count) {

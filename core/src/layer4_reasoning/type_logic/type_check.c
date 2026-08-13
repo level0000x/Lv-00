@@ -110,8 +110,8 @@ static inline TypeEquivResult check_binary_type_equiv(TypeSystem *ts, TypeRegion
 
 /* ============== VTable 类型分发 ============== */
 
-/* TYPE_KIND 枚举值数量（从 TYPE_KIND_POINT 到 TYPE_KIND_PREDICATE_SUBTYPE 共 10 个） */
-#define TYPE_KIND_COUNT 10
+/* TYPE_KIND 枚举值数量：由 LV_TYPE_KIND_X 单源计数（type_system.h），避免枚举增删失步 */
+#define TYPE_KIND_COUNT LV_TYPE_KIND_COUNT
 
 /* ---------- 二元等价检查 VTable（switch #1：重写路径中的快捷比较） ---------- */
 typedef TypeEquivResult (*BinaryEquivHandler)(TypeSystem *ts, TypeRegion *type1, TypeRegion *type2,

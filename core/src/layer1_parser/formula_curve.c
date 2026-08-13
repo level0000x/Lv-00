@@ -20,6 +20,7 @@
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv_internal.h"
 #include "lv_numeric.h"
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -873,24 +874,14 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             }
 
             /* 格式: IMPLICIT_CURVE:max_degree:c00:c01:c10:... */
-            char buf[FORMULA_LARGE_BUF_SIZE];
-            int offset = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:%d", max_total_deg);
-            /* 检查初始snprintf返回值：确保后续写入有有效起点 */
-            if (offset < 0) {
-                offset = 0;
-                buf[0] = '\0';
-            } else if (offset >= (int) sizeof(buf)) {
-                offset = (int) sizeof(buf) - 1;
-            }
-            for (int i = 0; i < IMPLICIT_COEFFS_SIZE && offset < (int) sizeof(buf) - 1; i++) {
+            lvStrBuf sb = {0};
+            lv_strbuf_printf(&sb, "IMPLICIT_CURVE:%d", max_total_deg);
+            for (int i = 0; i < IMPLICIT_COEFFS_SIZE; i++) {
                 if (fabs(coeffs[i]) > lv_EPSILON_ULTRA) {
-                    int added = snprintf(buf + offset, sizeof(buf) - offset, ":%d:%.10g", i, coeffs[i]);
-                    if (added > 0) {
-                        offset += added;
-                    }
+                    lv_strbuf_printf(&sb, ":%d:%.10g", i, coeffs[i]);
                 }
             }
-            node->numeric_assumption_declaration = lv_strdup_safe(buf);
+            node->numeric_assumption_declaration = lv_strbuf_to_string(&sb);
         } else {
             node->numeric_assumption_declaration = lv_strdup_safe("IMPLICIT_CURVE:UNKNOWN");
         }

@@ -98,6 +98,10 @@ typedef enum {
     x(TYPE_KIND_BOTTOM, "Bottom") \
     x(TYPE_KIND_PREDICATE_SUBTYPE, "PredicateSubtype")
 
+/* TypeKind 枚举值数量：由 LV_TYPE_KIND_X 单源计数，避免枚举增删时与手写常量失步 */
+#define LV_X_TYPE_KIND_COUNT_ITEM(name, str) +1
+#define LV_TYPE_KIND_COUNT (0 LV_TYPE_KIND_X(LV_X_TYPE_KIND_COUNT_ITEM))
+
 typedef enum {
     LV_TYPE_KIND_X(LV_X_ENUM_ITEM)
 } TypeKind;

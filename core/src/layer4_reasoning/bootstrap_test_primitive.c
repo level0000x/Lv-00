@@ -24,6 +24,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -246,14 +247,19 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params) {
  *
  * @param result 待销毁的结果指针（可为 NULL）
  */
+static const lvFieldDesc s_primitive_test_result_destroy_fields[] = {
+    lv_FIELD_PLAIN(PrimitiveTestResult, input_description),
+    lv_FIELD_PLAIN(PrimitiveTestResult, c_api_result),
+    lv_FIELD_PLAIN(PrimitiveTestResult, geo_layer_result),
+};
+
 void primitive_test_result_destroy(PrimitiveTestResult *result) {
     if (!result) {
         return;
     }
 
-    lv_free((void **) &result->input_description);
-    lv_free((void **) &result->c_api_result);
-    lv_free((void **) &result->geo_layer_result);
+    lv_obj_destroy_fields(result, s_primitive_test_result_destroy_fields,
+                          sizeof(s_primitive_test_result_destroy_fields) / sizeof(s_primitive_test_result_destroy_fields[0]));
     lv_free((void **) &result);
 }
 

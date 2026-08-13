@@ -170,6 +170,23 @@ bool lv_str_check_balanced(const char *p, char open, char close);
 const char *lv_str_skip_ws(const char *p);
 
 /**
+ * @brief 跳过空白字符的有界变体（NUL 结尾场景之外用于 `(p, end)` 有界解析器）
+ *
+ * 语义契约：从 p 起跳过 `' '`/`'\t'`/`'\n'`/`'\r'`（与 lv_str_skip_ws 同一
+ *           空白集），但最多推进到 end（不含 end 处字符），返回首个非空白
+ *           字符位置（或 end）。不修改字符串、不分配资源。
+ * 前置条件：p、end 均非 NULL 且 p <= end；p > end 时按 p == end 处理（返回 p）。
+ * 失败/截断语义：纯查询，无失败通道；p 或 end 为 NULL 时返回 p 原样。
+ * 边界行为：p 已指向空白/end 时逐字符推进至 end 停止，不会越过 end。
+ * 扩展点：无（「越过定界符」由调用方自行 ++；空白集变更只需同步 lv_str_skip_ws）。
+ *
+ * @note 收敛对象（判据 A）：全库「`while (pos < end && isspace(*pos)) pos++`」
+ *       有界空白跳过循环。isspace 额外匹配的 `\v`/`\f` 在定理/证明/公式解析
+ *       上下文中不出现，故收敛到项目规范 4 字符空白集后行为在实际输入上等价。
+ */
+const char *lv_str_skip_ws_n(const char *p, const char *end);
+
+/**
  * @brief 从 p 向前推进，直到命中 any_of 中任一字符或 NUL（停在定界符处，不越过）
  *
  * 语义契约：返回 p 之后首个属于 any_of 字符集的字符位置（或 NUL 终止位置）；

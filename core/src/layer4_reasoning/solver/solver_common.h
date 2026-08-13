@@ -71,6 +71,7 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
 /* --- solver_coord_extract.c (坐标/方程提取) --- */
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 bool point_coord(const GeomNode *pt, int idx, double *out);
+bool point_coord_xy(const GeomNode *pt, double *x, double *y);
 bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
 
 /* --- solver_linear.c (数值求解) --- */

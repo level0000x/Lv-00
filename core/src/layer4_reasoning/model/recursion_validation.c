@@ -175,7 +175,7 @@ int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_i
 
             NonSymbolicMeasureValidationMeta *meta = &sys->validation_metas[sys->validation_meta_count];
             meta->measure_id = measure_id;
-            snprintf(meta->validation_template, sizeof(meta->validation_template), "%s", axiom_template_name);
+            lv_strlcpy(meta->validation_template, axiom_template_name, sizeof(meta->validation_template));
             sys->validation_meta_count++;
         }
     }

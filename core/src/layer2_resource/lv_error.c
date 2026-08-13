@@ -18,6 +18,7 @@
 #include <stdlib.h>
 
 #include "lv_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv/cross_platform.h"
 
 /* ============================================================
@@ -271,19 +272,7 @@ char *lv_error_format_chain(lvErrorContext *ctx)
 {
     if (!ctx || ctx->frame_count <= 0) return NULL;
 
-    /* 估算所需缓冲区大小 */
-    /* 格式: [file:line] func: message (code=%d)\n */
-    /*        ^--- cause ---^                   */
-    size_t total_size = 256;
-    for (int i = 0; i < ctx->frame_count; i++) {
-        total_size += lv_ERROR_MSG_MAX + 128;
-    }
-
-    char *result = (char *)lv_malloc(total_size);
-    if (!result) return NULL;
-
-    result[0] = '\0';
-    size_t pos = 0;
+    lvStrBuf sb = {0};
 
     /* 从最旧的帧开始遍历（根因优先） */
     for (int i = 0; i < ctx->frame_count; i++) {
@@ -292,27 +281,18 @@ char *lv_error_format_chain(lvErrorContext *ctx)
         const char *func = frame->func ? frame->func : "?";
         int line = frame->line;
 
-        int written;
         /* 补全错误码名称（接回旧式权威错误表），提升可读性 */
         const char *name = lv_error_name(frame->code);
         if (i == 0) {
-            written = snprintf(result + pos, total_size - pos,
-                "[%s:%d] %s: %s (code=%d, %s)",
+            lv_strbuf_printf(&sb, "[%s:%d] %s: %s (code=%d, %s)",
                 file, line, func, frame->message, frame->code, name ? name : "?");
         } else {
-            written = snprintf(result + pos, total_size - pos,
-                "\n  caused by -> [%s:%d] %s: %s (code=%d, %s)",
+            lv_strbuf_printf(&sb, "\n  caused by -> [%s:%d] %s: %s (code=%d, %s)",
                 file, line, func, frame->message, frame->code, name ? name : "?");
-        }
-
-        if (written > 0 && (size_t)written < total_size - pos) {
-            pos += (size_t)written;
-        } else {
-            break;
         }
     }
 
-    return result;
+    return lv_strbuf_to_string(&sb);
 }
 
 const char *lv_error_file(lvErrorContext *ctx)

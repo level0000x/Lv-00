@@ -87,7 +87,7 @@ SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable
 
     /* 将原始输出复制到 result_buf（如果调用者需要） */
     if (result_buf && result_size > 0) {
-        snprintf(result_buf, result_size, "%s", output ? output : "");
+        lv_strlcpy(result_buf, output ? output : "", result_size);
     }
 
     if (exit_code != 0) {

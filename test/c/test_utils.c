@@ -148,6 +148,33 @@ static void test_string_operations(void) {
     char trim_test2[] = "\t\n  world  \t\n";
     lv_ASSERT_STR_EQ(lv_str_trim(trim_test2), "world");
 
+    /* 测试 lv_str_skip_ws / lv_str_skip_ws_n（判据 A 空白跳过收敛） */
+    const char *ws = "  \t\n\r  hello";
+    lv_ASSERT(lv_str_skip_ws(ws) == ws + 7);
+
+    const char *bounded = " \t\r\nx";
+    lv_ASSERT(lv_str_skip_ws_n(bounded, bounded + 4) == bounded + 4); /* 停在 end */
+    lv_ASSERT(lv_str_skip_ws_n(bounded, bounded + 5) == bounded + 4); /* 越过空白到 x */
+
+    /* NUL 结尾与有界变体在整串上等价 */
+    const char *eq = "   abc";
+    lv_ASSERT(lv_str_skip_ws(eq) == lv_str_skip_ws_n(eq, eq + strlen(eq)));
+
+    /* 无空白：p 原样返回 */
+    const char *nows = "abc";
+    lv_ASSERT(lv_str_skip_ws(nows) == nows);
+    lv_ASSERT(lv_str_skip_ws_n(nows, nows + 3) == nows);
+
+    /* 空串 / 全空白：推进到 end（即 p + strlen(p)） */
+    const char *empty = "";
+    lv_ASSERT(lv_str_skip_ws_n(empty, empty + 0) == empty);
+    const char *allws = "   ";
+    lv_ASSERT(lv_str_skip_ws_n(allws, allws + 3) == allws + 3);
+
+    /* NULL 安全：任一参数为 NULL 返回 p 原样 */
+    lv_ASSERT(lv_str_skip_ws_n(NULL, bounded) == NULL);
+    lv_ASSERT(lv_str_skip_ws_n(bounded, NULL) == bounded);
+
     printf("  PASSED\n");
 }
 

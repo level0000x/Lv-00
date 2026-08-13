@@ -12,6 +12,7 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv/geo_utils.h"
+#include "lv/lv_lifecycle.h" /* lv_DEFER + lv_mpz_clear_deferred */
 
 /* ── 多项式系数内存池 ──
  * 使用 lv/coeff_pool.h 提供的共享池：g_coeff_pool 拥有权在
@@ -158,10 +159,10 @@ int coord_to_double(const SymbolicCoord *c, double *out) {
 static void rational_to_mpz_scaled(mpq_srcptr val, mpz_t result, int64_t scale) {
     mpz_t scaled;
     mpz_init(scaled);
+    lv_DEFER(lv_mpz_clear_deferred, &scaled);
     mpz_set_si(scaled, (long) scale);
     mpz_mul(result, mpq_numref(val), scaled);
     mpz_fdiv_q(result, result, mpq_denref(val));
-    mpz_clear(scaled);
 }
 
 /**
@@ -185,10 +186,12 @@ bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
         /* 计算分子 * scale（只计算一次，避免重复） */
         mpz_t scaled_num;
         mpz_init(scaled_num);
+        lv_DEFER(lv_mpz_clear_deferred, &scaled_num);
         mpz_mul_si(scaled_num, mpq_numref(val), (long) scale);
 
         mpz_t den;
         mpz_init(den);
+        lv_DEFER(lv_mpz_clear_deferred, &den);
         mpz_set(den, mpq_denref(val));
 
         if (mpz_divisible_p(scaled_num, den)) {
@@ -198,10 +201,13 @@ bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
             /* 非精确整除：使用银行家舍入（round to nearest even）避免系统性偏差 */
             mpz_t q, r;
             mpz_init(q);
+            lv_DEFER(lv_mpz_clear_deferred, &q);
             mpz_init(r);
+            lv_DEFER(lv_mpz_clear_deferred, &r);
             mpz_fdiv_qr(q, r, scaled_num, den);
             mpz_t half_den;
             mpz_init(half_den);
+            lv_DEFER(lv_mpz_clear_deferred, &half_den);
             mpz_fdiv_q_2exp(half_den, den, 1);
             /*
              * 临界盲区修复：当剩余 r 与 half_den 相等时，使用银行家舍入
@@ -220,13 +226,8 @@ bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
                     mpz_add_ui(result, q, 1);
                 }
             }
-            mpz_clear(half_den);
-            mpz_clear(q);
-            mpz_clear(r);
         }
 
-        mpz_clear(scaled_num);
-        mpz_clear(den);
         return true;
     }
 
@@ -335,10 +336,12 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
     /* result = q * scale = (num * scale) / den */
     mpz_t scaled_num;
     mpz_init(scaled_num);
+    lv_DEFER(lv_mpz_clear_deferred, &scaled_num);
     mpz_mul_si(scaled_num, mpq_numref(q), (long) scale);
 
     mpz_t den;
     mpz_init(den);
+    lv_DEFER(lv_mpz_clear_deferred, &den);
     mpz_set(den, mpq_denref(q));
 
     if (mpz_divisible_p(scaled_num, den)) {
@@ -348,10 +351,13 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
         /* 不能整除时，使用银行家舍入（round to nearest even）避免系统性偏差 */
         mpz_t quotient, remainder;
         mpz_init(quotient);
+        lv_DEFER(lv_mpz_clear_deferred, &quotient);
         mpz_init(remainder);
+        lv_DEFER(lv_mpz_clear_deferred, &remainder);
         mpz_fdiv_qr(quotient, remainder, scaled_num, den);
         mpz_t half_den;
         mpz_init(half_den);
+        lv_DEFER(lv_mpz_clear_deferred, &half_den);
         mpz_fdiv_q_2exp(half_den, den, 1);
         /*
          * 临界盲区修复：当 remainder 与 half_den 相等时，使用银行家舍入
@@ -378,13 +384,8 @@ void double_to_mpz_scaled(double val, mpz_t result, int64_t scale) {
                 }
             }
         }
-        mpz_clear(half_den);
-        mpz_clear(quotient);
-        mpz_clear(remainder);
     }
 
-    mpz_clear(scaled_num);
-    mpz_clear(den);
     mpq_clear(q);
 }
 
@@ -421,6 +422,21 @@ bool point_coord(const GeomNode *pt, int idx, double *out) {
     return coord_to_double(pt->symbolic_coords[idx], out);
 }
 
+/**
+ * @brief 一次提取点的 x/y 双分量数值坐标
+ *
+ * 等价于 `point_coord(pt, 0, x) && point_coord(pt, 1, y)`，收敛
+ * 求解器各处以成对 point_coord 调用读取点二维坐标的样板。
+ *
+ * @param pt 目标点节点
+ * @param x  输出：x 坐标 double 近似值
+ * @param y  输出：y 坐标 double 近似值
+ * @return true 表示 x/y 均成功获取，false 表示任一分量失败
+ */
+bool point_coord_xy(const GeomNode *pt, double *x, double *y) {
+    return point_coord(pt, 0, x) && point_coord(pt, 1, y);
+}
+
 /* =======================================================================
  * 内部函数：从两点构建直线方程 ax + by + c = 0
  * ======================================================================= */
@@ -431,9 +447,9 @@ typedef struct {
 
 bool line_from_two_points(GeomNode *p1, GeomNode *p2, LineEquation *out) {
     double x1, y1, x2, y2;
-    if (!point_coord(p1, 0, &x1) || !point_coord(p1, 1, &y1))
+    if (!point_coord_xy(p1, &x1, &y1))
         return false;
-    if (!point_coord(p2, 0, &x2) || !point_coord(p2, 1, &y2))
+    if (!point_coord_xy(p2, &x2, &y2))
         return false;
     /* 方向向量 (dx, dy) */
     double dx = x2 - x1;

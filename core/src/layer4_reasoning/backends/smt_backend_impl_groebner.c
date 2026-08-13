@@ -1199,7 +1199,7 @@ int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result, SMTSolve
     if (sat_result == SMT_RESULT_ERROR) {
         out_result->error_code = solver->last_error;
         if (solver->last_error_msg[0]) {
-            snprintf(out_result->error_message, sizeof(out_result->error_message), "%s", solver->last_error_msg);
+            lv_strlcpy(out_result->error_message, solver->last_error_msg, sizeof(out_result->error_message));
         }
         return 0;
     }

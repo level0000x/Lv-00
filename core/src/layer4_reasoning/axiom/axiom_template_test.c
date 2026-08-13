@@ -389,19 +389,19 @@ TemplateTestCase *axiom_template_test_case_copy(const TemplateTestCase *src) {
     return dst;
 }
 
+static const lvFieldDesc s_template_test_case_destroy_fields[] = {
+    lv_FIELD_PLAIN(TemplateTestCase, template_name),
+    lv_FIELD_PLAIN(TemplateTestCase, description),
+    /* params 数组中的每个 SymbolicCoord 由调用者管理，此处只释放数组本身（浅释放） */
+    lv_FIELD_PLAIN(TemplateTestCase, params),
+    /* expected_graph 由调用者管理，不纳入字段表 */
+};
+
 void axiom_template_test_case_destroy(TemplateTestCase *tc) {
     if (!tc)
         return;
 
-    lv_free((void **) &tc->template_name);
-    lv_free((void **) &tc->description);
-
-    /* params 数组中的每个 SymbolicCoord 由调用者管理，
-     * 此处只释放数组本身（浅释放） */
-    if (tc->params) {
-        lv_free((void **) &tc->params);
-    }
-
-    /* expected_graph 由调用者管理，此处不释放 */
+    lv_obj_destroy_fields(tc, s_template_test_case_destroy_fields,
+                          sizeof(s_template_test_case_destroy_fields) / sizeof(s_template_test_case_destroy_fields[0]));
     lv_free((void **) &tc);
 }

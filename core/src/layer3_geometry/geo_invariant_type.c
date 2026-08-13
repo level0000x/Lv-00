@@ -35,18 +35,18 @@ typedef struct {
 
 /** @brief get_invariant_range 值域表（按枚举值升序，仅覆盖有特定值域的类型） */
 static const InvariantRangeEntry s_invariant_range_table[] = {
-    [GEO_INV_DISTANCE] = {0.0, 1e30},            /* practical upper bound */
-    [GEO_INV_AREA] = {0.0, 1e30},                /* practical upper bound */
-    [GEO_INV_VOLUME] = {0.0, 1e30},              /* practical upper bound */
-    [GEO_INV_PERIMETER] = {0.0, 1e30},           /* practical upper bound */
-    [GEO_INV_MOMENT_OF_INERTIA] = {0.0, 1e30},   /* practical upper bound */
+    [GEO_INV_DISTANCE] = {0.0, lv_HUGE_NUMBER},            /* practical upper bound */
+    [GEO_INV_AREA] = {0.0, lv_HUGE_NUMBER},                /* practical upper bound */
+    [GEO_INV_VOLUME] = {0.0, lv_HUGE_NUMBER},              /* practical upper bound */
+    [GEO_INV_PERIMETER] = {0.0, lv_HUGE_NUMBER},           /* practical upper bound */
+    [GEO_INV_MOMENT_OF_INERTIA] = {0.0, lv_HUGE_NUMBER},   /* practical upper bound */
     [GEO_INV_ANGLE] = {0.0, 360.0},              /* degrees */
     [GEO_INV_DIHEDRAL_ANGLE] = {0.0, 360.0},     /* degrees */
     [GEO_INV_SOLID_ANGLE] = {0.0, 360.0},        /* degrees */
-    [GEO_INV_CROSS_RATIO] = {-1e30, 1e30},
-    [GEO_INV_CURVATURE] = {-1e30, 1e30},
-    [GEO_INV_TORSION] = {-1e30, 1e30},
-    [GEO_INV_BARYCENTER] = {-1e30, 1e30},
+    [GEO_INV_CROSS_RATIO] = {-lv_HUGE_NUMBER, lv_HUGE_NUMBER},
+    [GEO_INV_CURVATURE] = {-lv_HUGE_NUMBER, lv_HUGE_NUMBER},
+    [GEO_INV_TORSION] = {-lv_HUGE_NUMBER, lv_HUGE_NUMBER},
+    [GEO_INV_BARYCENTER] = {-lv_HUGE_NUMBER, lv_HUGE_NUMBER},
     [GEO_INV_PARALLELISM] = {0.0, 1.0},          /* Boolean-like: 0.0 = false, 1.0 = true */
     [GEO_INV_ORTHOGONALITY] = {0.0, 1.0},        /* Boolean-like: 0.0 = false, 1.0 = true */
 };
@@ -64,8 +64,8 @@ static void get_invariant_range(GeoInvariantKind kind, double *out_min, double *
         *out_min = s_invariant_range_table[kind].min;
         *out_max = s_invariant_range_table[kind].max;
     } else {
-        *out_min = -1e30;
-        *out_max = 1e30;
+        *out_min = -lv_HUGE_NUMBER;
+        *out_max = lv_HUGE_NUMBER;
     }
 }
 

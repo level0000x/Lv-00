@@ -282,7 +282,7 @@ int lv_alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
     mpq_clear(q);
     if (!s)
         return -1;
-    int len = snprintf(buf, size, "%s", s);
+    int len = (int) lv_strlcpy(buf, s, size);
     lv_free((void **) &s);
     return len;
 }

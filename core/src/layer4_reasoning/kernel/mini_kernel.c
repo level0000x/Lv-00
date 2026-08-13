@@ -823,6 +823,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath) {
             /* 去除公式首尾空白 */
             char *trimmed = lv_str_trim(formula);
             if (strlen(trimmed) == 0) {
+                /* exempt: trimmed 为 lv_str_trim 偏移指针，sizeof(formula) 非剩余容量，非 L1 纯复制候选 */
                 snprintf(trimmed, sizeof(formula), "%s", label);
             }
 

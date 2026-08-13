@@ -48,14 +48,14 @@ static int helper_dsl_number(const FormulaNode *node, char *buffer, size_t size,
 static int helper_dsl_variable(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
-    written = snprintf(buffer, size, "%s", node->data.variable.name);
+    written = (int) lv_strlcpy(buffer, node->data.variable.name, size);
     return written;
 }
 
 static int helper_dsl_identifier(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
-    written = snprintf(buffer, size, "%s", node->data.identifier.name);
+    written = (int) lv_strlcpy(buffer, node->data.identifier.name, size);
     return written;
 }
 

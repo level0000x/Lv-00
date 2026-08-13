@@ -282,10 +282,10 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
         if (sec_trim[0] != '\0') {
             snprintf(full_key, sizeof(full_key), "%s.%s", sec_trim, key);
         } else {
-            snprintf(full_key, sizeof(full_key), "%s", key);
+            lv_strlcpy(full_key, key, sizeof(full_key));
         }
     } else {
-        snprintf(full_key, sizeof(full_key), "%s", key);
+        lv_strlcpy(full_key, key, sizeof(full_key));
     }
 
     /* 值去除首尾空白（与原实现一致） */
@@ -480,7 +480,7 @@ bool config_save(const ConfigManager *mgr) {
 
             if (lv_str_ne(section, last_section)) {
                 fprintf(f, "\n[%s]\n", section);
-                snprintf(last_section, sizeof(last_section), "%s", section);
+                lv_strlcpy(last_section, section, sizeof(last_section));
             }
         } else {
             /* 无节前缀的键：如果之前在某个节内，先输出空行退出节 */

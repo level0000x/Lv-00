@@ -112,7 +112,7 @@ static int run_verify_session(const lvApplicationConfig *config) {
         sc.max_reasoning_depth = config->max_reasoning_depth;
     sc.enable_visualization = config->enable_visualization;
     if (config->output_format && config->output_format[0])
-        snprintf(sc.output_format, sizeof(sc.output_format), "%s", config->output_format);
+        lv_strlcpy(sc.output_format, config->output_format, sizeof(sc.output_format));
     lvSession *s = lv_orchestrator_create(&sc);
     if (!s)
         return -1;
@@ -148,7 +148,7 @@ int lv_application_run(const lvApplicationConfig *config) {
             sc.max_reasoning_depth = config->max_reasoning_depth;
         sc.enable_visualization = config->enable_visualization;
         if (config->output_format && config->output_format[0])
-            snprintf(sc.output_format, sizeof(sc.output_format), "%s", config->output_format);
+            lv_strlcpy(sc.output_format, config->output_format, sizeof(sc.output_format));
         lvSession *s = lv_orchestrator_create(&sc);
         if (!s)
             return -1;

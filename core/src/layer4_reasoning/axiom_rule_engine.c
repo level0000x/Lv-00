@@ -13,6 +13,7 @@
 
 #include "lv/lv_json.h"
 #include "lv/lv_hashtable.h" /* 规则库 id/name 哈希索引 */
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
@@ -664,12 +665,17 @@ lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const Cons
     return rec;
 }
 
+static const lvFieldDesc s_rule_recommendation_destroy_fields[] = {
+    lv_FIELD_PLAIN(lvRuleRecommendation, rules),
+    lv_FIELD_PLAIN(lvRuleRecommendation, scores),
+    lv_FIELD_PLAIN(lvRuleRecommendation, reason),
+};
+
 void lv_rule_recommendation_destroy(lvRuleRecommendation *rec) {
     if (!rec)
         return;
-    lv_free((void **) &rec->rules);
-    lv_free((void **) &rec->scores);
-    lv_free((void **) &rec->reason);
+    lv_obj_destroy_fields(rec, s_rule_recommendation_destroy_fields,
+                          sizeof(s_rule_recommendation_destroy_fields) / sizeof(s_rule_recommendation_destroy_fields[0]));
     lv_free((void **) &rec);
 }
 

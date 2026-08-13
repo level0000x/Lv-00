@@ -754,7 +754,7 @@ bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iter
     bench->avg_time_ns = (double) total_ns / iterations;
     bench->min_time_ns = min_ns;
     bench->max_time_ns = max_ns;
-    bench->ops_per_sec = (double) iterations / ((double) total_ns / 1e9);
+    bench->ops_per_sec = (double) iterations / ((double) total_ns / (double) lv_NS_PER_S);
 
     /* 计算标准差 */
     double sum_sq = 0;
@@ -832,7 +832,7 @@ void lv_test_report_print(const lvTestReport *report, FILE *stream) {
     fprintf(stream, "Passed: %u\n", report->passed_count);
     fprintf(stream, "Failed: %u\n", report->failed_count);
     fprintf(stream, "Skipped: %u\n", report->skipped_count);
-    fprintf(stream, "Time: %.3f ms\n", (double) report->total_time_ns / 1e6);
+    fprintf(stream, "Time: %.3f ms\n", (double) report->total_time_ns / (double) lv_NS_PER_MS);
     fprintf(stream, "==================================\n\n");
 
     /* 打印失败详情 */
@@ -902,7 +902,7 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
                      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                      "<testsuites tests=\"%u\" failures=\"%u\" skipped=\"%u\" time=\"%.3f\">\n",
                      report->total_tests, report->failed_count, report->skipped_count,
-                     (double) report->total_time_ns / 1e9);
+                     (double) report->total_time_ns / (double) lv_NS_PER_S);
 
     for (uint32_t i = 0; i < report->suite_count; i++) {
         const lvTestSuite *suite = &report->suites[i];
@@ -919,7 +919,7 @@ char *lv_test_report_to_xml(const lvTestReport *report) {
             lvStrBuf esc_tname = {0};
             lv_str_escape_xml(&esc_tname, test->name, test->name ? strlen(test->name) : 0);
             lv_strbuf_printf(&xml, "    <testcase name=\"%s\" time=\"%.6f\"",
-                             lv_strbuf_cstr(&esc_tname), (double) test->elapsed_ns / 1e9);
+                             lv_strbuf_cstr(&esc_tname), (double) test->elapsed_ns / (double) lv_NS_PER_S);
             lv_strbuf_destroy(&esc_tname);
 
             if (test->status == TEST_STATUS_FAILED) {

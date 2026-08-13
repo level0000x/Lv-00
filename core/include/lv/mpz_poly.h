@@ -51,6 +51,19 @@ static inline void mpz_poly_clear(mpz_poly_t *p) {
     p->degree = -1;
 }
 
+/**
+ * @brief 单个 mpz_t 栈变量的 defer 清理回调
+ *
+ * 配合 `lv_DEFER(lv_mpz_clear_deferred, &v)` 使用，在作用域退出（含任意
+ * return/goto）时自动 `mpz_clear` 该变量，收敛全库手写 mpz_init/mpz_clear
+ * 配对样板（判据 A）。`v` 为已 `mpz_init` 的 mpz_t 栈变量。
+ *
+ * @param p 指向 mpz_t 变量的指针（`void *` 以适配 lvDeferFn 回调签名）
+ */
+static inline void lv_mpz_clear_deferred(void *p) {
+    mpz_clear(*(mpz_t *) p);
+}
+
 static inline bool mpz_poly_set(mpz_poly_t *dst, const mpz_poly_t *src) {
     mpz_poly_clear(dst);
     if (src->degree >= 0) {

@@ -9,6 +9,8 @@
 
 #include "solver_common.h"
 
+#include "lv/lv_lifecycle.h" /* lv_DEFER + lv_mpz_clear_deferred */
+
 /* 前向声明 */
 
 void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
@@ -72,20 +74,18 @@ bool check_conflict_equations(const ConstraintGraph *graph) {
             /* Using mpz arithmetic for discriminant: D = b^2 - 4*a*c */
             mpz_t disc;
             mpz_init(disc);
+            lv_DEFER(lv_mpz_clear_deferred, &disc);
             mpz_mul(disc, p->coeffs[1], p->coeffs[1]); /* b^2 */
             mpz_t four_ac;
             mpz_init(four_ac);
+            lv_DEFER(lv_mpz_clear_deferred, &four_ac);
             mpz_mul_si(four_ac, p->coeffs[2], 4);    /* 4*a */
             mpz_mul(four_ac, four_ac, p->coeffs[0]); /* 4*a*c */
             mpz_sub(disc, disc, four_ac);            /* b^2 - 4ac */
             if (mpz_cmp_si(disc, 0) < 0) {
-                mpz_clear(disc);
-                mpz_clear(four_ac);
                 equation_system_clear(&sys);
                 return true;
             }
-            mpz_clear(disc);
-            mpz_clear(four_ac);
         }
     }
 

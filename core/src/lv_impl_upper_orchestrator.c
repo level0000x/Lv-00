@@ -78,14 +78,14 @@ static lvOrchestratorInternal *orch_internal(lvSession *s) {
 
 static void set_error_msg(lvSession *s, lvSessionStage st, const char *msg) {
     if (msg)
-        snprintf(s->stages[st].error_msg, sizeof(s->stages[st].error_msg), "%s", msg);
+        lv_strlcpy(s->stages[st].error_msg, msg, sizeof(s->stages[st].error_msg));
 }
 
 static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char *msg) {
     if (in && msg)
-        snprintf(in->last_error, sizeof(in->last_error), "%s", msg);
+        lv_strlcpy(in->last_error, msg, sizeof(in->last_error));
     if (s && msg)
-        snprintf(s->final_error, sizeof(s->final_error), "%s", msg);
+        lv_strlcpy(s->final_error, msg, sizeof(s->final_error));
 }
 
 /* ---------------- 阶段实现 ---------------- */

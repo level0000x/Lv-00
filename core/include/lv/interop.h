@@ -46,6 +46,11 @@ typedef struct lvEngine lvEngine;
 #define INTEROP_COORD_DENOM_PRECISION 1000000ULL
 #endif
 
+/** GeoJSON 坐标导入专用有理化分母精度（10^9；缩放因子与整数分母同源，避免 1e9 / 1000000000ULL 失步） */
+#ifndef INTEROP_COORD_DENOM_PRECISION_GEOJSON
+#define INTEROP_COORD_DENOM_PRECISION_GEOJSON 1000000000ULL
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {

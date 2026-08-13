@@ -24,6 +24,7 @@
 #include "lv/engine.h"
 #include "lv/lv.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
@@ -69,14 +70,19 @@ BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name, const char 
  *
  * @param test 待销毁的 BootstrapDiffTest 指针（可为 NULL）
  */
+static const lvFieldDesc s_bootstrap_diff_test_destroy_fields[] = {
+    lv_FIELD_PLAIN(BootstrapDiffTest, test_name),
+    lv_FIELD_PLAIN(BootstrapDiffTest, dsl_source),
+    /* input_graph 由调用者管理，不纳入字段表 */
+};
+
 void bootstrap_diff_test_destroy(BootstrapDiffTest *test) {
     if (!test) {
         return;
     }
 
-    lv_free((void **) &test->test_name);
-    lv_free((void **) &test->dsl_source);
-    /* input_graph 由调用者管理 */
+    lv_obj_destroy_fields(test, s_bootstrap_diff_test_destroy_fields,
+                          sizeof(s_bootstrap_diff_test_destroy_fields) / sizeof(s_bootstrap_diff_test_destroy_fields[0]));
     lv_free((void **) &test);
 }
 
@@ -142,15 +148,20 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test) {
  *
  * @param result 待销毁的结果指针（可为 NULL）
  */
+static const lvFieldDesc s_bootstrap_diff_test_result_destroy_fields[] = {
+    lv_FIELD_PLAIN(BootstrapDiffTestResult, c_api_output),
+    lv_FIELD_PLAIN(BootstrapDiffTestResult, geo_layer_output),
+    lv_FIELD_PLAIN(BootstrapDiffTestResult, diff_description),
+    lv_FIELD_PLAIN(BootstrapDiffTestResult, error_message),
+};
+
 void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result) {
     if (!result) {
         return;
     }
 
-    lv_free((void **) &result->c_api_output);
-    lv_free((void **) &result->geo_layer_output);
-    lv_free((void **) &result->diff_description);
-    lv_free((void **) &result->error_message);
+    lv_obj_destroy_fields(result, s_bootstrap_diff_test_result_destroy_fields,
+                          sizeof(s_bootstrap_diff_test_result_destroy_fields) / sizeof(s_bootstrap_diff_test_result_destroy_fields[0]));
     lv_free((void **) &result);
 }
 

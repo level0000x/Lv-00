@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/proof.h"
 
@@ -395,34 +396,17 @@ char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator, lvProof
     if (!navigator)
         return NULL;
 
-    /* 分配输出缓冲区 */
-    size_t buf_size = 4096;
-    char *buf = lv_malloc(buf_size);
-    if (!buf)
-        return NULL;
-
-    int pos = 0;
-/* 写入前计算剩余空间，防止 pos 超过 buf_size 导致回绕 */
-#define CONTRADICTION_WRITE(...)                                               \
-    do {                                                                       \
-        if ((size_t) pos < buf_size) {                                         \
-            int n = snprintf(buf + pos, buf_size - (size_t) pos, __VA_ARGS__); \
-            pos += (n > 0 ? n : 0);                                            \
-            if ((size_t) pos > buf_size)                                       \
-                pos = (int) buf_size;                                          \
-        }                                                                      \
-    } while (0)
-
-    CONTRADICTION_WRITE("=== 矛盾证明追踪 ===\n");
-    CONTRADICTION_WRITE("作用域 ID: %d\n", scope_id);
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "=== 矛盾证明追踪 ===\n");
+    lv_strbuf_printf(&sb, "作用域 ID: %d\n", scope_id);
 
     /* 输出假设信息 */
     lvAssumptionEntry *entries[16];
     int count = lv_assumption_stack_get_by_scope(navigator->assumption_stack, scope_id, entries, 16);
 
-    CONTRADICTION_WRITE("\n假设栈 (%d 个假设):\n", count);
+    lv_strbuf_printf(&sb, "\n假设栈 (%d 个假设):\n", count);
     for (int i = 0; i < count; i++) {
-        CONTRADICTION_WRITE("  [%d] 深度=%d, 类型=%d, 矛盾=%s\n", entries[i]->assumption_id, entries[i]->depth,
+        lv_strbuf_printf(&sb, "  [%d] 深度=%d, 类型=%d, 矛盾=%s\n", entries[i]->assumption_id, entries[i]->depth,
                             entries[i]->type, entries[i]->is_contradictory ? "是" : "否");
     }
 
@@ -435,15 +419,14 @@ char *lv_proof_export_contradiction_trace(lvProofNavigatorEx *navigator, lvProof
         }
     }
 
-    CONTRADICTION_WRITE("\n矛盾闭包 (%d 个):\n", closure_count);
+    lv_strbuf_printf(&sb, "\n矛盾闭包 (%d 个):\n", closure_count);
     for (int i = 0; i < navigator->closures.count; i++) {
         lvContradictionClosure **closure = (lvContradictionClosure **)lv_darray_get(&navigator->closures, i);
         if (*closure && (*closure)->scope_id == scope_id) {
-            CONTRADICTION_WRITE("  [%d] 类型=%d, 已关闭=%s\n", (*closure)->closure_id,
+            lv_strbuf_printf(&sb, "  [%d] 类型=%d, 已关闭=%s\n", (*closure)->closure_id,
                                 (*closure)->type, (*closure)->is_closed ? "是" : "否");
         }
     }
-#undef CONTRADICTION_WRITE
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }

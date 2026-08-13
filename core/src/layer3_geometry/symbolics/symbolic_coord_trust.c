@@ -223,7 +223,7 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
     double remaining = val;
     for (int i = 0; i < 100 && n_terms < 100; i++) {
-        if (remaining < 1e-300 || remaining > 1e300)
+        if (remaining < lv_TINY_SENTINEL || remaining > lv_NEAR_INFINITY_SENTINEL)
             break;
 
         int64_t int_part = (int64_t) remaining;

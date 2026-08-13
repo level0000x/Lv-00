@@ -560,5 +560,29 @@ TEST_MAIN_BEGIN("geo_dynamic 模块测试")
         }
         lv_dyn_graph_destroy(graph);
     }
+    /* 12. 大图拓扑排序回归测试（>1024 节点，验证 queue[1024] 越界写与
+     * 静默截断修复） */
+    printf("\n[组 12] 大图拓扑排序（>1024 节点）\n");
+    {
+        lvDynGraph *graph = lv_dyn_graph_create(NULL);
+        /* 1500 个自由点（均为入度 0 的根）：原 `int queue[1024]` 在根入队时
+         * 越界写，且 `rear < 1024` 静默截断使 sorted_count != node_count 被
+         * 误判为环。修复后应完整排序 1500 个节点。 */
+        for (int i = 0; i < 1500; i++) {
+            lv_dyn_create_point(graph, (double) i, 0.0);
+        }
+        int order[1600];
+        TEST("topological_sort: 大图（1500 根）排序全部节点");
+        int count = lv_dyn_graph_topological_sort(graph, order);
+        if (count == graph->node_count) {
+            PASS();
+            g_pass_count++;
+        } else {
+            printf("  (count=%d expected=%d)\n", count, graph->node_count);
+            FAIL("拓扑排序未覆盖全部节点（疑似队列截断）");
+            g_fail_count++;
+        }
+        lv_dyn_graph_destroy(graph);
+    }
         
 TEST_MAIN_END()

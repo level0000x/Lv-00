@@ -285,8 +285,8 @@ lvError lv_adaptive_threshold_create(lvAlgorithmType algo, const lvConstraintGra
     /* 捕获开始时间 */
     {
         uint64_t ns = lv_get_time_ns();
-        c->start_time.tv_sec = (time_t)(ns / 1000000000ULL);
-        c->start_time.tv_nsec = (long)(ns % 1000000000ULL);
+        c->start_time.tv_sec = (time_t)(ns / lv_NS_PER_S);
+        c->start_time.tv_nsec = (long)(ns % lv_NS_PER_S);
     }
 
     /* 分析复杂度 */

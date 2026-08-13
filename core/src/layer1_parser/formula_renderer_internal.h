@@ -17,6 +17,7 @@
 
 #include "formula_renderer.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
+#include "lv/lv_utils.h"   /* lv_strlcpy */
 
 #ifdef __cplusplus
 extern "C" {
@@ -194,7 +195,7 @@ static inline int render_fn_name_spec(const FormulaNode *node, const RenderFnNam
 {
     const char *name = formula_unary_fn_name(node);
     if (!name)
-        return snprintf(buffer, size, "%s", spec->fallback);
+        return (int) lv_strlcpy(buffer, spec->fallback, size);
     char prefix[lv_FORMULA_BUF_SMALL];
     snprintf(prefix, sizeof(prefix), spec->prefix_fmt, name);
     return render_unary_via(node, prefix, spec->suffix, spec->flags, buffer, size, options, dispatch);

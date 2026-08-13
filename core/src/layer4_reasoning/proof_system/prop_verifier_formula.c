@@ -43,7 +43,7 @@ PropFormula *prop_formula_create_atom(const char *name) {
     PropFormula *f = formula_alloc(PROP_ATOM);
     if (!f)
         return NULL;
-    snprintf(f->data.atom.name, sizeof(f->data.atom.name), "%s", name);
+    lv_strlcpy(f->data.atom.name, name, sizeof(f->data.atom.name));
     return f;
 }
 

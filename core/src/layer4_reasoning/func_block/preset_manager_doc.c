@@ -19,6 +19,7 @@
 #include "lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 #include "preset_blocks.h"
 #include "preset_common.h"
@@ -303,25 +304,16 @@ bool preset_generate_library_documentation(const char *format, char **out_docume
 
     char *doc = NULL;
 
-    /* 使用动态缓冲区构建文档 */
-    size_t buf_capacity = PRESET_BUFFER_SIZE;
-    char *buffer = (char *) lv_malloc(buf_capacity);
-    if (!buffer) {
-        unlock_library();
-        set_error("内存分配失败");
-        return false;
-    }
-
-    size_t offset = 0;
+    /* 使用 lvStrBuf 动态构建文档 */
+    lvStrBuf sb = {0};
 
     /* 标题 */
-    int n = snprintf(buffer + offset, buf_capacity - offset,
+    lv_strbuf_printf(&sb,
                      "# Lv-00 预设函数块库\n\n"
                      "## 概述\n\n"
                      "本库包含 %d 个预设函数块，涵盖多个数学领域。\n\n"
                      "| 类别 | 数量 |\n|------|------|\n",
                      g_library.entry_count);
-    offset += (size_t) n;
 
     /* 按类别统计（复用 lv_hashtable string 形态） */
     int cat_counts[PRESET_CATEGORY_COUNT] = {0};
@@ -329,14 +321,17 @@ bool preset_generate_library_documentation(const char *format, char **out_docume
 
     for (int c = 0; c < PRESET_CATEGORY_COUNT; c++) {
         if (cat_counts[c] > 0) {
-            n = snprintf(buffer + offset, buf_capacity - offset, "| %s | %d |\n",
-                         func_block_preset_category_string((PresetCategory) c), cat_counts[c]);
-            offset += (size_t) n;
+            lv_strbuf_printf(&sb, "| %s | %d |\n",
+                             func_block_preset_category_string((PresetCategory) c), cat_counts[c]);
         }
     }
 
-    buffer[offset] = '\0';
-    doc = buffer;
+    doc = lv_strbuf_to_string(&sb);
+    if (!doc) {
+        unlock_library();
+        set_error("文档生成失败：内存不足");
+        return false;
+    }
 
     unlock_library();
 

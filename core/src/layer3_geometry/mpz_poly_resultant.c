@@ -130,11 +130,6 @@ static void mpz_array_guard_cleanup(void *p) {
     }
 }
 
-/* 单个 mpz_t 变量的 defer 清理回调（配合 lv_DEFER(mpz_clear_deferred, &v)） */
-static void mpz_clear_deferred(void *p) {
-    mpz_clear(*(mpz_t *) p);
-}
-
 /* mpz_poly_t（部分构建的结式）的 defer 清理回调（变量置 NULL 即解除守卫） */
 static void mpz_poly_clear_deferred(void *p) {
     mpz_poly_t **pp = (mpz_poly_t **) p;
@@ -303,9 +298,9 @@ static bool mpz_matrix_det_bareiss(MPZMatrix *m, mpz_t result) {
 
     mpz_t pivot, temp, prev_pivot;
     mpz_inits(pivot, temp, prev_pivot, NULL);
-    lv_DEFER(mpz_clear_deferred, &pivot);
-    lv_DEFER(mpz_clear_deferred, &temp);
-    lv_DEFER(mpz_clear_deferred, &prev_pivot);
+    lv_DEFER(lv_mpz_clear_deferred, &pivot);
+    lv_DEFER(lv_mpz_clear_deferred, &temp);
+    lv_DEFER(lv_mpz_clear_deferred, &prev_pivot);
     mpz_set_ui(prev_pivot, MPZ_RES_INITIAL_PIVOT);
 
     int sign = MPZ_RES_SIGN_POSITIVE; /* 跟踪行交换的符号变化 */

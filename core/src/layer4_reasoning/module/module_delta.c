@@ -76,7 +76,7 @@ static void make_backup_path(char *buf, size_t buf_size, const char *backup_dir,
             lv_path_join(backup_dir, fname, buf, buf_size);
         }
     } else {
-        snprintf(buf, buf_size, "%s", fname);
+        lv_strlcpy(buf, fname, buf_size);
     }
 }
 

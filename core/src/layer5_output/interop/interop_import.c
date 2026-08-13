@@ -1614,10 +1614,10 @@ static void gj_import_geometry(lvJsonParser *p, ConstraintGraph *graph, int *imp
 
         for (int i = 0; i < coord_count; i++) {
             /* 将 double 坐标转为有理数 SymbolicCoord */
-            int64_t xn = (int64_t) (coords_x[i] * 1e9 + (coords_x[i] >= 0 ? 0.5 : -0.5));
-            int64_t yn = (int64_t) (coords_y[i] * 1e9 + (coords_y[i] >= 0 ? 0.5 : -0.5));
-            SymbolicCoord *cx = symbolic_coord_create_rational(xn, 1000000000ULL);
-            SymbolicCoord *cy = symbolic_coord_create_rational(yn, 1000000000ULL);
+            int64_t xn = (int64_t) (coords_x[i] * (double) INTEROP_COORD_DENOM_PRECISION_GEOJSON + (coords_x[i] >= 0 ? 0.5 : -0.5));
+            int64_t yn = (int64_t) (coords_y[i] * (double) INTEROP_COORD_DENOM_PRECISION_GEOJSON + (coords_y[i] >= 0 ? 0.5 : -0.5));
+            SymbolicCoord *cx = symbolic_coord_create_rational(xn, INTEROP_COORD_DENOM_PRECISION_GEOJSON);
+            SymbolicCoord *cy = symbolic_coord_create_rational(yn, INTEROP_COORD_DENOM_PRECISION_GEOJSON);
             if (!cx || !cy) {
                 if (cx)
                     symbolic_coord_destroy(cx);

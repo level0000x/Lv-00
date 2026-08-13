@@ -453,8 +453,8 @@ lvPerfStats *lv_perf_stats_create(const char *name) {
     if (name) {
         lv_strlcpy(stats->name, name, sizeof(stats->name));
     }
-    stats->min_val = 1e308;
-    stats->max_val = -1e308;
+    stats->min_val = lv_INFINITY_SENTINEL;
+    stats->max_val = -lv_INFINITY_SENTINEL;
 
     /* 内层作用域锁守卫：多分支 return 自动解锁；OOM 分支的 lv_free 由锁内执行（分配器自带内部锁，无死锁风险） */
     {
@@ -547,8 +547,8 @@ void lv_perf_stats_reset(lvPerfStats *stats) {
     }
 
     memset(stats, 0, sizeof(lvPerfStats));
-    stats->min_val = 1e308;
-    stats->max_val = -1e308;
+    stats->min_val = lv_INFINITY_SENTINEL;
+    stats->max_val = -lv_INFINITY_SENTINEL;
     stats->m2 = 0.0;
 }
 

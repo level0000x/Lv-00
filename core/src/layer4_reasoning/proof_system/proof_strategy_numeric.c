@@ -139,9 +139,7 @@ static bool numeric_verify_is_const_expr(const char *s) {
             /* 函数名：必须后跟 '(' */
             if (!numeric_verify_is_function_name(s + start, run_len))
                 return false;
-            size_t j = i;
-            while (j < len && isspace((unsigned char) s[j]))
-                j++;
+            size_t j = (size_t)(lv_str_skip_ws_n(s + i, s + len) - s);
             if (j >= len || s[j] != '(')
                 return false;
             i = j;
@@ -245,8 +243,7 @@ typedef struct {
 } ConstExprParser;
 
 static void numeric_ce_skip_ws(ConstExprParser *p) {
-    while (p->s[p->pos] && isspace((unsigned char) p->s[p->pos]))
-        p->pos++;
+    p->pos = (size_t)(lv_str_skip_ws(p->s + p->pos) - p->s);
 }
 
 static lvInterval numeric_ce_parse_expr(ConstExprParser *p);

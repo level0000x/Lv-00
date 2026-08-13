@@ -153,11 +153,6 @@ void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, co
  * @param result  输出参数，存储找到的有理数近似
  * @return 找到合适近似返回 true，否则返回 false
  */
-/* 单个 mpz_t 栈变量的 defer 清理回调（配合 lv_DEFER(mpz_clear_deferred, &v) 使用） */
-static void mpz_clear_deferred(void *p) {
-    mpz_clear(*(mpz_t *) p);
-}
-
 static bool continued_fraction_approx(double value, double epsilon, mpq_t result) {
     if (epsilon <= 0.0)
         return false;
@@ -172,13 +167,13 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     mpz_init(k_next);
     mpz_init(a);
     /* 作用域守卫：任意出口（含直接 return）逆序自动 mpz_clear 各临时变量 */
-    lv_DEFER(mpz_clear_deferred, &h_prev);
-    lv_DEFER(mpz_clear_deferred, &h_curr);
-    lv_DEFER(mpz_clear_deferred, &k_prev);
-    lv_DEFER(mpz_clear_deferred, &k_curr);
-    lv_DEFER(mpz_clear_deferred, &h_next);
-    lv_DEFER(mpz_clear_deferred, &k_next);
-    lv_DEFER(mpz_clear_deferred, &a);
+    lv_DEFER(lv_mpz_clear_deferred, &h_prev);
+    lv_DEFER(lv_mpz_clear_deferred, &h_curr);
+    lv_DEFER(lv_mpz_clear_deferred, &k_prev);
+    lv_DEFER(lv_mpz_clear_deferred, &k_curr);
+    lv_DEFER(lv_mpz_clear_deferred, &h_next);
+    lv_DEFER(lv_mpz_clear_deferred, &k_next);
+    lv_DEFER(lv_mpz_clear_deferred, &a);
 
     /* found 在函数顶部初始化，确保所有代码路径均能正确返回。 */
     bool found = false;

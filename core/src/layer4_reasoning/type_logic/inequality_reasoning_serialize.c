@@ -5,6 +5,8 @@
 
 #include "inequality_reasoning_internal.h"
 
+#include "lv/lv_strbuf.h"
+
 
 /* ================================================================
  * 枚举 -> 名称 映射表（数据表化，替代 switch）
@@ -76,27 +78,13 @@ char *lv_ineq_proof_to_latex(const lvInequalityProof *proof) {
         return s;
     }
 
-    size_t buf_size = 1024;
-    char *s = (char *) lv_malloc(buf_size);
-    if (!s)
-        return NULL;
-
-    int offset = 0;
-    if (offset < (int) buf_size)
-        offset += snprintf(s + offset, buf_size - (size_t) offset, "\\begin{proof}\n");
-    if (offset < 0)
-        return s;
-
-    for (int i = 0; i < proof->step_count && offset < (int) buf_size - 64; i++) {
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "\\begin{proof}\n");
+    for (int i = 0; i < proof->step_count; i++) {
         const char *just = proof->steps[i].justification ? proof->steps[i].justification : "unknown";
-        if (offset < (int) buf_size)
-            offset += snprintf(s + offset, buf_size - (size_t) offset, "  Step %d: %s\n", i + 1, just);
-        if (offset < 0)
-            break;
+        lv_strbuf_printf(&sb, "  Step %d: %s\n", i + 1, just);
     }
+    lv_strbuf_printf(&sb, "\\end{proof}\n");
 
-    if (offset >= 0 && offset < (int) buf_size)
-        offset += snprintf(s + offset, buf_size - (size_t) offset, "\\end{proof}\n");
-
-    return s;
+    return lv_strbuf_to_string(&sb);
 }

@@ -936,3 +936,239 @@ ninja build3 927/927 + ctest 170/170 全部通过，零修复项。构建警告�
 
 ### 验证
 ninja build3 通过（exit 0，仅含既有宏重定义警告）+ ctest 170/170 全部通过，零修复项。
+
+---
+
+## 十六、批次 U 候选立项与实施（2026-08-13）
+
+**候选来源**：历史批次「继续寻找更多可抽象化的方向」按判据 A–K 全库扫描（含新判据 L 立项）。共 10 候选（U1–U10），用户选定「全部按优先级逐步完整执行」。
+
+### 批次 U 执行进度
+
+| 编号 | 内容 | 状态 |
+|------|------|------|
+| U1 | 立项判据 L + L1 snprintf("%s")伪复制 → `lv_strlcpy`（30 处/18 文件） | 完成 |
+| U2 | snprintf 游标宏对 TRACE_WRITE/CONTRADICTION_WRITE 收敛 → lvStrBuf | 完成 |
+| U3 | snprintf 游标缓冲链 → `lvStrBuf`（6 处/6 文件，8 处豁免） | 完成 |
+| U4 | 手写对象销毁序列 ×5 → `lvFieldDesc` 字段表 | 完成 |
+| U5 | mpz_clear_deferred shim 双份 + solver 裸 mpz 配对 → `lv_DEFER` | 完成 |
+| U6 | point_coord x/y 双分量提取 → `point_coord_xy`（5 处/3 文件） | 完成 |
+| U7 | 大数/极值哨兵家族具名化（1e308/1e30/1e300） | 完成 |
+| U8 | 判据 C/D 余项（GeoJSON 1e9 + 时间残值 + token表 + type_system表） | 完成 |
+| U9 | geo_dynamic 拓扑栈动态化 + 空白跳过收敛（`lv_str_skip_ws_n`）；错误消息组装/strchr 切分评估后豁免 | 完成 |
+| U10 | 注册表三件套 + 单侧钳制（评估后豁免：手写注册表异构 / 钳制异构且已有 lv_MIN/lv_MAX/lv_CLAMP） | 完成（豁免） |
+
+### U1 明细（判据 L1 snprintf 伪复制 → lv_strlcpy）
+
+**判据 L 立项**：ABSTRACTION_SPEC.md 新增 §1.12 判据 L（snprintf 定长复制/写入样板），两个子形态：
+- **L1**：`snprintf(dst, size, "%s", src)` 语义等价 `lv_strlcpy`（返回源串长度、保证 NUL 终止），`dst` 为定长缓冲区基址、`src` 为普通字符串时是伪复制，必须直接用 `lv_strlcpy`。
+- **L2**：snprintf 后手动返回值防御，待设施落地后实施（未实施）。
+
+**迁移 30 处 / 18 文件**（全库 33 处 `snprintf(..., "%s")` 命中，30 处纯复制迁移 + 3 处豁免）：
+
+| 文件 | 处数 | 说明 |
+|------|:---:|------|
+| `layer4_reasoning/proof_system/prop_verifier_analysis.c` | 1 | atom 名复制 |
+| `layer5_output/lv_protocol.c` | 1 | status 三元串复制（保留 `?:` 语义） |
+| `layer4_reasoning/backends/smt_backend_impl_external.c` | 1 | result_buf（保留 `output ? output : ""` NULL 写空串语义） |
+| `layer4_reasoning/type_logic/type_equiv_explorer.c` | 1 | applied_rule_name |
+| `layer4_reasoning/module/module_delta.c` | 1 | fname |
+| `layer4_reasoning/proof_system/prop_verifier_formula.c` | 1 | atom.name |
+| `layer4_reasoning/backends/smt_backend_impl_groebner.c` | 1 | error_message |
+| `layer4_reasoning/model/recursion_validation.c` | 1 | validation_template |
+| `layer3_geometry/algebraic_number_rational.c` | 1 | 返回值 `int` 强转 |
+| `lv_impl_upper_app.c` | 2 | output_format（前置 `[0]` 守卫保留） |
+| `layer4_reasoning/backends/smt_backend_impl.c` | 2 | entry->name / entry->version |
+| `layer1_parser/formula_renderer_ascii.c` | 2 | variable/identifier helper |
+| `layer1_parser/formula_renderer_python.c` | 2 | 同上（保留局部 `written`） |
+| `layer1_parser/formula_renderer_dsl.c` | 2 | 同上 |
+| `layer1_parser/formula_renderer_latex.c` | 4 | greek_name/name/esc/center_buf |
+| `layer1_parser/formula_renderer_internal.h` | 1 | render_fn_name_spec fallback + 新增 include lv_utils.h |
+| `layer2_resource/lv_utils_config.c` | 3 | full_key×2 / last_section |
+| `lv_impl_upper_orchestrator.c` | 3 | set_error_msg / set_last_error 错误消息复制 |
+
+**豁免 3 处（标注 `/* exempt: */`）**：
+- `mini_kernel.c:827`：`snprintf(trimmed, sizeof(formula), "%s", label)` —— `trimmed` 为 `lv_str_trim` 返回的偏移指针、`sizeof(formula)` 是基址容量非剩余容量，直接 `lv_strlcpy` 会引入溢出风险，非 L1 纯复制候选。
+- `interactive_geo.c:617/625`：`snprintf(buf, bufsz, "%s", hdr)` + `snprintf(buf + w, rem, "%s", ...)` 游标追加形态，归入 U2/U3 处理。
+
+**返回值语义核验**：`lv_strlcpy` 返回 `size_t`（源串长度），与 `snprintf(..., "%s")` 正常/截断路径语义一致；调用方按返回值用途 `(int)` 强转（algebraic_number_rational.c / formula_renderer 各 helper）。
+
+### 决策登记（第 9 章格式）
+
+`lv_strlcpy` 复用（判据 L1）/ L / 30 处 18 文件 / 3 处豁免（mini_kernel 偏移指针 + interactive_geo 游标追加）/ 全库字符串复制链 + 全量构建。
+
+### U2 明细（snprintf 游标宏对 TRACE_WRITE/CONTRADICTION_WRITE 收敛，判据 L2 前缀）
+
+`proof_trace.c` 的 `TRACE_WRITE` 与 `proof_contradiction.c` 的 `CONTRADICTION_WRITE` 是逐字同构的「snprintf 游标缓冲追加」局部宏（`char *buf + int pos + buf_size` + 截断钳制），各自在函数内 `lv_malloc(buf_size)` 定长缓冲。收敛为既有 `lvStrBuf` 设施：
+- 删除两份同构宏定义（`#define TRACE_WRITE` / `#define CONTRADICTION_WRITE` + `#undef`）及 `buf_size`/`buf`/`pos` 手工游标管理。
+- 各 `XXX_WRITE(...)` 调用点改为 `lv_strbuf_printf(&sb, ...)`，函数末尾 `return buf` 改为 `return lv_strbuf_to_string(&sb)`（返回堆分配 NUL 结尾串，契约与原「lv_malloc 返回」一致）。
+- **行为变化（有意）**：`proof_trace.c` 原 `buf_size = steps.count*256+1024` 与 `proof_contradiction.c` 原固定 `4096` 截断上限取消，改为动态增长（消除超长轨迹/闭包的静默截断）。
+- 两文件各补 `#include "lv/lv_strbuf.h"`。
+
+### 决策登记（第 9 章格式）
+
+`lv_strlcpy` 复用（判据 L1）/ L / 30 处 18 文件 / 3 处豁免（mini_kernel 偏移指针 + interactive_geo 游标追加）/ 全库字符串复制链 + 全量构建；`lvStrBuf` 游标宏对收敛 / L2 前缀 / proof_trace + proof_contradiction 2 文件 / 无（取消定长截断为有意行为变化）/ test_proof_trace + test_proof_contradiction 族；`lvStrBuf` 游标缓冲链收敛 / L2 / 6 处 6 文件 / 8 处豁免（调用方缓冲契约 + 非循环前缀 + 已抽象 RespCursor）/ test_* 族 + 全量构建；`lv_obj_destroy_fields` 手写销毁序列收敛 / A（去重） / 5 处 4 文件（纯 PLAIN_FREE 字段表，排除嵌套/异构/浅释放）/ test_* 族 + 全量构建；`lv_mpz_clear_deferred` shim 去重 + solver 裸 mpz 配对收敛 / A（去重） / shim 2 份→1 份共享 + 4 函数 14 mpz 变量（豁免 extract_incidence/extract_intersection 深层分支 + mpq）/ solver+symbolic_coord+rational 等 15 项定向测试；`point_coord_xy` x/y 双分量提取收敛 / A（去重） / 5 处 3 文件 12 组成对提取（新增共享助手，保留 point_coord 原语）/ solver+symbolic_coord+geo_constraint_solver+geometry_core+solver_submodules 等 9 项定向测试；`lv_NEAR_INFINITY_SENTINEL` 大数/极值哨兵家族具名化 / C / config.h 新增宏 + 10 .c 文件迁移（`1e308`×12 + `1e300`×9 + `1e-300`×1 + `1e30`×18，共 40 处字面量）/ 无代码豁免（default_host_ops.h 注释仅文档）/ runtime_monitor+probabilistic+high_dim+propagation+geo_invariant+symbolic_coord+proof_search+numeric+solver+geometry_core 15 项定向测试；U8 判据 C/D 余项收敛（GeoJSON 1e9→INTEROP_COORD_DENOM_PRECISION_GEOJSON + 时间裸换算→lv_*_PER_* + LV_TOKEN_TYPE_X 单源 + LV_TYPE_KIND_COUNT 自动计数）/ C+D / 11 文件（interop.h/interop_import.c/lv_utils_misc.c/adaptive_threshold.c/context.c/lv_circuit_breaker.c/test_framework.c/lv_lexer.h/lv_lexer.c/type_system.h/type_check.c）/ 无代码豁免 / type_system+type_equiv_explorer+minimal_parse+utils+interop+circuit_breaker+adaptive_threshold+lv_lexer+lv_parser+func_block_utils 10 项定向测试。
+
+### U3 明细（snprintf 游标缓冲链 → lvStrBuf，判据 L2）
+
+扫描结果共约 21 处「游标追加」形态命中，甄别出 **6 处真游标链**（循环内 `snprintf(buf + offset, size - offset, ...)` 累加 offset 且产出堆串或「定长缓冲 + strdup」）迁移为 `lvStrBuf`，另 **8 处豁免**（调用方固定缓冲契约 / 非循环两段拼接 / 已抽象）。
+
+**迁移 6 处 / 6 文件**：
+
+| 文件 | 函数/位置 | 原形态 | 说明 |
+|------|-----------|--------|------|
+| `layer2_resource/lv_error.c` | `lv_error_format_chain` | 估算 total_size + `lv_malloc` + `pos` 游标 | 返回堆串，取消尺寸估算与 `written<remaining` 守卫 |
+| `layer4_reasoning/backends/approx_counter.c` | `cnf_to_dimacs` | 估算 est_size + `lv_malloc` + `offset` | 返回堆串（DIMACS），取消定长截断 |
+| `layer4_reasoning/type_logic/inequality_reasoning_serialize.c` | `lv_ineq_proof_to_latex` | 固定 1024 + `offset` | 返回堆串，取消 1024 截断上限 |
+| `layer1_parser/formula_curve.c` | IMPLICIT_CURVE 构建 | 固定 `FORMULA_LARGE_BUF_SIZE` + `offset` | 取消定长截断，末尾 `strdup_safe` → `lv_strbuf_to_string` |
+| `layer3_geometry/float_error.c` | `extract_equations` 约束描述 | 固定 `EXPR_BUFFER_INITIAL` + `off` | 取消定长截断，末尾 `strdup` → `lv_strbuf_to_string` |
+| `layer4_reasoning/func_block/preset_manager_doc.c` | `preset_generate_library_documentation` | `lv_malloc(PRESET_BUFFER_SIZE)` + `offset` | 补 `lv_strbuf_to_string` 返回 NULL 的 OOM 失败路径 |
+
+各文件补 `#include "lv/lv_strbuf.h"`；函数末尾统一 `return lv_strbuf_to_string(&sb)`（堆分配 NUL 串，与原 `lv_malloc`/`lv_strdup` 契约一致，`lv_free` 释放）。
+
+**豁免 8 处（评估后保留，标注语义）**：
+
+| 位置 | 豁免语义 |
+|------|----------|
+| `lv_log.c:91-104` | strftime + snprintf 两段前缀，strftime 需固定缓冲，非循环游标链 |
+| `lv_sema.c:44-54` | 两次 snprintf 写固定 `errors[][]` 槽，调用方固定数组契约 |
+| `lv_protocol.c:523-556` | 裸字节 memcpy/`out[w++]` 与 snprintf 混合，非纯游标链 |
+| `atp_backend.c:695-700` | 两段 extra_args 拼接，非循环 |
+| `conflict_detector.c:1211-1245` | 写调用方缓冲 + 严格截断返回 -1 契约 |
+| `lambda_unify.c:438-457` | 写调用方缓冲，无堆串产出 |
+| `interop_command.c:959-978` | 已用 `RespCursor` 抽象收敛，非候选 |
+| `interactive_geo.c:617/625` | 写调用方缓冲 `snprintf("%s")` 游标追加（U1 豁免划入，经评估仍属调用方缓冲契约） |
+
+### U4 明细（手写对象销毁序列 ×5 → lvFieldDesc 字段表）
+
+从全库约 80 条 `*_destroy` 函数中甄别出 **5 个纯 `lv_free` 逐字段销毁函数**（均只含 `LV_FIELD_PLAIN_FREE` 语义，无嵌套逐元素/异构释放），迁移为既有 `lv_obj_destroy_fields` 字段表。排除：`atp_backend.c`（proof_steps 嵌套逐元素销毁）、`proof_export_enhanced.c`（单字段输出，过于简单）、`approx_counter.c`（仅 memset，非释放候选）、`bootstrap_test_random.c`（仅 free 自身）、`proof_widget.c`（`lv_free_ptr` + 逐元素异构）。
+
+**迁移 5 处 / 4 文件**：
+
+| 文件 | 函数 | 字段表 | 说明 |
+|------|------|--------|------|
+| `layer4_reasoning/bootstrap_test_diff.c` | `bootstrap_diff_test_destroy` | `s_bootstrap_diff_test_destroy_fields`（2 字段：`test_name`/`dsl_source`） | `input_graph` 由调用者管理，不纳入 |
+| `layer4_reasoning/bootstrap_test_diff.c` | `bootstrap_diff_test_result_destroy` | `s_bootstrap_diff_test_result_destroy_fields`（4 字段：`c_api_output`/`geo_layer_output`/`diff_description`/`error_message`） | 全 PLAIN_FREE |
+| `layer4_reasoning/bootstrap_test_primitive.c` | `primitive_test_result_destroy` | `s_primitive_test_result_destroy_fields`（3 字段：`input_description`/`c_api_result`/`geo_layer_result`） | 保留原行为不释放 `error_message` |
+| `layer4_reasoning/axiom/axiom_template_test.c` | `axiom_template_test_case_destroy` | `s_template_test_case_destroy_fields`（3 字段：`template_name`/`description`/`params`） | `expected_graph` 不纳入；`params` 浅释放 |
+| `layer4_reasoning/axiom_rule_engine.c` | `lv_rule_recommendation_destroy` | `s_rule_recommendation_destroy_fields`（3 字段：`rules`/`scores`/`reason`） | 全 PLAIN_FREE |
+
+各文件补 `#include "lv/lv_lifecycle.h"`（`axiom_template_test.c` 已含，无需重复）；`*_destroy` 函数体改为 `lv_obj_destroy_fields(...) + lv_free(&obj)`。语义保持：字段释放顺序、NULL 化、重复调用安全均与手写版一致；不纳入字段表的指针维持原手写行为。
+
+### U5 明细（mpz_clear_deferred shim 双份 + solver 裸 mpz 配对 → lv_DEFER）
+
+**shim 去重（判据 A）**：`mpz_clear_deferred` 在 `mpz_poly_resultant.c` 与 `symbolics/algebraic.c` 存在两份逐字同构的 static 定义（`mpz_clear(*(mpz_t*)p)`）。收敛为 `mpz_poly.h` 的共享 `static inline lv_mpz_clear_deferred`，删除两份本地定义，10 处 `lv_DEFER` 调用点改指向共享实现（algebraic.c 7 处 + mpz_poly_resultant.c 3 处）。
+
+**solver 裸 mpz 配对迁移（判据 A）**：4 个「mpz_init + 单出口 mpz_clear」函数改为 `lv_DEFER(lv_mpz_clear_deferred, &v)`，消除手写 clear 与重复出口清理：
+- `solver_conflict.c` Check 4（`disc`/`four_ac`）：早期 `return true` 路径与正常路径的重复 `mpz_clear` 收敛为作用域守卫。
+- `solver_coord_extract.c` `rational_to_mpz_scaled`（`scaled`）、`coord_to_mpz_scaled`（`scaled_num`/`den` + 分支 `q`/`r`/`half_den`）、`double_to_mpz_scaled`（`scaled_num`/`den` + 分支 `quotient`/`remainder`/`half_den`）。
+
+两 solver 文件补 `#include "lv/lv_lifecycle.h"`（`solver_common.h` 已含 `mpz_poly.h`，`lv_mpz_clear_deferred` 可用）。
+
+**豁免**：`solver_coord_extract.c` 的 `extract_incidence` / `extract_intersection`（`lx1_s`/`a1_s`/`D_s` 等约 20 个 mpz 变量在深层嵌套条件分支 + 多出口 `return`/`lv_RETURN_ERROR` 中反复 init/clear，控制流异构，改用 lv_DEFER 需逐分支核对守卫注册点，风险收益比不佳，保留手写）；`double_to_mpz_scaled` 的 `mpq_t q` 为 mpq 非 mpz，不在本项范围。
+
+### U6 明细（point_coord x/y 双分量提取 → point_coord_xy）
+
+求解器内「点二维坐标读取」反复出现成对 `point_coord(p, 0, &x)` + `point_coord(p, 1, &y)` 样板（判据 A 去重）。新增共享助手 `point_coord_xy(const GeomNode *pt, double *x, double *y)`，等价 `point_coord(pt, 0, x) && point_coord(pt, 1, y)`，声明在 `solver_common.h`、实现在 `solver_coord_extract.c`（紧邻 `point_coord`）。保留 `point_coord` 作为底层单分量原语供助手复用。
+
+**迁移 5 处 / 3 文件**：
+
+| 文件 | 函数/位置 | 成对组数 | 说明 |
+|------|-----------|:---:|------|
+| `solver/solver_coord_extract.c` | `line_from_two_points` | 2 | p1、p2 各一对，`return false` 短路由 |
+| `solver/solver_geom_templates.c` | `template_similar_triangles` | 3 | nodeA/B/C 三对，`&&` 汇总 `has_coords` |
+| `solver/solver_geom_templates.c` | `template_pythagorean` | 3 | 同上三对 |
+| `solver/solver_geom_templates.c` | `template_parallel_cut` | 2 | n1/n2 各一对，if 守卫 |
+| `solver/solver_eliminate.c` | `analyze_out_of_scope`（betweenness） | 2 | p1/p3 各一对，if 守卫 |
+
+共收敛 12 组 x/y 成对提取（24 次 `point_coord` 调用 → 12 次 `point_coord_xy`）。语义等价：`&&` 短路求值顺序、失败即整体失败、各分量输出赋值均与原 `point_coord` 一致；无豁免项。
+
+### U7 明细（大数/极值哨兵家族具名化）
+
+全库扫描发现三类裸「大数/极值」字面量（`1e308`/`1e300`/`1e30` 及 `1e-300`）作为哨兵初值/支撑集/包围盒/越界上界反复出现。其中 `1e308` 与 `1e30` 已分别有权威宏 `lv_INFINITY_SENTINEL` 与 `lv_HUGE_NUMBER`（config.h），仅 `1e300` 缺具名。按语义三分收敛：
+
+- **`1e308` → `±lv_INFINITY_SENTINEL`**（"无穷大"哨兵，min/max 初值 + 概率分布支撑集）：
+  - `layer2_resource/runtime_monitor.c`：`lv_perf_stats_create` / `lv_perf_stats_reset` 的 `min_val`/`max_val` 初值（4 处字面量，2 函数）。
+  - `layer4_reasoning/backends/probabilistic_constraint.c`：`kDistSupportLo`/`kDistSupportHi` 数组（3+3）+ 未知分布 fallback（`support_lo`/`support_hi`）= 8 处。
+- **`1e300` → `lv_NEAR_INFINITY_SENTINEL`**（新增宏，包围盒/距离/越界上界，较 1e308 保留算术溢出余量）：
+  - `config.h` 新增 `lv_NEAR_INFINITY_SENTINEL 1e300`（紧随 `lv_INFINITY_SENTINEL` 之后）。
+  - `layer3_geometry/high_dim_fidelity.c`：包围盒 `min_x/min_y/max_x/max_y` 初值 + `hi_dist/lo_dist` 自指距离 + `bd_hi/bd_lo` 初始值 + 选中后标记 = 8 处。
+  - `layer3_geometry/symbolics/symbolic_coord_trust.c`：越界上界 `remaining > lv_NEAR_INFINITY_SENTINEL`（同处 `1e-300` → `lv_TINY_SENTINEL`）。
+- **`±1e30` → `±lv_HUGE_NUMBER`**（极大数阈值，熵/UCB/除零保护大值）：
+  - `layer3_geometry/geo_invariant_type.c`：不变量值域表 5 个正上界 + 4 个 `±lv_HUGE_NUMBER` 区间 + fallback `*out_min/*out_max` = 11 处。
+  - `layer3_geometry/propagation.c`：3 个选择函数的 `min_entropy` 初值 = 3 处。
+  - `layer4_reasoning/proof_system/proof_search_algo.c`：`best_ucb` 初值 = 1 处。
+  - `layer4_reasoning/numeric/backends/default_host_ops.c`：除零保护大值 = 1 处。
+  - `layer4_reasoning/numeric/backends/cuda_backend.c`：除零保护大值 = 1 处。
+  - `layer4_reasoning/numeric/backends/hip_backend.c`：除零保护三元分支 = 1 处。
+
+**未迁移/豁免**：`core/include/lv/default_host_ops.h` 第 66 行注释仍含 `1e30` 文本（仅文档，非代码，未改）；无代码豁免项（所有裸字面量均已具名化，`lv_TINY_SENTINEL` 复用既有宏）。
+
+### U8 明细（判据 C/D 余项：GeoJSON 1e9 + 时间残值 + token 表 + type_system 表）
+
+按判据 C（单一事实源）与 D（枚举↔字符串双维护失步）收敛四处余项，共 11 文件：
+
+**① GeoJSON 坐标有理化分母（判据 C）**：`interop_import.c` 中 GeoJSON 坐标导入的缩放因子 `1e9` 与整数分母 `1000000000ULL` 裸写、分处两行易失步。`interop.h` 新增权威宏 `INTEROP_COORD_DENOM_PRECISION_GEOJSON 1000000000ULL`（紧随既有 `INTEROP_COORD_DENOM_PRECISION 1000000ULL` 之后），`interop_import.c` 3 处（`xn`/`yn` 缩放 + `symbolic_coord_create_rational` 分母）统一引用，缩放因子与整数分母同源。
+
+**② 时间换算残值（判据 C）**：
+- `lv_utils_misc.c` 删除 4 个局部时间宏（`lv_US_PER_MS`/`lv_MS_PER_S`/`lv_US_PER_S`/`lv_NS_PER_S`），改为注释指向 `lv_utils.h` 权威常量（消除与权威宏的重定义警告源）。
+- `adaptive_threshold.c`：`/ 1000000000ULL` → `/ lv_NS_PER_S`（1 处）。
+- `context.c`：`/1000` → `/ lv_US_PER_MS`（1 处）。
+- `lv_circuit_breaker.c`：`/1000` → `/ lv_US_PER_MS`（2 处）。
+- `test_framework.c`：`/1e6` → `/ (double) lv_NS_PER_MS`、`/1e9` → `/ (double) lv_NS_PER_S`（4 处 ns→ms/s 报告换算具名化）。
+
+**③ token 表单源化（判据 D）**：`lv_lexer.h` 的手动 `LvTokenType` 枚举 + `lv_lexer.c` 的 `lv_token_type_name` 手写 75 项名称数组双份维护。改为单一 X-macro `LV_TOKEN_TYPE_X(x)`（`lv_lexer.h`，含字面量/43 关键字/运算符分隔符/EOF/ERROR 分组，第二参数承载显示名，如 `x(KW_ANGLE, "KW_ANGLE")`），枚举 `LV_TOKEN_TYPE_X(LV_X_ENUM_ITEM)`，名称数组 `lv_XMACRO_TO_NAME_ARRAY(LV_TOKEN_TYPE_X)`，计数 `LV_TOKEN_COUNT (0 LV_TOKEN_TYPE_X(LV_X_TOKEN_COUNT_ITEM))`。`lv_lexer.c` 补 `#include "lv/lv_xmacro.h"`，`lv_token_type_name` 改为单源生成 + 越界返回 `"UNKNOWN"`。
+
+**④ type_system 计数自动跟随（判据 D）**：`type_check.c` 手写 `#define TYPE_KIND_COUNT 10` 与 `type_system.h` 的 `LV_TYPE_KIND_X` 枚举值失步风险。`type_system.h` 新增 `LV_TYPE_KIND_COUNT (0 LV_TYPE_KIND_X(LV_X_TYPE_KIND_COUNT_ITEM))` 自动计数；`type_check.c` 改为 `#define TYPE_KIND_COUNT LV_TYPE_KIND_COUNT`（5 个函数指针数组 + 5 处边界检查自动跟随枚举）。
+
+**豁免**：无代码豁免（四处余项全部迁移；`lv_lexer.h` 显示名与枚举标识符的有意不一致由 X-macro 第二参数承载，非豁免）。
+
+### 验证
+ninja build3 925/925（exit 0，仅含既有宏重定义警告）+ ctest 169/170 通过；唯一失败 `performance_test` 为既有内存池基准抖动（Windows 计时粒度致 "Pool should be faster than malloc" 断言失败，运行 6218s 超长），与本轮 U1–U6 改动无关，非回归。U5 相关 15 项定向测试（solver / symbolic_coord / rational / interval_arith / conflict / solve_debug / geometry_core / smt_backend）全部通过；U6 相关 9 项定向测试（solver / symbolic_coord / geo_constraint_solver / geometry_core / solver_submodules）全部通过；U7 相关 15 项定向测试（runtime_monitor / probabilistic / high_dim / propagation / geo_invariant / symbolic_coord / proof_search / numeric / solver / geometry_core）全部通过；U8 相关 10 项定向测试（type_system / type_equiv_explorer / minimal_parse / utils / interop / circuit_breaker / adaptive_threshold / lv_lexer / lv_parser / func_block_utils）全部通过。
+
+### U9 明细（geo_dynamic 拓扑栈动态化 + 空白跳过收敛；错误消息组装 / strchr 切分评估后豁免）
+
+U9 共四子项，经评估实际落地两子项（拓扑栈、空白跳过），两子项（错误消息组装、strchr 切分）经同构判定不满足粒度门槛，登记豁免：
+
+**① geo_dynamic 拓扑栈动态化（判据 A / B）**：`geo_dynamic.c` 的 `lv_dyn_graph_topological_sort` 原以 `int queue[1024]` 固定栈 + `rear < 1024` 硬上限，>1024 节点时发生越界写与静默截断（大图被误判为环）。改为 `lv_malloc` 动态队列（沿用既有 `has_path` 的动态队列模式），新增初始化入队 OOM 路径 `lv_RETURN_ERROR`，结束处先 `lv_free(&queue)` 再 `lv_free(&in_degree)`，OOM 分支返回 `lv_ERROR_ALLOCATION_FAILED`。`test_geo_dynamic.c` 新增 `[组 12] 大图拓扑排序（>1024 节点）`（1500 自由点 + `order[1600]`，断言 `count == node_count`）钉住修复行为。
+
+**② 空白跳过收敛（判据 A）**：全库「`while (isspace/*空白集*/) p++`」循环两形态——NUL 结尾用既有 `lv_str_skip_ws`，有界 `(p, end)` 用新增 `lv_str_skip_ws_n`。`lv_str_utils.h/.c` 新增有界变体 `lv_str_skip_ws_n(p, end)`（契约卡五字段齐全：跳过 4 字符空白集、最多到 end、不修改不分配、NULL 返回 p）。迁移 9 处：
+- `lean4_bridge.c` 4 处（主循环 / match 分支 / arrow 后 / tactic 参数循环）有界 isspace → `lv_str_skip_ws_n`；
+- `coq_bridge.c` 1 处（行级空白）有界 isspace → `lv_str_skip_ws_n`；
+- `proof_strategy_numeric.c` 2 处（L143 函数名后 `(` 前的有界跳过 → `lv_str_skip_ws_n`；`numeric_ce_skip_ws` NUL 结尾 → `lv_str_skip_ws`）；
+- `gappa_propagate.c` 1 处（`skip_ws` NUL 结尾 → `lv_str_skip_ws`）；
+- `math_input.c` 1 处（`lv_math_input_detect_format` 前导空白 → `lv_str_skip_ws`）；
+- `float_error.c` 1 处（表达式解析循环内空白跳过 → `lv_str_skip_ws`）。
+- `test_utils.c` 的 `test_string_operations` 新增 `lv_str_skip_ws_n` 测试（跳过 / 停 end / 整串 NUL-有界等价 / 无空白 / 空串 / 全空白 / NULL 安全）。
+
+**③ 错误消息组装 → 评估后豁免（不落地）**：候选 `lv_impl_upper_orchestrator`（`set_error_msg`/`set_last_error` 已用 `lv_strlcpy` 收敛）、`engine_scheduler` 6 处、`formula_curve` 4 处、`lv_sema`（`sema_error` 已用 `lv_snprintf` + 前缀收敛）。剩余 `snprintf(X->error_message/error_msg, sizeof(...), fmt, ...)` 均为**格式化消息**（含 `%d`/`%s`），属判据 K 豁免 #1（格式化消息样板）；且字段名 `error_message`（SMT/formula_curve 结果）与 `error_msg`（lvSessionStage）异构、部分实为成功状态消息（orchestrator 阶段消息），无统一 `lv_set_result_error` 设施可覆盖而不触碰负面清单 #4（为适配设施而迁就调用点语义）。**豁免**。
+
+**④ strchr 单次切分 → 评估后豁免（不落地）**：全库 32 处 `strchr` 用途异构——定界符分别为 `(`/`)`/`,`/`/`/`=`/`\n`，后续逻辑分别为「前缀长度计算」「右半 strtod 解析」「复合运算符跳过」「换行定位」等，无 ≥2 处等价「按定界符切分为左右子串」调用点；最接近的 `proof_version_isar.c` 两函数重复的「跳 `==`/`!=`/`<=`/`>=` 找单一 `=`」为高度专用谓词而非通用切分，且仅同文件 2 处、无第三候选（负面清单 #5 无候选孤例）。**豁免**。
+
+### U9 验证
+ninja build3 925/925（exit 0，仅含既有宏重定义警告）+ `ctest --test-dir build3` **170/170 全通过**（本轮 `performance_test` 通过，非既有抖动）。定向：`geo_dynamic_test`（含组 12 大图拓扑排序）通过；`utils_test`（含 `lv_str_skip_ws_n` 新增断言）通过；`proof_strategy_numeric_test` / `gappa_dsl` / `minimal_parse_test` / `interval_arithmetic` 等受影响模块测试通过。
+
+### U10 明细（注册表三件套 + 单侧钳制：评估后豁免，不落地）
+
+U10 两子项经全库甄别后判定均不满足粒度门槛（真实等价调用点 ≥2 且行为等价可验证），登记豁免：
+
+**① 注册表三件套 → 评估后豁免（不落地）**：`lvRegistry`（`lv_registry.h`）已提供完整泛型注册表（init/destroy/clear/register/create/find/put/put_ex/get/remove/remove_prefix/count/get_at，内部 name 拷贝 + destroy 回调 + 顺序保持的 shift-left 紧凑删除 + 哈希副索引），并已有 `lv_REGISTRY_STATIC` 宏收敛文件级单例样板。全库残余手写「name→X」注册表彼此异构，无一与 `lvRegistry` 语义同构：
+
+| 手写注册表 | 元素/名所有权 | 删除语义 | 容量/并发/生命周期 |
+|------------|---------------|----------|--------------------|
+| `lv_backend_plugin.c`（`lvBackendPluginRegistry`） | `lvBackendPlugin**` 指针数组，名借自插件 | swap-last O(1) 移除，非顺序保持 | 动态倍增 + mutex + lv_once；含 `find_by_type` 与按优先级 qsort init/cleanup |
+| `ecosystem.c`（`EcosystemEntry modules[128]`） | `char name[64]` 定长内嵌缓冲 | 无 per-entry remove，仅 shutdown 整体重置 | 固定 128 + 显式 init/shutdown（可重入复位 initialized） |
+| `module_serialize_autosave.c`（`AutoSaveEntry entries[64]`） | `char *module_name` strdup 内部持有 | 无 remove，仅整体 cleanup | 固定 64 + 无锁 |
+| `module_delta.c`（`DeltaBaseline entries[64]`） | `char *module_name` strdup + 8 个 darray 快照字段 | 无 remove，仅整体 free | 固定 64 + 惰性 mutex |
+
+四者元素类型、名称所有权（借入/定长拷贝/strdup）、删除语义（swap vs 无）、容量模型（动态 vs 固定）与生命周期（lv_once vs 显式复位）均互异。强行迁移为 `lvRegistry` 的「name 拷贝 + destroy 回调 + 顺序保持删除」会改变调用点所有权/顺序语义（负面清单 #4 调用点迁就），故不落地。**豁免**。
+
+**② 单侧钳制 → 评估后豁免（不落地）**：全库 `if (x <op> y) x = y;` 形态命中 42 处，甄别为两类：
+
+- **极值追踪（非钳制，约 15 处）**：`aabb_tree_impl.h` 12 处 `tmin/tmax/t0/t1` 射线-AABB 区间收缩、`high_dim_fidelity.c` 4 处 `min_x/max_x/min_y/max_y` 包围盒、`probabilistic_constraint.c:1120` `max_diff`、`hip_backend.c:248` `local_max`、`ode_solver.c:202` `max_err`——均为「求运行极值」而非「钳到边界」，语义属 min/max 归约，不应与钳制混淆。
+- **真单侧钳制（约 22 处，异构）**：`level>10`/`score>1000`/`confidence<0.5`（axiom_rule_engine）、`alpha/beta<0.01`（probabilistic_constraint）、`segments>128`（geometry_csg_eval）、`digits_after_dot>9`（expr_canon）、`cnt>64`/`cnt>10`（formula_converter_stmt）、`ev>1e12`（high_dim_project）、`factor∈[0.1,2.0]`/`span/ux/uy`（high_dim_fidelity）、`len<0→0`（lv_number）、`new_pos<0→0`/`size>avail`（lv_storage）、`half<2`（graph_node_alloc）等。其类型（int/double/size_t）、方向（上限/下限）、钳到值（10/1000/0.5/0.01/2/128/9/64/0/1.0/0.1/2.0/1e12 及变量 `avail`）各不相同，无 ≥2 处「同类型同方向」等价调用点可收敛为单一新原语。
+
+既有设施 `lv_MIN`/`lv_MAX`（类型无关宏）、`lv_CLAMP`（双侧）、`lv_clamp`（double 双侧）、`lv_min_i/lv_max_i`/`lv_min_z/lv_max_z` 已覆盖钳制语义；单侧钳制各处的魔法常量承载独立领域语义（递归上限/评分上限/置信下限/分布参数下限/网格细分上限/精度上限/迭代上限等），`if (x > limit) x = limit;` 的直陈形式比 `x = lv_MIN(x, limit);` 更直观且不引入新设施收益。故不新增原语。**豁免**。
+
+### U10 验证
+本轮 U10 为纯评估登记，无代码改动；构建与测试基线沿用 U9 收尾结果：ninja build3 925/925（exit 0）+ `ctest --test-dir build3` 170/170 全通过。批次 U（U1–U10）至此全部完成。

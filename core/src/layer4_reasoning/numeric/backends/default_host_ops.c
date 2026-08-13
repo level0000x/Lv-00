@@ -141,7 +141,7 @@ void default_vector_inv(lvVector *v, const lvVector *d) {
             v->data[i] /= d->data[i];
         } else {
             /* 避免除零：设为大值 */
-            v->data[i] = 1e30;
+            v->data[i] = lv_HUGE_NUMBER;
         }
     }
 }

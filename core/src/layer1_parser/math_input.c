@@ -90,8 +90,7 @@ int lv_math_input_detect_format(const char *input) {
         return -1;
 
     /* 跳过前导空白 */
-    while (isspace((unsigned char) *input))
-        input++;
+    input = lv_str_skip_ws(input);
 
     if (*input == '\0')
         return -1;

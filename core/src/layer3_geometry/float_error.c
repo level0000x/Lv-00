@@ -45,6 +45,7 @@
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
 
 #include "lv_internal.h"
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 #include "symbolic_coord.h"
 #include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference / lv_NUMERICAL_DIFF_EPSILON） */
@@ -356,7 +357,7 @@ static double evaluate_expression(const char *expr, const double *var_values, in
     while (*p) {
         /* 跳过空白字符 */
         if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
-            p++;
+            p = lv_str_skip_ws(p);
             continue;
         }
 
@@ -802,19 +803,14 @@ static bool extract_equations(const ConstraintGraph *graph, int var_id, char ***
         if (!type_str)
             type_str = "UNKNOWN";
 
-        char buf[EXPR_BUFFER_INITIAL];
-        int off = snprintf(buf, sizeof(buf), "constraint_%d: type=%s, vars=[", c->id, type_str);
-        if (off < 0)
-            off = 0;
-        for (int pi = 0; pi < c->participant_count && off >= 0 && off < (int) sizeof(buf) - 20; pi++) {
-            int n = snprintf(buf + off, sizeof(buf) - (size_t) off, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
-            if (n > 0)
-                off += n;
+        lvStrBuf sb = {0};
+        lv_strbuf_printf(&sb, "constraint_%d: type=%s, vars=[", c->id, type_str);
+        for (int pi = 0; pi < c->participant_count; pi++) {
+            lv_strbuf_printf(&sb, "%s%d", (pi > 0) ? "," : "", c->participants[pi]);
         }
-        if (off >= 0 && off < (int) sizeof(buf))
-            snprintf(buf + off, sizeof(buf) - (size_t) off, "]");
+        lv_strbuf_printf(&sb, "]");
 
-        eqs[*eq_count] = lv_strdup(buf);
+        eqs[*eq_count] = lv_strbuf_to_string(&sb);
         (*eq_count)++;
     }
 

@@ -533,7 +533,7 @@ bool proof_mcts_search(ProofNavigator *proof, int max_steps) {
         int current = 0; /* 从根开始 */
         while (nodes[current].child_count > 0 && !nodes[current].fully_expanded) {
             int best_child = -1;
-            double best_ucb = -1e30;
+            double best_ucb = -lv_HUGE_NUMBER;
 
             for (int c = 0; c < nodes[current].child_count; c++) {
                 int child_id = nodes[current].children[c];

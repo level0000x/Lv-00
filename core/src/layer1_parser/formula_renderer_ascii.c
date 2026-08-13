@@ -46,12 +46,12 @@ static int helper_ascii_number(const FormulaNode *node, char *buffer, size_t siz
 
 static int helper_ascii_variable(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return snprintf(buffer, size, "%s", node->data.variable.name);
+    return (int) lv_strlcpy(buffer, node->data.variable.name, size);
 }
 
 static int helper_ascii_identifier(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return snprintf(buffer, size, "%s", node->data.identifier.name);
+    return (int) lv_strlcpy(buffer, node->data.identifier.name, size);
 }
 
 /* ASCII 二元/一元算子模板表（格式串为外部契约，内容与历史输出逐字一致） */

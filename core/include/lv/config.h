@@ -163,6 +163,9 @@ extern "C" {
 #ifndef lv_INFINITY_SENTINEL
 #define lv_INFINITY_SENTINEL 1e308 /* "无穷大"哨兵 */
 #endif
+#ifndef lv_NEAR_INFINITY_SENTINEL
+#define lv_NEAR_INFINITY_SENTINEL 1e300 /* "近无穷大"哨兵（包围盒/距离/越界上界，较 1e308 保留算术溢出余量） */
+#endif
 #ifndef lv_TINY_SENTINEL
 #define lv_TINY_SENTINEL 1e-300 /* "接近零"哨兵 */
 #endif

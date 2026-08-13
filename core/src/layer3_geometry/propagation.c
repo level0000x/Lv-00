@@ -301,7 +301,7 @@ static const CheckConstraintHandler check_constraint_handlers[] = {
 typedef int (*SelectNodeStrategyFn)(PropagationContext *ctx);
 
 static int select_by_min_entropy(PropagationContext *ctx) {
-    double min_entropy = 1e30;
+    double min_entropy = lv_HUGE_NUMBER;
     int best_node = -1;
     int best_degree = -1;
 
@@ -333,7 +333,7 @@ static int select_by_min_entropy(PropagationContext *ctx) {
 }
 
 static int select_by_degree(PropagationContext *ctx) {
-    double min_entropy = 1e30;
+    double min_entropy = lv_HUGE_NUMBER;
     int best_node = -1;
     int best_degree = -1;
 
@@ -365,7 +365,7 @@ static int select_by_degree(PropagationContext *ctx) {
 }
 
 static int select_by_topological(PropagationContext *ctx) {
-    double min_entropy = 1e30;
+    double min_entropy = lv_HUGE_NUMBER;
     int best_node = -1;
     int best_degree = -1;
 

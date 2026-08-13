@@ -99,7 +99,7 @@ bool lv_circuit_breaker_is_tripped(const lvCircuitBreaker *cb) {
     if (cb->state == lv_CB_OPEN) {
         /* 冷却未完成 → 已跳闸 */
         if (cb->cooldown_ms > 0 && cb->tripped_at_us > 0) {
-            uint64_t elapsed_ms = (now_us() - cb->tripped_at_us) / 1000;
+            uint64_t elapsed_ms = (now_us() - cb->tripped_at_us) / lv_US_PER_MS;
             if (elapsed_ms < cb->cooldown_ms) {
                 return true;
             }
@@ -214,7 +214,7 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
 
     /* 检查总运行时间超时（不可取消区域不触发超时熔断） */
     if (cb->total_timeout_ms > 0) {
-        uint64_t uptime_ms = (now_us > cb->start_time_us) ? (now_us - cb->start_time_us) / 1000 : 0;
+        uint64_t uptime_ms = (now_us > cb->start_time_us) ? (now_us - cb->start_time_us) / lv_US_PER_MS : 0;
         if (uptime_ms > cb->total_timeout_ms && cb->uncancellable_refcount == 0) {
             lv_circuit_breaker_do_trip(cb, "总运行时间超时");
             return false;

@@ -154,7 +154,7 @@ static __global__ void vector_inv_kernel(double *v, const double *d, int64_t n) 
         if (denom > lv_EPSILON_DOUBLE) {
             v[i] /= d[i];
         } else {
-            v[i] = 1e30;
+            v[i] = lv_HUGE_NUMBER;
         }
     }
 }

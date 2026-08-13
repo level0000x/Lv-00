@@ -494,7 +494,8 @@ static void high_dim_local_fidelity_heatmap(HighDimManager *manager, int block_i
     double px[MAX_HM_NODES], py[MAX_HM_NODES];
     int pid[MAX_HM_NODES];
     int pcount = 0;
-    double min_x = 1e300, min_y = 1e300, max_x = -1e300, max_y = -1e300;
+    double min_x = lv_NEAR_INFINITY_SENTINEL, min_y = lv_NEAR_INFINITY_SENTINEL;
+    double max_x = -lv_NEAR_INFINITY_SENTINEL, max_y = -lv_NEAR_INFINITY_SENTINEL;
 
     for (int i = 0; i < graph->node_count && pcount < MAX_HM_NODES; i++) {
         GeomNode *node = graph->nodes[i];
@@ -812,8 +813,8 @@ static double high_dim_topology_preservation(HighDimManager *manager, int block_
         double lo_dist[MAX_TOP_NODES];
         for (int q = 0; q < sample_count; q++) {
             if (q == p) {
-                hi_dist[q] = 1e300;
-                lo_dist[q] = 1e300;
+                hi_dist[q] = lv_NEAR_INFINITY_SENTINEL;
+                lo_dist[q] = lv_NEAR_INFINITY_SENTINEL;
                 continue;
             }
             double sum_sq = 0.0;
@@ -834,8 +835,8 @@ static double high_dim_topology_preservation(HighDimManager *manager, int block_
         for (int round = 0; round < k; round++) {
             int best_hi = -1;
             int best_lo = -1;
-            double bd_hi = 1e300;
-            double bd_lo = 1e300;
+            double bd_hi = lv_NEAR_INFINITY_SENTINEL;
+            double bd_lo = lv_NEAR_INFINITY_SENTINEL;
             for (int q = 0; q < sample_count; q++) {
                 if (hi_dist[q] < bd_hi) {
                     bd_hi = hi_dist[q];
@@ -849,10 +850,10 @@ static double high_dim_topology_preservation(HighDimManager *manager, int block_
             hi_nn[round] = best_hi;
             lo_nn[round] = best_lo;
             if (best_hi >= 0) {
-                hi_dist[best_hi] = 1e300;
+                hi_dist[best_hi] = lv_NEAR_INFINITY_SENTINEL;
             }
             if (best_lo >= 0) {
-                lo_dist[best_lo] = 1e300;
+                lo_dist[best_lo] = lv_NEAR_INFINITY_SENTINEL;
             }
         }
 

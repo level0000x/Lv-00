@@ -158,11 +158,8 @@ bool lv_check_version(const char *min_version) {
  * 时间工具
  * ============================================================ */
 
-/* 时间单位转换常量 */
-#define lv_US_PER_MS 1000   /**< 微秒转毫秒 */
-#define lv_MS_PER_S 1000    /**< 毫秒转秒 */
-#define lv_US_PER_S 1000000 /**< 微秒转秒 */
-#define lv_NS_PER_S 1000000000ULL /**< 纳秒转秒 */
+/* 时间单位转换常量统一来自 lv_utils.h（lv_US_PER_MS / lv_MS_PER_S / lv_US_PER_S / lv_NS_PER_S），
+ * 此处不再重复定义，避免与权威常量漂移。 */
 
 #ifdef _WIN32
 

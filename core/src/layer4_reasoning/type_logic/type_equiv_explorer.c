@@ -147,7 +147,7 @@ static TypeEquivNode *create_child_node(const TypeEquivNode *parent, int parent_
     child->parent_index = parent_idx;
     child->applied_rule_index = rule_idx;
     child->applied_to_left = apply_to_left;
-    snprintf(child->applied_rule_name, sizeof(child->applied_rule_name), "%s", rule->name);
+    lv_strlcpy(child->applied_rule_name, rule->name, sizeof(child->applied_rule_name));
 
     /* 规则应用由调用者在正确的 ts 上下文中执行 */
     return child;

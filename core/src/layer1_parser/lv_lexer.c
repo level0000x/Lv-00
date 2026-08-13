@@ -19,6 +19,8 @@
 
 #include "lv/lv_lexer.h"
 
+#include "lv/lv_xmacro.h"
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -517,82 +519,9 @@ LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer) {
  * @return 类型名称字符串（静态存储，无需释放）
  */
 const char *lv_token_type_name(LvTokenType type) {
-    static const char *names[] = {"INTEGER",
-                                  "RATIONAL",
-                                  "DECIMAL",
-                                  "STRING",
-                                  "IDENTIFIER",
-                                  "KW_ANGLE",
-                                  "KW_AREA",
-                                  "KW_ASSERT",
-                                  "KW_ASSUME",
-                                  "KW_AXIOM",
-                                  "KW_BOOL",
-                                  "KW_BOTTOM",
-                                  "KW_CIRCLE",
-                                  "KW_COLLINEAR",
-                                  "KW_COMPUTE",
-                                  "KW_CONGRUENT",
-                                  "KW_CONSTRAINT",
-                                  "KW_DISTANCE",
-                                  "KW_EXISTS",
-                                  "KW_EXPORT",
-                                  "KW_FALSE",
-                                  "KW_FORALL",
-                                  "KW_IMPORT",
-                                  "KW_LENGTH",
-                                  "KW_LET",
-                                  "KW_LINE",
-                                  "KW_MEASURE",
-                                  "KW_MODULE",
-                                  "KW_NORMALIZE",
-                                  "KW_NOT",
-                                  "KW_OR",
-                                  "KW_AND",
-                                  "KW_PARALLEL",
-                                  "KW_PERPENDICULAR",
-                                  "KW_POINT",
-                                  "KW_POLYGON",
-                                  "KW_PROOF",
-                                  "KW_PROPOSITION",
-                                  "KW_PROVE",
-                                  "KW_RADIUS",
-                                  "KW_RAY",
-                                  "KW_SCALAR",
-                                  "KW_SEGMENT",
-                                  "KW_TANGENT",
-                                  "KW_THEOREM",
-                                  "KW_TRIANGLE",
-                                  "KW_TRUE",
-                                  "LPAREN",
-                                  "RPAREN",
-                                  "LBRACE",
-                                  "RBRACE",
-                                  "LBRACKET",
-                                  "RBRACKET",
-                                  "SEMICOLON",
-                                  "COMMA",
-                                  "DOT",
-                                  "COLON",
-                                  "EQUALS",
-                                  "EQEQ",
-                                  "NEQ",
-                                  "LT",
-                                  "LE",
-                                  "GT",
-                                  "GE",
-                                  "PLUS",
-                                  "MINUS",
-                                  "STAR",
-                                  "SLASH",
-                                  "CARET",
-                                  "ARROW",
-                                  "DARROW",
-                                  "MODELS",
-                                  "THEREFORE",
-                                  "PIPE",
-                                  "EOF",
-                                  "ERROR"};
+    static const char *const names[] = {
+        lv_XMACRO_TO_NAME_ARRAY(LV_TOKEN_TYPE_X)
+    };
     if (type >= 0 && type < LV_TOKEN_COUNT)
         return names[type];
     return "UNKNOWN";

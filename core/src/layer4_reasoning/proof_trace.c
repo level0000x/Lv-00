@@ -17,6 +17,7 @@
 #include <time.h>
 
 #include "lv/lv_internal.h"
+#include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 
 /* ============================================================
@@ -175,37 +176,19 @@ char *lv_proof_trace_export(const ProofTrace *trace) {
     if (!trace)
         return NULL;
 
-    /* 分配输出缓冲区 */
-    size_t buf_size = (size_t) trace->steps.count * 256 + 1024;
-    char *buf = lv_malloc(buf_size);
-    if (!buf)
-        return NULL;
-
-    int pos = 0;
-/* 写入前计算剩余空间，防止 pos 超过 buf_size 导致回绕 */
-#define TRACE_WRITE(...)                                                       \
-    do {                                                                       \
-        if ((size_t) pos < buf_size) {                                         \
-            int n = snprintf(buf + pos, buf_size - (size_t) pos, __VA_ARGS__); \
-            pos += (n > 0 ? n : 0);                                            \
-            if ((size_t) pos > buf_size)                                       \
-                pos = (int) buf_size;                                          \
-        }                                                                      \
-    } while (0)
-
-    TRACE_WRITE("=== 证明追踪 ===\n");
-    TRACE_WRITE("步骤数: %d\n", trace->steps.count);
-    TRACE_WRITE("状态: %s\n\n", trace->complete ? "完成" : "进行中");
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "=== 证明追踪 ===\n");
+    lv_strbuf_printf(&sb, "步骤数: %d\n", trace->steps.count);
+    lv_strbuf_printf(&sb, "状态: %s\n\n", trace->complete ? "完成" : "进行中");
 
     for (int i = 0; i < trace->steps.count; i++) {
         ProofStep *step = (ProofStep *)lv_darray_get(&trace->steps, i);
-        TRACE_WRITE("步骤 %d: %s", step->step_id, step->rule);
+        lv_strbuf_printf(&sb, "步骤 %d: %s", step->step_id, step->rule);
         if (step->state_desc[0] != '\0') {
-            TRACE_WRITE(" [%s]", step->state_desc);
+            lv_strbuf_printf(&sb, " [%s]", step->state_desc);
         }
-        TRACE_WRITE("\n");
+        lv_strbuf_printf(&sb, "\n");
     }
-#undef TRACE_WRITE
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }

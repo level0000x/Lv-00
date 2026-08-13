@@ -764,18 +764,18 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
     /* 设置支撑集 */
     {
         static const double kDistSupportLo[] = {
-            0.0,    /* PROB_DIST_UNIFORM */
-            -1e308, /* PROB_DIST_NORMAL */
-            0.0,    /* PROB_DIST_BETA */
-            -1e308, /* PROB_DIST_DISCRETE */
-            -1e308  /* PROB_DIST_CUSTOM */
+            0.0,                    /* PROB_DIST_UNIFORM */
+            -lv_INFINITY_SENTINEL,  /* PROB_DIST_NORMAL */
+            0.0,                    /* PROB_DIST_BETA */
+            -lv_INFINITY_SENTINEL,  /* PROB_DIST_DISCRETE */
+            -lv_INFINITY_SENTINEL   /* PROB_DIST_CUSTOM */
         };
         static const double kDistSupportHi[] = {
-            1.0,    /* PROB_DIST_UNIFORM */
-            1e308,  /* PROB_DIST_NORMAL */
-            1.0,    /* PROB_DIST_BETA */
-            1e308,  /* PROB_DIST_DISCRETE */
-            1e308   /* PROB_DIST_CUSTOM */
+            1.0,                   /* PROB_DIST_UNIFORM */
+            lv_INFINITY_SENTINEL,  /* PROB_DIST_NORMAL */
+            1.0,                   /* PROB_DIST_BETA */
+            lv_INFINITY_SENTINEL,  /* PROB_DIST_DISCRETE */
+            lv_INFINITY_SENTINEL   /* PROB_DIST_CUSTOM */
         };
         static const int kDistSupportCount =
             (int)(sizeof(kDistSupportLo) / sizeof(kDistSupportLo[0]));
@@ -786,8 +786,8 @@ ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_
             dist->support_lo = kDistSupportLo[(int)type];
             dist->support_hi = kDistSupportHi[(int)type];
         } else {
-            dist->support_lo = -1e308;
-            dist->support_hi = 1e308;
+            dist->support_lo = -lv_INFINITY_SENTINEL;
+            dist->support_hi = lv_INFINITY_SENTINEL;
         }
     }
 

@@ -158,8 +158,7 @@ static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProo
     const char *pos = start;
     while (pos < end) {
         /* 跳过空白和空行 */
-        while (pos < end && isspace((unsigned char) *pos))
-            pos++;
+        pos = lv_str_skip_ws_n(pos, end);
         if (pos >= end)
             break;
 
@@ -207,8 +206,7 @@ static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProo
                 pos = with_kw;
                 /* 解析 match 分支：| pattern => tactic */
                 while (pos < end) {
-                    while (pos < end && isspace((unsigned char) *pos))
-                        pos++;
+                    pos = lv_str_skip_ws_n(pos, end);
                     if (pos >= end)
                         break;
                     if (*pos == '|') {
@@ -230,8 +228,7 @@ static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProo
                         }
                         if (found_arrow) {
                             pos = arrow + 2;
-                            while (pos < end && isspace((unsigned char) *pos))
-                                pos++;
+                            pos = lv_str_skip_ws_n(pos, end);
                             /* 检查分支 tactic 是否是嵌套的 by 块 */
                             if (strncmp(pos, "by", 2) == 0 && (pos[2] == ' ' || pos[2] == '\n' || pos[2] == '\t')) {
                                 pos += 2;
@@ -333,8 +330,7 @@ static void lean4_parse_tactics(const char *start, const char *end, lvBridgeProo
 
         /* 跳过当前 tactic 的参数（括号内容） */
         while (pos < end) {
-            while (pos < end && isspace((unsigned char) *pos))
-                pos++;
+            pos = lv_str_skip_ws_n(pos, end);
             if (pos >= end)
                 break;
             if (*pos == '(') {

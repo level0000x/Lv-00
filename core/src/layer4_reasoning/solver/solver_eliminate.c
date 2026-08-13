@@ -104,8 +104,7 @@ SolverStatus eliminate_geometry(ConstraintGraph *graph, int target_var_id, const
                     GeomNode *p3 = graph_get_node(graph, c->participants[2]);
                     if (p1 && p3 && p1->coord_count >= 2 && p3->coord_count >= 2) {
                         double x1, y1, x3, y3;
-                        if (point_coord(p1, 0, &x1) && point_coord(p1, 1, &y1) && point_coord(p3, 0, &x3) &&
-                            point_coord(p3, 1, &y3)) {
+                        if (point_coord_xy(p1, &x1, &y1) && point_coord_xy(p3, &x3, &y3)) {
                             GeomNode *target = graph_get_node(graph, eid);
                             if (target) {
                                 lv_free((void **) &target->numeric_assumption_declaration);

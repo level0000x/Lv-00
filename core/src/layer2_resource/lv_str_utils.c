@@ -281,6 +281,14 @@ const char *lv_str_skip_ws(const char *p) {
     return p;
 }
 
+const char *lv_str_skip_ws_n(const char *p, const char *end) {
+    if (!p || !end)
+        return p;
+    while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
+        p++;
+    return p;
+}
+
 const char *lv_str_skip_until(const char *p, const char *any_of) {
     if (!p || !any_of)
         return p;

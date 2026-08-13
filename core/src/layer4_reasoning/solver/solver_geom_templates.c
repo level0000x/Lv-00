@@ -105,9 +105,9 @@ int template_similar_triangles(ConstraintGraph *graph, EquationSystem *sys) {
                     continue;
 
                 double xa, ya, xb, yb, xc, yc;
-                bool has_coords = point_coord(nodeA, 0, &xa) && point_coord(nodeA, 1, &ya) &&
-                                  point_coord(nodeB, 0, &xb) && point_coord(nodeB, 1, &yb) &&
-                                  point_coord(nodeC, 0, &xc) && point_coord(nodeC, 1, &yc);
+                bool has_coords = point_coord_xy(nodeA, &xa, &ya) &&
+                                  point_coord_xy(nodeB, &xb, &yb) &&
+                                  point_coord_xy(nodeC, &xc, &yc);
                 if (!has_coords)
                     continue;
 
@@ -179,9 +179,9 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                     continue;
 
                 double xa, ya, xb, yb, xc, yc;
-                bool has_coords = point_coord(nodeA, 0, &xa) && point_coord(nodeA, 1, &ya) &&
-                                  point_coord(nodeB, 0, &xb) && point_coord(nodeB, 1, &yb) &&
-                                  point_coord(nodeC, 0, &xc) && point_coord(nodeC, 1, &yc);
+                bool has_coords = point_coord_xy(nodeA, &xa, &ya) &&
+                                  point_coord_xy(nodeB, &xb, &yb) &&
+                                  point_coord_xy(nodeC, &xc, &yc);
                 if (!has_coords)
                     continue;
 
@@ -394,7 +394,7 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         if (!n1 || !n2)
             continue;
         double x1, y1, x2, y2;
-        if (point_coord(n1, 0, &x1) && point_coord(n1, 1, &y1) && point_coord(n2, 0, &x2) && point_coord(n2, 1, &y2)) {
+        if (point_coord_xy(n1, &x1, &y1) && point_coord_xy(n2, &x2, &y2)) {
             segs[s].dx = x2 - x1;
             segs[s].dy = y2 - y1;
         }

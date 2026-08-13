@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "lv_internal.h"
+#include "lv/lv_strbuf.h"
 #include "lv_utils.h"
 
 /* ============================================================
@@ -239,29 +240,16 @@ static char *cnf_to_dimacs(const CNFBuilder *cnf) {
     if (!cnf)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "cnf_to_dimacs: cnf 为空");
 
-    /* 估算缓冲区大小 */
-    size_t est_size = 256;
-    for (int i = 0; i < cnf->clause_count; i++) {
-        est_size += (size_t) (cnf->clause_sizes[i] * 16 + 2);
-    }
-
-    char *buf = (char *) lv_malloc(est_size);
-    if (!buf)
-        lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "cnf_to_dimacs: 分配缓冲区失败");
-
-    int offset = snprintf(buf, est_size, "p cnf %d %d\n", cnf->var_count, cnf->clause_count);
+    lvStrBuf sb = {0};
+    lv_strbuf_printf(&sb, "p cnf %d %d\n", cnf->var_count, cnf->clause_count);
     for (int i = 0; i < cnf->clause_count; i++) {
         for (int j = 0; j < cnf->clause_sizes[i]; j++) {
-            int written = snprintf(buf + offset, est_size - (size_t) offset, "%d ", cnf->clauses[i][j]);
-            if (written > 0)
-                offset += written;
+            lv_strbuf_printf(&sb, "%d ", cnf->clauses[i][j]);
         }
-        int written = snprintf(buf + offset, est_size - (size_t) offset, "0\n");
-        if (written > 0)
-            offset += written;
+        lv_strbuf_printf(&sb, "0\n");
     }
 
-    return buf;
+    return lv_strbuf_to_string(&sb);
 }
 
 /* ============================================================

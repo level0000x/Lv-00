@@ -461,7 +461,7 @@ bool lv_context_check_timeout(lvContext *ctx) {
     }
 
     uint64_t now = lv_get_time_us();
-    uint64_t elapsed_ms = (now - ctx->circuit_breaker.operation_start_us) / 1000;
+    uint64_t elapsed_ms = (now - ctx->circuit_breaker.operation_start_us) / lv_US_PER_MS;
 
     if (elapsed_ms >= ctx->circuit_breaker.timeout_ms) {
         /* 触发熔断（状态/时间/计数/原因由核心熔断器记录） */

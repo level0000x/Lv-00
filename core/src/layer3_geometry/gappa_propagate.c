@@ -165,8 +165,7 @@ static PropInterval parse_expr(Parser *p);
 
 /** @brief 跳过空白字符 */
 static void skip_ws(Parser *p) {
-    while (*p->pos && isspace((unsigned char) *p->pos))
-        p->pos++;
+    p->pos = lv_str_skip_ws(p->pos);
 }
 
 /** @brief 解析因子（数字、变量、括号、函数调用） */

@@ -169,8 +169,7 @@ static int coq_import_proof(const char *input, void **proof) {
     const char *line = script_start;
     while (line < qed_kw) {
         /* 跳过空白 */
-        while (line < qed_kw && isspace((unsigned char) *line))
-            line++;
+        line = lv_str_skip_ws_n(line, qed_kw);
         if (line >= qed_kw)
             break;
 

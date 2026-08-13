@@ -515,8 +515,8 @@ SMTBackendRegistry *smtsolver_get_registry(void) {
             SMTBackendEntry *entry = &s_smt_registry_state.registry.entries[s_smt_registry_state.registry.count];
             memset(entry, 0, sizeof(*entry));
             entry->type = kBuiltinBackends[i].type;
-            snprintf(entry->name, sizeof(entry->name), "%s", kBuiltinBackends[i].name);
-            snprintf(entry->version, sizeof(entry->version), "%s", kBuiltinBackends[i].version);
+            lv_strlcpy(entry->name, kBuiltinBackends[i].name, sizeof(entry->name));
+            lv_strlcpy(entry->version, kBuiltinBackends[i].version, sizeof(entry->version));
             entry->available = smtsolver_is_backend_available(kBuiltinBackends[i].type);
             entry->priority = kBuiltinBackends[i].priority;
             s_smt_registry_state.registry.count++;

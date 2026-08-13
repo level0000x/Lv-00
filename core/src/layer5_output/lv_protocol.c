@@ -432,7 +432,7 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
                                           : health >= 50 ? lv_COLOR_YELLOW
                                                          : lv_COLOR_RED);
     row->trust_color = health >= 80 ? lv_COLOR_GREEN : health >= 50 ? lv_COLOR_YELLOW : lv_COLOR_RED;
-    snprintf(row->status, sizeof(row->status), "%s", health >= 80 ? "OK" : health >= 50 ? "Warn" : "Error");
+    lv_strlcpy(row->status, health >= 80 ? "OK" : health >= 50 ? "Warn" : "Error", sizeof(row->status));
     row->parent_block_id = -1;
 
     /* 行 1: 节点数量 */

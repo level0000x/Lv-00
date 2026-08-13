@@ -45,7 +45,7 @@ static void collect_atoms_visit_atom(const PropFormula *f, void *context) {
             return;
     }
     if (ctx->count < ctx->max_atoms) {
-        snprintf(ctx->atoms[ctx->count], PROP_ATOM_NAME_MAX_LEN, "%s", f->data.atom.name);
+        lv_strlcpy(ctx->atoms[ctx->count], f->data.atom.name, PROP_ATOM_NAME_MAX_LEN);
         ctx->count++;
     }
 }

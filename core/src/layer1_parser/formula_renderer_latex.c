@@ -66,9 +66,9 @@ static int helper_latex_variable(const FormulaNode *node, char *buffer, size_t s
 {
     int written = 0;
     if (is_greek_letter(node->data.variable.name)) {
-        written = snprintf(buffer, size, "%s", formula_latex_greek_name(node->data.variable.name));
+        written = (int) lv_strlcpy(buffer, formula_latex_greek_name(node->data.variable.name), size);
     } else {
-        written = snprintf(buffer, size, "%s", node->data.variable.name);
+        written = (int) lv_strlcpy(buffer, node->data.variable.name, size);
     }
     return written;
 }
@@ -79,7 +79,7 @@ static int helper_latex_identifier(const FormulaNode *node, char *buffer, size_t
     int written = 0;
     /* NODE_IDENTIFIER 名称接入 LaTeX 转义，防止特殊字符破坏 LaTeX 结构 */
     char *esc = latex_escape_alloc(node->data.identifier.name);
-    written = snprintf(buffer, size, "%s", esc ? esc : "");
+    written = (int) lv_strlcpy(buffer, esc ? esc : "", size);
     lv_free((void **) &esc);
     return written;
 }
@@ -257,7 +257,7 @@ static int helper_latex_geom_circle(const FormulaNode *node, char *buffer, size_
     if (node->data.geom_circle.center) {
         if (node->data.geom_circle.center->type == NODE_IDENTIFIER) {
             char *esc_name = latex_escape_alloc(node->data.geom_circle.center->data.identifier.name);
-            snprintf(center_buf, sizeof(center_buf), "%s", esc_name ? esc_name : "");
+            lv_strlcpy(center_buf, esc_name ? esc_name : "", sizeof(center_buf));
             lv_free((void **) &esc_name);
         } else {
             int center_ret =
