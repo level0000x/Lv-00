@@ -2035,3 +2035,60 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 ### 后续候选（暂缓，层模型精简）
 
 L7/L9 空层处置、L10→L8 冗余链接删除、meta_verify.c 并入 L4、L10 三文件并入 L5、orchestrator.h/application.h 归档、L4 按子域拆 OBJECT 库（环破完后的自然延伸）。
+
+## 三十一、批次 C-⑪：L4 按子域拆 OBJECT 库（2026-08-14）
+
+用户指令「可以研究一下架构的激进优化」，并补充**「十层架构不太可以动因为后面是要拓展的，我说的是其他的架构优化」**。经 AskUserQuestion 选定 **C：L4 按子域拆 OBJECT 库**。层模型坍缩候选（A）与空层处置撤销——十层保留为扩展预留。
+
+### 研究修正（相对 C-⑩ 候选清单）
+
+- **orchestrator.h 为活跃 API**：lvSession/lv_orchestrator_* 由 L0 的 lv_impl_upper_orchestrator.c 实现，L0 便捷层消费——「归档」候选**否定**。
+- **application.h 已删**，无归档对象。
+- **L10→L8 链接为死链接**（实证）：lean4_bridge/coq_bridge/opml_codec 三个 bridge 零 meta_verify 符号引用；因十层模型冻结（用户裁决），链接保留不动，清理待单独裁决。
+- **L8 链接表达缺口**：lv_layer8_meta_verify 无任何 target_link_libraries（模型应 L2/L3/L4）；本轮不动（十层冻结）。
+
+### 实施明细（19 个子域 OBJECT 库）
+
+- 原 lv_LAYER4_SOURCES（267 文件）按子域目录拆为 19 个 `lv_L4_*_SOURCES`：core（根级门面/调试，24）/ axiom（9）/ backends（20）/ dsl（5）/ engine（21）/ expr（3）/ func_block（27）/ kernel（3）/ lambda（4）/ model（12）/ module（6）/ numeric（14，含 backends/ 4）/ proof（24，含根级 proof_trace.c）/ proof_system（14 + ${lv_PROP_VERIFIER_SOURCES} 16）/ rewrite（13）/ solver（19，含 sat_encoding）/ stream（1）/ type_logic（16）/ unify（12）。
+- **lv_l4_subdomain 宏**统一建库：`add_library(OBJECT)` + `lv_setup_layer(name 4)` + 基础链接 `lv_layer3_geometry lv_layer2_resource`（L4 层模型依赖）。
+- **lv_l4_func_block** 额外 PRIVATE 定义 `lv_PRESETS_DIR`（preset_blocks.c 唯一使用者，原随大库）。
+- **lv_L4_LIBS 聚合变量**：供 L5/L6 `target_link_libraries` 与 lv_static/lv_shared `$<TARGET_OBJECTS>` 聚合展开（19 个）。
+- lv_PROP_VERIFIER_SOURCES 变量保留：proof_system 库引用 + test_prop_verifier EXTRA_SOURCES 复用（单一清单维护）。
+- 完整性核对脚本：磁盘 layer4_reasoning 265 个 .c（排除 preset/ 55 个 .lvz 生成源孤儿）= CMake 注册 265，**双向零差异**。
+- 跨子域链接逐域精化（proof↔engine 等 DAG 细化）留作后续批次（本轮统一 L3+L2 基础依赖，构建正确性不受影响）。
+
+### 批次 C-⑪ 执行结果
+
+- **build3**：ninja 922/922 全绿 + ctest 170/170（首轮 performance_test 并行负载波动失败、单独重跑 10.93s 通过，非回归）。
+- **build_verify**（ENABLE_LAYER_VALIDATION=ON）：ninja 447/447 全绿 + ctest 170/170，层验证 0 违规。
+- L4 增量构建收益就位：改 proof 域只重编 lv_l4_proof + 聚合链接。
+
+### 决策登记（第 9 章格式）
+
+- L4 子域拆分 / 批次C-⑪ / 267 文件 → 19 个 OBJECT 库 / 增量构建 + 子域边界显式化；统一基础依赖 L3+L2，跨子域链接逐域精化留后续 / 全量回归。
+- 十层模型冻结 / 批次C-⑪ / L7-L10 空/小层 / 用户明确：十层为未来扩展预留，不做层坍缩（候选 A 撤销）/ 不执行。
+- 候选修正 / 批次C-⑪ / orchestrator.h「归档」否定（L0 活跃实现 lv_orchestrator_*）；application.h 已删无归档对象 / 不执行。
+- 死链接实证 / 批次C-⑪ / L10→L8 / 三 bridge 零 meta_verify 引用；因十层冻结保留链接表达，清理待单独裁决 / 不执行。
+- L8 链接表达缺口确认 / 批次C-⑪ / lv_layer8_meta_verify 无依赖链接 / 模型应 L2/L3/L4，本轮不动 / 后续待裁决。
+
+### 批次 C-⑪-补：L4 子域 DAG 显式化——断 engine↔proof 残余环（2026-08-14）
+
+用户「可以研究一下架构的激进优化」再次触发，进入 C-⑪ 遗留候选「跨子域链接逐域精化」的实施。
+
+- 扫描工具：`scan_l4_subdomains.py`（一次性）按子域目录聚合 include 计数，生成 19×19 矩阵 + DFS 环检测 + 耦合度排名，支持 `--exclude-core`。
+- **core 门面域是 hub**（入 107 / 出 28）：proof→core 32、engine→core 19、proof_system→core 20、unify→core 9…core 反指向全部子域。伪环 core→engine→func_block→core 属门面固有形态，**不破**（门面语义就是引所有子域）。
+- **排除 core 后唯一真环 = engine↔proof**，两处成因：
+  1. `proof.c` 死 `#include "lv/engine.h"`（C-⑩ 曾列死 include，本批证实漏删；grep 确认零 lvEngine 符号使用）→ **删除**。
+  2. `conflict_detector.c` 异域（原 engine/ 目录，真消费方是 proof 域 meta_verify.c 的 `lv_conflict_detect_quick`）→ **git mv 至 proof/ 归位**。
+- conflict_detector 归位安全性：依赖面全为 L2/L3 基础设施（constraint_graph / lv_graph_traversal / union_find_util 等），语义属推理辅助，归 proof 域无环。
+- 重扫确认：**排除 core 后无环（DAG）✓**。
+- CMake 遗留修复：lv_L4_ENGINE_SOURCES 残留旧路径 `engine/conflict_detector.c`（此前 SearchReplace 删除未持久化，致 build3 首构失败）→ 删除；grep 复核后 CMakeLists 仅 3 处引用（:507 头文件清单 / :1238 proof 新路径 / :1901 测试注册）。
+- **build3**：ninja 923/923 全绿 + ctest **170/170**（124s，performance_test 本轮并行通过）。
+
+### 决策登记（第 9 章格式）
+
+- 断 engine↔proof 残余环 / 批次C-⑪-补 / proof.c 删死 include + conflict_detector.c git mv 归 proof 域 / 排除 core 门面域后 L4 子域依赖为 DAG / 全量回归 170/170。
+
+### 后续候选（暂缓）
+
+L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选，需重新审视门面职责）、巨型文件拆分（simd_ops 2148 行 / interop_import 2147 行等，代码组织层）。

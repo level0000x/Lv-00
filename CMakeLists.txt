@@ -963,7 +963,7 @@ set(lv_LAYER3_SOURCES
 # 职责：引擎、求解器、证明、重写、合一、规范化、类型系统、公理包
 # 依赖：Layer 3，Layer 2
 
-# prop_verifier 模块源文件（lv_LAYER4_SOURCES 与 test_prop_verifier EXTRA_SOURCES 共用，
+# prop_verifier 模块源文件（lv_L4_PROOF_SYSTEM_SOURCES 与 test_prop_verifier EXTRA_SOURCES 共用，
 # 避免同一清单维护两处）
 set(lv_PROP_VERIFIER_SOURCES
     core/src/layer4_reasoning/proof_system/prop_verifier.c
@@ -986,59 +986,18 @@ set(lv_PROP_VERIFIER_SOURCES
     core/src/layer4_reasoning/proof_system/prop_formula_ops.c
 )
 
-set(lv_LAYER4_SOURCES
-    # 核心引擎与求解
-    core/src/layer4_reasoning/engine/engine.c
-    core/src/layer4_reasoning/engine/engine_circuit.c
-    core/src/layer4_reasoning/engine/engine_error.c
-    core/src/layer4_reasoning/engine/engine_frozen.c
-    core/src/layer4_reasoning/engine/engine_function.c
-    core/src/layer4_reasoning/engine/engine_lifecycle.c
-    core/src/layer4_reasoning/engine/engine_resource.c
-    core/src/layer4_reasoning/engine/engine_solve.c
-    core/src/layer4_reasoning/engine/engine_state.c
-    core/src/layer4_reasoning/engine/engine_status.c
-    core/src/layer4_reasoning/engine/engine_stream.c
+# ────────────────────────────────────────────────────────────
+# Layer 4 子域 SOURCES（2026-08-14 按子域拆分为独立 OBJECT 库：
+# 增量构建 + 子域边界显式化；L4 五个 include 环已于 C-⑩ 全破）
+# ────────────────────────────────────────────────────────────
+
+# L4 根级公共/聚合域（跨子域的门面与调试设施）
+set(lv_L4_CORE_SOURCES
     core/src/layer4_reasoning/solver.c
-    core/src/layer4_reasoning/solver/solver_core.c
-    # 证明系统
     core/src/layer4_reasoning/proof.c
-    core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
-    core/src/layer4_reasoning/proof_system/proof_search_algo.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_core.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_vector.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_angle.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_deductive.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_coordinate.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_hol_oracle.c
-    core/src/layer4_reasoning/proof_system/proof_strategy_numeric.c
-    core/src/layer4_reasoning/proof_trace.c
-    core/src/layer4_reasoning/proof/proof_tree.c
-    core/src/layer4_reasoning/proof_system/logic_check.c
-    core/src/layer4_reasoning/circuit_breaker.c
-    # 三值逻辑、模态算子、量词系统
-    core/src/layer4_reasoning/type_logic/three_valued_logic.c
-    core/src/layer4_reasoning/type_logic/modal_operators.c
-    core/src/layer4_reasoning/type_logic/quantifier.c
-    # 增强证明引擎
-    core/src/layer4_reasoning/engine/proof_engine_enhanced.c
-    core/src/layer4_reasoning/engine/proof_engine.c
-    core/src/layer4_reasoning/engine/proof_strategy.c
-    core/src/layer4_reasoning/engine/proof_verify.c
-    core/src/layer4_reasoning/engine/proof_optimize.c
-    core/src/layer4_reasoning/engine/proof_export.c
-    core/src/layer4_reasoning/engine/proof_trace_tree.c
-    core/src/layer4_reasoning/engine/proof_contradiction.c
-    # 重写与合一
     core/src/layer4_reasoning/rewrite.c
-    # dsl 家族（自 L1 整体迁入：load 阶段 IR→ConstraintGraph（L3）并注册公理包
-    # AxiomPackage（L4）；消费方仅 L0 orchestrator/app/convenience）
-    core/src/layer4_reasoning/dsl/dsl_compiler.c
-    core/src/layer4_reasoning/dsl/dsl_compiler_parse.c
-    core/src/layer4_reasoning/dsl/dsl_compiler_ir.c
-    core/src/layer4_reasoning/dsl/dsl_compiler_load.c
-    core/src/layer4_reasoning/dsl/dsl_lexer.c
+    core/src/layer4_reasoning/module.c
+    core/src/layer4_reasoning/circuit_breaker.c
     # 几何演化引擎（ODE 积分器/数值后端属 L4 numeric 域）自 L3 迁入
     core/src/layer4_reasoning/geom_evol.c
     # 交互式几何（接受 lvEngine*，依赖 engine.h L4）自 L3 迁入
@@ -1052,36 +1011,40 @@ set(lv_LAYER4_SOURCES
     # 引擎状态验证器（自 L2 归位：依赖 lvEngine/TypeSystem，debug 模式下被 engine_solve 调用）
     core/src/layer4_reasoning/debug_normalize_assert.c
     core/src/layer4_reasoning/debug_invariants.c
-    core/src/layer4_reasoning/unify/unify.c
-    core/src/layer4_reasoning/unify/unify_basic.c
-    core/src/layer4_reasoning/unify/unify_equivalence.c
-    core/src/layer4_reasoning/unify/unify_fine.c
-    core/src/layer4_reasoning/unify/unify_hash.c
-    core/src/layer4_reasoning/unify/unify_helpers.c
-    core/src/layer4_reasoning/unify/unify_instantiate.c
-    core/src/layer4_reasoning/unify/unify_report.c
-    core/src/layer4_reasoning/unify/unify_simplify.c
-    core/src/layer4_reasoning/unify/normalization.c
-    core/src/layer4_reasoning/unify/graph_hash.c
-    core/src/layer4_reasoning/unify/lambda_unify.c
-    core/src/layer4_reasoning/model/recursion.c
-    core/src/layer4_reasoning/model/recursion_context.c
-    core/src/layer4_reasoning/model/recursion_measure.c
-    core/src/layer4_reasoning/model/recursion_mutual.c
-    core/src/layer4_reasoning/model/recursion_selector.c
-    core/src/layer4_reasoning/model/recursion_symbolic_measure.c
-    core/src/layer4_reasoning/model/recursion_test.c
-    core/src/layer4_reasoning/model/recursion_utils.c
-    core/src/layer4_reasoning/model/recursion_validation.c
-    core/src/layer4_reasoning/model/recursion_test_suite.c
-    # 类型与属性
-    core/src/layer4_reasoning/type_logic/type_system.c
-    core/src/layer4_reasoning/type_logic/type_check.c
-    core/src/layer4_reasoning/type_logic/type_infer.c
-    core/src/layer4_reasoning/type_logic/type_path_explorer.c
-    core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
-    ${lv_PROP_VERIFIER_SOURCES}
-    # 后端求解引擎
+    # 精确算术（定义在 layer4_reasoning/exact_arithmetic.c）
+    core/src/layer4_reasoning/exact_arithmetic.c
+    # 命令日志系统
+    core/src/layer4_reasoning/command_log.c
+    # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
+    core/src/layer4_reasoning/bootstrap_test.c
+    core/src/layer4_reasoning/bootstrap_test_init.c
+    core/src/layer4_reasoning/bootstrap_test_diff.c
+    core/src/layer4_reasoning/bootstrap_test_random.c
+    core/src/layer4_reasoning/bootstrap_test_iso.c
+    core/src/layer4_reasoning/bootstrap_test_primitive.c
+    core/src/layer4_reasoning/bootstrap_test_oracle.c
+    core/src/layer4_reasoning/bootstrap_test_report.c
+    # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
+    core/src/layer4_reasoning/meta_proof.c
+    # v1.1.0 补全遗漏：公理规则引擎
+    core/src/layer4_reasoning/axiom_rule_engine.c
+)
+
+# axiom 公理包域
+set(lv_L4_AXIOM_SOURCES
+    core/src/layer4_reasoning/axiom/axiom_pkg.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_core.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_parser.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_serialize.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_verify.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_expand.c
+    core/src/layer4_reasoning/axiom/axiom_pkg_depref.c
+    core/src/layer4_reasoning/axiom/axiom_grade.c
+    core/src/layer4_reasoning/axiom/axiom_template_test.c
+)
+
+# backends 后端求解引擎域
+set(lv_L4_BACKENDS_SOURCES
     core/src/layer4_reasoning/backends/groebner_engine.c
     core/src/layer4_reasoning/backends/groebner_engine_core.c
     core/src/layer4_reasoning/backends/groebner_engine_ring.c
@@ -1097,74 +1060,59 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/atp_backend.c
     core/src/layer4_reasoning/backends/bdd_encoding.c
     core/src/layer4_reasoning/backends/probabilistic_constraint.c
-    core/src/layer4_reasoning/expr/expr_canon.c
-    core/src/layer4_reasoning/exact_arithmetic.c
-    # v1.1.0 新增：表达式规范化、不等式推理
-    core/src/layer4_reasoning/expr/expr_canonical.c
-    # 模型与模式
-    core/src/layer4_reasoning/model/relation_model.c
-    core/src/layer4_reasoning/model/algebra_mode.c
-    core/src/layer4_reasoning/numeric/numerical_backend.c
-    # BiCGSTAB 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
-    core/src/layer4_reasoning/numeric/bicgstab_shared.c
-    # GMRES(m) 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
-    core/src/layer4_reasoning/numeric/gmres_shared.c
-    core/src/layer4_reasoning/numeric/host_linalg.c
-    # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
-    core/src/layer4_reasoning/numeric/backends/default_host_ops.c
-    core/src/layer4_reasoning/numeric/backends/cuda_backend.c
-    core/src/layer4_reasoning/numeric/backends/hip_backend.c
-    core/src/layer4_reasoning/numeric/backends/singular_backend.c
-    # 内核与协议
-    core/src/layer4_reasoning/module.c
-    core/src/layer4_reasoning/kernel/mini_kernel.c
-    core/src/layer4_reasoning/kernel/gc_language.c
-    core/src/layer4_reasoning/kernel/ecosystem.c
-    # 流式基础设施（自 L4 下沉：仅依赖 L2，L1/L2/L3 均消费）
-    core/src/layer4_reasoning/stream/stream_context_util.c
-    # SMT/SAT 后端（从 Layer 3 迁移）
     core/src/layer4_reasoning/backends/smt_theory_combiner.c
     core/src/layer4_reasoning/backends/smt_bitvector.c
     core/src/layer4_reasoning/backends/smt_trigger_engine.c
-    # 证明策略（从 Layer 3 迁移）
-    core/src/layer4_reasoning/proof_system/proof_rule_engine.c
-    core/src/layer4_reasoning/proof_system/proof_session.c
-    # 数论/代数（从 Layer 3 迁移）
-    core/src/layer4_reasoning/numeric/nt_number_theory.c
-    core/src/layer4_reasoning/numeric/nt_polynomial.c
-    core/src/layer4_reasoning/expr/sym_expr.c
-    # 重写引擎（从 Layer 3 迁移）
-    core/src/layer4_reasoning/rewrite/rewrite_strategy.c
-    # 版本控制（从 Layer 3 迁移）
-    core/src/layer4_reasoning/proof_system/proof_version.c
-    # 自动微分（从 Layer 3 迁移）
-    core/src/layer4_reasoning/numeric/autodiff.c
-    # ODE 求解器（从 Layer 3 迁移）
-    core/src/layer4_reasoning/numeric/ode_solver.c
-    core/src/layer4_reasoning/numeric/ode_integrator.c
-    # v1.1.0 新增：不等式推理系统（桩实现）
-    core/src/layer4_reasoning/type_logic/inequality_reasoning.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_core.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_prove.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_classic.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_transform.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_sign.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_geo.c
-    core/src/layer4_reasoning/type_logic/inequality_reasoning_serialize.c
-    # v4.0.0 新增：自适应剪枝策略（动态阈值 + 启发式评分）
     # v5.0.0 新增：并行 Groebner 引擎（并发优化）
     core/src/layer4_reasoning/backends/groebner_parallel.c
-    # 公理包
-    core/src/layer4_reasoning/axiom/axiom_pkg.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_core.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_parser.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_serialize.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_verify.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_expand.c
-    core/src/layer4_reasoning/axiom/axiom_pkg_depref.c
-    core/src/layer4_reasoning/axiom/axiom_grade.c
-    core/src/layer4_reasoning/axiom/axiom_template_test.c
-    # func_block 函数块系统
+    core/src/layer4_reasoning/backends/approx_counter.c
+)
+
+# dsl 域（自 L1 整体迁入：load 阶段 IR→ConstraintGraph（L3）并注册公理包
+# AxiomPackage（L4）；消费方仅 L0 orchestrator/app/convenience）
+set(lv_L4_DSL_SOURCES
+    core/src/layer4_reasoning/dsl/dsl_compiler.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_parse.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_ir.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_load.c
+    core/src/layer4_reasoning/dsl/dsl_lexer.c
+)
+
+# engine 引擎域（核心引擎 + 增强证明引擎 + 调度）
+set(lv_L4_ENGINE_SOURCES
+    core/src/layer4_reasoning/engine/engine.c
+    core/src/layer4_reasoning/engine/engine_circuit.c
+    core/src/layer4_reasoning/engine/engine_error.c
+    core/src/layer4_reasoning/engine/engine_frozen.c
+    core/src/layer4_reasoning/engine/engine_function.c
+    core/src/layer4_reasoning/engine/engine_lifecycle.c
+    core/src/layer4_reasoning/engine/engine_resource.c
+    core/src/layer4_reasoning/engine/engine_solve.c
+    core/src/layer4_reasoning/engine/engine_state.c
+    core/src/layer4_reasoning/engine/engine_status.c
+    core/src/layer4_reasoning/engine/engine_stream.c
+    # 增强证明引擎
+    core/src/layer4_reasoning/engine/proof_engine_enhanced.c
+    core/src/layer4_reasoning/engine/proof_engine.c
+    core/src/layer4_reasoning/engine/proof_strategy.c
+    core/src/layer4_reasoning/engine/proof_verify.c
+    core/src/layer4_reasoning/engine/proof_optimize.c
+    core/src/layer4_reasoning/engine/proof_export.c
+    core/src/layer4_reasoning/engine/proof_trace_tree.c
+    core/src/layer4_reasoning/engine/proof_contradiction.c
+    # 引擎调度
+    core/src/layer4_reasoning/engine/engine_scheduler.c
+)
+
+# expr 表达式域
+set(lv_L4_EXPR_SOURCES
+    core/src/layer4_reasoning/expr/expr_canon.c
+    core/src/layer4_reasoning/expr/expr_canonical.c
+    core/src/layer4_reasoning/expr/sym_expr.c
+)
+
+# func_block 函数块域（含预设运行时；lv_PRESETS_DIR 编译定义随库）
+set(lv_L4_FUNC_BLOCK_SOURCES
     core/src/layer4_reasoning/func_block/func_block.c
     core/src/layer4_reasoning/func_block/func_block_compose.c
     core/src/layer4_reasoning/func_block/func_block_determinism.c
@@ -1191,42 +1139,80 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/func_block/preset_manager_compose.c
     core/src/layer4_reasoning/func_block/preset_manager_doc.c
     core/src/layer4_reasoning/func_block/preset_manager_serialize.c
-    # 数学理论预设已转换为 .lvz 格式，在运行时从 module/presets/ 加载
-    # v3.6.0 新增：WFC 范式 - 剪枝合法性元证明（Layer 4 推理层）
-    core/src/layer4_reasoning/meta_proof.c
-    # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
-    core/src/layer4_reasoning/engine/conflict_detector.c
     core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
-    # v1.1.0 补全遗漏：公理规则引擎、SIMD 运算
-    core/src/layer4_reasoning/axiom_rule_engine.c
-    # reasoning_cache（推理缓存）已删除：全库零调用
-    # simd_ops.c 在 unify/simd_ops.c（已统一）
-    # core/src/layer4_reasoning/simd_ops.c（已删除，使用 unify/ 版本）
-    # 求解器子模块：坐标提取、方程组、线性、快照、符号
-    core/src/layer4_reasoning/solver/solver_coord_extract.c
-    core/src/layer4_reasoning/solver/solver_conflict.c
-    core/src/layer4_reasoning/solver/solver_dirty_set.c
-    core/src/layer4_reasoning/solver/solver_eq_system.c
-    core/src/layer4_reasoning/solver/solver_feedback.c
-    core/src/layer4_reasoning/solver/solver_incremental.c
-    core/src/layer4_reasoning/solver/solver_linear.c
-    core/src/layer4_reasoning/solver/solver_order.c
-    core/src/layer4_reasoning/solver/solver_result.c
-    core/src/layer4_reasoning/solver/solver_snapshot.c
-    core/src/layer4_reasoning/solver/solver_stats.c
-    core/src/layer4_reasoning/solver/solver_symbolic.c
-    # 求解器扩展（新提取模块）
-    core/src/layer4_reasoning/solver/solver_eliminate.c
-    core/src/layer4_reasoning/solver/solver_engine.c
-    core/src/layer4_reasoning/solver/solver_geom_templates.c
-    core/src/layer4_reasoning/solver/solver_groebner.c
-    core/src/layer4_reasoning/solver/solver_multibranch.c
-    # SAT 编码管线（从 backends/ 移入 solver/：编码 + 驱动 CDCL 求解，断 solver↔backends 环）
-    core/src/layer4_reasoning/solver/sat_encoding.c
-    # 求解器扩展：脏集合、快照
-    # solver_dirty_set.c 和 solver_snapshot.c 已移至 solver/ 子目录
-    # 旧路径 solver_ext/ 已清理
-    # 证明子模块：依赖、导航、命题、版本、信任颜色
+)
+
+# kernel 内核域
+set(lv_L4_KERNEL_SOURCES
+    core/src/layer4_reasoning/kernel/mini_kernel.c
+    core/src/layer4_reasoning/kernel/gc_language.c
+    core/src/layer4_reasoning/kernel/ecosystem.c
+)
+
+# lambda λ-演算域（数据类型与编译）
+set(lv_L4_LAMBDA_SOURCES
+    core/src/layer4_reasoning/lambda/lambda_term.c
+    core/src/layer4_reasoning/lambda/lambda_to_graph.c
+    core/src/layer4_reasoning/lambda/lambda_type_check.c
+    core/src/layer4_reasoning/lambda/lambda_church.c
+)
+
+# model 模型/递归域
+set(lv_L4_MODEL_SOURCES
+    core/src/layer4_reasoning/model/recursion.c
+    core/src/layer4_reasoning/model/recursion_context.c
+    core/src/layer4_reasoning/model/recursion_measure.c
+    core/src/layer4_reasoning/model/recursion_mutual.c
+    core/src/layer4_reasoning/model/recursion_selector.c
+    core/src/layer4_reasoning/model/recursion_symbolic_measure.c
+    core/src/layer4_reasoning/model/recursion_test.c
+    core/src/layer4_reasoning/model/recursion_utils.c
+    core/src/layer4_reasoning/model/recursion_validation.c
+    core/src/layer4_reasoning/model/recursion_test_suite.c
+    core/src/layer4_reasoning/model/relation_model.c
+    core/src/layer4_reasoning/model/algebra_mode.c
+)
+
+# module 模块域：增量、LVZ、序列化
+set(lv_L4_MODULE_SOURCES
+    core/src/layer4_reasoning/module/module_delta.c
+    core/src/layer4_reasoning/module/module_lvz.c
+    core/src/layer4_reasoning/module/module_serialize.c
+    core/src/layer4_reasoning/module/module_serialize_msgpack.c
+    core/src/layer4_reasoning/module/module_serialize_json.c
+    core/src/layer4_reasoning/module/module_serialize_autosave.c
+)
+
+# numeric 数值域（含后端：SERIAL/CUDA/HIP/Singular）
+set(lv_L4_NUMERIC_SOURCES
+    core/src/layer4_reasoning/numeric/numerical_backend.c
+    # BiCGSTAB 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
+    core/src/layer4_reasoning/numeric/bicgstab_shared.c
+    # GMRES(m) 共享迭代内核（SERIAL/CUDA/HIP 三个后端复用）
+    core/src/layer4_reasoning/numeric/gmres_shared.c
+    core/src/layer4_reasoning/numeric/host_linalg.c
+    # 主机端通用 ops 默认实现（消除后端重复的数据搬移实现）
+    core/src/layer4_reasoning/numeric/backends/default_host_ops.c
+    core/src/layer4_reasoning/numeric/backends/cuda_backend.c
+    core/src/layer4_reasoning/numeric/backends/hip_backend.c
+    core/src/layer4_reasoning/numeric/backends/singular_backend.c
+    # 数论/代数（从 Layer 3 迁移）
+    core/src/layer4_reasoning/numeric/nt_number_theory.c
+    core/src/layer4_reasoning/numeric/nt_polynomial.c
+    # 自动微分（从 Layer 3 迁移）
+    core/src/layer4_reasoning/numeric/autodiff.c
+    # ODE 求解器（从 Layer 3 迁移）
+    core/src/layer4_reasoning/numeric/ode_solver.c
+    core/src/layer4_reasoning/numeric/ode_integrator.c
+    # 多项式
+    core/src/layer4_reasoning/numeric/mv_polynomial.c
+)
+
+# proof 证明子域：依赖、导航、命题、版本、信任颜色
+set(lv_L4_PROOF_SOURCES
+    # 证明追踪（layer4_reasoning 根级文件）
+    core/src/layer4_reasoning/proof_trace.c
+    core/src/layer4_reasoning/proof/proof_tree.c
     core/src/layer4_reasoning/proof/proof_dependency.c
     core/src/layer4_reasoning/proof/proof_navigator.c
     core/src/layer4_reasoning/proof/proof_navigator_dependency.c
@@ -1248,8 +1234,37 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_version_isar.c
     core/src/layer4_reasoning/proof/proof_version_refine.c
     core/src/layer4_reasoning/proof/trust_color.c
+    # 冲突检测（自 engine/ 归位：语义属推理辅助，proof 域 meta_verify 消费；断 engine↔proof 环）
+    core/src/layer4_reasoning/proof/conflict_detector.c
+    # L4 内建的证明元验证（与 L8 layer8_meta_verify/meta_verify.c 为两个独立模块）
     core/src/layer4_reasoning/proof/meta_verify.c
-    # 重写子模块：应用、匹配、VF2、WL
+)
+
+# proof_system 证明系统域（策略/会话/规则 + prop_verifier 命题验证器）
+set(lv_L4_PROOF_SYSTEM_SOURCES
+    core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
+    core/src/layer4_reasoning/proof_system/proof_search_algo.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_core.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_vector.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_angle.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_deductive.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_coordinate.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_hol_oracle.c
+    core/src/layer4_reasoning/proof_system/proof_strategy_numeric.c
+    core/src/layer4_reasoning/proof_system/logic_check.c
+    # 证明策略（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_system/proof_rule_engine.c
+    core/src/layer4_reasoning/proof_system/proof_session.c
+    # 版本控制（从 Layer 3 迁移）
+    core/src/layer4_reasoning/proof_system/proof_version.c
+    ${lv_PROP_VERIFIER_SOURCES}
+)
+
+# rewrite 重写域
+set(lv_L4_REWRITE_SOURCES
+    # 重写引擎（从 Layer 3 迁移）
+    core/src/layer4_reasoning/rewrite/rewrite_strategy.c
     core/src/layer4_reasoning/rewrite/rewrite_apply.c
     core/src/layer4_reasoning/rewrite/rewrite_match.c
     core/src/layer4_reasoning/rewrite/rewrite_binding.c
@@ -1262,38 +1277,72 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/rewrite/critical_pair.c
     core/src/layer4_reasoning/rewrite/beta_reduce.c
     core/src/layer4_reasoning/rewrite/rewrite_strategy_impl.c
-    # λ-项：数据类型与编译
-    core/src/layer4_reasoning/lambda/lambda_term.c
-    core/src/layer4_reasoning/lambda/lambda_to_graph.c
-    core/src/layer4_reasoning/lambda/lambda_type_check.c
-    core/src/layer4_reasoning/lambda/lambda_church.c
-    # 引擎调度
-    core/src/layer4_reasoning/engine/engine_scheduler.c
-    # 精确算术（定义在 layer4_reasoning/exact_arithmetic.c）
-    # core/src/layer4_reasoning/expr/exact_arithmetic.c (已删除，与根目录版本重复)
-    # 近似计数器
-    core/src/layer4_reasoning/backends/approx_counter.c
-    # 命令日志系统
-    core/src/layer4_reasoning/command_log.c
-    # v2.0.0 自举差分测试（原在 L2，依赖 L3+L4 类型，故归位 L4）
-    core/src/layer4_reasoning/bootstrap_test.c
-    core/src/layer4_reasoning/bootstrap_test_init.c
-    core/src/layer4_reasoning/bootstrap_test_diff.c
-    core/src/layer4_reasoning/bootstrap_test_random.c
-    core/src/layer4_reasoning/bootstrap_test_iso.c
-    core/src/layer4_reasoning/bootstrap_test_primitive.c
-    core/src/layer4_reasoning/bootstrap_test_oracle.c
-    core/src/layer4_reasoning/bootstrap_test_report.c
-    # 模块子模块：增量、LVZ、序列化
-    core/src/layer4_reasoning/module/module_delta.c
-    core/src/layer4_reasoning/module/module_lvz.c
-    core/src/layer4_reasoning/module/module_serialize.c
-    core/src/layer4_reasoning/module/module_serialize_msgpack.c
-    core/src/layer4_reasoning/module/module_serialize_json.c
-    core/src/layer4_reasoning/module/module_serialize_autosave.c
-    # 多项式
-    core/src/layer4_reasoning/numeric/mv_polynomial.c
-    )
+)
+
+# solver 求解器域（CDCL 核心 + 子模块 + SAT 编码管线）
+set(lv_L4_SOLVER_SOURCES
+    core/src/layer4_reasoning/solver/solver_core.c
+    core/src/layer4_reasoning/solver/solver_coord_extract.c
+    core/src/layer4_reasoning/solver/solver_conflict.c
+    core/src/layer4_reasoning/solver/solver_dirty_set.c
+    core/src/layer4_reasoning/solver/solver_eq_system.c
+    core/src/layer4_reasoning/solver/solver_feedback.c
+    core/src/layer4_reasoning/solver/solver_incremental.c
+    core/src/layer4_reasoning/solver/solver_linear.c
+    core/src/layer4_reasoning/solver/solver_order.c
+    core/src/layer4_reasoning/solver/solver_result.c
+    core/src/layer4_reasoning/solver/solver_snapshot.c
+    core/src/layer4_reasoning/solver/solver_stats.c
+    core/src/layer4_reasoning/solver/solver_symbolic.c
+    core/src/layer4_reasoning/solver/solver_eliminate.c
+    core/src/layer4_reasoning/solver/solver_engine.c
+    core/src/layer4_reasoning/solver/solver_geom_templates.c
+    core/src/layer4_reasoning/solver/solver_groebner.c
+    core/src/layer4_reasoning/solver/solver_multibranch.c
+    # SAT 编码管线（从 backends/ 移入 solver/：编码 + 驱动 CDCL 求解，断 solver↔backends 环）
+    core/src/layer4_reasoning/solver/sat_encoding.c
+)
+
+# stream 流式基础设施域（自 L4 下沉：仅依赖 L2，L1/L2/L3 均消费）
+set(lv_L4_STREAM_SOURCES
+    core/src/layer4_reasoning/stream/stream_context_util.c
+)
+
+# type_logic 类型逻辑域（三值/模态/量词/类型系统/不等式推理）
+set(lv_L4_TYPE_LOGIC_SOURCES
+    core/src/layer4_reasoning/type_logic/three_valued_logic.c
+    core/src/layer4_reasoning/type_logic/modal_operators.c
+    core/src/layer4_reasoning/type_logic/quantifier.c
+    core/src/layer4_reasoning/type_logic/type_system.c
+    core/src/layer4_reasoning/type_logic/type_check.c
+    core/src/layer4_reasoning/type_logic/type_infer.c
+    core/src/layer4_reasoning/type_logic/type_path_explorer.c
+    core/src/layer4_reasoning/type_logic/type_equiv_explorer.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_core.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_prove.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_classic.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_transform.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_sign.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_geo.c
+    core/src/layer4_reasoning/type_logic/inequality_reasoning_serialize.c
+)
+
+# unify 合一域
+set(lv_L4_UNIFY_SOURCES
+    core/src/layer4_reasoning/unify/unify.c
+    core/src/layer4_reasoning/unify/unify_basic.c
+    core/src/layer4_reasoning/unify/unify_equivalence.c
+    core/src/layer4_reasoning/unify/unify_fine.c
+    core/src/layer4_reasoning/unify/unify_hash.c
+    core/src/layer4_reasoning/unify/unify_helpers.c
+    core/src/layer4_reasoning/unify/unify_instantiate.c
+    core/src/layer4_reasoning/unify/unify_report.c
+    core/src/layer4_reasoning/unify/unify_simplify.c
+    core/src/layer4_reasoning/unify/normalization.c
+    core/src/layer4_reasoning/unify/graph_hash.c
+    core/src/layer4_reasoning/unify/lambda_unify.c
+)
 
 # ── Layer 5: 结果输出层 (Output) ──
 # 职责：流式输出、TikZ 导出、证明可视化、模块、互操作
@@ -1395,18 +1444,52 @@ target_link_libraries(lv_layer3_geometry lv_layer2_resource)
 find_package(Threads REQUIRED)
 target_link_libraries(lv_layer3_geometry Threads::Threads)
 
-# Layer 4: 公理推理层（依赖 Layer 3，Layer 2）
-add_library(lv_layer4_reasoning OBJECT ${lv_LAYER4_SOURCES} ${lv_HEADERS})
-lv_setup_layer(lv_layer4_reasoning 4)
-target_link_libraries(lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
-# 运行时预设 .lvz 文件目录（preset_blocks.c 使用此宏定位文件）
-target_compile_definitions(lv_layer4_reasoning PRIVATE
+# ── Layer 4: 公理推理层 —— 按子域拆分为独立 OBJECT 库（2026-08-14）──
+# 依赖：Layer 3，Layer 2。所有 L4 子域库统一基础依赖；L4 五个 include 环
+# 已于 C-⑩ 全破，子域间依赖具备无环性，跨子域链接的逐域精化留作后续批次。
+macro(lv_l4_subdomain lib)
+    add_library(${lib} OBJECT ${ARGN})
+    lv_setup_layer(${lib} 4)
+    target_link_libraries(${lib} lv_layer3_geometry lv_layer2_resource)
+endmacro()
+
+lv_l4_subdomain(lv_l4_core ${lv_L4_CORE_SOURCES})
+lv_l4_subdomain(lv_l4_axiom ${lv_L4_AXIOM_SOURCES})
+lv_l4_subdomain(lv_l4_backends ${lv_L4_BACKENDS_SOURCES})
+lv_l4_subdomain(lv_l4_dsl ${lv_L4_DSL_SOURCES})
+lv_l4_subdomain(lv_l4_engine ${lv_L4_ENGINE_SOURCES})
+lv_l4_subdomain(lv_l4_expr ${lv_L4_EXPR_SOURCES})
+# func_block 域：额外携带运行时预设目录编译定义（preset_blocks.c 使用）
+add_library(lv_l4_func_block OBJECT ${lv_L4_FUNC_BLOCK_SOURCES})
+lv_setup_layer(lv_l4_func_block 4)
+target_link_libraries(lv_l4_func_block lv_layer3_geometry lv_layer2_resource)
+target_compile_definitions(lv_l4_func_block PRIVATE
     lv_PRESETS_DIR="${CMAKE_SOURCE_DIR}/module/presets")
+lv_l4_subdomain(lv_l4_kernel ${lv_L4_KERNEL_SOURCES})
+lv_l4_subdomain(lv_l4_lambda ${lv_L4_LAMBDA_SOURCES})
+lv_l4_subdomain(lv_l4_model ${lv_L4_MODEL_SOURCES})
+lv_l4_subdomain(lv_l4_module ${lv_L4_MODULE_SOURCES})
+lv_l4_subdomain(lv_l4_numeric ${lv_L4_NUMERIC_SOURCES})
+lv_l4_subdomain(lv_l4_proof ${lv_L4_PROOF_SOURCES})
+lv_l4_subdomain(lv_l4_proof_system ${lv_L4_PROOF_SYSTEM_SOURCES})
+lv_l4_subdomain(lv_l4_rewrite ${lv_L4_REWRITE_SOURCES})
+lv_l4_subdomain(lv_l4_solver ${lv_L4_SOLVER_SOURCES})
+lv_l4_subdomain(lv_l4_stream ${lv_L4_STREAM_SOURCES})
+lv_l4_subdomain(lv_l4_type_logic ${lv_L4_TYPE_LOGIC_SOURCES})
+lv_l4_subdomain(lv_l4_unify ${lv_L4_UNIFY_SOURCES})
+
+# L4 子域库聚合（供上层 L5/L6 与 lv_static/lv_shared 引用）
+set(lv_L4_LIBS
+    lv_l4_core lv_l4_axiom lv_l4_backends lv_l4_dsl lv_l4_engine
+    lv_l4_expr lv_l4_func_block lv_l4_kernel lv_l4_lambda lv_l4_model
+    lv_l4_module lv_l4_numeric lv_l4_proof lv_l4_proof_system lv_l4_rewrite
+    lv_l4_solver lv_l4_stream lv_l4_type_logic lv_l4_unify
+)
 
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer5_output 5)
-target_link_libraries(lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
+target_link_libraries(lv_layer5_output ${lv_L4_LIBS} lv_layer3_geometry lv_layer2_resource)
 # v3.5.0: 互操作层需要 ws2_32（Windows socket）
 if(WIN32)
     target_link_libraries(lv_layer5_output ws2_32)
@@ -1465,7 +1548,7 @@ set(lv_LAYER6_HEADERS
 
 add_library(lv_layer6_visual OBJECT ${lv_LAYER6_SOURCES} ${lv_LAYER6_HEADERS})
 lv_setup_layer(lv_layer6_visual 6)
-target_link_libraries(lv_layer6_visual lv_layer5_output lv_layer4_reasoning lv_layer3_geometry lv_layer2_resource)
+target_link_libraries(lv_layer6_visual lv_layer5_output ${lv_L4_LIBS} lv_layer3_geometry lv_layer2_resource)
 
 # ── Layer 7: 编排调度层 (Orchestration Layer) ──
 # 注: orchestrator.c / lv_pipeline.c 已随死代码清理移除；orchestrator.h 保留在
@@ -1506,9 +1589,28 @@ add_library(lv_static STATIC
     $<TARGET_OBJECTS:lv_layer1_parser>
     $<TARGET_OBJECTS:lv_layer2_resource>
     $<TARGET_OBJECTS:lv_layer3_geometry>
-    $<TARGET_OBJECTS:lv_layer4_reasoning>
     $<TARGET_OBJECTS:lv_layer5_output>
     $<TARGET_OBJECTS:lv_layer6_visual>
+    # L4 子域 OBJECT 库（2026-08-14 拆分）
+    $<TARGET_OBJECTS:lv_l4_core>
+    $<TARGET_OBJECTS:lv_l4_axiom>
+    $<TARGET_OBJECTS:lv_l4_backends>
+    $<TARGET_OBJECTS:lv_l4_dsl>
+    $<TARGET_OBJECTS:lv_l4_engine>
+    $<TARGET_OBJECTS:lv_l4_expr>
+    $<TARGET_OBJECTS:lv_l4_func_block>
+    $<TARGET_OBJECTS:lv_l4_kernel>
+    $<TARGET_OBJECTS:lv_l4_lambda>
+    $<TARGET_OBJECTS:lv_l4_model>
+    $<TARGET_OBJECTS:lv_l4_module>
+    $<TARGET_OBJECTS:lv_l4_numeric>
+    $<TARGET_OBJECTS:lv_l4_proof>
+    $<TARGET_OBJECTS:lv_l4_proof_system>
+    $<TARGET_OBJECTS:lv_l4_rewrite>
+    $<TARGET_OBJECTS:lv_l4_solver>
+    $<TARGET_OBJECTS:lv_l4_stream>
+    $<TARGET_OBJECTS:lv_l4_type_logic>
+    $<TARGET_OBJECTS:lv_l4_unify>
     $<TARGET_OBJECTS:lv_layer8_meta_verify>
     $<TARGET_OBJECTS:lv_layer10_interop>
 )
@@ -1533,9 +1635,28 @@ if(BUILD_SHARED_LIBS)
         $<TARGET_OBJECTS:lv_layer1_parser>
         $<TARGET_OBJECTS:lv_layer2_resource>
         $<TARGET_OBJECTS:lv_layer3_geometry>
-        $<TARGET_OBJECTS:lv_layer4_reasoning>
         $<TARGET_OBJECTS:lv_layer5_output>
         $<TARGET_OBJECTS:lv_layer6_visual>
+        # L4 子域 OBJECT 库（2026-08-14 拆分）
+        $<TARGET_OBJECTS:lv_l4_core>
+        $<TARGET_OBJECTS:lv_l4_axiom>
+        $<TARGET_OBJECTS:lv_l4_backends>
+        $<TARGET_OBJECTS:lv_l4_dsl>
+        $<TARGET_OBJECTS:lv_l4_engine>
+        $<TARGET_OBJECTS:lv_l4_expr>
+        $<TARGET_OBJECTS:lv_l4_func_block>
+        $<TARGET_OBJECTS:lv_l4_kernel>
+        $<TARGET_OBJECTS:lv_l4_lambda>
+        $<TARGET_OBJECTS:lv_l4_model>
+        $<TARGET_OBJECTS:lv_l4_module>
+        $<TARGET_OBJECTS:lv_l4_numeric>
+        $<TARGET_OBJECTS:lv_l4_proof>
+        $<TARGET_OBJECTS:lv_l4_proof_system>
+        $<TARGET_OBJECTS:lv_l4_rewrite>
+        $<TARGET_OBJECTS:lv_l4_solver>
+        $<TARGET_OBJECTS:lv_l4_stream>
+        $<TARGET_OBJECTS:lv_l4_type_logic>
+        $<TARGET_OBJECTS:lv_l4_unify>
         $<TARGET_OBJECTS:lv_layer8_meta_verify>
         $<TARGET_OBJECTS:lv_layer10_interop>
     )
@@ -1736,7 +1857,7 @@ if(BUILD_TESTS)
     # v3.4.0 新增：自动微分测试
     add_lv_test_auto(test_autodiff)
     # prop_verifier 测试：直接编译 prop_verifier 各源文件（链接 lv 库以获取 lv_malloc/lv_free 等工具函数）
-    # [QA] Also listed in lv_LAYER4_SOURCES; test target requires separate compilation
+    # [QA] Also listed in lv_L4_PROOF_SYSTEM_SOURCES; test target requires separate compilation
     add_lv_test_auto(test_prop_verifier CTEST_NAME prop_verifier_test EXTRA_SOURCES
         ${lv_PROP_VERIFIER_SOURCES})
 

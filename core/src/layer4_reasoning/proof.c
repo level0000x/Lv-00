@@ -59,7 +59,6 @@
 #include <pthread.h>
 #endif
 
-#include "lv/engine.h"
 #include "lv/node_deep_copy.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
