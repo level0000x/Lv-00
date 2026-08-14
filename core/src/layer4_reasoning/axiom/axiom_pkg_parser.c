@@ -259,7 +259,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
 
     KnownUnconstructible uc = {0};
     lv_darray_init(&uc.dependency_chain, sizeof(char *));
-    uc.name = safe_lv_strdup_safe(p->current.str_value);
+    uc.name = lv_strdup_safe(p->current.str_value);
     uc.green_verified = false;
 
     parser_advance(p);
@@ -279,7 +279,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             break;
         }
 
-        const char *prop = safe_lv_strdup_safe(p->current.str_value);
+        const char *prop = lv_strdup_safe(p->current.str_value);
         parser_advance(p);
 
         if (lv_str_eq(prop, "reduces_to")) {
@@ -288,7 +288,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
                 p->has_error = true;
                 break;
             }
-            uc.reduces_to = safe_lv_strdup_safe(p->current.str_value);
+            uc.reduces_to = lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (lv_str_eq(prop, "dependency")) {
             if (!parser_expect(p, PKG_STRING)) {
@@ -298,7 +298,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
             }
 
             /* 添加到依赖链 */
-            char *dep = safe_lv_strdup_safe(p->current.str_value);
+            char *dep = lv_strdup_safe(p->current.str_value);
             lv_darray_push(&uc.dependency_chain, &dep);
             parser_advance(p);
         } else if (lv_str_eq(prop, "external_ref")) {
@@ -307,7 +307,7 @@ static bool parse_unconstructible(Parser *p, AxiomPackage *pkg) {
                 p->has_error = true;
                 break;
             }
-            uc.external_ref = safe_lv_strdup_safe(p->current.str_value);
+            uc.external_ref = lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (lv_str_eq(prop, "green_verified")) {
             if (!parser_expect(p, PKG_BOOLEAN)) {
@@ -357,7 +357,7 @@ static bool parse_template(Parser *p, AxiomPackage *pkg) {
         return false;
 
     ConstraintTemplate tmpl = {0};
-    tmpl.name = safe_lv_strdup_safe(p->current.str_value);
+    tmpl.name = lv_strdup_safe(p->current.str_value);
 
     parser_advance(p);
 
@@ -416,7 +416,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
                 break;
             }
             lv_free((void **) &pkg->bottom_geometry);
-            pkg->bottom_geometry = safe_lv_strdup_safe(p->current.str_value);
+            pkg->bottom_geometry = lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (lv_str_eq(keyword, "negation_encoding")) {
             parser_advance(p);
@@ -425,7 +425,7 @@ static bool parse_package_body(Parser *p, AxiomPackage *pkg) {
                 break;
             }
             lv_free((void **) &pkg->negation_encoding);
-            pkg->negation_encoding = safe_lv_strdup_safe(p->current.str_value);
+            pkg->negation_encoding = lv_strdup_safe(p->current.str_value);
             parser_advance(p);
         } else if (lv_str_eq(keyword, "contradiction_behavior")) {
             parser_advance(p);
@@ -533,7 +533,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
         return AXIOM_LOAD_PARSE_ERROR;
     }
     lv_free((void **) &pkg->name);
-    pkg->name = safe_lv_strdup_safe(parser.current.str_value);
+    pkg->name = lv_strdup_safe(parser.current.str_value);
     parser_advance(&parser);
 
     /* 期望版本 (字符串) */
@@ -542,7 +542,7 @@ AxiomLoadStatus axiom_package_load(AxiomPackage *pkg, const char *filepath) {
         return AXIOM_LOAD_PARSE_ERROR;
     }
     lv_free((void **) &pkg->version);
-    pkg->version = safe_lv_strdup_safe(parser.current.str_value);
+    pkg->version = lv_strdup_safe(parser.current.str_value);
     parser_advance(&parser);
 
     /* 期望左大括号 */

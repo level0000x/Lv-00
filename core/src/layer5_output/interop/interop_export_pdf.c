@@ -75,7 +75,7 @@ static bool pdf_render_constraint(const ConstraintRenderCtx *ctx) {
     if (syn->reset_dash)
         lv_strbuf_printf(ctx->sb, "[] 0 d\n");
     if (syn->reset_width)
-        lv_strbuf_printf(ctx->sb, "%.2f w\n", 1.5);
+        lv_strbuf_printf(ctx->sb, "%.2f w\n", lv_DEFAULT_STROKE_WIDTH);
     return true;
 }
 
@@ -162,7 +162,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
     /* ---- 设置基础图形状态 ---- */
     BUF_APPEND("q\n");           /* 保存图形状态 */
-    BUF_APPEND("%.2f w\n", 1.5); /* 默认线宽 */
+    BUF_APPEND("%.2f w\n", lv_DEFAULT_STROKE_WIDTH); /* 默认线宽 */
 
     /* ---- 渲染区域（半透明填充 + 描边，底层） ---- */
     /* 激活透明度 ExtGState */
@@ -253,7 +253,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
             BUF_APPEND("S\n");
         }
 
-        BUF_APPEND("%.2f w\n", 1.5); /* 恢复默认线宽 */
+        BUF_APPEND("%.2f w\n", lv_DEFAULT_STROKE_WIDTH); /* 恢复默认线宽 */
     }
 
     /* ---- 渲染点 ---- */
@@ -282,7 +282,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
         BUF_APPEND("%.2f %.2f l\n", GX(px + 0.01), GY(py));
         BUF_APPEND("S\n");
         BUF_APPEND("0 J\n"); /* 恢复平头线端 */
-        BUF_APPEND("%.2f w\n", 1.5);
+        BUF_APPEND("%.2f w\n", lv_DEFAULT_STROKE_WIDTH);
     }
 
     /* ---- 渲染函数块（作为圆角矩形） ---- */
@@ -303,7 +303,7 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
         BUF_APPEND("%.2f w\n", 2.0);
         BUF_APPEND("%.2f %.2f %.2f %.2f re B\n", GX(bx) - bw / 2.0, GY(by) - bh / 2.0, bw, bh);
-        BUF_APPEND("%.2f w\n", 1.5);
+        BUF_APPEND("%.2f w\n", lv_DEFAULT_STROKE_WIDTH);
     }
 
     /* ---- 渲染约束关系（经公共分发表 ConstraintRenderOps 分发，替代原 6 case 合并 switch） ---- */

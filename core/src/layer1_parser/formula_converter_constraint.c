@@ -334,8 +334,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
         angle_coords[1] = symbolic_coord_from_double_scaled(sin_theta, lv_RATIONAL_SCALE_DEFAULT);
 
         AddNodeResult add_result = graph_add_point(graph, angle_coords, 2);
-        symbolic_coord_destroy(angle_coords[0]);
-        symbolic_coord_destroy(angle_coords[1]);
+        symbolic_coord_pair_destroy(angle_coords[0], angle_coords[1]);
 
         if (add_result == ADD_NODE_OK) {
             int aux_id = graph->next_node_id - 1;

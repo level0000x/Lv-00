@@ -36,7 +36,7 @@ static const ConstraintSvgSyntax constraint_svg_syntax[] = {
     [INCIDENCE]   = { NULL,       "constraint", NULL },
     [CONTAINMENT] = { "2,4",      "constraint", NULL },
     [ANGLE]       = { "4,2",      "constraint", NULL },
-    [CONNECTION]  = { NULL,       NULL, "stroke-width=\"1.5\" marker-end=\"url(#arrowhead)\"" },
+    [CONNECTION]  = { NULL,       NULL, " stroke-width=\"%g\" marker-end=\"url(#arrowhead)\"" },
 };
 
 /** @brief 从公共核心表 rgb 生成 SVG 十六进制颜色串（如 "#6b7280"） */
@@ -94,8 +94,8 @@ static bool svg_render_intersection(const ConstraintRenderCtx *ctx) {
             ix - cross_r, iy + cross_r, ix + cross_r, iy - cross_r, hex);
     fprintf(ctx->fp,
             "  <circle cx=\"%.2f\" cy=\"%.2f\" r=\"4\" "
-            "fill=\"none\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
-            ix, iy, hex);
+            "fill=\"none\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+            ix, iy, hex, lv_DEFAULT_STROKE_WIDTH);
     return true;
 }
 
@@ -113,7 +113,7 @@ static bool svg_render_default(const ConstraintRenderCtx *ctx) {
     if (syn->dasharray)
         fprintf(ctx->fp, " stroke-dasharray=\"%s\"", syn->dasharray);
     if (syn->extra_attr)
-        fprintf(ctx->fp, " %s", syn->extra_attr);
+        fprintf(ctx->fp, syn->extra_attr, lv_DEFAULT_STROKE_WIDTH);
     fprintf(ctx->fp, "/>\n");
     return true;
 }
@@ -245,13 +245,13 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
     /* 定义样式 */
     fprintf(fp, "  <defs>\n");
     fprintf(fp, "    <style>\n");
-    fprintf(fp, "      .point { stroke-width: 1.5; }\n");
+    fprintf(fp, "      .point { stroke-width: %g; }\n", lv_DEFAULT_STROKE_WIDTH);
     fprintf(fp, "      .line { stroke-width: 2; fill: none; }\n");
-    fprintf(fp, "      .region { stroke-width: 1.5; opacity: 0.3; }\n");
+    fprintf(fp, "      .region { stroke-width: %g; opacity: 0.3; }\n", lv_DEFAULT_STROKE_WIDTH);
     fprintf(fp, "      .constraint { stroke-width: 1; stroke-dasharray: 5,3; fill: none; }\n");
     fprintf(fp, "      .label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; }\n");
     fprintf(fp, "      .block { stroke-width: 2; rx: 8; ry: 8; }\n");
-    fprintf(fp, "      .port { stroke-width: 1.5; }\n");
+    fprintf(fp, "      .port { stroke-width: %g; }\n", lv_DEFAULT_STROKE_WIDTH);
     fprintf(fp, "    </style>\n");
     fprintf(fp, "  </defs>\n\n");
 

@@ -159,10 +159,10 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
 
     /* 规范化角度到 [0, 360) */
     while (angle_num < 0) {
-        angle_num += 360 * angle_denom;
+        angle_num += (int)lv_FULL_CIRCLE_DEG * angle_denom;
     }
-    while (angle_num >= 360 * angle_denom) {
-        angle_num -= 360 * angle_denom;
+    while (angle_num >= (int)lv_FULL_CIRCLE_DEG * angle_denom) {
+        angle_num -= (int)lv_FULL_CIRCLE_DEG * angle_denom;
     }
 
     /* 根据角度设置 cos 和 sin */
@@ -1210,14 +1210,7 @@ lvTransformGroup *lv_transform_group_create(const char *name) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_transform_group_create: calloc failed");
     }
 
-    if (name) {
-        /* 使用 lv_malloc + strcpy 替代标准 strdup，确保与 lv_free 配对 */
-        size_t name_len = strlen(name);
-        group->group_name = (char *) lv_malloc(name_len + 1);
-        if (group->group_name) {
-            memcpy(group->group_name, name, name_len + 1);
-        }
-    }
+    group->group_name = lv_strdup_safe(name);
 
     group->generators = (lvTransform **) lv_malloc(GROUP_MAX_GENERATORS * sizeof(lvTransform *));
     if (!group->generators) {

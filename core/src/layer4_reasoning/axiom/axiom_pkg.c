@@ -45,14 +45,4 @@ const char *axiom_package_get_last_error(void) {
     return lv_get_last_error_message();
 }
 
-char *safe_lv_strdup_safe(const char *s) {
-    if (!s)
-        return NULL;
-    size_t len = strlen(s);
-    char *dup = lv_malloc(len + 1);
-    if (dup) {
-        memcpy(dup, s, len + 1); /* 使用 memcpy 替代 strcpy，确保安全 */
-    }
-    return dup;
-}
 

@@ -91,8 +91,8 @@ AxiomPackage *lv_axiom_package_create(const char *name, const char *version) {
     if (!pkg)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_axiom_package_create: lv_calloc failed");
 
-    pkg->name = safe_lv_strdup_safe(name);
-    pkg->version = safe_lv_strdup_safe(version);
+    pkg->name = lv_strdup_safe(name);
+    pkg->version = lv_strdup_safe(version);
     lv_darray_init(&pkg->templates, sizeof(ConstraintTemplate));
     lv_darray_init(&pkg->known_unconstructibles, sizeof(KnownUnconstructible));
     lv_darray_init(&pkg->unconstructible_templates, sizeof(UnconstructibleTemplate));
@@ -222,15 +222,15 @@ bool axiom_package_add_known_unconstructible(AxiomPackage *pkg, KnownUnconstruct
     /* 深拷贝语义：对所有字符串字段进行独立拷贝，
      * 确保包内部持有独立的内存副本。
      * 调用者可以安全地释放或修改原始 item 的字符串字段。 */
-    target_item.name = safe_lv_strdup_safe(item->name);
-    target_item.reduces_to = safe_lv_strdup_safe(item->reduces_to);
-    target_item.external_ref = safe_lv_strdup_safe(item->external_ref);
+    target_item.name = lv_strdup_safe(item->name);
+    target_item.reduces_to = lv_strdup_safe(item->reduces_to);
+    target_item.external_ref = lv_strdup_safe(item->external_ref);
     target_item.green_verified = item->green_verified;
 
     /* 深拷贝依赖链中的每个字符串 */
     lv_darray_init(&target_item.dependency_chain, sizeof(char *));
     for (int i = 0; i < item->dependency_chain.count; i++) {
-        char *s = safe_lv_strdup_safe(*(char **)lv_darray_get(&item->dependency_chain, i));
+        char *s = lv_strdup_safe(*(char **)lv_darray_get(&item->dependency_chain, i));
         if (lv_darray_push(&target_item.dependency_chain, &s) < 0) {
             /* 分配失败时回滚已拷贝的字段 */
             lv_free_many((void **) &target_item.name, (void **) &target_item.reduces_to,

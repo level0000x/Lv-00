@@ -155,7 +155,7 @@ lvPolynomial *poly_internal_create(const lvPolynomialRing *ring, int capacity, c
     poly->term_capacity = capacity;
     poly->total_degree = 0;
     poly->is_homogeneous = true;
-    poly->label = groebner_strdup_safe(label);
+    poly->label = lv_strdup_safe(label);
 
     guard.poly = NULL; /* 守卫解除：结果移交调用方 */
     return poly;

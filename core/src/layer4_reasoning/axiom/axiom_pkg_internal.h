@@ -43,8 +43,6 @@ extern "C" {
 extern lv_THREAD_LOCAL StreamContext *axiom_stream_ctx;
 void axiom_package_set_stream_context(StreamContext *ctx);
 
-/* Internal helper (defined in axiom_pkg.c) */
-char *safe_lv_strdup_safe(const char *s);
 
 #ifdef __cplusplus
 }

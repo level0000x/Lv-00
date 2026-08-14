@@ -222,6 +222,9 @@ extern "C" {
 #ifndef lv_HALF_CIRCLE_DEG
 #define lv_HALF_CIRCLE_DEG 180.0 /* 半圆周角度（度），角度域 [0,180) 上限 */
 #endif
+#ifndef lv_FULL_CIRCLE_DEG
+#define lv_FULL_CIRCLE_DEG 360.0 /* 全圆周角度（度），角度域 [0,360) 上限 */
+#endif
 
 /* 颜色通道（RGB 0-255 归一化） */
 #ifndef lv_COLOR_CHANNEL_MAX
@@ -229,6 +232,9 @@ extern "C" {
 #endif
 #ifndef lv_COLOR_CHANNEL_HALF
 #define lv_COLOR_CHANNEL_HALF 0.5f /* 0.5f */
+#endif
+#ifndef lv_DEFAULT_STROKE_WIDTH
+#define lv_DEFAULT_STROKE_WIDTH 1.5 /* 渲染输出默认描边线宽（SVG/PDF/画布） */
 #endif
 
 /* 渲染：无限直线扩展范围（将无限延伸直线近似为有限线段时，从端点沿方向扩展的单位数） */

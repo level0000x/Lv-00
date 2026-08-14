@@ -144,24 +144,6 @@ double groebner_newton_refine(double (*eval)(double, void *), double (*deriv)(do
  *  安全的字符串复制
  * ================================================================ */
 
-/**
- * @brief 安全的 strdup 封装（失败时返回 NULL）
- *
- * @param src 源字符串（可为 NULL）
- * @return 堆上分配的副本，或 NULL
- */
-char *groebner_strdup_safe(const char *src) {
-    if (!src) {
-        return NULL;
-    }
-    size_t len = strlen(src);
-    char *dst = (char *) lv_malloc(len + 1);
-    if (!dst) {
-        return NULL;
-    }
-    memcpy(dst, src, len + 1);
-    return dst;
-}
 
 
 /* ================================================================
@@ -730,7 +712,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     ideal->generator_count = 0;
     ideal->cached_basis = NULL;
     ideal->basis_valid = false;
-    ideal->label = groebner_strdup_safe(result_label);
+    ideal->label = lv_strdup_safe(result_label);
 
 /* 内部宏：向理想添加生成元（持有锁状态下） */
 #define ADD_GENERATOR_LOCKED(poly) do { \

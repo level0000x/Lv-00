@@ -1039,7 +1039,7 @@ static int ggb_resolve_point_ref(const char *xml, const GgbElementEntry *e, cons
 
     /* P 属性：construction 全局索引 */
     if (ggb_extract_attr(xml + cs, clen, "P", buf, sizeof(buf))) {
-        int idx = atoi(buf);
+        int idx = lv_parse_int_default(buf, -1);
         if (idx >= 0 && idx < el_count && node_by_idx[idx] >= 0)
             return node_by_idx[idx];
     }
@@ -1220,7 +1220,7 @@ static int ggb_import_polygon(ConstraintGraph *graph, const char *xml, const Ggb
         char buf[128];
         int node_id = -1;
         if (ggb_extract_attr(xml + ps, plen, "P", buf, sizeof(buf))) {
-            int idx = atoi(buf);
+            int idx = lv_parse_int_default(buf, -1);
             if (idx >= 0 && idx < el_count && node_by_idx[idx] >= 0)
                 node_id = node_by_idx[idx];
         }

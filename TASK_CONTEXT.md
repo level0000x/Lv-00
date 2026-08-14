@@ -1328,3 +1328,90 @@ ninja build3 925/925（exit 0，仅含既有宏重定义警告）+ ctest 170/170
 ### 备注
 - 判据 A/B/D/E/G/I/J/K 本轮无新候选（子代理已逐条核验并排除历史已收敛/已判不迁移模式）。
 - 判据 H 另发现「节点 x/y double 提取」高频残留，但系既有 `symbolic_coord_get_xy`（Q19）的未迁移调用点，非新骨架，仅登记为遗留迁移面，不立项。
+
+---
+
+## 十九、批次 X 候选立项（2026-08-13）
+
+**候选来源**：「继续寻找更多可抽象化的方向」按判据 A–L 全库扫描（四路只读子代理：A/B、C/D、E/F/G/H、I/J/K/L+自由反例），排除批次 W/V/R/S/T/U/Q/P 已收敛/已判不迁移模式后，共 8 个执行/裁定候选 + 5 项暂缓/豁免登记。自由代理实证出「手写 strdup 同义 API 双份」这一规范盲区。
+
+### 批次 X 执行进度
+
+| 编号 | 内容 | 判据 | 状态 |
+|------|------|------|------|
+| X1 | 手写 strdup 同义 API 双份（4+1 处）→ 统一 `lv_strdup_safe` | 自由反例/J 延伸 | 已执行 |
+| X2 | interop_import.c 2 处裸 atoi → `lv_parse_int_default`（+ 修注释脱节） | 自由反例 | 已执行 |
+| X3 | 360.0 全圆周角度 8 处 → `lv_FULL_CIRCLE_DEG` | C | 已执行 |
+| X4 | 默认描边线宽 1.5 11 处 → `lv_DEFAULT_STROKE_WIDTH` | C | 已执行 |
+| X5 | formula_converter_constraint.c:337-338 成对销毁漏网 → `symbolic_coord_pair_destroy` | H 收尾 | 已执行 |
+| X6 | 手写选择排序骨架 → `lv_selection_sort`（或复用 `lv_insertion_sort`） | A | 暂缓 |
+| X7 | `NODE_CONSTRAINT_*` 约束名双份维护（≥7 文件）→ X-macro 单源 | D | 暂缓 |
+| X8 | 几何构造函数名 point/line/circle/segment/ray/triangle 跨模块双份 | D | 暂缓 |
+| X9 | impl_preset_transformations.c 273 处销毁（W4 豁免复核 + 6 元矩阵） | H | 登记暂缓 |
+| X10 | smtlib2 20 处 / atp_backend 6 处游标缓冲链 | L | 登记豁免 |
+| X11 | `xN` 变量索引扫描（float_error/fptaylor_eval，2 处） | I | 登记暂缓 |
+| X12 | 测试侧成对销毁 7 组 / 变换类型名（值集不同构） | H/D | 登记暂缓 |
+
+### X1 候选（手写 strdup 同义 API 双份，自由反例，最强）
+
+5 处手写字符串复制与公共 `lv_strdup_safe`（`lv_utils_str.c:79`）逐字节同构（`if(!s) return NULL; len=strlen; lv_malloc(len+1); memcpy(...,len+1)`）：
+- `lv_hashtable.c:98` `lv_ht_strdup`（static，**缺 NULL 检查，缺陷**，1 调用点）；
+- `axiom_pkg.c:48` `safe_lv_strdup_safe`（非 static，~20 调用点 / 5 文件）；
+- `rewrite_strategy.c:45` `str_dup`（static，~14 调用点）；
+- `groebner_engine.c:153` `groebner_strdup_safe`（非 static，~11 调用点 / 8 文件）；
+- `geometry_transform.c:1213-1219` 内联 `lv_malloc(name_len+1)+memcpy`。
+
+`lv.h` 已有 `#define lv_strdup lv_strdup_safe`。统一删除 4 处命名实现 + 1 处内联，改调 `lv_strdup_safe`（`lv_ht_strdup` 若因容器内核自包含需保留则显式豁免标注）。任意一侧修复 OOM/NULL 语义都会造成其余副本漂移，是规范盲区失步源。
+
+### X2 候选（裸 atoi + 注释承诺脱节，自由反例，强）
+
+`interop_import.c:1042/1223` 两处裸 `atoi(buf)` 解析 GGB `P` 属性全局索引，非法输入返回 0 会被误判为节点 0。历史 g4 已迁移 9 处 atoi → `lv_parse_int_default` 但漏了本文件；且 `interop.c:45-49` 注释声称「已替代不安全的 atoi()」，与代码现实脱节。改 `lv_parse_int_default(buf, -1)`，失败回退 -1 自然落到下游 `idx >= 0 && idx < el_count` 范围外（安全改进，终审二）。
+
+### X3 候选（360.0 全圆周角度，判据 C，强）
+
+`geometry_csg_eval.c:349/428`、`geo_invariant_type.c:43-45`（3 处值域上限）、`geometry_transform.c:162/164/165`（int 形态）共 8 处 / 3 文件同义「全圆周角度（度）」。建议 `lv_FULL_CIRCLE_DEG 360.0`（config.h，与 `lv_HALF_CIRCLE_DEG` 对称；int 形态用 `(int)lv_FULL_CIRCLE_DEG`）。
+
+### X4 候选（默认描边线宽 1.5，判据 C，强）
+
+`interop_export_svg.c:39/97/248/250/254`、`interop_export_pdf.c:78/165/256/285/306`、`block_canvas.c:476` 共 11 处 / 3 文件同义「输出渲染默认线宽 1.5」。建议 `lv_DEFAULT_STROKE_WIDTH 1.5`（config.h）。注意区分 `geometry_canvas.c:181` 用 2.0、`geo_visual_complete.c:48` 用 1.0f（不同渲染器默认值，不纳入）。
+
+### X5 候选（成对销毁漏网，判据 H 收尾，强）
+
+`formula_converter_constraint.c:337-338` 连续 `symbolic_coord_destroy(angle_coords[0]); symbolic_coord_destroy(angle_coords[1]);`，系 W4 在同文件已迁移 `mid_coords` 后漏掉的一处（数组下标 `[0]/[1]` 形式致成对 grep 漏报）。迁移到既有 `symbolic_coord_pair_destroy`。
+
+### X6 候选（选择排序骨架，判据 A，待甄别）
+
+3 处事实同构 + 1 处结构差异：
+- `aabb_tree_impl.h:68-99`（模板 2D/3D，int indices 按 bbox 中心升序）；
+- `proof_search_algo.c:380-390/433-443`（PQEntry 按 score 降序，`lv_SWAP`）；
+- `rewrite_vf2.c:608-622`（candidates+cand_scores 平行双数组，结构差异，触发终审一）。
+
+建议 `lv_selection_sort`（对齐 `lv_insertion_sort` 签名 `void*base,size_t n,size_t elem_size,lvCompareFn cmp,void*ctx`），平行数组变体登记为扩展候选不强行合并。待甄别：是否直接复用已有 `lv_insertion_sort` 而非新建（需确认其签名/稳定性语义与调用点排序稳定性需求）。
+
+### X7 候选（NODE_CONSTRAINT_* 双份，判据 D，待甄别）
+
+`NODE_CONSTRAINT_*`（`formula_parser.h:83-90`，8 值）的「名称 ↔ 枚举」双向映射在 ≥7 文件独立手写：`formula_dsl.c:1104` kConstraintTypes、`formula_string.c:279/363` str_constraint_* + 分发表、`formula_renderer_ascii.c:319/417`、`formula_renderer_dsl.c:461`、`formula_renderer_latex.c:634`、`formula_renderer_python.c:469`、`formula_parser.c:64` keywords、`bootstrap_test_random.c:194`。各 renderer 输出串不同（latex `\perp` vs dsl `perpendicular`），需设计「语义名 + 多渲染目标」的 X-macro 结构，较大工程，分级推进。注意与历史 i4 收敛的「关系词表」有词面重叠但枚举独立。
+
+### X8 候选（几何构造函数名双份，判据 D，待甄别）
+
+「point/line/circle/segment/ray/triangle」构造元素名在 ≥8 文件独立维护（`dsl_lexer.c:155`、`lv_parser.c:1105`、`lv_sema.c:273`、`formula_dsl.c:1080`、`formula_parser.c:64`、`gc_language.c:37`、`preset_common.c:184`、`interop_command.c:476`、`module_lvz.c:504`、`proof_version_ghost.c:112`）。映射目标枚举/回调各异（DSL_TOK_*/PRESET_TYPE_*/check/parse/handler），名称层可先单源，但完全统一需枚举对齐，接近 P2-1/P2-2「值集不一致」风险面，落地前先做对齐评估。
+
+### X9–X12 暂缓/豁免登记
+
+- **X9**（impl_preset_transformations.c 273 处销毁）：W4 立项备注已豁免「宏内额外 `lv_free` 堆数组所有权不并入」；代理另发现 5 处 6 元仿射矩阵销毁（s_a11…s_ty 具名变量手写展开），但 `symbolic_coord_destroy_many` 需手动构造指针数组、收益有限 → 登记暂缓。
+- **X10**（smtlib2 20 处 + atp_backend 6 处游标缓冲链）：系「调用方缓冲」形态（`char*buf,int remaining` 返回已写字节数/失败 -1）+ 外部格式契约（SMT-LIB2/TPTP），与 U3 豁免判例同型且触负面清单 #2 → 登记豁免。
+- **X11**（xN 变量索引扫描 2 处）：float_error/fptaylor_eval 已由批次 F f3 登记为「独立手写表达式解析器（未来统一 ExprNode IR）」；单独抽 xN 解析子骨架与统一 IR 大方向重复、且仅 2 处 → 登记暂缓。
+- **X12**（测试侧成对销毁 7 组 + 变换类型名）：测试夹具可能有意用底层 `symbolic_coord_destroy` 原语验证原语本身；变换类型名（translation/rotation/scaling）值集与 TRANSFORM_* 枚举不同构 → 均登记暂缓。
+
+### 批次 X 执行结果与甄别结论（2026-08-14）
+
+**验证**：`ninja` 全量重建 925/925 通过（exit 0，仅既有 `lv_LOG_*_LEN` 重定义警告，与本批无关）；`ctest --output-on-failure` 170/170 全绿。
+
+- **X1 已执行**：删除 4 处手写 strdup 实现（`lv_hashtable.c` 缺 NULL 检查缺陷版、`axiom_pkg.c`、`rewrite_strategy.c`、`groebner_engine.c`）+ 2 处声明（`groebner_engine_internal.h` / `axiom_pkg_internal.h`）+ 1 处内联（`geometry_transform.c`），44 处调用点统一改 `lv_strdup_safe`；全库 grep `safe_lv_strdup_safe|groebner_strdup_safe|lv_ht_strdup|\bstr_dup\b` 无残留。
+- **X2 已执行**：`interop_import.c:1042/1223` 两处裸 `atoi(buf)` → `lv_parse_int_default(buf, -1)`，失败回退 -1 自然落到下游范围外；全库该文件 `atoi(` 无残留。
+- **X3 已执行**：新增 `lv_FULL_CIRCLE_DEG 360.0`（config.h，与 `lv_HALF_CIRCLE_DEG` 对称）；替换 `geometry_csg_eval.c:349/428`、`geo_invariant_type.c:43-45`、`geometry_transform.c:162/164/165`（int 形态用 `(int)lv_FULL_CIRCLE_DEG`）。
+- **X4 已执行**：新增 `lv_DEFAULT_STROKE_WIDTH 1.5`（config.h）；PDF 5 处数值实参 + SVG/block_canvas 6 处格式串字面量（`1.5` → `%g` + 实参，含 `extra_attr` 格式串形态 `" stroke-width=\"%g\" …"` 经 `fprintf(ctx->fp, syn->extra_attr, lv_DEFAULT_STROKE_WIDTH)` 注入）全部收敛。
+- **X5 已执行**：`formula_converter_constraint.c` 连续两处 `symbolic_coord_destroy(angle_coords[0/1])` → `symbolic_coord_pair_destroy(angle_coords[0], angle_coords[1])`。
+- **X6 暂缓**：仅 `proof_search_algo.c:380-390/433-443` 两处真同构（且同文件同函数，正确收敛是本地静态函数而非全局设施）；`aabb_tree_impl.h` 系模板间接索引排序（按 bbox 中心算 key）、`rewrite_vf2.c` 系平行双数组，均不匹配既有 `lv_insertion_sort` 元素数组签名；且选择→插入排序改变稳定性语义，违反严格行为等价。不新增全局设施。
+- **X7 暂缓（先对齐评估）**：`NODE_CONSTRAINT_*` 名称↔枚举双份在 ≥7 文件映射到不同渲染输出串（latex `\perp` / dsl `perpendicular` / ascii / python…），命中负面清单 #2（渲染格式契约）与 #4（调用点迁就）；统一需先做值集对齐审计，属较大工程。
+- **X8 暂缓（先对齐评估）**：point/line/circle/segment/ray/triangle 名称在 ≥8 文件映射到不同构目标枚举/回调（`DSL_TOK_*`/`PRESET_TYPE_*`/check/parse/handler），接近 P2-1/P2-2「值集不一致」风险面，统一前必须先做对齐评估。

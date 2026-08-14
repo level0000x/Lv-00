@@ -159,7 +159,7 @@ static lvIdeal *ideal_alloc_locked(int ring_id, int capacity, const char *label)
     ideal->generator_count = 0;
     ideal->cached_basis = NULL;
     ideal->basis_valid = false;
-    ideal->label = groebner_strdup_safe(label);
+    ideal->label = lv_strdup_safe(label);
     lvIdeal *out = ideal;
     ideal = NULL; /* 守卫解除：结果移交调用方 */
     return out;

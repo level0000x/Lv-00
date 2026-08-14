@@ -175,13 +175,13 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "ring_create: lv_calloc for var_names failed (count=%d)", var_count);
     }
     for (int i = 0; i < var_count; i++) {
-        ring->var_names[i] = groebner_strdup_safe(var_names[i]);
+        ring->var_names[i] = lv_strdup_safe(var_names[i]);
     }
 
     ring->var_count = var_count;
     ring->field = field;
     ring->order = order;
-    ring->label = groebner_strdup_safe(label);
+    ring->label = lv_strdup_safe(label);
     ring->is_commutative = true;
 
     int ring_id = registry->ring_count;

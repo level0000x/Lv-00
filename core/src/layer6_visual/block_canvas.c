@@ -473,8 +473,8 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
             const char *port_stroke = p->is_input ? "#2196F3" : "#FF9800";
             lv_SVG_WRITE(buf, pos, buf_size,
                          "  <circle cx=\"%g\" cy=\"%g\" r=\"5\" "
-                         "fill=\"%s\" stroke=\"%s\" stroke-width=\"1.5\"/>\n",
-                         px, py, port_color, port_stroke);
+                         "fill=\"%s\" stroke=\"%s\" stroke-width=\"%g\"/>\n",
+                         px, py, port_color, port_stroke, lv_DEFAULT_STROKE_WIDTH);
         }
     }
 

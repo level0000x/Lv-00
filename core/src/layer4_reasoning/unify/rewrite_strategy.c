@@ -36,22 +36,6 @@
 
 /** Default maximum iterations if 0 is passed (migrated to lvConfig runtime config) */
 
-/**
- * @brief Duplicate a string using malloc.
- *
- * @param src  Source string
- * @return Newly allocated copy, or NULL on failure
- */
-static char *str_dup(const char *src) {
-    if (!src)
-        return NULL;
-    size_t len = strlen(src);
-    char *dst = (char *) lv_malloc(len + 1);
-    if (dst) {
-        memcpy(dst, src, len + 1);
-    }
-    return dst;
-}
 
 /**
  * @brief Find the first occurrence of pattern in text.
@@ -112,12 +96,12 @@ static const char *find_last_match(const char *text, const char *pattern) {
  */
 static char *apply_substitution(const char *text, const char *pattern, const char *replacement, bool use_last) {
     if (!text || !pattern || !*pattern)
-        return str_dup(text);
+        return lv_strdup_safe(text);
 
     const char *match = use_last ? find_last_match(text, pattern) : find_first_match(text, pattern);
 
     if (!match)
-        return str_dup(text);
+        return lv_strdup_safe(text);
 
     size_t plen = strlen(pattern);
     size_t rlen = strlen(replacement);
@@ -187,7 +171,7 @@ static char *apply_parallel_rules(const char *term, const lvRewriteRuleEx *rules
     if (!term)
         return NULL;
 
-    char *current = str_dup(term);
+    char *current = lv_strdup_safe(term);
     if (!current)
         return NULL;
 
@@ -291,7 +275,7 @@ static size_t egraph_find_or_insert(Egraph *g, const char *expr, bool *is_new) {
         idx = (idx + 1) % g->capacity;
     }
 
-    g->entries[idx].expr = str_dup(expr);
+    g->entries[idx].expr = lv_strdup_safe(expr);
     g->entries[idx].occupied = true;
     g->entries[idx].eclass_parent = (int) g->count;
     g->entries[idx].eclass_rank = 0;
@@ -357,7 +341,7 @@ static char *egraph_get_best(Egraph *g, size_t input_idx) {
             }
         }
     }
-    return best ? str_dup(best) : NULL;
+    return best ? lv_strdup_safe(best) : NULL;
 }
 
 /**
@@ -381,7 +365,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
     /* Create e-graph with initial capacity */
     Egraph *g = egraph_create(256);
     if (!g)
-        return str_dup(term);
+        return lv_strdup_safe(term);
 
     /* Insert initial term into the e-graph */
     bool is_new;
@@ -392,7 +376,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
     size_t *worklist = (size_t *) lv_malloc(worklist_cap * sizeof(size_t));
     if (!worklist) {
         egraph_destroy(g);
-        return str_dup(term);
+        return lv_strdup_safe(term);
     }
     size_t work_count = 0;
     worklist[work_count++] = input_idx;
@@ -453,7 +437,7 @@ static char *apply_egraph_rules(const char *term, const lvRewriteRuleEx *rules, 
      * same e-class as the input term */
     char *best = egraph_get_best(g, input_idx);
     egraph_destroy(g);
-    return best ? best : str_dup(term);
+    return best ? best : lv_strdup_safe(term);
 }
 
 /**
@@ -534,9 +518,9 @@ bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, con
     }
 
     lvRewriteRuleEx *rule = &engine->rules[engine->rule_count];
-    rule->name = str_dup(name);
-    rule->pattern = str_dup(pattern);
-    rule->replacement = str_dup(replacement);
+    rule->name = lv_strdup_safe(name);
+    rule->pattern = lv_strdup_safe(pattern);
+    rule->replacement = lv_strdup_safe(replacement);
     rule->priority = priority;
     rule->condition_fn = condition;
 
@@ -564,7 +548,7 @@ typedef bool (*RewriteApplyFn)(lvRewriteEngineEx *engine, const char *input, lvR
 
 static bool strategy_apply_ordered(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result,
                                    bool use_last) {
-    char *current = str_dup(input);
+    char *current = lv_strdup_safe(input);
     if (!current)
         return false;
 
@@ -604,7 +588,7 @@ static bool strategy_apply_outer(lvRewriteEngineEx *engine, const char *input, l
 }
 
 static bool strategy_apply_parallel(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result) {
-    char *current = str_dup(input);
+    char *current = lv_strdup_safe(input);
     if (!current)
         return false;
 
@@ -659,7 +643,7 @@ bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRew
     result->hit_limit = false;
 
     if (engine->rule_count == 0) {
-        result->output = str_dup(input);
+        result->output = lv_strdup_safe(input);
         result->converged = true;
         return true;
     }

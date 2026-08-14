@@ -65,7 +65,6 @@ int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *ring, in
 /* ================================================================
  *  通用辅助
  * ================================================================ */
-char *groebner_strdup_safe(const char *src);
 
 /* ================================================================
  *  引擎内部常量（从 groebner_engine.c 段1 迁移，供拆分文件共享）

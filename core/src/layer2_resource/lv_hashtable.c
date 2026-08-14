@@ -94,14 +94,6 @@ static int lv_ht_next_pow2(int min) {
     return cap;
 }
 
-/** 字符串键副本 */
-static char *lv_ht_strdup(const char *s) {
-    size_t len = strlen(s);
-    char *copy = (char *) lv_malloc(len + 1);
-    if (copy)
-        memcpy(copy, s, len + 1);
-    return copy;
-}
 
 /* ========================================================================
  * 开放寻址（线性探测）键形态公共模板：int / int64
@@ -415,7 +407,7 @@ bool lv_hashtable_str_insert(lvHashtable *ht, const char *key, void *value) {
             return false;
     }
 
-    char *key_copy = lv_ht_strdup(key);
+    char *key_copy = lv_strdup_safe(key);
     if (!key_copy)
         return false;
 

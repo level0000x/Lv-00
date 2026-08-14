@@ -514,7 +514,7 @@ int variety_compute(lvRingRegistry *registry, int ideal_id, const char *label) {
     }
 
     variety->ideal_id = ideal_id;
-    variety->label = groebner_strdup_safe(label);
+    variety->label = lv_strdup_safe(label);
 
     /* 尝试零维求解 */
     int sol_count = 0;

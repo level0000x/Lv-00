@@ -43,9 +43,9 @@ int axiom_package_add_unconstructible_template(AxiomPackage *pkg, const char *ta
     memset(&tmpl, 0, sizeof(UnconstructibleTemplate));
 
     /* 深拷贝字符串字段 */
-    tmpl.target_problem_name = safe_lv_strdup_safe(target_name);
-    tmpl.known_unconstructible_name = safe_lv_strdup_safe(known_name);
-    tmpl.description = safe_lv_strdup_safe(description);
+    tmpl.target_problem_name = lv_strdup_safe(target_name);
+    tmpl.known_unconstructible_name = lv_strdup_safe(known_name);
+    tmpl.description = lv_strdup_safe(description);
     tmpl.verified = false;
 
     /* 接过归约构造图的所有权 */

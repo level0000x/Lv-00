@@ -425,7 +425,7 @@ void eval_csg_extrude_rotate(const CSGNode *node, CSGTriList *out) {
         }
     }
 
-    if (angle_deg < 360.0 - CSG_BSP_EPSILON) {
+    if (angle_deg < lv_FULL_CIRCLE_DEG - CSG_BSP_EPSILON) {
         for (int i = 0; i < section_tris.count; i++) {
             CSGTriangle tri = section_tris.tris[i];
             CSGVec3 face_normal = csg_tri_normal(&tri);

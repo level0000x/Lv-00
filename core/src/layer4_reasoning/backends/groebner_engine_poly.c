@@ -116,7 +116,7 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
         goto _gcleanup;
 
     lv_free((void **) &result->label);
-    result->label = groebner_strdup_safe(result_label);
+    result->label = lv_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
 GROEBNER_LOCK_GUARD_END();
@@ -153,7 +153,7 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
         goto _gcleanup;
 
     lv_free((void **) &result->label);
-    result->label = groebner_strdup_safe(result_label);
+    result->label = lv_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
 GROEBNER_LOCK_GUARD_END();
@@ -190,7 +190,7 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
         goto _gcleanup;
 
     lv_free((void **) &result->label);
-    result->label = groebner_strdup_safe(result_label);
+    result->label = lv_strdup_safe(result_label);
 
     ret = poly_internal_store(g_data, result);
 GROEBNER_LOCK_GUARD_END();
