@@ -1627,3 +1627,66 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 6. **指针数组析构持续收敛（判据 G）**：lv_free_ptr_array 已落地迁移 7 处，剩余 ~60 处（含非完整骨架）可逐步迁移；长远可评估「析构描述符」（elem_dtor + free 组合）统一元素销毁，与 lv_darray_init_with_dtor 对齐。
 
 **优先级建议**：立即价值（低风险）= #1/#4/#5；中期（需设计）= #2/#3；长期 = #6。待用户立项后按批次执行。
+
+## 二十三、大规模架构优化调研（2026-08-14，只读）
+
+### 调研范围与方法
+
+5 路只读子代理并行全库审计（依赖违规 / 目录与子系统 / 规模复杂度 / 构建测试 / API 与头结构），覆盖 core/src 全部 390-405 个 .c、~171k 行、core/include/lv 310 个头。全部证据 文件:行 级落位，未修改任何文件。
+
+**规模校正**：实际 390 .c / ~171k 行（README 声称 615 .c / ~200k 行，过时）；层目录实际只有 8 个（layer1/2/3/4/5/6/8/10），**layer7、layer9 无目录**。
+
+### P0 架构性风险（单向依赖失守 + 验证机制失效）
+
+1. **44 处层间依赖违规**（README 十层依赖表 vs 实际 include）：
+   - L2 基础层越权 21 处：`lv.c:26` include `lv/formula_converter.h`（**L2 反向依赖 L1，成环**）+ `:25` ecosystem.h（L4）+ `:30` module_internal.h（L4）；`representation_converter.c:22/23` 直连 L4 func_block.h + **L6 block_graph_view.h**；debug_*.c 10 文件全系 include engine.h（L4）；context.c:16/26 依赖 circuit_breaker.h + constraint_graph.h。
+   - L1 越权 14 处：`dsl_compiler_load.c:28` 跨两层跳 L4 axiom_pkg.h；dsl_compiler 系 7 文件 include L3 constraint_graph.h/symbolic_coord.h。
+   - L3 越权 8 处：constraint_graph 系 7 文件 + graph_index.c 全系 include L4 solver.h/stream.h。
+   - **L4→L5 反向环**：`stream_context_util.c:37` include interop.h，与 L5 interop_*.c include engine.h 构成环。
+   - L6 违反 README 依赖表（不含 L4）：converter/block_to_*.c 3 处 + runtime/block_scheduler.c 均 include func_block.h。
+   - L8 越权 1 处：meta_verify.c:27 include proof_compiler.h（L5）。
+2. **layer_validation.h 验证机制 100% 空转**：全库 0 个 .c include 它、0 处使用 lv_CURRENT_LAYER；宏体系停在「6 层」而目录是「10 层」，且 `lv_VALIDATE_CURRENT_LAYER` 断言 1-5 会把 L6 自己判为非法；两处文档（头注释 vs engine.h:49）互相矛盾。默认开关 OFF。
+
+### P1 结构性重复子系统（去重机会）
+
+| 重复族 | 实现清单 | 建议 |
+|---|---|---|
+| 区间运算 ×3 | interval_arith（基准）/ float_error（蓝本自持 round_down）/ gappa_propagate（自建 PropInterval） | float_error、gappa_propagate 迁到 lv_interval_* |
+| 二进制格式 ×3 | module_serialize_msgpack（手写 MP）/ module_lvz（手写 .lvz 解析）/ geometry_compress*.c（.lvzd 全家 14 文件） | 明确边界或统一序列化栈 |
+| 证明导出 ×3 | engine/proof_export.c / layer5/proof_export_enhanced.c / layer4 根 proof.c 内嵌 | 收敛到 layer5 单一导出面 |
+| Coq/Lean ×2 | interop_export_coq/lean.c vs layer10 coq_bridge/lean4_bridge | 导出归 layer5、桥接归 layer10，划清边界 |
+| TikZ/LaTeX ×4 | interop_export / geo_visual_complete / tikz_export / lv_render_visitor_tikz | 抽公共 TikZ 生成层 |
+| DOT ×4 | lv_dot_writer（公共）+ graph_dot_export（自带 dot_escape_append 副本）+ proof_trace_tree + proof_export_enhanced | graph_dot_export 迁 lv_dot_writer |
+| 日志通道 ×5 | lv_log / runtime_monitor（**与 lv_log.h 各自定义 lvLogLevel，文件头明言不能同含**）/ debug_trace_session / debug_ringbuf / debug_log_ctx | 统一日志类型单源 |
+| 内存池 ×7 | lv_mempool / lv_mempool_utils / memory_pool / debug_mempool / lv_arena / lv_heap / allocator | debug_mempool 并入公共池 |
+| 测试框架 ×2 | layer2/test_framework.c vs layer4/bootstrap_test*.c（9 文件，编入生产库） | bootstrap_test 移出生产库 |
+| 双胞胎后端 | cuda_backend.c ↔ hip_backend.c（45+ 函数同骨架仅换前缀）；simd_ops.c 内 vec4d/4f/8f 三重复制 | 宏/模板化或共享生成层 |
+
+**同名双实现 5 对**（先核实是否真双实现再合并）：rational.c（L3 symbolics / L4 expr）、meta_verify.c（L8 / L4 proof）、proof_version.c（proof_system / proof）、proof_optimize.c（proof_system / engine）、proof_contradiction.c（根 / engine）。
+
+### P2 模块边界与目录组织
+
+1. **游离文件**：core/src 根 13 个（lv_impl_upper_* 8 个实为 L7/L9/L8/L6/L3/L10/L4 各层实体却归 lv_core OBJECT 库 layer_id=0）；layer4 根 16 个（proof.c/solver.c/rewrite.c/module.c 应入对应子目录，mv_polynomial.h/solver_snapshot.h 头与实现错位）。
+2. **错放**：layer2 混入 proof_score/proof_priority（L4 域）、meta_repr、representation_converter（应入 layer6_visual/converter/，该目录已有 block_to_* 三兄弟）、lv_export_common（L5 域）、preset_helper_cn/math_theory_guide_cn（中文 UI 资源）、geometry_config（与 lv_config 构成**双配置系统**）；layer3 混入 high_dim_*（11 个可视化文件）、float_error/gappa_*/herbie/fptaylor（浮点验证域）、geometry_compress_*（序列化域）。
+3. **include 路径两套风格**：`"lv_internal.h"`（40 个 .c 无前缀）vs `"lv/lv_internal.h"` 并存；同文件内混用；两套 internal 头体系（src 本地 * _internal.h vs include/lv 下 * _internal.h）靠 -I 顺序区分。
+
+### P3 工程卫生与文档失同步
+
+1. **build3/ 逸出 .gitignore**（缺 `build3/` 规则）；根目录 17+ 诊断 txt/ps1（build_verify_build_log*.txt 等）会被 git 跟踪；core/src 混入 _edit_test.c（2 行孤儿）、_ps_test.txt、preset/_migrate*.ps1/py。
+2. **文档过时**：README「615 .c/200k 行/229 头/152 测试」vs 实际 390 .c/~171k/310 头/170 测试；「lv.h 唯一公共入口」声明被 lv_impl_upper_*.c 直接 include 十几子系统头削弱；layer7/9「已删除」但应用逻辑实际在 lv_core。
+3. **测试辅助编入生产库**：bootstrap_test*.c、axiom_template_test.c、recursion_test.c、test_framework.c 被编译进 lv_layer4/lv_layer2 OBJECT 库。
+4. **导出宏单源失败**：`lv_PUBLIC_API` 被 40 处重复定义（33 头 + 7 源各自 #define，多为空）；公共 API 前缀分裂（lv_ 与无前缀 graph_add_point/proposition_create 并存，全局命名空间风险）。
+
+### 健康面（正面确认，无需动）
+
+- 无 include 环（依赖方向整体单向、头守卫规范）；无 longjmp；无 >20 case 大 switch（最大 9，分发用 if/else 链+函数指针表）；goto 146 处集中于错误清理，可控。
+- 构建架构健康：9 层 OBJECT 库 + lv_static 聚合，依赖方向受控；170 测试 ↔ 170 ctest ↔ 170 exe 一一对应；宏化 main；平台分支集中（114 处/24 文件，头层为主）；GMP 依赖配置完整可复现。
+- 全局单例 ~30+，约 2/3 有锁/once/TLS 保护；风险面集中在 lv_log 全局、allocator 可切换指针、计数器族与行为开关（约 12-15 处无保护）。
+- 真上帝文件仅 interop_import.c（3 职责）；TOP20 大文件多为宽文件；>150 行函数约 4 个。
+
+### 优化路线图建议（待立项）
+
+- **第一优先（P0 修复，小改动高收益）**：① 解除 lv.c 的 L1/L4 引用与 representation_converter.c 的 L4/L6 引用；② layer_validation.h 升级到 10 层模型并接入 CMake target_compile_definitions（0→启用，先解 L1/L3 越权）；③ 补 .gitignore 规则（build3/ 等）并清理残留文件。
+- **第二优先（P1 去重）**：log 类型单源（runtime_monitor vs lv_log）；graph_dot_export 迁 lv_dot_writer；5 对同名双实现核实合并；Coq/Lean/TikZ 导出边界划清。
+- **第三优先（P2 目录重组）**：lv_impl_upper_* 按层归位（新建 layer7/layer9 目录或并入现有层）；错放文件迁移；include 路径风格统一（全部 lv/ 前缀）。
+- **持续**：JSON 序列化手写拼接统一到 lvJsonBuf（stream_json、high_dim_serialize 为正面样板）；区间运算三套合一；公共 API 前缀与导出宏单源治理。
