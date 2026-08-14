@@ -195,3 +195,31 @@ int engine_get_rewrite_step_limit(const lvEngine *engine) {
         return lv_DEFAULT_REWRITE_STEP_LIMIT;
     return engine->rewrite_step_limit > 0 ? engine->rewrite_step_limit : lv_DEFAULT_REWRITE_STEP_LIMIT;
 }
+
+/**
+ * @brief 获取引擎已加载的公理包数量（跨域访问器，声明于 lv/engine_access.h）
+ *
+ * 环 B 破环：proof 域经 engine_access.h 前向声明调用本访问器，避免 include
+ * engine.h 拉入完整 lvEngine 结构体（proof↔engine 目录级 include 环）。
+ *
+ * @param engine 引擎实例（可为 NULL，返回 0）
+ * @return 公理包数量
+ */
+int engine_get_axiom_package_count(const lvEngine *engine) {
+    if (!engine)
+        return 0;
+    return engine->axiom_package_count;
+}
+
+/**
+ * @brief 获取引擎第 index 个已加载公理包（跨域访问器，声明于 lv/engine_access.h）
+ *
+ * @param engine 引擎实例（可为 NULL，返回 NULL）
+ * @param index  索引（越界返回 NULL）
+ * @return 公理包指针，失败返回 NULL
+ */
+AxiomPackage *engine_get_axiom_package(const lvEngine *engine, int index) {
+    if (!engine || index < 0 || index >= engine->axiom_package_count)
+        return NULL;
+    return engine->axiom_packages[index];
+}

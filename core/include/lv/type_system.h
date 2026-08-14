@@ -32,9 +32,13 @@
 #include <stdbool.h>
 
 #include "constraint_graph.h"
-#include "rewrite.h"
 #include "stream.h"
 #include "lv/lv_xmacro.h"
+
+/* 前向声明：RewriteRule 完整定义在 rewrite.h（L4 rewrite 域）。
+ * 仅指针数组引用（rewrite_rules 字段），打破 type_system.h → rewrite.h
+ * 的头级依赖（配合 unify.h 前向声明 TypeRegion 断开三角环） */
+typedef struct RewriteRule RewriteRule;
 
 #ifdef __cplusplus
 extern "C" {

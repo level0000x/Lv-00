@@ -57,7 +57,6 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
-#include "lv/proof.h"
 
 #include "lv/axiom_rule_engine.h"
 #include "lv/error_codes.h"

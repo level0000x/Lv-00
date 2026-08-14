@@ -660,9 +660,13 @@ static inline void lv_safe_free(void **ptr) {
 #define lv_SAFE_FREE(ptr) lv_safe_free((void **) &(ptr))
 
 /**
- * @brief 字符串化宏
+ * @brief 字符串化宏（双层展开，与 engine.h 逐 token 一致）
+ *
+ * 双层展开使 # 能作用于外部宏参数（如 lv_CURRENT_LAYER），
+ * 与 engine.h 的定义保持逐 token 相同，避免重复定义告警。
  */
-#define lv_STRINGIFY(x) #x
+#define lv_STRINGIFY_IMPL(x) #x
+#define lv_STRINGIFY(x) lv_STRINGIFY_IMPL(x)
 #define lv_TOSTRING(x) lv_STRINGIFY(x)
 
 /**

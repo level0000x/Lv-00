@@ -16,7 +16,7 @@
 
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
-#include "lv/engine.h"
+#include "lv/engine_access.h" /* 引擎跨域访问器（环 B 破环：不引入完整 lvEngine） */
 #include "lv/proof.h"
 #include "lv/solver.h"
 #include "lv/lv_xmacro.h"
@@ -228,14 +228,14 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
     }
 
     /* 策略3：归约尝试 - 尝试将构造归约到已知不可构造问题 */
-    if (nav->engine && nav->engine->axiom_package_count > 0) {
+    if (nav->engine && engine_get_axiom_package_count(nav->engine) > 0) {
         if (proof_stream_ctx) {
             stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_COLOR_UPDATE, "尝试归约到已知不可构造问题", -1);
         }
 
         /* 遍历所有已加载的公理包 */
-        for (int pkg_idx = 0; pkg_idx < nav->engine->axiom_package_count; pkg_idx++) {
-            AxiomPackage *pkg = nav->engine->axiom_packages[pkg_idx];
+        for (int pkg_idx = 0; pkg_idx < engine_get_axiom_package_count(nav->engine); pkg_idx++) {
+            AxiomPackage *pkg = engine_get_axiom_package(nav->engine, pkg_idx);
             if (!pkg || pkg->known_unconstructibles.count <= 0)
                 continue;
 

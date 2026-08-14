@@ -19,6 +19,7 @@
 #include "lv/normalization.h" /* graph_normalize / NormalizationResult */
 #include "lv/proof.h"
 #include "lv/proof_version_internal.h"
+#include "lv/type_system.h" /* TypeRegion / type_region_destroy（环 E 断链后显式 include） */
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"

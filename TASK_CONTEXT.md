@@ -1977,3 +1977,61 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - 死头删除 / 批次C-⑨ / preset_register_macros.h + CMake / 零 include 零使用，非生成管道输入 / 全量回归。
 - 死头保留+标注 / 批次C-⑨ / three_layer_arithmetic.h + layer_validation.h / 兼容遗留或文档权威源（宏实现已由 lv_arith_safe.h / engine.h 承担）/ 全量回归。
 - 垃圾文件删除 / 批次C-⑨ / layer2_resource/_edit_test.c / 误提交临时测试残留，零引用 / 全量回归。
+
+## 三十、批次 C-⑩：L4 内部 include 环破环（2026-08-14）
+
+用户指令「可以研究一下架构的激进优化」。完成 L4 激进优化研究（见下），经 AskUserQuestion 用户选定**「先只破 L4 的环」**——层模型精简候选（L7/L9 空层、L10→L8 冗余链接、meta_verify 并入 L4、L10 三文件并入 L5、orchestrator.h/application.h 归档）全部暂缓，仅做 L4 内部五个 include 环破环。
+
+### 激进优化研究结论（调研，未执行）
+
+- **层规模**：L0=14 / L1=7 / L2=70 / L3=128 / L4=267 / L5=33 / L6=26 / L8=1 / L10=3；L7/L9 为空层；L10→L8 链接冗余（L10 应依赖 L2/L4/L5）。
+- **巨型文件**：simd_ops 2148 行、interop_import 2147 行等。
+- **L4 强连通分量**：proof/proof_system/unify/rewrite/type_logic/engine 六域构成不可无环拆分的整体；solver 与 backends 构成另一 SCC。五个 include 环（A-E）为 SCC 内的环边，破环后六域+solver/backends 整体可成 DAG。
+
+### 破环明细（五个环）
+
+**环 E（type_system↔rewrite↔unify 三角）**
+- type_system.h：删 `#include "rewrite.h"`，加 `typedef struct RewriteRule RewriteRule;` 前向声明（仅指针引用）。
+- unify.h：删 `#include "type_system.h"`，加 `typedef struct TypeRegion TypeRegion;` 前向声明。
+
+**环 A（proof↔unify）**
+- PropositionEquivalence 从 proof.h 移入 unify.h（合一域持有，类型单一事实来源；proof.h 保留注释指引）。
+- unify/*.c 删 8 个死 `#include "lv/proof.h"`（unify_equivalence.c 经 unify.h 传递获得）。
+
+**环 B（proof↔engine）**
+- proof_engine_enhanced.h：删 `#include "proof.h"`，加 Proposition/ProofStep/ProofNavigator 三个前向声明（指针用法）。
+- proof_engine_enhanced.c：删死 `#include "lv/proof.h"`。
+- proof_navigator_*.c 11 个：删零使用 `#include "lv/engine.h"`。
+- **本次验证修正**：proof_dependency.c / proof_navigator_instantiate.c 实为直访 lvEngine 字段（axiom_package_count/axiom_packages），前向声明不足。新增轻量头 **lv/engine_access.h**（仅前向声明 lvEngine/AxiomPackage）声明 `engine_get_axiom_package_count` / `engine_get_axiom_package` 访问器，engine_resource.c 实现，两 .c 改经访问器读取。proof→engine 目录边清零（engine→proof 保留，9 文件实质依赖）。
+
+**环 C（rewrite↔unify）**
+- rewrite_strategy.c 从 unify/ git mv 至 rewrite/（include 面干净：仅 rewrite_strategy.h / lv_internal.h / lv_str_utils.h），CMake 路径同步。
+
+**环 D（solver↔backends）**
+- sat_encoding.c 从 backends/ git mv 至 solver/（SAT 编码管线 = 编码 + 驱动 CDCL 求解，属 solver 域；全库零外部消费者，仅测试 test_bdd_sat_atp 链接引用）。CMake 路径同步；formal/lvFormal/Theory/SATEncoding.lean 对应路径同步。backends→solver 目录边清零（solver→backends 保留：solver_core→groebner_parallel 单向）。
+- groebner_parallel.h：删死 `#include "lv/type_system.h"`（结构体全 int/double/void* 字段，零 type_ 符号）；补自包含 `#include <stdbool.h>`（原依赖传递）。
+
+**环 E 断链连锁修复**
+- unify.h 不再传递 type_system.h → proof_proposition.c / proof_navigator_instantiate.c 显式补 `#include "lv/type_system.h"`（.c 直接用自声明，符合依赖显式化方向）。module/*.c 的 `type_region_ids` 为字段名（int 数组），非类型引用，无需处理。
+
+### 批次 C-⑩ 执行结果
+
+- **build_verify**（ENABLE_LAYER_VALIDATION=ON）：ninja 850/850 全绿 + ctest 170/170 全绿；层验证 0 层间违规。
+- **build3**：ninja 923/923 全绿 + ctest 170/170 全绿。
+- **目录级环确认**：proof/→engine/ = 0 include；backends/→solver/ = 0 include；solver/→backends/ = 1（solver_core→groebner_parallel，单向保留）；engine/→proof/ 单向保留。
+- **告警收敛**：lv_STRINGIFY 在 engine.h:102 与 lv_utils.h:665 重复定义（C-⑧ 引入的全构建噪音）→ lv_utils.h 升级为与 engine.h 逐 token 一致的双层展开（lv_STRINGIFY_IMPL + lv_STRINGIFY），重复定义告警清零。
+
+### 决策登记（第 9 章格式）
+
+- 环破环方向 / 批次C-⑩ / proof→engine、solver↔backends / 目录级单向化：保留实质依赖方向（engine→proof 9 文件、solver→backends 1 文件），反向边经访问器/文件归位清零 / 全量回归。
+- 轻量头新增 / 批次C-⑩ / lv/engine_access.h / 跨域访问器声明（engine_get_axiom_package_*），实现于 engine_resource.c，proof 域经前向声明读取引擎数据 / 全量回归。
+- 类型单一事实来源 / 批次C-⑩ / PropositionEquivalence proof.h→unify.h / 合一域持有，proof.h 仅注释指引 / 全量回归。
+- 文件物理归位 / 批次C-⑩ / sat_encoding.c backends→solver + rewrite_strategy.c unify→rewrite / 归属按「编码+驱动求解」与「重写策略」职责 / 全量回归。
+- 头前向声明破环 / 批次C-⑩ / type_system.h→RewriteRule、unify.h→TypeRegion、proof_engine_enhanced.h→Proposition/ProofStep/ProofNavigator / 仅指针引用处用前向声明替换完整 include / 全量回归。
+- 死 include 删除 / 批次C-⑩ / groebner_parallel.h→type_system.h / 结构体零 type_ 符号；头补自包含 stdbool.h / 全量回归。
+- 断链连锁显式 include / 批次C-⑩ / proof_proposition.c + proof_navigator_instantiate.c 补 type_system.h / unify.h 断链后 .c 自声明依赖 / 全量回归。
+- 宏告警收敛 / 批次C-⑩ / lv_utils.h lv_STRINGIFY 双层展开 / 与 engine.h 逐 token 一致消除重复定义 / 全量回归。
+
+### 后续候选（暂缓，层模型精简）
+
+L7/L9 空层处置、L10→L8 冗余链接删除、meta_verify.c 并入 L4、L10 三文件并入 L5、orchestrator.h/application.h 归档、L4 按子域拆 OBJECT 库（环破完后的自然延伸）。

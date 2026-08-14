@@ -26,6 +26,7 @@
 #include "lv/lv.h"
 #include "lv/lv_lexer.h"
 #include "lv/lv_xmacro.h"
+#include "lv/constraint_graph.h"
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -153,9 +154,123 @@ static char *read_file(const char *filepath, size_t *out_len) {
 /** @brief 实体声明处理器函数指针类型 */
 typedef void (*EntityDeclHandler)(lvEngine *engine, const char *name);
 
-/** 注册为自由点（默认坐标 (0,1,0,1) 即 (0,0)） */
+/* ── 声明值解析辅助（坐标/构造值）── */
+
+/**
+ * @brief 从声明值 AST 中提取整数字面量
+ * @param node AST 节点（可能为 NULL）
+ * @param out  输出值
+ * @return 找到整数返回 true
+ */
+static bool loader_expr_int(const LvAstNode *node, long long *out) {
+    if (node && node->type == LV_AST_INTEGER_LITERAL) {
+        *out = node->data.literal.integer_value;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 提取结构化坐标：Point A := {x: N, y: M}
+ *
+ * STRUCT_LITERAL → child 链表为 FIELD 节点，每个 FIELD 有 name 和 value。
+ * 支持字段名 "x"/"y"（及别名 "X"/"Y"）。
+ *
+ * @param value AST 声明值节点
+ * @param out_x 输出 x（仅当找到时有效）
+ * @param out_y 输出 y
+ * @param has_x / has_y 输出是否找到对应字段
+ */
+static void loader_extract_struct_coords(const LvAstNode *value,
+                                         long long *out_x, long long *out_y,
+                                         bool *has_x, bool *has_y) {
+    *has_x = *has_y = false;
+    if (!value || value->type != LV_AST_STRUCT_LITERAL)
+        return;
+    for (const LvAstNode *f = value->child; f; f = f->next) {
+        if (f->type != LV_AST_STRUCT_FIELD || !f->data.field.name)
+            continue;
+        const char *fn = f->data.field.name;
+        if ((fn[0] == 'x' || fn[0] == 'X') && !*has_x)
+            *has_x = loader_expr_int(f->data.field.value, out_x);
+        else if ((fn[0] == 'y' || fn[0] == 'Y') && !*has_y)
+            *has_y = loader_expr_int(f->data.field.value, out_y);
+    }
+}
+
+/**
+ * @brief 提取几何表达式坐标：Point A := point(x, y)
+ *
+ * GEOMETRY_EXPR 且 func_name == "point"，参数链表为整数列表。
+ * 取前两个整数作为坐标。
+ *
+ * @param value AST 声明值节点
+ * @param out_x / out_y 输出坐标
+ * @return 成功提取两个坐标返回 true
+ */
+static bool loader_extract_point_expr(const LvAstNode *value,
+                                      long long *out_x, long long *out_y) {
+    if (!value || value->type != LV_AST_GEOMETRY_EXPR)
+        return false;
+    if (!value->data.call.func_name || !lv_str_eq(value->data.call.func_name, "point"))
+        return false;
+    const LvAstNode *args = value->data.call.args;
+    long long x, y;
+    if (!args || !loader_expr_int(args, &x))
+        return false;
+    args = args->next;
+    if (!args || !loader_expr_int(args, &y))
+        return false;
+    *out_x = x;
+    *out_y = y;
+    return true;
+}
+
+/** 注册为自由点（默认坐标 (0,1,0,1) 即 (0,0)；带声明值时使用真实坐标） */
 static void decl_register_point(lvEngine *engine, const char *name) {
     int id = lv_add_point(engine, 0, 1, 0, 1);
+    if (id >= 0)
+        loader_names_add(name, id);
+}
+
+/**
+ * @brief 注册带坐标的点（声明值版本）
+ *
+ * 支持两种声明值形态：
+ *   - Point A := {x: 3, y: 4};   （结构字面量）
+ *   - Point A := point(3, 4);    （几何表达式）
+ * 坐标用 lv_add_point 的精确有理数接口写入。
+ *
+ * @param engine 引擎
+ * @param name   实体名
+ * @param value  声明值 AST（可为 NULL，NULL 时按默认坐标注册）
+ */
+static void decl_register_point_with_value(lvEngine *engine, const char *name,
+                                           const LvAstNode *value) {
+    long long x = 0, y = 0;
+    bool has_x = false, has_y = false;
+    bool ok = false;
+
+    if (value) {
+        /* 形态 1: 结构字面量 {x, y} */
+        loader_extract_struct_coords(value, &x, &y, &has_x, &has_y);
+        if (has_x && has_y) {
+            ok = true;
+        } else {
+            /* 形态 2: point(x, y) 几何表达式 */
+            long long px = 0, py = 0;
+            if (loader_extract_point_expr(value, &px, &py)) {
+                x = px; y = py; ok = true;
+            }
+        }
+    }
+
+    int id;
+    if (ok) {
+        id = lv_add_point(engine, (int64_t) x, 1, (int64_t) y, 1);
+    } else {
+        id = lv_add_point(engine, 0, 1, 0, 1);
+    }
     if (id >= 0)
         loader_names_add(name, id);
 }
@@ -189,6 +304,11 @@ static const EntityDeclHandler kEntityDeclHandlers[] = {
  * 执行对应的引擎添加操作（如添加点、预留线段/直线名称等）。
  * 名称列表为逗号分隔的字符串。
  *
+ * 带声明值（":= Expr"）时：
+ *   - Point A := {x: N, y: M}; / Point A := point(N, M);  → 真实坐标
+ *   - Line L := line(a, b);    → 创建线段（第二遍端点已知后）
+ *   - 其他类型 → 暂存名称（与无值一致）
+ *
  * @param engine 引擎指针
  * @param node   AST 声明节点
  */
@@ -211,7 +331,12 @@ static void process_declaration(lvEngine *engine, LvAstNode *node) {
     char *save;
     char *tok = lv_strtok_r(buf, ",", &save);
     while (tok) {
-        handler(engine, tok);
+        /* 带声明值且为 Point 时走坐标注册；声明值仅为单个名称服务 */
+        if (node->data.decl.value && etype == LV_ENTITY_POINT) {
+            decl_register_point_with_value(engine, tok, node->data.decl.value);
+        } else {
+            handler(engine, tok);
+        }
         tok = lv_strtok_r(NULL, ",", &save);
     }
 }
@@ -314,42 +439,128 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
 
     /* 第二遍：处理声明之后的线段/直线（如果端点已知） */
     for (LvAstNode *stmt = ast->child; stmt; stmt = stmt->next) {
-        if (stmt->type == LV_AST_DECLARATION) {
-            LvEntityType etype = (LvEntityType) stmt->data.decl.entity_type;
-            if (etype == LV_ENTITY_SEGMENT || etype == LV_ENTITY_LINE) {
-                /* 线段/直线需要两个已知端点才能创建 */
-                /* 这里简化处理：跳过，因为端点尚未连接 */
-            }
+        if (stmt->type != LV_AST_DECLARATION)
+            continue;
+        LvEntityType etype = (LvEntityType) stmt->data.decl.entity_type;
+        if (etype != LV_ENTITY_SEGMENT && etype != LV_ENTITY_LINE)
+            continue;
+        if (!stmt->data.decl.value)
+            continue; /* 无构造值，无法创建 */
+
+        /* 支持 Line L := line(a, b); / Segment S := line(a, b); / segment(a, b);
+         * 构造值形态：GEOMETRY_EXPR，func_name ∈ {line, segment}，参数为两个标识符 */
+        const LvAstNode *v = stmt->data.decl.value;
+        if (v->type != LV_AST_GEOMETRY_EXPR)
+            continue;
+        const char *fn = v->data.call.func_name;
+        if (!fn || !(lv_str_eq(fn, "line") || lv_str_eq(fn, "segment")))
+            continue;
+        const LvAstNode *a0 = v->data.call.args;
+        const LvAstNode *a1 = a0 ? a0->next : NULL;
+        if (!a0 || !a1 || a0->type != LV_AST_IDENTIFIER_EXPR || a1->type != LV_AST_IDENTIFIER_EXPR)
+            continue;
+
+        int p1 = loader_names_lookup(a0->data.ident.name);
+        int p2 = loader_names_lookup(a1->data.ident.name);
+        if (p1 < 0 || p2 < 0)
+            continue; /* 端点未注册，跳过 */
+
+        int seg_id = lv_add_line_segment(engine, p1, p2);
+        if (seg_id >= 0) {
+            /* 名称列表拆分（声明值只作用于首个名称，此处为单名声明场景） */
+            char buf[1024];
+            lv_strlcpy(buf, stmt->data.decl.names, sizeof(buf));
+            char *save;
+            char *tok = lv_strtok_r(buf, ",", &save);
+            if (tok)
+                loader_names_add(tok, seg_id);
         }
     }
 
     /* 第三遍：处理 Constraint 和 Prove 语句 */
     for (LvAstNode *stmt = ast->child; stmt; stmt = stmt->next) {
         if (stmt->type == LV_AST_CONSTRAINT_STMT) {
-            /* Constraint 语句：提取标识符引用并尝试添加约束 */
             LvAstNode *expr = stmt->data.stmt.expr;
-            if (expr && expr->type == LV_AST_RELATION) {
-                /* 收集参数节点 ID */
-                int arg_ids[8];
-                int arg_count = 0;
-                for (LvAstNode *a = expr->data.call.args; a && arg_count < 8; a = a->next) {
-                    if (a->type == LV_AST_IDENTIFIER_EXPR) {
-                        int id = loader_names_lookup(a->data.ident.name);
-                        if (id >= 0) {
-                            arg_ids[arg_count++] = id;
+            if (!expr)
+                continue;
+
+            /* ── 形态 1: dist(a, b) = N; —— 距离约束
+             *   AST: COMPARE(op==, left={MEASURE|FUNCTION_CALL}{dist/distance, args=[a,b]}, right=INT N)
+             *   dist 作为普通标识符解析为 FUNCTION_CALL；distance 关键字解析为 MEASURE。 */
+            if (expr->type == LV_AST_COMPARE && expr->data.compare.left &&
+                (expr->data.compare.left->type == LV_AST_MEASURE ||
+                 expr->data.compare.left->type == LV_AST_FUNCTION_CALL)) {
+                const LvAstNode *call = expr->data.compare.left;
+                const char *fn = call->data.call.func_name;
+                if (fn && (lv_str_eq(fn, "dist") || lv_str_eq(fn, "distance"))) {
+                    const LvAstNode *a0 = call->data.call.args;
+                    const LvAstNode *a1 = a0 ? a0->next : NULL;
+                    if (a0 && a1 && a0->type == LV_AST_IDENTIFIER_EXPR &&
+                        a1->type == LV_AST_IDENTIFIER_EXPR) {
+                        int id0 = loader_names_lookup(a0->data.ident.name);
+                        int id1 = loader_names_lookup(a1->data.ident.name);
+                        long long dist_val = 0;
+                        loader_expr_int(expr->data.compare.right, &dist_val);
+                        if (id0 >= 0 && id1 >= 0 && engine->main_graph) {
+                            /* 用 INCIDENCE 承载距离约束对，numeric_value 存距离值 */
+                            int participants[2] = {id0, id1};
+                            int cid = engine->main_graph->next_constraint_id;
+                            Constraint *c = graph_add_constraint_with_id(
+                                engine->main_graph, cid, INCIDENCE, participants, 2);
+                            if (c) {
+                                c->numeric_value = (double) dist_val;
+                                c->satisfaction = 1.0;
+                            }
                         }
                     }
                 }
+                continue;
+            }
 
-                /* 根据关系类型添加约束 */
+            /* ── 形态 2: 关系调用 collinear/perpendicular/parallel/... —— 关系约束
+             *   AST: RELATION{func_name, args=[a,b,c,...]} */
+            if (expr->type == LV_AST_RELATION) {
                 const char *fname = expr->data.call.func_name;
-                if (fname && lv_str_eq(fname, "collinear") && arg_count >= 3) {
-                    /* 简化处理：collinear 约束，用 incidence */
-                    for (int i = 1; i < arg_count; i++) {
-                        lv_add_constraint_incidence(engine, arg_ids[i], arg_ids[0]);
+                int arg_ids[16];
+                int arg_count = 0;
+                for (const LvAstNode *a = expr->data.call.args; a && arg_count < 16; a = a->next) {
+                    if (a->type == LV_AST_IDENTIFIER_EXPR) {
+                        int id = loader_names_lookup(a->data.ident.name);
+                        if (id >= 0)
+                            arg_ids[arg_count++] = id;
                     }
                 }
+
+                if (fname && engine->main_graph) {
+                    if (lv_str_eq(fname, "collinear") && arg_count >= 3) {
+                        /* 共线：依次用 betweenness 连接首点与其余各点 */
+                        for (int i = 1; i + 1 < arg_count; i++) {
+                            int p[3] = {arg_ids[0], arg_ids[i], arg_ids[i + 1]};
+                            int cid = engine->main_graph->next_constraint_id;
+                            graph_add_constraint_with_id(engine->main_graph, cid,
+                                                         BETWEENNESS, p, 3);
+                        }
+                    } else if (lv_str_eq(fname, "perpendicular") && arg_count >= 2) {
+                        int p[2] = {arg_ids[0], arg_ids[1]};
+                        int cid = engine->main_graph->next_constraint_id;
+                        graph_add_constraint_with_id(engine->main_graph, cid,
+                                                     ANGLE, p, 2);
+                    } else if (lv_str_eq(fname, "containment") && arg_count >= 2) {
+                        int p[2] = {arg_ids[0], arg_ids[1]};
+                        int cid = engine->main_graph->next_constraint_id;
+                        graph_add_constraint_with_id(engine->main_graph, cid,
+                                                     CONTAINMENT, p, 2);
+                    } else if (lv_str_eq(fname, "connection") && arg_count >= 2) {
+                        int p[2] = {arg_ids[0], arg_ids[1]};
+                        int cid = engine->main_graph->next_constraint_id;
+                        graph_add_constraint_with_id(engine->main_graph, cid,
+                                                     CONNECTION, p, 2);
+                    }
+                }
+                continue;
             }
+
+            /* ── 形态 3: 其他已命名约束（保留原样，语义由引擎后续处理） */
         } else if (stmt->type == LV_AST_PROVE_STMT) {
             /* Prove 语句：作为证明目标设置 */
             /* 当前简化实现：只是标记引擎的证明意图 */

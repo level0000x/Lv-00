@@ -400,6 +400,7 @@ set(lv_HEADERS
     core/include/lv/axiom_pkg.h
     core/include/lv/module.h
     core/include/lv/engine.h
+    core/include/lv/engine_access.h
     core/include/lv/debug.h
     core/include/lv/lv_mempool.h
     core/include/lv/mpz_poly.h
@@ -1094,7 +1095,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/smt_backend_impl_groebner.c
     core/src/layer4_reasoning/backends/smt_backend_impl_external.c
     core/src/layer4_reasoning/backends/atp_backend.c
-    core/src/layer4_reasoning/backends/sat_encoding.c
     core/src/layer4_reasoning/backends/bdd_encoding.c
     core/src/layer4_reasoning/backends/probabilistic_constraint.c
     core/src/layer4_reasoning/expr/expr_canon.c
@@ -1134,7 +1134,7 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/numeric/nt_polynomial.c
     core/src/layer4_reasoning/expr/sym_expr.c
     # 重写引擎（从 Layer 3 迁移）
-    core/src/layer4_reasoning/unify/rewrite_strategy.c
+    core/src/layer4_reasoning/rewrite/rewrite_strategy.c
     # 版本控制（从 Layer 3 迁移）
     core/src/layer4_reasoning/proof_system/proof_version.c
     # 自动微分（从 Layer 3 迁移）
@@ -1221,6 +1221,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/solver/solver_geom_templates.c
     core/src/layer4_reasoning/solver/solver_groebner.c
     core/src/layer4_reasoning/solver/solver_multibranch.c
+    # SAT 编码管线（从 backends/ 移入 solver/：编码 + 驱动 CDCL 求解，断 solver↔backends 环）
+    core/src/layer4_reasoning/solver/sat_encoding.c
     # 求解器扩展：脏集合、快照
     # solver_dirty_set.c 和 solver_snapshot.c 已移至 solver/ 子目录
     # 旧路径 solver_ext/ 已清理

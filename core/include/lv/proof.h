@@ -827,14 +827,8 @@ lv_PUBLIC_API bool proof_step_set_note(ProofStep *step, const char *note);
 
 /* ============== 命题的等价变换 ============== */
 
-/**
- * @brief 命题等价声明
- */
-typedef struct PropositionEquivalence {
-    int prop_a_id;
-    int prop_b_id;
-    ConstraintGraph *transformation; /* 双向变换规则 */
-} PropositionEquivalence;
+/* PropositionEquivalence 定义已移至 unify.h（合一域单一事实来源；
+ * proof.h 经 include unify.h 传递可见） */
 
 /**
  * @brief 声明两个命题等价

@@ -16,7 +16,6 @@
 #include "lv/lv_xmacro.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
-#include "lv/engine.h"
 #include "lv/proof.h"
 #include "lv/proof_step_strategy.h"
 #include "lv/proof_trace.h"

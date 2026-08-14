@@ -1,7 +1,7 @@
 /-
 Lv-00 formal: SATEncoding — SAT 符号编码理论 (v1.3 R1)
 =========================================================
-对应: core/src/layer4_reasoning/backends/sat_encoding.c
+对应: core/src/layer4_reasoning/solver/sat_encoding.c
 
 将几何约束编码为命题可满足性（SAT）问题的理论基础：
   - 变元映射（Variable Mapping）：约束图节点 -> SAT 变元

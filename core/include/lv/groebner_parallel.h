@@ -1,7 +1,7 @@
 #ifndef lv_GROEBNER_PARALLEL_H
 #define lv_GROEBNER_PARALLEL_H
 
-#include "lv/type_system.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {

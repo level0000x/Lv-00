@@ -13,7 +13,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/geometric_primitives.h"
-#include "lv/proof.h"
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"

@@ -38,7 +38,10 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "stream.h"
-#include "type_system.h"
+
+/* 前向声明：TypeRegion 完整定义在 type_system.h（L4 type_logic 域）。
+ * 仅指针引用，打破 unify.h → type_system.h → rewrite.h 的头级依赖三角环 */
+typedef struct TypeRegion TypeRegion;
 
 /**
  * @brief 设置合一检查器的流式输出上下文
@@ -257,7 +260,18 @@ lv_PUBLIC_API UnifyStatus unify_construction_with_proposition_detailed(const Con
 
 /* ============== 命题的等价变换 ============== */
 
-/* PropositionEquivalence 在 proof.h 中定义 */
+/**
+ * @brief 命题等价声明
+ *
+ * 定义位于 unify.h（合一域单一事实来源）：unify_equivalence.c 消费，
+ * proof.h 经 include 传递可见（proof.h 的 proof_declare_proposition_equivalence
+ * 以 prop id 为参，无需完整类型）。
+ */
+typedef struct PropositionEquivalence {
+    int prop_a_id;
+    int prop_b_id;
+    ConstraintGraph *transformation; /* 双向变换规则 */
+} PropositionEquivalence;
 
 /**
  * @brief 声明两个命题等价

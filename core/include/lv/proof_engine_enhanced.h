@@ -26,8 +26,14 @@ extern "C" {
 
 #include "axiom_rule_engine.h"
 #include "constraint_graph.h"
-#include "proof.h"
 #include "lv/lv_utils.h"
+
+/* 前向声明：Proposition / ProofStep / ProofNavigator 完整定义在 proof.h
+ * （L4 proof 域）。本头仅指针引用，打破 proof_engine_enhanced.h → proof.h
+ * 的头级依赖（proof 域 .c 对 engine 的 include 已删除，环 B 断开） */
+typedef struct Proposition Proposition;
+typedef struct ProofStep ProofStep;
+typedef struct ProofNavigator ProofNavigator;
 
 /* ============== 配置常量 ============== */
 

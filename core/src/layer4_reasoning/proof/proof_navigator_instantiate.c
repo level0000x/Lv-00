@@ -17,11 +17,12 @@
 #include "lv/lv_hashtable.h"
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
-#include "lv/engine.h"
+#include "lv/engine_access.h" /* 引擎跨域访问器（环 B 破环） */
 #include "lv/proof.h"
 #include "lv/proof_trace.h"
 #include "lv/smt_backend.h"
 #include "lv/trust_color.h"
+#include "lv/type_system.h" /* TypeRegion / TYPE_KIND_*（环 E 断链后显式 include） */
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
@@ -444,9 +445,9 @@ UnconstructResult proof_check_unconstructibility(ProofNavigator *nav, const Cons
     }
 
     /* 策略1：检查已加载的公理包中的已知不可构造问题 */
-    if (nav->engine && nav->engine->axiom_package_count > 0) {
-        for (int i = 0; i < nav->engine->axiom_package_count; i++) {
-            AxiomPackage *pkg = nav->engine->axiom_packages[i];
+    if (nav->engine && engine_get_axiom_package_count(nav->engine) > 0) {
+        for (int i = 0; i < engine_get_axiom_package_count(nav->engine); i++) {
+            AxiomPackage *pkg = engine_get_axiom_package(nav->engine, i);
             if (!pkg || pkg->known_unconstructibles.count <= 0)
                 continue;
 
