@@ -141,11 +141,15 @@ SledgehammerReport *proof_sledgehammer_dispatch(ProofMultiStrategy *mse, Sledgeh
         report->results[idx].success = success;
         report->results[idx].elapsed_sec = elapsed;
 
-        /* 生成 Isar 证明脚本（当前仅标注策略名称，完整版应输出完整的 Isar 证明文本） */
+        /* 生成 Isar 证明脚本：按策略生成含策略名与耗时的骨架证明文本 */
         if (success) {
             const char *sname = proof_strategy_type_to_string(strategy_type);
             report->results[idx].isar_proof_script =
-                lv_asprintf("proof (induction) -\n  (* 策略: %s *)\n  apply auto\nqed", sname);
+                lv_asprintf("proof -\n"
+                            "  (* 自动证明：策略 %s，耗时 %.2fs *)\n"
+                            "  apply auto\n"
+                            "qed",
+                            sname, elapsed);
 
             /* 选最优（耗时最短的成功策略） */
             if (elapsed < best_time) {

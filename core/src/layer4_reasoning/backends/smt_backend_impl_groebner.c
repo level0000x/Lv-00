@@ -639,6 +639,7 @@ typedef struct {
     int vc;
     int ideal_id;
     const ConstraintGraph *graph;
+    int *encode_failed; /* 编码失败约束计数（调用方持有；无法编码的约束不再以零多项式占位静默丢弃） */
 } GroebnerManualEncodeCtx;
 
 typedef void (*GroebnerManualEncodeFn)(const GroebnerManualEncodeCtx *ctx, const Constraint *c);
@@ -648,8 +649,12 @@ static void groebner_manual_encode_incidence(const GroebnerManualEncodeCtx *ctx,
         int pt_id = c->participants[0];
         int seg_id = c->participants[1];
         int p_var = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_map[pt_id] : -1;
-        if (p_var < 0)
+        if (p_var < 0) {
+            /* 点节点无变量映射：约束无法编码，上报而非静默丢弃 */
+            lv_LOG_WARNING("INCIDENCE: 点节点缺少变量映射 (pt=%d, c=%d)", pt_id, c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
             return;
+        }
         int endpoints[2] = {-1, -1};
         int n_endpoints = _find_line_endpoints(ctx->graph, seg_id, endpoints);
         if (n_endpoints >= 2) {
@@ -660,13 +665,11 @@ static void groebner_manual_encode_incidence(const GroebnerManualEncodeCtx *ctx,
                 ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
             } else {
                 lv_LOG_WARNING("INCIDENCE: 无法构造叉积多项式 (c=%d)", c->id);
+                if (ctx->encode_failed) (*ctx->encode_failed)++;
             }
         } else {
-            lv_LOG_WARNING("INCIDENCE: 无法确定线段端点 (seg=%d, found=%d)", seg_id, n_endpoints);
-            int poly_id = poly_create(ctx->registry, ctx->ring_id, 2, "incidence_placeholder");
-            if (poly_id >= 0) {
-                ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
-            }
+            lv_LOG_WARNING("INCIDENCE: 无法确定线段端点 (seg=%d, found=%d, c=%d)", seg_id, n_endpoints, c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -688,7 +691,12 @@ static void groebner_manual_encode_betweenness(const GroebnerManualEncodeCtx *ct
                 ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
             } else {
                 lv_LOG_WARNING("BETWEENNESS: 无法构造叉积多项式 (c=%d)", c->id);
+                if (ctx->encode_failed) (*ctx->encode_failed)++;
             }
+        } else {
+            /* 三点的变量映射不完整：约束无法编码，上报而非静默丢弃 */
+            lv_LOG_WARNING("BETWEENNESS: 点节点缺少变量映射 (c=%d)", c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -699,7 +707,11 @@ static void groebner_manual_encode_intersection(const GroebnerManualEncodeCtx *c
         int line2_id = c->participants[1];
         int pt_id = c->participants[2];
         int p_var = (pt_id >= 0 && pt_id < ctx->map_size) ? ctx->var_map[pt_id] : -1;
-        if (p_var < 0) return;
+        if (p_var < 0) {
+            lv_LOG_WARNING("INTERSECTION: 交点缺少变量映射 (pt=%d, c=%d)", pt_id, c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
+            return;
+        }
         int ep1[2] = {-1, -1}, ep2[2] = {-1, -1};
         int n1 = _find_line_endpoints(ctx->graph, line1_id, ep1);
         int n2 = _find_line_endpoints(ctx->graph, line2_id, ep2);
@@ -717,8 +729,7 @@ static void groebner_manual_encode_intersection(const GroebnerManualEncodeCtx *c
         }
         if (n1 < 2 && n2 < 2) {
             lv_LOG_WARNING("INTERSECTION: 无法确定两条线的端点 (c=%d)", c->id);
-            int poly_id = poly_create(ctx->registry, ctx->ring_id, 2, "intersection_placeholder");
-            if (poly_id >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -752,18 +763,15 @@ static void groebner_manual_encode_angle(const GroebnerManualEncodeCtx *ctx, con
                     ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
                 } else {
                     lv_LOG_WARNING("ANGLE: 无法构造角度多项式 (c=%d)", c->id);
-                    int fallback = poly_create(ctx->registry, ctx->ring_id, 2, "angle_placeholder");
-                    if (fallback >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, fallback);
+                    if (ctx->encode_failed) (*ctx->encode_failed)++;
                 }
             } else {
                 lv_LOG_WARNING("ANGLE: 端点缺少变量映射 (c=%d)", c->id);
-                int fallback = poly_create(ctx->registry, ctx->ring_id, 2, "angle_placeholder");
-                if (fallback >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, fallback);
+                if (ctx->encode_failed) (*ctx->encode_failed)++;
             }
         } else {
             lv_LOG_WARNING("ANGLE: 无法确定线段端点 (c=%d)", c->id);
-            int fallback = poly_create(ctx->registry, ctx->ring_id, 2, "angle_placeholder");
-            if (fallback >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, fallback);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -782,10 +790,8 @@ static void groebner_manual_encode_connection(const GroebnerManualEncodeCtx *ctx
                                                  ctx->vc, "connection_y_eq");
             if (poly_y >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, poly_y);
         } else {
-            int poly_x = poly_create(ctx->registry, ctx->ring_id, 2, "connection_x_placeholder");
-            if (poly_x >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, poly_x);
-            int poly_y = poly_create(ctx->registry, ctx->ring_id, 2, "connection_y_placeholder");
-            if (poly_y >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, poly_y);
+            lv_LOG_WARNING("CONNECTION: 节点缺少变量映射 (src=%d, dst=%d, c=%d)", src_id, dst_id, c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -818,8 +824,8 @@ static void groebner_manual_encode_containment(const GroebnerManualEncodeCtx *ct
             }
         }
         if (!added_any) {
-            int poly_id = poly_create(ctx->registry, ctx->ring_id, 2, "containment_placeholder");
-            if (poly_id >= 0) ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
+            lv_LOG_WARNING("CONTAINMENT: 无法编码区域边界约束 (inner=%d, outer=%d, c=%d)", inner_id, outer_id, c->id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
         }
     }
 }
@@ -866,7 +872,9 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
      * 函数来完成约束图到多项式理想的转换。
      */
 
-    int conv_id = constraint_graph_to_ideal(registry, graph, ring_id, "converted_constraint_ideal");
+    int primary_encode_failed = 0;
+    int conv_id = constraint_graph_to_ideal_ex(registry, graph, ring_id, "converted_constraint_ideal",
+                                               &primary_encode_failed);
     if (conv_id < 0) {
         /* constraint_graph_to_ideal 失败，尝试手动编码关键约束 */
 
@@ -904,6 +912,9 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
         gctx.ideal_id = ideal_id;
         gctx.graph = graph;
 
+        int encode_failed = 0;
+        gctx.encode_failed = &encode_failed;
+
         for (int ci = 0; ci < graph->constraint_count; ci++) {
             Constraint *c = graph->constraints[ci];
             if (!c) continue;
@@ -913,7 +924,33 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
                 lv_LOG_WARNING("Unknown constraint type %d in constraint_graph_to_ideal fallback", c->type);
             }
         }
+
+        /* 编码失败上报：存在无法编码为多项式的约束时，继续求解会产生失真的
+         * SAT/UNSAT 判定（占位零多项式等价于丢弃约束）。宁可返回 UNKNOWN，
+         * 也不能用不完整理想给出错误结论。 */
+        if (encode_failed > 0) {
+            lv_LOG_ERROR("%d 个约束无法编码为多项式（端点/变量映射缺失），返回 UNKNOWN 而非不可信判定",
+                         encode_failed);
+            char msg[160];
+            snprintf(msg, sizeof(msg),
+                     "%d constraint(s) could not be encoded into polynomials; result would be unreliable",
+                     encode_failed);
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, msg);
+            return SMT_RESULT_UNKNOWN;
+        }
     } else {
+        /* 主路径编码失败上报：存在无法编码的约束时，基于该理想的 SAT/UNSAT
+         * 判定不可信（约束被静默丢弃），宁可返回 UNKNOWN。 */
+        if (primary_encode_failed > 0) {
+            lv_LOG_ERROR("%d 个约束无法编码为多项式（节点坐标/变量映射缺失），返回 UNKNOWN 而非不可信判定",
+                         primary_encode_failed);
+            char msg[160];
+            snprintf(msg, sizeof(msg),
+                     "%d constraint(s) could not be encoded into polynomials; result would be unreliable",
+                     primary_encode_failed);
+            smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, msg);
+            return SMT_RESULT_UNKNOWN;
+        }
         /* constraint_graph_to_ideal 成功，使用转换后的理想 */
         lv_LOG_INFO("约束图成功转换为多项式理想 (ideal_id=%d)", conv_id);
         solver->groebner_ideal_id = conv_id;

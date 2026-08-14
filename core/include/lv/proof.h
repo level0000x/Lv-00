@@ -371,6 +371,10 @@ typedef lvWaitGroup lvTaskGroup;
 lvTaskGroup *lv_task_group_create(const char *name);
 lvTask *lv_task_create(int (*fn)(void *), void *arg, const char *name);
 void lv_task_group_add(lvTaskGroup *g, lvTask *t);
+/** @brief 顺序执行组内全部待执行任务，返回成功执行数 */
+int lv_task_group_run(lvTaskGroup *g);
+/** @brief 等待任务组全部完成（未执行任务先顺序补齐执行） */
+void lv_task_group_wait(lvTaskGroup *g);
 void lv_task_group_destroy(lvTaskGroup *g);
 
 /* ============== 证明导航器 ============== */

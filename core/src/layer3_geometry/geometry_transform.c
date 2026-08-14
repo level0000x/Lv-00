@@ -154,8 +154,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
     t->params.params.rotation.angle_denominator = angle_denom;
 
     /* 计算特殊角度的 cos 和 sin（有理数或根式） */
-    /* 常见角度：0°, 30°, 45°, 60°, 90°, 120°, 135°, 150°, 180° */
-    /* 简化实现：使用常见角度的有理数值 */
+    /* 覆盖 30° 间隔的全部常见角：0°,30°,45°,60°,90°,120°,135°,150°,180°,210°,225°,240°,270°,300°,315°,330° */
 
     /* 规范化角度到 [0, 360) */
     while (angle_num < 0) {
@@ -165,8 +164,7 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
         angle_num -= (int)lv_FULL_CIRCLE_DEG * angle_denom;
     }
 
-    /* 根据角度设置 cos 和 sin */
-    /* 这里简化处理，只支持一些常见角度 */
+    /* 根据角度设置 cos 和 sin（30° 间隔常见角全表；未命中走下方数值回退） */
     int normalized = angle_num / angle_denom;
 
     /* 特化角度查找表 */
@@ -184,7 +182,13 @@ lvTransform *lv_transform_rotation(const mpq_t cx, const mpq_t cy, int angle_num
         {135, -0.7071067811865476,     0.7071067811865476    },
         {150, -0.8660254037844386,     0.5                   },
         {180, -1.0,                    0.0                   },
+        {210, -0.8660254037844386,    -0.5                   },
+        {225, -0.7071067811865476,    -0.7071067811865476    },
+        {240, -0.5,                   -0.8660254037844386    },
         {270,  0.0,                   -1.0                   },
+        {300,  0.5,                   -0.8660254037844386    },
+        {315,  0.7071067811865476,    -0.7071067811865476    },
+        {330,  0.8660254037844386,    -0.5                   },
     };
 #define ANGLE_TABLE_SIZE (sizeof(kAngleTable)/sizeof(kAngleTable[0]))
 

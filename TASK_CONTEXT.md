@@ -2092,3 +2092,73 @@ L7/L9 空层处置、L10→L8 冗余链接删除、meta_verify.c 并入 L4、L10
 ### 后续候选（暂缓）
 
 L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选，需重新审视门面职责）、巨型文件拆分（simd_ops 2148 行 / interop_import 2147 行等，代码组织层）。
+
+## 三十二、批次 C-⑫：未完整实现补齐（2026-08-14）
+
+用户「可以补一下很多没有完整实现的」→ AskUserQuestion 选定「全部按照优先级完整实现」。全库盘点（子代理 search 全量扫描）后按优先级分 6 批实施，每批构建 + 相关测试验证。
+
+### 批次 1：func_block 组合模式 FEEDBACK/BRANCH/PIPE（高）
+
+- 原状：`PRESET_COMPOSE_*` 枚举 5 种，仅 SEQUENCE/PARALLEL 有实现；FEEDBACK/BRANCH 走 noop、PIPE 直接失败（两套组合路径）。
+- 实施：
+  - `func_block_compose.c` 新增三个公开原语：`func_block_feedback`（前 k 输出→前 k 输入反馈环，k=-1 全反馈，外部剩余端口保留）、`func_block_branch`（共享输入、输出合并，g 输入端口→f 外部输入关联）、`func_block_pipe`（顺序数据流，保留中间状态输出）。
+  - `func_block.h` 声明 + 文档；`func_block_preset_ops.c` static preset_compose switch 补三 case + kComposeNamePrefix 补 PIPE 前缀（原注释「PIPE 走 default 失败」已过时）。
+  - `preset_manager_compose.c` 元数据 VTable：FEEDBACK/BRANCH 从 noop 改为真实计算（feedback 外部输出=max(0,out-in)；branch=前两预设输出之和），删除无引用的 compose_meta_noop。
+  - 测试：test_func_block.c 新增 3 个组合测试（含失败路径：反馈越界、分支输入不匹配）。GBK 文件插入内容保持纯 ASCII 注释。
+- 验证：func_block 3/3 通过。
+
+### 批次 2：Groebner 约束代数化失败路径修复（高）
+
+- 原状：手动编码回退路径用零多项式占位（`poly_create` 空多项式加入理想 = 约束静默丢弃，SAT/UNSAT 判定可能失真）；主路径编码器静默 return 丢弃。
+- 实施：
+  - 手动路径：`GroebnerManualEncodeCtx` 加 `encode_failed` 计数；6 类约束编码失败处不再创建占位多项式，改为计数上报；solve 循环后 `encode_failed>0` → `SMT_ERROR_ENCODING_FAILED` + 返回 `SMT_RESULT_UNKNOWN`（宁可 UNKNOWN 不错判）。
+  - 主路径：新增 `constraint_graph_to_ideal_ex(..., int *out_encode_failed)` 变体（头文件声明 + wrapper 兼容旧签名）；各 `groebner_engine_encode_*` 失败处计数。
+  - **修复主路径 incidence 编码器真实 bug**：`groebner_engine_encode_incidence` 的 p1_id/p2_id 从不赋值（空 for 循环 + 恒 return），INCIDENCE 约束在主路径从不被编码 → 重写为直接使用线段 symbolic_coords 端点常量构造共线线性方程（`dy*Px - dx*Py + (ay*dx - ax*dy) = 0`）。
+  - smt_backend_impl_groebner.c 主路径改用 _ex 并检查失败 → UNKNOWN。
+- 验证：groebner/smt/bdd/prop_verifier 6/6 通过（行为未回归）。
+
+### 批次 3：lvTask/lvTaskGroup 任务系统执行引擎（高）
+
+- 原状：只有 create/add/destroy 三个函数，add 只 `pending++` 无调度执行，`lv_task_group_add` 无任何消费者；文件尾注释声称「占位实现」但占位函数体不存在（误导）。
+- 实施：`thread_pool.h` 的 lvWaitGroup 加 task_head/task_tail 任务链表字段（线程池内部 wait group 由 calloc 清零不受影响）；`proof_version_task.c` 补 `lv_task_group_run`（FIFO 顺序执行，返回成功数）与 `lv_task_group_wait`（懒执行补齐）；destroy 前先执行剩余任务防泄漏；proof.h 声明；删除过时占位注释。
+- 顺序执行为安全默认（与 SLEDGE_ASYNC 并发缺陷回退先例一致）；并行扩展留待调用方保证任务状态独立。
+- 测试：test_proof.c 新增 test_task_group（run/wait/destroy 三路径 + 计数器验证）。
+- 验证：proof 2/2 通过。
+
+### 批次 4：JSON \uXXXX UTF-16 代理对完整处理（中）
+
+- 原状：lv_json.c 与 lv_str_utils.c 双路径同为简化实现（每个 \uXXXX 独立 1-3 字节编码，`\uD83D\uDE00` 被拆成两个非法序列）；lv_json.c 注释「完整 UTF-16 代理对处理过于复杂」。
+- 实施：新增公共 API `lv_str_json_read_codepoint`（高代理+低代理合并为补充平面码点；孤立代理/非法 → 0xFFFFFFFF 由调用方写 U+FFFD）与 `lv_str_codepoint_to_utf8`（1-4 字节编码）；lv_json.c 与 lv_str_utils.c 的 `\uXXXX` 分支均接入（判断条件 `adv_cp==4||adv_cp==10`——首版只判 4 导致代理对走 else，测试抓出）。
+- 测试：test_json_buf.c 新增 test_unicode_surrogate（代理对/孤立高代理/BMP/lv_json_parse_string 双路径）。
+- 验证：json_buf 1/1 通过。
+
+### 批次 5：Herbie 浮点表达式优化补全（中）
+
+- 原状：内置规则表 19 条 + 运算符计数粗估误差；注释「简化实现：不实际创建子进程」。
+- 实施：规则表去重（删重复的 log(x)-log(y)）+ 扩充 9 条（sqrt(1+x)-1、log(1+exp(x))-x、exp(a)*exp(b)、三角差角/倍角/半角、分母共轭等）；误差估计改结构感知（减法抵消每处 ×10 条件数、超越函数加权）；**修复真实 bug：`opt.entries` darray 从未 init（elem_size=0）导致 push 失败、规则从不生效**。
+- 测试：新建 test_herbie.c（hypot/因式分解/expm1/log1p/三角恒等/无匹配/误差模型），CMakeLists 注册 herbie_test。
+- 验证：herbie 1/1 通过。
+
+### 批次 6：低优先级小缺口批量（低）
+
+- 旋转角度表：geometry_transform.c 补 210/225/240/300/315/330（30° 间隔全表，含注释更新）。
+- PDF 点渲染：interop_export_pdf.c 用 4 段三次 Bezier 填充圆（k=4/3·(√2−1)）替代粗线段模拟。
+- Isar 脚本：proof_version_sledge.c 骨架模板含策略名+耗时（替代「仅标注策略名称」占位）。
+- 注释修正（非缺口，更新过时描述）：BDD cofactor 实为标准 Shannon 展开；refine 类型检查实走 solver 命题注册表 + SMT（强于关键词比较）；roundtrip 仅 text 有反向转换器（其他视图为架构限制）。
+
+### 批次 C-⑫ 执行结果
+
+- **build3**：ninja 924/924 全绿 + ctest **171/171**（147s，新增 herbie_test；性能/并行负载无波动）。
+- 发现并修复的真实 bug 共 3 处：groebner_engine_encode_incidence 主路径恒丢弃（p1/p2 从不赋值）、herbie darray 未初始化致规则从不生效、JSON 代理对判断条件（首版）。
+
+### 决策登记（第 9 章格式）
+
+- 未完整实现补齐 / 批次C-⑫ / 6 批（组合模式、Groebner 代数化、任务系统、JSON 代理对、Herbie、低优先级批量）/ 用户选定「全部按优先级完整实现」/ 全量回归 171/171。
+- Groebner 编码失败上报策略 / 批次C-⑫ / 零多项式占位静默丢弃 → 计数上报返回 UNKNOWN / 宁可 UNKNOWN 不给失真 SAT/UNSAT。
+- 任务系统执行模型 / 批次C-⑫ / 顺序执行安全默认（SLEDGE 并发回退先例），并行留待调用方保证任务状态独立 / 已实施。
+- Herbie 集成边界 / 批次C-⑫ / 不引入外部 herbie 子进程依赖（用户环境无 Herbie，不可验证），增强内置规则表 + 结构感知误差模型 / 已实施。
+- roundtrip 非文本视图 / 批次C-⑫ / 其他视图无反向转换器，架构限制非缺口 / 不实施（注释说明）。
+
+### 后续候选（暂缓）
+
+L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选）、巨型文件拆分（simd_ops 2148 行 / interop_import 2147 行等）。

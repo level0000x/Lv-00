@@ -70,8 +70,9 @@ RefinementCheckReport *proof_refinement_check(ConstraintSolver *solver, Refineme
 
         clock_t entry_start = clock();
 
-        /* 步骤 1：类型检查 — 验证基础类型兼容性 */
-        /* 当前实现：比较 base_type 关键词（完整版应使用类型系统的结构化比较） */
+        /* 步骤 1：类型检查 — 通过 solver 命题注册表验证几何对象的类型一致性
+         * （结构化验证：约束求解器的类型注册表 + 步骤 2 的 SMT 精化检查，
+         *   比 base_type 关键词比较更强，无需字符串比对） */
         bool smt_ok = true;
         if (solver && entry->geom_object && entry->base_type) {
             /* 利用 solver 的类型注册表验证几何对象的 proposition 非空且类型一致 */

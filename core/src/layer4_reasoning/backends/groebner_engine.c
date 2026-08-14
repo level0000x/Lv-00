@@ -327,45 +327,45 @@ typedef struct {
     int map_size;
     const ConstraintGraph *graph;
     lvIdeal *ideal;
+    int *encode_failed; /* 编码失败约束计数（调用方持有；约束无法编码时计数而非静默跳过） */
 } GroebnerEngineEncodeCtx;
+
+/* 前向声明：编码辅助函数（定义在下方，供编码函数查找表使用） */
+static bool groebner_engine_segment_coords(const ConstraintGraph *graph, int seg_id, double *ax, double *ay,
+                                           double *bx, double *by);
+static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, int xv, int yv, double cx, double cy,
+                                                 double c0);
+static void groebner_engine_ideal_append(const GroebnerEngineEncodeCtx *ctx, lvPolynomial *poly);
 
 /* ── 各约束类型的 Groebner 引擎编码函数（文件作用域，用于查找表） ── */
 static void groebner_engine_encode_incidence(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (!lv_constraint_has_participants(con, 2)) return;
     int pt_id = con->participants[0];
     int seg_id = con->participants[1];
-    int xpt = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_x[pt_id] : -1;
-    int ypt = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_y[pt_id] : -1;
-    if (xpt < 0 || ypt < 0) return;
-
-    int p1_id = -1, p2_id = -1;
-    for (int n = 0; n < ctx->graph->node_count; n++) {
-        GeomNode *sn = ctx->graph->nodes[n];
-        if (!sn || sn->id != seg_id) continue;
-        if (sn->type == GEOM_LINE_SEGMENT) { }
-        break;
+    int xp = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_x[pt_id] : -1;
+    int yp = lv_index_in_range(pt_id, ctx->map_size) ? ctx->var_y[pt_id] : -1;
+    if (xp < 0 || yp < 0) {
+        LOG_ERROR("groebner", "INCIDENCE 约束 %d: 点 %d 无坐标变量，无法编码，跳过", con->id, pt_id);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
     }
-    if (p1_id < 0) return;
 
-    int x1 = lv_index_in_range(p1_id, ctx->map_size) ? ctx->var_x[p1_id] : -1;
-    int y1 = lv_index_in_range(p1_id, ctx->map_size) ? ctx->var_y[p1_id] : -1;
-    int x2 = lv_index_in_range(p2_id, ctx->map_size) ? ctx->var_x[p2_id] : -1;
-    int y2 = lv_index_in_range(p2_id, ctx->map_size) ? ctx->var_y[p2_id] : -1;
-    if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0) return;
+    /* 线段端点坐标为常量（symbolic_coords 标准布局 [Ax,Ay,Bx,By]） */
+    double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
+    if (!groebner_engine_segment_coords(ctx->graph, seg_id, &ax, &ay, &bx, &by)) {
+        LOG_ERROR("groebner", "INCIDENCE 约束 %d: 线段 %d 端点坐标缺失，无法编码，跳过", con->id, seg_id);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
-    lvPolynomial *inc_poly = poly_internal_make_term(ctx->ring, xpt, 1, 1.0, NULL);
-    if (inc_poly) {
-        poly_internal_add_term(inc_poly, ctx->ring, ypt, 1, 1.0);
+    /* 点 P 在线段 AB 上：cross(P-A, B-A) = dy*Px - dx*Py + (ay*dx - ax*dy) = 0 */
+    double dx = bx - ax, dy = by - ay;
+    lvPolynomial *poly = groebner_engine_make_linear(ctx->ring, xp, yp, dy, -dx, ay * dx - ax * dy);
+    if (!poly) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
     }
-    if (inc_poly) {
-        if (ctx->ideal->generator_count >= ctx->ideal->generator_capacity) {
-            if (!lv_ensure_capacity((void **) &ctx->ideal->generators, ctx->ideal->generator_count,
-                                    &ctx->ideal->generator_capacity, sizeof(lvPolynomial *), 1)) {
-                lv_free((void **) &inc_poly);
-                return;
-            }
-        }
-        ctx->ideal->generators[ctx->ideal->generator_count++] = inc_poly;
-    }
+    groebner_engine_ideal_append(ctx, poly);
 }
 
 /* 编码辅助：将多项式追加到理想生成元列表（所有权转移，失败时释放 poly） */
@@ -424,25 +424,52 @@ static lvPolynomial *groebner_engine_make_linear(const lvPolynomialRing *ring, i
 static void groebner_engine_encode_betweenness(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
     if (!lv_constraint_has_participants(con, 3)) return;
     int xa = -1, ya = -1, xb = -1, yb = -1, xc = -1, yc = -1;
-    if (groebner_engine_var_xy(ctx, con->participants[0], &xa, &ya) < 0) return;
-    if (groebner_engine_var_xy(ctx, con->participants[1], &xb, &yb) < 0) return;
-    if (groebner_engine_var_xy(ctx, con->participants[2], &xc, &yc) < 0) return;
+    if (groebner_engine_var_xy(ctx, con->participants[0], &xa, &ya) < 0) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    if (groebner_engine_var_xy(ctx, con->participants[1], &xb, &yb) < 0) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    if (groebner_engine_var_xy(ctx, con->participants[2], &xc, &yc) < 0) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     lvPolynomial *ux = poly_internal_make_term(ctx->ring, xb, 1, 1.0, NULL);
     if (ux) poly_internal_add_term(ux, ctx->ring, xa, 1, -1.0);
-    if (!ux) return;
+    if (!ux) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     lvPolynomial *uy = poly_internal_make_term(ctx->ring, yb, 1, 1.0, NULL);
     if (uy) poly_internal_add_term(uy, ctx->ring, ya, 1, -1.0);
-    if (!uy) { poly_internal_destroy(ux); return; }
+    if (!uy) {
+        poly_internal_destroy(ux);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     lvPolynomial *vx = poly_internal_make_term(ctx->ring, xc, 1, 1.0, NULL);
     if (vx) poly_internal_add_term(vx, ctx->ring, xa, 1, -1.0);
-    if (!vx) { poly_internal_destroy(ux); poly_internal_destroy(uy); return; }
+    if (!vx) {
+        poly_internal_destroy(ux);
+        poly_internal_destroy(uy);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     lvPolynomial *vy = poly_internal_make_term(ctx->ring, yc, 1, 1.0, NULL);
     if (vy) poly_internal_add_term(vy, ctx->ring, ya, 1, -1.0);
-    if (!vy) { poly_internal_destroy(ux); poly_internal_destroy(uy); poly_internal_destroy(vx); return; }
+    if (!vy) {
+        poly_internal_destroy(ux);
+        poly_internal_destroy(uy);
+        poly_internal_destroy(vx);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     lvPolynomial *p1 = poly_internal_multiply(ux, vy, ctx->ring);
     lvPolynomial *p2 = poly_internal_multiply(uy, vx, ctx->ring);
@@ -456,6 +483,10 @@ static void groebner_engine_encode_betweenness(const GroebnerEngineEncodeCtx *ct
     poly_internal_destroy(p1);
     poly_internal_destroy(p2);
 
+    if (!cross) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
     groebner_engine_ideal_append(ctx, cross);
 }
 
@@ -468,10 +499,19 @@ static void groebner_engine_encode_intersection(const GroebnerEngineEncodeCtx *c
     if (!lv_constraint_has_participants(con, 3)) return;
     double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
     double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
-    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
-    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) return;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
     int xe = -1, ye = -1;
-    if (groebner_engine_var_xy(ctx, con->participants[2], &xe, &ye) < 0) return;
+    if (groebner_engine_var_xy(ctx, con->participants[2], &xe, &ye) < 0) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     double dx1 = bx - ax, dy1 = by - ay;
     double dx2 = dx - cx, dy2 = dy - cy;
@@ -494,14 +534,21 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
 
     GeomNode *inner = graph_get_node(ctx->graph, inner_id);
     GeomNode *outer = graph_get_node(ctx->graph, outer_id);
-    if (!inner || !outer) return;
+    if (!inner || !outer) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
     if (inner->type != GEOM_POINT) {
         LOG_ERROR("groebner", "CONTAINMENT 约束 %d: inner 节点 %d 非 POINT，无坐标变量，跳过",
                   con->id, inner_id);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
         return;
     }
     int xp = -1, yp = -1;
-    if (groebner_engine_var_xy(ctx, inner_id, &xp, &yp) < 0) return;
+    if (groebner_engine_var_xy(ctx, inner_id, &xp, &yp) < 0) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     if (outer->type == GEOM_CIRCLE) {
         GeomNode *center = graph_get_node(ctx->graph, outer->data.circle.center_node_id);
@@ -512,6 +559,7 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
             !radius_pt->symbolic_coords[0] || !radius_pt->symbolic_coords[1]) {
             LOG_ERROR("groebner", "CONTAINMENT 约束 %d: 圆 %d 的圆心/半径端点坐标缺失，跳过",
                       con->id, outer_id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
             return;
         }
         double ox = symbolic_coord_to_double(center->symbolic_coords[0]);
@@ -521,7 +569,10 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
         double r2 = (rx - ox) * (rx - ox) + (ry - oy) * (ry - oy);
 
         lvPolynomial *poly = poly_internal_make_term(ctx->ring, xp, 2, 1.0, NULL);
-        if (!poly) return;
+        if (!poly) {
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
+            return;
+        }
         poly_internal_add_term(poly, ctx->ring, xp, 1, -2.0 * ox);
         poly_internal_add_term(poly, ctx->ring, yp, 2, 1.0);
         poly_internal_add_term(poly, ctx->ring, yp, 1, -2.0 * oy);
@@ -536,10 +587,14 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
         if (!segs || seg_count <= 0) {
             LOG_ERROR("groebner", "CONTAINMENT 约束 %d: 区域 %d 无边界线段，跳过",
                       con->id, outer_id);
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
             return;
         }
         double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
-        if (!groebner_engine_segment_coords(ctx->graph, segs[0]->id, &ax, &ay, &bx, &by)) return;
+        if (!groebner_engine_segment_coords(ctx->graph, segs[0]->id, &ax, &ay, &bx, &by)) {
+            if (ctx->encode_failed) (*ctx->encode_failed)++;
+            return;
+        }
         double dx = bx - ax, dy = by - ay;
         groebner_engine_ideal_append(ctx,
             groebner_engine_make_linear(ctx->ring, xp, yp, dy, -dx, ay * dx - ax * dy));
@@ -548,6 +603,7 @@ static void groebner_engine_encode_containment(const GroebnerEngineEncodeCtx *ct
 
     LOG_ERROR("groebner", "CONTAINMENT 约束 %d: outer 节点 %d 类型不支持（仅 CIRCLE/REGION），跳过",
               con->id, outer_id);
+    if (ctx->encode_failed) (*ctx->encode_failed)++;
 }
 
 /* CONNECTION(src_port, dst_port)：端口连接 = 数据流等值 → 两端口坐标相等方程
@@ -559,13 +615,17 @@ static void groebner_engine_encode_connection(const GroebnerEngineEncodeCtx *ctx
     int dst_id = con->participants[1];
     GeomNode *src = graph_get_node(ctx->graph, src_id);
     GeomNode *dst = graph_get_node(ctx->graph, dst_id);
-    if (!src || !dst || src->type != GEOM_PORT || dst->type != GEOM_PORT) return;
+    if (!src || !dst || src->type != GEOM_PORT || dst->type != GEOM_PORT) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     int xs = -1, ys = -1, xd = -1, yd = -1;
     if (groebner_engine_var_xy(ctx, src_id, &xs, &ys) < 0 ||
         groebner_engine_var_xy(ctx, dst_id, &xd, &yd) < 0) {
         LOG_ERROR("groebner", "CONNECTION 约束 %d: 端口 %d/%d 无坐标变量，无法构造坐标相等方程，跳过",
                   con->id, src_id, dst_id);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
         return;
     }
     groebner_engine_ideal_append(ctx, groebner_engine_make_linear(ctx->ring, xs, xd, 1.0, -1.0, 0.0));
@@ -580,8 +640,14 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
     if (!lv_constraint_has_participants(con, 2)) return;
     double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
     double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
-    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) return;
-    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) return;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
 
     double ux = bx - ax, uy = by - ay;
     double vx = dx - cx, vy = dy - cy;
@@ -592,12 +658,17 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
     double norm_v_sq = geo_norm_sq_2d(vx, vy);
     double lhs = dot * dot - cos_sq * norm_u_sq * norm_v_sq;
 
+    /* 角度已满足：方程近零，无需加入理想（非编码失败） */
     if (fabs(lhs) < GROEBNER_ZERO_THRESHOLD) return;
     lvPolynomial *poly = poly_internal_create(ctx->ring, 1, NULL);
-    if (!poly) return;
+    if (!poly) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
     poly_internal_add_term(poly, ctx->ring, -1, 0, lhs);
     if (poly->term_count <= 0) {
         poly_internal_destroy(poly);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
         return;
     }
     groebner_engine_ideal_append(ctx, poly);
@@ -630,8 +701,8 @@ static const GroebnerEngineEncodeFn kGroebnerEngineEncodeTable[] = {
  * @param result_label  理想标签
  * @return 理想 ID（>= 0），失败返回 -1
  */
-int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
-                              const char *result_label) {
+int constraint_graph_to_ideal_ex(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
+                                 const char *result_label, int *out_encode_failed) {
     /* exempt: 双指针 NULL 守卫（registry/graph 均须非空），与 id 范围守卫
      * groebner_id_in_range 不同构（不访问计数成员），与 ring_register 的
      * `!registry || !ring` 同构（均为两指针非空对）；保留原形态。 */
@@ -643,6 +714,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
                         ring_id, registry->ring_count);
 
     int ret = -1;
+    int encode_failed = 0;
     GROEBNER_LOCK_GUARD_BEGIN();
 
     lvPolynomialRing *ring = registry->rings[ring_id];
@@ -769,6 +841,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
         gctx.map_size = map_size;
         gctx.graph = graph;
         gctx.ideal = ideal;
+        gctx.encode_failed = &encode_failed;
 
         LV_DISPATCH_VOID(kGroebnerEngineEncodeTable, con->type, &gctx, con);
     }
@@ -776,6 +849,7 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
     lv_free_many(&var_x, &var_y, NULL);
 
     ret = ideal_internal_store(g_data, ideal);
+    if (out_encode_failed) *out_encode_failed = encode_failed;
     goto _gcleanup;
 
 gen_fail:
@@ -791,4 +865,15 @@ gen_fail:
 
 GROEBNER_LOCK_GUARD_END();
     return ret;
+}
+
+/**
+ * @brief 约束图 → 多项式理想（兼容版）
+ *
+ * 旧签名保持 ABI 兼容，忽略编码失败计数（内部调用 _ex 变体）。
+ * 需要感知「是否存在无法编码的约束」时，请使用 constraint_graph_to_ideal_ex。
+ */
+int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
+                              const char *result_label) {
+    return constraint_graph_to_ideal_ex(registry, graph, ring_id, result_label, NULL);
 }

@@ -472,7 +472,7 @@ BDDNode *bdd_ite(BDDManager *mgr, BDDNode *f, BDDNode *g, BDDNode *h) {
     if (h->var_id >= 0 && (top_var < 0 || h->var_id < top_var))
         top_var = h->var_id;
 
-    /* 若非终端，cofactor（简化实现仅比较 var_id） */
+    /* 非终端：按 top_var 做 Shannon 展开（var_id 匹配的节点取对应分支，否则整节点透传） */
     BDDNode *f_low = (f->var_id == top_var) ? f->low : f;
     BDDNode *f_high = (f->var_id == top_var) ? f->high : f;
     BDDNode *g_low = (g->var_id == top_var) ? g->low : g;

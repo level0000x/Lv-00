@@ -460,6 +460,62 @@ static void test_helper_functions(void) {
 
 }
 
+/* ============== task group tests ============== */
+
+static int g_task_a_calls = 0;
+static int g_task_b_calls = 0;
+
+static void task_fn_a(void *arg) {
+    (void) arg;
+    g_task_a_calls++;
+}
+
+static void task_fn_b(void *arg) {
+    (void) arg;
+    g_task_b_calls++;
+}
+
+static void test_task_group(void) {
+    printf("Test: task group (create/add/run/wait/destroy)...\n");
+
+    g_task_a_calls = 0;
+    g_task_b_calls = 0;
+
+    lvTaskGroup *g = lv_task_group_create("task_group_test");
+    lv_ASSERT_NOT_NULL(g);
+
+    lvTask *t1 = lv_task_create(task_fn_a, NULL, "a");
+    lvTask *t2 = lv_task_create(task_fn_b, NULL, "b");
+    lvTask *t3 = lv_task_create(task_fn_a, NULL, "c");
+    lv_ASSERT_NOT_NULL(t1);
+    lv_ASSERT_NOT_NULL(t2);
+    lv_ASSERT_NOT_NULL(t3);
+
+    lv_task_group_add(g, t1);
+    lv_task_group_add(g, t2);
+    lv_task_group_add(g, t3);
+
+    /* explicit run executes all queued tasks in FIFO order */
+    int done = lv_task_group_run(g);
+    lv_ASSERT(done == 3);
+    lv_ASSERT(g_task_a_calls == 2);
+    lv_ASSERT(g_task_b_calls == 1);
+
+    /* lazy execution: add then wait completes remaining tasks */
+    lvTask *t4 = lv_task_create(task_fn_a, NULL, "d");
+    lv_task_group_add(g, t4);
+    lv_task_group_wait(g);
+    lv_ASSERT(g_task_a_calls == 3);
+
+    /* destroy executes leftover tasks instead of leaking them */
+    lvTask *t5 = lv_task_create(task_fn_b, NULL, "e");
+    lv_task_group_add(g, t5);
+    lv_task_group_destroy(g);
+    lv_ASSERT(g_task_b_calls == 2);
+
+    printf("  PASSED\n");
+}
+
 /* ============== 涓诲嚱鏁?============== */
 
 TEST_MAIN_BEGIN("Lv-00 Proof System Test Suite")
@@ -475,5 +531,7 @@ TEST_MAIN_BEGIN("Lv-00 Proof System Test Suite")
     TEST_MAIN_RUN(test_ex_falso);
     TEST_MAIN_RUN(test_proof_colors);
     TEST_MAIN_RUN(test_helper_functions);
+    /* task group execution engine */
+    TEST_MAIN_RUN(test_task_group);
     printf("\n=== All proof system tests PASSED! ===\n");
 TEST_MAIN_END()

@@ -333,6 +333,30 @@ char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len)
 size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
+ * @brief 解析 JSON \uXXXX 转义为一个完整 Unicode 码点（含 UTF-16 代理对合并）
+ *
+ * src 指向 \u 之后的第一个十六进制字符。若码点为高代理（U+D800-U+DBFF）
+ * 且紧随其后是 \uXXXX 形式的低代理（U+DC00-U+DFFF），合并为补充平面码点。
+ *
+ * @param src     源缓冲（\u 之后部分），可为 NULL
+ * @param src_len src 剩余字节数
+ * @param out_adv 输出实际消耗的字节数（4 位 = 4；含低代理合并 = 10；
+ *                非法/不足 4 位时输出已解析位数 0-3）
+ * @return 完整码点；孤立代理或非法十六进制返回 0xFFFFFFFF（调用方应写 U+FFFD）
+ */
+unsigned int lv_str_json_read_codepoint(const char *src, size_t src_len, size_t *out_adv);
+
+/**
+ * @brief 将 Unicode 码点编码为 UTF-8
+ *
+ * @param cp  码点（0x0-0x10FFFF）
+ * @param dst 目标缓冲（至少 4 字节）
+ * @param cap 目标容量（字节）
+ * @return 写入字节数；cp 无效或容量不足返回 0
+ */
+size_t lv_str_codepoint_to_utf8(unsigned int cp, char *dst, size_t cap);
+
+/**
  * @brief 对字符串执行 HTML 实体转义（snprintf 语义）
  *
  * 转义 & → &amp;、< → &lt;、> → &gt;、" → &quot;、' → &#39;。

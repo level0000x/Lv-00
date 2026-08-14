@@ -224,3 +224,301 @@ bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, Func
     success = true;
     return success;
 }
+
+/**
+ * @brief 反馈组合：f 的输出端口反馈到输入端口（迭代到不动点）
+ *
+ * 将 f 的前 k 个输出端口分别关联到前 k 个输入端口，形成反馈环。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ 被反馈的 k 个输出端口 ∪ 被反馈的 k 个输入端口
+ *   - 外部输入 = f 剩余输入端口（从第 k 个起）
+ *   - 外部输出 = f 剩余输出端口（从第 k 个起）
+ *   - 端口依赖 = 第 i 个输出端口 → 第 i 个输入端口 的关联约束（i < k）
+ *
+ * @param f 函数块
+ * @param graph 约束图
+ * @param feedback_count 反馈端口数；传 -1 表示全反馈（k = min(input_count, output_count)）
+ * @param out_feedback 输出的反馈函数块
+ * @return true 组合成功；false 失败（参数无效、k 越界或内存不足）
+ */
+bool func_block_feedback(FuncBlock *f, ConstraintGraph *graph, int feedback_count, FuncBlock **out_feedback) {
+    if (!f || !graph || !out_feedback)
+        return false;
+
+    int k = feedback_count;
+    if (k < 0)
+        k = (f->input_count < f->output_count) ? f->input_count : f->output_count;
+    if (k > f->input_count || k > f->output_count)
+        return false;
+
+    int feedback_id = graph->next_node_id++;
+    bool success = false;
+
+    FuncBlock *feedback = func_block_create(feedback_id);
+    if (!feedback) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    /* feedback 创建后立即注册作用域守卫：失败路径直接 return，出口自动销毁 */
+    lv_DEFER(defer_func_block_destroy, &feedback);
+
+    /* 内部节点 = f 的内部节点 ∪ 被反馈的 k 个输出端口 ∪ 被反馈的 k 个输入端口 */
+    int total_internal = f->internal_node_count + 2 * k;
+    int *internal_ids = lv_malloc((size_t) total_internal * sizeof(int));
+    if (!internal_ids) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER_FREE(internal_ids);
+    int idx = 0;
+    for (int i = 0; i < f->internal_node_count; i++)
+        internal_ids[idx++] = f->internal_node_ids[i];
+    for (int i = 0; i < k; i++)
+        internal_ids[idx++] = f->output_port_ids[i];
+    for (int i = 0; i < k; i++)
+        internal_ids[idx++] = f->input_port_ids[i];
+
+    if (!func_block_set_internal_nodes(feedback, internal_ids, idx)) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+
+    /* 外部输入 = f 剩余输入端口（从第 k 个起） */
+    if (f->input_count > k) {
+        if (!func_block_set_input_ports(feedback, f->input_port_ids + k, f->input_count - k)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* 外部输出 = f 剩余输出端口（从第 k 个起） */
+    if (f->output_count > k) {
+        if (!func_block_set_output_ports(feedback, f->output_port_ids + k, f->output_count - k)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* 反馈依赖：第 i 个输出端口 → 第 i 个输入端口 */
+    for (int i = 0; i < k; i++) {
+        PortDependency dep;
+        memset(&dep, 0, sizeof(PortDependency));
+        dep.type = PORT_DEP_INCIDENCE;
+        dep.port_id = f->output_port_ids[i];
+        dep.external_node_id = f->input_port_ids[i];
+        dep.internal_node_id = f->output_port_ids[i];
+        dep.constraint_data = NULL;
+        func_block_add_port_dependency(feedback, &dep);
+    }
+
+    if (f->name) {
+        feedback->name = lv_asprintf("(feedback %s)", f->name);
+    }
+
+    feedback->determinism = DETERMINISM_UNVERIFIED;
+    /* 成功路径：feedback 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    *out_feedback = feedback;
+    feedback = NULL;
+    success = true;
+    return success;
+}
+
+/**
+ * @brief 分支组合：f | g —— 共享输入，输出合并（条件选择 f 或 g）
+ *
+ * 两个函数块共享同一组外部输入端口，各自独立执行，输出合并为
+ * f 的输出 ∪ g 的输出。前置条件：f 的输入端口数必须等于 g 的输入端口数。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ g 的输入端口（成为内部连接点）
+ *   - 外部输入 = f 的输入端口（共享）
+ *   - 外部输出 = f 的输出端口 ∪ g 的输出端口
+ *   - 端口依赖 = g 的第 i 个输入端口 → f 的第 i 个输入端口 的关联约束
+ *
+ * @param f 第一个函数块
+ * @param g 第二个函数块
+ * @param graph 约束图
+ * @param out_branch 输出的分支函数块
+ * @return true 组合成功；false 失败（参数无效、输入数不匹配或内存不足）
+ */
+bool func_block_branch(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_branch) {
+    if (!f || !g || !graph || !out_branch)
+        return false;
+    if (f->input_count != g->input_count)
+        return false;
+
+    int branch_id = graph->next_node_id++;
+    bool success = false;
+
+    FuncBlock *branch = func_block_create(branch_id);
+    if (!branch) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER(defer_func_block_destroy, &branch);
+
+    /* 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ g 的输入端口（成为内部连接点） */
+    int total_internal = f->internal_node_count + g->internal_node_count + g->input_count;
+    int *internal_ids = lv_malloc((size_t) total_internal * sizeof(int));
+    if (!internal_ids) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER_FREE(internal_ids);
+    int idx = 0;
+    for (int i = 0; i < f->internal_node_count; i++)
+        internal_ids[idx++] = f->internal_node_ids[i];
+    for (int i = 0; i < g->internal_node_count; i++)
+        internal_ids[idx++] = g->internal_node_ids[i];
+    for (int i = 0; i < g->input_count; i++)
+        internal_ids[idx++] = g->input_port_ids[i];
+
+    if (!func_block_set_internal_nodes(branch, internal_ids, idx)) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+
+    /* 外部输入 = f 的输入端口（共享） */
+    if (f->input_count > 0) {
+        if (!func_block_set_input_ports(branch, f->input_port_ids, f->input_count)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* 外部输出 = f 的输出端口 ∪ g 的输出端口 */
+    int total_output = 0;
+    int *output_ids =
+        merge_int_arrays(f->output_port_ids, f->output_count, g->output_port_ids, g->output_count, &total_output);
+    lv_DEFER_FREE(output_ids);
+
+    if (total_output > 0) {
+        if (!output_ids || !func_block_set_output_ports(branch, output_ids, total_output)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* g 的输入端口 → 共享外部输入（f 的输入端口）关联 */
+    for (int i = 0; i < g->input_count && i < f->input_count; i++) {
+        PortDependency dep;
+        memset(&dep, 0, sizeof(PortDependency));
+        dep.type = PORT_DEP_INCIDENCE;
+        dep.port_id = g->input_port_ids[i];
+        dep.external_node_id = f->input_port_ids[i];
+        dep.internal_node_id = g->input_port_ids[i];
+        dep.constraint_data = NULL;
+        func_block_add_port_dependency(branch, &dep);
+    }
+
+    if (f->name && g->name) {
+        branch->name = lv_asprintf("(branch %s | %s)", f->name, g->name);
+    }
+
+    branch->determinism = DETERMINISM_UNVERIFIED;
+    /* 成功路径：branch 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    *out_branch = branch;
+    branch = NULL;
+    success = true;
+    return success;
+}
+
+/**
+ * @brief 管道组合：f >|> g —— 顺序数据流，保留中间状态输出
+ *
+ * 顺序连接 f 与 g，但与 func_block_compose 不同：f 的输出端口同时保留为
+ * 外部输出（中间状态可观测）。前置条件：f 的输出端口数必须等于 g 的输入端口数。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ f 的输出端口 ∪ g 的输入端口
+ *   - 外部输入 = f 的输入端口
+ *   - 外部输出 = f 的输出端口 ∪ g 的输出端口（保留中间状态）
+ *   - 端口依赖 = f 的第 i 个输出端口 → g 的第 i 个输入端口 的关联约束
+ *
+ * @param f 第一个函数块
+ * @param g 第二个函数块
+ * @param graph 约束图
+ * @param out_pipe 输出的管道函数块
+ * @return true 组合成功；false 失败（参数无效、端口数不匹配或内存不足）
+ */
+bool func_block_pipe(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_pipe) {
+    if (!f || !g || !graph || !out_pipe)
+        return false;
+    if (f->output_count != g->input_count)
+        return false;
+
+    int pipe_id = graph->next_node_id++;
+    bool success = false;
+
+    FuncBlock *pipe = func_block_create(pipe_id);
+    if (!pipe) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER(defer_func_block_destroy, &pipe);
+
+    /* 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ f 的输出端口 ∪ g 的输入端口 */
+    int total_internal = f->internal_node_count + g->internal_node_count + f->output_count + g->input_count;
+    int *internal_ids = lv_malloc((size_t) total_internal * sizeof(int));
+    if (!internal_ids) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+    lv_DEFER_FREE(internal_ids);
+    int idx = 0;
+    for (int i = 0; i < f->internal_node_count; i++)
+        internal_ids[idx++] = f->internal_node_ids[i];
+    for (int i = 0; i < g->internal_node_count; i++)
+        internal_ids[idx++] = g->internal_node_ids[i];
+    for (int i = 0; i < f->output_count; i++)
+        internal_ids[idx++] = f->output_port_ids[i];
+    for (int i = 0; i < g->input_count; i++)
+        internal_ids[idx++] = g->input_port_ids[i];
+
+    if (!func_block_set_internal_nodes(pipe, internal_ids, idx)) {
+        graph->next_node_id--; /* 回滚 ID */
+        return false;
+    }
+
+    /* 外部输入 = f 的输入端口 */
+    if (f->input_count > 0) {
+        if (!func_block_set_input_ports(pipe, f->input_port_ids, f->input_count)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* 外部输出 = f 的输出端口 ∪ g 的输出端口（保留中间状态） */
+    int total_output = 0;
+    int *output_ids =
+        merge_int_arrays(f->output_port_ids, f->output_count, g->output_port_ids, g->output_count, &total_output);
+    lv_DEFER_FREE(output_ids);
+
+    if (total_output > 0) {
+        if (!output_ids || !func_block_set_output_ports(pipe, output_ids, total_output)) {
+            graph->next_node_id--; /* 回滚 ID */
+            return false;
+        }
+    }
+
+    /* f 的输出端口 → g 的输入端口 连接依赖 */
+    for (int i = 0; i < f->output_count && i < g->input_count; i++) {
+        PortDependency dep;
+        memset(&dep, 0, sizeof(PortDependency));
+        dep.type = PORT_DEP_INCIDENCE;
+        dep.port_id = f->output_port_ids[i];
+        dep.external_node_id = g->input_port_ids[i];
+        dep.internal_node_id = f->output_port_ids[i];
+        dep.constraint_data = NULL;
+        func_block_add_port_dependency(pipe, &dep);
+    }
+
+    if (f->name && g->name) {
+        pipe->name = lv_asprintf("(pipe %s >|> %s)", f->name, g->name);
+    }
+
+    pipe->determinism = DETERMINISM_UNVERIFIED;
+    /* 成功路径：pipe 交由调用者接管，置 NULL 使作用域守卫不再销毁 */
+    *out_pipe = pipe;
+    pipe = NULL;
+    success = true;
+    return success;
+}

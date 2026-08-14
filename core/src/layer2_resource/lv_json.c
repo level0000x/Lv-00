@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_json.c
  * @brief Lv-00 统一 JSON 解析与写入库实现
  *
@@ -135,34 +135,21 @@ char *lv_json_parse_string(lvJsonParser *p) {
         if (*src == '\\' && src + 1 < end) {
             src++;
             if (*src == 'u') {
-                /* \uXXXX — 简化为原样传递（完整 UTF-16 代理对处理过于复杂） */
-                if (src + 4 < end) {
-                    /* 将 \uXXXX 编码为 UTF-8 */
-                    unsigned int codepoint = 0;
-                    for (int i = 0; i < 4; i++) {
-                        src++;
-                        char c = *src;
-                        codepoint <<= 4;
-                        if (c >= '0' && c <= '9')
-                            codepoint |= (unsigned int)(c - '0');
-                        else if (c >= 'a' && c <= 'f')
-                            codepoint |= (unsigned int)(c - 'a' + 10);
-                        else if (c >= 'A' && c <= 'F')
-                            codepoint |= (unsigned int)(c - 'A' + 10);
-                        else
-                            codepoint |= 0xFFFD; /* 替换字符 */
-                    }
-                    /* 编码为 UTF-8 */
-                    if (codepoint < 0x80) {
-                        *dst++ = (char)codepoint;
-                    } else if (codepoint < 0x800) {
-                        *dst++ = (char)(0xC0 | (codepoint >> 6));
-                        *dst++ = (char)(0x80 | (codepoint & 0x3F));
-                    } else {
-                        *dst++ = (char)(0xE0 | (codepoint >> 12));
-                        *dst++ = (char)(0x80 | ((codepoint >> 6) & 0x3F));
-                        *dst++ = (char)(0x80 | (codepoint & 0x3F));
-                    }
+                /* \uXXXX → UTF-8（完整 UTF-16 代理对合并；孤立代理/非法 → U+FFFD） */
+                size_t adv_cp = 0;
+                unsigned int codepoint =
+                    lv_str_json_read_codepoint(src + 1, (size_t) (end - src - 1), &adv_cp);
+                if (adv_cp == 4 || adv_cp == 10) {
+                    if (codepoint == 0xFFFFFFFFu)
+                        codepoint = 0xFFFDu; /* 孤立代理 → 替换字符 */
+                    char u8buf[4];
+                    size_t n = lv_str_codepoint_to_utf8(codepoint, u8buf, sizeof(u8buf));
+                    for (size_t k = 0; k < n; k++)
+                        *dst++ = u8buf[k];
+                    src += adv_cp; /* 跳过 4 位十六进制（循环尾再跳过 'u'） */
+                } else {
+                    /* 不足 4 位十六进制：原样保留 'u' 字符（宽松解析） */
+                    *dst++ = 'u';
                 }
             } else {
                 /* 简单转义查表解码；未命中（'\0'）走 default 原样保留 */

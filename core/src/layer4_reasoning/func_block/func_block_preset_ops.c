@@ -940,12 +940,13 @@ void preset_search_result_destroy(PresetSearchResult *result) {
  * 预设组合操作实现
  * ================================================================ */
 
-/* 组合模式 → 组合名称前缀（指定初始化器；PRESET_COMPOSE_PIPE 未列出为 NULL，走 default 失败分支） */
+/* 组合模式 → 组合名称前缀（指定初始化器；五种模式全支持） */
 static const char *const kComposeNamePrefix[] = {
     [PRESET_COMPOSE_SEQUENCE] = "composed_seq_",
     [PRESET_COMPOSE_PARALLEL] = "composed_par_",
     [PRESET_COMPOSE_FEEDBACK] = "composed_fb_",
     [PRESET_COMPOSE_BRANCH]   = "composed_br_",
+    [PRESET_COMPOSE_PIPE]     = "composed_pipe_",
 };
 
 static bool preset_compose(const char *preset_a, const char *preset_b, PresetComposeMode mode,
@@ -1011,8 +1012,25 @@ static bool preset_compose(const char *preset_a, const char *preset_b, PresetCom
             success = func_block_product(fb_a, fb_b, temp_graph, &composed);
             break;
 
+        case PRESET_COMPOSE_FEEDBACK:
+            /* 反馈组合：a 的输出反馈到输入（全反馈 k = min(in, out)） */
+            success = func_block_feedback(fb_a, temp_graph, -1, &composed);
+            break;
+
+        case PRESET_COMPOSE_BRANCH:
+            /* 分支组合：共享输入、输出合并（条件选择 a 或 b） */
+            success = func_block_branch(fb_a, fb_b, temp_graph, &composed);
+            break;
+
+        case PRESET_COMPOSE_PIPE:
+            /* 管道组合：a >|> b，保留 a 的中间状态输出 */
+            if (fb_a->output_count == fb_b->input_count) {
+                success = func_block_pipe(fb_a, fb_b, temp_graph, &composed);
+            }
+            break;
+
         default:
-            /* 其他模式暂不支持 */
+            /* 未知组合模式 */
             break;
     }
 

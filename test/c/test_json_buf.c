@@ -342,6 +342,63 @@ static void test_key_space(void) {
     printf("  PASSED\n");
 }
 
+static void test_unicode_surrogate(void) {
+    printf("Test: unicode surrogate pairs in JSON escapes...\n");
+
+    char out[32];
+
+    /* lv_str_json_unescape: surrogate pair \uD83D\uDE00 (U+1F600) -> F0 9F 98 80 */
+    const char *pair = "\\uD83D\\uDE00";
+    size_t n = lv_str_json_unescape(pair, strlen(pair), out, sizeof(out));
+    lv_ASSERT(n == 4);
+    lv_ASSERT((unsigned char) out[0] == 0xF0);
+    lv_ASSERT((unsigned char) out[1] == 0x9F);
+    lv_ASSERT((unsigned char) out[2] == 0x98);
+    lv_ASSERT((unsigned char) out[3] == 0x80);
+
+    /* isolated high surrogate -> U+FFFD (EF BF BD) */
+    const char *iso = "\\uD83D";
+    n = lv_str_json_unescape(iso, strlen(iso), out, sizeof(out));
+    lv_ASSERT(n == 3);
+    lv_ASSERT((unsigned char) out[0] == 0xEF);
+    lv_ASSERT((unsigned char) out[1] == 0xBF);
+    lv_ASSERT((unsigned char) out[2] == 0xBD);
+
+    /* BMP \u4E2D (zhong) -> E4 B8 AD */
+    const char *bmp = "\\u4E2D";
+    n = lv_str_json_unescape(bmp, strlen(bmp), out, sizeof(out));
+    lv_ASSERT(n == 3);
+    lv_ASSERT((unsigned char) out[0] == 0xE4);
+    lv_ASSERT((unsigned char) out[1] == 0xB8);
+    lv_ASSERT((unsigned char) out[2] == 0xAD);
+
+    /* lv_json_parse_string: "\uD83D\uDE00" -> F0 9F 98 80 */
+    lvJsonParser p;
+    const char *src = "\"\\uD83D\\uDE00\"";
+    lv_json_parser_init(&p, src, strlen(src));
+    char *s = lv_json_parse_string(&p);
+    lv_ASSERT_NOT_NULL(s);
+    lv_ASSERT((unsigned char) s[0] == 0xF0);
+    lv_ASSERT((unsigned char) s[1] == 0x9F);
+    lv_ASSERT((unsigned char) s[2] == 0x98);
+    lv_ASSERT((unsigned char) s[3] == 0x80);
+    lv_ASSERT(s[4] == '\0');
+    lv_free((void **) &s);
+
+    /* lv_json_parse_string: isolated high surrogate -> U+FFFD */
+    const char *src2 = "\"\\uD83D\"";
+    lv_json_parser_init(&p, src2, strlen(src2));
+    s = lv_json_parse_string(&p);
+    lv_ASSERT_NOT_NULL(s);
+    lv_ASSERT((unsigned char) s[0] == 0xEF);
+    lv_ASSERT((unsigned char) s[1] == 0xBF);
+    lv_ASSERT((unsigned char) s[2] == 0xBD);
+    lv_ASSERT(s[3] == '\0');
+    lv_free((void **) &s);
+
+    printf("  PASSED\n");
+}
+
 TEST_MAIN_BEGIN("Lv-00 JSON Buf Object-level API Test Suite")
     printf("=== Lv-00 JSON Buf Object-level API Test Suite ===\n\n");
     if (!lv_init()) {
@@ -355,5 +412,7 @@ TEST_MAIN_BEGIN("Lv-00 JSON Buf Object-level API Test Suite")
     TEST_MAIN_RUN(test_pretty_mode);
     TEST_MAIN_RUN(test_depth_clamp);
     TEST_MAIN_RUN(test_key_space);
+    /* unicode surrogate pair handling */
+    TEST_MAIN_RUN(test_unicode_surrogate);
     printf("\nAll json buf tests passed.\n");
 TEST_MAIN_END()

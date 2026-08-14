@@ -73,12 +73,26 @@ static void compose_meta_pipe(const PresetComposition *composition, InternalPres
     composed_meta->output_count = first_entry->metadata.output_count;
 }
 
-/** @brief 反馈/分支模式：保留第一预设的输出数量作为初始值（无额外调整） */
-static void compose_meta_noop(const PresetComposition *composition, InternalPresetEntry *first_entry,
-                              PresetMetadata *composed_meta) {
+/** @brief 反馈组合：外部输出 = max(0, 输出数 - 输入数)（k = min 全反馈语义） */
+static void compose_meta_feedback(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                                  PresetMetadata *composed_meta) {
     (void) composition;
-    (void) first_entry;
-    (void) composed_meta;
+    int outs = first_entry->metadata.output_count;
+    int ins = first_entry->metadata.input_count;
+    composed_meta->output_count = (outs > ins) ? (outs - ins) : 0;
+}
+
+/** @brief 分支组合：输出数量 = 前两个预设输出之和（共享输入、输出合并） */
+static void compose_meta_branch(const PresetComposition *composition, InternalPresetEntry *first_entry,
+                                PresetMetadata *composed_meta) {
+    int total = first_entry->metadata.output_count;
+    if (composition->count >= 2) {
+        InternalPresetEntry *second = find_entry(composition->preset_names[1]);
+        if (second && second->metadata.output_count > 0) {
+            total += second->metadata.output_count;
+        }
+    }
+    composed_meta->output_count = total;
 }
 
 /** 组合模式 → 元数据计算函数 查找表（designated initializer） */
@@ -86,8 +100,8 @@ static const ComposeMetaFn kComposeMetaHandlers[] = {
     [PRESET_COMPOSE_SEQUENCE] = compose_meta_sequence,
     [PRESET_COMPOSE_PARALLEL] = compose_meta_parallel,
     [PRESET_COMPOSE_PIPE] = compose_meta_pipe,
-    [PRESET_COMPOSE_FEEDBACK] = compose_meta_noop,
-    [PRESET_COMPOSE_BRANCH] = compose_meta_noop,
+    [PRESET_COMPOSE_FEEDBACK] = compose_meta_feedback,
+    [PRESET_COMPOSE_BRANCH] = compose_meta_branch,
 };
 
 /**

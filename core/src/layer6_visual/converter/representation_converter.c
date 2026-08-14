@@ -211,8 +211,9 @@ int lv_converter_verify_roundtrip(lvRepresentationConverter *conv, void *origina
             /* 简化：成功往返即视为通过 */
             return 1;
         default:
-            /* 其他视图类型的往返验证暂不实现 */
-            lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "roundtrip not supported for this view type");
+            /* 其他视图无反向转换器（仅 text 提供 from_* 方向），无法构造往返；
+             * 返回 UNSUPPORTED 而非误报一致 */
+            lv_RETURN_ERROR(lv_ERROR_UNSUPPORTED, "roundtrip not supported: no reverse converter for this view type");
     }
 }
 

@@ -1978,6 +1978,9 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_proof_strategy_numeric CTEST_NAME proof_strategy_numeric_test)
     add_lv_test_auto(test_interval_arith CTEST_NAME interval_arith_test)
 
+    # Herbie 浮点表达式优化（herbie_eval.c）测试
+    add_lv_test_auto(test_herbie CTEST_NAME herbie_test)
+
     # 公共设施与规则/桥接守护测试：lvCallbackList、并行 Groebner 忠实
     # 布尔编码、数值验证规则入口、经典策略桥接
     add_lv_test_auto(test_callback_list CTEST_NAME callback_list_test)

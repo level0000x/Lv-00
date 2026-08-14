@@ -34,6 +34,10 @@ struct lvWaitGroup {
     int completed_count; /**< 已完成任务数（支持超时查询） */
     lv_mutex_t mutex;    /**< 保护互斥锁 */
     lv_cond_t cond;      /**< 等待条件变量 */
+    /* 任务组专用字段（lvTaskGroup）：待执行任务链表，非线程池 worker 使用。
+     * 线程池 submit 创建的内部 wait group 由 calloc 清零，不受影响。 */
+    struct lvThreadTask *task_head; /**< 待执行任务链表头 */
+    struct lvThreadTask *task_tail; /**< 待执行任务链表尾 */
 };
 
 /** @brief 并行 for 迭代回调：idx 为迭代下标，ctx 为透传上下文 */

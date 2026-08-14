@@ -693,6 +693,122 @@ char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator) {
     return buf;
 }
 
+/**
+ * @brief 解析 JSON \uXXXX 转义为一个完整 Unicode 码点（含 UTF-16 代理对合并）
+ *
+ * src 指向 \u 之后的第一个十六进制字符。高代理（U+D800-U+DBFF）后若紧跟
+ * \uXXXX 形式的低代理（U+DC00-U+DFFF）则合并为补充平面码点。
+ *
+ * @param src     源缓冲（\u 之后部分），可为 NULL
+ * @param src_len src 剩余字节数
+ * @param out_adv 输出实际消耗字节数（合法 4 位 = 4；含低代理合并 = 10；不足 = 已解析位数 0-3）
+ * @return 完整码点；孤立代理或非法十六进制返回 0xFFFFFFFF（调用方应写 U+FFFD）
+ */
+unsigned int lv_str_json_read_codepoint(const char *src, size_t src_len, size_t *out_adv) {
+    if (out_adv)
+        *out_adv = 0;
+    if (!src || src_len < 4)
+        return 0xFFFFFFFFu;
+
+    unsigned int cp = 0;
+    size_t i = 0;
+    for (; i < 4; i++) {
+        char h = src[i];
+        unsigned int nibble;
+        if (h >= '0' && h <= '9')
+            nibble = (unsigned int) (h - '0');
+        else if (h >= 'a' && h <= 'f')
+            nibble = (unsigned int) (h - 'a' + 10);
+        else if (h >= 'A' && h <= 'F')
+            nibble = (unsigned int) (h - 'A' + 10);
+        else
+            break; /* 非法十六进制：截断 */
+        cp = (cp << 4) | nibble;
+    }
+    if (out_adv)
+        *out_adv = i;
+    if (i < 4)
+        return 0xFFFFFFFFu;
+
+    /* 高代理：尝试合并后续低代理 \uDC00-\uDFFF */
+    if (cp >= 0xD800 && cp <= 0xDBFF) {
+        if (src_len >= 10 && src[4] == '\\' && src[5] == 'u') {
+            unsigned int lo = 0;
+            size_t j = 0;
+            for (; j < 4; j++) {
+                char h = src[6 + j];
+                unsigned int nibble;
+                if (h >= '0' && h <= '9')
+                    nibble = (unsigned int) (h - '0');
+                else if (h >= 'a' && h <= 'f')
+                    nibble = (unsigned int) (h - 'a' + 10);
+                else if (h >= 'A' && h <= 'F')
+                    nibble = (unsigned int) (h - 'A' + 10);
+                else
+                    break;
+                lo = (lo << 4) | nibble;
+            }
+            if (j == 4 && lo >= 0xDC00 && lo <= 0xDFFF) {
+                cp = 0x10000u + ((cp - 0xD800u) << 10) + (lo - 0xDC00u);
+                if (out_adv)
+                    *out_adv = 10;
+                return cp;
+            }
+        }
+        return 0xFFFFFFFFu; /* 孤立高代理 → U+FFFD */
+    }
+
+    /* 孤立低代理 → U+FFFD */
+    if (cp >= 0xDC00 && cp <= 0xDFFF)
+        return 0xFFFFFFFFu;
+
+    return cp;
+}
+
+/**
+ * @brief 将 Unicode 码点编码为 UTF-8
+ *
+ * @param cp  码点（0x0-0x10FFFF）
+ * @param dst 目标缓冲（至少 4 字节）
+ * @param cap 目标容量（字节）
+ * @return 写入字节数；cp 无效或容量不足返回 0
+ */
+size_t lv_str_codepoint_to_utf8(unsigned int cp, char *dst, size_t cap) {
+    if (!dst || cap == 0)
+        return 0;
+    if (cp <= 0x7Fu) {
+        if (cap < 1)
+            return 0;
+        dst[0] = (char) cp;
+        return 1;
+    }
+    if (cp <= 0x7FFu) {
+        if (cap < 2)
+            return 0;
+        dst[0] = (char) (0xC0u | (cp >> 6));
+        dst[1] = (char) (0x80u | (cp & 0x3Fu));
+        return 2;
+    }
+    if (cp <= 0xFFFFu) {
+        if (cap < 3)
+            return 0;
+        dst[0] = (char) (0xE0u | (cp >> 12));
+        dst[1] = (char) (0x80u | ((cp >> 6) & 0x3Fu));
+        dst[2] = (char) (0x80u | (cp & 0x3Fu));
+        return 3;
+    }
+    if (cp <= 0x10FFFFu) {
+        if (cap < 4)
+            return 0;
+        dst[0] = (char) (0xF0u | (cp >> 18));
+        dst[1] = (char) (0x80u | ((cp >> 12) & 0x3Fu));
+        dst[2] = (char) (0x80u | ((cp >> 6) & 0x3Fu));
+        dst[3] = (char) (0x80u | (cp & 0x3Fu));
+        return 4;
+    }
+    return 0; /* 无效码点 */
+}
+
 size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap) {
     if (!src)
         src_len = 0;
@@ -718,44 +834,26 @@ size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t d
                 case 'r':  seg = "\r"; break;
                 case 't':  seg = "\t"; break;
                 case 'u': {
-                    /* \uXXXX → UTF-8（与 lv_json_parse_string 一致的 1~3 字节编码） */
-                    unsigned int cp = 0;
-                    size_t k = i + 2;
-                    unsigned int digits = 0;
-                    for (; k < src_len && digits < 4; k++, digits++) {
-                        char h = src[k];
-                        unsigned int nibble;
-                        if (h >= '0' && h <= '9')
-                            nibble = (unsigned int) (h - '0');
-                        else if (h >= 'a' && h <= 'f')
-                            nibble = (unsigned int) (h - 'a' + 10);
-                        else if (h >= 'A' && h <= 'F')
-                            nibble = (unsigned int) (h - 'A' + 10);
-                        else
-                            break; /* 非法十六进制：按已有位数截断处理 */
-                        cp = (cp << 4) | nibble;
-                    }
-                    if (digits == 0) {
-                        /* 非十六进制字符：保留 'u' 原样 */
+                    /* \uXXXX → UTF-8（完整 UTF-16 代理对处理；孤立代理/非法 → U+FFFD） */
+                    size_t adv_cp = 0;
+                    unsigned int cp = lv_str_json_read_codepoint(src + i + 2, src_len - (i + 2), &adv_cp);
+                    if (adv_cp == 4 || adv_cp == 10) {
+                        if (cp == 0xFFFFFFFFu)
+                            cp = 0xFFFDu;
+                        size_t n = lv_str_codepoint_to_utf8(cp, utf8, sizeof(utf8));
+                        if (n > 0) {
+                            seg = utf8;
+                            seg_len = n;
+                            adv = 2 + adv_cp;
+                        } else {
+                            /* 无效码点：保留 'u' 原样 */
+                            seg = (const char *) &src[i + 1];
+                            seg_len = 1;
+                        }
+                    } else {
+                        /* 非十六进制/不足 4 位：保留 'u' 原样 */
                         seg = (const char *) &src[i + 1];
                         seg_len = 1;
-                    } else {
-                        /* 编码为 UTF-8 */
-                        if (cp < 0x80) {
-                            utf8[0] = (char) cp;
-                            seg_len = 1;
-                        } else if (cp < 0x800) {
-                            utf8[0] = (char) (0xC0 | (cp >> 6));
-                            utf8[1] = (char) (0x80 | (cp & 0x3F));
-                            seg_len = 2;
-                        } else {
-                            utf8[0] = (char) (0xE0 | (cp >> 12));
-                            utf8[1] = (char) (0x80 | ((cp >> 6) & 0x3F));
-                            utf8[2] = (char) (0x80 | (cp & 0x3F));
-                            seg_len = 3;
-                        }
-                        seg = utf8;
-                        adv = 2 + digits;
                     }
                     break;
                 }

@@ -445,6 +445,10 @@ int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, con
 /* Forward declarations for smt_backend_impl.c */
 int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
                               const char *ideal_name);
+/* _ex 变体：通过 out_encode_failed 输出无法编码为多项式的约束数（可为 NULL）。
+ * 存在编码失败约束时，基于该理想得到的 SAT/UNSAT 判定不可信，调用方应返回 UNKNOWN。 */
+int constraint_graph_to_ideal_ex(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
+                                 const char *ideal_name, int *out_encode_failed);
 int variety_compute(lvRingRegistry *registry, int ideal_id, const char *variety_name);
 bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id);
 int variety_dimension(lvRingRegistry *registry, int variety_id);

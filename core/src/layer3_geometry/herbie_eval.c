@@ -92,8 +92,24 @@ static const RewriteRuleEntry builtin_rules[] = {
     {"(a*b)/(c*d)", "(a/c)*(b/d)", "分散乘除减少中间溢出", 1e4},
     /* 改善精度：1 - sqrt(1-x) → x/(1+sqrt(1-x)) */
     {"1-sqrt(1-x)", "x/(1+sqrt(1-x))", "避免 sqrt(1-x)≈1 时的抵消", 1e6},
-    /* 改善精度：log(a) - log(b) → log(a/b) 的数值稳定形式 */
-    {"log(x)-log(y)", "log((x+y)/(y+y))", "备选对数差分形式", 1e2},
+    /* 改善精度：sqrt(1+x)-1 → x/(sqrt(1+x)+1)（小 x 时避免抵消） */
+    {"sqrt(1+x)-1", "x/(sqrt(1+x)+1)", "避免 sqrt(1+x)≈1 时的抵消", 1e8},
+    /* 改善精度：log(1+exp(x))-x → log1p(exp(-x))（大 x 时避免溢出） */
+    {"log(1+exp(x))-x", "log1p(exp(-x))", "大 x 时避免 1+exp(x) 溢出", 1e8},
+    /* 指数合并：exp(a)*exp(b) → exp(a+b) */
+    {"exp(a)*exp(b)", "exp(a+b)", "指数乘法合并", 1e2},
+    /* 三角差分：sin(a)*cos(b)-cos(a)*sin(b) → sin(a-b) */
+    {"sin(a)*cos(b)-cos(a)*sin(b)", "sin(a-b)", "三角差角公式", 1e4},
+    /* 三角差分：cos(a)*cos(b)+sin(a)*sin(b) → cos(a-b) */
+    {"cos(a)*cos(b)+sin(a)*sin(b)", "cos(a-b)", "三角差角公式", 1e4},
+    /* 倍角：2*sin(x)*cos(x) → sin(2*x) */
+    {"2*sin(x)*cos(x)", "sin(2*x)", "倍角公式", 1e2},
+    /* 倍角：cos(x)*cos(x)-sin(x)*sin(x) → cos(2*x) */
+    {"cos(x)*cos(x)-sin(x)*sin(x)", "cos(2*x)", "倍角公式", 1e4},
+    /* 半角：(1-cos(x))/(x*x) → 0.5*(sin(x/2)/(x/2))^2（x 小时避免抵消） */
+    {"(1-cos(x))/(x*x)", "0.5*sin(x/2)*sin(x/2)/((x/2)*(x/2))", "半角公式避免 x 小时抵消", 1e6},
+    /* 分母共轭：(x-y)/(sqrt(x)-sqrt(y)) → sqrt(x)+sqrt(y) */
+    {"(x-y)/(sqrt(x)-sqrt(y))", "sqrt(x)+sqrt(y)", "分母共轭有理化", 1e4},
     {NULL, NULL, NULL, 0.0}};
 
 /* ============================================================
@@ -115,16 +131,34 @@ static double estimate_relative_error(const char *expr, double value, int var_co
     if (!expr || fabs(value) < lv_ZERO_GUARD_EPS)
         return 1.0;
 
-    /* 简化估计：基于表达式复杂度和变量数量 */
+    /* 结构感知误差估计：除运算符计数外，对灾难性抵消（减法）与超越函数
+     * 引入的条件数放大因子建模，比纯计数更贴近真实相对误差量级。 */
     double eps = ldexp(1.0, -53); /* FP64 epsilon */
     int op_count = 0;
+    int subtract_count = 0;
+    int transcendent_count = 0;
     for (const char *p = expr; *p; p++) {
-        if (*p == '+' || *p == '-' || *p == '*' || *p == '/')
+        char c = *p;
+        if (c == '+' || c == '-' || c == '*' || c == '/')
             op_count++;
+        if (c == '-')
+            subtract_count++;
+        if (strncmp(p, "sqrt", 4) == 0 || strncmp(p, "exp", 3) == 0 || strncmp(p, "log", 3) == 0 ||
+            strncmp(p, "cos", 3) == 0 || strncmp(p, "sin", 3) == 0 || strncmp(p, "tan", 3) == 0 ||
+            strncmp(p, "hypot", 5) == 0) {
+            transcendent_count++;
+            p += (strncmp(p, "hypot", 5) == 0) ? 4 : ((strncmp(p, "sqrt", 4) == 0) ? 3 : 2);
+        }
     }
 
-    /* 误差 ≈ op_count * eps * 条件数放大因子 */
+    /* 条件数基础因子：变量数 + 1 */
     double condition_factor = (double) (var_count + 1);
+    /* 每处减法将条件数放大一个量级（减法抵消是浮点误差主源） */
+    for (int i = 0; i < subtract_count; i++)
+        condition_factor *= 10.0;
+    /* 超越函数放大因子 */
+    condition_factor *= (double) (transcendent_count + 1);
+
     return (double) (op_count + 1) * eps * condition_factor;
 }
 
@@ -297,6 +331,7 @@ char *lv_herbie_optimize(const char *expression, double *out_value, double *out_
 
     HerbieOptimizer opt;
     memset(&opt, 0, sizeof(opt));
+    lv_darray_init(&opt.entries, sizeof(OptimizedEntry)); /* 必须初始化，否则 push 分配失败 */
     opt.original_expr = lv_strdup(expression);
     opt.original_error = estimate_relative_error(expression, 1.0, 2);
     opt.best_error = opt.original_error;

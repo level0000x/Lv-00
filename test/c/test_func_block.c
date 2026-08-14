@@ -755,6 +755,204 @@ static void test_func_block_product(void) {
 
 }
 
+static void test_func_block_feedback(void) {
+    printf("Test: function block feedback (out -> in loop)...\n");
+
+    ConstraintGraph *g = graph_create();
+
+    /* f: 1 input -> 1 output */
+    int p1 = add_point(g, 0, 1, 0, 1);
+    int f_in = add_port(g, PORT_INPUT, -1);
+    int f_out = add_port(g, PORT_OUTPUT, -1);
+
+    int f_internal[] = {p1};
+    int f_inputs[] = {f_in};
+    int f_outputs[] = {f_out};
+
+    FuncBlock *f = NULL;
+    PackResult pack_result = func_block_pack(g, f_internal, 1, f_inputs, 1, f_outputs, 1, NULL, 0, &f);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    f->name = strdup("f");
+
+    /* full feedback: k = min(1, 1) = 1 -> no external in/out left */
+    FuncBlock *fb = NULL;
+    bool ok = func_block_feedback(f, g, -1, &fb);
+    lv_ASSERT(ok);
+    lv_ASSERT_NOT_NULL(fb);
+    lv_ASSERT(fb->input_count == 0);
+    lv_ASSERT(fb->output_count == 0);
+    lv_ASSERT(fb->internal_node_count == f->internal_node_count + 2);
+    lv_ASSERT(fb->port_dep_count == 1);
+
+    func_block_destroy(fb);
+    fb = NULL;
+
+    /* h: 2 inputs -> 1 output, feedback_count = 1 -> 1 external input left */
+    int p3 = add_point(g, 2, 1, 2, 1);
+    int h_in1 = add_port(g, PORT_INPUT, -1);
+    int h_in2 = add_port(g, PORT_INPUT, -1);
+    int h_out = add_port(g, PORT_OUTPUT, -1);
+
+    int h_internal[] = {p3};
+    int h_inputs[] = {h_in1, h_in2};
+    int h_outputs[] = {h_out};
+
+    FuncBlock *h = NULL;
+    pack_result = func_block_pack(g, h_internal, 1, h_inputs, 2, h_outputs, 1, NULL, 0, &h);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    h->name = strdup("h");
+
+    FuncBlock *hb = NULL;
+    ok = func_block_feedback(h, g, 1, &hb);
+    lv_ASSERT(ok);
+    lv_ASSERT_NOT_NULL(hb);
+    lv_ASSERT(hb->input_count == 1);
+    lv_ASSERT(hb->output_count == 0);
+    lv_ASSERT(hb->port_dep_count == 1);
+
+    /* feedback_count out of range -> fail */
+    FuncBlock *bad = NULL;
+    ok = func_block_feedback(h, g, 99, &bad);
+    lv_ASSERT(!ok);
+
+    func_block_destroy(h);
+    func_block_destroy(hb);
+    graph_destroy(g);
+    printf("  PASSED\n");
+}
+
+static void test_func_block_branch(void) {
+    printf("Test: function block branch (f | g)...\n");
+
+    ConstraintGraph *g = graph_create();
+
+    /* f: 1 input -> 1 output */
+    int p1 = add_point(g, 0, 1, 0, 1);
+    int f_in = add_port(g, PORT_INPUT, -1);
+    int f_out = add_port(g, PORT_OUTPUT, -1);
+
+    int f_internal[] = {p1};
+    int f_inputs[] = {f_in};
+    int f_outputs[] = {f_out};
+
+    FuncBlock *f = NULL;
+    PackResult pack_result = func_block_pack(g, f_internal, 1, f_inputs, 1, f_outputs, 1, NULL, 0, &f);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    f->name = strdup("f");
+
+    /* g: 1 input -> 2 outputs */
+    int p2 = add_point(g, 1, 1, 1, 1);
+    int g_in = add_port(g, PORT_INPUT, -1);
+    int g_out1 = add_port(g, PORT_OUTPUT, -1);
+    int g_out2 = add_port(g, PORT_OUTPUT, -1);
+
+    int g_internal[] = {p2};
+    int g_inputs[] = {g_in};
+    int g_outputs[] = {g_out1, g_out2};
+
+    FuncBlock *fb_g = NULL;
+    pack_result = func_block_pack(g, g_internal, 1, g_inputs, 1, g_outputs, 2, NULL, 0, &fb_g);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    fb_g->name = strdup("g");
+
+    /* branch: shared input, merged outputs */
+    FuncBlock *branch = NULL;
+    bool ok = func_block_branch(f, fb_g, g, &branch);
+    lv_ASSERT(ok);
+    lv_ASSERT_NOT_NULL(branch);
+    lv_ASSERT(branch->input_count == 1);
+    lv_ASSERT(branch->output_count == 3);
+    lv_ASSERT(branch->internal_node_count == f->internal_node_count + fb_g->internal_node_count + 1);
+    lv_ASSERT(branch->port_dep_count == 1);
+
+    func_block_destroy(f);
+    func_block_destroy(fb_g);
+    func_block_destroy(branch);
+
+    /* input count mismatch -> fail */
+    int p3 = add_point(g, 2, 1, 2, 1);
+    int h_in1 = add_port(g, PORT_INPUT, -1);
+    int h_in2 = add_port(g, PORT_INPUT, -1);
+    int h_out = add_port(g, PORT_OUTPUT, -1);
+
+    int h_internal[] = {p3};
+    int h_inputs[] = {h_in1, h_in2};
+    int h_outputs[] = {h_out};
+
+    FuncBlock *h = NULL;
+    pack_result = func_block_pack(g, h_internal, 1, h_inputs, 2, h_outputs, 1, NULL, 0, &h);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+
+    FuncBlock *f2 = NULL;
+    int q1 = add_point(g, 3, 1, 3, 1);
+    int f2_in = add_port(g, PORT_INPUT, -1);
+    int f2_out = add_port(g, PORT_OUTPUT, -1);
+    int f2_internal[] = {q1};
+    int f2_inputs[] = {f2_in};
+    int f2_outputs[] = {f2_out};
+    pack_result = func_block_pack(g, f2_internal, 1, f2_inputs, 1, f2_outputs, 1, NULL, 0, &f2);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+
+    FuncBlock *bad = NULL;
+    ok = func_block_branch(f2, h, g, &bad);
+    lv_ASSERT(!ok);
+
+    func_block_destroy(h);
+    func_block_destroy(f2);
+    graph_destroy(g);
+    printf("  PASSED\n");
+}
+
+static void test_func_block_pipe(void) {
+    printf("Test: function block pipe (f >|> g, keep middle state)...\n");
+
+    ConstraintGraph *g = graph_create();
+
+    /* f: 1 input -> 1 output */
+    int p1 = add_point(g, 0, 1, 0, 1);
+    int f_in = add_port(g, PORT_INPUT, -1);
+    int f_out = add_port(g, PORT_OUTPUT, -1);
+
+    int f_internal[] = {p1};
+    int f_inputs[] = {f_in};
+    int f_outputs[] = {f_out};
+
+    FuncBlock *f = NULL;
+    PackResult pack_result = func_block_pack(g, f_internal, 1, f_inputs, 1, f_outputs, 1, NULL, 0, &f);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    f->name = strdup("f");
+
+    /* g: 1 input -> 1 output */
+    int p2 = add_point(g, 1, 1, 1, 1);
+    int g_in = add_port(g, PORT_INPUT, -1);
+    int g_out = add_port(g, PORT_OUTPUT, -1);
+
+    int g_internal[] = {p2};
+    int g_inputs[] = {g_in};
+    int g_outputs[] = {g_out};
+
+    FuncBlock *fb_g = NULL;
+    pack_result = func_block_pack(g, g_internal, 1, g_inputs, 1, g_outputs, 1, NULL, 0, &fb_g);
+    lv_ASSERT(pack_result == PACK_RESULT_OK);
+    fb_g->name = strdup("g");
+
+    /* pipe: input = f.in, outputs = f.out + g.out (middle state kept) */
+    FuncBlock *pipe = NULL;
+    bool ok = func_block_pipe(f, fb_g, g, &pipe);
+    lv_ASSERT(ok);
+    lv_ASSERT_NOT_NULL(pipe);
+    lv_ASSERT(pipe->input_count == 1);
+    lv_ASSERT(pipe->output_count == 2);
+    lv_ASSERT(pipe->internal_node_count == f->internal_node_count + fb_g->internal_node_count + 2);
+    lv_ASSERT(pipe->port_dep_count == 1);
+
+    func_block_destroy(f);
+    func_block_destroy(fb_g);
+    func_block_destroy(pipe);
+    graph_destroy(g);
+    printf("  PASSED\n");
+}
+
 /* ============== 娴嬭瘯锛氱鍙ｄ緷璧?============== */
 
 static void test_port_dependency(void) {
@@ -1657,6 +1855,10 @@ TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
     /* 缁勫悎瀛愭祴璇?*/
     TEST_MAIN_RUN(test_func_block_compose);
     TEST_MAIN_RUN(test_func_block_product);
+    /* feedback / branch / pipe combinator tests */
+    TEST_MAIN_RUN(test_func_block_feedback);
+    TEST_MAIN_RUN(test_func_block_branch);
+    TEST_MAIN_RUN(test_func_block_pipe);
     /* 绔彛渚濊禆娴嬭瘯 */
     TEST_MAIN_RUN(test_port_dependency);
     /* 杈呭姪鍑芥暟娴嬭瘯 */

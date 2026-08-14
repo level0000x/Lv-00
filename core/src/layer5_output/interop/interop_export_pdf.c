@@ -273,16 +273,20 @@ int interop_export_pdf(const ConstraintGraph *graph, const InteropExportConfig *
 
         /*
          * 点渲染：使用填充圆（filled circle）。
-         * 当前方法：用极短线段模拟点（line cap round + 粗线宽）。
-         * 改进方法（后续版本）: 使用 Bezier 曲线构造圆。
+         * 用 4 段三次 Bezier 曲线构造圆（k = 4/3*(sqrt(2)-1) ≈ 0.5523），
+         * 比粗线段模拟的点更圆滑。
          */
-        BUF_APPEND("%.2f w\n", 6.0);
-        BUF_APPEND("1 J\n"); /* 圆头线端 */
-        BUF_APPEND("%.2f %.2f m\n", GX(px), GY(py));
-        BUF_APPEND("%.2f %.2f l\n", GX(px + 0.01), GY(py));
-        BUF_APPEND("S\n");
-        BUF_APPEND("0 J\n"); /* 恢复平头线端 */
-        BUF_APPEND("%.2f w\n", lv_DEFAULT_STROKE_WIDTH);
+        {
+            const double r = 3.0;
+            const double k = 0.5522847498307936;
+            const double cx = GX(px), cy = GY(py);
+            BUF_APPEND("%.2f %.2f m\n", cx + r, cy);
+            BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx + r, cy + r * k, cx + r * k, cy + r, cx, cy + r);
+            BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx - r * k, cy + r, cx - r, cy + r * k, cx - r, cy);
+            BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx - r, cy - r * k, cx - r * k, cy - r, cx, cy - r);
+            BUF_APPEND("%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx + r * k, cy - r, cx + r, cy - r * k, cx + r, cy);
+            BUF_APPEND("f\n");
+        }
     }
 
     /* ---- 渲染函数块（作为圆角矩形） ---- */

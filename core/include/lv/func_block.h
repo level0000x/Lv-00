@@ -746,6 +746,68 @@ lv_PUBLIC_API bool func_block_compose(FuncBlock *f, FuncBlock *g, ConstraintGrap
  */
 lv_PUBLIC_API bool func_block_product(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_product);
 
+/**
+ * @brief 反馈组合：f 的输出端口反馈到输入端口（迭代到不动点）
+ *
+ * 将 f 的前 k 个输出端口分别关联到前 k 个输入端口，形成反馈环。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ 被反馈的 k 个输出端口 ∪ 被反馈的 k 个输入端口
+ *   - 外部输入 = f 剩余输入端口（从第 k 个起）
+ *   - 外部输出 = f 剩余输出端口（从第 k 个起）
+ *   - 端口依赖 = 第 i 个输出端口 → 第 i 个输入端口 的关联约束（i < k）
+ *
+ * @param f 函数块
+ * @param graph 约束图
+ * @param feedback_count 反馈端口数；传 -1 表示全反馈（k = min(input_count, output_count)）
+ * @param out_feedback 输出的反馈函数块
+ * @return 是否成功
+ *
+ * @note 所有权：同 func_block_compose()，成功时调用者获得输出函数块的所有权。
+ */
+lv_PUBLIC_API bool func_block_feedback(FuncBlock *f, ConstraintGraph *graph, int feedback_count, FuncBlock **out_feedback);
+
+/**
+ * @brief 分支组合：f | g —— 共享输入，输出合并（条件选择 f 或 g）
+ *
+ * 两个函数块共享同一组外部输入端口，各自独立执行，输出合并为
+ * f 的输出 ∪ g 的输出。前置条件：f 的输入端口数必须等于 g 的输入端口数。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ g 的输入端口（成为内部连接点）
+ *   - 外部输入 = f 的输入端口（共享）
+ *   - 外部输出 = f 的输出端口 ∪ g 的输出端口
+ *   - 端口依赖 = g 的第 i 个输入端口 → f 的第 i 个输入端口 的关联约束
+ *
+ * @param f 第一个函数块
+ * @param g 第二个函数块
+ * @param graph 约束图
+ * @param out_branch 输出的分支函数块
+ * @return 是否成功
+ *
+ * @note 所有权：同 func_block_compose()，成功时调用者获得输出函数块的所有权。
+ */
+lv_PUBLIC_API bool func_block_branch(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_branch);
+
+/**
+ * @brief 管道组合：f >|> g —— 顺序数据流，保留中间状态输出
+ *
+ * 顺序连接 f 与 g，但与 func_block_compose 不同：f 的输出端口同时保留为
+ * 外部输出（中间状态可观测）。前置条件：f 的输出端口数必须等于 g 的输入端口数。
+ * 组合后的新函数块具有：
+ *   - 内部节点 = f 的内部节点 ∪ g 的内部节点 ∪ f 的输出端口 ∪ g 的输入端口
+ *   - 外部输入 = f 的输入端口
+ *   - 外部输出 = f 的输出端口 ∪ g 的输出端口（保留中间状态）
+ *   - 端口依赖 = f 的第 i 个输出端口 → g 的第 i 个输入端口 的关联约束
+ *
+ * @param f 第一个函数块
+ * @param g 第二个函数块
+ * @param graph 约束图
+ * @param out_pipe 输出的管道函数块
+ * @return 是否成功
+ *
+ * @note 所有权：同 func_block_compose()，成功时调用者获得输出函数块的所有权。
+ */
+lv_PUBLIC_API bool func_block_pipe(FuncBlock *f, FuncBlock *g, ConstraintGraph *graph, FuncBlock **out_pipe);
+
 /* ============== 辅助函数 ============== */
 
 /**
