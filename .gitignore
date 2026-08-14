@@ -1,4 +1,4 @@
-﻿# Build artifacts
+# Build artifacts
 build/
 cmake-build-*/
 out/
@@ -132,10 +132,36 @@ module/axiom_packages/test_saves/
 build/
 build_*/
 build2/
+build3/
+build4/
 build_final/
 build_verify/
 build_tmp/
 _archived_builds/
+
+# 一次性迁移/诊断脚本（不属源码）
+_c11_migrate*.ps1
+refactor*.ps1
+do_switch5.ps1
+*_migrate*.ps1
+*_migrate*.py
+
+# 构建诊断输出（根目录与 build3 残留）
+build_verify_build_log*.txt
+build_verify_ctest_log*.txt
+build3_target_ctest_map*.txt
+build3_ctest_before.txt
+gdb_rot_cmd.txt
+temp_results.txt
+switch5_funcs.txt
+s5_funcs.txt
+one_arg_asserts.txt
+
+# 探测/调试残留（core 源码树内）
+_write_probe.txt
+_ps_test.txt
+_edit_test.c
+.probe*
 
 # 归档文档和报告历史版本
 doc/reports/_archive/

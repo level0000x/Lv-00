@@ -36,17 +36,6 @@
  * 内部辅助
  * ================================================================ */
 
-/** @brief 将字符串经 JSON/DOT 转义后追加到 lvStrBuf（与 lv_dot_writer 同法） */
-static void dot_escape_append(lvStrBuf *sb, const char *s) {
-    if (!sb || !s)
-        return;
-    char *esc = lv_str_json_escape_alloc(s, strlen(s), NULL);
-    if (esc) {
-        lv_strbuf_append_str(sb, esc);
-        lv_free((void **) &esc);
-    }
-}
-
 /** @brief 几何类型 → DOT 填充色（自 LV_GEOM_TYPE_ENTRY 生成，单一事实来源） */
 #define LV_GEOM_FILL_ROW(ENUM, NAME, ALIAS, SHAPE, PREFIX, COLOR) [ENUM] = COLOR,
 static const char *const kGeomFillColorMap[] = {
@@ -166,7 +155,7 @@ static void dot_emit_node(lvStrBuf *sb, const GeomNode *node, const DOTExportCon
                          idbuf, lv_strbuf_cstr(&lbl), shape, fill);
     } else {
         lv_strbuf_printf(sb, "    %s [label=\"", idbuf);
-        dot_escape_append(sb, lv_strbuf_cstr(&lbl));
+        lv_dot_append_escaped(sb, lv_strbuf_cstr(&lbl));
         lv_strbuf_printf(sb, "\", shape=%s, style=filled, fillcolor=\"%s\"];\n", shape, fill);
     }
 
@@ -201,12 +190,12 @@ char *graph_export_dot(const ConstraintGraph *graph, const DOTExportConfig *conf
     /* 图级属性：标题 / 字体 / 理想边长 */
     if (cfg.graph_label && cfg.graph_label[0]) {
         lv_strbuf_append_str(&sb, "    label=\"");
-        dot_escape_append(&sb, cfg.graph_label);
+        lv_dot_append_escaped(&sb, cfg.graph_label);
         lv_strbuf_append_str(&sb, "\";\n");
     }
     if (cfg.font_name && cfg.font_name[0]) {
         lv_strbuf_append_str(&sb, "    fontname=\"");
-        dot_escape_append(&sb, cfg.font_name);
+        lv_dot_append_escaped(&sb, cfg.font_name);
         lv_strbuf_append_str(&sb, "\";\n");
     }
     if (cfg.font_size > 0)

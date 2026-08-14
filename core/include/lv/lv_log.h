@@ -10,36 +10,17 @@ extern "C" {
 #include <stdint.h>
 
 /**
- * @brief 日志级别枚举
+ * @brief 日志级别枚举（全项目唯一权威定义）
  *
- * 【类型协调】lvLogLevel 与 debug.h 的 LogLevel / runtime_monitor.h 的 lvLogLevel
- * 是同一个级别的三个视角，必须互斥定义：
- *   - runtime_monitor.h 已先包含 → 直接复用其 lvLogLevel
- *   - debug.h 已先包含（LogLevel 已定义）→ 复用 LogLevel
- *   - 均未包含 → 定义本头文件的独立枚举
+ * 【单源声明】lvLogLevel 仅在本头文件定义，是全项目日志级别的唯一来源：
+ *   - runtime_monitor.h 通过 #include 本头文件复用，不再各自定义
+ *     lvLogLevel（消除"同概念双定义"冲突；本头文件的 lv_LOG_* 枚举成员
+ *     与 runtime_monitor.h 的带 tag 函数式宏 lv_LOG_TRACE/lv_LOG_FATAL
+ *     同名共存：函数式宏仅在有参数括号时展开，枚举成员照常可用）；
+ *   - debug.h 的 LogLevel 为独立类型名（枚举成员 LOG_LEVEL_* 与本头
+ *     lv_LOG_* 不同名），两枚举数值一致（DEBUG=0, INFO=1, WARN=2,
+ *     ERROR=3, FATAL=4, NONE=5），可在同一编译单元共存。
  */
-#if defined(lv_RUNTIME_MONITOR_LOGLEVEL_SEEN)
-/* lvLogLevel 已由 runtime_monitor.h 定义，直接复用 */
-#ifndef lv_LOG_DEBUG
-#define lv_LOG_DEBUG LOG_LEVEL_DEBUG
-#define lv_LOG_INFO  LOG_LEVEL_INFO
-#define lv_LOG_WARN  LOG_LEVEL_WARN
-#define lv_LOG_ERROR LOG_LEVEL_ERROR
-#define lv_LOG_FATAL LOG_LEVEL_FATAL
-#define lv_LOG_NONE  LOG_LEVEL_OFF
-#endif
-#elif defined(lv_LOGLEVEL_DEFINED)
-/* debug.h 已定义 LogLevel，复用其类型 */
-typedef LogLevel lvLogLevel;
-#ifndef lv_LOG_DEBUG
-#define lv_LOG_DEBUG LOG_LEVEL_DEBUG
-#define lv_LOG_INFO  LOG_LEVEL_INFO
-#define lv_LOG_WARN  LOG_LEVEL_WARN
-#define lv_LOG_ERROR LOG_LEVEL_ERROR
-#define lv_LOG_FATAL LOG_LEVEL_FATAL
-#define lv_LOG_NONE  LOG_LEVEL_NONE
-#endif
-#else
 typedef enum {
     lv_LOG_DEBUG = 0,   /**< 调试信息 */
     lv_LOG_INFO  = 1,   /**< 一般信息 */
@@ -50,7 +31,6 @@ typedef enum {
 } lvLogLevel;
 #define lv_LOGLEVEL_DEFINED 1
 #define lv_LOG_H_LOGLEVEL_DEFINED 1
-#endif
 
 /**
  * @brief 输出一条日志
@@ -104,12 +84,12 @@ void lv_log_enable_source(bool enable);
  * @name 便捷日志宏
  * @{
  *
- * @note 级别常量使用数值字面量而非枚举成员名：本项目的 lvLogLevel
- *       存在三套互斥定义（本头独立枚举 / runtime_monitor.h / debug.h），
- *       复用分支下 lv_LOG_* 标识符可能不存在（如 runtime_monitor.h 的
- *       lv_LOG_ERROR 是带 tag 的函数式宏）。三套枚举数值一致
- *       （DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4），故此处直接用
- *       数值字面量，免疫命名冲突。
+ * @note 级别常量使用数值字面量而非枚举成员名：lv_LOG_DEBUG/lv_LOG_INFO/
+ *       lv_LOG_WARN/lv_LOG_ERROR/lv_LOG_FATAL 等标识符在本项目中被
+ *       lv_internal.h（函数式日志宏）与 runtime_monitor.h（带 tag 的
+ *       lv_LOG_TRACE/lv_LOG_FATAL）用作宏名，为免疫标识符解析歧义，
+ *       此处直接使用与 lvLogLevel 枚举一致的数值字面量
+ *       （DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4）。
  */
 #define lv_DEBUG(fmt, ...)  lv_log((lvLogLevel)0, fmt, ##__VA_ARGS__)
 #define lv_INFO(fmt, ...)   lv_log((lvLogLevel)1, fmt, ##__VA_ARGS__)

@@ -18,22 +18,27 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
-/* ============== 内部辅助 ============== */
+/* ============== 公共 API ============== */
 
 /**
  * @brief 将字符串经 JSON/DOT 转义后追加到 lvStrBuf（两遍法：先算长度再转义）
- * @param sb 目标 lvStrBuf（追加模式）
- * @param s  源字符串（NUL 结尾）
+ *
+ * 转义规则与 lv_str_json_escape 完全一致：`"`→`\"`、`\`→`\\`、`\n`→`\n`、
+ * `\r`→`\r`、`\t`→`\t`、`\b`→`\b`、`\f`→`\f`，其余 <0x20 控制字符编码为
+ * `\u00xx`，其余字符原样输出。
+ *
+ * @param sb   目标 lvStrBuf（追加模式）
+ * @param text 源字符串（NUL 结尾，可为 NULL，此时无操作）
  */
-static void dot_escape_append(lvStrBuf *sb, const char *s) {
-    char *esc = lv_str_json_escape_alloc(s, strlen(s), NULL);
+void lv_dot_append_escaped(lvStrBuf *sb, const char *text) {
+    if (!sb || !text)
+        return;
+    char *esc = lv_str_json_escape_alloc(text, strlen(text), NULL);
     if (esc) {
-        lv_strbuf_printf(sb, "%s", esc);
+        lv_strbuf_append_str(sb, esc);
         lv_free((void **) &esc);
     }
 }
-
-/* ============== 公共 API ============== */
 
 void lv_dot_begin(lvStrBuf *sb, const char *graph_name, const char *rankdir,
                   const char *node_defaults, const char *edge_defaults) {
@@ -60,7 +65,7 @@ void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *ex
     lv_strbuf_printf(sb, "    %s [", id);
     if (label) {
         lv_strbuf_printf(sb, "label=\"");
-        dot_escape_append(sb, label);
+        lv_dot_append_escaped(sb, label);
         lv_strbuf_printf(sb, "\"");
     }
     if (extra_attrs && extra_attrs[0]) {
@@ -81,7 +86,7 @@ void lv_dot_edge(lvStrBuf *sb, const char *from, const char *to, const char *lab
         lv_strbuf_printf(sb, " [");
         if (label) {
             lv_strbuf_printf(sb, "label=\"");
-            dot_escape_append(sb, label);
+            lv_dot_append_escaped(sb, label);
             lv_strbuf_printf(sb, "\"");
         }
         if (extra_attrs && extra_attrs[0]) {

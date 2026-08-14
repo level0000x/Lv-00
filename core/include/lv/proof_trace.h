@@ -9,8 +9,9 @@ extern "C" {
 /* 不透明类型：完整定义仅在 proof_trace.c 中 */
 typedef struct ProofTrace ProofTrace;
 
-/* 不透明类型：证明优化器，完整定义在 proof_optimize.c 中 */
-typedef struct ProofOptimizer ProofOptimizer;
+/* ============================================================
+ * 证明追踪树
+ * ============================================================ */
 int lv_proof_trace_add_step(ProofTrace *t, const char *rule, const void *state);
 /* 访问器函数 */
 int lv_proof_trace_get_step_count(const ProofTrace *t);
@@ -59,14 +60,6 @@ lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *pare
                                         const char *detail, int id);
 bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node);
 char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts);
-
-/* ── Proof Optimizer API（内部模块 API，非公共导出）── */
-ProofOptimizer *lv_proof_opt_create(void);
-void lv_proof_opt_destroy(ProofOptimizer *opt);
-int lv_proof_opt_add_step(ProofOptimizer *opt, const char *rule, const int *deps, int dep_count);
-int lv_proof_opt_dead_step_elimination(ProofOptimizer *opt, int final_step);
-int lv_proof_opt_merge_steps(ProofOptimizer *opt);
-int lv_proof_opt_active_count(const ProofOptimizer *opt);
 
 #ifdef __cplusplus
 }

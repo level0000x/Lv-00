@@ -106,6 +106,19 @@ void lv_dot_edge_id(lvStrBuf *sb, const char *prefix, int from_id, int to_id, co
 void lv_dot_end(lvStrBuf *sb);
 
 /**
+ * @brief 将字符串经 JSON/DOT 转义后追加到 lvStrBuf（公共转义工具）
+ *
+ * 供各层 DOT 生成器复用，消除本地重复转义副本。转义规则与
+ * lv_str_json_escape 完全一致：`"`→`\"`、`\`→`\\`、`\n`→`\n`、
+ * `\r`→`\r`、`\t`→`\t`、`\b`→`\b`、`\f`→`\f`，其余 <0x20 控制字符
+ * 编码为 `\u00xx`，其余字符原样输出。
+ *
+ * @param sb   目标 lvStrBuf（追加模式）
+ * @param text 源字符串（NUL 结尾，可为 NULL，此时无操作）
+ */
+void lv_dot_append_escaped(lvStrBuf *sb, const char *text);
+
+/**
  * @brief 将 DOT 内容统一落盘
  *
  * 使用 lv_file_write_all（lv_file 抽象层）写入，失败返回 false。

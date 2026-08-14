@@ -10,10 +10,10 @@
 
 #include "runtime_monitor.h"
 
-/* lv_log_shutdown 的声明已集中到 lv/lv_log.h；
- * 但 lv_log.h 与本头文件各自定义 lvLogLevel 类型，不能同时包含，
- * 故在此给出前置声明，保证本文件中定义的函数原型可见。 */
-void lv_log_shutdown(void);
+/* lv_log_shutdown 的声明与 lvLogLevel 类型已集中到 lv/lv_log.h（唯一权威源）：
+ * runtime_monitor.h 已 #include 复用，此处再显式包含，确保本文件直接复用
+ * lv_log.h 的类型/宏，不再需要本地前置声明（消除 lvLogLevel 双定义冲突）。 */
+#include "lv/lv_log.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -221,8 +221,8 @@ void lv_log_set_callback(lvLogCallback callback, void *user_data) {
     s_runtime_state.log.config.callback_user_data = user_data;
 }
 
-/* LogLevel 含负数（TRACE=-1），查找表下标需偏移：表下标 = level + LOG_LEVEL_INDEX_OFFSET。
- * 未显式列出的级别（如 LOG_LEVEL_OFF/LOG_LEVEL_ENUM_GUARD）默认 0 = lv_LOG_LEVEL_OFF，与 default 一致。 */
+/* lvLogLevel 含负数（TRACE=-1），查找表下标需偏移：表下标 = level + LOG_LEVEL_INDEX_OFFSET。
+ * 未显式列出的级别（如 LOG_LEVEL_OFF）默认 0 = lv_LOG_LEVEL_OFF，与 default 一致。 */
 #define LOG_LEVEL_INDEX_OFFSET 1
 static const int kLogLevelToLvLog[LOG_LEVEL_OFF + LOG_LEVEL_INDEX_OFFSET + 1] = {
     [LOG_LEVEL_TRACE + LOG_LEVEL_INDEX_OFFSET] = lv_LOG_LEVEL_DEBUG,  /* 追踪级别归入 DEBUG（主管道最低可输出级别） */

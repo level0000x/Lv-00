@@ -515,7 +515,6 @@ set(lv_HEADERS
     core/include/lv/ode_solver.h
     core/include/lv/plugin_system.h
     core/include/lv/proof_compiler.h
-    core/include/lv/proof_contradiction.h
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
     core/include/lv/lv_protocol.h
     # v3.0.0 API 版式规范
@@ -703,7 +702,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_event_bus.c
     core/src/layer2_resource/lv_callback_list.c
     core/src/layer2_resource/lv_config.c
-    core/src/layer2_resource/lv.c
+    # 系统入口协调者 lv.c 已移至 lv_core（L0 便利层，可协调各层生命周期，消除 L2 反向依赖）
     core/src/layer2_resource/context.c
     # v4.0.0 新增：熔断器独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_circuit_breaker.c
@@ -750,7 +749,7 @@ set(lv_LAYER2_SOURCES
     # v1.1.0 补全遗漏：运行时守卫、性能分析、表示转换、自适应阈值、元表示
     core/src/layer2_resource/runtime_guard.c
     core/src/layer2_resource/performance_profiler.c
-    core/src/layer2_resource/representation_converter.c
+    # 表示转换器已移至 layer6_visual/converter（与 block_to_* 三兄弟同域，消除 L2→L4/L6 越权）
     core/src/layer2_resource/adaptive_threshold.c
     core/src/layer2_resource/meta_repr.c
     # 补全遗漏文件：引导测试
@@ -801,6 +800,8 @@ set(lv_LAYER2_SOURCES
 # 职责：便捷 API、快捷函数、对外包装
 set(lv_CORE_SOURCES
     core/src/core/lv_convenience.c
+    # 系统入口协调者（init/cleanup 各层生命周期，原在 layer2_resource，归 L0 便利层）
+    core/src/lv.c
     # 补全遗漏文件：原生实现
     core/src/lv_impl_native.c
     # 上层接口实现
@@ -987,7 +988,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/solver/solver_core.c
     # 证明系统
     core/src/layer4_reasoning/proof.c
-    core/src/layer4_reasoning/proof_system/proof_optimize.c
     core/src/layer4_reasoning/proof_system/proof_multi_strategy.c
     core/src/layer4_reasoning/proof_system/proof_search_algo.c
     core/src/layer4_reasoning/proof_system/proof_strategy_exec.c
@@ -1174,7 +1174,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/meta_proof.c
     # 补全遗漏文件：冲突检测、矛盾证明、抽象代数预设
     core/src/layer4_reasoning/engine/conflict_detector.c
-    core/src/layer4_reasoning/proof_contradiction.c
     core/src/layer4_reasoning/func_block/preset_abstract_algebra.c
     # v1.1.0 补全遗漏：公理规则引擎、SIMD 运算
     core/src/layer4_reasoning/axiom_rule_engine.c
@@ -1218,7 +1217,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/proof/proof_navigator_instantiate.c
     core/src/layer4_reasoning/proof/proof_proposition.c
     core/src/layer4_reasoning/proof/proof_step_registry.c
-    core/src/layer4_reasoning/proof/proof_version.c
     core/src/layer4_reasoning/proof/proof_version_nl.c
     core/src/layer4_reasoning/proof/proof_version_ghost.c
     core/src/layer4_reasoning/proof/proof_version_sledge.c
@@ -1421,6 +1419,7 @@ set(lv_LAYER6_SOURCES
     core/src/layer6_visual/types/effect_types.c
     core/src/layer6_visual/types/type_inference.c
     # 表示转换
+    core/src/layer6_visual/converter/representation_converter.c
     core/src/layer6_visual/converter/block_to_node.c
     core/src/layer6_visual/converter/block_to_text.c
     core/src/layer6_visual/converter/block_to_geometry.c

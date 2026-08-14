@@ -1690,3 +1690,59 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - **第二优先（P1 去重）**：log 类型单源（runtime_monitor vs lv_log）；graph_dot_export 迁 lv_dot_writer；5 对同名双实现核实合并；Coq/Lean/TikZ 导出边界划清。
 - **第三优先（P2 目录重组）**：lv_impl_upper_* 按层归位（新建 layer7/layer9 目录或并入现有层）；错放文件迁移；include 路径风格统一（全部 lv/ 前缀）。
 - **持续**：JSON 序列化手写拼接统一到 lvJsonBuf（stream_json、high_dim_serialize 为正面样板）；区间运算三套合一；公共 API 前缀与导出宏单源治理。
+
+## 二十四、批次 AB：架构优化实施（2026-08-14）
+
+按「二十三」路线图第一、第二优先完整实施。用户指令「开始按照优先级完整实现并行执行」。
+
+### P0-① 层归属修正（消除 L2 反向依赖 + L2→L6 越权）
+
+- **lv.c → lv_core（L0 便利层）**：系统入口协调者（init/cleanup 各层生命周期，include ecosystem.h/formula_converter.h/module_internal.h/func_block_registry.h）本质属 L0 而非 L2 基础设施。`git mv` 至 `core/src/lv.c`，CMake lv_LAYER2_SOURCES → lv_CORE_SOURCES。L2 反向依赖 L1 成环、L2→L4 越权 3 处随之消解。
+- **representation_converter.c → layer6_visual/converter/**：表示转换器（func_block.h + block_graph_view.h）与 block_to_* 三兄弟同域。`git mv` 至 converter/，CMake lv_LAYER2_SOURCES → lv_LAYER6_SOURCES。
+- **README L6 依赖表更新**：`L6 | Visual | L2, L3, L5` → `L2, L3, L4, L5`（可视化转换器实际依赖 func_block，L6 需显式允许 L4）。
+
+### P0-② layer_validation.h 升级 10 层模型
+
+- 重写为 **10 层 + L0 精确依赖模型**：新增 `lv_LAYER_CAN_DEPEND(current, target)` 宏（严格按 README 依赖表展开，修正旧「current >= target 简单比较」模型——L8 允许 L2/L3/L4 但不允许 L5/L6，简单比较会漏判）；新增 L7/L8/L9/L10 常量与 L6/L8 专用验证宏；**修正 `lv_VALIDATE_CURRENT_LAYER` 断言 bug**（旧断言 1-5 会把 L6 自己判非法，现为 0-10）。
+- CMake 侧确认已接入（lv_setup_layer 已定义 lv_CURRENT_LAYER，ENABLE_LAYER_VALIDATION 默认 OFF）。机制就绪，启用前置 = 修复剩余 ~40 处违规。
+
+### P0-③ 构建卫生
+
+- **.gitignore 补规则**：build3/、build4/、_c11_migrate*.ps1、refactor*.ps1、do_switch5.ps1、*_migrate*.ps1/py、build_verify_build_log*.txt、build3_target_ctest_map*.txt、build3_ctest_before.txt、gdb_rot_cmd.txt、temp_results.txt、switch5_funcs.txt、s5_funcs.txt、one_arg_asserts.txt、_write_probe.txt、_ps_test.txt、_edit_test.c、.probe*。
+- 注：build3/ 中已跟踪文件（.ninja_deps/.ninja_log 等）需用户 `git rm --cached -r build3` 从索引移除（未擅自改索引）。
+
+### P1-① 日志类型单源（消除双 lvLogLevel 冲突）
+
+- **lv_log.h** 成为唯一权威 `lvLogLevel` 枚举（删除三分支互斥条件块），保留哨兵宏兼容。
+- **runtime_monitor.h** 删除自有 lvLogLevel 枚举，改 `#include "lv/lv_log.h"`；保留 LOG_LEVEL_* 数值别名宏（TRACE=-1 等 7 档逐一核对同值）。
+- **runtime_monitor.c** 删 `lv_log_shutdown` 前置声明 hack，显式 include lv_log.h。根除 build3_k.out 中 `'lv_LOG_FATAL' redefined` 告警（三方哨兵互斥舞步的产物）。
+
+### P1-② DOT 转义公共化
+
+- **lv_dot_writer.h/c** 新增 `lv_dot_append_escaped(lvStrBuf*, const char*)`（提升原内部静态 dot_escape_append + NULL 保护），内部 lv_dot_node/lv_dot_edge label 改用之。
+- **graph_dot_export.c** 删本地 `dot_escape_append` 副本，3 处调用点改用公共函数；转义规则逐字节等价（均走 lv_str_json_escape_alloc，`"`→`\"` 等查表一致）；exempt 的 html_labels 分支未动。
+
+### P1-③ 同名双实现核实 + 死代码删除
+
+核实结论（证据链闭合，5 对均无链接冲突）：
+- rational.c：**一主一桩**（L3 薄转发 → L4 lv_rational_*），不合并；**新发现 L3→L4 反向环**（登记待修）。
+- meta_verify.c：**拆分关系**（L8 会话/证明对象审计 vs L4 约束图完备性），不合并；**L8→L5 违规实证**（lvProofObject 定义于 L5 proof_compiler.h）+ CMake L8 链接 L6（登记待修）。
+- proof_version.c：proof/ 版为 **21 行空壳** → 删除。
+- proof_optimize.c：proof_system 版（lv_proof_opt_*）与 engine 版（lv_optimize_proof 族）**真双实现且双死代码** → 保守删 proof_system 版。
+- proof_contradiction.c：根版（lv_assumption_stack 族）**死代码**、engine 版活跃 → 删根版 + proof_contradiction.h（顺带消除**双 lvContradictionType 枚举潜伏冲突**）。
+
+删除执行：`proof/proof_version.c`、`proof_system/proof_optimize.c`、`proof_contradiction.c`、`include/lv/proof_contradiction.h`（4 文件）+ CMake 4 处 + proof_trace.h 中 ProofOptimizer 不透明类型与 lv_proof_opt_* 声明（6 函数）。
+
+### 批次 AB 执行结果（2026-08-14）
+
+**验证**：ninja build3 923/923（-2 源文件目标，符合删除预期）+ ctest 170/170 全绿。
+
+### 决策登记（第 9 章格式）
+
+- lv.c 归位 lv_core / 层归属修正 / L0（系统入口协调者属便利层非基础设施）/ README L6 依赖表同步 / 全量测试。
+- layer_validation.h 升级 / 层模型 / 10 层 + lv_LAYER_CAN_DEPEND 精确判定 / 启用前置 = 修复剩余违规 / 编译期验证链。
+- .gitignore 补规则 / 构建卫生 / 18 条 / build3 已跟踪文件需 git rm --cached / 无。
+- lvLogLevel 单源 / P1-① / lv_log.h + runtime_monitor.h/c / 数值 7 档逐一核对 / runtime_monitor 族测试。
+- lv_dot_append_escaped / P1-② / lv_dot_writer.h/c + graph_dot_export.c / graph_dot_export html 分支豁免保留 / graph 导出测试。
+- 死代码删除 / P1-③ / 3 源 + 1 头 + CMake 4 处 + proof_trace.h 声明 / 双 lvContradictionType 冲突随头删除消除 / test_proof_version + test_meta_verify + test_layer4 族。
+- 登记待修（下一轮）：L3→L4 反向环（symbolics/rational.c）、L8→L5（meta_verify.c lvProofObject）+ L8→L6 链接、L1/L3 越权剩余 ~40 处（layer_validation 启用前置）。

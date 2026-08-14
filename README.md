@@ -1,4 +1,4 @@
-﻿# Lv-00 几何元语言
+# Lv-00 几何元语言
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-v1.1.0-blue.svg)](CHANGELOG.md)
@@ -325,7 +325,7 @@ Layer 1  │ Parser         │ 公式解析、DSL 编译
 | L3 | Geometry | L2 |
 | L4 | Reasoning | L2, L3 |
 | L5 | Output | L2, L3, L4 |
-| L6 | Visual | L2, L3, L5 |
+| L6 | Visual | L2, L3, L4, L5 |
 | L7 | Orchestration | L2-L6 |
 | L8 | Meta-Verification | L2, L3, L4 |
 | L9 | Application | 所有层 |

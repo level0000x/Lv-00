@@ -49,43 +49,19 @@ struct StreamContext;
 /* ============== 日志系统 ============== */
 
 /**
- * @brief 日志级别（与 debug.h LogLevel 保持一致）
+ * @brief 日志级别（唯一权威来源：lv/lv_log.h）
  *
- * 若 debug.h 已先被包含（哨兵宏 lv_LOGLEVEL_DEFINED 已定义），
- * 则复用其 LogLevel 枚举，避免枚举成员重复定义。
+ * lvLogLevel 类型由 lv/lv_log.h 唯一定义，本头文件 #include 复用，
+ * 不再各自定义 lvLogLevel，消除与 lv_log.h 的双定义冲突。
+ * 下方 LOG_LEVEL_* 数值别名与 lv_log.h 枚举数值一致
+ * （DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4；OFF=5 对应 lv_LOG_NONE=5；
+ *  TRACE=-1 为本模块独有扩展），供映射表与便捷宏使用。
  */
-#if defined(lv_LOG_H_LOGLEVEL_DEFINED)
-/* lvLogLevel 已由 lv_log.h 定义，直接复用 */
-#elif !defined(lv_LOGLEVEL_DEFINED)
-typedef enum {
-#ifndef LOG_LEVEL_TRACE
-    LOG_LEVEL_TRACE = -1, /**< 最详细跟踪 */
-#endif
-#ifndef LOG_LEVEL_DEBUG
-    LOG_LEVEL_DEBUG = 0, /**< 调试信息 */
-#endif
-#ifndef LOG_LEVEL_INFO
-    LOG_LEVEL_INFO = 1, /**< 一般信息 */
-#endif
-#ifndef LOG_LEVEL_WARN
-    LOG_LEVEL_WARN = 2, /**< 警告 */
-#endif
-#ifndef LOG_LEVEL_ERROR
-    LOG_LEVEL_ERROR = 3, /**< 错误 */
-#endif
-#ifndef LOG_LEVEL_FATAL
-    LOG_LEVEL_FATAL = 4, /**< 致命错误 */
-#endif
-#ifndef LOG_LEVEL_OFF
-    LOG_LEVEL_OFF = 5, /**< 关闭日志 */
-#endif
-    LOG_LEVEL_ENUM_GUARD = 6 /**< 占位成员：当级别常量已由其他头文件定义时保证枚举非空 */
-} lvLogLevel;
-#else
-typedef LogLevel lvLogLevel;
-#endif
+#include "lv/lv_log.h"
 
-/* 与 debug.h 兼容（debug.h 是主定义源，运行时监控借用其级别） */
+/* LOG_LEVEL_* 数值别名（供本模块映射表与便捷宏使用；与 lv_log.h 枚举数值一致，
+ * TRACE=-1 为本模块独有扩展；LOG_LEVEL_OFF=5 对应 lv_LOG_NONE=5；
+ * LOG_LEVEL_NONE=6 为历史保留别名，本模块未使用） */
 #define LOG_LEVEL_TRACE -1
 #define LOG_LEVEL_DEBUG 0
 #define LOG_LEVEL_INFO 1
