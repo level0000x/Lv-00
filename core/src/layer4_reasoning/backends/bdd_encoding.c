@@ -245,12 +245,7 @@ void bdd_manager_destroy(BDDManager *mgr) {
     lv_free((void **) &mgr->var_order);
     lv_free((void **) &mgr->computed_table);
     /* 释放变量名称表 */
-    if (mgr->var_names) {
-        for (int i = 0; i < mgr->var_count; i++) {
-            lv_free((void **) &mgr->var_names[i]);
-        }
-        lv_free((void **) &mgr->var_names);
-    }
+    lv_free_ptr_array((void ***) &mgr->var_names, (size_t) mgr->var_count);
     lv_free((void **) &mgr->var_types);
     lv_free((void **) &mgr);
 }

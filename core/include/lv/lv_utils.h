@@ -88,6 +88,17 @@ lv_PUBLIC_API void lv_free_ptr(void *ptr);
 lv_PUBLIC_API void lv_free_many(void **first, ...);
 
 /**
+ * @brief 释放指针数组：逐个释放元素后释放数组本身
+ *
+ * 收敛"for (i < count) { lv_free(&arr[i]); } lv_free(&arr);"析构骨架。
+ * 与 lv_free 一致：元素与数组指针释放后置 NULL。
+ *
+ * @param p_arr 数组变量的地址（void***，如 (void***) &arr）
+ * @param count 元素个数（元素必须是动态分配的指针，不能是结构体数组）
+ */
+lv_PUBLIC_API void lv_free_ptr_array(void ***p_arr, size_t count);
+
+/**
  * @brief 自动释放属性（GCC/Clang）
  * 使用示例：
  *   char *buf __attribute__((cleanup(lv_auto_free))) = malloc(100);

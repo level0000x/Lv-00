@@ -22,6 +22,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_file.h"
 
 /* ---- 证明步骤类型 → Lean 输出处理器查找表 ---- */
 typedef void (*LeanStepHandler)(FILE *fp, const ProofStep *step,
@@ -228,7 +229,7 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
     }
 
     /* 生成Lean代码 */
-    FILE *fp = fopen(config->output_path, "w");
+    FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp) {
         if (interop_stream_ctx) {
             stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR, "Lean 4 导出失败：无法创建输出文件", 0);

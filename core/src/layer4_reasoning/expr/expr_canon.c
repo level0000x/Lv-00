@@ -228,12 +228,7 @@ void lv_expr_canonical_destroy(lvExprCanonical **expr) {
     }
     lv_free((void **) &e->terms);
 
-    if (e->var_names) {
-        for (int i = 0; i < e->var_count; i++) {
-            lv_free((void **) &e->var_names[i]);
-        }
-        lv_free((void **) &e->var_names);
-    }
+    lv_free_ptr_array((void ***) &e->var_names, (size_t) e->var_count);
 
     lv_free((void **) expr);
 }

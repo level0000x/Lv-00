@@ -16,6 +16,34 @@
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
 
+/* 文本缓冲区 4KB 对齐单位（初始大小与扩容步长共用） */
+#define lv_TEXT_CODE_BUFFER_ALIGN 4096
+
+/**
+ * @brief 以 4KB 为单位对齐扩容文本缓冲区
+ *
+ * lv_text_code_set_text / lv_text_code_insert 共用（同文件双份收敛）：
+ * 所需字节数超过当前容量时按 4KB 对齐扩大，超过 128MB 上限或
+ * 分配失败时返回错误码。
+ *
+ * @param view    文本视图指针
+ * @param needed  所需内容字节数（不含末尾 NUL）
+ * @param oom_msg 分配失败错误消息（区分调用场景）
+ * @return 成功返回 0，失败返回错误码
+ */
+static int text_code_grow_to_fit(lvTextCodeView *view, size_t needed, const char *oom_msg) {
+    /* [安全] 使用 size_t 计算扩展大小，防止整数溢出 */
+    size_t new_size = ((needed + 1 + (lv_TEXT_CODE_BUFFER_ALIGN - 1)) / lv_TEXT_CODE_BUFFER_ALIGN) * lv_TEXT_CODE_BUFFER_ALIGN;
+    if (new_size > 128 * lv_MB_I)
+        lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "text exceeds max buffer size 128MB");
+    char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
+    if (!new_buf)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, oom_msg);
+    view->code_buffer = new_buf;
+    view->buffer_size = (int) new_size;
+    return 0;
+}
+
 /**
  * @brief 创建文本代码视图
  *
@@ -28,7 +56,7 @@ lvTextCodeView *lv_text_code_create(void) {
     if (!view)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "failed to allocate text code view");
     view->base.type = lv_VIEW_TEXT_CODE;
-    view->buffer_size = 4096;
+    view->buffer_size = lv_TEXT_CODE_BUFFER_ALIGN;
     view->code_buffer = lv_calloc(1, view->buffer_size);
     if (!view->code_buffer) {
         lv_free((void **) &view);
@@ -65,15 +93,9 @@ int lv_text_code_set_text(lvTextCodeView *view, const char *text) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "NULL view or text");
     size_t len = strlen(text);
     if (len + 1 > (size_t) view->buffer_size) {
-        /* [安全] 使用 size_t 计算扩展大小，防止整数溢出 */
-        size_t new_size = ((len + 1 + 4095) / 4096) * 4096;
-        if (new_size > 128 * lv_MB_I)
-            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "text exceeds max buffer size 128MB");
-        char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
-        if (!new_buf)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc code buffer");
-        view->code_buffer = new_buf;
-        view->buffer_size = (int) new_size;
+        int rc = text_code_grow_to_fit(view, len, "failed to realloc code buffer");
+        if (rc != 0)
+            return rc;
     }
     memcpy(view->code_buffer, text, len + 1);
     view->cursor_pos = (int) len;
@@ -114,14 +136,9 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
     size_t new_len = cur_len + text_len;
     /* [安全] 防止缓冲区扩展时整数溢出 */
     if (new_len + 1 > (size_t) view->buffer_size) {
-        size_t new_size = ((new_len + 1 + 4095) / 4096) * 4096;
-        if (new_size > 128 * lv_MB_I)
-            lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "insert text exceeds max buffer size 128MB");
-        char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
-        if (!new_buf)
-            lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "failed to realloc code buffer for insert");
-        view->code_buffer = new_buf;
-        view->buffer_size = (int) new_size;
+        int rc = text_code_grow_to_fit(view, new_len, "failed to realloc code buffer for insert");
+        if (rc != 0)
+            return rc;
     }
     /* 移动尾部数据 */
     if ((size_t) pos < cur_len) {

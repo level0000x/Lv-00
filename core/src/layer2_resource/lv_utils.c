@@ -328,6 +328,16 @@ void lv_free(void **ptr) {
     *ptr = NULL;
 }
 
+void lv_free_ptr_array(void ***p_arr, size_t count) {
+    if (!p_arr || !*p_arr)
+        return;
+    void **arr = *p_arr;
+    for (size_t i = 0; i < count; i++) {
+        lv_free(&arr[i]);
+    }
+    lv_free(p_arr);
+}
+
 void lv_free_many(void **first, ...) {
     va_list args;
     va_start(args, first);
@@ -572,10 +582,7 @@ int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx) {
     char line[2048];
 
     while (fgets(line, sizeof(line), f)) {
-        size_t len = strlen(line);
-        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
-            line[--len] = '\0';
-        }
+        lv_str_chomp(line);
 
         const char *trimmed = line;
         while (*trimmed == ' ' || *trimmed == '\t') {

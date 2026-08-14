@@ -1434,6 +1434,8 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
     }
 
     {
+        /* [exempt] GGB-DBG 调试 dump：单处调试路径，printf 依赖裸 fopen 指针
+         * 输出校验信息，与 lv_file_open 语义（失败打 lv_ERROR 日志）不同，保持原状 */
         FILE *df = fopen("build3/_verify_import/ggb_dump.xml", "wb");
         printf("[GGB-DBG] xml_len=%zu comp=%zu uncomp=%zu method=%u fopen=%p\n",
                xml_len, comp_size, uncomp_size, (unsigned) comp_method, (void *) df);

@@ -73,6 +73,9 @@ int poly_leading_term(const lvPolynomial *poly, const lvPolynomialRing *ring, in
 #define GROEBNER_BASIS_INIT_CAPACITY 16
 #define GROEBNER_VARIETY_INIT_SOL_CAPACITY 32
 #define GROEBNER_SOLVE_MAX_ITER 200
+/* ---- 配置项默认值（lv_config_get_int 的回退值，跨后端统一） ---- */
+#define GROEBNER_REDUCE_MAX_STEPS_DEFAULT 10000
+#define BUCHBERGER_MAX_STEPS_DEFAULT 50000
 /* Newton 迭代容差：语义别名 = config.h lv_EPSILON_ULTRA（1e-12）。
  * 与 lv_utils.h 的 lv_EPSILON_NEWTON（1e-14）为不同场景不同值，保留各自值。 */
 #define GROEBNER_NEWTON_TOL lv_EPSILON_ULTRA

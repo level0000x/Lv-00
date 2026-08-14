@@ -1553,3 +1553,77 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - `LV_TYPE_EQUIV_RESULT_X`/`LV_TYPE_CHECK_RESULT_X` / F+D / type_system.h + type_system.c / 无（修复 INCOMPATIBLE 漏项缺陷，终审二）/ test_type_system。
 - `lv_dot_node_id`/`lv_dot_edge_id` / L/J 变体 / 6 文件 11 块 / graph_dot_export 节点 exempt（html 直拼）/ test_proof_trace + test_proof_export_enhanced + test_layer5_output 族。
 - 不迁移 / H / Z8 / 0 文件 / proof_system 同域 3 处 + add 形态混入 + 后续消费各异（compare/multiply）+ 双出参 helper 收益低。
+
+## 二十二、批次 AA 候选立项与实施（2026-08-14）
+
+### 批次 AA 扫描与甄别
+
+4 路只读子代理全库扫描（容器/内存、路径/IO、数值/尺寸、字符串/解析四方向），产出 20+ 候选。按判据 A–L 读码甄别后，用户选定 **A+B+C 全部按优先级完整执行**，并附带架构优化方向研究（见本章末）。
+
+- **A 组·零新设施（5 项）**：AA1 裸 1000000 定点缩放、AA2 beta_reduce 裸 10000、AA3 select 超时裸数、AA4 groebner 配置默认值、AA5 text_code 4KB 扩容双份。
+- **B 组·既有设施漏网（2 项）**：AA6/AA7 裸 fopen 3 处 → lv_file_open。
+- **C 组·需小新设施（2 项）**：AA8 lv_str_chomp、AA9 lv_free_ptr_array。
+
+### AA1 明细（C 漏迁：裸 1000000 定点缩放 → lv_RATIONAL_SCALE_DEFAULT）
+
+- `singular_backend.c:857` `symbolic_coord_pair_from_double_scaled(..., 1000000, ...)`、`bootstrap_test_internal.h:44` `symbolic_coord_create_rational((long long)(dist * 1000000), 1000000)` → 改用 config.h 权威宏 `lv_RATIONAL_SCALE_DEFAULT`（=1000000，6 位小数精度，注释自证）。bootstrap_test_internal.h 补 `#include "lv/config.h"`（原链 constraint_graph→symbolic_coord→lv_platform 不含 config.h）。
+
+### AA2 明细（C 漏迁：beta_reduce 裸 10000 → LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS）
+
+- `beta_reduce.c:955-956` 注释自证「与 LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS=10000 对齐」但用裸数（比较 + 日志串）→ 全部替换为 lambda_term.h 权威宏，日志改 `%d` 参数化。单处代码但属「有权威宏未引用」漂移点，零新设施。
+
+### AA3 明细（C 漏迁：interop_server select 超时 → 既有宏）
+
+- `interop_server.c:1646-1648` `tv.tv_sec=0; tv.tv_usec=100000;` → 改用文件内已定义未引用的 `INTEROP_SELECT_TIMEOUT_SEC/US`（:68/:71，注释与调用点 :1645 逐字一致）。
+
+### AA4 明细（C 漏迁：groebner 配置默认值 5 处 → 具名宏）
+
+- `groebner_engine_internal.h` 新增 `GROEBNER_REDUCE_MAX_STEPS_DEFAULT 10000` / `BUCHBERGER_MAX_STEPS_DEFAULT 50000`；迁移 5 处 `lv_config_get_int(LV_CFG_*_MAX_STEPS, 裸数)`：groebner_poly.c:797、groebner_parallel.c:487（补 include groebner_engine_internal.h）、groebner_engine_ideal.c:397/723、groebner_engine_core.c:147。groebner_poly.c 内 1000000/100000 容量上限语义各异，不迁移。
+
+### AA5 明细（B 同文件双份：text_code 4KB 对齐扩容 → 静态 helper）
+
+- `text_code.c` set_text:69 / insert:117 两处逐字同构 4KB 对齐扩容骨架（`((len+1+4095)/4096)*4096` + 128MB 封顶 + realloc）→ 文件内静态 `text_code_grow_to_fit(view, needed, oom_msg)`；对齐单位具名 `lv_TEXT_CODE_BUFFER_ALIGN 4096`（含 create 初始缓冲）。错误消息 "insert text exceeds..." 统一为 "text exceeds..."（无测试断言，安全）。
+
+### AA6/AA7 明细（家族漏网：裸 fopen → lv_file_open）
+
+- `proof_dependency.c:793`（lv_json_buf 落盘，同构对照 command_log.c/proof_compiler.c 已用 lv_file_open）、`interop_export_lean.c:231`、`interop_export_coq.c:296`（interop 家族 5 文件已用 lv_file_open，lean/coq 为唯二漏网，带 stream 事件上报守卫保留）→ 全部迁移 + 补 `#include "lv/lv_file.h"`（与 svg.c 家族一致）。失败多打一条 lv_ERROR 日志为家族既有行为。
+- **豁免**：`interop_import.c:1437` GGB-DBG 调试 dump（printf 依赖裸 fopen 指针输出校验信息，`/* [exempt] */` 标注）。
+
+### AA8 明细（新设施 lv_str_chomp + 4 处去尾迁移）
+
+- `lv_str_utils.h/c` 新增 `lv_str_chomp(char*)`（仅去末尾 \n\r，与 lv_str_rtrim 的区别是不去空格制表符）。迁移 3 处逐字同构去尾：`lv_utils.c:576`（lv_ini_parse）、`interop_server.c:1793`、`interop_server.c:1841`（STDIO 两分支，后接 strlen 计算去尾后长度，语义保持）。
+- **豁免**：`interop_server.c:1147` WebSocket 去尾按 `client->msg_len` 长度基准回退而非 strlen（二进制消息可能含内嵌 NUL，strlen 提前终止语义不同，`/* [exempt] */` 标注）。
+
+### AA9 明细（新设施 lv_free_ptr_array + 析构骨架迁移）
+
+- `lv_utils.h/c` 新增 `lv_free_ptr_array(void ***p_arr, size_t count)`（逐元素 lv_free + 释放数组本身，元素/数组置 NULL，内部判 NULL）。迁移 7 处**简单指针数组 + 完整析构骨架**（元素必须为动态分配指针，非结构体数组）：
+  - sat_encoding.c:157 `enc->clauses`、expr_canon.c:230 `e->var_names`、approx_counter.c:121 `cnf->clauses`、bdd_encoding.c:248 `mgr->var_names`、proof_rule_engine.c:644 `engine->rule_set`（删除冗余 NULL 化与未用 `int i`）、solver_core.c:134 `ctx->clauses`（计数 orig+learn 总和）、solver_core.c:235 `solver->clauses`。
+- **登记不迁移（元素非简单指针或非完整骨架）**：lv_protocol.c 3 处（struct 字段 blocks[i].inputs 等）、rewrite_snapshot.c（struct 字段，已共享函数化）、expr_canon.c terms（struct 数组含子资源）、debug_trace.c（struct 字段）、solver_core.c watches（下标从 1 开始偏移）、groebner_engine_ring.c（元素释放前含 4 子指针）、solver_core.c:1525（仅清空复用不释放数组）。
+
+### 批次 AA 执行结果（2026-08-14）
+
+**验证**：`ninja -C build3` 全量重建 925/925 通过（exit 0）；`ctest --test-dir build3 --output-on-failure` 170/170 全绿。
+
+### 决策登记（第 9 章格式）
+
+- `lv_RATIONAL_SCALE_DEFAULT` 复用 / C 漏迁 / 2 文件 2 处 / bootstrap_test_internal.h 补 include config.h / test_bootstrap 族。
+- `LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS` 复用 / C 漂移 / 1 文件（beta_reduce.c 比较+日志 2 处）/ 无 / 重写测试链。
+- `INTEROP_SELECT_TIMEOUT_*` 复用 / C 脱节（宏定义未引用）/ 1 文件 1 处 / 无 / test_interop 族。
+- `GROEBNER_REDUCE_MAX_STEPS_DEFAULT`/`BUCHBERGER_MAX_STEPS_DEFAULT` / C / groebner_engine_internal.h + 4 文件 5 处 / groebner_poly 内部容量上限语义各异不迁移 / test_groebner* 族。
+- `lv_TEXT_CODE_BUFFER_ALIGN` + `text_code_grow_to_fit` / B / 1 文件双份 / 无 / test_layer6_visual。
+- `lv_file_open`/`lv_file_close` 复用 / 家族漏网 / 3 文件 3 处 / interop_import GGB-DBG 调试 dump exempt / test_output_export 族。
+- `lv_str_chomp` / 新设施 J 变体 / lv_str_utils.h/c + 3 文件 3 处 / interop_server WebSocket msg_len 长度基准 exempt / test_layer5_output + test_utils。
+- `lv_free_ptr_array` / 新设施 G / lv_utils.h/c + 6 文件 7 处 / 8 处登记不迁移（struct 字段/偏移下标/非完整骨架）/ test_solver_submodules + test_bdd_sat_atp + test_layer4_misc + test_proof_infra。
+
+### 架构优化方向研究（AA 批次附带，只读）
+
+基于 4 路全库扫描 + 历批次治理成果，归纳 6 个结构性优化方向（超越单点收敛）：
+
+1. **代码生成器骨架统一（判据 L 泛化）**：smtlib2.c ~15 处、atp_backend.c ~6 处、preset_manager_doc.c 等 25+ 处同构「游标式 `snprintf(buf+off, cap-off)` → 校验 n → off+=n」骨架，三处独立实现、截断/错误处理细节漂移（`n<0` vs `n>=remaining`）。建议设施 `lv_str_fmt_append(dst, cap, &off, fmt, ...)`（bool 返回），与既有 `lv_str_append_sep`（仅字符串+分隔符）互补。**风险低、纯机械，立即价值**。
+2. **表达式求值器词法原语统一（判据 I）**：fptaylor_eval / float_error / gappa_propagate / interval_arith / proof_strategy_numeric 五套独立实现同一「数字字面量 strtod + xN 下标 strtol + 空白跳过」骨架。障碍：`lv_parse_double` 无 end 输出（求值器需推进游标）。建议补 `lv_parse_double_prefix(str, &val, &end)` + `lv_parse_var_index` 入 lv_parse_utils.h，5 处逐步收敛。**风险中**（错误处理细节各异，需逐处对齐）。
+3. **容器抽象层（判据 B 深化）**：lv_darray 已支持 init_with_dtor/push/get/pop/free（析构回调），但 find-by-name（8+ 文件）、find-by-id + swap-last 删除（8+ 文件）仍为手写骨架。建议 lv_darray 增 `lv_darray_find` 与 `lv_darray_remove_swap`。**风险中**（行为微调需逐点甄别）。
+4. **配置默认值漂移治理（判据 C）**：`lv_config_get_int(KEY, 裸默认值)` 模式在 AA4 建立 `*_DEFAULT` 宏族先例，全库其他配置键（LV_CFG_CDCL_* 等）可推广。**风险低**。
+5. **序列化头部样板（判据 A/L）**：SVG 文档头 4 处（geometry_canvas/block_canvas 逐字对 + interop_export_svg/geo_visual_complete 近字对，属性序有差异）。建议 `lv_export_svg_header` 参数化属性串，吸收属性序差异。**风险低**。
+6. **指针数组析构持续收敛（判据 G）**：lv_free_ptr_array 已落地迁移 7 处，剩余 ~60 处（含非完整骨架）可逐步迁移；长远可评估「析构描述符」（elem_dtor + free 组合）统一元素销毁，与 lv_darray_init_with_dtor 对齐。
+
+**优先级建议**：立即价值（低风险）= #1/#4/#5；中期（需设计）= #2/#3；长期 = #6。待用户立项后按批次执行。

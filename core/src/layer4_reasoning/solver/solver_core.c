@@ -131,12 +131,7 @@ static void cdcl_context_destroy(CDCLContext *ctx) {
     lv_free((void **) &ctx->trail_lim);
     lv_free((void **) &ctx->conflict_clause);
 
-    if (ctx->clauses) {
-        for (int i = 0; i < ctx->orig_clause_count + ctx->learn_clause_count; i++) {
-            lv_free((void **) &ctx->clauses[i]);
-        }
-        lv_free((void **) &ctx->clauses);
-    }
+    lv_free_ptr_array((void ***) &ctx->clauses, (size_t) (ctx->orig_clause_count + ctx->learn_clause_count));
     lv_free((void **) &ctx->clause_sizes);
 
     if (ctx->watches) {
@@ -232,10 +227,7 @@ void lv_solver_destroy(lvSolver *solver) {
     lv_free((void **) &solver->values);
 
     /* 释放子句 */
-    for (int i = 0; i < solver->clause_count; i++) {
-        lv_free((void **) &solver->clauses[i]);
-    }
-    lv_free((void **) &solver->clauses);
+    lv_free_ptr_array((void ***) &solver->clauses, (size_t) solver->clause_count);
     lv_free((void **) &solver->clause_sizes);
 
     /* 释放失败标记 */

@@ -154,10 +154,7 @@ void sat_encoding_destroy(SatEncoding *enc) {
         return;
 
     lv_darray_free(&enc->var_map);
-    for (int i = 0; i < enc->clause_count; i++) {
-        lv_free((void **) &enc->clauses[i]);
-    }
-    lv_free((void **) &enc->clauses);
+    lv_free_ptr_array((void ***) &enc->clauses, (size_t) enc->clause_count);
     lv_free((void **) &enc->clause_sizes);
     lv_free((void **) &enc);
 }

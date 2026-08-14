@@ -144,7 +144,7 @@ lvGroebnerBasis *groebner_internal_compute(const lvPolynomialRing *ring, lvPolyn
     }
 
     int step = 0;
-    int buchberger_max = lv_config_get_int(LV_CFG_BUCHBERGER_MAX_STEPS, 50000);
+    int buchberger_max = lv_config_get_int(LV_CFG_BUCHBERGER_MAX_STEPS, BUCHBERGER_MAX_STEPS_DEFAULT);
 
     while (pair_count > 0 && step < buchberger_max) {
         step++;

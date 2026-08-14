@@ -22,6 +22,7 @@
 #include "lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_file.h"
 #include "lv/trust_color_x.h"
 
 
@@ -293,7 +294,7 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
     }
 
     /* 生成Coq代码 */
-    FILE *fp = fopen(config->output_path, "w");
+    FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp) {
         if (interop_stream_ctx) {
             stream_emit_simple(interop_stream_ctx, STREAM_EVENT_ERROR, "Coq 导出失败：无法创建输出文件", 0);

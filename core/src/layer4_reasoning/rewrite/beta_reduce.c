@@ -950,10 +950,11 @@ int beta_reduce_fully(ConstraintGraph *graph) {
     while (beta_reduce(graph)) {
         steps++;
         /* 上限保护：与显式环境求值器 lv_lambda_eval 的步数上限
-         * （LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS=10000）对齐，防止非终止项
+         * （LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS）对齐，防止非终止项
          * （如 Y 组合子类）导致的无限循环 */
-        if (steps > 10000) {
-            LOG_ERROR("beta_reduce", "beta_reduce_fully: 超过 10000 步，疑似无限循环");
+        if (steps > LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS) {
+            LOG_ERROR("beta_reduce", "beta_reduce_fully: 超过 %d 步，疑似无限循环",
+                      LV_LAMBDA_EVAL_DEFAULT_MAX_STEPS);
             break;
         }
     }

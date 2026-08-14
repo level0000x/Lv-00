@@ -143,6 +143,16 @@ char *lv_str_rtrim(char *str) {
     return str;
 }
 
+char *lv_str_chomp(char *str) {
+    if (!str) return str;
+    size_t len = strlen(str);
+    while (len > 0 && (str[len - 1] == '\n' || str[len - 1] == '\r')) {
+        str[len - 1] = '\0';
+        len--;
+    }
+    return str;
+}
+
 char *lv_str_trim(char *str) {
     if (!str) return NULL;
     str = lv_str_ltrim(str);

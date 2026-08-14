@@ -122,6 +122,17 @@ char *lv_str_ltrim(char *str);
  */
 char *lv_str_rtrim(char *str);
 
+/**
+ * @brief 去除字符串末尾的换行/回车（'\n' 与 '\r'）
+ *
+ * 就地改写：把末尾连续的回车/换行替换为 '\0'。
+ * 与 lv_str_rtrim 的区别：仅去除换行/回车，不去除空格/制表符等空白。
+ *
+ * @param str 输入字符串（就地修改）
+ * @return str 本身
+ */
+char *lv_str_chomp(char *str);
+
 /* ===== 字符串分割 ===== */
 
 /** @brief 字符串分割结果 */

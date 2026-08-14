@@ -394,7 +394,7 @@ static lvGroebnerBasis *groebner_internal_extend_basis(const lvPolynomialRing *r
     new_indices[0] = old_count;
 
     /* 增量 Buchberger 核心：只处理涉及新增基元的对 */
-    int buchberger_max = lv_config_get_int(LV_CFG_BUCHBERGER_MAX_STEPS, 50000);
+    int buchberger_max = lv_config_get_int(LV_CFG_BUCHBERGER_MAX_STEPS, BUCHBERGER_MAX_STEPS_DEFAULT);
     int step = 0;
     int new_i = 0;
 
@@ -720,7 +720,7 @@ static lvPolynomial *poly_divide_by(const lvPolynomial *poly, const lvPolynomial
     }
 
     /* 迭代上限：商的项数可能超过约化步数配置，放宽到 20 万 */
-    int max_steps = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, 10000);
+    int max_steps = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, GROEBNER_REDUCE_MAX_STEPS_DEFAULT);
     if (max_steps < 200000) {
         max_steps = 200000;
     }

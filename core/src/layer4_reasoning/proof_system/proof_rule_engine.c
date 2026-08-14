@@ -637,20 +637,10 @@ lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy, int max_depth, ui
 }
 
 void rule_engine_destroy(lvRuleEngine *engine) {
-    int i;
     if (!engine)
         return;
 
-    if (engine->rule_set) {
-        for (i = 0; i < engine->rule_count; i++) {
-            if (engine->rule_set[i]) {
-                lv_free((void **) &engine->rule_set[i]);
-                engine->rule_set[i] = NULL;
-            }
-        }
-        lv_free((void **) &engine->rule_set);
-        engine->rule_set = NULL;
-    }
+    lv_free_ptr_array((void ***) &engine->rule_set, (size_t) engine->rule_count);
 
     lv_free((void **) &engine);
 }

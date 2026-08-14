@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/config.h" /* lv_RATIONAL_SCALE_DEFAULT */
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +42,7 @@ extern "C" {
  */
 static inline AddConstraintResult graph_add_distance_constraint(ConstraintGraph *g, int a, int b, double dist) {
     /* 创建辅助距离节点：symbolic_coords 编码距离值 */
-    SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long) (dist * 1000000), 1000000);
+    SymbolicCoord *dist_coord = symbolic_coord_create_rational((long long) (dist * lv_RATIONAL_SCALE_DEFAULT), lv_RATIONAL_SCALE_DEFAULT);
     SymbolicCoord *coords[1];
     coords[0] = dist_coord;
     graph_add_point(g, coords, 1);

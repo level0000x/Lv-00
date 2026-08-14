@@ -11,6 +11,7 @@
  */
 
 #include "lv/groebner_parallel.h"
+#include "groebner_engine_internal.h" /* GROEBNER_REDUCE_MAX_STEPS_DEFAULT 等 */
 
 #include <limits.h>
 #include <math.h>
@@ -484,7 +485,7 @@ static SimplePoly reduce_poly(SimplePoly f, const SimplePoly *basis, int basis_s
     if (simple_poly_is_zero(&f) || basis_size == 0)
         return f;
 
-    int reduce_max = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, 10000);
+    int reduce_max = lv_config_get_int(LV_CFG_GROEBNER_REDUCE_MAX_STEPS, GROEBNER_REDUCE_MAX_STEPS_DEFAULT);
     int step = 0;
 
     int max_steps = reduce_max;

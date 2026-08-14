@@ -118,10 +118,7 @@ static void cnf_add_clause(CNFBuilder *cnf, const int *literals, int count) {
 static void cnf_destroy(CNFBuilder *cnf) {
     if (!cnf)
         return;
-    for (int i = 0; i < cnf->clause_count; i++) {
-        lv_free((void **) &(cnf->clauses[i]));
-    }
-    lv_free((void **) &(cnf->clauses));
+    lv_free_ptr_array((void ***) &(cnf->clauses), (size_t) cnf->clause_count);
     lv_free((void **) &(cnf->clause_sizes));
     lv_free((void **) &cnf);
 }

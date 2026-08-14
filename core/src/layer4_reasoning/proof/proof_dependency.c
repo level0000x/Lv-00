@@ -25,6 +25,7 @@
 #include "lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_graph_traversal.h" /* lv_tree_release_recursive */
+#include "lv/lv_file.h"            /* lv_file_open / lv_file_close */
 #include "lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
@@ -790,13 +791,13 @@ bool proof_search_tree_export_json(const ProofSearchTree *tree, const char *file
     lv_json_buf_end_object(&buf);
 
     /* 写入文件 */
-    FILE *f = fopen(filepath, "w");
+    FILE *f = lv_file_open(filepath, "w");
     if (!f) {
         lv_json_buf_free(&buf);
         return false;
     }
     fputs(buf.buffer, f);
-    fclose(f);
+    lv_file_close(f);
 
     lv_json_buf_free(&buf);
     return true;

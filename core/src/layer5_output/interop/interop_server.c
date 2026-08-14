@@ -1142,7 +1142,9 @@ static int ws_message_dispatch(InteropServer *server, WsClient *client, int opco
     }
     buf[client->msg_len] = '\0';
 
-    /* 去除尾部换行符（与 STDIO 模式行为一致） */
+    /* 去除尾部换行符（与 STDIO 模式行为一致）。
+     * [exempt] 按 client->msg_len 长度基准回退而非 strlen：二进制消息
+     * 可能含内嵌 NUL，strlen 会在 NUL 处提前终止，语义与 lv_str_chomp 不同 */
     size_t n = client->msg_len;
     while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r')) {
         n--;
@@ -1644,8 +1646,8 @@ static int interop_ws_run(InteropServer *server, WsSock listen_sock) {
 
         /* select 超时 100ms，使循环可及时响应停止信号 */
         struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = 100000;
+        tv.tv_sec = INTEROP_SELECT_TIMEOUT_SEC;
+        tv.tv_usec = INTEROP_SELECT_TIMEOUT_US;
 
         int sel_ret = select((int) (max_sock + 1), &readfds, NULL, NULL, &tv);
         if (sel_ret < 0) {
@@ -1789,11 +1791,8 @@ int interop_server_run(InteropServer *server) {
             }
 
             /* 去除尾部的换行符 */
+            lv_str_chomp(input);
             size_t len = strlen(input);
-            while (len > 0 && (input[len - 1] == '\n' || input[len - 1] == '\r')) {
-                input[len - 1] = '\0';
-                len--;
-            }
 
             /* 跳过空行 */
             if (len == 0)
@@ -1837,11 +1836,8 @@ int interop_server_run(InteropServer *server) {
             if (!fgets(input, sizeof(input), stdin))
                 break;
 
+            lv_str_chomp(input);
             size_t len = strlen(input);
-            while (len > 0 && (input[len - 1] == '\n' || input[len - 1] == '\r')) {
-                input[len - 1] = '\0';
-                len--;
-            }
             if (len == 0)
                 continue;
 
