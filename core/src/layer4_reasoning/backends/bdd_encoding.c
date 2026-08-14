@@ -37,7 +37,10 @@
 static BDDNode bdd_tombstone_marker = {-2, NULL, NULL, 0, false};
 #define BDD_TOMBSTONE (&bdd_tombstone_marker)
 
-/** 节点三元组哈希 (var_id, low, high) -> 唯一表索引 */
+/** 节点三元组哈希 (var_id, low, high) -> 唯一表索引
+ *  exempt: 判据「哈希表族收敛」——唯一表为三元组键 (var_id, low, high) +
+ *  墓碑 + 引用计数的开放寻址表，语义不同于 lv_hashtable_int_hash 的整型键，保留。
+ */
 static int bdd_unique_hash(int var_id, BDDNode *low, BDDNode *high, int table_size) {
     unsigned long h = (unsigned long) var_id;
     h = h * 31 + (unsigned long) (uintptr_t) low;

@@ -265,7 +265,9 @@ static LvSemanticType check_geom_triangle(LvSemaContext *ctx, LvAstNode *node) {
     return LV_TYPE_TRIANGLE;
 }
 
-/** @brief 几何构造函数名→检查函数 查找表（替代 6 段 if 链） */
+/** @brief 几何构造函数名→检查函数 查找表（替代 6 段 if 链）
+ *  名称须与 lv_lexer.c 共享表 lv_geometry_constructor_keywords 保持一致
+ *  （此处额外绑定 handler，故名称列无法直接由共享表派生）。 */
 static const struct {
     const char *name;
     GeomCallCheckFn handler;

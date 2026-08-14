@@ -10,6 +10,7 @@
 #include "solver_common.h"
 #include "lv/coeff_pool.h" /* 共享的多项式系数内存池（实现与池拥有权见 lv/coeff_pool.h） */
 #include "lv/lv_parse_utils.h"
+#include "lv/lv_xmacro.h"
 #include "lv/lv_numeric.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_lifecycle.h" /* lv_DEFER + lv_mpz_clear_deferred */
@@ -133,10 +134,7 @@ static const CoordToDoubleFunc coord_to_double_ops[] = {
 int coord_to_double(const SymbolicCoord *c, double *out) {
     if (!c)
         return false;
-    int type = c->type;
-    if (lv_index_in_range(type, (int)(sizeof(coord_to_double_ops) / sizeof(coord_to_double_ops[0]))) && coord_to_double_ops[type])
-        return coord_to_double_ops[type](c, out);
-    return false;
+    return LV_DISPATCH(coord_to_double_ops, c->type, false, c, out);
 }
 
 /* =======================================================================

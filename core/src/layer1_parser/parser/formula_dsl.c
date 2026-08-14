@@ -1100,16 +1100,12 @@ typedef struct {
     NodeType type;    /**< 对应的 AST 节点类型 */
 } ConstraintTypeEntry;
 
-/* 约束名称查找表（精确匹配，strcmp 语义） */
+/* 约束名称查找表（精确匹配，strcmp 语义），由 LV_CONSTRAINT_NAME_X 派生（判据 D 单源） */
+#define LV_CONSTRAINT_TABLE_ENTRY(ENUM, NAME, IDENT) { NAME, ENUM },
 static const ConstraintTypeEntry kConstraintTypes[] = {
-    {"perpendicular", NODE_CONSTRAINT_PERPENDICULAR},
-    {"parallel", NODE_CONSTRAINT_PARALLEL},
-    {"midpoint", NODE_CONSTRAINT_MIDPOINT},
-    {"bisector", NODE_CONSTRAINT_BISECTOR},
-    {"collinear", NODE_CONSTRAINT_COLLINEAR},
-    {"tangent", NODE_CONSTRAINT_TANGENT},
-    {"congruent", NODE_CONSTRAINT_CONGRUENT},
+    LV_CONSTRAINT_NAME_X(LV_CONSTRAINT_TABLE_ENTRY)
 };
+#undef LV_CONSTRAINT_TABLE_ENTRY
 
 /**
  * @brief 根据名称获取几何约束类型
@@ -1117,7 +1113,7 @@ static const ConstraintTypeEntry kConstraintTypes[] = {
  * 将 DSL 约束名称字符串转换为对应的 AST 节点类型。
  * 支持的约束类型包括：perpendicular（垂直）、parallel（平行）、
  * midpoint（中点）、bisector（角平分线）、collinear（共线）、
- * tangent（相切）、congruent（全等）。
+ * tangent（相切）、congruent（全等）、angle（角度）。
  *
  * @param name 约束名称字符串
  * @return NodeType 对应的节点类型，如果未知则返回 (NodeType)-1

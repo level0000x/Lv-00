@@ -151,7 +151,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
             if (sx && sy) {
                 char buf[512];
-                snprintf(buf, sizeof(buf), "point_coord:%d,%s,%s", node->id, sx, sy);
+                snprintf(buf, sizeof(buf), DEDUCT_FMT_POINT_COORD_STR, node->id, sx, sy);
                 bool dup = false;
                 for (int fi = 0; fi < fact_count; fi++) {
                     if (facts[fi] && lv_str_eq(facts[fi], buf)) {
@@ -191,19 +191,19 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 continue;
             /* 解析 betweenness:a,b,c */
             int a1, b1, c1;
-            if (sscanf(facts[i], "betweenness:%d,%d,%d", &a1, &b1, &c1) != 3)
+            if (sscanf(facts[i], DEDUCT_FMT_BETWEENNESS, &a1, &b1, &c1) != 3)
                 continue;
 
             for (int j = 0; j < fact_count; j++) {
                 if (i == j || !lv_str_startswith(facts[j], "betweenness:"))
                     continue;
                 int a2, b2, c2;
-                if (sscanf(facts[j], "betweenness:%d,%d,%d", &a2, &b2, &c2) != 3)
+                if (sscanf(facts[j], DEDUCT_FMT_BETWEENNESS, &a2, &b2, &c2) != 3)
                     continue;
 
                 /* 如果 b1 == a2，则推导 a1-b1(=a2)-c2 共线 */
                 if (b1 == a2 && a1 != c2) {
-                    DEDUCT_ADD_FACT("betweenness:%d,%d,%d", a1, b1, c2);
+                    DEDUCT_ADD_FACT(DEDUCT_FMT_BETWEENNESS, a1, b1, c2);
                     new_derived++;
                 }
                 /* 如果 c1 == a2，则推导 a1-c1(=a2)-c2 */
@@ -219,7 +219,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             if (!lv_str_startswith(facts[i], "incidence:"))
                 continue;
             int p1, l1;
-            if (sscanf(facts[i], "incidence:%d,%d", &p1, &l1) != 2)
+            if (sscanf(facts[i], DEDUCT_FMT_INCIDENCE, &p1, &l1) != 2)
                 continue;
 
             for (int j = i + 1; j < fact_count; j++) {
@@ -231,7 +231,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
 
                 /* 同一点在两条不同线上 => 相交 */
                 if (p1 == p2 && l1 != l2) {
-                    DEDUCT_ADD_FACT("intersection:%d,%d,%d", l1, l2, p1);
+                    DEDUCT_ADD_FACT(DEDUCT_FMT_INTERSECTION, l1, l2, p1);
                     new_derived++;
                 }
             }
@@ -252,10 +252,10 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
                     /* 比较坐标部分 */
                     if (lv_str_eq(comma1_i, comma1_j)) {
                         int id_i = -1, id_j = -1;
-                        int ret_i = sscanf(facts[i], "point_coord:%d,", &id_i);
-                        int ret_j = sscanf(facts[j], "point_coord:%d,", &id_j);
+                        int ret_i = sscanf(facts[i], DEDUCT_FMT_POINT_COORD_ID, &id_i);
+                        int ret_j = sscanf(facts[j], DEDUCT_FMT_POINT_COORD_ID, &id_j);
                         if (ret_i >= 1 && ret_j >= 1 && id_i != id_j) {
-                            DEDUCT_ADD_FACT("coincident:%d,%d", id_i, id_j);
+                            DEDUCT_ADD_FACT(DEDUCT_FMT_COINCIDENT, id_i, id_j);
                             new_derived++;
                         }
                     }

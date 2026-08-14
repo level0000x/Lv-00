@@ -144,6 +144,16 @@ const char *const lv_measurement_keywords[] = {
     "length", "distance", "angle", "measure", "area", "radius", NULL
 };
 
+/**
+ * @brief 几何对象构造函数关键词表（parser/sema 单一事实源）
+ *
+ * 供 lv_parser.c（is_geometry_func）线性 strcmp 精确匹配使用；NULL 结尾终止扫描。
+ * lv_sema.c 的几何构造 name→handler 查表须与此表保持同名。
+ */
+const char *const lv_geometry_constructor_keywords[] = {
+    "point", "line", "segment", "circle", "ray", "triangle", NULL
+};
+
 /* ── 单字符运算符查找表 ── */
 
 /** 单字符运算符映射条目 */

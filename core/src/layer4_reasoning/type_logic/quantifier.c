@@ -474,7 +474,9 @@ lvQuantifiedExpr *lv_quant_expr_create(int id, lvQuantifier quantifier, const ch
     return expr;
 }
 
-/** @brief 体命题外层容器字段销毁表（仅释放外层自身字段；sub_props/pattern 等由 proposition_destroy 递归释放） */
+/** @brief 结果命题（浅构造 Proposition）字段销毁表
+ *  create_result_proposition 仅设置 id + label，其余字段为 calloc 零值，
+ *  故只需释放 label 与 4 个端口数组；完整体命题走 proposition_destroy。 */
 static const lvFieldDesc kQuantBodyPropDestroyFields[] = {
     lv_FIELD_PLAIN(Proposition, label),
     lv_FIELD_PLAIN(Proposition, input_port_ids),
@@ -503,12 +505,12 @@ void lv_quant_expr_destroy(lvQuantifiedExpr *expr) {
     lv_quant_domain_destroy(expr->domain);
     expr->domain = NULL;
 
-    /* 释放体命题 */
+    /* 释放体命题：body_proposition 为完整 Proposition（所有权已随 lv_quant_expr_create 转移），
+     * 委托 proposition_destroy 递归释放全部字段（含 name/description/pattern/sub_props/prop_type），
+     * 避免仅释放外层字段造成 sub_props/pattern 泄漏。 */
     if (expr->body_proposition) {
-        /* sub_props 和 pattern 已在 proposition_destroy 中递归释放，此处仅释放外层命题自身字段 */
-        lv_obj_destroy_fields(expr->body_proposition, kQuantBodyPropDestroyFields,
-                              lv_ARRAY_SIZE(kQuantBodyPropDestroyFields));
-        lv_free((void **) &(expr->body_proposition));
+        proposition_destroy(expr->body_proposition);
+        expr->body_proposition = NULL;
     }
 
     lv_FREE_AND_NULL(expr->instantiated_ids);
@@ -1328,7 +1330,7 @@ void lv_quant_result_destroy(lvQuantifiedResult *result) {
     lv_FREE_AND_NULL(result->error_message);
 
     if (result->result_prop) {
-        /* 复用 kQuantBodyPropDestroyFields 表（与 G3 体命题外层字段 1:1 一致） */
+        /* result_prop 由 create_result_proposition 浅构造（仅 id + label），故用 kQuantBodyPropDestroyFields */
         lv_obj_destroy_fields(result->result_prop, kQuantBodyPropDestroyFields,
                               lv_ARRAY_SIZE(kQuantBodyPropDestroyFields));
         lv_free((void **) &(result->result_prop));

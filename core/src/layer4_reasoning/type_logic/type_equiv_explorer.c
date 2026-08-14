@@ -278,6 +278,16 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts, const TypeRegion *l
     return exp;
 }
 
+/**
+ * @brief 广度优先搜索类型等价性
+ *
+ * 使用数组队列逐层展开等价关系：出队节点检查左右类型是否等价，
+ * 否则枚举重写规则经 apply_rule_to_type 生成后继并入队。
+ *
+ * exempt: 判据「BFS 图遍历收敛」——本函数为带 TypeRegion 深拷贝 + 副作用执行
+ * （apply_rule_to_type / type_normalize 原地改写类型）的状态空间搜索，
+ * 非 lv_bfs_run 的整型 id 图遍历语义，保留。
+ */
 bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps) {
     if (!explorer)
         return false;

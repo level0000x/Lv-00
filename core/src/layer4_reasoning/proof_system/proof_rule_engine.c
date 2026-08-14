@@ -428,6 +428,10 @@ static lvProofState *proof_state_clone(const lvProofState *src) {
  *
  * 使用队列实现广度优先搜索：先扩展当前深度的所有状态，
  * 再进入下一深度。每一层展开所有适用规则的所有可能分支。
+ *
+ * exempt: 判据「BFS 图遍历收敛」——本函数为带证明状态快照 + 副作用执行
+ * （rule->apply_fn 改写 lvProofState）的状态空间搜索，非 lv_bfs_run 的
+ * 整型 id 图遍历语义，保留。
  */
 static lvSearchResultStatus search_breadth_first(lvRuleEngine *engine, lvProofState *initial_state,
                                                  uint64_t start_time_us) {

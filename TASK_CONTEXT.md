@@ -1415,3 +1415,74 @@ ninja build3 925/925（exit 0，仅含既有宏重定义警告）+ ctest 170/170
 - **X6 暂缓**：仅 `proof_search_algo.c:380-390/433-443` 两处真同构（且同文件同函数，正确收敛是本地静态函数而非全局设施）；`aabb_tree_impl.h` 系模板间接索引排序（按 bbox 中心算 key）、`rewrite_vf2.c` 系平行双数组，均不匹配既有 `lv_insertion_sort` 元素数组签名；且选择→插入排序改变稳定性语义，违反严格行为等价。不新增全局设施。
 - **X7 暂缓（先对齐评估）**：`NODE_CONSTRAINT_*` 名称↔枚举双份在 ≥7 文件映射到不同渲染输出串（latex `\perp` / dsl `perpendicular` / ascii / python…），命中负面清单 #2（渲染格式契约）与 #4（调用点迁就）；统一需先做值集对齐审计，属较大工程。
 - **X8 暂缓（先对齐评估）**：point/line/circle/segment/ray/triangle 名称在 ≥8 文件映射到不同构目标枚举/回调（`DSL_TOK_*`/`PRESET_TYPE_*`/check/parse/handler），接近 P2-1/P2-2「值集不一致」风险面，统一前必须先做对齐评估。
+
+---
+
+## 二十、批次 Y 候选立项与执行（2026-08-14）
+
+**候选来源**：「继续寻找更多可抽象化的方向」+「无视豁免再搜一下」按判据 A–L 全库重扫描（含 BFS 豁免审计与历史批次漏网复核），共 7 项执行/裁定。
+
+### 批次 Y 执行进度
+
+| 编号 | 内容 | 判据 | 状态 |
+|------|------|------|------|
+| Y0 | 无视豁免重新扫描，完善候选清单 | — | 完成（只读） |
+| Y1 | F-1 分发表收敛：手写三行分发表 → `LV_DISPATCH`/`LV_DISPATCH_VOID` | F | 完成（迁移 5 处，复核 4+ 处豁免） |
+| Y2 | L2 snprintf 防御收敛（新建 checked 变体） | L2 | 登记不迁移（设施已落地 + W3 已收敛 + 错误传播异构） |
+| Y3 | 自由反例1：proof_strategy_deductive.c 9 处裸事实格式串回迁 `DEDUCT_FMT_*` | I 收尾 | 完成 |
+| Y4 | F-2 甄别：lv_number.c `ops_for_type` 数据指针查表 | F | 登记不迁移（返回指针非调用分发） |
+| Y5 | 自由反例2：gappa_dsl.c 解析块重复 → `parse_bound_in` helper | A/I | 完成（收敛 4 处 sscanf 格式串） |
+| Y6 | C 漏网点补漏：C3（1e18 → `lv_LARGE_NUMBER`）git 核实 | C | 无漏网（计数口径修正） |
+| Y7 | 构建验证 ninja + ctest，回写台账/记忆 | — | 完成 |
+
+### Y1 明细（F-1 手写分发表 → LV_DISPATCH/VOID，判据 F）
+
+迁移 5 处真正「边界检查 + NULL 槽 + 调用」价值样板：
+- `geometric_primitives.c` `geo_create_constraint`（→ `LV_DISPATCH(s_constraint_handlers, ...)`）与 `geo_unify`（→ `LV_DISPATCH(kUnifyHandlers, ...)`）；
+- `solver_coord_extract.c` `coord_to_double`（→ `LV_DISPATCH(coord_to_double_ops, ...)`，新增 include lv_xmacro.h）；
+- `unify_helpers.c` `compute_node_coord_hash`（→ `LV_DISPATCH(s_coord_hash_funcs, ...)`，删除不再使用的 `s_coord_hash_func_count`）；
+- `geometry_csg_eval.c` `eval_csg_bool`（→ `LV_DISPATCH_VOID(s_bool_op_funcs, ...)`，删除 `s_bool_op_count`）。
+
+**复核不迁移**（fallback/else 分支含错误/警告副作用，非纯值三行样板）：`geo_constraint_solver_residual.c:329`（`*error_val=0.0`）、`numerical_backend.c:1206`（`lv_ERROR_SET`）、`solver_coord_extract.c:1209`（`lv_LOG_WARNING`）、`graph_node_alloc.c:1326`（`GeomNodeVTable*` 指针表，非函数 call 分发表）。
+
+### Y2 登记不迁移（L2 snprintf 防御收敛，判据 L2）
+
+判据 L2 所指「带防御的 `lv_snprintf` 包装」**设施已落地**：`lv_utils_str.c:183` `lv_snprintf`（NULL/大小检查 + vsnprintf 负值防御 + 截断 NUL 终止，30 处调用），单文件 18 处同构样板已由批次 W3 收敛为 `str_snprintf_fallback`。剩余跨文件裸 `snprintf` + 截断检测 6 处经差异分类**不构成统一骨架**：
+- `interop_server.c:972/990` 截断后仍**消费返回值**（sha1 长度 / send 长度），无法用 bool 谓词替代；
+- 截断后错误传播控制流 4 种异构（`return NULL` / `free+RETURN_ERROR` / `reply_error+return false` / 仅 `\0` 终止）；
+- `formula_curve.c:758/823` 截断后仅强制 `\0` 终止继续使用缓冲区（非提前返回）。
+
+判定：新建 `lv_snprintf_checked` 会造成伪收敛（引入无法满足所有调用点语义的单一失败通道），登记不迁移。
+
+### Y3 明细（自由反例1：DEDUCT_FMT_* 格式串回迁，判据 I 收尾）
+
+`proof_strategy_deductive.c` 顶部已有 `DEDUCT_FMT_*` 宏族（I1 建立），本次将 9 处裸事实格式串逐一回迁宏：`betweenness`（sscanf×2 + DEDUCT_ADD_FACT）、`point_coord`（sscanf ID 形态×2 + snprintf STR 形态）、`incidence`、`coincident`、`intersection`。消除生成/解析双侧格式串漂移；Grep 确认无裸事实格式串残留。
+
+### Y4 登记不迁移（F-2：`ops_for_type` 数据指针查表，判据 F）
+
+`lv_number.c:443` `ops_for_type` 是「返回 `lvNumberOps*` 指针」查表（`if ((unsigned)type < N && kOpsByType[type]) return kOpsByType[type]; return &g_float_ops;`），非 `LV_DISPATCH` 的「越界/NULL + **调用** handler」语义（宏展开 `table[key](__VA_ARGS__)` 会尝试调用结构体指针）。全库同类「返回指针查表」（`get_vtable_for_type`/`lv_expr_get_ops`/`lv_ad_get_ops`/`find_vector_ops` 等）fallback 语义各异（NULL vs 默认指针）、查表形态各异（下标 vs 线性扫描 vs 上下界），不构成可收敛骨架。
+
+### Y5 明细（自由反例2：gappa_dsl.c `parse_bound_in` helper，判据 A/I）
+
+`gappa_parse` 中「var in [lo, hi]」区间界谓词 sscanf 解析在假设解析与目标解析两处逐字重复（4 处格式串，含逗号前空格两种变体）。新建 `static bool parse_bound_in(token, varname, lo, hi)` 收敛，两处调用点共用，消除格式漂移。
+
+### Y6 C 漏网点补漏（C3 git 核实）
+
+git `-S "1e18"` 核实 C3（`1e18` → 复用 `lv_LARGE_NUMBER`）实际迁移 4 文件：`geometry_canvas.c` + `block_canvas.c`（边界盒四元初值各 4 字面量）+ `test_framework.c`（`min_ns`）+ `proof_version_sledge.c`（`best_time`），共 **10 处裸字面量**。台账「4 文件 4 处」为「4 赋值位置」口径。复核全库裸 `1e18`（含 `1e18f/1E18/1e+18/1.0e18/0x1e18` 变体）**零残留**，仅剩 `config.h:176` 权威定义 1 处。代码无漏网，仅修正台账计数口径。
+
+### BFS 豁免治理注释补全
+
+y0 扫描发现判据「BFS 图遍历收敛」豁免注释缺口 2 处，已补 `/* exempt */` + 决策登记：`type_equiv_explorer.c` `type_equiv_explore_search`（带 TypeRegion 深拷贝 + 副作用执行的状态空间搜索）与 `proof_rule_engine.c` `search_breadth_first`（带证明状态快照 + rule->apply_fn 副作用）。`proof_search_algo.c` DFS/BFS 已有注释作为模板。
+
+### 批次 Y 执行结果（2026-08-14）
+
+**验证**：`ninja -C build3` 全量重建 925/925 通过（exit 0，仅既有 `lv_LOG_*_LEN` 重定义警告）；`ctest --test-dir build3 --output-on-failure` 170/170 全绿（含 `test_gappa_dsl` 回归验证）。
+
+### 决策登记（第 9 章格式）
+
+- `LV_DISPATCH` 复用（判据 F）/ Y1 / 4 文件 5 处 / 无 / `geo_create_constraint` + `geo_unify` + `coord_to_double` + `compute_node_coord_hash` + `eval_csg_bool` 测试链。
+- 不迁移 / L2 / Y2 / 0 文件 / `lv_snprintf` 已落地 + W3 已收敛 + 跨文件 6 处错误传播异构（返回消费 / 4 种失败通道）。
+- `DEDUCT_FMT_*` 回迁（判据 I）/ Y3 / 1 文件 9 处 / 无 / `proof_strategy_deductive` 相关证明测试。
+- 不迁移 / F / Y4 / 0 文件 / `ops_for_type` 返回指针查表，与 LV_DISPATCH 调用分发语义不同。
+- `parse_bound_in` helper（判据 A/I）/ Y5 / 1 文件 2 点 4 格式串 / 无 / `test_gappa_dsl`。
+- 无漏网 / C / Y6 / 0 文件 / C3 裸 `1e18` 已全收敛，台账计数口径「4 文件 4 处」→「4 文件 10 字面量」。

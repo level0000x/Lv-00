@@ -23,6 +23,7 @@
 #include "stream_context_util.h"
 #include "type_system.h"
 #include "lv/lv_strbuf.h"
+#include "lv/lv_xmacro.h"
 #include "unify_internal.h"
 
 /* ---------------------------------------------------------------------------
@@ -258,8 +259,6 @@ static uint64_t (*s_coord_hash_funcs[])(GeomNode *) = {
     [GEOM_PORT] = coord_hash_point_port,
     [GEOM_FUNCTION_BLOCK] = coord_hash_func_block,
 };
-static const int s_coord_hash_func_count = (int)(sizeof(s_coord_hash_funcs) / sizeof(s_coord_hash_funcs[0]));
-
 /**
  * @brief 计算节点的坐标哈希值（用于预过滤分组）
  *
@@ -275,10 +274,7 @@ static const int s_coord_hash_func_count = (int)(sizeof(s_coord_hash_funcs) / si
 uint64_t compute_node_coord_hash(GeomNode *node) {
     if (!node || node->coord_count == 0)
         return 0;
-    if ((int)node->type >= 0 && node->type < s_coord_hash_func_count && s_coord_hash_funcs[node->type]) {
-        return s_coord_hash_funcs[node->type](node);
-    }
-    return 0;
+    return LV_DISPATCH(s_coord_hash_funcs, node->type, 0, node);
 }
 
 /* ---------------------------------------------------------------------------

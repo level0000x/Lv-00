@@ -16,6 +16,7 @@
 #include "lv_utils.h"
 #include "lv/geo_utils.h" /* geo_norm_3d / geo_norm_sq_3d（向量模长统一工具） */
 #include "lv/lv_numeric.h"
+#include "lv/lv_xmacro.h"
 
 void csg_evaluate(const CSGNode *node, CSGTriList *out);
 
@@ -31,7 +32,6 @@ static CSGBoolOpFunc s_bool_op_funcs[] = {
     [CSG_NODE_DIFFERENCE] = csg_bsp_difference_tri,
     [CSG_NODE_INTERSECTION] = csg_bsp_intersection_tri,
 };
-static const int s_bool_op_count = (int)(sizeof(s_bool_op_funcs) / sizeof(s_bool_op_funcs[0]));
 void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
     if (node->child_count < 2) {
         if (node->child_count == 1) {
@@ -49,9 +49,7 @@ void eval_csg_bool(const CSGNode *node, CSGTriList *out) {
     csg_evaluate(node->children[1], &tris_b);
 
     /* 布尔运算 kind → BSP 求值函数，统一走查找表 */
-    if (lv_index_in_range(node->kind, s_bool_op_count) && s_bool_op_funcs[node->kind]) {
-        s_bool_op_funcs[node->kind](&tris_a, &tris_b, out);
-    }
+    LV_DISPATCH_VOID(s_bool_op_funcs, node->kind, &tris_a, &tris_b, out);
 
     csg_trilist_free(&tris_a);
     csg_trilist_free(&tris_b);

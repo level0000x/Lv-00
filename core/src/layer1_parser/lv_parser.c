@@ -1100,10 +1100,9 @@ static LvAstNode *parse_unary_expr(LvParser *p) {
  * 词表收敛：由 lv_lexer.h 共享表 lv_geometry_relation_keywords /
  * lv_measurement_keywords（NULL 结尾）提供，与 lv_sema.c 共用单一事实源。 */
 
-/* 几何对象构造函数名查找表（精确匹配，strcmp 语义） */
-static const char *const kGeometryFuncs[] = {
-    "point", "line", "circle", "segment", "ray", "triangle"
-};
+/* 几何对象构造函数名查找表（精确匹配，strcmp 语义）。
+ * 词表收敛：由 lv_lexer.h 共享表 lv_geometry_constructor_keywords（NULL 结尾）提供，
+ * 与 lv_sema.c 共用单一事实源。 */
 
 /** 检查 identifier 是否为关系/度量/几何函数名 */
 static int is_relation_func(const char *name) {
@@ -1123,8 +1122,8 @@ static int is_measure_func(const char *name) {
 }
 
 static int is_geometry_func(const char *name) {
-    for (size_t i = 0; i < sizeof(kGeometryFuncs) / sizeof(kGeometryFuncs[0]); i++) {
-        if (lv_str_eq(name, kGeometryFuncs[i]))
+    for (size_t i = 0; lv_geometry_constructor_keywords[i] != NULL; i++) {
+        if (lv_str_eq(name, lv_geometry_constructor_keywords[i]))
             return 1;
     }
     return 0;

@@ -40,6 +40,10 @@
  * - 已访问状态检测，避免循环
  * - 每个分支的深度限制
  * - 策略级别的回溯选择
+ *
+ * exempt: 判据「BFS 图遍历收敛」——本函数为带策略位图状态 + 副作用执行
+ * （proof_multi_strategy_execute 改写引擎）的状态空间搜索，非 lv_bfs_run
+ * 的整型 id 图遍历语义，保留。
  */
 bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
     if (!proof || !proof->engine)
@@ -169,6 +173,9 @@ bool proof_depth_first_search(ProofNavigator *proof, int max_steps) {
  * - 按层次展开：每次从队首取状态，应用一个未尝试策略
  * - 展开后的新状态入队尾
  * - 检查每个展开后的状态是否完成证明
+ *
+ * exempt: 判据「BFS 图遍历收敛」——本函数为带策略位图状态 + 副作用执行的
+ * 状态空间搜索，非 lv_bfs_run 的整型 id 图遍历语义，保留。
  */
 bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
     if (!proof || !proof->engine)
@@ -254,6 +261,28 @@ bool proof_breadth_first_search(ProofNavigator *proof, int max_steps) {
 #undef BFS_QUEUE_SIZE
 }
 
+/* ---- 优先队列条目 ---- */
+typedef struct {
+    int strategy_index; /* 策略索引 */
+    double score;       /* 启发式分数 */
+    int attempt_count;  /* 该策略已尝试次数 */
+} PQEntry;
+
+/* 优先队列按分数降序排序（选择排序，判据 A：收敛同函数内两处重复排序骨架） */
+static void pq_sort_by_score_desc(PQEntry *pq, int pq_size) {
+    for (int i = 0; i < pq_size - 1; i++) {
+        int max_idx = i;
+        for (int j = i + 1; j < pq_size; j++) {
+            if (pq[j].score > pq[max_idx].score) {
+                max_idx = j;
+            }
+        }
+        if (max_idx != i) {
+            lv_SWAP(PQEntry, pq[i], pq[max_idx]);
+        }
+    }
+}
+
 /**
  * @brief 最佳优先搜索实现（改进版）
  *
@@ -268,13 +297,6 @@ bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
         return false;
 
     ProofMultiStrategy *mse = (ProofMultiStrategy *) proof->engine;
-
-    /* ---- 优先队列条目 ---- */
-    typedef struct {
-        int strategy_index; /* 策略索引 */
-        double score;       /* 启发式分数 */
-        int attempt_count;  /* 该策略已尝试次数 */
-    } PQEntry;
 
 #define PQ_MAX_SIZE 128
 
@@ -377,17 +399,7 @@ bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
     }
 
     /* 按分数降序排序（简单选择排序） */
-    for (int i = 0; i < pq_size - 1; i++) {
-        int max_idx = i;
-        for (int j = i + 1; j < pq_size; j++) {
-            if (pq[j].score > pq[max_idx].score) {
-                max_idx = j;
-            }
-        }
-        if (max_idx != i) {
-            lv_SWAP(PQEntry, pq[i], pq[max_idx]);
-        }
-    }
+    pq_sort_by_score_desc(pq, pq_size);
 
     /* 主循环：每次展开得分最高的候选 */
     while (total_steps < max_steps && !proof->is_complete) {
@@ -430,17 +442,7 @@ bool proof_best_first_search(ProofNavigator *proof, int max_steps) {
         }
 
         /* 重新排序 */
-        for (int i = 0; i < pq_size - 1; i++) {
-            int max_idx = i;
-            for (int j = i + 1; j < pq_size; j++) {
-                if (pq[j].score > pq[max_idx].score) {
-                    max_idx = j;
-                }
-            }
-            if (max_idx != i) {
-                lv_SWAP(PQEntry, pq[i], pq[max_idx]);
-            }
-        }
+        pq_sort_by_score_desc(pq, pq_size);
     }
 
     return proof->is_complete;

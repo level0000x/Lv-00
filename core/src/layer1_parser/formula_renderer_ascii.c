@@ -316,45 +316,14 @@ static int helper_ascii_constraint(const FormulaNode *node, const char *kind, ch
     return written;
 }
 
-static int helper_ascii_constraint_perpendicular(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "perpendicular", buffer, size, options);
-}
-
-static int helper_ascii_constraint_parallel(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "parallel", buffer, size, options);
-}
-
-static int helper_ascii_constraint_midpoint(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "midpoint", buffer, size, options);
-}
-
-static int helper_ascii_constraint_bisector(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "bisector", buffer, size, options);
-}
-
-static int helper_ascii_constraint_collinear(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "collinear", buffer, size, options);
-}
-
-static int helper_ascii_constraint_tangent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "tangent", buffer, size, options);
-}
-
-static int helper_ascii_constraint_congruent(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "congruent", buffer, size, options);
-}
-
-static int helper_ascii_constraint_angle(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
-{
-    return helper_ascii_constraint(node, "angle", buffer, size, options);
-}
+/* 8 个约束名称包装器由 LV_CONSTRAINT_NAME_X 派生（判据 D 单源） */
+#define LV_ASCII_CONSTRAINT_WRAPPER(ENUM, NAME, IDENT) \
+    static int helper_ascii_constraint_##IDENT(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) \
+    { \
+        return helper_ascii_constraint(node, NAME, buffer, size, options); \
+    }
+LV_CONSTRAINT_NAME_X(LV_ASCII_CONSTRAINT_WRAPPER)
+#undef LV_ASCII_CONSTRAINT_WRAPPER
 
 /* ---------- 复合语句 ----------
  * 格式：语句以 "; " 分隔（与 DSL 后端一致）。 */
@@ -414,14 +383,9 @@ static const RenderNodeFunc s_render_ascii_funcs[] = {
     [NODE_GEOM_REGION] = helper_ascii_geom_region,
     [NODE_GEOM_ARC] = helper_ascii_geom_arc,
     [NODE_GEOM_VECTOR] = helper_ascii_geom_vector,
-    [NODE_CONSTRAINT_PERPENDICULAR] = helper_ascii_constraint_perpendicular,
-    [NODE_CONSTRAINT_PARALLEL] = helper_ascii_constraint_parallel,
-    [NODE_CONSTRAINT_MIDPOINT] = helper_ascii_constraint_midpoint,
-    [NODE_CONSTRAINT_BISECTOR] = helper_ascii_constraint_bisector,
-    [NODE_CONSTRAINT_COLLINEAR] = helper_ascii_constraint_collinear,
-    [NODE_CONSTRAINT_TANGENT] = helper_ascii_constraint_tangent,
-    [NODE_CONSTRAINT_CONGRUENT] = helper_ascii_constraint_congruent,
-    [NODE_CONSTRAINT_ANGLE] = helper_ascii_constraint_angle,
+#define LV_ASCII_CONSTRAINT_DISPATCH(ENUM, NAME, IDENT) [ENUM] = helper_ascii_constraint_##IDENT,
+    LV_CONSTRAINT_NAME_X(LV_ASCII_CONSTRAINT_DISPATCH)
+#undef LV_ASCII_CONSTRAINT_DISPATCH
     [NODE_COMPOUND] = helper_ascii_compound,
 };
 

@@ -602,9 +602,7 @@ static void high_dim_local_fidelity_heatmap(HighDimManager *manager, int block_i
 static void high_dim_dynamic_precision(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
                                        double geometric_distortion, double *out_precision_factor,
                                        double *out_rotation_angle) {
-    double factor = 1.0 - 0.5 * geometric_distortion;
-    if (factor < 0.1) factor = 0.1;
-    if (factor > 2.0) factor = 2.0;
+    double factor = lv_CLAMP(1.0 - 0.5 * geometric_distortion, 0.1, 2.0);
     *out_precision_factor = factor;
 
     *out_rotation_angle = 0.0;

@@ -187,10 +187,7 @@ GeoResult geo_create_constraint(ConstraintGraph *graph, GeoConstraintType type, 
     CHECK_GRAPH(graph);
     if (!p || n < 2)
         return geo_err(GEO_STATUS_INVALID_PARAM, "参与者不足");
-    if ((int) type >= 0 && (size_t) type < lv_ARRAY_SIZE(s_constraint_handlers) && s_constraint_handlers[(int) type]) {
-        return s_constraint_handlers[(int) type](graph, p, n);
-    }
-    return geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型");
+    return LV_DISPATCH(s_constraint_handlers, type, geo_err(GEO_STATUS_INVALID_TYPE, "未知约束类型"), graph, p, n);
 }
 
 /* ── geo_solve 状态映射处理函数 ── */
@@ -273,9 +270,7 @@ GeoResult geo_unify(const ConstraintGraph *construction, const ConstraintGraph *
         return geo_err(GEO_STATUS_NULL_ARG, "命题图 NULL");
 
     UnifyStatus s = unify_construction_with_proposition(construction, proposition);
-    if ((unsigned)s < lv_ARRAY_SIZE(kUnifyHandlers) && kUnifyHandlers[s])
-        return kUnifyHandlers[s]();
-    return geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败");
+    return LV_DISPATCH(kUnifyHandlers, s, geo_err(GEO_STATUS_INTERNAL_ERROR, "合一失败"));
 }
 
 /* ── geo_pack 状态映射处理函数 ── */

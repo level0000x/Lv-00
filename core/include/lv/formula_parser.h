@@ -94,6 +94,25 @@ typedef enum {
 } NodeType;
 
 /* ============================================================
+ * 几何约束 枚举↔名称 单一事实源（判据 D）
+ * ============================================================
+ * 8 个约束名与 NODE_CONSTRAINT_* 枚举一一对应，顺序与上文枚举一致。
+ * 各消费方（DSL 解析查表、字符串/ASCII 渲染）通过本 X-macro 派生，
+ * 避免新增约束时名称列与枚举失步。
+ *
+ * X(枚举, "名称", 小写标识符)
+ */
+#define LV_CONSTRAINT_NAME_X(X) \
+    X(NODE_CONSTRAINT_PERPENDICULAR, "perpendicular", perpendicular) \
+    X(NODE_CONSTRAINT_PARALLEL, "parallel", parallel) \
+    X(NODE_CONSTRAINT_MIDPOINT, "midpoint", midpoint) \
+    X(NODE_CONSTRAINT_BISECTOR, "bisector", bisector) \
+    X(NODE_CONSTRAINT_COLLINEAR, "collinear", collinear) \
+    X(NODE_CONSTRAINT_TANGENT, "tangent", tangent) \
+    X(NODE_CONSTRAINT_CONGRUENT, "congruent", congruent) \
+    X(NODE_CONSTRAINT_ANGLE, "angle", angle)
+
+/* ============================================================
  * AST 节点结构体 (tagged union)
  * ============================================================ */
 

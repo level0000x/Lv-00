@@ -276,37 +276,13 @@ static void str_constraint(const FormulaNode *node, const char *kind, char *buf,
     }
 }
 
-static void str_constraint_perpendicular(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "perpendicular", buf, buf_size);
-}
-
-static void str_constraint_parallel(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "parallel", buf, buf_size);
-}
-
-static void str_constraint_midpoint(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "midpoint", buf, buf_size);
-}
-
-static void str_constraint_bisector(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "bisector", buf, buf_size);
-}
-
-static void str_constraint_collinear(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "collinear", buf, buf_size);
-}
-
-static void str_constraint_tangent(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "tangent", buf, buf_size);
-}
-
-static void str_constraint_congruent(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "congruent", buf, buf_size);
-}
-
-static void str_constraint_angle(const FormulaNode *node, char *buf, size_t buf_size) {
-    str_constraint(node, "angle", buf, buf_size);
-}
+/* 8 个约束名称包装器由 LV_CONSTRAINT_NAME_X 派生（判据 D 单源） */
+#define LV_STR_CONSTRAINT_WRAPPER(ENUM, NAME, IDENT) \
+    static void str_constraint_##IDENT(const FormulaNode *node, char *buf, size_t buf_size) { \
+        str_constraint(node, NAME, buf, buf_size); \
+    }
+LV_CONSTRAINT_NAME_X(LV_STR_CONSTRAINT_WRAPPER)
+#undef LV_STR_CONSTRAINT_WRAPPER
 
 /* ---------- 复合语句 ----------
  * 格式：语句以 "; " 分隔（与 DSL 渲染后端一致）。 */
@@ -360,14 +336,9 @@ void node_to_string(const FormulaNode *node, char *buf, size_t buf_size) {
         [NODE_GEOM_REGION] = str_g_region,
         [NODE_GEOM_ARC] = str_g_arc,
         [NODE_GEOM_VECTOR] = str_g_vector,
-        [NODE_CONSTRAINT_PERPENDICULAR] = str_constraint_perpendicular,
-        [NODE_CONSTRAINT_PARALLEL] = str_constraint_parallel,
-        [NODE_CONSTRAINT_MIDPOINT] = str_constraint_midpoint,
-        [NODE_CONSTRAINT_BISECTOR] = str_constraint_bisector,
-        [NODE_CONSTRAINT_COLLINEAR] = str_constraint_collinear,
-        [NODE_CONSTRAINT_TANGENT] = str_constraint_tangent,
-        [NODE_CONSTRAINT_CONGRUENT] = str_constraint_congruent,
-        [NODE_CONSTRAINT_ANGLE] = str_constraint_angle,
+#define LV_STR_CONSTRAINT_DISPATCH(ENUM, NAME, IDENT) [ENUM] = str_constraint_##IDENT,
+        LV_CONSTRAINT_NAME_X(LV_STR_CONSTRAINT_DISPATCH)
+#undef LV_STR_CONSTRAINT_DISPATCH
         [NODE_COMPOUND] = str_compound,
     };
     if ((unsigned)node->type < sizeof(s_funcs)/sizeof(s_funcs[0]) && s_funcs[node->type]) {

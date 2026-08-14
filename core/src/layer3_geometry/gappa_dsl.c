@@ -608,6 +608,14 @@ bool gappa_format_predefined(const char *name, lvGappaFormat *out) {
     return true;
 }
 
+/* 解析 "var in [lo, hi]" 区间界谓词（支持逗号前有无空格两种写法），
+ * 成功返回 true 并填充 varname/lo/hi。假设解析与目标解析两处共用，
+ * 收敛 4 处 sscanf 格式串，避免两侧格式漂移。要求 varname 缓冲 >= 256 字节。 */
+static bool parse_bound_in(const char *token, char *varname, double *lo, double *hi) {
+    return sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, lo, hi) == 3 ||
+           sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, lo, hi) == 3;
+}
+
 /**
  * @brief 解析 Gappa 表达式，提取假设与目标
  *
@@ -665,8 +673,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
             if (*token) {
                 char varname[256] = {0};
                 double lo = 0.0, hi = 0.0;
-                if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
-                    sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
+                if (parse_bound_in(token, varname, &lo, &hi)) {
                     lvGappaPredicate item;
                     memset(&item, 0, sizeof(item));
                     item.type = lv_PRED_BND;
@@ -724,8 +731,7 @@ bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGa
                     /* 尝试解析 "var in [lo, hi]" 作为 BND 目标 */
                     char varname[256] = {0};
                     double lo = 0.0, hi = 0.0;
-                    if (sscanf(token, "%255[a-zA-Z0-9_] in [%lf , %lf]", varname, &lo, &hi) == 3 ||
-                        sscanf(token, "%255[a-zA-Z0-9_] in [%lf,%lf]", varname, &lo, &hi) == 3) {
+                    if (parse_bound_in(token, varname, &lo, &hi)) {
                         lvGappaProofGoal item;
                         memset(&item, 0, sizeof(item));
                         item.predicate.type = lv_PRED_BND;

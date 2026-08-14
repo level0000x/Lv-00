@@ -158,6 +158,9 @@ extern const char *const lv_geometry_relation_keywords[];
 /** 几何度量关键词表（length/distance/angle/measure/area/radius，NULL 结尾） */
 extern const char *const lv_measurement_keywords[];
 
+/** 几何对象构造函数关键词表（point/line/segment/circle/ray/triangle，NULL 结尾） */
+extern const char *const lv_geometry_constructor_keywords[];
+
 #ifdef __cplusplus
 }
 #endif

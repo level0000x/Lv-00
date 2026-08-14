@@ -75,8 +75,7 @@ static void project_log(const ProjectContext *ctx) {
 }
 static void project_exp(const ProjectContext *ctx) {
     double ev = exp(ctx->coord_value);
-    if (ev > 1e12) ev = 1e12;
-    if (ev < -1e12) ev = -1e12;
+    ev = lv_CLAMP(ev, -1e12, 1e12);
     ctx->projected->x += ctx->mapping->scale * ev + ctx->mapping->offset;
 }
 static void project_tsne(const ProjectContext *ctx) {
