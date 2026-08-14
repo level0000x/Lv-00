@@ -33,6 +33,7 @@
 #define lv_PROOF_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
 
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for proof timing/thresholds */
@@ -74,6 +75,7 @@ typedef struct PropositionEquivalence PropositionEquivalence;
 typedef struct BottomDefinition BottomDefinition;
 typedef struct lvEngine lvEngine;            /* 引擎前向声明 */
 typedef struct lvProofEngine lvProofEngine;  /* 经典证明引擎（proof_engine_enhanced.h）前向声明 */
+typedef struct lvProofObject lvProofObject;  /* 证明对象（本头文件定义，L8 meta_verify 亦消费） */
 
 /* ============== 证明状态颜色 ==============
  * 【枚举值命名规范】所有枚举值使用 UPPER_SNAKE_CASE
@@ -167,6 +169,71 @@ typedef enum {
 typedef struct ProofStepExt {
     char *conclusion; /**< 步骤结论字符串（用于 HOL Light 验证） */
 } ProofStepExt;
+
+/* ============== 证明对象（lvProofObject 族） ==============
+ * 原定义于 proof_compiler.h（L5），因 L8 meta_verify 消费（L8→L2/L3/L4 不含 L5）
+ * 归位至本头（L4 域）。L5 proof_compiler.h 与 L8 meta_verify.c 均经 proof.h 获得。
+ */
+/**
+ * @brief 证明步骤记录
+ *
+ * 记录证明中的每个步骤及其来源。
+ */
+typedef struct lvProofStepRecord {
+    int step_id;        /**< 步骤ID */
+    ProofStepType type; /**< 步骤类型 */
+    ProofColor color;   /**< 证明颜色 */
+    int rule_id;        /**< 使用的规则ID */
+    char *rule_name;    /**< 规则名称 */
+
+    /* 前提步骤 */
+    int *premise_step_ids; /**< 前提步骤ID数组（须经 lv_proof_step_record_set_premises 管理） */
+    int premise_count;     /**< 前提数量 */
+    int premise_capacity;  /**< 前提数组容量 */
+
+    /* 结论 */
+    Proposition *conclusion; /**< 结论命题 */
+    int conclusion_id;       /**< 结论ID */
+
+    /* 元数据 */
+    int depth;           /**< 证明深度 */
+    char *justification; /**< 证明理由 */
+    int64_t timestamp;   /**< 时间戳 */
+} lvProofStepRecord;
+
+/**
+ * @brief 证明对象
+ *
+ * 机器可复核的证明链表示。
+ */
+struct lvProofObject {
+    /* 元数据 */
+    int proof_id;           /**< 证明ID */
+    char *theorem_name;     /**< 定理名称 */
+    Proposition *goal;      /**< 目标命题 */
+    bool is_proved;         /**< 是否成功证明 */
+    ProofColor final_color; /**< 最终颜色 */
+
+    /* 证明步骤链 */
+    lvProofStepRecord **steps; /**< 步骤数组 */
+    int step_count;            /**< 步骤数量 */
+    int step_capacity;         /**< 步骤容量 */
+
+    /* 假设和公理 */
+    int *axiom_ids;          /**< 使用的公理ID */
+    int axiom_count;         /**< 公理数量 */
+    int axiom_capacity;      /**< 公理数组容量 */
+    int *assumption_ids;     /**< 假设ID数组 */
+    int assumption_count;    /**< 假设数量 */
+    int assumption_capacity; /**< 假设数组容量 */
+
+    /* 统计信息 */
+    int max_depth;      /**< 最大证明深度 */
+    int64_t elapsed_us; /**< 耗时（微秒） */
+
+    /* 附加数据 */
+    void *extra_data; /**< 附加数据指针 */
+};
 
 /* ============== 证明步骤 ============== */
 struct ProofStep {

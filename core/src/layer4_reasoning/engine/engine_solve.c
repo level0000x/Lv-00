@@ -12,6 +12,7 @@
  */
 
 #include "lv/engine.h"
+#include "lv/debug.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -211,6 +212,18 @@ EngineSolveResult engine_solve(lvEngine *engine) {
                 stream_emit(engine->stream_ctx, &ev);
             }
             normalization_result_destroy(norm);
+
+            /* 调试模式接线：归一化后验证图不变量。
+             * debug_assert_normalization_invariants / debug_assert_port_invariants 原为
+             * 零调用者的可复用验证设施，此处使其在 debug_is_debug_mode() 下生效；
+             * 仅调试模式产生开销，不影响生产求解路径。 */
+            if (debug_is_debug_mode()) {
+                DebugContext dbg_ctx = {0};
+                dbg_ctx.port_invariant_checks = true;
+                dbg_ctx.abort_on_violation = false;
+                (void) debug_assert_normalization_invariants(engine, &dbg_ctx);
+                (void) debug_assert_port_invariants(engine, &dbg_ctx);
+            }
         }
     }
 

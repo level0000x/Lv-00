@@ -51,6 +51,9 @@ extern "C" {
  * 避免与权威版产生语义分叉。 */
 #include "lv_api_spec.h"
 
+/* lv_THREAD_LOCAL —— 模块流上下文三件套宏（LV_STREAM_CTX_*）依赖 */
+#include "lv/cross_platform.h"
+
 /* ============== 常量 ============== */
 
 /** 全部事件掩码（接收所有事件） */
@@ -294,6 +297,54 @@ lv_PUBLIC_API void stream_context_destroy(StreamContext *ctx);
 lv_PUBLIC_API void stream_context_register_builtins(StreamContext *ctx);
 lv_PUBLIC_API void stream_context_dispatch_all(StreamContext *ctx);
 lv_PUBLIC_API void stream_context_clear_all(void);
+
+/* ============== 模块流上下文三件套（原 stream_context_util.h，已并入本头） ==============
+ * stream.h 属 L2 基础设施，L1/L2/L3 均消费；原 stream_context_util.h（L4）
+ * 因实现驻留 L4 被低层 include 判为越权，故声明/宏整体下沉此处。
+ * stream_context_register_setter / stream_emit_fmt 实现仍驻 stream_context_util.c（L4，
+ * 跨层 setter 注册器），声明放 L2 头不影响（仅 L4 engine 调用）。
+ */
+
+/** @brief 流式上下文 setter 函数类型（模块将自身流式上下文指针设为给定 ctx） */
+typedef void (*StreamContextSetter)(StreamContext *ctx);
+
+/** @brief 注册一个模块的流式上下文 setter（实现于 L4 stream_context_util.c） */
+void stream_context_register_setter(StreamContextSetter setter);
+
+/** @brief 便捷函数: 格式化文本并发射简单流式事件（实现于 L4 stream_context_util.c） */
+void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...);
+
+/* ═══════════════════════════════════════════════════════════════════
+ * LV_STREAM_CTX_DECLARE / LV_STREAM_CTX_DEFINE —— 模块流上下文三件套宏
+ *
+ * 收敛各模块重复的样板：
+ *   声明（模块 .h 中）：  extern lv_THREAD_LOCAL StreamContext *xxx_stream_ctx;
+ *                         void xxx_set_stream_context(StreamContext *ctx);
+ *   定义（模块 .c 中）：  lv_THREAD_LOCAL StreamContext *xxx_stream_ctx = NULL;
+ *                         void xxx_set_stream_context(StreamContext *ctx) { xxx_stream_ctx = ctx; }
+ *
+ * 用法（以 unify 模块为例）：
+ *   // unify.h
+ *   LV_STREAM_CTX_DECLARE(unify);
+ *   // unify.c
+ *   LV_STREAM_CTX_DEFINE(unify);
+ *
+ * 注意：仅覆盖「变量名 = <module>_stream_ctx 且 setter 与变量同文件」的公共形态；
+ * 命名不一致（如 axiom_pkg：变量 axiom_stream_ctx）或 setter 位于其他文件
+ * （如 prop_verifier / solver_engine）的模块保留手写。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** @brief 声明宏（放模块公共头 .h）：extern TLS 变量 + setter 原型 */
+#define LV_STREAM_CTX_DECLARE(module)                           \
+    extern lv_THREAD_LOCAL StreamContext *module##_stream_ctx; \
+    void module##_set_stream_context(StreamContext *ctx)
+
+/** @brief 定义宏（放模块实现 .c）：TLS 变量定义 + setter 实现 */
+#define LV_STREAM_CTX_DEFINE(module)                            \
+    lv_THREAD_LOCAL StreamContext *module##_stream_ctx = NULL; \
+    void module##_set_stream_context(StreamContext *ctx) {     \
+        module##_stream_ctx = ctx;                             \
+    }
 
 /* ============== 回调管理 API ============== */
 

@@ -24,7 +24,7 @@
 #include "lv/engine_scheduler.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /**
  * @brief 创建并初始化 lv 引擎实例

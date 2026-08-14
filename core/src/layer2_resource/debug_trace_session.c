@@ -18,7 +18,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "lv/engine.h"
 #include "lv/lv_json.h"
 
 #include "lv/context.h"
@@ -26,8 +25,6 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
-#include "lv/type_system.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
 #include "debug_internal.h"

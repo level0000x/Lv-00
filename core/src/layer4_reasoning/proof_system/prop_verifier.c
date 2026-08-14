@@ -27,7 +27,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "prop_verifier_internal.h"
 
 /* 注：setter prop_verifier_set_stream_context 定义在 prop_verifier_equivalence.c（异文件），

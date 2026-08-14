@@ -34,7 +34,7 @@
 #include "lv/lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/symbolic_coord.h"
 
 #define MAX_RELATED_CONSTRAINTS 256

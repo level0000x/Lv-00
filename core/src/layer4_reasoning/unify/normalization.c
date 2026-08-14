@@ -47,7 +47,7 @@
 #include "lv/lv_internal.h"
 #include "union_find_util.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/lv_strbuf.h"
 
 /* ==================== 命名常量（消除魔术数字） ==================== */

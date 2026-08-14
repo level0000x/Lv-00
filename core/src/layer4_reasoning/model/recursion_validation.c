@@ -16,7 +16,7 @@
 #include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "recursion_internal.h"
 
 /* ============== 修改6：非符号测度的加载时验证 ============== */

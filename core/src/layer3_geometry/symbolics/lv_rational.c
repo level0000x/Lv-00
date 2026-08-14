@@ -1,5 +1,5 @@
 /**
- * @file rational.c
+ * @file lv_rational.c
  * @brief 精确有理数运算实现 —— 基于 GMP mpq_t（统一原语）
  *
  * @details lvRational 的有理数运算的完整实现。
@@ -9,6 +9,10 @@
  *          位宽防护保留：inplace 运算超过 128 比特时转为 double 近似
  *          （防止循环中无界增长）；mul_is_safe / den_is_safe / estimate_loss
  *          提供显式的精度损失检查。
+ *
+ *          层归属：自 layer4_reasoning/expr 归位至 layer3_geometry/symbolics
+ *          （与 rational.c 薄转发层同域）。仅依赖 GMP + lv_utils（L2 级），
+ *          消解 L3→L4 反向环；消费方 L4（expr_canon.c）依赖 L3 属合法方向。
  *
  * @author Lv-00 Project
  * @version v1.0.0

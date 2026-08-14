@@ -25,7 +25,7 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* ============================================================
  * 图 → 公式 主转换函数

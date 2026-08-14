@@ -54,7 +54,7 @@
 #include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
 #include "lv/normalization.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* ==================== 命名常量 ==================== */
 

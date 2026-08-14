@@ -32,7 +32,7 @@
 #include "lv/lv_utils.h"
 #include "lv/module.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
+#include "lv/stream.h" /* LV_STREAM_CTX_DEFINE */
 #include "lv/symbolic_coord.h"
 
 /* ============== 模块实例结构体定义 ============== */

@@ -16,66 +16,9 @@
 typedef struct lvProofObject lvProofObject;
 typedef struct lvProofTrace lvProofTrace;
 typedef struct lvProofCompiler lvProofCompiler;
-/* ============== 证明对象 ============== */
-/**
- * @brief 证明步骤记录
- *
- * 记录证明中的每个步骤及其来源。
- */
-typedef struct lvProofStepRecord {
-    int step_id;        /**< 步骤ID */
-    ProofStepType type; /**< 步骤类型 */
-    ProofColor color;   /**< 证明颜色 */
-    int rule_id;        /**< 使用的规则ID */
-    char *rule_name;    /**< 规则名称 */
-
-    /* 前提步骤 */
-    int *premise_step_ids; /**< 前提步骤ID数组（须经 lv_proof_step_record_set_premises 管理） */
-    int premise_count;     /**< 前提数量 */
-    int premise_capacity;  /**< 前提数组容量 */
-
-    /* 结论 */
-    Proposition *conclusion; /**< 结论命题 */
-    int conclusion_id;       /**< 结论ID */
-
-    /* 元数据 */
-    int depth;           /**< 证明深度 */
-    char *justification; /**< 证明理由 */
-    int64_t timestamp;   /**< 时间戳 */
-} lvProofStepRecord;
-/**
- * @brief 证明对象
- *
- * 机器可复核的证明链表示。
- */
-struct lvProofObject {
-    /* 元数据 */
-    int proof_id;           /**< 证明ID */
-    char *theorem_name;     /**< 定理名称 */
-    Proposition *goal;      /**< 目标命题 */
-    bool is_proved;         /**< 是否成功证明 */
-    ProofColor final_color; /**< 最终颜色 */
-
-    /* 证明步骤链 */
-    lvProofStepRecord **steps; /**< 步骤数组 */
-    int step_count;            /**< 步骤数量 */
-    int step_capacity;         /**< 步骤容量 */
-
-    /* 假设和公理 */
-    int *axiom_ids;          /**< 使用的公理ID */
-    int axiom_count;         /**< 公理数量 */
-    int axiom_capacity;      /**< 公理数组容量 */
-    int *assumption_ids;     /**< 假设ID数组 */
-    int assumption_count;    /**< 假设数量 */
-    int assumption_capacity; /**< 假设数组容量 */
-
-    /* 统计信息 */
-    int max_depth;      /**< 最大证明深度 */
-    int64_t elapsed_us; /**< 耗时（微秒） */
-
-    /* 附加数据 */
-    void *extra_data; /**< 附加数据指针 */
-};
+/* ============== 证明对象 ==============
+ * lvProofStepRecord / struct lvProofObject 定义已归位至 proof.h（L4 域，
+ * L8 meta_verify 消费且 L8 依赖表不含 L5）。此处保留前向声明。 */
 /* ============== 证明跟踪 ============== */
 /**
  * @brief 跟踪事件类型

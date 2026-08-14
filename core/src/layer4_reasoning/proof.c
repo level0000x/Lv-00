@@ -70,7 +70,7 @@
 #include "lv/axiom_pkg.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /** @brief proof 模块全局流式上下文定义（供所有 proof 子模块通过 proof.h 的 extern 引用） */
 LV_STREAM_CTX_DEFINE(proof);

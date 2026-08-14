@@ -23,7 +23,7 @@
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* ============================================================
  * 公式 → 图 主转换函数

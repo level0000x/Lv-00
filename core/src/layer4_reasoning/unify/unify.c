@@ -84,7 +84,7 @@
 #include "lv/lv_utils.h" /* lv_strdup_safe, lv_malloc 等统一内存管理 */
 #include "lv/normalization.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/type_system.h"
 #include "lv/lv_strbuf.h"
 

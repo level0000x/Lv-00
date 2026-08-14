@@ -15,7 +15,7 @@
  * @version 3.3.0
  */
 
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 #include <stddef.h>
 
@@ -34,10 +34,14 @@
  * 函数与此类型完全兼容，无需强制转换。 */
 
 #include "lv/constraint_graph.h" /* graph_set_stream_context   */
-#include "lv/interop.h"          /* interop_set_stream_context */
 #include "lv/proof.h"            /* proof_set_stream_context      */
 #include "lv/runtime_monitor.h"  /* lv_event_trace_set_stream_context（事件总线 → Stream 桥接） */
 #include "lv/solver.h"           /* solver_set_stream_context     */
+
+/* interop_set_stream_context 定义于 L5（interop.h），本注册器驻 L4 不允许依赖 L5。
+ * 仅需函数符号（void (*)(StreamContext*)），以本地前向声明代替 include，
+ * 链接由 lv_static 聚合解析。 */
+void interop_set_stream_context(StreamContext *ctx);
 
 #include "lv/func_block.h"    /* func_block_set_stream_context */
 #include "lv/normalization.h" /* normalization_set_stream_context*/

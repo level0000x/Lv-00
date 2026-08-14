@@ -54,7 +54,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
+#include "lv/stream.h" /* LV_STREAM_CTX_DEFINE */
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"

@@ -62,7 +62,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
 
 /** @brief graph 模块全局流式上下文定义（供所有 graph 子模块通过 constraint_graph.h 的 extern 引用） */

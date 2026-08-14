@@ -17,7 +17,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================

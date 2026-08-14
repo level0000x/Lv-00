@@ -52,7 +52,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
 #include "lv/mpz_poly.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* SOLVER_MAX_VAR_ID 已在 solver.h 中统一定义，此处不再重复 */
 

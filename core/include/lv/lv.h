@@ -235,8 +235,7 @@ extern "C" {
 #include "lv_utils.h" /* 通用工具函数 */
 
 /* 流式输出 */
-#include "stream.h"              /* 流式事件系统 */
-#include "stream_context_util.h" /* 流式上下文工具宏 */
+#include "stream.h" /* 流式事件系统 + 流式上下文工具宏（LV_STREAM_CTX_* 已并入） */
 
 /* λ-项数据结构 */
 #include "lambda_term.h"   /* λ-项（tagged union） */

@@ -24,7 +24,6 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH：越界/NULL 槽安全分发 */
 #include "lv/proof.h"
-#include "lv/proof_compiler.h"
 #include "lv/lv_strbuf.h"
 
 /* ============================================================

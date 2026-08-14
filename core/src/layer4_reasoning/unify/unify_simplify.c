@@ -20,7 +20,7 @@
 #include "lv/lv_utils.h"
 #include "lv/normalization.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 #include "lv/type_system.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_lifecycle.h"

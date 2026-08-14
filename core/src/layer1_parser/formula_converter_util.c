@@ -24,7 +24,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* 注：formula_converter 模块无 setter 函数（变量被 formula_converter_constraint.c 等直接 extern 引用），
  * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */

@@ -665,7 +665,6 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/formula_renderer_mathml.c
     core/src/layer1_parser/formula_renderer_ascii.c
     core/src/layer1_parser/formula_renderer_html.c
-    core/src/layer1_parser/lexer_shared.c
     core/src/layer1_parser/parser_safety.c
     core/src/layer1_parser/dsl_compiler.c
     core/src/layer1_parser/dsl_compiler_parse.c
@@ -717,11 +716,9 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/debug_mempool.c
     core/src/layer2_resource/debug_refcount.c
     core/src/layer2_resource/debug_emergency.c
-    core/src/layer2_resource/debug_invariants.c
     core/src/layer2_resource/debug_trace_session.c
     core/src/layer2_resource/debug_ringbuf.c
     core/src/layer2_resource/debug_log_ctx.c
-    core/src/layer2_resource/debug_normalize_assert.c
     core/src/layer2_resource/node_deep_copy.c
     # v1.1.0 新增：内存池、运行时监控、测试框架
     core/src/layer2_resource/memory_pool.c
@@ -731,6 +728,19 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_mempool_utils.c
     core/src/layer2_resource/runtime_monitor.c
     core/src/layer2_resource/test_framework.c
+    # 流式基础设施（自 L4 下沉：仅依赖 L2，被 L1/L2/L3 大面积消费）
+    core/src/layer2_resource/stream/stream.c
+    core/src/layer2_resource/stream/stream_async.c
+    core/src/layer2_resource/stream/stream_buffer.c
+    core/src/layer2_resource/stream/stream_context.c
+    core/src/layer2_resource/stream/stream_emit.c
+    core/src/layer2_resource/stream/stream_filter.c
+    core/src/layer2_resource/stream/stream_json.c
+    core/src/layer2_resource/stream/stream_lazy.c
+    core/src/layer2_resource/stream/stream_stats.c
+    core/src/layer2_resource/stream/stream_utils.c
+    # 词法共享设施（自 L1 下沉：被 L1 与 L4 module/axiom_pkg 消费）
+    core/src/layer2_resource/lexer_shared.c
     # 补全遗漏文件：全局状态、几何配置、调试追踪、中文预设/理论/错误/结果消息
     # 泛型容器：二叉堆；统一路径工具族（lv_path）
     core/src/layer2_resource/lv_path.c
@@ -908,8 +918,9 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/aabb_tree_2d.c
     core/src/layer3_geometry/aabb_tree_3d.c
     core/src/layer3_geometry/geo_predicate.c
+    # 位数熔断系统（自 L4 numeric 归位：依赖 L3 图内部结构，被 L3/L4 消费）
+    core/src/layer3_geometry/bit_burning.c
     # v1.1.0 补全遗漏：几何原语、参数曲线、路径类型
-    core/src/layer3_geometry/geometric_primitives.c
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
     # v2.0.0 推理栈模块（原在 L2，使用 ConstraintGraph 类型，故归位 L3）
@@ -932,6 +943,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/symbolics/algebraic.c
     core/src/layer3_geometry/symbolics/quadratic.c
     core/src/layer3_geometry/symbolics/rational.c
+    core/src/layer3_geometry/symbolics/lv_rational.c
     core/src/layer3_geometry/symbolics/symbolic_coord_ops.c
     core/src/layer3_geometry/symbolics/symbolic_coord_lifecycle.c
     core/src/layer3_geometry/symbolics/symbolic_coord_compare.c
@@ -1016,6 +1028,11 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/engine/proof_contradiction.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
+    # 几何原语与推理引擎混合体（自 L3 归位：geo_prove/geo_export 依赖 L4 proof/rewrite/unify）
+    core/src/layer4_reasoning/geometric_primitives.c
+    # 引擎状态验证器（自 L2 归位：依赖 lvEngine/TypeSystem，debug 模式下被 engine_solve 调用）
+    core/src/layer4_reasoning/debug_normalize_assert.c
+    core/src/layer4_reasoning/debug_invariants.c
     core/src/layer4_reasoning/unify/unify.c
     core/src/layer4_reasoning/unify/unify_basic.c
     core/src/layer4_reasoning/unify/unify_equivalence.c
@@ -1062,7 +1079,6 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/backends/sat_encoding.c
     core/src/layer4_reasoning/backends/bdd_encoding.c
     core/src/layer4_reasoning/backends/probabilistic_constraint.c
-    core/src/layer4_reasoning/expr/rational.c
     core/src/layer4_reasoning/expr/expr_canon.c
     core/src/layer4_reasoning/exact_arithmetic.c
     # v1.1.0 新增：表达式规范化、不等式推理
@@ -1086,17 +1102,8 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/kernel/mini_kernel.c
     core/src/layer4_reasoning/kernel/gc_language.c
     core/src/layer4_reasoning/kernel/ecosystem.c
-    core/src/layer4_reasoning/stream/stream.c
-    core/src/layer4_reasoning/stream/stream_async.c
-    core/src/layer4_reasoning/stream/stream_buffer.c
-    core/src/layer4_reasoning/stream/stream_context.c
+    # 流式基础设施（自 L4 下沉：仅依赖 L2，L1/L2/L3 均消费）
     core/src/layer4_reasoning/stream/stream_context_util.c
-    core/src/layer4_reasoning/stream/stream_emit.c
-    core/src/layer4_reasoning/stream/stream_filter.c
-    core/src/layer4_reasoning/stream/stream_json.c
-    core/src/layer4_reasoning/stream/stream_lazy.c
-    core/src/layer4_reasoning/stream/stream_stats.c
-    core/src/layer4_reasoning/stream/stream_utils.c
     # SMT/SAT 后端（从 Layer 3 迁移）
     core/src/layer4_reasoning/backends/smt_theory_combiner.c
     core/src/layer4_reasoning/backends/smt_bitvector.c
@@ -1117,8 +1124,6 @@ set(lv_LAYER4_SOURCES
     # ODE 求解器（从 Layer 3 迁移）
     core/src/layer4_reasoning/numeric/ode_solver.c
     core/src/layer4_reasoning/numeric/ode_integrator.c
-    # 位数熔断系统
-    core/src/layer4_reasoning/numeric/bit_burning.c
     # v1.1.0 新增：不等式推理系统（桩实现）
     core/src/layer4_reasoning/type_logic/inequality_reasoning.c
     core/src/layer4_reasoning/type_logic/inequality_reasoning_core.c
@@ -1455,7 +1460,8 @@ set(lv_LAYER8_HEADERS
 )
 add_library(lv_layer8_meta_verify OBJECT ${lv_LAYER8_SOURCES} ${lv_LAYER8_HEADERS})
 lv_setup_layer(lv_layer8_meta_verify 8)
-target_link_libraries(lv_layer8_meta_verify lv_layer6_visual)
+# 注：原 lv_layer6_visual 链接为历史遗留——meta_verify.c 仅消费 L2/L3/L4
+# 符号（lv_strbuf/lv_graph_traversal lv_bfs_run/proof.h 类型），无 L6 依赖。
 
 # ── Layer 9: 应用入口层 (Application Layer) ──
 # 注: application.c / application.h 已随死代码清理移除，本层暂无内容。

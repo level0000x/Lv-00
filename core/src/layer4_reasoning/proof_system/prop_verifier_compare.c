@@ -17,7 +17,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
+#include "lv/stream.h"
 
 /* ============================================================
  * 公式比较（用于记忆化和前提匹配）

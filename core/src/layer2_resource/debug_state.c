@@ -17,7 +17,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "lv/engine.h"
 #include "lv/lv_json.h"
 
 #include "lv/context.h"
@@ -25,8 +24,6 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv/stream_context_util.h"
-#include "lv/type_system.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
 #include "debug_internal.h"
@@ -310,98 +307,3 @@ void debug_context_destroy(DebugContext *ctx) {
     lv_free((void **) &ctx);
 }
 
-/*=== 端口不变量断言 ===*/
-
-int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx) {
-    if (!ctx || !ctx->port_invariant_checks)
-        return 0;
-    if (!engine || !engine->main_graph)
-        return 0;
-
-    int violations = 0;
-    ConstraintGraph *graph = engine->main_graph;
-
-    for (int i = 0; i < graph->node_count; i++) {
-        GeomNode *node = graph->nodes[i];
-        if (node->type == GEOM_PORT) {
-            Port *port = node->data.port;
-            if (port->is_formal_param && port->parent_block_id < 0) {
-                LOG_ERROR("port", "Node %d: Port is marked as formal param but has invalid parent_block_id (%d)",
-                          node->id, port->parent_block_id);
-                lv_set_error(lv_ERROR_INVALID_STATE,
-                             "[PORT INVARIANT VIOLATION] Node %d: Port is marked as formal param but has invalid "
-                             "parent_block_id (%d)",
-                             node->id, port->parent_block_id);
-                violations++;
-                /* 在 release 构建中不应该 abort，而是使用 lv_set_error
-                 * 记录错误后返回当前的 violations 计数。 */
-                if (ctx->abort_on_violation) {
-                    return violations;
-                }
-            }
-            if (port->namespace_depth < 0) {
-                LOG_ERROR("port", "Node %d: Port has negative namespace_depth (%d)", node->id, port->namespace_depth);
-                lv_set_error(lv_ERROR_INVALID_STATE,
-                             "[PORT INVARIANT VIOLATION] Node %d: Port has negative namespace_depth (%d)", node->id,
-                             port->namespace_depth);
-                violations++;
-                /* 在 release 构建中不应该 abort，而是使用 lv_set_error
-                 * 记录错误后返回当前的 violations 计数。 */
-                if (ctx->abort_on_violation) {
-                    return violations;
-                }
-            }
-        }
-        if (node->type == GEOM_FUNCTION_BLOCK) {
-            for (int j = 0; j < node->data.func_block.input_count; j++) {
-                int port_id = node->data.func_block.input_port_ids[j];
-                GeomNode *port_node = graph_get_node(graph, port_id);
-                if (port_node && port_node->type == GEOM_PORT) {
-                    Port *p = port_node->data.port;
-                    if (p->parent_block_id != node->id || !p->is_formal_param) {
-                        LOG_ERROR("port",
-                                  "Function block %d input port %d: parent_block_id mismatch (expected %d, got %d) or "
-                                  "is_formal_param is false",
-                                  node->id, port_id, node->id, p->parent_block_id);
-                        lv_set_error(lv_ERROR_INVALID_STATE,
-                                     "[PORT INVARIANT VIOLATION] Function block %d input port %d: parent_block_id "
-                                     "mismatch (expected %d, got %d) or is_formal_param is false",
-                                     node->id, port_id, node->id, p->parent_block_id);
-                        violations++;
-                        /* 在 release 构建中不应该 abort，而是使用 lv_set_error
-                         * 记录错误后返回当前的 violations 计数。 */
-                        if (ctx->abort_on_violation) {
-                            return violations;
-                        }
-                    }
-                }
-            }
-            for (int j = 0; j < node->data.func_block.output_count; j++) {
-                int port_id = node->data.func_block.output_port_ids[j];
-                GeomNode *port_node = graph_get_node(graph, port_id);
-                if (port_node && port_node->type == GEOM_PORT) {
-                    Port *p = port_node->data.port;
-                    if (p->parent_block_id != node->id || p->is_formal_param) {
-                        LOG_ERROR("port",
-                                  "Function block %d output port %d: parent_block_id mismatch (expected %d, got %d) or "
-                                  "is_formal_param is true",
-                                  node->id, port_id, node->id, p->parent_block_id);
-                        lv_set_error(lv_ERROR_INVALID_STATE,
-                                     "[PORT INVARIANT VIOLATION] Function block %d output port %d: parent_block_id "
-                                     "mismatch (expected %d, got %d) or is_formal_param is true",
-                                     node->id, port_id, node->id, p->parent_block_id);
-                        violations++;
-                        /* 在 release 构建中不应该 abort，而是使用 lv_set_error
-                         * 记录错误后返回当前的 violations 计数。 */
-                        if (ctx->abort_on_violation) {
-                            return violations;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    ctx->violation_count += violations;
-    return violations;
-}

@@ -1776,3 +1776,47 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - lv_impl_upper_* 留 lv_core / P2-① / lv_core（L0） / 跨 19-26 头依赖归位即成反向依赖 / 全量回归。
 - include 路径统一 / P2-② / 448 文件 1665 行 / src 本地 *_internal.h 豁免 / 全量回归。
 - 登记待修（下一轮，承接「二十四」）：L3→L4 反向环、L8→L5/L8→L6、剩余 ~40 处层间违规（layer_validation 启用前置）。
+
+## 二十六、批次 C：层间违规系统性修复（2026-08-14）
+
+用户指令「继续顺便再研究一下架构优化」。完成登记待修的 3 项 + 全量违规扫描（144 处）后系统性修复，并接线复用 debug 验证设施。
+
+### 三项待修落地
+
+- **L3→L4 反向环（rational）**：`lv_rational.c`（原 layer4_reasoning/expr/rational.c）git mv → layer3_geometry/symbolics/。实现仅依赖 GMP + lv_utils（L2 级），消费方 L3（rational.c/lv_number.c）+ L4（expr_canon.c）均合法。
+- **L8→L5（lvProofObject）**：`lvProofStepRecord`/`struct lvProofObject` 定义自 proof_compiler.h（L5）迁入 proof.h（L4 域）；proof_compiler.h 保留前向声明；meta_verify.c 删 proof_compiler.h include。L5 proof_compiler.c 与 L8 meta_verify 均经 proof.h 获得。
+- **L8→L6 链接**：移除 `target_link_libraries(lv_layer8_meta_verify lv_layer6_visual)`（历史遗留，meta_verify 仅消费 L2/L3/L4 符号）。
+
+### 全量违规扫描（只读子代理，144 处：L1=30/L2=53/L3=52/L4=9）
+
+热点：stream.h+stream_context_util.h 合计 70 处（48.6%）被 L1/L2/L3 越层消费；lexer_shared（L1 归属）被 L4 消费 8 处。
+
+### 系统性修复（本轮消除 90+ 处）
+
+- **stream 核心 10 文件 → L2**（layer2_resource/stream/）：stream.c/async/buffer/context/emit/filter/json/lazy/stats/utils + stream_internal.h。stream.c 仅依赖 L2 头。`LV_STREAM_CTX_DECLARE/DEFINE` 宏 + `StreamContextSetter` typedef + register_setter/emit_fmt 声明并入 stream.h（L2）；93 个文件 include 迁移至 stream.h；**stream_context_util.c 留 L4**（跨层 setter 注册器），其 interop.h（L5）引用改本地前向声明（消解 L4→L5）。
+- **stream_context_util.h 按用户决策保留为兼容遗留头**（内容已并入 stream.h，文件恢复 + 加回 CMake 清单）。
+- **lexer_shared → L2**（被 L1 与 L4 module/axiom_pkg 消费，8 处消除）。
+- **bit_burning → L3**（依赖 graph_node_internal.h/ConstraintGraph 内部，L3 坐标位数保护，5 处消除）。
+- **geometric_primitives → L4**（geo_prove/geo_export 依赖 L4 proof/rewrite/unify，整体错放，6 处消除）。
+
+### debug 家族清理 + 接线复用（用户决策：保留 + 接线复用）
+
+- **7 个冗余 include 文件**（debug.c/emergency/refcount/ringbuf/trace_session/log_ctx/mempool）：删 `engine.h`/`type_system.h`/重复 stream.h（零使用，-14 处）。
+- **debug_assert_port_invariants 自 debug_state.c 移入 debug_normalize_assert.c**；debug_state.c 删 engine.h/type_system.h（-2 处）。
+- **debug_normalize_assert.c + debug_invariants.c → L4**（引擎状态验证器，依赖 lvEngine/TypeSystem，debug_internal.h 改 `layer2_resource/` 前缀 include；-4 处）。
+- **接线**：engine_solve.c 归一化后 `if (debug_is_debug_mode())` 调用两个断言（栈上 DebugContext，仅调试开销）；test_func_block.c 新增 `test_debug_port_invariants` 激活 debug_check_port_invariants（空图 all_valid + 伪造 connected_to 检出违规）。
+
+### 批次 C 执行结果
+
+**验证**：ninja 922/922 + ctest 170/170 全绿（61.95s）。
+
+### 决策登记（第 9 章格式）
+
+- rational 归位 L3 / 批次C-① / lv_rational.c + CMake / 仅 GMP+lv_utils / L4 依赖 L3 合法 / 全量回归。
+- lvProofObject 迁 proof.h / 批次C-② / proof.h + proof_compiler.h + meta_verify.c / L8 依赖表不含 L5 / meta_verify + proof_compiler 测试。
+- L8→L6 链接移除 / 批次C-③ / CMake / meta_verify 无 L6 符号 / 全量回归。
+- stream 核心下沉 L2 / 批次C-④ / 10 .c + stream.h 宏并入 / 被 L1/L2/L3 大面积消费 / stream 相关测试。
+- stream_context_util.h 保留兼容头 / 批次C-④ / 文件恢复 + CMake / 内容已并入 stream.h / 用户决策。
+- lexer_shared 下沉 L2 / bit_burning 归 L3 / geometric_primitives 归 L4 / 批次C-⑤ / CMake 迁移 / 各按真实消费面 / 全量回归。
+- debug 家族清理 + 接线复用 / 批次C-⑥ / 7 文件删冗余 include + 2 验证器归 L4 + engine_solve 接线 + test_func_block 测试 / 用户决策「保留+接线复用」/ func_block + engine 测试。
+- 登记待修（下一批）：剩余 ~55 处——L1 dsl_compiler 系（constraint_graph/symbolic_coord/axiom_pkg 9 处）+ formula_curve/eval/string（5 处）；L2 context.c（circuit_breaker/constraint_graph/normalization 3 处）+ lv_storage/lv_serialize_adapters/node_deep_copy（constraint_graph 3 处）+ meta_repr（constraint_graph/func_block 2 处）+ simd_ops（geo_utils 1）+ adaptive_threshold（lv_graph_traversal 1）；L3 constraint_graph 系 solver.h（7 处）+ graph_index type_system（1）+ geom_evol（ode_integrator/numerical_backend 2）+ interactive_geo（engine.h 1）。

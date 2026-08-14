@@ -13,6 +13,7 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -791,6 +792,41 @@ static void test_port_dependency(void) {
 }
 
 /* ============== 娴嬭瘯锛氳緟鍔╁嚱鏁?============== */
+
+static void test_debug_port_invariants(void) {
+    printf("Test: debug_check_port_invariants wiring...\n");
+
+    /* 空图：无端口 → all_valid 通过 */
+    ConstraintGraph *g = graph_create();
+    lv_ASSERT_NOT_NULL(g);
+    PortInvariantResult *r = debug_check_port_invariants(g);
+    lv_ASSERT_NOT_NULL(r);
+    lv_ASSERT(r->all_valid);
+    lv_ASSERT(r->total_ports == 0);
+    debug_port_invariant_result_destroy(r);
+    graph_destroy(g);
+
+    /* 违规场景：端口 connected_to 指向图中不存在的节点 → 应检出违规 */
+    ConstraintGraph *g2 = graph_create();
+    lv_ASSERT_NOT_NULL(g2);
+    AddNodeResult ar = graph_add_port(g2, PORT_INPUT, 0, -1);
+    lv_ASSERT(ar == ADD_NODE_OK);
+    int pid = g2->next_node_id - 1;
+    GeomNode *pn = g2->nodes[pid];
+    lv_ASSERT_NOT_NULL(pn);
+    lv_ASSERT(pn->type == GEOM_PORT);
+    if (pn->data.port) {
+        pn->data.port->connected_to = (GeomNode *) (uintptr_t) 1; /* 伪造：图中不存在 */
+    }
+    PortInvariantResult *r2 = debug_check_port_invariants(g2);
+    lv_ASSERT_NOT_NULL(r2);
+    lv_ASSERT(!r2->all_valid);
+    lv_ASSERT(r2->invalid_ports >= 1);
+    debug_port_invariant_result_destroy(r2);
+    graph_destroy(g2);
+
+    printf("  PASSED\n");
+}
 
 static void test_helper_functions(void) {
     printf("Test: helper functions...\n");
@@ -1624,6 +1660,7 @@ TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
     /* 绔彛渚濊禆娴嬭瘯 */
     TEST_MAIN_RUN(test_port_dependency);
     /* 杈呭姪鍑芥暟娴嬭瘯 */
+    TEST_MAIN_RUN(test_debug_port_invariants);
     TEST_MAIN_RUN(test_helper_functions);
     /* 澧炲己鐗堢‘瀹氭€ф鏌ユ祴璇?*/
     TEST_MAIN_RUN(test_determinism_check_static_enhanced);
