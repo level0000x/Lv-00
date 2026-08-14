@@ -13,7 +13,6 @@
 #include "lv/status_codes.h"
 
 #include "lv/error_codes.h"
-#include "lv/lv.h"
 
 #include <limits.h>
 #include <string.h>

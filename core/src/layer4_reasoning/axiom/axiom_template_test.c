@@ -19,7 +19,6 @@
 
 #include "lv/axiom_pkg.h"
 #include "lv/constraint_graph.h"
-#include "lv/lv.h"
 #include "lv/lv_lifecycle.h"
 
 #include "lv/debug.h"

@@ -9,7 +9,6 @@
  */
 
 #include "lv/groebner_engine.h"
-#include "lv/lv.h"
 #include "groebner_engine_internal.h"
 
 #include <float.h>

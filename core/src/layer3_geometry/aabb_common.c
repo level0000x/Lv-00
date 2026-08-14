@@ -11,7 +11,6 @@
  * @version v3.6.0
  */
 
-#include "lv/lv.h"
 #include "lv/geo_aabb_tree.h"
 #include "aabb_internal.h"
 

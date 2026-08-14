@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_error.h"
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"

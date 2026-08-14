@@ -39,7 +39,6 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv/lv.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 

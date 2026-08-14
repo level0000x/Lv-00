@@ -16,7 +16,7 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 
-#include "lv/lv.h"
+#include "lv/stream.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"

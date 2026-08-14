@@ -21,7 +21,6 @@
 #include <time.h>
 
 #include "lv/error_codes.h"
-#include "lv/lv.h"
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
 

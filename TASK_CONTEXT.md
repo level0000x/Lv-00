@@ -2197,3 +2197,57 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 ### 后续候选（暂缓）
 
 拆分后 >800 行文件复查（预计已无）、L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选）。
+
+## 三十四、批次 C-⑭：架构激进优化——链接治理/死代码/门面收敛/再拆分（2026-08-14）
+
+用户「可以研究一下架构的激进优化」→ 研究子代理产出 A-E 五方面审计（拆分潜力 28 个 >1100 行文件、L10→L8 死链接实证、L8/L1 缺链、门面 hub 治理点、双 Groebner 收敛等）→ AskUserQuestion 选定「全部按优先级完整执行」。执行顺序：低风险架构修正 → 高价值文件拆分 → 门面收敛。
+
+### 阶段 1：链接/依赖治理（低风险，先行）
+
+- **L10→L8 死链接删除**：CMakeLists L1606 `target_link_libraries(lv_layer10_interop lv_layer8_meta_verify)` 双向零引用实证（L10 三文件无 meta_verify.h、meta_verify 消费方全在 L0），删除。
+- **L8 缺链补全**：lv_layer8_meta_verify 原无任何 target_link_libraries（实际消费 L3 的 lv_bfs_run + L4 的 proof 类型）→ 补 `lv_layer3_geometry ${lv_L4_LIBS} lv_layer2_resource`。
+- **L1 缺链补全**：lv_loader.c 实际使用 engine（L4）与 constraint_graph（L3）符号但 L1 只链 L2 → 补链（lv_L4_LIBS 定义在 L1505 晚于 L1 目标 L1460，补链必须置于 set 之后；**教训：CMake 变量引用前须已定义、target_link_libraries 目标须已创建**）。
+- **lv_loader 越权处置**：lv_loader.h 去 `#include "engine.h"` 改 `typedef struct lvEngine lvEngine;` 前向声明；engine_lifecycle.c 新增 `engine_get_main_graph` 访问器（声明入 lv.h 与 engine.h，遵循 engine.h「外部代码用访问器而非直访字段」约定）；lv_loader.c 8 处 `engine->main_graph` 字段直访替换 + 删除 L3 constraint_graph.h 直接 include（经 lv.h 门面传递）。L1 残留门面依赖（lv_add_point 仅在 lv.h 声明）在阶段 3 保留。
+
+### 阶段 2：死代码裁决
+
+- **msgpack 定性：活代码**——module_save_to_binary/module_load_from_binary 有 test_module_serialize_unify.c 真实消费，保留（研究报告"疑似未接入"被实证否定）。
+- **死代码三件套删除**：proof_score.c/.h、proof_priority.c/.h、preset_helper_cn.c（全库零外部引用）→ 删 .c + .h + CMakeLists 5 条；保留文档型 math_theory_guide_cn.c/.h。
+
+### 阶段 3：巨型文件再拆分（4 个，同 C-⑬ 模式：banner 分区 + 跨簇静态去 static + internal 头 + CMakeLists 复核）
+
+| 原文件 | 拆分后 | 共享声明 |
+|---|---|---|
+| graph_node_alloc.c（1648→295 行） | graph_node_vtable.c（1106）/copy.c（239）/emit.c（130） | graph_node_internal.h 补 node_alloc_internal |
+| lv_graph_traversal.c（1646→195 行） | graph_traversal_dfs.c（642）/tree.c（177）/bfs.c（492）/util.c（255）+ graph_traversal_internal.h（8 个去 static） | **DFSFrame/BFSQueue typedef 随使用方移入 dfs.c** |
+| quantifier.c（1399→427 行） | quantifier_expr.c（273）/inst.c（343）/elim.c（434）+ quantifier_internal.h（3 函数 + kQuantBodyPropDestroyFields） | RESULT_NAME_BUF_SIZE 宏入 internal 头 |
+| formula_dsl.c（1657→30 行壳） | formula_dsl_lex.c（407）/parse.c（1283）+ formula_dsl_internal.h（is_dsl_keyword） | 公共 API 由两子模块实现 |
+
+- 每拆验证：ninja 全绿（948→957 目标随拆分递增）+ ctest 171/171。
+
+### 阶段 4：门面 hub 收敛（内部去 lv.h 引用）
+
+- lv.h 过时架构注释修正（"严格五层"→ 十层单向依赖，含 L0/L6-L10）。
+- **头声明归位（不删 lv.h 原声明，仅增子头声明，C 重复声明合法）**：config.h 补 `lv_config_get_int/get_bool/get_double/get_string` 4 个通用 getter（实现于 lv.c）；engine.h 补 `engine_get_main_graph`。
+- **78 个内部文件删除 `#include "lv/lv.h"`**（原 84 个 − 保留 6 个 − 恢复 1 个）：
+  - 特殊 4 文件补子头：stream_internal.h（+stream.h）、aabb_tree_impl.h（+lv_utils.h）、engine_lifecycle.c（+rewrite.h，实测缺 rewrite_rule_destroy）、meta_verify.c（纯删）
+  - 5 文件按编译错补子头：meta_repr.c（+proof.h/type_system.h）、proof_contradiction.c（+type_system.h）、bootstrap_test_oracle.c（+normalization.h）、groebner_engine.c（+debug.h）
+  - **恢复 1 个**：bootstrap_test_init.c（用 lv_init/lv_cleanup，仅 lv.h 声明）
+  - 保留 6 个：lv.c、lv_impl_upper_app.c、lv_loader.c、lv_protocol.c、lv_utils_misc.c、command_log.c（依赖 lv.h 独有符号：lv_add_point/lv_get_system_info/版本宏等）
+- 最终 lv.h include 保留 7 个，编译面收敛完成。
+
+### C-⑭ 执行结果
+
+- build3：956/956 全绿 + ctest **171/171**（阶段 1-4 每步验证无回归）。
+- 头文件新增声明 2 处（config.h/engine.h），公共 API 未删除；新增访问器 1 个（engine_get_main_graph）。
+
+### 决策登记（第 9 章格式）
+
+- 架构激进优化 / 批次C-⑭ / 链接治理+死代码裁决+门面收敛+4 文件拆分 / 用户选定「全部按优先级完整执行」/ 全量回归 171/171。
+- 死代码裁决 / 批次C-⑭ / proof_score/proof_priority/preset_helper_cn 零引用删除；msgpack 有测试消费保留；math_theory_guide_cn 文档型保留 / 已实施。
+- lv.h 门面保留边界 / 批次C-⑭ / 仅 L0 协调者 + 依赖 lv.h 独有符号的 6 文件保留；子头补声明（config.h/engine.h）供内部直连 / 已实施。
+- 版本宏归属（lv_VERSION_*）/ 批次C-⑭ / 仍留 lv.h（lv_utils_misc.c 保留门面）；debug.h 3.3.0 兜底与 lv.h 1.1.0 不一致隐患已登记未动（避免范围扩张） / 暂缓。
+
+### 后续候选（暂缓）
+
+双 Groebner 引擎族收敛（E-1，拆分前奏）、表达式解析器词法层收敛（E-2）、cuda/hip 先收敛后拆分（A-2，有效编译仅 ~15 行）、>1100 行剩余文件复查（solver_core/normalization 已知不拆、lambda_unify/relation_model 建议留）、版本宏权威源统一（debug.h 3.3.0 兜底）。

@@ -625,6 +625,13 @@ LV_CONFIG_DOUBLE_KEYS(LV_CONFIG_DECL_SET)
 bool lv_config_set_int(const char *key, int val);
 bool lv_config_set_double(const char *key, double val);
 
+/* ---- 通用 key-value getter（实现于 lv.c；供内部文件脱离 lv.h 门面直连，
+ *     与 lv.h 中 lv_PUBLIC_API 声明同签名并存，C 重复声明合法） ---- */
+int lv_config_get_int(const char *key, int default_val);
+bool lv_config_get_bool(const char *key, bool default_val);
+double lv_config_get_double(const char *key, double default_val);
+const char *lv_config_get_string(const char *key, const char *default_val);
+
 /* ---- 重置 ---- */
 void lv_config_reset(void);
 

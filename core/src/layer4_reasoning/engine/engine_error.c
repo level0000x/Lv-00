@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_error.h"
 #include "lv/lv_log.h"
 

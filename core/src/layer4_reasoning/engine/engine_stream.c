@@ -12,7 +12,6 @@
 
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/stream.h"
 
 #include "lv/stream.h"

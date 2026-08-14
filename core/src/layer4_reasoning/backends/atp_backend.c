@@ -43,7 +43,6 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_thread.h"
-#include "lv/lv.h" /* lv_config_get_int / lv_config_get_double 字符串键桥接声明 */
 
 #include "lv/error_codes.h"
 #include "lv/lv_internal.h"

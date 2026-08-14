@@ -17,7 +17,6 @@
 
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
-#include "lv/lv.h"
 
 /**
  * Verify completeness: check that constraint graph has no unconstrained

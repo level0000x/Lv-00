@@ -22,7 +22,6 @@
 #include "lv/constraint_graph.h"
 #include "lv/engine_scheduler.h"
 #include "lv/lambda_to_graph.h"
-#include "lv/lv.h"
 #include "lv/lv_config.h"
 #include "lv/normalization.h"
 #include "lv/rewrite.h"

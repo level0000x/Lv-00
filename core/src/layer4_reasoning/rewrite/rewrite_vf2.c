@@ -28,7 +28,6 @@
 uint32_t compute_graph_hash(ConstraintGraph *graph);
 
 /* 聚合公共 API 头 */
-#include "lv/lv.h"
 
 /* ===========================================================================
  * VF2 子图同构匹配算法

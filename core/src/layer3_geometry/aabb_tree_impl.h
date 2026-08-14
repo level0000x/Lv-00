@@ -28,7 +28,7 @@
  *   AABB_LEAF_MULTI     - 是否支持多面片叶子（1 或 0）
  */
 
-#include "lv/lv.h"
+#include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
 

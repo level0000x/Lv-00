@@ -22,7 +22,6 @@
 #include "lv/constraint_graph.h"
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
-#include "lv/lv.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/proof_trace.h"

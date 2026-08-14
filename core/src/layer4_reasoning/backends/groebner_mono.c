@@ -9,7 +9,6 @@
 
 #include "groebner_engine_internal.h"
 
-#include "lv/lv.h"
 #include "lv/lv_xmacro.h"
 
 #include <math.h>

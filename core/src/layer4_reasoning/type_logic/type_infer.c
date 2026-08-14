@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_xmacro.h"
 #include "lv/stream.h"
 

@@ -54,12 +54,17 @@
  *
  * @section architecture_sec 架构
  *
- * Lv-00 采用严格的五层单向依赖架构:
+ * Lv-00 采用严格的十层单向依赖架构（v3.3.0 起，由原五层扩展）:
+ *   - 第0层: 核心便利层 (Core，不依赖任何上层)
  *   - 第1层: 输入解析层 (Parser)
  *   - 第2层: 资源管理层 (Resource)
  *   - 第3层: 几何拓扑层 (Geometry)
- *   - 第4层: 公理推理层 (Reasoning)
+ *   - 第4层: 公理推理层 (Reasoning，按子域拆分为独立 OBJECT 库)
  *   - 第5层: 结果输出层 (Output)
+ *   - 第6层: 可视化层 (Visual)
+ *   - 第7层: 编排调度层 (Orchestration)
+ *   - 第8层: 元验证层 (Meta-Verification)
+ *   - 第10层: 外部集成层 (Interop)
  *
  * 详见 docs/ARCHITECTURE_v3.3.md
  *
@@ -476,6 +481,16 @@ lv_PUBLIC_API void lv_engine_destroy(lvEngine *engine);
  * @endcode
  */
 lv_PUBLIC_API int lv_add_point(lvEngine *engine, int64_t x_num, uint64_t x_den, int64_t y_num, uint64_t y_den);
+
+/**
+ * @brief 获取引擎主约束图（访问器）
+ * @param engine 引擎实例（可为 NULL，返回 NULL）
+ * @return 主约束图指针；engine 为 NULL 时返回 NULL
+ *
+ * @note 供跨域代码读取引擎主图，避免直访 lvEngine 字段
+ *       （engine.h 约定外部代码使用访问器而非直访字段）。
+ */
+lv_PUBLIC_API ConstraintGraph *engine_get_main_graph(const lvEngine *engine);
 
 /**
  * @brief 添加整数坐标点（便捷函数）

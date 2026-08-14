@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/stream.h"
 
 #include "lv/lv_internal.h"

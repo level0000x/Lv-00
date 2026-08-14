@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_file.h"
 #include "lv/lv_numeric.h"

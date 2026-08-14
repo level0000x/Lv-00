@@ -31,12 +31,12 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv/lv.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
 #include "lv/geo_utils.h"
 #include "lv/error_codes.h"
+#include "lv/debug.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 

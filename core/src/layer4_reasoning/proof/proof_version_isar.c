@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
-#include "lv/lv.h"
 #include "lv/proof.h"
 #include "lv/smt_backend.h"
 #include "lv/thread_pool.h"

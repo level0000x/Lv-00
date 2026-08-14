@@ -13,7 +13,6 @@
 #include "lv/config.h"
 
 #include "lv/adaptive_threshold.h"
-#include "lv/lv.h"
 #include "lv/lv_graph_traversal.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_check.h"

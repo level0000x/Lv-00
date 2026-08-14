@@ -4,7 +4,8 @@
 #include "lv/lv_parser.h"
 #include "lv/lv_sema.h"
 
-#include "engine.h"
+/* 前向声明：本头仅以指针使用 lvEngine，不引入 engine.h（L4）依赖 */
+typedef struct lvEngine lvEngine;
 
 #ifdef __cplusplus
 extern "C" {

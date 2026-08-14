@@ -10,7 +10,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lambda_to_graph.h"
-#include "lv/lv.h"
 #include "lv/rewrite.h"
 #include "lv/lv_xmacro.h"
 

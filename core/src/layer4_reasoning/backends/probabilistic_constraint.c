@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_internal.h" /* lv_LOG_WARNING 等统一日志宏 */
 #include "lv/lv_graph_traversal.h"
 #include "lv/config.h"

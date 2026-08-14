@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_utils.h"
 

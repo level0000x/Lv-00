@@ -16,7 +16,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/func_block.h"
-#include "lv/lv.h"
 #include "lv/unify.h"
 
 #include "lv/debug.h"

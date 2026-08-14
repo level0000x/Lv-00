@@ -27,6 +27,10 @@ void graph_fmt_error_to(char *dst, size_t cap, const char *fmt, va_list args);
 /* graph_node_alloc.c 实现，供 conflict/stub 模块共享 */
 GeomNode *graph_alloc_node(ConstraintGraph *graph, GeomType type);
 
+/* graph_node_alloc.c 实现，供 copy 模块深拷贝复用（原 static，C-⑭ 去 static） */
+GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, bool with_id,
+                              SymbolicCoord **coords, int coord_count);
+
 /* 根据 GeomType 获取对应的 vtable 指针 */
 const GeomNodeVTable *get_vtable_for_type(GeomType type);
 

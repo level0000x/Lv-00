@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "lv/axiom_pkg.h"
-#include "lv/lv.h"
 #include "lv/lv_path.h"
 #include "lv/module.h"
 

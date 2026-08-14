@@ -544,8 +544,6 @@ set(lv_HEADERS
     core/include/lv/geo_spec.h
     core/include/lv/logic_check.h
     core/include/lv/math_input.h
-    core/include/lv/proof_priority.h
-    core/include/lv/proof_score.h
     core/include/lv/sparse_linear_algebra.h
     core/include/lv/status_codes.h
     core/include/lv/tikz_export.h
@@ -724,13 +722,10 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/global_state.c
     core/src/layer2_resource/geometry_config.c
     core/src/layer2_resource/debug_trace.c
-    core/src/layer2_resource/preset_helper_cn.c
     core/src/layer2_resource/math_theory_guide_cn.c
     # v3.5.0 stub→real: 8 new resource modules
     core/src/layer2_resource/fast_index.c
     # geo_spec.c / math_input.c 与上层重复，规范实现位于 layer3_geometry / layer1_parser
-    core/src/layer2_resource/proof_priority.c
-    core/src/layer2_resource/proof_score.c
     core/src/layer2_resource/status_codes.c
     # v1.1.0 补全遗漏：运行时守卫、性能分析、表示转换、自适应阈值、元表示
     core/src/layer2_resource/runtime_guard.c
@@ -829,6 +824,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/formula/formula_renderer_html.c
     core/src/layer3_geometry/formula/parser/formula_ast.c
     core/src/layer3_geometry/formula/parser/formula_dsl.c
+    core/src/layer3_geometry/formula/parser/formula_dsl_lex.c
+    core/src/layer3_geometry/formula/parser/formula_dsl_parse.c
     core/src/layer3_geometry/formula/parser/formula_latex.c
     core/src/layer3_geometry/formula/parser/formula_python.c
     # 深拷贝（GeomNode 域）与自适应阈值（图遍历域）自 L2 迁入
@@ -943,6 +940,9 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_memory.c
     core/src/layer3_geometry/constraint_graph/graph_node.c
     core/src/layer3_geometry/constraint_graph/graph_node_alloc.c
+    core/src/layer3_geometry/constraint_graph/graph_node_copy.c
+    core/src/layer3_geometry/constraint_graph/graph_node_emit.c
+    core/src/layer3_geometry/constraint_graph/graph_node_vtable.c
     core/src/layer3_geometry/constraint_graph/graph_node_hash.c
     core/src/layer3_geometry/constraint_graph/graph_node_conflict.c
     core/src/layer3_geometry/constraint_graph/graph_node_stub.c
@@ -951,6 +951,10 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_dot_export.c
     # 图/树遍历抽象层实现
     core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
+    core/src/layer3_geometry/constraint_graph/graph_traversal_bfs.c
+    core/src/layer3_geometry/constraint_graph/graph_traversal_dfs.c
+    core/src/layer3_geometry/constraint_graph/graph_traversal_tree.c
+    core/src/layer3_geometry/constraint_graph/graph_traversal_util.c
     # 符号计算子模块：代数、二次、有理、坐标运算、超越函数
     core/src/layer3_geometry/symbolics/algebraic.c
     core/src/layer3_geometry/symbolics/quadratic.c
@@ -1329,6 +1333,9 @@ set(lv_L4_TYPE_LOGIC_SOURCES
     core/src/layer4_reasoning/type_logic/three_valued_logic.c
     core/src/layer4_reasoning/type_logic/modal_operators.c
     core/src/layer4_reasoning/type_logic/quantifier.c
+    core/src/layer4_reasoning/type_logic/quantifier_elim.c
+    core/src/layer4_reasoning/type_logic/quantifier_expr.c
+    core/src/layer4_reasoning/type_logic/quantifier_inst.c
     core/src/layer4_reasoning/type_logic/type_system.c
     core/src/layer4_reasoning/type_logic/type_check.c
     core/src/layer4_reasoning/type_logic/type_infer.c
@@ -1509,6 +1516,9 @@ set(lv_L4_LIBS
     lv_l4_solver lv_l4_stream lv_l4_type_logic lv_l4_unify
 )
 
+# Layer 1 补链：lv_loader.c 消费 engine（L4）与 constraint_graph（L3）符号（C-⑭）
+target_link_libraries(lv_layer1_parser lv_layer3_geometry ${lv_L4_LIBS})
+
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer5_output 5)
@@ -1586,6 +1596,7 @@ set(lv_LAYER8_HEADERS
 )
 add_library(lv_layer8_meta_verify OBJECT ${lv_LAYER8_SOURCES} ${lv_LAYER8_HEADERS})
 lv_setup_layer(lv_layer8_meta_verify 8)
+target_link_libraries(lv_layer8_meta_verify lv_layer3_geometry ${lv_L4_LIBS} lv_layer2_resource)
 # 注：原 lv_layer6_visual 链接为历史遗留——meta_verify.c 仅消费 L2/L3/L4
 # 符号（lv_strbuf/lv_graph_traversal lv_bfs_run/proof.h 类型），无 L6 依赖。
 
@@ -1603,7 +1614,6 @@ set(lv_LAYER10_HEADERS
 )
 add_library(lv_layer10_interop OBJECT ${lv_LAYER10_SOURCES} ${lv_LAYER10_HEADERS})
 lv_setup_layer(lv_layer10_interop 10)
-target_link_libraries(lv_layer10_interop lv_layer8_meta_verify)
 
 # ── 聚合静态库（向后兼容 lv_static）──
 # 将所有层的 OBJECT 文件聚合到一个静态库中

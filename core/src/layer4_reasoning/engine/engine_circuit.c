@@ -15,7 +15,6 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "lv/lv.h"
 #include "lv/lv_config.h"
 #include "lv/lv_internal.h" /* lv_LOG_WARNING */
 #include "lv/symbolic_coord.h"

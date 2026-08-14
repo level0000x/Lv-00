@@ -35,7 +35,6 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
-#include "lv/lv.h"
 #include "lv/rational.h"
 #include "lv/symbolic_coord.h"
 

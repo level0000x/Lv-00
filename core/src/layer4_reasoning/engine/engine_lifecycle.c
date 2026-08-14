@@ -15,8 +15,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/rewrite.h"
 #include "lv/stream.h"
 
 #include "lv/debug.h"
@@ -153,4 +153,17 @@ void engine_destroy(lvEngine *engine) {
     lv_obj_destroy_fields(engine, s_engine_destroy_fields,
                           sizeof(s_engine_destroy_fields) / sizeof(s_engine_destroy_fields[0]));
     lv_free((void **) &engine);
+}
+
+/**
+ * @brief 获取引擎主约束图（访问器）
+ *
+ * 供 loader 等外部域读取引擎主图，遵循 engine.h「外部代码使用访问器
+ * 而非直访字段」的约定（lv_loader.c 曾直访 engine->main_graph）。
+ *
+ * @param engine 引擎实例（可为 NULL，返回 NULL）
+ * @return 主约束图指针；engine 为 NULL 时返回 NULL
+ */
+ConstraintGraph *engine_get_main_graph(const lvEngine *engine) {
+    return engine ? engine->main_graph : NULL;
 }

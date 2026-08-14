@@ -22,7 +22,6 @@
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
 #include "lv/groebner_engine.h"
-#include "lv/lv.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_internal.h"

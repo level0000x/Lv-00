@@ -14,7 +14,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/engine.h"
-#include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_str_utils.h"

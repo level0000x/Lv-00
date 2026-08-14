@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
-#include "lv/lv.h"
 
 /** @brief 创建引擎状态冻结点 @details 保存当前引擎状态，用于后续回滚。 @param engine 引擎实例 @return 冻结点句柄，失败返回 NULL */
 void *engine_create_frozen_point(lvEngine *engine) {

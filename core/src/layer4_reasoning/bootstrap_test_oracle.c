@@ -22,9 +22,9 @@
 #include "lv/constraint_graph.h"
 #include "lv/cross_platform.h"
 #include "lv/engine.h"
-#include "lv/lv.h"
 #include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
+#include "lv/normalization.h"
 #include "lv/proof_trace.h"
 #include "lv/lv_internal.h"
 

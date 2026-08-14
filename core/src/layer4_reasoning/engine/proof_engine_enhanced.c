@@ -60,7 +60,6 @@
 
 #include "lv/axiom_rule_engine.h"
 #include "lv/error_codes.h"
-#include "lv/lv.h" /* lv_THREAD_LOCAL 宏定义 */
 #include "lv/three_valued_logic.h"
 
 #include "lv/lv_internal.h"

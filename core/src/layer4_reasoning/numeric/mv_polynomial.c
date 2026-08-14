@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/lv.h"
 #include "lv/lv_internal.h"
 
 /* 动态数组初始容量 */

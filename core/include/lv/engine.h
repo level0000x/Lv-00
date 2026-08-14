@@ -639,6 +639,15 @@ lv_PUBLIC_API void engine_destroy_frozen_point(void *frozen_point);
 lv_PUBLIC_API StreamContext *engine_get_stream_context(const lvEngine *engine);
 
 /**
+ * @brief 获取引擎主约束图（访问器）
+ * @param engine 引擎实例（可为 NULL，返回 NULL）
+ * @return 主约束图指针；engine 为 NULL 时返回 NULL
+ *
+ * @note 供跨域代码读取引擎主图，避免直访 lvEngine 字段
+ *       （engine.h 约定外部代码使用访问器而非直访字段）。
+ */
+lv_PUBLIC_API ConstraintGraph *engine_get_main_graph(const lvEngine *engine);
+/**
  * @brief 设置引擎的流式输出开关
  *
  * 启用后，引擎在执行 solve/rewrite/normalize 等操作时会持续

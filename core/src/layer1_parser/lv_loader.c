@@ -26,7 +26,6 @@
 #include "lv/lv.h"
 #include "lv/lv_lexer.h"
 #include "lv/lv_xmacro.h"
-#include "lv/constraint_graph.h"
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -501,12 +500,12 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
                         int id1 = loader_names_lookup(a1->data.ident.name);
                         long long dist_val = 0;
                         loader_expr_int(expr->data.compare.right, &dist_val);
-                        if (id0 >= 0 && id1 >= 0 && engine->main_graph) {
+                        if (id0 >= 0 && id1 >= 0 && engine_get_main_graph(engine)) {
                             /* 用 INCIDENCE 承载距离约束对，numeric_value 存距离值 */
                             int participants[2] = {id0, id1};
-                            int cid = engine->main_graph->next_constraint_id;
+                            int cid = engine_get_main_graph(engine)->next_constraint_id;
                             Constraint *c = graph_add_constraint_with_id(
-                                engine->main_graph, cid, INCIDENCE, participants, 2);
+                                engine_get_main_graph(engine), cid, INCIDENCE, participants, 2);
                             if (c) {
                                 c->numeric_value = (double) dist_val;
                                 c->satisfaction = 1.0;
@@ -531,29 +530,29 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
                     }
                 }
 
-                if (fname && engine->main_graph) {
+                if (fname && engine_get_main_graph(engine)) {
                     if (lv_str_eq(fname, "collinear") && arg_count >= 3) {
                         /* 共线：依次用 betweenness 连接首点与其余各点 */
                         for (int i = 1; i + 1 < arg_count; i++) {
                             int p[3] = {arg_ids[0], arg_ids[i], arg_ids[i + 1]};
-                            int cid = engine->main_graph->next_constraint_id;
-                            graph_add_constraint_with_id(engine->main_graph, cid,
+                            int cid = engine_get_main_graph(engine)->next_constraint_id;
+                            graph_add_constraint_with_id(engine_get_main_graph(engine), cid,
                                                          BETWEENNESS, p, 3);
                         }
                     } else if (lv_str_eq(fname, "perpendicular") && arg_count >= 2) {
                         int p[2] = {arg_ids[0], arg_ids[1]};
-                        int cid = engine->main_graph->next_constraint_id;
-                        graph_add_constraint_with_id(engine->main_graph, cid,
+                        int cid = engine_get_main_graph(engine)->next_constraint_id;
+                        graph_add_constraint_with_id(engine_get_main_graph(engine), cid,
                                                      ANGLE, p, 2);
                     } else if (lv_str_eq(fname, "containment") && arg_count >= 2) {
                         int p[2] = {arg_ids[0], arg_ids[1]};
-                        int cid = engine->main_graph->next_constraint_id;
-                        graph_add_constraint_with_id(engine->main_graph, cid,
+                        int cid = engine_get_main_graph(engine)->next_constraint_id;
+                        graph_add_constraint_with_id(engine_get_main_graph(engine), cid,
                                                      CONTAINMENT, p, 2);
                     } else if (lv_str_eq(fname, "connection") && arg_count >= 2) {
                         int p[2] = {arg_ids[0], arg_ids[1]};
-                        int cid = engine->main_graph->next_constraint_id;
-                        graph_add_constraint_with_id(engine->main_graph, cid,
+                        int cid = engine_get_main_graph(engine)->next_constraint_id;
+                        graph_add_constraint_with_id(engine_get_main_graph(engine), cid,
                                                      CONNECTION, p, 2);
                     }
                 }

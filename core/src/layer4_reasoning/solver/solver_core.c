@@ -15,7 +15,6 @@
 #include "lv/solver_core.h"
 #include "solver_common.h"
 #include "lv/groebner_parallel.h"
-#include "lv/lv.h"
 #include "lv/lv_xmacro.h"
 
 /* ========================================================================

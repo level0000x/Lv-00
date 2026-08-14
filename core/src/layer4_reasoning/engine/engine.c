@@ -57,7 +57,6 @@
 #include "lv/bit_burning.h"
 #include "lv/func_block.h"
 #include "lv/lambda_to_graph.h"
-#include "lv/lv.h"
 #include "lv/lv_config.h"
 #include "lv/normalization.h"
 #include "lv/solver.h"

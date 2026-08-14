@@ -15,7 +15,6 @@
 #include "lv/constraint_graph.h"
 
 #include "lv/error_codes.h"
-#include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"

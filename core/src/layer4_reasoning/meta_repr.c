@@ -27,9 +27,10 @@
 
 
 #include "lv/constraint_graph.h"
+#include "lv/proof.h"
+#include "lv/type_system.h"
 #include "lv/error_codes.h"
 #include "lv/func_block.h"
-#include "lv/lv.h"
 #include "lv/lv_json.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"

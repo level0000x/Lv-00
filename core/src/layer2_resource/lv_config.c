@@ -24,7 +24,6 @@
 
 #include "lv/lv_file.h"
 
-#include "lv/lv.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
