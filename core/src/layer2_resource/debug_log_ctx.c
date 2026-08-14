@@ -204,7 +204,7 @@ char *debug_counters_report(void) {
         (unsigned long long) counters.rewrite_total_steps, (unsigned long long) counters.rewrite_rule_applications,
         (unsigned long long) counters.unify_check_count, (unsigned long long) counters.unify_success_count,
         counters.unify_check_count > 0 ? (100.0 * counters.unify_success_count / counters.unify_check_count) : 0.0,
-        (double) counters.memory_current / (1024.0 * 1024.0), (double) counters.memory_usage_peak / (1024.0 * 1024.0));
+        (double) counters.memory_current / lv_MB, (double) counters.memory_usage_peak / lv_MB);
     return lv_strbuf_to_string(&sb);
 }
 

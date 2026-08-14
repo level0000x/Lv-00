@@ -243,7 +243,7 @@ static inline void mpz_poly_div(mpz_poly_t *quotient, mpz_poly_t *dividend, cons
 
 static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     if (p->degree < 0) {
-        return strdup("0");
+        return lv_strdup("0");
     }
     /* 整数溢出检查：确保 (degree + 1) * sizeof(char*) 不会溢出 */
     if (p->degree > (int) ((SIZE_MAX / sizeof(char *)) - 1)) {

@@ -569,11 +569,10 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
                 : node->status == TRACE_STATUS_BLOCKED   ? "blocked"
                                                          : "unexplored");
 
-        char idbuf[32], extra[128];
-        snprintf(idbuf, sizeof(idbuf), "n%d", node->id);
+        char extra[128];
         snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=%s",
                  kTraceNodeProps[type_idx].dot_shape, kTraceNodeProps[type_idx].dot_fill);
-        lv_dot_node(&sb, idbuf, lv_strbuf_cstr(&lbl), extra);
+        lv_dot_node_id(&sb, "n", node->id, lv_strbuf_cstr(&lbl), extra);
         lv_strbuf_destroy(&lbl);
     }
 
@@ -586,10 +585,7 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
         for (int j = 0; j < node->children.count; j++) {
             lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, j);
             lvProofTraceNode *child = *child_p;
-            char frombuf[32], tobuf[32];
-            snprintf(frombuf, sizeof(frombuf), "n%d", node->id);
-            snprintf(tobuf, sizeof(tobuf), "n%d", child->id);
-            lv_dot_edge(&sb, frombuf, tobuf, NULL, NULL);
+            lv_dot_edge_id(&sb, "n", node->id, child->id, NULL, NULL);
         }
     }
 

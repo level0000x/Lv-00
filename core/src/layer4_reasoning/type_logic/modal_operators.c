@@ -196,7 +196,7 @@ lvModalWorld *lv_modal_world_create(int id, const char *world_name, ConstraintGr
         return NULL;
     w->id = id;
     if (world_name) {
-        w->world_name = strdup(world_name);
+        w->world_name = lv_strdup(world_name);
     }
     w->configuration = configuration;
     lv_darray_init(&w->true_props, sizeof(Proposition *));

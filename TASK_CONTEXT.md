@@ -1486,3 +1486,70 @@ y0 扫描发现判据「BFS 图遍历收敛」豁免注释缺口 2 处，已补 
 - 不迁移 / F / Y4 / 0 文件 / `ops_for_type` 返回指针查表，与 LV_DISPATCH 调用分发语义不同。
 - `parse_bound_in` helper（判据 A/I）/ Y5 / 1 文件 2 点 4 格式串 / 无 / `test_gappa_dsl`。
 - 无漏网 / C / Y6 / 0 文件 / C3 裸 `1e18` 已全收敛，台账计数口径「4 文件 4 处」→「4 文件 10 字面量」。
+
+---
+
+## 二十一、批次 Z 候选立项与执行（2026-08-14）
+
+**候选来源**：「继续寻找更多可抽象化的方向」四路只读子代理（A/B、C/D、E/F/G/H、I/J/K/L+自由反例）全库扫描，排除历史批次已收敛/已判不迁移模式后，验证 8 项执行/裁定候选。
+
+### 批次 Z 执行进度
+
+| 编号 | 内容 | 判据 | 状态 |
+|------|------|------|------|
+| Z1 | block_to_text/node/geometry 三文件 `simple_block_graph_guard_cleanup` 逐字同构 → 共享函数 | G | 完成（3 处本地 static → 1 共享） |
+| Z2 | interop_import.c 手写小端 u32/u16 → `lv_load_le32/le16`（15 调用点） | B 漏迁 | 完成 |
+| Z3 | interop_server.c 手写大端 64/16 → `lv_load_be64/be16`（3 处含 close code 漏网） | B 漏迁 | 完成 |
+| Z4 | MB 换算裸 `1024*1024` → `lv_MB`/`lv_MB_I`（17 处 / 10 文件） | C 漏迁 | 完成（2 头文件宏豁免） |
+| Z5 | 裸 `strdup()` → `lv_strdup`（3 处）+ expr_canon 手写复制（1 处） | J 收尾 | 完成（X1 漏网补全） |
+| Z6 | type_system.c 两组枚举名称数组 → X-macro（修复 `TYPE_CHECK_INCOMPATIBLE` 漏项缺陷） | F/D | 完成 |
+| Z7 | DOT ID 三连 `snprintf(idbuf,"前缀%d")` → `lv_dot_node_id`/`lv_dot_edge_id`（6 文件 11 块） | L/J 变体 | 完成（graph_dot_export 节点豁免） |
+| Z8 | SymbolicCoord 两点差向量 x/y 展开（proof_strategy_coordinate/angle/vector） | H | 登记不迁移 |
+| Z9 | 构建验证 ninja + ctest，回写台账/记忆 | — | 完成 |
+
+### Z1 明细（G-1：block_to_* 共享 cleanup，判据 G）
+
+`block_to_text.c:18-29` / `block_to_node.c:184-195` / `block_to_geometry.c:137-148` 三份 `static simple_block_graph_guard_cleanup`（判空 → for 逐元素 `func_block_destroy` → `lv_free(blocks)` → `lv_free` 外壳，配 `lv_DEFER`）**逐字同构**。新建共享 `lv_simple_block_graph_guard_cleanup`（`representation_converter.h` 声明 + `representation_converter.c` 实现，void* 签名兼容 lv_DEFER），三文件删本地 static、3 处 `lv_DEFER` 改调共享。三文件均 include `representation_converter.h`，零新增依赖。
+
+### Z2/Z3 明细（字节序设施漏迁，判据 B）
+
+- **interop_import.c**：删 `ggb_read_u32_le`/`ggb_read_u16_le` 手写展开（`buf[o]|buf[o+1]<<8|...`），15 处调用点改 `lv_load_le32(buf + offset)`/`lv_load_le16(buf + offset)`（lv_utils.h 既有设施）。
+- **interop_server.c**：`ws_state_len64` 手写 8 字节大端循环 → `lv_load_be64(p)`；`ws_state_len16` → `lv_load_be16(p)`；另补 `:1191` close code 大端 16 位漏网 → `lv_load_be16(ctl_payload)`。**注意**：len64 迁移时保留 `recv_pos += 8` 与 `WS_MAX_MESSAGE_SIZE` 检查（初版误删后已恢复）。
+- **豁免**：interop_server SHA-1 内核（:655/752）、sha256.c、cross_platform.h bswap、lv_utils_misc.c 设施自身、plugin_system_core.c 版本位域打包（非字节序读取）。
+
+### Z4 明细（C-1：MB 换算 → lv_MB/lv_MB_I，判据 C 漏迁）
+
+config.h 已有 `lv_MB 1048576.0` / `lv_MB_I 1048576`，本次迁移 17 处裸 `1024*1024`/`1024.0*1024.0`（10 文件）：lv.c（溢出保护 + 4 处 MB 输出）、runtime_monitor.c（4 处）、debug_log_ctx.c（2 处）、text_code.c（128MB 上限 ×2）、geometry_canvas.c + block_canvas.c（16MB 上限 ×2×2）、proof_engine_enhanced.c（`EXPORT_BUFFER_MAX_SIZE`）、lv_config.c（文件读取上限）。int 语义用 `lv_MB_I`、double 语义用 `lv_MB`、倍数保留（`16 * lv_MB_I`）。
+**豁免 2 处头文件宏**：`debug.h:49` `lv_LOG_MAX_SIZE`、`axiom_pkg_internal.h:36` `AXIOM_MAX_FILE_SIZE`（大小上限常量且头文件不依赖 config.h，保持头文件分层）。
+
+### Z5 明细（J 收尾：裸 strdup → lv_strdup，判据 J）
+
+X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_operators.c:199`、`interactive_geo.c:308`、`mpz_poly.h:246` inline）+ 1 处手写 `lv_malloc(strlen+1)+memcpy`（`expr_canon.c:1078`）全部改用 `lv_strdup`（lv_utils.h 别名）。全库裸 `strdup(` 归零。
+
+### Z6 明细（F-1：type_system 名称数组 X-macro 化 + 缺陷修复，判据 F/D）
+
+`type_system.h` 新增 `LV_TYPE_EQUIV_RESULT_X`（5 项）与 `LV_TYPE_CHECK_RESULT_X`（7 项）X-macro 列表，`TypeEquivResult`/`TypeCheckResult` 枚举改 `LV_X_ENUM_ITEM` 生成；`type_system.c` 删两组手写 designated-init 名称数组 + 越界反查，`type_equiv_result_to_string`/`type_check_result_to_string` 改 `LV_X_TO_STR_CASE` switch 生成（与 `type_kind_to_string` 同族，泛化 2 特例 + 1 命名先例）。
+**缺陷修复（终审二）**：原 `s_check_result_names` 仅 6 项**漏 `TYPE_CHECK_INCOMPATIBLE`**（枚举 7 值），X-macro 单源后补全为 `"Incompatible"`（此前返回 "Unknown"）。
+
+### Z7 明细（自由反例：DOT ID 三连 → lv_dot_writer ID helper，判据 L/J 变体）
+
+6 文件散落 `char idbuf[32]; snprintf(idbuf, sizeof(idbuf), "前缀%d", id);` + 边双缓冲三连（前缀 node/n/S/step，常量差异）。`lv_dot_writer.h/c` 新增 `lv_dot_node_id`/`lv_dot_edge_id`（内部定长缓冲格式化 "前缀%d"），迁移 6 文件 11 块：graph_dot_export.c（边）、meta_repr.c（节点+边+单节点）、proof_dependency.c（节点+边）、proof_trace_tree.c（节点+边）、proof_compiler.c（节点+边）、proof_export_enhanced.c（节点+边）。
+**豁免**：`graph_dot_export.c` `dot_emit_node`（`exempt:` 注释）——html_labels 分支直接 `lv_strbuf_printf(sb, "...%s [label=<...>]", idbuf, ...)` 拼接，需本地 idbuf，非 lv_dot_node 调用。
+
+### Z8 登记不迁移（H-1：坐标差向量，判据 H）
+
+`proof_strategy_coordinate.c:158-161` / `proof_strategy_angle.c:241-244` / `proof_strategy_vector.c:115-122` 三处「两点差向量 SymbolicCoord subtract x/y 双分量展开」同构，但：① 全部同域（proof_system），非跨模块治理价值；② 后续消费各异（compare / multiply / multiply+dot）；③ `formula_converter_constraint.c:144-145` 为 `symbolic_coord_add` 中点求和（非 subtract 差向量，形态混入排除）；④ helper 需双出参指针形状、控制流改变需额外验证，收益低。登记不迁移。
+
+### 批次 Z 执行结果（2026-08-14）
+
+**验证**：`ninja -C build3` 全量重建 925/925 通过（exit 0，仅既有 `lv_LOG_*_LEN`/`lv_LOG_FATAL` 宏重定义与 test_framework `-Waddress` 警告，与本批无关）；`ctest --test-dir build3 --output-on-failure` 170/170 全绿。
+
+### 决策登记（第 9 章格式）
+
+- `lv_simple_block_graph_guard_cleanup` 共享 / G / 3 文件 3 处（本地 static 逐字同构）/ graph_dot_export 节点 html 分支豁免 / converter 测试链。
+- `lv_load_le*/be*` 复用 / B 漏迁 / 2 文件 18 处（interop_import 15 + interop_server 3）/ SHA/位域内核豁免 / test_interop 族。
+- `lv_MB`/`lv_MB_I` 复用 / C 漏迁 / 10 文件 17 处 / debug.h + axiom_pkg_internal.h 头文件宏豁免（大小上限常量、不依赖 config.h）/ test_utils + test_performance 族。
+- `lv_strdup` 复用 / J 收尾 / 4 文件 4 处 / 无 / 字符串复制链测试。
+- `LV_TYPE_EQUIV_RESULT_X`/`LV_TYPE_CHECK_RESULT_X` / F+D / type_system.h + type_system.c / 无（修复 INCOMPATIBLE 漏项缺陷，终审二）/ test_type_system。
+- `lv_dot_node_id`/`lv_dot_edge_id` / L/J 变体 / 6 文件 11 块 / graph_dot_export 节点 exempt（html 直拼）/ test_proof_trace + test_proof_export_enhanced + test_layer5_output 族。
+- 不迁移 / H / Z8 / 0 文件 / proof_system 同域 3 处 + add 形态混入 + 后续消费各异（compare/multiply）+ 双出参 helper 收益低。

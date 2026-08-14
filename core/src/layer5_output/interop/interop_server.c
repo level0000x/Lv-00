@@ -1188,7 +1188,7 @@ static int ws_frame_dispatch(InteropServer *server, WsClient *client) {
         /* 回发 Close（回显状态码）并关闭连接（RFC 6455 §5.5.1） */
         uint16_t code = WS_CLOSE_NORMAL;
         if (client->ctl_len >= 2) {
-            code = (uint16_t) ((client->ctl_payload[0] << 8) | client->ctl_payload[1]);
+            code = lv_load_be16(client->ctl_payload);
         }
         uint8_t payload[2] = {(uint8_t) (code >> 8), (uint8_t) (code & 0xFF)};
         ws_send_frame(client, WS_OP_CLOSE, payload, sizeof(payload));
@@ -1309,7 +1309,8 @@ static int ws_state_len16(InteropServer *server, WsClient *client) {
     if (avail < 2) {
         return WS_PARSE_NEED_MORE;
     }
-    client->frame_payload_remaining = ((uint64_t) p[0] << 8) | p[1];
+    /* 判据 B：大端字节序读取统一走公共设施 lv_load_be16/lv_load_be64（lv_utils.h） */
+    client->frame_payload_remaining = lv_load_be16(p);
     client->recv_pos += 2;
     if (client->frame_payload_remaining > WS_MAX_MESSAGE_SIZE) {
         return ws_message_too_big(client);
@@ -1327,10 +1328,7 @@ static int ws_state_len64(InteropServer *server, WsClient *client) {
     if (avail < 8) {
         return WS_PARSE_NEED_MORE;
     }
-    uint64_t v = 0;
-    for (int i = 0; i < 8; i++) {
-        v = (v << 8) | p[i];
-    }
+    uint64_t v = lv_load_be64(p);
     client->recv_pos += 8;
     if (v > WS_MAX_MESSAGE_SIZE) {
         return ws_message_too_big(client);

@@ -975,11 +975,10 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
             tname = lv_geom_type_name((int) node->type);
         }
 
-        char idbuf[32], extra[64], lbuf[128];
-        snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
+        char extra[64], lbuf[128];
         snprintf(extra, sizeof(extra), "shape=%s", shape);
         snprintf(lbuf, sizeof(lbuf), "%s #%d", tname, node->id);
-        lv_dot_node(&sb, idbuf, lbuf, extra);
+        lv_dot_node_id(&sb, "node", node->id, lbuf, extra);
     }
 
     lv_strbuf_printf(&sb, "\n");
@@ -998,16 +997,12 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
         int n = con->participant_count;
         if (n >= 2) {
             for (int j = 0; j < n - 1; j++) {
-                char frombuf[32], tobuf[32];
-                snprintf(frombuf, sizeof(frombuf), "node%d", con->participants[j]);
-                snprintf(tobuf, sizeof(tobuf), "node%d", con->participants[j + 1]);
-                lv_dot_edge(&sb, frombuf, tobuf, label, NULL);
+                lv_dot_edge_id(&sb, "node", con->participants[j], con->participants[j + 1], label, NULL);
             }
         } else if (n == 1) {
-            char idbuf[32], lbuf[128];
-            snprintf(idbuf, sizeof(idbuf), "node%d", con->participants[0]);
+            char lbuf[128];
             snprintf(lbuf, sizeof(lbuf), "%s(#%d)", label, con->id);
-            lv_dot_node(&sb, idbuf, lbuf, NULL);
+            lv_dot_node_id(&sb, "node", con->participants[0], lbuf, NULL);
         }
     }
 

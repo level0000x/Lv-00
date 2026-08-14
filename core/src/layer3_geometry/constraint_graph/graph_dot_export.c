@@ -109,6 +109,8 @@ static const char *layout_tool(DOTLayoutEngine layout) {
  * html_labels=true 时输出 HTML-like label（<TABLE>），否则输出转义文本 label。
  */
 static void dot_emit_node(lvStrBuf *sb, const GeomNode *node, const DOTExportConfig *cfg) {
+    /* exempt: 节点 ID 保留本地 idbuf——html_labels 分支直接用 idbuf 拼接
+     * `<label=<...>, shape=...>` 语句，非 lv_dot_node 调用，不适用 lv_dot_node_id */
     char idbuf[32];
     snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
 
@@ -253,10 +255,7 @@ char *graph_export_dot(const ConstraintGraph *graph, const DOTExportConfig *conf
             continue;
         const char *label = cfg.show_constraint_labels ? lv_constraint_type_name(con->type) : NULL;
         for (int j = 0; j + 1 < con->participant_count; j++) {
-            char frombuf[32], tobuf[32];
-            snprintf(frombuf, sizeof(frombuf), "node%d", con->participants[j]);
-            snprintf(tobuf, sizeof(tobuf), "node%d", con->participants[j + 1]);
-            lv_dot_edge(&sb, frombuf, tobuf, label, NULL);
+            lv_dot_edge_id(&sb, "node", con->participants[j], con->participants[j + 1], label, NULL);
         }
     }
 

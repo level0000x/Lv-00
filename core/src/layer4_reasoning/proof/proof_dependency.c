@@ -726,21 +726,18 @@ static void backtrack_node_write_dot(lvStrBuf *sb, const BacktrackNode *node, in
     lv_strbuf_init(&lbl);
     lv_strbuf_printf(&lbl, "[%d] %s", node->id, node->label ? node->label : "");
 
-    char idbuf[32], extra[256];
-    snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
+    char extra[256];
     snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\"",
              shape, fill_color, border_color);
-    lv_dot_node(sb, idbuf, lv_strbuf_cstr(&lbl), extra);
+    lv_dot_node_id(sb, "node", node->id, lv_strbuf_cstr(&lbl), extra);
     lv_strbuf_destroy(&lbl);
 
     /* 父边 */
     if (parent_id >= 0) {
         const char *edge_style = node->is_backtrack_point ? "dashed" : "solid";
-        char frombuf[32], tobuf[32], edge_extra[32];
-        snprintf(frombuf, sizeof(frombuf), "node%d", parent_id);
-        snprintf(tobuf, sizeof(tobuf), "node%d", node->id);
+        char edge_extra[32];
         snprintf(edge_extra, sizeof(edge_extra), "style=%s", edge_style);
-        lv_dot_edge(sb, frombuf, tobuf, NULL, edge_extra);
+        lv_dot_edge_id(sb, "node", parent_id, node->id, NULL, edge_extra);
     }
 
     /* 递归处理子节点 */

@@ -55,6 +55,20 @@ void lv_dot_begin(lvStrBuf *sb, const char *graph_name, const char *rankdir,
 void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *extra_attrs);
 
 /**
+ * @brief 以整型 id 输出节点语句（ID 内部格式化为 "前缀%d"，定长缓冲）
+ *
+ * 收敛各 DOT 导出器散落的 `char idbuf[32]; snprintf(idbuf, sizeof(idbuf), "前缀%d", id);`
+ * 样板（判据 L/J 变体）。语义等价 lv_dot_node(sb, 格式化后 id, label, extra_attrs)。
+ *
+ * @param sb          目标 lvStrBuf（追加模式）
+ * @param prefix      ID 前缀（如 "node"/"n"/"S"/"step"，原样使用）
+ * @param id          节点整型 id
+ * @param label       节点显示文本（可为 NULL）
+ * @param extra_attrs 附加属性列表（可为 NULL）
+ */
+void lv_dot_node_id(lvStrBuf *sb, const char *prefix, int id, const char *label, const char *extra_attrs);
+
+/**
  * @brief 输出一条边语句
  *
  * 输出 `    from -> to [label="转义后label", 额外属性];`。
@@ -68,6 +82,22 @@ void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *ex
  */
 void lv_dot_edge(lvStrBuf *sb, const char *from, const char *to, const char *label,
                  const char *extra_attrs);
+
+/**
+ * @brief 以整型 id 输出边语句（from/to 均内部格式化为 "前缀%d"，定长缓冲）
+ *
+ * 收敛各 DOT 导出器散落的 `char frombuf[32], tobuf[32]; snprintf(frombuf, ..., "前缀%d", ...);`
+ * 样板（判据 L/J 变体）。语义等价 lv_dot_edge(sb, 格式化后 from, 格式化后 to, label, extra_attrs)。
+ *
+ * @param sb          目标 lvStrBuf（追加模式）
+ * @param prefix      ID 前缀（如 "node"/"n"/"S"/"step"，原样使用）
+ * @param from_id     起点节点整型 id
+ * @param to_id       终点节点整型 id
+ * @param label       边显示文本（可为 NULL，省略 label 属性）
+ * @param extra_attrs 附加属性列表（可为 NULL）
+ */
+void lv_dot_edge_id(lvStrBuf *sb, const char *prefix, int from_id, int to_id, const char *label,
+                    const char *extra_attrs);
 
 /**
  * @brief 输出收尾大括号 `}\n`

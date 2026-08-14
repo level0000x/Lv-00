@@ -143,7 +143,7 @@ bool lv_log_init(const lvLogConfig *config) {
         s_runtime_state.log.config.include_location = false;
         s_runtime_state.log.config.include_thread_id = false;
         s_runtime_state.log.config.colored_output = true;
-        s_runtime_state.log.config.max_file_size = 10 * 1024 * 1024; /* 10 MB */
+        s_runtime_state.log.config.max_file_size = 10 * lv_MB_I; /* 10 MB */
         s_runtime_state.log.config.max_backup_files = 5;
     }
 
@@ -706,7 +706,7 @@ lvHealthReport *lv_runtime_health_check(void) {
     MEMORYSTATUSEX status;
     status.dwLength = sizeof(status);
     GlobalMemoryStatusEx(&status);
-    check->value = (double) (status.ullTotalVirtual - status.ullAvailVirtual) / (1024 * 1024);
+    check->value = (double) (status.ullTotalVirtual - status.ullAvailVirtual) / lv_MB_I;
 #else
     FILE *fp = fopen("/proc/self/status", "r");
     if (fp) {
@@ -843,11 +843,11 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     MEMORYSTATUSEX mem_status;
     mem_status.dwLength = sizeof(mem_status);
     GlobalMemoryStatusEx(&mem_status);
-    diag->total_memory_mb = (uint32_t) (mem_status.ullTotalPhys / (1024 * 1024));
+    diag->total_memory_mb = (uint32_t) (mem_status.ullTotalPhys / lv_MB_I);
 #else
     lv_strlcpy(diag->os_info, "Linux/Unix", sizeof(diag->os_info));
     diag->cpu_cores = sysconf(_SC_NPROCESSORS_ONLN);
-    diag->total_memory_mb = (uint32_t) (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / (1024 * 1024));
+    diag->total_memory_mb = (uint32_t) (sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / lv_MB_I);
 #endif
 
     return diag;

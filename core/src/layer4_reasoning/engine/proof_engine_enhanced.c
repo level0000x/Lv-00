@@ -80,7 +80,7 @@
 #define EXPORT_BUFFER_INITIAL_SIZE 4096
 
 /** 导出缓冲区最大大小 */
-#define EXPORT_BUFFER_MAX_SIZE (1024 * 1024)
+#define EXPORT_BUFFER_MAX_SIZE lv_MB_I
 
 /** 默认证明引擎最大深度（已迁移至 proof_engine.c） */
 /** 默认证明引擎最大分支数（已迁移至 proof_engine.c） */

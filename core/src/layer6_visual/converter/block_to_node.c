@@ -180,19 +180,8 @@ static void lv_convert_block_to_node_cleanup(NodeGraph *ng) {
     lv_free((void **) &ng);
 }
 
-/* SimpleBlockGraph 守卫：失败路径销毁已建函数块并释放结构（成功路径置空移交） */
-static void simple_block_graph_guard_cleanup(void *p) {
-    SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
-    SimpleBlockGraph *sg = *pp;
-    if (!sg)
-        return;
-    for (int i = 0; i < sg->count; i++) {
-        if (sg->blocks && sg->blocks[i])
-            func_block_destroy(sg->blocks[i]);
-    }
-    lv_free((void **) &sg->blocks);
-    lv_free((void **) pp);
-}
+/* SimpleBlockGraph 守卫已收敛为共享 lv_simple_block_graph_guard_cleanup
+ *（representation_converter.h，判据 G：三文件逐字同构本地 static 统一）。 */
 
 lvConvertResult lv_convert_node_to_block(void *node) {
     lvConvertResult result = {0};
@@ -211,7 +200,7 @@ lvConvertResult lv_convert_node_to_block(void *node) {
         return result;
     }
     /* 注册作用域守卫：任一失败分支直接 return，已建函数块与结构在函数出口自动释放 */
-    lv_DEFER(simple_block_graph_guard_cleanup, &bg);
+    lv_DEFER(lv_simple_block_graph_guard_cleanup, &bg);
 
     if (ng->node_count <= 0) {
         /* 空节点图，返回空的 BlockGraphView */

@@ -580,9 +580,7 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
         if (s->premise) {
             lv_strbuf_printf(&lbl, "\n(from: %s)", s->premise);
         }
-        char idbuf[32];
-        snprintf(idbuf, sizeof(idbuf), "step%d", s->step_id);
-        lv_dot_node(&sb, idbuf, lv_strbuf_cstr(&lbl), NULL);
+        lv_dot_node_id(&sb, "step", s->step_id, lv_strbuf_cstr(&lbl), NULL);
         lv_strbuf_destroy(&lbl);
     }
 
@@ -597,10 +595,7 @@ static lvExportResult *export_dot(const lvProof *proof, const lvExportConfig *co
                 continue;
             const lvProofStep *sj = &proof->steps[j];
             if (lv_str_eq(si->premise, sj->conclusion)) {
-                char frombuf[32], tobuf[32];
-                snprintf(frombuf, sizeof(frombuf), "step%d", sj->step_id);
-                snprintf(tobuf, sizeof(tobuf), "step%d", si->step_id);
-                lv_dot_edge(&sb, frombuf, tobuf, NULL, NULL);
+                lv_dot_edge_id(&sb, "step", sj->step_id, si->step_id, NULL, NULL);
             }
         }
     }

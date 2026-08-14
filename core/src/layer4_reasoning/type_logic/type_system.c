@@ -947,33 +947,18 @@ const char *universe_level_to_string(UniverseLevel level) {
     return lv_fmt_tmp("Type%d", level);
 }
 
-static const char *s_equiv_result_names[] = {
-    [TYPE_EQUIV_OK]                = "Equivalent",
-    [TYPE_EQUIV_NOT_EQUIV]         = "NotEquivalent",
-    [TYPE_EQUIV_UNKNOWN]           = "Unknown",
-    [TYPE_EQUIV_ERROR]             = "Error",
-    [TYPE_EQUIV_NEEDS_INTERACTION] = "NeedsInteraction",
-};
-
 const char *type_equiv_result_to_string(TypeEquivResult result) {
-    if ((unsigned)result >= sizeof(s_equiv_result_names) / sizeof(s_equiv_result_names[0]))
-        return "Unknown";
-    return s_equiv_result_names[result];
+    switch (result) {
+        LV_TYPE_EQUIV_RESULT_X(LV_X_TO_STR_CASE)
+        default: return "Unknown";
+    }
 }
 
-static const char *s_check_result_names[] = {
-    [TYPE_CHECK_OK]          = "OK",
-    [TYPE_CHECK_MISMATCH]   = "Mismatch",
-    [TYPE_CHECK_LEVEL_ERROR]= "LevelError",
-    [TYPE_CHECK_CYCLE]      = "Cycle",
-    [TYPE_CHECK_INFERRED]   = "Inferred",
-    [TYPE_CHECK_ERROR]      = "Error",
-};
-
 const char *type_check_result_to_string(TypeCheckResult result) {
-    if ((unsigned)result >= sizeof(s_check_result_names) / sizeof(s_check_result_names[0]))
-        return "Unknown";
-    return s_check_result_names[result];
+    switch (result) {
+        LV_TYPE_CHECK_RESULT_X(LV_X_TO_STR_CASE)
+        default: return "Unknown";
+    }
 }
 
 /**

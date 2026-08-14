@@ -403,8 +403,8 @@ char *lv_block_canvas_render_svg(lvBlockCanvasView *canvas) {
 
     /* [安全] 估算缓冲区大小，防止整数溢出 */
     size_t est_size = (size_t) canvas->blocks.count * 1024 + (size_t) canvas->connections.count * 512 + 4096;
-    if (est_size > 1024 * 1024 * 16)
-        est_size = 1024 * 1024 * 16;
+    if (est_size > 16 * lv_MB_I)
+        est_size = 16 * lv_MB_I;
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)

@@ -246,7 +246,7 @@ int lv_config_load_json(const char *json_path) {
     if (!json_path)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "json_path is NULL");
     size_t len = 0;
-    char *buf = (char *) lv_file_read_all_limited(json_path, &len, (size_t) 1024 * 1024);
+    char *buf = (char *) lv_file_read_all_limited(json_path, &len, (size_t) lv_MB_I);
     if (!buf)
         lv_RETURN_ERROR(lv_ERROR_IO, "failed to read config file (open/size/alloc/read error)");
     /* buf 已由 lv_file_read_all_limited 保证以 '\0' 结尾 */

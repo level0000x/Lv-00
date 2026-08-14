@@ -20,11 +20,28 @@
 #include <string.h>
 
 #include "lv/func_block.h"
+#include "lv/block_graph_view.h"
 #include "lv/lv_error.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
 /* ============ 转换器创建与销毁 ============ */
+
+/* SimpleBlockGraph 失败路径守卫：销毁已建函数块并释放结构（成功路径置空移交）。
+ * 判据 G 收敛：converter 域三文件（block_to_text/node/geometry）逐字同构的本地
+ * static simple_block_graph_guard_cleanup 统一为共享函数。 */
+void lv_simple_block_graph_guard_cleanup(void *p) {
+    SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
+    SimpleBlockGraph *sg = *pp;
+    if (!sg)
+        return;
+    for (int i = 0; i < sg->count; i++) {
+        if (sg->blocks && sg->blocks[i])
+            func_block_destroy(sg->blocks[i]);
+    }
+    lv_free((void **) &sg->blocks);
+    lv_free((void **) pp);
+}
 
 /**
  * @brief 创建表示转换器

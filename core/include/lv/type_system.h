@@ -237,23 +237,44 @@ void type_region_deep_free(TypeRegion *tr);
 void type_region_foreach_child(const TypeRegion *tr, void (*cb)(TypeRegion *child, void *ctx), void *ctx);
 
 /* ============== 类型等价检查结果 ============== */
+
+/**
+ * @brief X-macro 列表：TypeEquivResult 枚举值与对应字符串
+ *
+ * 使用方法（与 LV_TYPE_KIND_X 同族，判据 F/D 单源）：
+ *   LV_TYPE_EQUIV_RESULT_X(LV_X_ENUM_ITEM)   → 生成枚举值
+ *   LV_TYPE_EQUIV_RESULT_X(LV_X_TO_STR_CASE) → 生成 switch-case 字符串映射
+ */
+#define LV_TYPE_EQUIV_RESULT_X(x) \
+    x(TYPE_EQUIV_OK, "Equivalent") \
+    x(TYPE_EQUIV_NOT_EQUIV, "NotEquivalent") \
+    x(TYPE_EQUIV_UNKNOWN, "Unknown") \
+    x(TYPE_EQUIV_ERROR, "Error") \
+    x(TYPE_EQUIV_NEEDS_INTERACTION, "NeedsInteraction")
+
 typedef enum {
-    TYPE_EQUIV_OK,               /* 类型等价 */
-    TYPE_EQUIV_NOT_EQUIV,        /* 类型不等价 */
-    TYPE_EQUIV_UNKNOWN,          /* 未能证明等价 */
-    TYPE_EQUIV_ERROR,            /* 检查出错 */
-    TYPE_EQUIV_NEEDS_INTERACTION /* 需要交互式证明（重写引擎无法归一化） */
+    LV_TYPE_EQUIV_RESULT_X(LV_X_ENUM_ITEM)
 } TypeEquivResult;
 
 /* ============== 类型检查结果 ============== */
+
+/**
+ * @brief X-macro 列表：TypeCheckResult 枚举值与对应字符串
+ *
+ * 与 LV_TYPE_EQUIV_RESULT_X 同族。注意：类型名表原手写 6 项漏 TYPE_CHECK_INCOMPATIBLE
+ * （失步缺陷，判据 D），X-macro 单源后补全为 7 项。
+ */
+#define LV_TYPE_CHECK_RESULT_X(x) \
+    x(TYPE_CHECK_OK, "OK") \
+    x(TYPE_CHECK_MISMATCH, "Mismatch") \
+    x(TYPE_CHECK_INCOMPATIBLE, "Incompatible") \
+    x(TYPE_CHECK_LEVEL_ERROR, "LevelError") \
+    x(TYPE_CHECK_CYCLE, "Cycle") \
+    x(TYPE_CHECK_INFERRED, "Inferred") \
+    x(TYPE_CHECK_ERROR, "Error")
+
 typedef enum {
-    TYPE_CHECK_OK,           /* 类型检查通过 */
-    TYPE_CHECK_MISMATCH,     /* 类型不匹配 */
-    TYPE_CHECK_INCOMPATIBLE, /* 类型不兼容（无法证明等价） */
-    TYPE_CHECK_LEVEL_ERROR,  /* 宇宙层级错误 */
-    TYPE_CHECK_CYCLE,        /* 类型循环 */
-    TYPE_CHECK_INFERRED,     /* 类型已推断 */
-    TYPE_CHECK_ERROR         /* 检查出错 */
+    LV_TYPE_CHECK_RESULT_X(LV_X_ENUM_ITEM)
 } TypeCheckResult;
 
 /* ============== 类型推断规则 ============== */

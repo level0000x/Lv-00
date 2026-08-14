@@ -587,8 +587,8 @@ char *lv_geometry_canvas_render_svg(lvGeometryCanvas *canvas) {
     /* [安全] 估算输出缓冲区大小，防止整数溢出 */
     size_t est_size = (size_t) canvas->entity_count * 512 + (size_t) canvas->constraint_count * 256 + 4096;
     /* 限制最大缓冲区大小防止过度分配 */
-    if (est_size > 1024 * 1024 * 16)
-        est_size = 1024 * 1024 * 16;
+    if (est_size > 16 * lv_MB_I)
+        est_size = 16 * lv_MB_I;
     int buf_size = (int) est_size;
     char *buf = lv_calloc(buf_size, sizeof(char));
     if (!buf)

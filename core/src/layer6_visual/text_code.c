@@ -67,7 +67,7 @@ int lv_text_code_set_text(lvTextCodeView *view, const char *text) {
     if (len + 1 > (size_t) view->buffer_size) {
         /* [安全] 使用 size_t 计算扩展大小，防止整数溢出 */
         size_t new_size = ((len + 1 + 4095) / 4096) * 4096;
-        if (new_size > 1024 * 1024 * 128)
+        if (new_size > 128 * lv_MB_I)
             lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)
@@ -115,7 +115,7 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
     /* [安全] 防止缓冲区扩展时整数溢出 */
     if (new_len + 1 > (size_t) view->buffer_size) {
         size_t new_size = ((new_len + 1 + 4095) / 4096) * 4096;
-        if (new_size > 1024 * 1024 * 128)
+        if (new_size > 128 * lv_MB_I)
             lv_RETURN_ERROR(lv_ERROR_BUFFER_TOO_SMALL, "insert text exceeds max buffer size 128MB");
         char *new_buf = lv_realloc(view->code_buffer, (int) new_size);
         if (!new_buf)

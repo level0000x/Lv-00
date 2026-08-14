@@ -70,6 +70,11 @@ lvConvertResult lv_convert_geometry_to_block(void *entity);
 /* Destroy geometry encoding (internal type, use void* at API boundary) */
 void lv_geometry_encoding_destroy(void *enc);
 
+/* SimpleBlockGraph 失败路径守卫（判据 G：收敛 converter 域三文件逐字同构的
+ * simple_block_graph_guard_cleanup 本地 static——销毁已建函数块并释放结构）。
+ * 签名取 void* 以兼容 lv_DEFER(cleanup, &sg)；NULL 安全。 */
+void lv_simple_block_graph_guard_cleanup(void *p);
+
 #ifdef __cplusplus
 }
 #endif

@@ -180,8 +180,8 @@ static bool lv_module_init_config(void) {
     /* 应用内存限制 */
     int mem_limit_mb = config_get_int(s_lv_state.config, "memory.limit_mb", 0);
     if (mem_limit_mb > 0) {
-        if ((size_t) mem_limit_mb <= SIZE_MAX / (1024 * 1024)) {
-            lv_set_memory_limit((size_t) mem_limit_mb * 1024 * 1024);
+        if ((size_t) mem_limit_mb <= SIZE_MAX / lv_MB_I) {
+            lv_set_memory_limit((size_t) mem_limit_mb * lv_MB_I);
         } else {
             LOG_WARN("lv", "内存限制值 %d MB 过大，已忽略", mem_limit_mb);
         }
@@ -381,8 +381,8 @@ int lv_get_system_info(char *info, size_t size) {
         "\n"
         "  合一检查: %" PRIu64 "\n",
         lv_VERSION_STRING, is_system_initialized() ? "已初始化" : "未初始化", s_lv_state.init_count,
-        (double) mem_stats.current_used / (1024.0 * 1024.0), (double) mem_stats.peak_used / (1024.0 * 1024.0),
-        (double) mem_stats.total_allocated / (1024.0 * 1024.0), (double) mem_stats.total_freed / (1024.0 * 1024.0),
+        (double) mem_stats.current_used / lv_MB, (double) mem_stats.peak_used / lv_MB,
+        (double) mem_stats.total_allocated / lv_MB, (double) mem_stats.total_freed / lv_MB,
         mem_stats.allocation_count, (uint64_t) perf.total_nodes_created, (uint64_t) perf.total_constraints_created,
         (uint64_t) perf.solver_call_count, (uint64_t) perf.rewrite_total_steps, (uint64_t) perf.unify_check_count);
 

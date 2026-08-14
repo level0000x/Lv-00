@@ -101,6 +101,22 @@ void lv_dot_end(lvStrBuf *sb) {
     lv_strbuf_printf(sb, "}\n");
 }
 
+/* 判据 L/J 变体收敛：以整型 id 写节点/边（ID 内部格式化为 "前缀%d"），
+ * 消除各 DOT 导出器散落的 idbuf/frombuf/tobuf + snprintf 三连样板。 */
+void lv_dot_node_id(lvStrBuf *sb, const char *prefix, int id, const char *label, const char *extra_attrs) {
+    char idbuf[32];
+    snprintf(idbuf, sizeof(idbuf), "%s%d", prefix, id);
+    lv_dot_node(sb, idbuf, label, extra_attrs);
+}
+
+void lv_dot_edge_id(lvStrBuf *sb, const char *prefix, int from_id, int to_id, const char *label,
+                    const char *extra_attrs) {
+    char frombuf[32], tobuf[32];
+    snprintf(frombuf, sizeof(frombuf), "%s%d", prefix, from_id);
+    snprintf(tobuf, sizeof(tobuf), "%s%d", prefix, to_id);
+    lv_dot_edge(sb, frombuf, tobuf, label, extra_attrs);
+}
+
 bool lv_dot_write_file(const char *path, const char *content, size_t len) {
     if (!path || !content)
         return false;

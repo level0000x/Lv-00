@@ -1075,9 +1075,7 @@ char *lv_expr_canon(const char *expr) {
     lvExprCanonical *canon = lv_expr_canonical_from_string(expr, var_names, var_count);
     if (!canon) {
         /* 解析失败，回退：返回原始字符串的副本 */
-        char *fallback = (char *)lv_malloc(strlen(expr) + 1);
-        if (fallback)
-            memcpy(fallback, expr, strlen(expr) + 1);
+        char *fallback = lv_strdup(expr);
         return fallback;
     }
 

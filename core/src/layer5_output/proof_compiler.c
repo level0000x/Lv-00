@@ -571,10 +571,9 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
                             : step->color == PROOF_COLOR_ORANGE_EX_FALSO ? "orange"
                                                                          : "lightblue";
 
-        char idbuf[32], extra[128];
-        snprintf(idbuf, sizeof(idbuf), "S%d", step->step_id);
+        char extra[128];
         snprintf(extra, sizeof(extra), "style=filled, fillcolor=%s", color);
-        lv_dot_node(&sb, idbuf, label, extra);
+        lv_dot_node_id(&sb, "S", step->step_id, label, extra);
     }
 
     /* 生成边 */
@@ -583,10 +582,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
         for (int j = 0; j < step->premise_count; j++) {
             int premise_id = step->premise_step_ids[j];
             const char *rule_name = step->rule_name ? step->rule_name : "";
-            char frombuf[32], tobuf[32];
-            snprintf(frombuf, sizeof(frombuf), "S%d", premise_id);
-            snprintf(tobuf, sizeof(tobuf), "S%d", step->step_id);
-            lv_dot_edge(&sb, frombuf, tobuf, rule_name, NULL);
+            lv_dot_edge_id(&sb, "S", premise_id, step->step_id, rule_name, NULL);
         }
     }
 

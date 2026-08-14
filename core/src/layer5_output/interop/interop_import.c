@@ -55,17 +55,9 @@
 
 /* INTEROP_COORD_DENOM_PRECISION 统一来自 lv/interop.h 的公共常量 */
 
-/* ── GeoGebra ZIP 解析器 ── */
-
-static uint32_t ggb_read_u32_le(const uint8_t *buf, size_t offset) {
-    return (uint32_t) buf[offset] | ((uint32_t) buf[offset + 1] << 8) | ((uint32_t) buf[offset + 2] << 16) |
-           ((uint32_t) buf[offset + 3] << 24);
-}
-
-/** @brief 从字节缓冲区读取小端序 uint16 */
-static uint16_t ggb_read_u16_le(const uint8_t *buf, size_t offset) {
-    return (uint16_t) buf[offset] | ((uint16_t) buf[offset + 1] << 8);
-}
+/* ── GeoGebra ZIP 解析器 ──
+ * 小端字节序读取统一走公共设施 lv_load_le32/lv_load_le16（lv_utils.h，
+ * 判据 B 收敛：本地 ggb_read_u32_le/ggb_read_u16_le 手写展开已删）。 */
 
 /**
  * @brief 在文件末尾搜索 EOCD（End of Central Directory）记录
@@ -318,7 +310,7 @@ static bool ggb_find_eocd(const uint8_t *data, size_t size, size_t *eocd_offset)
     size_t min_i = (size > window) ? (size - window) : 0;
     size_t i = size - GGB_EOCD_MIN_SIZE;
     while (i >= min_i) {
-        if (ggb_read_u32_le(data, i) == GGB_EOCD_SIG) {
+        if (lv_load_le32(data + i) == GGB_EOCD_SIG) {
             *eocd_offset = i;
             return true;
         }
@@ -348,24 +340,24 @@ static bool ggb_find_eocd(const uint8_t *data, size_t size, size_t *eocd_offset)
 static bool ggb_central_find_entry(const uint8_t *data, size_t data_size, size_t eocd_offset,
                                    const char *target, size_t *local_offset, size_t *comp_size,
                                    size_t *uncomp_size, uint16_t *comp_method) {
-    size_t total_entries = ggb_read_u16_le(data, eocd_offset + 10);
-    size_t cd_size = ggb_read_u32_le(data, eocd_offset + 12);
-    size_t cd_offset = ggb_read_u32_le(data, eocd_offset + 16);
+    size_t total_entries = lv_load_le16(data + eocd_offset + 10);
+    size_t cd_size = lv_load_le32(data + eocd_offset + 12);
+    size_t cd_offset = lv_load_le32(data + eocd_offset + 16);
     if (cd_offset > data_size || cd_size > data_size - cd_offset)
         return false;
 
     size_t pos = cd_offset;
     size_t target_len = strlen(target);
     for (size_t e = 0; e < total_entries && pos + GGB_CENTRAL_DIR_MIN <= data_size; e++) {
-        if (ggb_read_u32_le(data, pos) != GGB_CENTRAL_DIR_SIG)
+        if (lv_load_le32(data + pos) != GGB_CENTRAL_DIR_SIG)
             return false;
-        uint16_t method = ggb_read_u16_le(data, pos + 10);
-        size_t csize = ggb_read_u32_le(data, pos + 20);
-        size_t usize = ggb_read_u32_le(data, pos + 24);
-        uint16_t name_len = ggb_read_u16_le(data, pos + 28);
-        uint16_t extra_len = ggb_read_u16_le(data, pos + 30);
-        uint16_t comment_len = ggb_read_u16_le(data, pos + 32);
-        size_t local_off = ggb_read_u32_le(data, pos + 42);
+        uint16_t method = lv_load_le16(data + pos + 10);
+        size_t csize = lv_load_le32(data + pos + 20);
+        size_t usize = lv_load_le32(data + pos + 24);
+        uint16_t name_len = lv_load_le16(data + pos + 28);
+        uint16_t extra_len = lv_load_le16(data + pos + 30);
+        uint16_t comment_len = lv_load_le16(data + pos + 32);
+        size_t local_off = lv_load_le32(data + pos + 42);
 
         size_t name_pos = pos + GGB_CENTRAL_DIR_MIN;
         if (name_pos > data_size || name_len > data_size - name_pos)
@@ -398,10 +390,10 @@ static bool ggb_local_data_offset(const uint8_t *data, size_t data_size, size_t 
                                   size_t *data_offset) {
     if (local_offset > data_size || GGB_LOCAL_HEADER_MIN > data_size - local_offset)
         return false;
-    if (ggb_read_u32_le(data, local_offset) != GGB_LOCAL_FILE_SIG)
+    if (lv_load_le32(data + local_offset) != GGB_LOCAL_FILE_SIG)
         return false;
-    uint16_t name_len = ggb_read_u16_le(data, local_offset + 26);
-    uint16_t extra_len = ggb_read_u16_le(data, local_offset + 28);
+    uint16_t name_len = lv_load_le16(data + local_offset + 26);
+    uint16_t extra_len = lv_load_le16(data + local_offset + 28);
     size_t off = local_offset + GGB_LOCAL_HEADER_MIN + name_len + extra_len;
     if (off > data_size)
         return false;

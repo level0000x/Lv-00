@@ -305,7 +305,7 @@ ConstraintMaintainStatus interactive_geo_drag_end(lvInteractiveGeo *g, double x,
             sb->object_ids[n] = cs->drag_target_id;
             char buf[256];
             snprintf(buf, sizeof(buf), "move(point(%d), (%.6f, %.6f))\n", cs->drag_target_id, x, y);
-            sb->script_snippets[n] = strdup(buf);
+            sb->script_snippets[n] = lv_strdup(buf);
             sb->binding_count++;
             int len = (int) strlen(buf);
             if (sb->script_length + len < lv_GEO_SCRIPT_BUFFER_SIZE - 1) {
