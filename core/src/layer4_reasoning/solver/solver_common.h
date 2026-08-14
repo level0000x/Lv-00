@@ -68,11 +68,16 @@ void cleanup_groebner_result(GroebnerResult *result);
 int solve_quadratic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
 int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max_solutions);
 
-/* --- solver_coord_extract.c (坐标/方程提取) --- */
-void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
+/* --- solver_coord_extract.c (坐标转换/多项式池) --- */
 bool point_coord(const GeomNode *pt, int idx, double *out);
 bool point_coord_xy(const GeomNode *pt, double *x, double *y);
 bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale);
+bool coord_to_mpz_scaled_exact(const SymbolicCoord *coord, mpz_t result, int64_t scale);
+int solver_poly_pool_init(mpz_poly_t *poly, int degree, int coeff_count);
+int solver_poly_pool_push(EquationSystem *sys, mpz_poly_t *poly, int var_node_id, int coord_index);
+
+/* --- solver_equation_extract.c (约束方程提取) --- */
+void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSystem *sys);
 
 /* --- solver_linear.c (数值求解) --- */
 bool solve_linear(const mpz_poly_t *poly, double *x_out);
@@ -108,7 +113,7 @@ SolverStatus analyze_out_of_scope(const ConstraintGraph *graph, int var_id, char
 /* --- solver_groebner.c (Groebner 基计算) --- */
 SolverStatus groebner_basis_compute(EquationSystem *system);
 
-/* --- solver_coord_extract.c (方程提取公共 API) --- */
+/* --- solver_equation_extract.c (方程提取公共 API) --- */
 int solver_extract_equations_full(const ConstraintGraph *graph, EquationSystem *out_system);
 
 #endif /* SOLVER_COMMON_H */

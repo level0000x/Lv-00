@@ -22,10 +22,10 @@
 | 4 | `equation_system` | ~200 | — | 9 | ✅ solver_eq_system.c |
 | 5 | `solver_coord_extract` | ~300 | — | 6 | ✅ solver_coord_extract.c |
 | 6 | `solver_geom_util` | ~80 | — | 3 | ✅ solver_coord_extract.c (内含) |
-| 7 | `solver_equation_extract` | ~1600 | — | 2 | ✅ solver_equation_extract.c |
+| 7 | `solver_equation_extract` | ~1600 | — | 2 | ✅ solver_equation_extract.c（C-⑬ 从 solver_coord_extract.c 拆分落地） |
 | 8 | `solver_univariate` | ~700 | — | 7 | ✅ solver_symbolic.c + solver_linear.c |
 | 9 | `solver_symbolic_util` | ~250 | — | 3 | ✅ solver_symbolic.c (内含) |
-| 10 | `solver_substitution` | ~200 | — | 2 | ✅ solver_equation_extract.c (内含) |
+| 10 | `solver_substitution` | ~200 | — | 2 | ✅ solver_symbolic.c（内含） |
 | 11 | `solver_stats` | ~100 | — | 3 | ✅ solver_stats.c |
 | 12 | `solver_conflict` | ~200 | — | 3 | ✅ solver_conflict.c |
 | 13 | `solver_result` | ~80 | — | 3 | ✅ solver_result.c |

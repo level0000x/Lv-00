@@ -836,6 +836,11 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/adaptive_threshold.c
     # SIMD 运算（依赖 geo_utils L3）自 L2 迁入
     core/src/layer3_geometry/simd_ops.c
+    core/src/layer3_geometry/simd_batch.c
+    core/src/layer3_geometry/simd_geo_matrix.c
+    core/src/layer3_geometry/simd_v4d.c
+    core/src/layer3_geometry/simd_v4f.c
+    core/src/layer3_geometry/simd_v8f.c
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/euclidean_geometry.c
@@ -877,6 +882,9 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/mpz_poly_resultant.c
     # v1.1.0 新增：几何变换推理
     core/src/layer3_geometry/geometry_transform.c
+    core/src/layer3_geometry/geometry_transform_analysis.c
+    core/src/layer3_geometry/geometry_transform_apply.c
+    core/src/layer3_geometry/geometry_transform_group.c
     # v3.4.0 新增：几何代数模块（GATr + GAALOP + GeoLogic 落地）
     core/src/layer3_geometry/ga_multivector.c
     core/src/layer3_geometry/ga_interface.c
@@ -1059,6 +1067,10 @@ set(lv_L4_BACKENDS_SOURCES
     core/src/layer4_reasoning/backends/smt_backend_impl_external.c
     core/src/layer4_reasoning/backends/atp_backend.c
     core/src/layer4_reasoning/backends/bdd_encoding.c
+    core/src/layer4_reasoning/backends/bdd_encoding_add.c
+    core/src/layer4_reasoning/backends/bdd_encoding_cnf.c
+    core/src/layer4_reasoning/backends/bdd_encoding_encode.c
+    core/src/layer4_reasoning/backends/bdd_encoding_sift.c
     core/src/layer4_reasoning/backends/probabilistic_constraint.c
     core/src/layer4_reasoning/backends/smt_theory_combiner.c
     core/src/layer4_reasoning/backends/smt_bitvector.c
@@ -1283,6 +1295,7 @@ set(lv_L4_REWRITE_SOURCES
 set(lv_L4_SOLVER_SOURCES
     core/src/layer4_reasoning/solver/solver_core.c
     core/src/layer4_reasoning/solver/solver_coord_extract.c
+    core/src/layer4_reasoning/solver/solver_equation_extract.c
     core/src/layer4_reasoning/solver/solver_conflict.c
     core/src/layer4_reasoning/solver/solver_dirty_set.c
     core/src/layer4_reasoning/solver/solver_eq_system.c
@@ -1301,6 +1314,9 @@ set(lv_L4_SOLVER_SOURCES
     core/src/layer4_reasoning/solver/solver_multibranch.c
     # SAT 编码管线（从 backends/ 移入 solver/：编码 + 驱动 CDCL 求解，断 solver↔backends 环）
     core/src/layer4_reasoning/solver/sat_encoding.c
+    core/src/layer4_reasoning/solver/sat_encoding_decode.c
+    core/src/layer4_reasoning/solver/sat_encoding_formula.c
+    core/src/layer4_reasoning/solver/sat_encoding_geom.c
 )
 
 # stream 流式基础设施域（自 L4 下沉：仅依赖 L2，L1/L2/L3 均消费）
@@ -1377,6 +1393,8 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/tikz_export.c
     # 互操作子模块：命令、导出、导入、服务器、定理
     core/src/layer5_output/interop/interop_command.c
+    core/src/layer5_output/interop/interop_command_export.c
+    core/src/layer5_output/interop/interop_command_stream.c
     core/src/layer5_output/interop/interop_export.c
     core/src/layer5_output/interop/interop_export_canonical.c
     core/src/layer5_output/interop/interop_export_coq.c
@@ -1386,7 +1404,12 @@ set(lv_LAYER5_SOURCES
     core/src/layer5_output/interop/interop_export_pdf.c
     core/src/layer5_output/interop/interop_export_svg.c
     core/src/layer5_output/interop/interop_import.c
+    core/src/layer5_output/interop/interop_import_ggb_zip.c
+    core/src/layer5_output/interop/interop_import_ggb_xml.c
+    core/src/layer5_output/interop/interop_import_json.c
+    core/src/layer5_output/interop/interop_import_svg.c
     core/src/layer5_output/interop/interop_server.c
+    core/src/layer5_output/interop/interop_server_ws.c
     core/src/layer5_output/interop/interop_theorem.c
 )
 

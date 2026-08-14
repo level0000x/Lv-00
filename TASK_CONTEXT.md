@@ -2161,4 +2161,39 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 
 ### 后续候选（暂缓）
 
-L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选）、巨型文件拆分（simd_ops 2148 行 / interop_import 2147 行等）。
+L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选）。
+
+## 三十三、批次 C-⑬：架构激进优化——巨型文件拆分（2026-08-14）
+
+用户「可以研究一下架构的激进优化」→ AskUserQuestion 选定「按照优先级逐步完整执行」。审计（search 子代理全量扫描 + SOLVER_SPLIT_PLAN 核查）确认 Top 8 巨型文件，按优先级逐个拆分。统一模式：banner 分区为单位按功能簇拆；簇内静态自足则不建 internal 头；跨簇共享静态函数去 static + internal 头声明；聚合入口保留公共 API；CMakeLists 条目同步并 grep 复核持久化。
+
+### 拆分清单（8 文件 → 26 个子模块 + 7 个 internal 头）
+
+| # | 原文件 | 拆分后 | 验证 |
+|---|--------|--------|------|
+| 1 | interop_import.c（2309→36 行） | interop_import_ggb_zip.c（545）/ggb_xml.c（784）/json.c（288）/svg.c（588）+ interop_import_internal.h | 928/928 + 7/7 |
+| 2 | simd_ops.c（2322→220 行） | simd_v4d.c（924）/v4f.c（236）/v8f.c（197）/batch.c（530）/geo_matrix.c（259）+ simd_ops_internal.h | 933/933 + 171/171 |
+| 3 | interop_server.c（1905→743 行） | interop_server_ws.c（1164，RFC 6455 全段）+ interop_server_internal.h | 935/934 + 171/171 |
+| 4 | geometry_transform.c（1727→591 行） | geometry_transform_apply.c（271）/analysis.c（399）/group.c（559） | 937/937 + 171/171 |
+| 5 | bdd_encoding.c（1554→550 行） | bdd_encoding_sift.c（142）/encode.c（413）/cnf.c（264）/add.c（290）+ bdd_encoding_internal.h | 941/941 + 171/171 |
+| 6 | sat_encoding.c（1502→353 行） | sat_encoding_geom.c（435）/formula.c（353）/decode.c（433）+ sat_encoding_internal.h | 944/944 + 171/171 |
+| 7 | solver_coord_extract.c（1366→388 行） | solver_equation_extract.c（983，**修复 SPLIT_PLAN #7 偏差**）+ solver_common.h 增声明 | 945/945 + 171/171 |
+| 8 | interop_command.c（1477→965 行） | interop_command_export.c（377）/stream.c（200）+ interop_command_internal.h | 948/948 + 171/171 |
+
+### 关键发现
+
+- **SearchReplace 对 CMakeLists 大文件多次不持久**（本批 8 次拆分中至少 4 次复现，含并行编辑互相覆盖）→ 统一 PowerShell 精确替换（LF 行尾探测）+ Grep 复核。
+- **拆分暴露的真实跨文件隐式依赖**（拆分前同 TU 编译掩盖）：lv_transform_equal 未入公开头（geometry_transform，本地前置声明处理）；solver_poly_pool_init/push 与 coord_to_mpz_scaled_exact 跨簇（solver_common.h 补声明）；AddManagerGuard 守卫随 ADD 段迁移（bdd）；interop_resp_json_init 跨 stream 族（interop_command）。
+- **SOLVER_SPLIT_PLAN 偏差修复**：#7 solver_equation_extract.c 从未落地（内容并入 solver_coord_extract.c）→ 本批抽离；#10 实际位于 solver_symbolic.c，文档同步更正。
+- 边界核对：solver_coord_extract 拆分时 find_node 注释块落错文件，人工修正两文件边界（悬空注释 + 缺失注释配对）。
+- 统一保留 LF 行尾 + UTF-8 无 BOM；切片用 ReadAllLines + LF join + WriteAllText（WriteAllLines 会转 CRLF，弃用）。
+
+### 决策登记（第 9 章格式）
+
+- 架构激进优化 / 批次C-⑬ / 巨型文件按功能簇拆分（8 文件 → 26 子模块 + 7 internal 头）/ 用户选定「按优先级逐步完整执行」/ 全量回归 171/171。
+- 拆分边界规则 / 批次C-⑬ / banner 分区为单位；簇内静态自足则不建 internal 头；跨簇静态去 static + internal 头 / 已实施。
+- 内部函数声明归属 / 批次C-⑬ / 仅本模块用的跨文件函数用本地前置声明（lv_transform_equal）；不为此单独建头 / 已实施。
+
+### 后续候选（暂缓）
+
+拆分后 >800 行文件复查（预计已无）、L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）、core 门面 hub 形状治理（可选）。
