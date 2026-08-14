@@ -19,7 +19,7 @@
 #include "lv/lv_path.h"
 #include "lv/module.h"
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 #include "engine_internal.h"
 

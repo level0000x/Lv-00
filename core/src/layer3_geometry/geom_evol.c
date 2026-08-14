@@ -27,7 +27,7 @@
  * 包含头文件
  * ======================================================================== */
 
-#include "geom_evol.h"
+#include "lv/geom_evol.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -38,10 +38,10 @@
 #include "lv/lv_lifecycle.h"
 #include "lv/ode_integrator.h"
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "numerical_backend.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/numerical_backend.h"
 #include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference_vec / lv_fd_step_relative / lv_NUMERICAL_DIFF_EPSILON） */
 
 /* ========================================================================

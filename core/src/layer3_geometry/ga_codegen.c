@@ -17,7 +17,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/lv_numeric.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_dot_writer.h"
 

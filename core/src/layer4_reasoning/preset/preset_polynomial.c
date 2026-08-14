@@ -13,14 +13,14 @@
  * @version 4.0.0
  */
 
-#include "preset_polynomial.h"
+#include "lv/preset_polynomial.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

@@ -17,16 +17,16 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_constraint_guard.h"
 
-#include "smt_backend.h"
+#include "lv/smt_backend.h"
 #include "smt_backend_internal.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_numeric.h"
 
-#include "error_codes.h"
-#include "groebner_engine.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/groebner_engine.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 约束图 -> SMT-LIB2 编码（增强版：真实几何约束编码）

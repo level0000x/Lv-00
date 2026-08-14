@@ -18,7 +18,7 @@ extern "C" {
 #include "lv/meta_verify.h"
 #include "lv/visual_editor.h"
 
-#include "constraint_graph.h"
+#include "lv/constraint_graph.h"
 
 /* ---- cross-section internal APIs ----
  * 实现于 layer4_reasoning/proof/meta_verify.c（与 layer8_meta_verify/meta_verify.c

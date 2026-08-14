@@ -10,10 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "geometry_types.h"
+#include "lv/geometry_types.h"
 #include "geometry_csg_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 网格骨架共享（圆柱/圆锥/球体共用）

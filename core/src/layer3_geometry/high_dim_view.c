@@ -4,7 +4,7 @@
  * @details Split from high_dim.c
  */
 
-#include "high_dim.h"
+#include "lv/high_dim.h"
 #include "high_dim_internal.h"
 
 #include <math.h>
@@ -17,13 +17,13 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_thread.h"
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 

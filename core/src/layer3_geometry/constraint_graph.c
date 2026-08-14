@@ -55,15 +55,15 @@
 
 #include "lv/solver.h"
 
-#include "config.h"  /* lv_ARRAY_GROWTH_FACTOR etc. */
-#include "context.h" /* v3.4.0: lvContext 用于统一错误系统 */
-#include "debug.h"
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
-#include "stream.h"
-#include "stream_context_util.h"
-#include "symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
+#include "lv/config.h"  /* lv_ARRAY_GROWTH_FACTOR etc. */
+#include "lv/context.h" /* v3.4.0: lvContext 用于统一错误系统 */
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
+#include "lv/symbolic_coord.h" /* SymbolicCoord, TrustColor (brings rational.h) */
 
 /** @brief graph 模块全局流式上下文定义（供所有 graph 子模块通过 constraint_graph.h 的 extern 引用） */
 LV_STREAM_CTX_DEFINE(graph);

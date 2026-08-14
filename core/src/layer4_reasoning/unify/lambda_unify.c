@@ -12,7 +12,7 @@
 #include "lv/lambda_unify.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
-#include "debug.h"
+#include "lv/debug.h"
 
 #include <string.h>
 

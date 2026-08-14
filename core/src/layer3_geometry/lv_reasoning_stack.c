@@ -14,7 +14,7 @@
 
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/constraint_graph.h"
 
 /* ============================================================

@@ -19,9 +19,9 @@
 #include "lv/lv.h"
 #include "lv/unify.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 #include "engine_internal.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /** 全局画布的上下文深度（用于引擎初始化时的默认值） */
 #define ENGINE_GLOBAL_CANVAS_DEPTH 0

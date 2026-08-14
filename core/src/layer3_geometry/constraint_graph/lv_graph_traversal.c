@@ -19,7 +19,7 @@
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ============================================================
  * 内部辅助结构

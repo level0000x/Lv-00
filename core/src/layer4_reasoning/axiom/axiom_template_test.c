@@ -22,9 +22,9 @@
 #include "lv/lv.h"
 #include "lv/lv_lifecycle.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============== 辅助：图结构比对 ============== */
 

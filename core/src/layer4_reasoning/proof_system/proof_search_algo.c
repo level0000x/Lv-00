@@ -18,8 +18,8 @@
 #include "lv/lv_hashtable.h"
 #include "lv/proof.h"
 #include "lv/solver.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============== 辅助搜索函数实现 ============== */
 

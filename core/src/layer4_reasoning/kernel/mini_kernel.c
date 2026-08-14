@@ -38,7 +38,7 @@
  * 包含头文件
  * ======================================================================== */
 
-#include "mini_kernel.h"
+#include "lv/mini_kernel.h"
 
 #include "lv/lv_file.h"
 #include "lv/lv_hashtable.h" /* 符号表 name→下标 哈希索引 */
@@ -52,9 +52,9 @@
 #include "lv/constraint_graph.h"
 
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_lifecycle.h" /* lv_DEFER / lv_DEFER_FREE_MANY */
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"

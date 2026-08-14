@@ -15,14 +15,14 @@
  * @date 2026-05-24
  */
 
-#include "bdd_encoding.h"
+#include "lv/bdd_encoding.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_check.h"
 #include "lv/lv_constraint_guard.h"
 #include "lv/lv_lifecycle.h"

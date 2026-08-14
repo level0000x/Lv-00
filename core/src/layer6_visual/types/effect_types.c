@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "lv/effect_system.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h"
 
 /* ================================================================

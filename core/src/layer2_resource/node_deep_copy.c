@@ -26,14 +26,14 @@
  * @author Lv-00 Project
  */
 
-#include "node_deep_copy.h"
+#include "lv/node_deep_copy.h"
 
 #include <string.h>
 
 #include "lv/constraint_graph.h" /* GeomNode type */
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include "../layer3_geometry/constraint_graph/graph_node_internal.h" /* graph_node_deep_copy_detached */
 

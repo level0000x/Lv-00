@@ -18,17 +18,17 @@
  *   - Iterative deepening: run depth-first with increasing depth limits.
  */
 
-#include "proof_rule_engine.h"
+#include "lv/proof_rule_engine.h"
 #include "proof_rule_engine_internal.h"
 #include "lv/lv_xmacro.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "circuit_breaker.h"
-#include "lv.h"
+#include "lv/circuit_breaker.h"
+#include "lv/lv.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* 数值验证策略公共入口（proof_strategy_numeric.c：区间算术求值 + FPTaylor 误差界分级）：
  * 本文件的数值验证规则通过这两个公共 API 复用其提取/求值/TrustColor 能力，

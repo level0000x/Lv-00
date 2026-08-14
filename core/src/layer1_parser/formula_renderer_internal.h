@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "formula_renderer.h"
+#include "lv/formula_renderer.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 #include "lv/lv_utils.h"   /* lv_strlcpy */
 

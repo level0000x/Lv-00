@@ -18,7 +18,7 @@
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ========================================================================
  * 内部辅助：解析点和多边形

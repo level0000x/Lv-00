@@ -14,12 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "func_block.h"
-#include "lv_internal.h"
+#include "lv/func_block.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
 

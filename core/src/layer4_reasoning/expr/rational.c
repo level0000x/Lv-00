@@ -15,14 +15,14 @@
  * @date 2026-05-24
  */
 
-#include "rational.h"
+#include "lv/rational.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* 用于 lv_rational_den_is_safe 的安全比特阈值 */
 #define RATIONAL_SAFE_BITS_DEFAULT 65536 /* 2^16 比特 */

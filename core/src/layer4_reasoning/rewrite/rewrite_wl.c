@@ -19,10 +19,10 @@
 #include "lv/rewrite.h"
 #include "lv/stream.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 
 /* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
 StreamContext *rewrite_get_stream_context(void);

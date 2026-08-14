@@ -22,7 +22,7 @@
  *   - error_codes.h      : 错误码定义
  */
 
-#include "formula_renderer.h"
+#include "lv/formula_renderer.h"
 #include "formula_renderer_internal.h"
 
 #include <math.h>
@@ -31,12 +31,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_thread.h"
-#include "lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
+#include "lv/lv_utils.h" /* lv_malloc / lv_realloc / lv_free —— 统一内存分配器 */
 
 /* 渲染函数指针表 — 文件作用域，供所有渲染函数使用 */
 static const RenderNodeFunc s_render_funcs[] = {

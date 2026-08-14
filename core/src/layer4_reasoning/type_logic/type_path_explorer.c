@@ -13,7 +13,7 @@
  * @author Lv-00 Project
  */
 
-#include "type_system.h"
+#include "lv/type_system.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,9 +22,9 @@
 #include "lv/lv.h"
 #include "lv/stream.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "rewrite.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/rewrite.h"
 #include "lv/lv_strbuf.h"
 
 /*

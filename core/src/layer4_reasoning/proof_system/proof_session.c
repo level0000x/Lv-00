@@ -13,18 +13,18 @@
  *   - Optional rule engine integration for automated hints
  */
 
-#include "proof_session.h"
+#include "lv/proof_session.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#include "lv.h"
-#include "lv_utils.h"
+#include "lv/lv.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
-#include "proof_rule_engine.h"
+#include "lv/proof_rule_engine.h"
 
 /* ============== Internal Helpers ============== */
 

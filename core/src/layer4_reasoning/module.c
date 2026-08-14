@@ -25,15 +25,15 @@
 
 #include "lv/constraint_graph.h"
 
-#include "axiom_pkg.h"
-#include "error_codes.h"
-#include "lexer_shared.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "module.h"
-#include "stream.h"
-#include "stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
-#include "symbolic_coord.h"
+#include "lv/axiom_pkg.h"
+#include "lv/error_codes.h"
+#include "lv/lexer_shared.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/module.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h" /* LV_STREAM_CTX_DEFINE */
+#include "lv/symbolic_coord.h"
 
 /* ============== 模块实例结构体定义 ============== */
 #include "lv/module_internal.h"

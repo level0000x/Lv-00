@@ -39,9 +39,9 @@
 #include "lv/lv_hashtable.h"
 #include "lv/proof.h"
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_dot_writer.h"
 

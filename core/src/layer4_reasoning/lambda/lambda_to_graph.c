@@ -24,8 +24,8 @@
 #include "lv/lambda_term.h"
 #include "lv/lv_xmacro.h"
 
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 
 /* ===========================================================================
  * 内部辅助：λ-编译作用域栈

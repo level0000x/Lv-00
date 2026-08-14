@@ -15,7 +15,7 @@ extern "C" {
 #include "lv/lv_numeric.h" /* lv_NUMERICAL_DIFF_EPSILON（有限差分步长基准） */
 #include "lv/geo_constraint_solver.h"
 #include "lv/config.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_hashtable.h"
 
 #include <stdbool.h>

@@ -41,7 +41,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/lv_thread.h"
-#include "debug.h"
+#include "lv/debug.h"
 #include "lv/lv_internal.h"
 
 #include "lv/groebner_engine.h"

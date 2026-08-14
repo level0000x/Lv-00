@@ -19,16 +19,16 @@
 #include "lv/proof.h"
 #include "lv/solver.h"
 
-#include "atp_backend.h"
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/atp_backend.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
-#include "normalization.h"
-#include "type_system.h"
-#include "unify.h"
+#include "lv/normalization.h"
+#include "lv/type_system.h"
+#include "lv/unify.h"
 
 /* ================================================================
  * 约束类型 -> 初始事实格式 映射表（数据表化，替代 switch）

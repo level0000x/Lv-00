@@ -34,7 +34,7 @@
  * 包含头文件
  * ======================================================================== */
 
-#include "euclidean_geometry.h"
+#include "lv/euclidean_geometry.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -44,11 +44,11 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_check.h"
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "symbolic_coord.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
 #include "euclidean_geometry_internal.h"
 
 /* ========================================================================

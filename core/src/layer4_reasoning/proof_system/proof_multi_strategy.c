@@ -25,17 +25,17 @@
 #include "lv/solver.h"
 #include "lv/lv_xmacro.h"
 
-#include "atp_backend.h"
-#include "lv_internal.h"
+#include "lv/atp_backend.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lambda_to_graph.h"
 #include "lv/lambda_unify.h"
-#include "normalization.h"
-#include "proof_engine_enhanced.h" /* 经典策略引擎（系统A）：桥接策略依赖其公共入口 */
+#include "lv/normalization.h"
+#include "lv/proof_engine_enhanced.h" /* 经典策略引擎（系统A）：桥接策略依赖其公共入口 */
 #include "proof_multi_strategy_internal.h"
-#include "type_system.h"
-#include "unify.h"
+#include "lv/type_system.h"
+#include "lv/unify.h"
 
 /* ============== 内部辅助 ============== */
 

@@ -17,7 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/cross_platform.h"
 

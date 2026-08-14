@@ -9,7 +9,7 @@
 
 #include "lv/modal_operators.h"
 #include "lv/lv_xmacro.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>

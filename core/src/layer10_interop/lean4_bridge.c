@@ -26,7 +26,7 @@
 #include "lv/interop_bridge_common.h"
 #include "lv/interop_step_type.h"
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* lvProofStepType 枚举定义在 lv/interop_step_type.h（Lean 4 / OPML 共用单源）；
    lvProofStep 和 lvBridgeProof 定义在 lv/interop_bridge_common.h */

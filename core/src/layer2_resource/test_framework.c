@@ -12,7 +12,7 @@
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_numeric.h"
 
-#include "test_framework.h"
+#include "lv/test_framework.h"
 
 
 #include <math.h>
@@ -23,7 +23,7 @@
 #include <time.h>
 
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 
 #include "lv/lv_json.h"

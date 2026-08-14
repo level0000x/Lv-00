@@ -11,14 +11,14 @@
  * - cleanup 时释放所有资源
  */
 
-#include "preset_blocks.h"
+#include "lv/preset_blocks.h"
 
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_hashtable.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_strbuf.h"
@@ -26,8 +26,8 @@
 #include "lv/preset_category.h" /* LV_PRESET_EXTENDED_CATEGORY_ENTRY 单一事实来源 */
 #include "lv/lv_lifecycle.h"    /* lv_obj_destroy_fields / lv_FIELD_* */
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
-#include "preset_common.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_common.h"
 
 /* ==================== LVZ 预设文件加载 ==================== */
 

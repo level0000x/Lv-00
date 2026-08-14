@@ -30,7 +30,7 @@
  *   - lv/proof.h            : Proposition 结构定义
  */
 
-#include "quantifier.h"
+#include "lv/quantifier.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_lifecycle.h"
 
@@ -41,9 +41,9 @@
 #include "lv/constraint_graph.h"
 #include "lv/proof.h"
 
-#include "error_codes.h"
-#include "lv_utils.h"
-#include "three_valued_logic.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
+#include "lv/three_valued_logic.h"
 
 /* ============== 内部辅助宏 ============== */
 

@@ -30,12 +30,12 @@
 #include "lv/engine.h"
 #include "lv/proof.h"
 
-#include "error_codes.h"
-#include "lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
-#include "symbolic_coord.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
+#include "lv/symbolic_coord.h"
 
 #define MAX_RELATED_CONSTRAINTS 256
 

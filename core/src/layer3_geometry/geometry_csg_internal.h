@@ -13,9 +13,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "geometry_types.h"
-#include "lv_internal.h"
-#include "lv_vec3.h" /* 收敛：CSGVec3 统一 typedef 到公共 lvVec3 */
+#include "lv/geometry_types.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_vec3.h" /* 收敛：CSGVec3 统一 typedef 到公共 lvVec3 */
 #include "lv/config.h" /* CSG_BSP_EPSILON 语义别名 = lv_EPSILON_MEDIUM */
 
 /* ---- constants ---- */

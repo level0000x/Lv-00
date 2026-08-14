@@ -19,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "union_find_util.h"
 
 /* ============================================================

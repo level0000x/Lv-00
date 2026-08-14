@@ -13,14 +13,14 @@
  * @version 3.0.1
  */
 
-#include "lexer_shared.h"
+#include "lv/lexer_shared.h"
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  *  词法分析器初始化

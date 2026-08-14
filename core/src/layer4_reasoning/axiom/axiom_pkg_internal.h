@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-#include "axiom_pkg.h"
-#include "lv_internal.h"
+#include "lv/axiom_pkg.h"
+#include "lv/lv_internal.h"
 
 /* Compatibility macro: set_error -> lv_set_error */
 #define set_error(fmt, ...) lv_set_error(lv_ERROR_INVALID_PARAM, (fmt), ##__VA_ARGS__)

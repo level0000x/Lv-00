@@ -8,7 +8,7 @@
  * @date 2026-08-02
  */
 
-#include "euclidean_geometry.h"
+#include "lv/euclidean_geometry.h"
 #include "euclidean_geometry_internal.h"
 
 #include <math.h>
@@ -19,10 +19,10 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_check.h"
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * 第六部分：导出

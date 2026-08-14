@@ -24,7 +24,7 @@
  * 其值须 ≥ 对应配置默认值，保证配置调大时栈数组不越界。
  * ============================================================ */
 
-#include "formula_parser.h"
+#include "lv/formula_parser.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -32,13 +32,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "parser_safety.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/error_codes.h"
+#include "lv/lv.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/parser_safety.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 

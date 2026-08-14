@@ -12,7 +12,7 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_arith_safe.h"
 #include "lv/lv_str_utils.h"
-#include "formula_converter.h"
+#include "lv/formula_converter.h"
 #include "formula_converter_internal.h"
 
 #include <math.h>
@@ -20,11 +20,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "formula_renderer.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/formula_renderer.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 /* 注：formula_converter 模块无 setter 函数（变量被 formula_converter_constraint.c 等直接 extern 引用），
  * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */

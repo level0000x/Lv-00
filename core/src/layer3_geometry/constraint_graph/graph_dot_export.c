@@ -28,8 +28,8 @@
 #include "lv/lv_strbuf.h"
 #include "lv/symbolic_coord.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/trust_color_x.h"
 
 /* ================================================================

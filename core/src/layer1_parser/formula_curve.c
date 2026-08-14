@@ -7,21 +7,21 @@
  */
 
 #include "formula_converter_internal.h"
-#include "formula_converter.h"
+#include "lv/formula_converter.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
+#include "lv/error_codes.h"
 #include "lv/constraint_graph.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
-#include "lv_internal.h"
-#include "lv_numeric.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_numeric.h"
 #include "lv/lv_strbuf.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 代数方程到曲线转换实现（新增）

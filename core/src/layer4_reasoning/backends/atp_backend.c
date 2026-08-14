@@ -27,7 +27,7 @@
 
 #include "lv/lv_platform.h"
 
-#include "atp_backend.h"
+#include "lv/atp_backend.h"
 #include "lv/lv_backend_plugin.h"
 #include "lv/lv_process.h"
 #include "lv/lv_registry.h"
@@ -45,9 +45,9 @@
 #include "lv/lv_thread.h"
 #include "lv/lv.h" /* lv_config_get_int / lv_config_get_double 字符串键桥接声明 */
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 
 /* ============================================================

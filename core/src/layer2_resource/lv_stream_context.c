@@ -15,8 +15,8 @@
 
 #include "lv/lv_stream_context.h"
 
-#include "context.h"
-#include "stream.h"
+#include "lv/context.h"
+#include "lv/stream.h"
 
 /* ============================================================
  * 流式输出 API

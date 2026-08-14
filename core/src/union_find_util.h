@@ -8,9 +8,9 @@
 #ifndef lv_UNION_FIND_UTIL_H
 #define lv_UNION_FIND_UTIL_H
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /**
  * @brief 创建并查集（parent/rank 数组）

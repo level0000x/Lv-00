@@ -29,7 +29,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "float_error.h"
+#include "lv/float_error.h"
 
 #include "lv/interval_arith.h" /* 公共区间算术库（lv_interval_*，语义基准） */
 
@@ -44,10 +44,10 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_strbuf.h"
-#include "lv_utils.h"
-#include "symbolic_coord.h"
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
 #include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference / lv_NUMERICAL_DIFF_EPSILON） */
 
 /* ========================================================================

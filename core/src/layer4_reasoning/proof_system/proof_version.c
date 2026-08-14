@@ -24,7 +24,7 @@
  * @date   2026-05-25
  */
 
-#include "proof_version.h"
+#include "lv/proof_version.h"
 
 #include "lv/config.h"
 #include "lv/lv_config.h"
@@ -41,7 +41,7 @@
 #include <string.h>
 
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 
 

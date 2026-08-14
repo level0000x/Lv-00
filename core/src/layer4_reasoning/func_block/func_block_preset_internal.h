@@ -11,7 +11,7 @@
 #ifndef lv_FUNC_BLOCK_PRESET_INTERNAL_H
 #define lv_FUNC_BLOCK_PRESET_INTERNAL_H
 
-#include "func_block_preset.h"
+#include "lv/func_block_preset.h"
 #include "lv/func_block_internal.h"
 #include "lv/lv_hashtable.h"
 

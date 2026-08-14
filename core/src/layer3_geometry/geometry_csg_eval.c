@@ -10,10 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "geometry_types.h"
+#include "lv/geometry_types.h"
 #include "geometry_csg_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/geo_utils.h" /* geo_norm_3d / geo_norm_sq_3d（向量模长统一工具） */
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"

@@ -22,8 +22,8 @@
 #include "lv/func_block.h"
 #include "lv/lambda_term.h"
 
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 
 /* graph_index.c 实现：按约束类型分发到 typed graph_add_*（收敛三处平行分发） */
 AddConstraintResult graph_add_constraint_dispatch(ConstraintGraph *graph, ConstraintType type,

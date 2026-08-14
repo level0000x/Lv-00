@@ -15,7 +15,7 @@
  * @version 3.3.0
  */
 
-#include "stream_context_util.h"
+#include "lv/stream_context_util.h"
 
 #include <stddef.h>
 
@@ -25,7 +25,7 @@
 #include "lv/lv_thread.h"
 
 #include "lv/lv_strbuf.h"
-#include "runtime_monitor.h"   /* lv_event_trace_set_stream_context（事件总线→Stream 桥接 setter） */
+#include "lv/runtime_monitor.h"   /* lv_event_trace_set_stream_context（事件总线→Stream 桥接 setter） */
 
 /* ---- 依赖前向声明：内置模块的 setter 函数 ---- */
 
@@ -39,13 +39,13 @@
 #include "lv/runtime_monitor.h"  /* lv_event_trace_set_stream_context（事件总线 → Stream 桥接） */
 #include "lv/solver.h"           /* solver_set_stream_context     */
 
-#include "func_block.h"    /* func_block_set_stream_context */
-#include "normalization.h" /* normalization_set_stream_context*/
-#include "prop_verifier.h" /* prop_verifier_set_stream_context*/
-#include "recursion.h"     /* recursion_set_stream_context  */
-#include "rewrite.h"       /* rewrite_set_stream_context    */
-#include "type_system.h"   /* type_system_set_stream_context*/
-#include "unify.h"         /* unify_set_stream_context      */
+#include "lv/func_block.h"    /* func_block_set_stream_context */
+#include "lv/normalization.h" /* normalization_set_stream_context*/
+#include "lv/prop_verifier.h" /* prop_verifier_set_stream_context*/
+#include "lv/recursion.h"     /* recursion_set_stream_context  */
+#include "lv/rewrite.h"       /* rewrite_set_stream_context    */
+#include "lv/type_system.h"   /* type_system_set_stream_context*/
+#include "lv/unify.h"         /* unify_set_stream_context      */
 
 /* ================================================================
  * 全局注册表（委托公共 lv_callback_list 回调列表设施）

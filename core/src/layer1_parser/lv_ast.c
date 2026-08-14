@@ -20,8 +20,8 @@
 
 #include "lv/lv_log.h"
 #include "lv/lv_strbuf.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ── 创建基础节点 ── */
 

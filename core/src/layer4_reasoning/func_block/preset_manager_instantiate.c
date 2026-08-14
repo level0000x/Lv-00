@@ -13,15 +13,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "func_block_preset.h"
-#include "func_block_registry.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/func_block_preset.h"
+#include "lv/func_block_registry.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_json.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
-#include "preset_core.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h"
+#include "lv/preset_core.h"
 #include "preset_manager_internal.h"
 
 /* ============================================================

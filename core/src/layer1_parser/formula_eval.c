@@ -18,7 +18,7 @@
 #include "lv/geo_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 double eval_node(const FormulaNode *node, double x, double y);
 typedef double (*EvalNodeFunc)(const FormulaNode *node, double x, double y);

@@ -14,13 +14,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_arena.h"
 #include "lv/lv_hashtable.h" /* eval_var 的 name→下标 哈希索引 */
 #include "lv/lv_log.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_str_utils.h"
-#include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
+#include "lv/lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 
 /* ================================================================
  *  Module-level state

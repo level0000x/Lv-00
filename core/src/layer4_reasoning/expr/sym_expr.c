@@ -12,11 +12,11 @@
  * @version 3.3.0
  */
 
-#include "sym_expr.h"
+#include "lv/sym_expr.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 #include <math.h>
 #include <stdio.h>

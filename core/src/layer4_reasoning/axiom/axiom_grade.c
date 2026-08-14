@@ -16,13 +16,13 @@
  * @version 1.0.0
  */
 
-#include "axiom_grade.h"
+#include "lv/axiom_grade.h"
 #include "lv/lv_xmacro.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============== 全局单例难度过滤器 ============== */
 /* 线程局部存储：每个线程可有独立的难度过滤器 */

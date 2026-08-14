@@ -47,7 +47,7 @@
  * 内部共享声明见 proof_engine_enhanced_internal.h。
  */
 
-#include "proof_engine_enhanced.h"
+#include "lv/proof_engine_enhanced.h"
 #include "proof_engine_enhanced_internal.h"
 
 #include <math.h>
@@ -59,13 +59,13 @@
 #include "lv/constraint_graph.h"
 #include "lv/proof.h"
 
-#include "axiom_rule_engine.h"
-#include "error_codes.h"
-#include "lv.h" /* lv_THREAD_LOCAL 宏定义 */
-#include "three_valued_logic.h"
+#include "lv/axiom_rule_engine.h"
+#include "lv/error_codes.h"
+#include "lv/lv.h" /* lv_THREAD_LOCAL 宏定义 */
+#include "lv/three_valued_logic.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 
 /* ============== 内部常量与宏 ============== */

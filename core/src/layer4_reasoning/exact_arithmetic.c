@@ -10,13 +10,13 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_arith_safe.h"
 
-#include "exact_arithmetic.h"
+#include "lv/exact_arithmetic.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * 时间戳实现

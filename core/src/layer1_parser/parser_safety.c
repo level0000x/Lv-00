@@ -8,13 +8,13 @@
  * @version 1.0.0
  */
 
-#include "parser_safety.h"
+#include "lv/parser_safety.h"
 
 #include <ctype.h>
 #include <string.h>
 
-#include "config.h" /* lv_MAX_* macros */
-#include "lv_utils.h"
+#include "lv/config.h" /* lv_MAX_* macros */
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 内部辅助函数

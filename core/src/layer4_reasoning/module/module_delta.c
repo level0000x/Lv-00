@@ -32,11 +32,11 @@
 #include "lv/lv_path.h" /* lv_path_join */
 #include "lv/lv_lifecycle.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 #include "lv/lv_thread.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "module_helpers.h"
 
 void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {

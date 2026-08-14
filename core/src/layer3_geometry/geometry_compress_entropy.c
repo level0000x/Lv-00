@@ -4,7 +4,7 @@
  * @details Split from geometry_compress.c
  */
 
-#include "geometry_compress.h"
+#include "lv/geometry_compress.h"
 #include "geometry_compress_internal.h"
 
 #include "lv/lv_file.h"
@@ -17,10 +17,10 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_heap.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "node_deep_copy.h"
-#include "symbolic_coord.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/node_deep_copy.h"
+#include "lv/symbolic_coord.h"
 
 /* ========================================================================
  * Real entropy encoding: RLE + Huffman (T-012)

@@ -34,7 +34,7 @@
  *   - constraint_graph.h   : 约束图接口（保真度计算依赖）
  */
 
-#include "high_dim.h"
+#include "lv/high_dim.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -45,13 +45,13 @@
 #include "lv/lv_json.h"
 #include "lv/lv_parse_utils.h"
 
-#include "debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
-#include "error_codes.h"
-#include "lv_internal.h" /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
+#include "lv/debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h" /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 

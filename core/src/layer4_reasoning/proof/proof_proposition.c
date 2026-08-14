@@ -20,9 +20,9 @@
 #include "lv/proof.h"
 #include "lv/proof_version_internal.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include "lv/lv_xmacro.h"
 #include "lv/lv_lifecycle.h"

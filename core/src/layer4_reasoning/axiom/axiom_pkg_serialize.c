@@ -4,7 +4,7 @@
  * @details Split from axiom_pkg.c
  */
 
-#include "axiom_pkg.h"
+#include "lv/axiom_pkg.h"
 #include "axiom_pkg_internal.h"
 
 #include "lv/lv_file.h"
@@ -20,12 +20,12 @@
 #include "lv/lv_str_utils.h" /* lv_str_hex_encode */
 #include "lv/lv_xmacro.h"
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lexer_shared.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "stream.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lexer_shared.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
 
 /* ============== 保存功能 ============== */
 

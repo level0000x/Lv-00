@@ -25,7 +25,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 默认配置

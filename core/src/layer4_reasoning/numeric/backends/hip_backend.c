@@ -37,7 +37,7 @@
 #include "lv/lv_utils.h"
 #include "lv/host_linalg.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
-#include "debug.h"
+#include "lv/debug.h"
 #include "lv/lv_internal.h"
 
 #ifdef LV_HAS_HIP

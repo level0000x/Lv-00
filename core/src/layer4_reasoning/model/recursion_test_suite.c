@@ -7,7 +7,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "recursion.h"
+#include "lv/recursion.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -18,8 +18,8 @@
 #include "lv/symbolic_coord.h"
 #include "lv/lv_str_utils.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============== Feature 1: 内置测试套件 ============== */
 

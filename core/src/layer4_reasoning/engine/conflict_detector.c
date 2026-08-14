@@ -11,7 +11,7 @@
  * @version 3.5.0
  */
 
-#include "conflict_detector.h"
+#include "lv/conflict_detector.h"
 
 #include <float.h>
 #include <math.h>
@@ -23,11 +23,11 @@
 #include "lv/lv_graph_traversal.h"
 #include "lv/lv_xmacro.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 /* geometry_config.h 已合并到 constraint_graph.h，无需单独包含 */
-#include "geo_utils.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/geo_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "union_find_util.h"
 
 /* ================================================================

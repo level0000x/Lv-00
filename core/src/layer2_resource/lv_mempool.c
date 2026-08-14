@@ -9,7 +9,7 @@
  */
 
 #include "lv/lv_mempool.h"
-#include "debug.h"  /* 提供 MemPool / lvMemPool 实现 */
+#include "lv/debug.h"  /* 提供 MemPool / lvMemPool 实现 */
 #include <stdlib.h>
 
 lvMemPool *lv_mempool_create(size_t block_size, int initial_blocks) {

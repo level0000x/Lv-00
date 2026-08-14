@@ -34,7 +34,7 @@
 /* ── 线程安全 ─────────────────────────────────────────────────────── */
 
 #include "lv/lv_thread.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_hashtable.h"
 
 lv_LAZY_LOCK_DEFINE(g_state_lock);

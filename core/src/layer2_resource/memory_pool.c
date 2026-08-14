@@ -38,17 +38,17 @@
  * @version 3.3.0
  */
 
-#include "memory_pool.h"
+#include "lv/memory_pool.h"
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "config.h" /* lv_FNV64_*, lv_CONFIG_POOL_* macros */
+#include "lv/config.h" /* lv_FNV64_*, lv_CONFIG_POOL_* macros */
 
-#include "lv_internal.h" /* lv_FNV64_* 哈希常量 */
-#include "lv_utils.h"    /* lv_strdup, lv_malloc, lv_free */
+#include "lv/lv_internal.h" /* lv_FNV64_* 哈希常量 */
+#include "lv/lv_utils.h"    /* lv_strdup, lv_malloc, lv_free */
 
 /* ============== 内部常量 ============== */
 

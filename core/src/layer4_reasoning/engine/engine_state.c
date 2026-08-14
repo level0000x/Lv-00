@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
 

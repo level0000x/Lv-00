@@ -20,14 +20,14 @@
  * @date   2026-05-25
  */
 
-#include "autodiff.h"
+#include "lv/autodiff.h"
 
 #include "lv/lv_platform.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h" /* lv_calloc / lv_malloc / lv_free */
+#include "lv/lv_utils.h" /* lv_calloc / lv_malloc / lv_free */
 #include "lv/autodiff_vtable.h"
 
 /* ============================================================

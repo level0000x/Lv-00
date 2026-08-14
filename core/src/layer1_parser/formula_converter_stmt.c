@@ -10,7 +10,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "formula_converter.h"
+#include "lv/formula_converter.h"
 #include "formula_converter_internal.h"
 
 #include <math.h>
@@ -18,12 +18,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "formula_renderer.h"
-#include "lv_internal.h"
+#include "lv/formula_renderer.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH */
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 /* ============================================================
  * 公式 → 图 主转换函数

@@ -14,8 +14,8 @@
 
 #include <stdbool.h>
 
-#include "smt_backend.h"
-#include "groebner_engine.h"
+#include "lv/smt_backend.h"
+#include "lv/groebner_engine.h"
 #include "lv/lv_utils.h" /* GROEBNER_SMT_ZERO_THRESHOLD 语义别名 = lv_EPSILON_DOUBLE */
 
 #ifdef __cplusplus

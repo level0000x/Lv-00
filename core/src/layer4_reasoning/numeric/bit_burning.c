@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 /* node_destroy：统一节点释放路径（graph_index.c 实现），含内部字段清理与
  * vtable->free 类型特定 union 数据释放，替代本文件手写的按类型 switch 释放 */
 #include "layer3_geometry/constraint_graph/graph_node_internal.h"

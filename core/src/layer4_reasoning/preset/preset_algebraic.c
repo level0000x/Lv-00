@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_algebraic.c
  * @brief ��������Ԥ�躯���� - ʵ��
  *
@@ -9,12 +9,12 @@
  * @category PRESET_CATEGORY_ALGEBRAIC
  */
 
-#include "preset_algebraic.h"
+#include "lv/preset_algebraic.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== Ԥ�躯�������� ==================== */
 

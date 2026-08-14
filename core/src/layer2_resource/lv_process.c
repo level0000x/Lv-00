@@ -22,7 +22,7 @@
 
 #include "lv/lv_process.h"
 #include "lv/lv_strbuf.h"     /* lvStrBuf 动态输出缓冲（SSO+倍增，收敛 lv_out_buf） */
-#include "lv_internal.h"      /* lv_LOG_* / lv_CHECK_* / 错误码 / lv_malloc 等 */
+#include "lv/lv_internal.h"      /* lv_LOG_* / lv_CHECK_* / 错误码 / lv_malloc 等 */
 
 #include <errno.h>
 #include <stdio.h>

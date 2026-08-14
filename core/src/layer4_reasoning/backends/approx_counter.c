@@ -16,16 +16,16 @@
  * @version 1.1.0
  */
 
-#include "approx_counter.h"
+#include "lv/approx_counter.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_strbuf.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 64-bit 哈希函数

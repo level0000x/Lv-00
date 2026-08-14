@@ -48,11 +48,11 @@
 #include "lv/constraint_graph.h"
 #include "lv/stream.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
-#include "mpz_poly.h"
-#include "stream_context_util.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
+#include "lv/mpz_poly.h"
+#include "lv/stream_context_util.h"
 
 /* SOLVER_MAX_VAR_ID 已在 solver.h 中统一定义，此处不再重复 */
 

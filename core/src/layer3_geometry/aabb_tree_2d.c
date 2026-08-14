@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * 模板实例化：2D AABB 树

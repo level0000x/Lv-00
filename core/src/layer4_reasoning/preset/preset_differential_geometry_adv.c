@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_differential_geometry_adv.c
  * @brief 微分几何进阶预设函数块 - 实现
  *
@@ -9,13 +9,13 @@
  * @category PRESET_EXT_DIFFERENTIAL_GEOMETRY
  */
 
-#include "preset_differential_geometry_adv.h"
+#include "lv/preset_differential_geometry_adv.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

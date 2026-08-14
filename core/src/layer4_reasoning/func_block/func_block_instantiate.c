@@ -14,12 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "func_block.h"
-#include "func_block_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/func_block.h"
+#include "lv/func_block_internal.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 /* ============== 类型特定复制处理器（查找表） ============== */
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_polygons.c
  * @brief ����ι���Ԥ�躯���� - ʵ��
  *
@@ -9,12 +9,12 @@
  * @category PRESET_CATEGORY_CONSTRUCTION
  */
 
-#include "preset_polygons.h"
+#include "lv/preset_polygons.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== Ԥ�躯�������� ==================== */
 

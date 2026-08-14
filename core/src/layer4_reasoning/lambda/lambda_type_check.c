@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* 上下文栈初始容量 */
 #define TYPING_STACK_INIT_CAP 16

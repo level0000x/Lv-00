@@ -15,10 +15,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 
 /* ============================================================

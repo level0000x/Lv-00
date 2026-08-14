@@ -30,10 +30,10 @@
 #include "lv/stream.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "type_system.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/type_system.h"
 #include "lv/lv_strbuf.h"
 
 #include "graph_node_internal.h"

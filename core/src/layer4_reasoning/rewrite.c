@@ -40,7 +40,7 @@
  *   - stream.h             : 流式事件输出
  */
 
-#include "rewrite.h"
+#include "lv/rewrite.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -49,12 +49,12 @@
 
 #include "lv/constraint_graph.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
-#include "normalization.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h" /* lv_malloc / lv_free —— 统一内存分配器 */
+#include "lv/normalization.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */
 

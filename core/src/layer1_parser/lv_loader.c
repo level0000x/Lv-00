@@ -27,8 +27,8 @@
 #include "lv/lv_lexer.h"
 #include "lv/lv_xmacro.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"

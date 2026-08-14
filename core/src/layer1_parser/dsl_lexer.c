@@ -7,14 +7,14 @@
  * @author Lv-00 Project
  */
 
-#include "dsl_compiler.h"
+#include "lv/dsl_compiler.h"
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_parse_utils.h"
 

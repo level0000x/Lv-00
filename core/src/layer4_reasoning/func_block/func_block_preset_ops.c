@@ -11,7 +11,7 @@
  * - 错误时自动清理已分配的资源
  */
 
-#include "func_block_preset_ops.h"
+#include "lv/func_block_preset_ops.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,9 +20,9 @@
 #include "lv/constraint_graph.h"
 #include "lv/lv_str_utils.h"
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 命名常量

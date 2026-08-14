@@ -11,13 +11,13 @@
  * @version 1.1.0
  */
 
-#include "math_input.h"
+#include "lv/math_input.h"
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 
 /**

@@ -17,7 +17,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* 默认规则库容量 */
 #define DEFAULT_LIBRARY_CAPACITY 64

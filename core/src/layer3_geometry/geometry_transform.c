@@ -17,14 +17,14 @@
 #include "lv/lv_platform.h"
 #include "lv/lv_internal.h"
 
-#include "geometry_transform.h"
+#include "lv/geometry_transform.h"
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 #include "lv/symbolic_coord.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH_VOID */
 #include <stdio.h>
 #include <stdlib.h>

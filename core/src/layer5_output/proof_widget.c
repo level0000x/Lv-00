@@ -21,7 +21,7 @@
 #include "lv/lv_str_utils.h"
 #include "lv/proof.h"
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 内部常量

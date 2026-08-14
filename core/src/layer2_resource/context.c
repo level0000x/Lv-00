@@ -12,7 +12,7 @@
  * @date   2026-05-25
  */
 
-#include "context.h"
+#include "lv/context.h"
 #include "lv/circuit_breaker.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
@@ -21,14 +21,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 #include "lv/constraint_graph.h"
 
-#include "config.h" /* lv_DEFAULT_* macros */
-#include "lv_utils.h"
-#include "normalization.h"
-#include "stream.h"
+#include "lv/config.h" /* lv_DEFAULT_* macros */
+#include "lv/lv_utils.h"
+#include "lv/normalization.h"
+#include "lv/stream.h"
 
 /* ============================================================
  * 内部静态变量

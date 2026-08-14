@@ -14,10 +14,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "func_block_preset.h"
+#include "lv/func_block_preset.h"
 #include "lv/preset_common.h"
 #include "lv/lv_hashtable.h"
-#include "preset_core.h"
+#include "lv/preset_core.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -14,7 +14,7 @@
  * @version 3.0.1
  */
 
-#include "dsl_compiler.h"
+#include "lv/dsl_compiler.h"
 #include "dsl_compiler_internal.h"
 
 #include <ctype.h>
@@ -27,4 +27,4 @@
 #include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"

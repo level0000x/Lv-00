@@ -24,19 +24,19 @@
  * 包含头文件
  * ======================================================================== */
 
-#include "geo_event_detect.h"
-#include "geo_utils.h"
+#include "lv/geo_event_detect.h"
+#include "lv/geo_utils.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
+#include "lv/error_codes.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * 模块级常量定义

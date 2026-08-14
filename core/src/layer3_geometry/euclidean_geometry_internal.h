@@ -10,7 +10,7 @@
 #ifndef EUCLIDEAN_GEOMETRY_INTERNAL_H
 #define EUCLIDEAN_GEOMETRY_INTERNAL_H
 
-#include "euclidean_geometry.h"
+#include "lv/euclidean_geometry.h"
 #include "lv/config.h" /* EUCLID_COLLINEARITY_EPSILON = lv_EPSILON_HIGH / EUCLID_CONGRUENCE_TOLERANCE = lv_GEO_DISTANCE_EPSILON */
 
 #ifdef __cplusplus

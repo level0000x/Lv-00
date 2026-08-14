@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-#include "high_dim.h"
-#include "lv_internal.h"
+#include "lv/high_dim.h"
+#include "lv/lv_internal.h"
 
 /* Thread-local stream context (defined in high_dim.c) */
 extern lv_THREAD_LOCAL StreamContext *high_dim_stream_ctx;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file nt_number_theory.c
  * @brief Number theory algorithms -- GMP-based implementation
  *
@@ -9,7 +9,7 @@
  * @version 3.3.0
  */
 
-#include "nt_number_theory.h"
+#include "lv/nt_number_theory.h"
 
 #include <gmp.h>
 #include <stdlib.h>

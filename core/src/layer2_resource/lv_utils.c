@@ -37,7 +37,7 @@
  *    - 多线程环境下的跨线程内存操作需调用者自行同步。
  */
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv_utils_internal.h"
 
 #include "lv/allocator.h"
@@ -66,10 +66,10 @@
 
 #endif
 
-#include "error_codes.h"
-#include "lv.h"
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 
 
 

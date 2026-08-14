@@ -11,7 +11,7 @@
  * - R03: 添加 mpz_get_ui 截断的安全检查
  */
 
-#include "symbolic_coord.h"
+#include "lv/symbolic_coord.h"
 
 #include <gmp.h>
 #include <inttypes.h>
@@ -21,10 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h" /* 提供 lv_malloc/lv_free/lv_strdup */
-#include "mpz_poly.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h" /* 提供 lv_malloc/lv_free/lv_strdup */
+#include "lv/mpz_poly.h"
 
 /*
  * BIT_CUTOFF_THRESHOLD 和 MAX_PRECISION_BITS 现在定义在 lv_internal.h 中，

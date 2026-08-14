@@ -10,9 +10,9 @@
 extern "C" {
 #endif
 
-#include "unify.h"
-#include "lv_internal.h"
-#include "type_system.h"
+#include "lv/unify.h"
+#include "lv/lv_internal.h"
+#include "lv/type_system.h"
 
 /* Thread-local stream context (defined in unify.c) */
 extern lv_THREAD_LOCAL StreamContext *unify_stream_ctx;

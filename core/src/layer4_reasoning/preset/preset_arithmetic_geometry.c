@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_arithmetic_geometry.c
  * @brief 算术几何预设函数块 - 实现
  *
@@ -9,13 +9,13 @@
  * @category PRESET_EXT_NUMBER_THEORY
  */
 
-#include "preset_arithmetic_geometry.h"
+#include "lv/preset_arithmetic_geometry.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

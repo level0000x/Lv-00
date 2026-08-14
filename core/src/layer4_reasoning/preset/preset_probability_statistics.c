@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_probability_statistics.c
  * @brief 概率统计预设函数块 - 实现
  *
@@ -9,13 +9,13 @@
  * @category PRESET_EXT_ANALYSIS
  */
 
-#include "preset_probability_statistics.h"
+#include "lv/preset_probability_statistics.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

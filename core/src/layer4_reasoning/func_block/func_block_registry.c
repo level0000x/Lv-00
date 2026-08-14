@@ -12,7 +12,7 @@
  * - cleanup 时释放所有条目及其模板函数块
  */
 
-#include "func_block_registry.h"
+#include "lv/func_block_registry.h"
 #include "lv/lv_xmacro.h"
 #include "lv/preset_category.h" /* LV_PRESET_CATEGORY_ENTRY 单一事实来源 */
 #include "lv/lv_registry.h"     /* 通用注册表（查重/扩容/删除/析构回调） */
@@ -24,9 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
 

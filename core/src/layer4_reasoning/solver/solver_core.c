@@ -12,7 +12,7 @@
  * @date 2026-05-24
  */
 
-#include "solver_core.h"
+#include "lv/solver_core.h"
 #include "solver_common.h"
 #include "lv/groebner_parallel.h"
 #include "lv/lv.h"

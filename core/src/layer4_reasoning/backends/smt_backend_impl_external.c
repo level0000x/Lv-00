@@ -17,16 +17,16 @@
 
 #include "lv/lv_str_utils.h"
 
-#include "smt_backend.h"
+#include "lv/smt_backend.h"
 #include "smt_backend_internal.h"
 #include "lv/lv_process.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
-#include "error_codes.h"
-#include "groebner_engine.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/groebner_engine.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 外部求解器子进程辅助函数

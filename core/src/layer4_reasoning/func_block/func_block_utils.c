@@ -5,14 +5,14 @@
  *          这些函数原内嵌于 func_block.c，现独立为单独编译单元。
  */
 
-#include "func_block_utils.h"
+#include "lv/func_block_utils.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ==================== 命名常量 ==================== */
 

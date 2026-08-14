@@ -16,7 +16,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /**
  * 将公式节点渲染为字符串（简化版）

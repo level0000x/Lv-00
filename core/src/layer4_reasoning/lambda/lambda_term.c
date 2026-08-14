@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ===========================================================================
  * 创建函数

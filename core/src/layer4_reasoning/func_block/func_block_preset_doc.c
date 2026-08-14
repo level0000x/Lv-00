@@ -15,9 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * 文档生成

@@ -39,12 +39,12 @@
 #include "lv/rational.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 #include "lv/lv_log.h"
 #include "lv/lv_str_utils.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 
 /* ── 外部溢出上下文 ── */
 extern lv_THREAD_LOCAL struct OverflowContext g_overflow_context;

@@ -1,7 +1,7 @@
 #include "lv/lv_event_bus.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include <stdlib.h>
 #include <string.h>
 

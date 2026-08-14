@@ -19,10 +19,10 @@
 #include "lv/node_deep_copy.h"
 #include "lv/rewrite.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 #include "layer3_geometry/constraint_graph/graph_node_internal.h"
 /* ---------------------------------------------------------------------------
  * Graph Snapshot — 用于重写替换操作的事务性回滚

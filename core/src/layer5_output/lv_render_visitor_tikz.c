@@ -9,7 +9,7 @@
  */
 
 #include "lv/lv_render_visitor.h"
-#include "tikz_export.h"
+#include "lv/tikz_export.h"
 
 #include <stdio.h>
 #include <stdlib.h>

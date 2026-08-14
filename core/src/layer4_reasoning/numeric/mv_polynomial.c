@@ -31,7 +31,7 @@
 #include <string.h>
 
 #include "lv/lv.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* 动态数组初始容量 */
 #ifndef lv_SOLVER_DYNARRAY_INIT_CAP

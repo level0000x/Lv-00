@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_category_theory_adv.c
  * @brief 范畴论进阶预设函数块 - 实现
  *
@@ -9,13 +9,13 @@
  * @category PRESET_EXT_ALGEBRA_ADVANCED
  */
 
-#include "preset_category_theory_adv.h"
+#include "lv/preset_category_theory_adv.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

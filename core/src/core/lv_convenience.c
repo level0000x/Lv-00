@@ -27,11 +27,11 @@
 #include "lv/lv_check.h"
 #include "lv/stream.h"
 
-#include "func_block_preset.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/func_block_preset.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
-#include "preset_core.h"
+#include "lv/preset_core.h"
 
 /* ── 错误码兼容：未在 error_codes.h 中定义的便捷 API 专用码 ── */
 #ifndef lv_ERROR_PROOF_FAILED

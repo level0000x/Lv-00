@@ -26,7 +26,7 @@
  * 包含头文件
  * ======================================================================== */
 
-#include "numerical_backend.h"
+#include "lv/numerical_backend.h"
 
 #include "lv/bicgstab_shared.h"
 #include "lv/gmres_shared.h"
@@ -43,9 +43,9 @@
 #include "lv/config.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_thread.h"  /* lv_MUTEX_* 兼容宏依赖 lv_mutex_* 实现 */
 
 /* 多后端支持（条件编译，由 CMake SDK 检测控制） */

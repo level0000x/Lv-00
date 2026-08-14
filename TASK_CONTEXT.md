@@ -1746,3 +1746,33 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - lv_dot_append_escaped / P1-② / lv_dot_writer.h/c + graph_dot_export.c / graph_dot_export html 分支豁免保留 / graph 导出测试。
 - 死代码删除 / P1-③ / 3 源 + 1 头 + CMake 4 处 + proof_trace.h 声明 / 双 lvContradictionType 冲突随头删除消除 / test_proof_version + test_meta_verify + test_layer4 族。
 - 登记待修（下一轮）：L3→L4 反向环（symbolics/rational.c）、L8→L5（meta_verify.c lvProofObject）+ L8→L6 链接、L1/L3 越权剩余 ~40 处（layer_validation 启用前置）。
+
+## 二十五、批次 P2：目录重组（2026-08-14）
+
+按「二十三」路线图第三优先完整实施。用户指令「开始按照优先级完整实现并行执行」（第二次）。
+
+### P2-① 错放文件迁移
+
+- **lv_export_common.c → layer5_output/**：`git mv` 自 layer2_resource。全库调用者仅 L5（tikz_export.c、interop_export_svg.c），归位 layer5 消解 L2 越权。CMake lv_LAYER2_SOURCES → lv_LAYER5_SOURCES。
+- **评估结论（不改动）**：
+  - lv_impl_upper_*.c（8 源 + 1 头）保留在 lv_core：依赖横跨 19-26 个头（L3-L9 各层实体），归位任意单层即制造反向依赖；L0 便利层本就允许依赖所有层。
+  - proof_score/proof_priority/preset_helper_cn/math_theory_guide_cn：全库零调用者 → 死代码，移动无架构收益，不迁。
+  - high_dim_*（layer3 内 11 文件）：仅 demo 调用 + 横跨多层 → 暂缓。
+
+### P2-② include 路径统一（全部 lv/ 前缀）
+
+- **3 路并行子代理执行**：layer1+layer2（71 文件/132 行）、src 根+layer5/6/8/10+core（33 文件/73 行）、layer3+layer4（344 文件/~1460 行），合计约 **448 文件/1665 行**：`#include "X.h"` → `#include "lv/X.h"`。
+- **规则**：仅当 X.h 位于 include/lv/ 时加前缀；src 本地 `*_internal.h`（同目录）保持无前缀。
+- **收尾 2 处 src 本地头内部引用**：`lv_impl_upper_internal.h:21` `"constraint_graph.h"` → `"lv/constraint_graph.h"`；`union_find_util.h:11-13` `"error_codes.h"/"lv_internal.h"/"lv_utils.h"` 三行加 `lv/` 前缀。
+- **复核**：全库 `#include "[a-z_]+\.h"` 剩余 100 行均为 src 本地头（*_internal.h 族 / module_helpers.h / groebner_engine_guard.h / union_find_util.h 自身），符合规则；include/lv/ 内部同目录互引保持无前缀（相对目录解析，标准做法）。
+
+### 批次 P2 执行结果（2026-08-14）
+
+**验证**：ninja build3 922/922 + ctest 170/170 全绿（66.65s）。
+
+### 决策登记（第 9 章格式）
+
+- lv_export_common 归位 L5 / P2-① / layer5_output/lv_export_common.c + CMake / 调用者仅 L5（tikz_export、interop_export_svg） / L5 导出族测试。
+- lv_impl_upper_* 留 lv_core / P2-① / lv_core（L0） / 跨 19-26 头依赖归位即成反向依赖 / 全量回归。
+- include 路径统一 / P2-② / 448 文件 1665 行 / src 本地 *_internal.h 豁免 / 全量回归。
+- 登记待修（下一轮，承接「二十四」）：L3→L4 反向环、L8→L5/L8→L6、剩余 ~40 处层间违规（layer_validation 启用前置）。

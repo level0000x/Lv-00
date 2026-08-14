@@ -10,10 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "geometry_types.h"
+#include "lv/geometry_types.h"
 #include "geometry_csg_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 CSGBSPNode *csg_bsp_node_create(void) {
     CSGBSPNode *node = (CSGBSPNode *) lv_calloc(1, sizeof(CSGBSPNode));

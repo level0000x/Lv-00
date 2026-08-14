@@ -8,7 +8,7 @@
  * @version 3.3.0
  */
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_parse_utils.h"
 
@@ -22,10 +22,10 @@
 #include <string.h>
 #include <time.h>
 
-#include "error_codes.h"
-#include "lv.h"
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 
 /* ============================================================
  * 配置管理

@@ -17,9 +17,9 @@
 #include "lv/formula_parser.h"
 #include "lv/lv_str_utils.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 FormulaNode *parse_latex_expression(ParserContext *ctx);
 static FormulaNode *parse_latex_term(ParserContext *ctx);

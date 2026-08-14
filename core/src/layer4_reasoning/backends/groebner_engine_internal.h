@@ -11,7 +11,7 @@
 
 #include <stdbool.h>
 
-#include "groebner_engine.h"
+#include "lv/groebner_engine.h"
 #include "lv/config.h" /* GROEBNER_ZERO_THRESHOLD = lv_EPSILON_SUPERTINY / GROEBNER_NEWTON_TOL = lv_EPSILON_ULTRA */
 #include "lv/lv_thread.h"
 

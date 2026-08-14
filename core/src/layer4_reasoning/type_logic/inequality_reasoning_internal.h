@@ -10,9 +10,9 @@
 extern "C" {
 #endif
 
-#include "inequality_reasoning.h"
+#include "lv/inequality_reasoning.h"
 #include "lv/lv_xmacro.h"
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 #include <math.h>
 #include <stdio.h>

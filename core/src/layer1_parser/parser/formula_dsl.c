@@ -20,9 +20,9 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_parse_utils.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* formula_node_copy 实现在 formula_ast.c 中 */
 

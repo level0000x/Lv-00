@@ -16,7 +16,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/cross_platform.h"
 
 #ifdef __cplusplus

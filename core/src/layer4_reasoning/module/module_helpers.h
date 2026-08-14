@@ -25,7 +25,7 @@ extern "C" {
 
 #include "lv/module.h"
 
-#include "lexer_shared.h"
+#include "lv/lexer_shared.h"
 
 /* ============== LVZ 词法 Token 类型 ============== */
 
@@ -96,7 +96,7 @@ bool dependency_exists(Module **visited, int count, Module *mod);
 /**
  * @brief 模块流式上下文（在 module.c 中定义，模块子文件共享使用）
  */
-#include "stream.h"
+#include "lv/stream.h"
 extern lv_THREAD_LOCAL StreamContext *module_stream_ctx;
 
 #ifdef __cplusplus

@@ -40,7 +40,7 @@
 #include "lv/tikz_export.h"
 #include "lv/visual_editor.h"
 
-#include "lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
+#include "lv/lv_internal.h" /* lv_RETURN_ERROR / lv_RETURN_ERROR_NULL */
 #include "lv/lv_strbuf.h"
 #include "lv_impl_upper_internal.h"
 

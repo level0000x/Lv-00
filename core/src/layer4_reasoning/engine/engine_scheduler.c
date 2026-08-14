@@ -8,7 +8,7 @@
  * @version 3.0.0
  */
 
-#include "engine_scheduler.h"
+#include "lv/engine_scheduler.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -27,7 +27,7 @@
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 
 /* ============================================================
  * EngineScheduler 内部结构（不透明）

@@ -3,9 +3,9 @@
 #include <math.h>
 #include <string.h>
 
-#include "numerical_backend.h"
-#include "error_codes.h"
-#include "lv_internal.h"
+#include "lv/numerical_backend.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
 
 int host_lu_factor(double *data, int64_t n, double pivot_threshold) {
     for (int64_t k = 0; k < n; ++k) {

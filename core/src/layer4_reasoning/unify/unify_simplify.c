@@ -4,7 +4,7 @@
  * @details Split from unify.c
  */
 
-#include "unify.h"
+#include "lv/unify.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -15,13 +15,13 @@
 #include "lv/geometric_primitives.h"
 #include "lv/proof.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "normalization.h"
-#include "stream.h"
-#include "stream_context_util.h"
-#include "type_system.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/normalization.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
+#include "lv/type_system.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_lifecycle.h"
 #include "unify_internal.h"

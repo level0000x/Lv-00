@@ -32,7 +32,7 @@
  *   - stream.h              : 流式事件输出
  */
 
-#include "normalization.h"
+#include "lv/normalization.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -44,10 +44,10 @@
 #include "lv/graph_hash.h"
 #include "lv/hash_history.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "union_find_util.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 #include "lv/lv_strbuf.h"
 
 /* ==================== 命名常量（消除魔术数字） ==================== */

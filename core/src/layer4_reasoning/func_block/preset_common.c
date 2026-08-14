@@ -15,7 +15,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "preset_common.h"
+#include "lv/preset_common.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_numeric.h" /* lv_index_in_range */
 

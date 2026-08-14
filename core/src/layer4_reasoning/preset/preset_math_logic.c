@@ -10,14 +10,14 @@
  * @version 4.0.0
  */
 
-#include "preset_math_logic.h"
+#include "lv/preset_math_logic.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h"
 
 /* 内部别名：与 preset_math_logic.h 中 MATH_LOGIC_PRESET_COUNT 一致 */
 #define ADVANCED_MATH_LOGIC_PRESET_COUNT MATH_LOGIC_PRESET_COUNT

@@ -5,18 +5,18 @@
  */
 
 #include "lv/lv_platform.h"
-#include "recursion.h"
+#include "lv/recursion.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_xmacro.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 #include "recursion_internal.h"
 
 /* ============== 辅助函数 ============== */

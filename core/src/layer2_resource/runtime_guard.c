@@ -11,14 +11,14 @@
  * @date   2026-05-24
  */
 
-#include "runtime_guard.h"
+#include "lv/runtime_guard.h"
 #include "lv/lv_thread.h"  /* lv_MUTEX_* 兼容宏依赖 lv_mutex_* 实现 */
 
 #ifdef lv_ENABLE_RUNTIME_GUARDS
 
 #include <string.h>
 
-#include "context.h"
+#include "lv/context.h"
 
 /* ========================================================================
  * 内部辅助：平台相关的锁初始化/销毁

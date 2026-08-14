@@ -12,7 +12,7 @@
  * @version 1.1.0
  */
 
-#include "tikz_export.h"
+#include "lv/tikz_export.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -25,7 +25,7 @@
 #include "lv/lv_utils.h"
 #include "lv/symbolic_coord.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_strbuf.h"
 
 /* ── 核心导出 ── */

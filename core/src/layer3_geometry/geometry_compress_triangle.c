@@ -4,7 +4,7 @@
  * @details Split from geometry_compress.c
  */
 
-#include "geometry_compress.h"
+#include "lv/geometry_compress.h"
 #include "geometry_compress_internal.h"
 
 #include "lv/lv_file.h"
@@ -18,10 +18,10 @@
 #include "lv/lv_heap.h"
 #include "lv/geo_utils.h"
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "node_deep_copy.h"
-#include "symbolic_coord.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/node_deep_copy.h"
+#include "lv/symbolic_coord.h"
 
 /* ========================================================================
  * 三角面片提取（Triangle Face Extraction）

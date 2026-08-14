@@ -21,12 +21,12 @@
 #include "lv/solver.h"
 #include "lv/lv_xmacro.h"
 
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_graph_traversal.h" /* lv_tree_release_recursive */
 #include "lv/lv_file.h"            /* lv_file_open / lv_file_close */
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_dot_writer.h"

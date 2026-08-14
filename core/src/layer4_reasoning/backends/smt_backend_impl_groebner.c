@@ -20,15 +20,15 @@
 #include "lv/lv_str_utils.h"
 #include "lv/lv_xmacro.h"
 
-#include "smt_backend.h"
+#include "lv/smt_backend.h"
 #include "smt_backend_internal.h"
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
-#include "error_codes.h"
-#include "groebner_engine.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/groebner_engine.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============================================================
  * Groebner 后端实现

@@ -40,11 +40,11 @@
 
 /* ===== 模块内部工具头文件 ===== */
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
-#include "stream_context_util.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
+#include "lv/stream_context_util.h"
 
 /* ===== 跨模块前向声明 ===== */
 

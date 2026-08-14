@@ -19,7 +19,7 @@
  * @date 2026-05-25
  */
 
-#include "smt_bitvector.h"
+#include "lv/smt_bitvector.h"
 
 #include <stdbool.h>
 #include <stdint.h>

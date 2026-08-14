@@ -21,12 +21,12 @@
 
 #include "lv/solver.h"
 
-#include "func_block.h"
-#include "func_block_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "stream.h"
-#include "stream_context_util.h"
+#include "lv/func_block.h"
+#include "lv/func_block_internal.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
+#include "lv/stream_context_util.h"
 
 /* ==================== 命名常量 ==================== */
 

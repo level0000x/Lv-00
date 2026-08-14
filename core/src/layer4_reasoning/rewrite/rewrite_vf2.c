@@ -18,10 +18,10 @@
 #include "lv/rewrite.h"
 #include "lv/adaptive_threshold.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 #include "rewrite_common.h"
 
 /* ── 前向声明 ── */

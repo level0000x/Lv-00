@@ -12,12 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "func_block.h"
+#include "lv/func_block.h"
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ============== 内部几何辅助函数 ============== */
 

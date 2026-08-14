@@ -30,10 +30,10 @@
 #include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 #include "graph_node_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #ifndef lv_ADJ_MAX_PER_NODE
 #define lv_ADJ_MAX_PER_NODE 256

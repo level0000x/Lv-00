@@ -14,7 +14,7 @@
  * @date 2026-05-25
  */
 
-#include "smt_theory_combiner.h"
+#include "lv/smt_theory_combiner.h"
 
 #include <stdio.h>
 #include <stdlib.h>

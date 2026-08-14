@@ -28,5 +28,4 @@
 #include <string.h>
 
 #include "algebraic_number_internal.h"
-
-#include "lv_internal.h"
+#include "lv/lv_internal.h"

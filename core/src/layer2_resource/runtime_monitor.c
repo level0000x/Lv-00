@@ -8,7 +8,7 @@
 
 #include "lv/lv_platform.h"
 
-#include "runtime_monitor.h"
+#include "lv/runtime_monitor.h"
 
 /* lv_log_shutdown 的声明与 lvLogLevel 类型已集中到 lv/lv_log.h（唯一权威源）：
  * runtime_monitor.h 已 #include 复用，此处再显式包含，确保本文件直接复用
@@ -28,11 +28,11 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_utils.h"
 #include "lv/lv_numeric.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_event_bus.h"
 
-#include "config.h"
-#include "lv_utils.h"
+#include "lv/config.h"
+#include "lv/lv_utils.h"
 
 /* ============== 内部常量 ============== */
 

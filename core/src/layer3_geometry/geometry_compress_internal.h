@@ -14,7 +14,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "geometry_compress.h"
+#include "lv/geometry_compress.h"
 
 /* ---- constants ---- */
 #define BOUNDARY_STACK_INITIAL 64

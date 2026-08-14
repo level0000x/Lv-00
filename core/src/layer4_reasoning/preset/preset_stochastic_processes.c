@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_stochastic_processes.c
  * @brief 随机过程预设函数块 - 实现
  *
@@ -9,13 +9,13 @@
  * @category PRESET_EXT_ANALYSIS
  */
 
-#include "preset_stochastic_processes.h"
+#include "lv/preset_stochastic_processes.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== 预设函数块数量 ==================== */
 

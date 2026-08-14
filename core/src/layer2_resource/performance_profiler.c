@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ================================================================
  * 报告输出

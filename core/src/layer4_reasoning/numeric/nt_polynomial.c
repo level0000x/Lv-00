@@ -9,13 +9,13 @@
  * @version 3.3.0
  */
 
-#include "nt_polynomial.h"
+#include "lv/nt_polynomial.h"
 
 #include <gmp.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_lifecycle.h"
 
 /* ============================================================

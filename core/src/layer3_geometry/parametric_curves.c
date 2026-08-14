@@ -19,10 +19,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
-#include "lv_vec3.h" /* 收敛：本地 lvPoint3D 副本统一 typedef 到公共 lvVec3 */
+#include "lv/lv_vec3.h" /* 收敛：本地 lvPoint3D 副本统一 typedef 到公共 lvVec3 */
 
 /* ============================================================
  * 第一部分：数据结构定义

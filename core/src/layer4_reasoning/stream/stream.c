@@ -39,8 +39,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "lv.h"
-#include "lv_utils.h"
+#include "lv/lv.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_str_utils.h"
 
 /* ── 平台线程支持 ── */

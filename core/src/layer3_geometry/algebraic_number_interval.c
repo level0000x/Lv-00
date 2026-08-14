@@ -19,8 +19,7 @@
 #include <string.h>
 
 #include "algebraic_number_internal.h"
-
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /** @brief 设置错误码（若 err 非空） */
 static void alg_set_error_interval(AlgIntervalError *err, AlgIntervalError code) {

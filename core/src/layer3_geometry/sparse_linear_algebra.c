@@ -10,15 +10,15 @@
  * @version 1.1.0
  */
 
-#include "sparse_linear_algebra.h"
+#include "lv/sparse_linear_algebra.h"
 
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ---- CSR 矩阵内部结构 ---- */
 struct lvSparseMatrix {

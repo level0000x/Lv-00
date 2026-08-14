@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_transformations.c
  * @brief ���α任Ԥ�躯���� - ʵ��
  *
@@ -9,12 +9,12 @@
  * @category PRESET_CATEGORY_TRANSFORMATION
  */
 
-#include "preset_transformations.h"
+#include "lv/preset_transformations.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== Ԥ�躯�������� ==================== */
 

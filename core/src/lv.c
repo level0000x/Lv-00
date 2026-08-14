@@ -11,7 +11,7 @@
  * @author Lv-00 Team
  */
 
-#include "lv.h"
+#include "lv/lv.h"
 #include "lv/lv_log.h"
 
 #include <inttypes.h>
@@ -33,8 +33,8 @@
 #define lv_THREAD_POOL_IMPL
 #include "lv/thread_pool.h"
 
-#include "func_block_registry.h"
-#include "lv_internal.h"
+#include "lv/func_block_registry.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_serialize_adapters.h"
 

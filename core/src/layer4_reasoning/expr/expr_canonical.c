@@ -5,12 +5,12 @@
  * @details 实现 lvExpr 的创建、销毁和基本组合操作。
  */
 
-#include "expr_canonical.h"
+#include "lv/expr_canonical.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============== 内部辅助 ============== */

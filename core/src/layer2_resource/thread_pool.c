@@ -20,7 +20,7 @@
 #include <time.h>
 
 #include "lv/lv_thread.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ========================================================================
  * 内部常量与数据结构

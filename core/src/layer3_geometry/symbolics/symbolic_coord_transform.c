@@ -23,10 +23,10 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 
 /* ── 多项式系数内存池（共享实现，见 lv/coeff_pool.h）── */
 #include "lv/coeff_pool.h"

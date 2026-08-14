@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-#include "recursion.h"
-#include "lv_internal.h"
+#include "lv/recursion.h"
+#include "lv/lv_internal.h"
 
 /* Thread-local stream context (defined in recursion.c) */
 extern lv_THREAD_LOCAL StreamContext *recursion_stream_ctx;

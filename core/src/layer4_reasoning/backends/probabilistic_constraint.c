@@ -12,7 +12,7 @@
  */
 
 #include "lv/lv_platform.h"
-#include "probabilistic_constraint.h"
+#include "lv/probabilistic_constraint.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -27,7 +27,7 @@
 #include "lv/lv_numeric.h"
 #include "lv/lv_xmacro.h"
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 /* ---- 内部常量 ---- */
 

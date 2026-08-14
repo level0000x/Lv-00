@@ -28,7 +28,7 @@
  * @date 2026-05-24
  */
 
-#include "propagation.h"
+#include "lv/propagation.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -39,10 +39,10 @@
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
 
-#include "error_codes.h"
-#include "lv_utils.h"
-#include "lv_internal.h"
-#include "lv_numeric.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_numeric.h"
 
 /* ── 运行时配置默认值的边界函数 ── */
 int propagation_default_max_iterations(void) {

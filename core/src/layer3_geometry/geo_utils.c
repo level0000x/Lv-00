@@ -14,7 +14,7 @@
 #include <math.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/geo_predicate.h"
 #include "lv/lv_numeric.h" /* lv_is_zero / lv_EPSILON_ULTRA（geo_point_in_region_segments） */
 

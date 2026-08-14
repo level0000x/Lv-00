@@ -15,19 +15,19 @@
  * @date 2026-05-24
  */
 
-#include "sat_encoding.h"
+#include "lv/sat_encoding.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #include "lv/constraint_graph.h"
 
-#include "error_codes.h"
-#include "lv.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/lv.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
-#include "lv_utils.h"
-#include "solver_core.h"
+#include "lv/lv_utils.h"
+#include "lv/solver_core.h"
 
 /* ========================================================================
  * 内部常量

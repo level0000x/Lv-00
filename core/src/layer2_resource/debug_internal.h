@@ -12,8 +12,8 @@ extern "C" {
 
 #include <stdio.h>
 
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_platform.h"
 #include "lv/lv_thread.h" /* lv_mutex_t / LV_SCOPE_LOCK */
 

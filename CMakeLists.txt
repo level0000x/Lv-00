@@ -772,8 +772,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_ringbuf.c
     # v3.8.0 统一字符串工具函数集
     core/src/layer2_resource/lv_str_utils.c
-    # v1.0.0 导出公共工具（layer1/layer5 导出器共用；lv_export_common.h 实现）
-    core/src/layer2_resource/lv_export_common.c
+    # 导出公共工具已移至 layer5_output（调用者仅 L5：tikz_export / interop_export_svg）
     # v5.x 公共 DOT（Graphviz）写入器（统一 digraph 样板与 label 转义；仅依赖 L2 基础设施，供 L2~L5 复用）
     core/src/layer2_resource/lv_dot_writer.c
     # v3.8.0 统一文件 I/O 抽象层
@@ -1289,6 +1288,8 @@ set(lv_LAYER5_SOURCES
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/plugin_system_core.c
+    # 导出公共工具（XML 转义 / 写文件；原在 layer2，调用者仅 L5，归位输出层）
+    core/src/layer5_output/lv_export_common.c
     core/src/layer5_output/plugin_system_load.c
     core/src/layer5_output/plugin_system_state.c
     core/src/layer5_output/plugin_system_query.c

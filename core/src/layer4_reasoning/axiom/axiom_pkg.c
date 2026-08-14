@@ -5,7 +5,7 @@
  *          不可构造问题检测、双层测试和 SHA-256 依赖追踪。
  */
 
-#include "axiom_pkg.h"
+#include "lv/axiom_pkg.h"
 #include "axiom_pkg_internal.h"
 
 #include "lv/lv_file.h"
@@ -21,12 +21,12 @@
 #include "lv/sha256.h"
 
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lexer_shared.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "stream.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lexer_shared.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/stream.h"
 
 
 /* 线程局部存储用于错误消息（使用lv_internal.h中定义的lv_THREAD_LOCAL） */

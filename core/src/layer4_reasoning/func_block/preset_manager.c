@@ -17,18 +17,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "error_codes.h"
-#include "func_block_preset.h"
-#include "func_block_registry.h"
-#include "lv_internal.h"
+#include "lv/error_codes.h"
+#include "lv/func_block_preset.h"
+#include "lv/func_block_registry.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_json.h"
 #include "lv/lv_thread.h"
 #include "lv/lv_lifecycle.h" /* lv_obj_destroy_fields / lv_FIELD_* */
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h"
 #include "preset_manager_internal.h"
-#include "preset_core.h"
+#include "lv/preset_core.h"
 
 #ifdef _WIN32
 /* 仅 Windows DLL 入口点（DllMain）需要；非 Windows 平台不引入 */

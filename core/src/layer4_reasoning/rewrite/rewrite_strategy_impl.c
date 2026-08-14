@@ -14,7 +14,7 @@
 #include "lv/rewrite.h"
 #include "lv/lv_xmacro.h"
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ================================================================
  *  策略树构造函数

@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* 函数/关系/度量/几何调用参数个数上限 */
 #define LV_MAX_CALL_ARGS 32

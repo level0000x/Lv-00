@@ -11,16 +11,16 @@
  * @date 2026-05-24
  */
 
-#include "relation_model.h"
+#include "lv/relation_model.h"
 
 #include <stdio.h>
 #include <string.h>
 
 #include "lv/constraint_graph.h"
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 

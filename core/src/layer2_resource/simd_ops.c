@@ -8,9 +8,9 @@
  * @version 3.3.0
  */
 
-#include "simd_ops.h"
+#include "lv/simd_ops.h"
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h"
 #include "lv/geo_utils.h"
 

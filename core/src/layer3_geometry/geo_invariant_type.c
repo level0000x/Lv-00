@@ -8,7 +8,7 @@
  * @version 1.0.0
  */
 
-#include "geo_invariant_type.h"
+#include "lv/geo_invariant_type.h"
 #include "lv/lv_xmacro.h"
 
 #include <math.h>
@@ -16,8 +16,8 @@
 #include <string.h>
 
 #include "lv/lv_json.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ========================================================================
  * Internal helpers

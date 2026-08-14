@@ -15,14 +15,14 @@
  * @date 2026-05-24
  */
 
-#include "expr_canon.h"
+#include "lv/expr_canon.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h" /* lv_UNUSED */
-#include "lv_utils.h"
+#include "lv/lv_internal.h" /* lv_UNUSED */
+#include "lv/lv_utils.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_strbuf.h"
 

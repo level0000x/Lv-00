@@ -21,7 +21,7 @@
  * @date 2026-05-25
  */
 
-#include "smt_trigger_engine.h"
+#include "lv/smt_trigger_engine.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -21,8 +21,8 @@
 
 #include <string.h>
 
-#include "error_codes.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_lifecycle.h"
 
 /* ============================================================

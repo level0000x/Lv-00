@@ -20,9 +20,9 @@
 #include "lv/interop.h"
 #include "lv/lv_json.h"
 
-#include "debug.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_file.h"

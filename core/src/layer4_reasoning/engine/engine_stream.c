@@ -15,7 +15,7 @@
 #include "lv/lv.h"
 #include "lv/stream.h"
 
-#include "stream_context_util.h"
+#include "lv/stream_context_util.h"
 
 /** @brief 获取引擎的流式上下文 @param engine 引擎实例 @return 流式上下文指针 */
 StreamContext *engine_get_stream_context(const lvEngine *engine) {

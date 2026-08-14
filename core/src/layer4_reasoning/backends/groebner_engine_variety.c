@@ -8,7 +8,7 @@
  * @version 3.3.0
  */
 
-#include "groebner_engine.h"
+#include "lv/groebner_engine.h"
 #include "lv/lv.h"
 #include "groebner_engine_internal.h"
 #include "groebner_engine_guard.h"
@@ -20,9 +20,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 #include "lv/lv_thread.h"
 

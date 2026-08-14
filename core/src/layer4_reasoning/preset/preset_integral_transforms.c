@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_integral_transforms.c
  * @brief 积分变换预设函数块模块 - 实现
  *
@@ -11,14 +11,14 @@
  * @author Lv-00 开发团队
  */
 
-#include "preset_integral_transforms.h"
+#include "lv/preset_integral_transforms.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h"
 
 /* ==================== 预设元数据定义 ==================== */
 

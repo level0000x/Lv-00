@@ -10,7 +10,7 @@
  * @author Lv-00 Team
  */
 
-#include "inequality_reasoning.h"
+#include "lv/inequality_reasoning.h"
 #include "lv/lv_xmacro.h"
 
 #include <math.h>
@@ -18,6 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_utils.h"
+#include "lv/lv_utils.h"
 
 #include "inequality_reasoning_internal.h"

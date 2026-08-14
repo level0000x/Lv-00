@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file preset_basic_geometry.c
  * @brief �������ι���Ԥ�躯���� - ʵ��
  *
@@ -9,13 +9,13 @@
  * @category PRESET_CATEGORY_CONSTRUCTION
  */
 
-#include "preset_basic_geometry.h"
+#include "lv/preset_basic_geometry.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
 
 /* ==================== Ԥ�躯�������� ==================== */
 

@@ -18,13 +18,13 @@
  * @date   2026-05-25
  */
 
-#include "rewrite_strategy.h"
+#include "lv/rewrite_strategy.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 
 /* ============================================================

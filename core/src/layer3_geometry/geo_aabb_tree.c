@@ -31,8 +31,8 @@
 #include <string.h>
 
 #include "lv/geometry_config.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* 如果 geometry_config.h 中没有定义 lv_PUBLIC_API，则定义空宏 */
 #ifndef lv_PUBLIC_API

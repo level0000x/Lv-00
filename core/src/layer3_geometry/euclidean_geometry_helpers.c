@@ -8,7 +8,7 @@
  * @date 2026-08-02
  */
 
-#include "euclidean_geometry.h"
+#include "lv/euclidean_geometry.h"
 #include "euclidean_geometry_internal.h"
 
 #include <math.h>
@@ -20,11 +20,11 @@
 #include "lv/lv_check.h"
 #include "lv/lv_numeric.h" /* lv_rel_tol_scale（K5-3B 相对容差共享设施） */
 
-#include "debug.h"
-#include "error_codes.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "symbolic_coord.h"
+#include "lv/debug.h"
+#include "lv/error_codes.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/symbolic_coord.h"
 
 /* ========================================================================
  * 第八部分：内部辅助函数

@@ -26,14 +26,14 @@
  *   -> 提供 lv_malloc、lv_free、lv_strdup、lv_log_* 等
  * ============================================================
  */
-#include "preset_geometry_3d.h"
+#include "lv/preset_geometry_3d.h"
 
 #include <string.h>
 
-#include "lv_internal.h"
-#include "lv_utils.h"
-#include "preset_blocks.h"
-#include "preset_common.h" /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等日志宏） */
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
+#include "lv/preset_blocks.h"
+#include "lv/preset_common.h" /* 预设公共宏与辅助函数（PRESET_ERROR_LOG 等日志宏） */
 
 /* ============================================================
  * 预设数量定义

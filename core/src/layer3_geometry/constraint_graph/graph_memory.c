@@ -29,10 +29,10 @@
 #include "lv/lv_lifecycle.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
+#include "lv/debug.h"
 #include "graph_node_internal.h"
-#include "lv_internal.h"
-#include "lv_utils.h"
+#include "lv/lv_internal.h"
+#include "lv/lv_utils.h"
 
 /* ── 前向声明（graph_index.c 中定义） ── */
 void node_destroy(GeomNode *node);

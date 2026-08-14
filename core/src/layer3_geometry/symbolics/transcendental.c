@@ -36,11 +36,11 @@
 #include "lv/lv_str_utils.h"
 #include "lv/symbolic_coord.h"
 
-#include "debug.h"
-#include "lv_internal.h"
+#include "lv/debug.h"
+#include "lv/lv_internal.h"
 #include "lv/lv_parse_utils.h"
-#include "lv_utils.h"
-#include "mpz_poly.h"
+#include "lv/lv_utils.h"
+#include "lv/mpz_poly.h"
 
 #define SYM_COORD_DYNAMIC_ARRAY_INIT_CAP 16
 #define SYM_COORD_SIGFIGS_MIN_SAFE 6

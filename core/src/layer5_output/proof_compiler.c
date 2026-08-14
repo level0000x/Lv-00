@@ -5,7 +5,7 @@
  * @version 4.0.0
  */
 
-#include "proof_compiler.h"
+#include "lv/proof_compiler.h"
 
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_file.h"
@@ -25,9 +25,9 @@
 #include "lv/lv_str_utils.h"
 
 
-#include "circuit_breaker.h"
-#include "lv.h"
-#include "lv_utils.h"
+#include "lv/circuit_breaker.h"
+#include "lv/lv.h"
+#include "lv/lv_utils.h"
 
 /* ============== Proof Object 实现 ============== */
 

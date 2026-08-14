@@ -20,7 +20,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/geom_evol.h"
 #include "lv/lv_utils.h"
-#include "lv_internal.h"
+#include "lv/lv_internal.h"
 
 /* ============================================================
  * 第4部分:预设变换 -- preset_transformations(17函数)

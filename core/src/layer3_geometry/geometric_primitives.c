@@ -28,14 +28,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "constraint_graph.h"
-#include "engine.h"
-#include "func_block.h"
-#include "normalization.h"
-#include "proof.h"
-#include "rewrite.h"
-#include "symbolic_coord.h"
-#include "unify.h"
+#include "lv/constraint_graph.h"
+#include "lv/engine.h"
+#include "lv/func_block.h"
+#include "lv/normalization.h"
+#include "lv/proof.h"
+#include "lv/rewrite.h"
+#include "lv/symbolic_coord.h"
+#include "lv/unify.h"
 
 #define CHECK_GRAPH(g)                                                    \
     do {                                                                  \
