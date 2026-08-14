@@ -311,6 +311,10 @@ static void test_circuit_breaker_context_lifecycle(void) {
 
 TEST_MAIN_BEGIN("Circuit Breaker Module")
 
+    /* 初始化系统：注入 context 资源操作（main_graph 等 L3/L4 不透明资源
+     * 由 L0 在 lv_init 时注册），保证 lv_context_create 契约成立 */
+    lv_init();
+
     TEST_MAIN_RUN(test_circuit_breaker_create);
     TEST_MAIN_RUN(test_circuit_breaker_initial_state);
     TEST_MAIN_RUN(test_circuit_breaker_trip);

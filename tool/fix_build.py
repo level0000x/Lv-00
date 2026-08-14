@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Fix Lv-00 CMake build: create missing .h/.c stubs + clean CMakeLists.txt."""
 import os, re
 

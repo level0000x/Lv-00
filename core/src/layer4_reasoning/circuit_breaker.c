@@ -69,27 +69,11 @@ bool lv_circuit_breaker_record_failure(lvContext *ctx) {
     return lv_circuit_breaker_record_error(&ctx->circuit_breaker);
 }
 
-/* ============================================================
- * 枚举 -> 名称 映射表（数据表化，替代 switch）
- * ============================================================ */
-
-#define CIRCUIT_BREAKER_STATE_X(x) \
-    x(CIRCUIT_BREAKER_CLOSED, "关闭（正常）") \
-    x(CIRCUIT_BREAKER_HALF_OPEN, "半开（试探中）") \
-    x(CIRCUIT_BREAKER_OPEN, "打开（熔断）")
-
-/** @brief lv_circuit_breaker_state_name 名称表（按枚举值升序） */
-static const lvStrToEnumEntry s_circuit_breaker_state_name_entries[] = {
-    lv_XMACRO_TO_ENUM_TABLE(CIRCUIT_BREAKER_STATE_X)
-};
-
 const char *lv_circuit_breaker_state_name(lvContext *ctx) {
     if (!ctx)
         return "无上下文";
-
-    CircuitBreaker *cb = &ctx->circuit_breaker;
-    return lv_enum_to_str(s_circuit_breaker_state_name_entries,
-                          lv_ARRAY_SIZE(s_circuit_breaker_state_name_entries), (int) cb->state, "未知状态");
+    /* 委托 L2 规范实现（状态名表与枚举同属 L2，避免跨层重复维护） */
+    return lv_circuit_breaker_state_name_cb(&ctx->circuit_breaker);
 }
 
 int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {

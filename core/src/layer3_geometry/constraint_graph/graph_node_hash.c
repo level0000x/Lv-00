@@ -22,7 +22,6 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_hashtable.h"
-#include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 
 #include "lv/config.h"
@@ -31,7 +30,6 @@
 #include "lv/error_codes.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/stream.h"
 #include "lv/stream.h"
 #include "lv/lv_strbuf.h"
 

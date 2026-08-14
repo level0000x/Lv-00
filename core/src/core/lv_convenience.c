@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "lv/lv_convenience.h" /* 本文件接口头：lv_prove / lv_preset_load 等便捷 API 声明 */
 #include "lv/constraint_graph.h"
 #include "lv/context.h"
 #include "lv/dsl_compiler.h"

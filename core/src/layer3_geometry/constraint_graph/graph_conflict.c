@@ -27,8 +27,8 @@
 #include <string.h>
 
 #include "lv/constraint_graph.h"
-#include "lv/solver.h"
 #include "lv/symbolic_coord.h"
+#include "lv/stream.h" /* stream_emit_simple / STREAM_EVENT_CONFLICT_DETECTED */
 
 #include "lv/debug.h"
 #include "graph_node_internal.h"
@@ -211,63 +211,6 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
     lv_free((void **) &linear_constraint_indices);
 
     return redundant;
-}
-
-/**
- * 检测代数冲突。
- *
- * 使用求解器模块检查约束系统是否有解。
- *
- * @param graph    约束图指针
- * @param new_con 新约束指针
- * @return true 表示存在冲突，false 表示无冲突
- */
-static bool algebraic_conflict_detected(ConstraintGraph *graph, Constraint *new_con) {
-    if (!graph || !new_con)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "algebraic_conflict_detected: NULL graph or new_con");
-
-    /* 使用求解器模块检查约束系统是否有解 */
-    int *dirty_vars = NULL;
-    int dirty_count = 0;
-    GroebnerResult *result = NULL;
-
-    /* 收集与新约束相关的所有变量 */
-    int max_vars = new_con->participant_count * 2;
-    dirty_vars = lv_malloc((size_t) max_vars * sizeof(int));
-    if (!dirty_vars)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "algebraic_conflict_detected: malloc dirty_vars failed");
-
-    /* 将新约束的参与者添加为脏变量 */
-    for (int i = 0; i < new_con->participant_count && i < max_vars; i++) {
-        dirty_vars[dirty_count++] = new_con->participants[i];
-    }
-
-    /* 调用求解器检查冲突 */
-    SolverStatus status = solve_algebraic_system(graph, dirty_vars, dirty_count, &result);
-
-    lv_free((void **) &dirty_vars);
-    dirty_vars = NULL;
-
-    bool conflict = false;
-
-    /* 检查求解器状态以判断冲突条件 */
-    if (status == SOLVER_STATUS_NO_SOLUTION) {
-        conflict = true; /* 检测到冲突 - 无解 */
-    } else if (status == SOLVER_STATUS_OVERCONSTRAINED) {
-        /* 使用冲突检查器检查是否有实际冲突 */
-        conflict = check_conflict_equations(graph);
-    }
-
-    /* 清理 result 资源（包含可能持有 mpq_t 的 SymbolicCoord） */
-    if (result) {
-        for (int i = 0; i < result->solution_count; i++) {
-            symbolic_coord_destroy(result->solutions[i]);
-        }
-        lv_free((void **) &result->solutions);
-        lv_free((void **) &result);
-    }
-
-    return conflict;
 }
 
 /**

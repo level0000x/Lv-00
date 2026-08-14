@@ -383,6 +383,25 @@ lv_PUBLIC_API bool lv_deserialize_from_file_format(const char *type_name,
 /** @brief 对象比较函数类型（用于 round-trip 验证，a/b 均非 NULL） */
 typedef bool (*lvCompareFn)(const void *a, const void *b);
 
+/** @brief 反序列化结果释放函数类型（round-trip 验证内置释放回调） */
+typedef void (*lvStorageFreeFn)(void *obj);
+
+/**
+ * @brief 注册 round-trip 验证的内置比较/释放回调（按类型名分派）
+ *
+ * 用于解耦存储层（L2）与具体业务类型（ConstraintGraph 等 L3/L4 类型）：
+ * 存储层只维护注册表，由上层（序列化适配器所在层）在初始化时注册
+ * "type_name → {比较回调, 释放回调}"。lv_roundtrip_verify 的
+ * compare 参数为 NULL 时走此注册分派，避免 L2 头直接 include 上层类型。
+ *
+ * @param type_name 类型名称（与序列化注册表 key 一致）
+ * @param verify    比较回调（可 NULL：仅验证往返不崩）
+ * @param free_fn   反序列化结果释放回调（可 NULL：由调用者经 compare 自管）
+ */
+lv_PUBLIC_API void lv_storage_register_verify(const char *type_name,
+                                              lvCompareFn verify,
+                                              lvStorageFreeFn free_fn);
+
 /**
  * @brief 统一 round-trip 验证：序列化 → 反序列化 → 比较
  *
@@ -390,8 +409,8 @@ typedef bool (*lvCompareFn)(const void *a, const void *b);
  *
  * 比较策略（按优先级）：
  * 1. compare 非 NULL：直接调用 compare(原始, 反序列化结果)；
- * 2. compare 为 NULL 且 type_name == "ConstraintGraph"：使用内置的
- *    meta_repr_graph_equivalent 语义等价比较；
+ * 2. compare 为 NULL：使用 lv_storage_register_verify 注册的类型级
+ *    内置比较（如 "ConstraintGraph" → meta_repr_graph_equivalent）；
  * 3. 其余情况：跳过比较，仅验证序列化往返不崩溃、不失败。
  *
  * @param type_name 类型名称（须已注册）

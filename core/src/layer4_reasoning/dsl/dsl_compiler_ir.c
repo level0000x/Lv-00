@@ -19,8 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/constraint_graph.h"
-#include "lv/symbolic_coord.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_hashtable.h"
 #include "lv/lv_lifecycle.h"

@@ -601,7 +601,6 @@ set(lv_HEADERS
     core/include/lv/preset_polynomial.h
     core/include/lv/preset_probability.h
     core/include/lv/preset_probability_statistics.h
-    core/include/lv/preset_register_macros.h
     core/include/lv/preset_representation_theory.h
     core/include/lv/preset_ring_theory.h
     core/include/lv/preset_set_theory.h
@@ -646,44 +645,20 @@ set(lv_HEADERS
 # 职责：词法分析、公式解析、DSL 编译
 # 依赖：Layer 2
 set(lv_LAYER1_SOURCES
-    core/src/layer1_parser/formula_parser.c
-    core/src/layer1_parser/formula_converter.c
-    core/src/layer1_parser/formula_converter_util.c
-    core/src/layer1_parser/formula_converter_geom.c
-    core/src/layer1_parser/formula_converter_complex.c
-    core/src/layer1_parser/formula_converter_constraint.c
-    core/src/layer1_parser/formula_converter_stmt.c
-    core/src/layer1_parser/formula_converter_export.c
-    core/src/layer1_parser/formula_eval.c
-    core/src/layer1_parser/formula_string.c
-    core/src/layer1_parser/formula_curve.c
-    core/src/layer1_parser/formula_renderer.c
-    core/src/layer1_parser/formula_renderer_internal.c
-    core/src/layer1_parser/formula_renderer_latex.c
-    core/src/layer1_parser/formula_renderer_python.c
-    core/src/layer1_parser/formula_renderer_dsl.c
-    core/src/layer1_parser/formula_renderer_mathml.c
-    core/src/layer1_parser/formula_renderer_ascii.c
-    core/src/layer1_parser/formula_renderer_html.c
-    core/src/layer1_parser/parser_safety.c
-    core/src/layer1_parser/dsl_compiler.c
-    core/src/layer1_parser/dsl_compiler_parse.c
-    core/src/layer1_parser/dsl_compiler_ir.c
-    core/src/layer1_parser/dsl_compiler_load.c
-    core/src/layer1_parser/dsl_lexer.c
-    core/src/layer1_parser/math_input.c
-    # parser 子目录：公式 AST、DSL、LaTeX、Python 表达式
-    core/src/layer1_parser/parser/formula_ast.c
-    core/src/layer1_parser/parser/formula_dsl.c
-    core/src/layer1_parser/parser/formula_latex.c
-    core/src/layer1_parser/parser/formula_python.c
-    # .lv 语言解析管线
+    # .lv 语言解析管线（纯文本 → AST，仅依赖 L2）
     core/src/layer1_parser/lv_lexer.c
     core/src/layer1_parser/lv_ast.c
     core/src/layer1_parser/lv_parser.c
     # v1.9.0 micro-bootstrap: 语义分析与加载器
     core/src/layer1_parser/lv_sema.c
     core/src/layer1_parser/lv_loader.c
+    core/src/layer1_parser/math_input.c
+    core/src/layer1_parser/parser_safety.c
+    # 注：formula 家族（parser/converter/renderer）已整体迁 L3——其转换产物为
+    #     ConstraintGraph（L3），formula_converter.h 直接 include constraint_graph.h，
+    #     L1 依赖模型（仅 L2）无法承载；消费方仅 L0（lv.c）。
+    #     dsl 家族（dsl_compiler*.c/dsl_lexer.c）已整体迁 L4——load 阶段注册公理包
+    #     AxiomPackage（L4）且 IR→ConstraintGraph（L3），消费方仅 L0（orchestrator）。
 )
 
 # ── Layer 2: 资源管理层 (Resource) ──
@@ -719,7 +694,7 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/debug_trace_session.c
     core/src/layer2_resource/debug_ringbuf.c
     core/src/layer2_resource/debug_log_ctx.c
-    core/src/layer2_resource/node_deep_copy.c
+    # node_deep_copy.c 已迁 L3（GeomNode/symbolic_coord/graph_node_internal 均为 L3 域）
     # v1.1.0 新增：内存池、运行时监控、测试框架
     core/src/layer2_resource/memory_pool.c
     # v3.3.0 新增：内存池公共 API 包装
@@ -760,8 +735,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/runtime_guard.c
     core/src/layer2_resource/performance_profiler.c
     # 表示转换器已移至 layer6_visual/converter（与 block_to_* 三兄弟同域，消除 L2→L4/L6 越权）
-    core/src/layer2_resource/adaptive_threshold.c
-    core/src/layer2_resource/meta_repr.c
+    # adaptive_threshold.c 已迁 L3（依赖 lv_graph_traversal L3）
+    # meta_repr.c 已迁 L4（编码 ConstraintGraph L3 + FuncBlock L4）
     # 补全遗漏文件：引导测试
     # bootstrap_test.c 已移至 L4（依赖 L3+L4 类型）
     # SHA-256 共享实现（从 axiom_pkg.c 提取）
@@ -772,8 +747,6 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_hashtable.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
     core/src/layer2_resource/thread_pool.c
-    # v1.1.0 SIMD 运算（原在 L4/unify，v2.0.0 移入 L2 作为基础设施）
-    core/src/layer2_resource/simd_ops.c
     # v3.8.0 统一日志抽象层
     core/src/layer2_resource/lv_log.c
     # v3.8.0 安全字符串构建器
@@ -796,7 +769,7 @@ set(lv_LAYER2_SOURCES
     # v5.0.0 统一存储抽象层
     core/src/layer2_resource/lv_storage.c
     # 内置序列化适配器（graph JSON 等业务序列化对接入统一序列化注册表）
-    core/src/layer2_resource/lv_serialize_adapters.c
+    # lv_serialize_adapters.c 已迁 L4（graph 序列化 + meta_repr 验证注册，均 L3/L4 域）
     # v1.0.0 竞技场分配器抽象层
     core/src/layer2_resource/lv_arena.c
     # 字节流编解码基础设施（lvByteWriter/lvByteReader：endian/varint/zigzag，收敛 msgpack/压缩引擎手写位移）
@@ -832,10 +805,40 @@ set(lv_CORE_SOURCES
 # 职责：约束图、符号坐标、几何原语、高维结构
 # 依赖：Layer 2，GMP（通过 Layer 2 传递）
 set(lv_LAYER3_SOURCES
+    # formula 家族（自 L1 整体迁入：转换产物为 ConstraintGraph，formula_converter.h
+    # 直接 include constraint_graph.h；消费方仅 L0 lv.c。含 parser/ 子目录与 renderer）
+    core/src/layer3_geometry/formula/formula_parser.c
+    core/src/layer3_geometry/formula/formula_converter.c
+    core/src/layer3_geometry/formula/formula_converter_util.c
+    core/src/layer3_geometry/formula/formula_converter_geom.c
+    core/src/layer3_geometry/formula/formula_converter_complex.c
+    core/src/layer3_geometry/formula/formula_converter_constraint.c
+    core/src/layer3_geometry/formula/formula_converter_stmt.c
+    core/src/layer3_geometry/formula/formula_converter_export.c
+    core/src/layer3_geometry/formula/formula_eval.c
+    core/src/layer3_geometry/formula/formula_string.c
+    core/src/layer3_geometry/formula/formula_curve.c
+    core/src/layer3_geometry/formula/formula_renderer.c
+    core/src/layer3_geometry/formula/formula_renderer_internal.c
+    core/src/layer3_geometry/formula/formula_renderer_latex.c
+    core/src/layer3_geometry/formula/formula_renderer_python.c
+    core/src/layer3_geometry/formula/formula_renderer_dsl.c
+    core/src/layer3_geometry/formula/formula_renderer_mathml.c
+    core/src/layer3_geometry/formula/formula_renderer_ascii.c
+    core/src/layer3_geometry/formula/formula_renderer_html.c
+    core/src/layer3_geometry/formula/parser/formula_ast.c
+    core/src/layer3_geometry/formula/parser/formula_dsl.c
+    core/src/layer3_geometry/formula/parser/formula_latex.c
+    core/src/layer3_geometry/formula/parser/formula_python.c
+    # 深拷贝（GeomNode 域）与自适应阈值（图遍历域）自 L2 迁入
+    core/src/layer3_geometry/node_deep_copy.c
+    core/src/layer3_geometry/adaptive_threshold.c
+    # SIMD 运算（依赖 geo_utils L3）自 L2 迁入
+    core/src/layer3_geometry/simd_ops.c
     core/src/layer3_geometry/constraint_graph.c
     core/src/layer3_geometry/symbolic_coord.c
     core/src/layer3_geometry/euclidean_geometry.c
-    core/src/layer3_geometry/interactive_geo.c
+    # interactive_geo.c 已迁 L4（接受 lvEngine*，依赖 engine.h L4）
     core/src/layer3_geometry/high_dim.c
     core/src/layer3_geometry/high_dim_core.c
     core/src/layer3_geometry/high_dim_preset.c
@@ -868,7 +871,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geometry_csg_hull.c
     core/src/layer3_geometry/geometry_csg_eval.c
     core/src/layer3_geometry/geometry_csg_export.c
-    core/src/layer3_geometry/geom_evol.c
+    # geom_evol.c 已迁 L4（ODE 积分/数值后端属 L4 numeric 域）
     core/src/layer3_geometry/float_error.c
     core/src/layer3_geometry/mpz_poly_resultant.c
     # v1.1.0 新增：几何变换推理
@@ -1028,6 +1031,21 @@ set(lv_LAYER4_SOURCES
     core/src/layer4_reasoning/engine/proof_contradiction.c
     # 重写与合一
     core/src/layer4_reasoning/rewrite.c
+    # dsl 家族（自 L1 整体迁入：load 阶段 IR→ConstraintGraph（L3）并注册公理包
+    # AxiomPackage（L4）；消费方仅 L0 orchestrator/app/convenience）
+    core/src/layer4_reasoning/dsl/dsl_compiler.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_parse.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_ir.c
+    core/src/layer4_reasoning/dsl/dsl_compiler_load.c
+    core/src/layer4_reasoning/dsl/dsl_lexer.c
+    # 几何演化引擎（ODE 积分器/数值后端属 L4 numeric 域）自 L3 迁入
+    core/src/layer4_reasoning/geom_evol.c
+    # 交互式几何（接受 lvEngine*，依赖 engine.h L4）自 L3 迁入
+    core/src/layer4_reasoning/interactive_geo.c
+    # 元表示层（编码 ConstraintGraph L3 + FuncBlock L4）自 L2 迁入
+    core/src/layer4_reasoning/meta_repr.c
+    # 序列化适配器（graph 序列化 L3 + meta_repr 验证注册 L4）自 L2 迁入
+    core/src/layer4_reasoning/lv_serialize_adapters.c
     # 几何原语与推理引擎混合体（自 L3 归位：geo_prove/geo_export 依赖 L4 proof/rewrite/unify）
     core/src/layer4_reasoning/geometric_primitives.c
     # 引擎状态验证器（自 L2 归位：依赖 lvEngine/TypeSystem，debug 模式下被 engine_solve 调用）

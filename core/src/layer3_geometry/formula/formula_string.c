@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lv/constraint_graph.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 

@@ -13,6 +13,10 @@
  * @see doc/docs/THREE_LAYER_ARITHMETIC_SPEC.md
  * @author Lv-00 Project
  * @version 1.1.0
+ *
+ * @note 兼容遗留头：三层算术编译标志与安全算术宏的权威实现已收敛至
+ *       lv_arith_safe.h（lv_safe_mul_i64 / lv_safe_add_i64 / lv_safe_sub_i64），
+ *       本头仅保留转发与编译标志文档，供既有代码兼容引用；全库零 include。
  */
 
 #ifndef lv_THREE_LAYER_ARITHMETIC_H

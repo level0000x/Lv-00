@@ -23,7 +23,6 @@
 #include "lv/constraint_graph.h"
 #include "lv/determinism_state.h"
 #include "lv/memory_pool.h"
-#include "lv/solver.h"
 #include "lv/symbolic_coord.h"
 #include "lv/geo_utils.h" /* geo_point_on_segment / geo_segments_intersect / GEO_EPSILON */
 
@@ -33,7 +32,6 @@
 #include "lv/error_codes.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/stream.h"
 #include "lv/stream.h"
 #include "lv/lv_json.h"
 #include "lv/lv_strbuf.h"

@@ -13,7 +13,7 @@
  */
 
 #include "lv/context.h"
-#include "lv/circuit_breaker.h"
+#include "lv/lv_circuit_breaker.h" /* L2 规范实现（L4 circuit_breaker.h 为兼容包装层，L2 不可依赖） */
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_xmacro.h"
 
@@ -23,11 +23,8 @@
 
 #include "lv/lv_internal.h"
 
-#include "lv/constraint_graph.h"
-
 #include "lv/config.h" /* lv_DEFAULT_* macros */
 #include "lv/lv_utils.h"
-#include "lv/normalization.h"
 #include "lv/stream.h"
 
 /* ============================================================
@@ -36,6 +33,27 @@
 
 /** 全局上下文 ID 自增计数器（用于分配唯一 context_id） */
 static uint64_t s_next_context_id = 1;
+
+/* ============================================================
+ * 资源操作回调注册表（L0 注入）
+ *
+ * main_graph（ConstraintGraph，L3）与 last_normalization
+ * （NormalizationResult，L4）为不透明资源：L2 不依赖 L3/L4，
+ * create/copy/destroy 由 L0（lv.c）在 lv_init() 时经
+ * lv_context_register_resource_ops() 注入。未注入时相关字段
+ * 保持 NULL，能力降级（快照/回滚跳过，destroy 对 NULL 安全）。
+ * ============================================================ */
+
+/** @brief 资源操作集（全 NULL = 未注入） */
+static LvContextResourceOps s_resource_ops;
+static bool s_resource_ops_registered = false;
+
+void lv_context_register_resource_ops(const LvContextResourceOps *ops) {
+    if (!ops)
+        return;
+    s_resource_ops = *ops;
+    s_resource_ops_registered = true;
+}
 
 /* ============================================================
  * 第六部分：生命周期管理 API
@@ -88,11 +106,15 @@ lvContext *lv_context_create(void) {
     ctx->created_at_us = lv_get_time_us();
     ctx->problems_processed = 0;
 
-    /* 3. 主约束图 —— 初始化为空图（头文件契约：create 后必须可用） */
-    ctx->main_graph = graph_create();
-    if (!ctx->main_graph) {
-        lv_free((void **) &ctx);
-        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 创建主约束图失败");
+    /* 3. 主约束图 —— 初始化为空图（经 L0 注入的资源操作创建；
+     *    头文件契约：create 后必须可用。未注入时保持 NULL 并降级，
+     *    真实引擎路径经 lv_init() 保证注入） */
+    if (s_resource_ops_registered) {
+        ctx->main_graph = s_resource_ops.create();
+        if (!ctx->main_graph) {
+            lv_free((void **) &ctx);
+            lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_create: 创建主约束图失败");
+        }
     }
 
     /* 12. 公理与规则引用 */
@@ -101,11 +123,22 @@ lvContext *lv_context_create(void) {
     return ctx;
 }
 
-/* ── lv_context_destroy 子资源销毁适配（LV_DESTROY_SHIM：强类型 destroy → void* 回调） ── */
+/* ── lv_context_destroy 子资源销毁适配 ──
+ * main_graph / last_normalization 为 L3/L4 不透明资源，经 L0 注入的
+ * 资源操作回调销毁（未注入时 NULL 直通，安全跳过）；
+ * stream_ctx 属 L2（stream.h），保持强类型 SHIM。 */
 
-LV_DESTROY_SHIM(destroy_ctx_main_graph, ConstraintGraph, graph_destroy)
+static void destroy_ctx_main_graph(void *obj) {
+    if (s_resource_ops.destroy)
+        s_resource_ops.destroy(obj);
+}
+
 LV_DESTROY_SHIM(destroy_ctx_stream_ctx, StreamContext, stream_context_destroy)
-LV_DESTROY_SHIM(destroy_ctx_normalization, NormalizationResult, normalization_result_destroy)
+
+static void destroy_ctx_normalization(void *obj) {
+    if (s_resource_ops.normalization_destroy)
+        s_resource_ops.normalization_destroy(obj);
+}
 
 /* 推理栈帧数组（含每帧的子资源）就地清空 */
 static void destroy_ctx_reasoning_stack(void *obj, void *field_ptr) {
@@ -344,12 +377,13 @@ lvErrorCode lv_context_push_reasoning(lvContext *ctx, ReasoningBranchType branch
     frame->created_at_us = lv_get_time_us();
     frame->ast_root_ref = ctx->ast_root;
 
-    /* 创建约束图快照：通过 graph_copy 对当前主图做真深拷贝（节点/约束/
+    /* 创建约束图快照：通过资源操作的 copy 对当前主图做真深拷贝（节点/约束/
      * 类型特定数据/哈希索引），作为分支失败时回滚的目标。
-     * graph_copy 失败时 frame->graph_snapshot 保持 NULL，
-     * 推理栈释放（reasoning_frame_release）对 NULL 安全，回滚能力降级。 */
-    if (ctx->main_graph) {
-        frame->graph_snapshot = graph_copy((ConstraintGraph *) ctx->main_graph);
+     * copy 失败或资源未注入（main_graph 为 NULL）时 frame->graph_snapshot
+     * 保持 NULL，推理栈释放（reasoning_frame_release）对 NULL 安全，
+     * 回滚能力降级。 */
+    if (ctx->main_graph && s_resource_ops.copy) {
+        frame->graph_snapshot = s_resource_ops.copy(ctx->main_graph);
     }
 
     /* 递增熔断器深度 */
@@ -759,7 +793,7 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
                  (unsigned long long) ctx->context_id, ctx->name ? ctx->name : "(无名)",
                  lv_context_state_name(ctx->state), ctx->reasoning_stack.top + 1, ctx->reasoning_stack.max_depth,
                  (long long) ctx->circuit_breaker.total_steps, (long long) ctx->circuit_breaker.max_steps,
-                 lv_circuit_breaker_state_name((lvContext *) ctx),
+                 lv_circuit_breaker_state_name_cb(&ctx->circuit_breaker),
                  ctx->circuit_breaker.trip_count, ctx->circuit_breaker.consecutive_errors,
                  ctx->circuit_breaker.max_consecutive_errors, ctx->problems_processed,
                  (long long) ctx->state_transition_count, (unsigned long long) uptime_ms);
@@ -794,22 +828,26 @@ void lv_context_reset(lvContext *ctx) {
     /* 1. 释放推理栈帧 */
     lv_reasoning_stack_clear(&ctx->reasoning_stack);
 
-    /* 2. 重建主约束图 */
+    /* 2. 重建主约束图（经 L0 注入的资源操作；未注入时保持 NULL 降级） */
     if (ctx->main_graph) {
-        graph_destroy((ConstraintGraph *) ctx->main_graph);
+        if (s_resource_ops.destroy)
+            s_resource_ops.destroy(ctx->main_graph);
+        ctx->main_graph = NULL;
     }
-    ctx->main_graph = graph_create();
-    if (!ctx->main_graph) {
-        ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_context_reset: 创建主约束图失败");
-        ctx->state = lv_CONTEXT_ERROR;
-        lv_context_leave_uncancellable(ctx);
-        return;
+    if (s_resource_ops_registered) {
+        ctx->main_graph = s_resource_ops.create();
+        if (!ctx->main_graph) {
+            ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
+            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_context_reset: 创建主约束图失败");
+            ctx->state = lv_CONTEXT_ERROR;
+            lv_context_leave_uncancellable(ctx);
+            return;
+        }
     }
 
     /* 4. 释放规范化结果 */
-    if (ctx->last_normalization) {
-        normalization_result_destroy(ctx->last_normalization);
+    if (ctx->last_normalization && s_resource_ops.normalization_destroy) {
+        s_resource_ops.normalization_destroy(ctx->last_normalization);
         ctx->last_normalization = NULL;
     }
 
@@ -895,9 +933,9 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 分配快照失败");
     }
 
-    /* 约束图深拷贝（唯一公共深拷贝入口 graph_copy） */
-    if (ctx->main_graph) {
-        snap->main_graph = graph_copy((ConstraintGraph *) ctx->main_graph);
+    /* 约束图深拷贝（经 L0 注入的资源操作；唯一公共深拷贝入口 graph_copy） */
+    if (ctx->main_graph && s_resource_ops.copy) {
+        snap->main_graph = s_resource_ops.copy(ctx->main_graph);
         if (!snap->main_graph) {
             lv_free((void **) &snap);
             lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_context_snapshot: 复制约束图失败");
@@ -957,15 +995,15 @@ lvErrorCode lv_context_rollback(lvContext *ctx, const lvContext *snapshot) {
     }
 
     /* 1. 约束图恢复：以快照图为源做深拷贝，替换当前主图
-     *    （不转移所有权，快照可重复使用） */
-    if (snapshot->main_graph) {
-        ConstraintGraph *new_graph = graph_copy((ConstraintGraph *) snapshot->main_graph);
+     *    （经 L0 注入的资源操作；不转移所有权，快照可重复使用） */
+    if (snapshot->main_graph && s_resource_ops.copy && s_resource_ops.destroy) {
+        struct ConstraintGraph *new_graph = s_resource_ops.copy(snapshot->main_graph);
         if (!new_graph) {
             lv_context_set_error(ctx, lv_ERROR_OUT_OF_MEMORY, "lv_context_rollback: 恢复约束图失败（内存不足）");
             return lv_ERROR_OUT_OF_MEMORY;
         }
         if (ctx->main_graph) {
-            graph_destroy((ConstraintGraph *) ctx->main_graph);
+            s_resource_ops.destroy(ctx->main_graph);
         }
         ctx->main_graph = new_graph;
     }

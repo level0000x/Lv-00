@@ -25,8 +25,6 @@
 #include "lv/lv_log.h"     /* lv_ERROR, lv_WARN, lv_DEBUG */
 #include "lv/lv_thread.h"  /* lv_once_t / lv_once */
 #include "lv/lv_registry.h" /* 通用注册表（查重/扩容/删除/析构回调） */
-#include "lv/constraint_graph.h" /* graph_destroy：lv_roundtrip_verify 内置释放 */
-#include "lv/meta_repr.h"        /* meta_repr_graph_equivalent：内置比较分派 */
 
 /* ═══════════════════════════════════════════════════════════════════
  * 内部常量
@@ -908,6 +906,63 @@ bool lv_deserialize_from_file_format(const char *type_name,
     return ok;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+ * 第 6 节：round-trip 验证注册表（类型级内置比较/释放分派）
+ * 存储层只维护注册表；ConstraintGraph 等具体类型的比较/释放由上层
+ * （序列化适配器所在层）在初始化时经 lv_storage_register_verify 注册，
+ * 避免 L2 头直接 include 上层类型。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/** @brief 验证注册表条目（注册表 value，堆分配，由 destroy 回调释放） */
+typedef struct {
+    lvCompareFn      verify;
+    lvStorageFreeFn  free_fn;
+} VerifyEntry;
+
+/** @brief 最大验证注册条目数量 */
+#define lv_VERIFY_MAX_ENTRIES 16
+
+/** @brief 验证注册表（key = type_name，value = VerifyEntry*） */
+lv_REGISTRY_STATIC(verify_registry, 8);
+
+/** @brief VerifyEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
+static void verify_entry_destroy(void *value) {
+    lv_free((void **) &value);
+}
+
+void lv_storage_register_verify(const char *type_name,
+                                lvCompareFn verify,
+                                lvStorageFreeFn free_fn) {
+    if (!type_name) return;
+
+    verify_registry_ensure();
+
+    VerifyEntry *existing = (VerifyEntry *) lv_registry_get(&g_verify_registry, type_name);
+    if (existing) {
+        existing->verify  = verify;
+        existing->free_fn = free_fn;
+        return;
+    }
+    if (lv_registry_count(&g_verify_registry) >= lv_VERIFY_MAX_ENTRIES) {
+        lv_ERROR("验证注册表已满 (max=%d)", lv_VERIFY_MAX_ENTRIES);
+        return;
+    }
+    VerifyEntry *entry = (VerifyEntry *) lv_calloc(1, sizeof(VerifyEntry));
+    if (!entry) return;
+    entry->verify  = verify;
+    entry->free_fn = free_fn;
+    if (!lv_registry_put_ex(&g_verify_registry, type_name, entry, verify_entry_destroy)) {
+        lv_free((void **) &entry);
+    }
+}
+
+/** @brief 按类型名查找验证注册条目（无则返回 NULL） */
+static VerifyEntry *find_verify_entry(const char *type_name) {
+    if (!type_name) return NULL;
+    verify_registry_ensure();
+    return (VerifyEntry *) lv_registry_get(&g_verify_registry, type_name);
+}
+
 bool lv_roundtrip_verify(const char *type_name,
                           const char *format,
                           const void *obj,
@@ -939,18 +994,18 @@ bool lv_roundtrip_verify(const char *type_name,
     lv_storage_close(storage);
 
     bool ok = true;
+    VerifyEntry *entry = find_verify_entry(type_name);
     if (compare) {
         ok = compare(obj, slot);
-    } else if (lv_str_eq(type_name, "ConstraintGraph")) {
-        /* 内置分派：graph 走现有语义等价比较（meta_repr 既有实现） */
-        ok = meta_repr_graph_equivalent((const ConstraintGraph *) obj,
-                                        (const ConstraintGraph *) slot);
+    } else if (entry && entry->verify) {
+        /* 内置分派：类型级语义等价比较（如 ConstraintGraph → meta_repr_graph_equivalent） */
+        ok = entry->verify(obj, slot);
     }
     /* else：无比较策略，仅验证序列化往返不崩 */
 
-    /* 释放反序列化结果（内置类型专属；其余类型由调用者经 compare 自行管理） */
-    if (lv_str_eq(type_name, "ConstraintGraph")) {
-        graph_destroy((ConstraintGraph *) slot);
+    /* 释放反序列化结果（注册的类型级释放回调；其余类型由调用者经 compare 自行管理） */
+    if (entry && entry->free_fn) {
+        entry->free_fn(slot);
     }
 
     return ok;

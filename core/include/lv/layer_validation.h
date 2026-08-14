@@ -24,6 +24,11 @@
  * 每个源文件定义 lv_CURRENT_LAYER 宏（由 CMake lv_setup_layer 的
  * target_compile_definitions 自动设置）并包含此头文件；启用
  * lv_ENABLE_LAYER_VALIDATION 后编译器将在编译时检查层级依赖。
+ *
+ * @note 文档参考头：编译期验证的实际宏由 engine.h 的 lv_ALLOW_LAYER /
+ *       lv_REQUIRE_STRICTLY_ABOVE 承担（lv_ENABLE_LAYER_VALIDATION 分支）。
+ *       本头的 lv_LAYER_CAN_DEPEND 为依赖表判定的参考实现（全库零 include），
+ *       十层依赖模型（见上 @par 依赖模型）保持为本文件权威文档源。
  */
 
 #ifndef lv_LAYER_VALIDATION_H

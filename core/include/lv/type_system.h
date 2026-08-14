@@ -538,48 +538,6 @@ lv_PUBLIC_API bool type_check_level_validity(TypeSystem *ts, TypeRegion *contain
  */
 lv_PUBLIC_API bool type_check_cumulative(TypeSystem *ts, TypeRegion *lower, TypeRegion *higher);
 
-/* ============== 宇宙层级类型系统（6.1节） ============== */
-
-/**
- * @brief 获取节点的宇宙层级
- *
- * GEOM_POINT / GEOM_LINE_SEGMENT / GEOM_PORT → UNIVERSE_LEVEL_0
- * GEOM_REGION → UNIVERSE_LEVEL_1（由基本几何体构成的集合）
- * GEOM_FUNCTION_BLOCK → UNIVERSE_LEVEL_1（函数空间）
- *
- * @param node 几何节点
- * @return 宇宙层级
- */
-lv_PUBLIC_API UniverseLevel type_get_universe_level(const GeomNode *node);
-
-/**
- * @brief 检查区域包含关系是否满足层级约束
- *
- * 区域（外）必须严格比被包含对象（内）高至少一个层级。
- * 如果层级检查已关闭（UNIVERSE_LEVEL_ANY），不做检查。
- *
- * @param outer 外部对象节点
- * @param inner 内部对象节点
- * @return true 层级检查通过，false 违反层级约束
- */
-lv_PUBLIC_API bool type_check_universe_constraint(const GeomNode *outer, const GeomNode *inner);
-
-/**
- * @brief 设置/关闭层级检查
- *
- * 非良基集合论公理包调用此函数关闭层级检查。
- *
- * @param enabled true 开启层级检查（默认），false 关闭
- */
-lv_PUBLIC_API void type_set_universe_checking(bool enabled);
-
-/**
- * @brief 查询当前层级检查状态
- *
- * @return true 层级检查开启，false 已关闭
- */
-lv_PUBLIC_API bool type_is_universe_checking_enabled(void);
-
 /* ============== 类型等价检查 ============== */
 
 /**

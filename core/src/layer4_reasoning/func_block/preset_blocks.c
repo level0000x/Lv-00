@@ -39,6 +39,14 @@ extern bool lvz_load_presets_file(const char *filepath);
  *
  * 这些文件位于 module/presets/ 目录下，包含通过 Python 脚本
  * 从 C 预设文件自动转换的预设定义。
+ *
+ * 【生成源说明】.lvz 由 convert_presets.py 从 core/src/layer4_reasoning/preset/
+ * 的 C 预设文件生成（LV_PRESET_REGISTER / preset_blocks_register_by_category 宏
+ * 抽取）。这些 C 文件**不参与编译**（孤儿），是 .lvz 的唯一事实来源：
+ * 修改预设元数据 = 改 C 文件 → 重跑 convert_presets.py → 重生成 .lvz。
+ * 若需 C 原生回退注册（无 module/ 目录时），可编译这些 C 文件——其宏展开目标
+ * preset_blocks_register_by_category 在编译侧存在（本文件实现），但需与 .lvz
+ * 加载二选一，避免同名重复注册。
  */
 static const char *g_preset_lvz_files[] = {
     "preset_advanced_geometry.lvz",

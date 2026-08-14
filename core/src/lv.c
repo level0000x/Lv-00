@@ -213,6 +213,21 @@ static void lv_module_cleanup_preset_pools(void) {
     lv_cleanup_preset_pools();
 }
 
+/** @brief context 资源操作注入
+ * L2 context 不持有 L3/L4 不透明资源（main_graph / last_normalization）的
+ * 具体实现，create/copy/destroy 经 lv_context_register_resource_ops() 由
+ * L0 在此注入（仿 serialize_adapters 注册模式；幂等可重复调用）。 */
+static bool lv_module_init_context_resources(void) {
+    LvContextResourceOps ops = {
+        .create = graph_create,
+        .copy = graph_copy,
+        .destroy = graph_destroy,
+        .normalization_destroy = normalization_result_destroy,
+    };
+    lv_context_register_resource_ops(&ops);
+    return true;
+}
+
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
@@ -240,6 +255,10 @@ bool lv_init(void) {
     /* 序列化适配器注册（把 graph JSON 等业务序列化对接入统一序列化注册表；
      * init 仅写入注册表函数指针，幂等可重复调用） */
     lv_module_register("serialize_adapters", lv_serialize_register_graph_adapters, NULL,
+                       lv_MODULE_PRIO_RESOURCE);
+    /* context 资源操作注入（main_graph 的 create/copy/destroy 与
+     * last_normalization 的 destroy；L2 context 不依赖 L3/L4，由 L0 注入） */
+    lv_module_register("context_resources", lv_module_init_context_resources, NULL,
                        lv_MODULE_PRIO_RESOURCE);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);

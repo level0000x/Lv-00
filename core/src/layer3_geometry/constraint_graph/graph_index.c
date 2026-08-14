@@ -33,7 +33,6 @@
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/type_system.h"
 #include "lv/lv_strbuf.h"
 
 #include "graph_node_internal.h"
@@ -289,6 +288,36 @@ AddConstraintResult graph_add_intersection(ConstraintGraph *graph, int line1_id,
     return ADD_CONSTRAINT_OK;
 }
 
+/* ── 几何类型宇宙层级校验（L3 内建） ──
+ * 原实现位于 L4 type_system.c（type_check_universe_constraint /
+ * type_get_universe_level），全库唯一消费者即本文件 graph_add_containment。
+ * L3 不允许依赖 L4，此处内建 GeomType → 层级 映射与包含关系校验，
+ * 语义与原实现一致（外层必须严格高于内层）。 */
+
+/** @brief GeomType → 宇宙层级 查找表（仅区分 0/1 两档，同原 kNodeTypeUniverseLevels 映射） */
+static const int kGraphTypeUniverseLevels[] = {
+    [GEOM_POINT]          = 0,
+    [GEOM_LINE_SEGMENT]   = 0,
+    [GEOM_REGION]         = 1,
+    [GEOM_CIRCLE]         = 1,
+    [GEOM_PORT]           = 0,
+    [GEOM_FUNCTION_BLOCK] = 1,
+};
+
+/** @brief 获取节点的宇宙层级（NULL/未知类型/越界返回 0） */
+static int graph_type_universe_level(const GeomNode *node) {
+    if (!node || node->type < 0 || node->type >= (int) (sizeof(kGraphTypeUniverseLevels) / sizeof(kGraphTypeUniverseLevels[0])))
+        return 0;
+    return kGraphTypeUniverseLevels[node->type];
+}
+
+/** @brief 检查包含关系的宇宙层级约束：外层必须严格高于内层 */
+static bool graph_check_universe_constraint(const GeomNode *outer, const GeomNode *inner) {
+    if (!outer || !inner)
+        return false;
+    return graph_type_universe_level(outer) > graph_type_universe_level(inner);
+}
+
 /**
  * @brief 添加包含约束
  *
@@ -309,12 +338,11 @@ AddConstraintResult graph_add_containment(ConstraintGraph *graph, int inner_id, 
     if (outer->type != GEOM_REGION && outer->type != GEOM_CIRCLE)
         return ADD_CONSTRAINT_CONFLICT;
 
-    /* 添加包含约束时检查宇宙层级 */
-    if (!type_check_universe_constraint(outer, inner)) {
-        UniverseLevel outer_level = type_get_universe_level(outer);
-        UniverseLevel inner_level = type_get_universe_level(inner);
-        graph_set_error(graph, "违反宇宙层级约束: 区域层级 %d 必须高于内容层级 %d", (int) outer_level,
-                        (int) inner_level);
+    /* 添加包含约束时检查宇宙层级（L3 内建校验） */
+    if (!graph_check_universe_constraint(outer, inner)) {
+        int outer_level = graph_type_universe_level(outer);
+        int inner_level = graph_type_universe_level(inner);
+        graph_set_error(graph, "违反宇宙层级约束: 区域层级 %d 必须高于内容层级 %d", outer_level, inner_level);
         return ADD_CONSTRAINT_CONFLICT;
     }
 

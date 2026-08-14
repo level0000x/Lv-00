@@ -1820,3 +1820,160 @@ X1 批次统一 `lv_strdup_safe` 后漏网的 3 处标准库 `strdup`（`modal_o
 - lexer_shared 下沉 L2 / bit_burning 归 L3 / geometric_primitives 归 L4 / 批次C-⑤ / CMake 迁移 / 各按真实消费面 / 全量回归。
 - debug 家族清理 + 接线复用 / 批次C-⑥ / 7 文件删冗余 include + 2 验证器归 L4 + engine_solve 接线 + test_func_block 测试 / 用户决策「保留+接线复用」/ func_block + engine 测试。
 - 登记待修（下一批）：剩余 ~55 处——L1 dsl_compiler 系（constraint_graph/symbolic_coord/axiom_pkg 9 处）+ formula_curve/eval/string（5 处）；L2 context.c（circuit_breaker/constraint_graph/normalization 3 处）+ lv_storage/lv_serialize_adapters/node_deep_copy（constraint_graph 3 处）+ meta_repr（constraint_graph/func_block 2 处）+ simd_ops（geo_utils 1）+ adaptive_threshold（lv_graph_traversal 1）；L3 constraint_graph 系 solver.h（7 处）+ graph_index type_system（1）+ geom_evol（ode_integrator/numerical_backend 2）+ interactive_geo（engine.h 1）。
+
+## 二十七、批次 C-⑦：剩余层间违规系统性收敛（2026-08-14）
+
+用户指令「继续优化架构」。逐一调研剩余违规文件的真实依赖用途后，按「冗余删除 / 消费方安全迁移 / 家族整体迁移 / 注册表解耦」四类处置。~55 处收敛至 3 处豁免桥接。
+
+### 调研结论（关键）
+
+- **dsl/formula 家族外部消费方仅 L0**（lv.c / lv_impl_upper_* / lv_convenience），无 L2/L3/L4 消费 → 可整体上移。
+- **formula_converter.h 直接 include constraint_graph.h（L3）** → formula 家族在 L1 依赖模型下结构上不可能（L1 仅可依赖 L2）。
+- **context.h 消费方遍布 L1~L7**（debug 8 件/L3 graph 7 件/L4/L0）→ context.c 必须留 L2，其 graph/normalization 依赖只能内部解耦或豁免。
+- **solver.h（L4）在 graph 系 6 处为冗余**：graph_node* 仅经其传递获得 symbolic_coord/stream；constraint_graph.c 零使用；graph_conflict.c 的唯一消费是零调用死代码 `algebraic_conflict_detected`（全库确认）。
+- **graph_index.c 的 type_system.h 非冗余**：graph_add_containment 真调 type_check_universe_constraint（UniverseLevel 符号，首轮 grep 模式漏判，构建报错纠正）。
+- **circuit_breaker.h（L4）是纯兼容包装层**：结构体/独立 API 已在 L2 lv_circuit_breaker.h；L4 层仅剩 ctx* 包装（依赖 recursion.h，不能下沉）。
+
+### 处置明细
+
+**① 冗余 include 删除（17 处 + 6 处 stream.h 去重）**
+- dsl_compiler.c/ir/parse：各删 constraint_graph.h + symbolic_coord.h（零使用）。
+- formula_string.c / formula_eval.c：删 constraint_graph.h（零使用；geo_utils.h 为真实使用保留）。
+- constraint_graph.c + graph_node/node_stub/hash/alloc/node_conflict 6 件：删 solver.h + 去重重复 stream.h。
+- graph_index.c：type_system.h 已恢复（真实使用，见豁免）。
+- graph_conflict.c：删零调用死代码 `algebraic_conflict_detected`（46 行）+ solver.h，补直接 stream.h include（原先经 solver.h 传递）。
+
+**② context.c circuit_breaker 解耦（L2→L4 边消除）**
+- `lv_circuit_breaker_state_name_cb(const lvCircuitBreaker*)` 下沉 L2（状态名表与枚举同层，单一事实来源；lv_circuit_breaker.c 增 lv_xmacro.h include）。
+- L4 `lv_circuit_breaker_state_name(lvContext*)` 改为委托 L2 版（删 L4 名称表）。
+- context.c include 改 `lv/lv_circuit_breaker.h`（首轮 SearchReplace 未持久化，复核修复）+ 调用点改 `_cb` 版。
+
+**③ lv_storage 解耦（L2→L3/L4 边消除，注册表模式）**
+- lv_storage.h 新增 `lv_storage_register_verify(type, verify_fn, free_fn)`；lv_storage.c 增 verify 注册表（镜像 serialize_registry 模式），lv_roundtrip_verify 的 "ConstraintGraph" 硬编码分支改注册分派；删 constraint_graph.h/meta_repr.h include。
+- lv_serialize_adapters.c 的 `lv_serialize_register_graph_adapters` 注册 {meta_repr_graph_equivalent, graph_destroy}。
+
+**④ 文件迁移（消费方安全，CMake SOURCES）**
+- → L3：node_deep_copy.c（GeomNode 域）、adaptive_threshold.c（图遍历域）、simd_ops.c（geo_utils 域）。
+- → L4：geom_evol.c（ODE/数值后端域）、interactive_geo.c（lvEngine* 域）、meta_repr.c（ConstraintGraph+FuncBlock 编码）、lv_serialize_adapters.c（graph 序列化+验证注册）。
+
+**⑤ 家族整体迁移（CMake SOURCES，消除全部真实 L1 违规）**
+- formula 家族 → L3：formula_parser.c + parser/ 子目录 4 件 + formula_converter*.c 7 件 + formula_eval/string/curve + formula_renderer*.c 8 件（formula_converter.h 绑 constraint_graph.h，消费方仅 L0）。
+- dsl 家族 → L4：dsl_compiler.c/parse/ir/load + dsl_lexer.c（load 注册 AxiomPackage L4 + IR→ConstraintGraph L3，消费方仅 L0）。
+
+### 剩余豁免桥接（3 处，登记待修）
+
+- context.c:26 constraint_graph.h（main_graph 生命周期 graph_create/copy/destroy 直调 ~10 处）。
+- context.c:30 normalization.h（last_normalization 的 normalization_result_destroy）。
+- graph_index.c:36 type_system.h（graph_add_containment 的 universe 层级校验）。
+
+**follow-up 方案**：前两项 → L2 定义「不透明资源操作回调」（create/destroy/copy 注册，仿 stream_context_register_setter 先例，由 lv.c L0 在 init 时注入）；第三项 → universe 层级辅助函数（kNodeTypeUniverseLevels 表 + type_check_universe_constraint + type_set_universe_checking）下沉 L3（GeomType 几何域），或 graph_index 经回调注册。启用 lv_ENABLE_LAYER_VALIDATION 前置 = 完成 3 项豁免。
+
+### 批次 C-⑦ 执行结果
+
+**验证**：ninja 923/923 + ctest 170/170 全绿（100.03s）。实测消除：17 冗余 include + 6 stream 去重 + 家族迁移（formula 24 文件 / dsl 5 文件）+ 7 文件跨层迁移，违规 ~55 → 3 豁免。
+
+### 决策登记（第 9 章格式）
+
+- 冗余 include 清理 / 批次C-⑦ / 17 处 + 6 去重 / 全部零使用（graph_index type_system 首轮误删已纠正恢复）/ 全量回归。
+- 死代码删除 / 批次C-⑦ / graph_conflict.c algebraic_conflict_detected / 全库零调用、被 L4 solver 的 check_conflict_equations 覆盖 / 全量回归。
+- circuit_breaker 状态名下沉 L2 / 批次C-⑦ / lv_circuit_breaker.h/c + circuit_breaker.c + context.c / L2 拥有枚举单一事实来源，L4 兼容包装委托 / test_circuit_breaker。
+- lv_storage verify 注册表 / 批次C-⑦ / lv_storage.h/c + lv_serialize_adapters.c / 存储层不依赖上层类型，注册分派仿 serialize_registry / test_serialize_registry。
+- 文件迁移 7 件 / 批次C-⑦ / CMake / 各按真实依赖域（GeomNode/图遍历/geo_utils/ODE/engine/meta_repr/serialize）/ 全量回归。
+- formula 家族→L3、dsl 家族→L4 / 批次C-⑦ / CMake SOURCES / 外部消费方仅 L0、家族内聚自洽、消除全部真实 L1 违规 / 全量回归。
+- 豁免 3 处（context.c×2 + graph_index×1）/ 批次C-⑦ / 台账登记 + follow-up 方案 / 回调注入或辅助函数下沉，启用层验证前置 / 全量回归。
+- 物理目录暂未随层迁移（formula/dsl 仍居 layer1_parser/，node_deep_copy 等仍居 layer2_resource/） / 批次C-⑦ / 待后续批次按层 git mv（含相对 include 前缀调整） / 本批先跑通。
+
+### preset 孤儿目录复用研究（批次 C-⑦ 附，2026-08-14 深化）
+
+- **现状**：`layer4_reasoning/preset/preset_*.c` 55 件未在任何 SOURCES（孤儿），其头 61 个已安装。编译代码 + 测试对孤儿函数（preset_<m>_count/category/get_names/...）**零调用**。
+- **根因（已证实为生成源而非死代码）**：`.lvz` 头注释「Auto-generated from C preset files」+ convert_presets.py 读取孤儿 C 的 `LV_PRESET_REGISTER`/`preset_blocks_register_by_category` 宏生成 56 个 preset_*.lvz（module/presets/，与 g_preset_lvz_files 完全对齐）。运行时 preset_blocks.c 加载 .lvz → module_lvz.c 调编译侧 `preset_blocks_register_simple` 注册进 func_block_registry。
+- **复用结论**：
+  1. **C 文件 = .lvz 唯一事实来源**（生成管道输入），保留（修改预设元数据 = 改 C → 重跑 convert_presets.py → 重生成 .lvz）；删除即断生成管道。
+  2. **C 原生回退注册潜力**：孤儿 C 的宏展开目标 `preset_blocks_register_by_category` 在编译侧存在（preset_blocks.c），若未来需无 module/ 目录的 C 原生注册可编译接入——但与 .lvz 加载二选一，避免同名重复注册。
+  3. **孤儿头**仅 preset_algebraic.h + preset_basic_geometry.h 被 11 个编译文件 include（历史遗留，40 个包装函数已删死代码，宏无消费），其余仅被各自孤儿 .c 引用。
+- **处置（按用户「先研究可复用」裁决）**：**保留全部 55 .c + 61 头**，preset_blocks.c g_preset_lvz_files 处已加生成源说明注释（含回退注册提示）。无删除。
+
+## 二十八、批次 C-⑧：豁免桥接清零 + 物理目录归位 + 层验证首开（2026-08-14）
+
+用户指令「继续处理下一批架构优化任务」。消除批次 C-⑦ 登记的 3 处豁免桥接（context.c×2 + graph_index×1），物理目录按层 git mv 归位，并首次成功启用 ENABLE_LAYER_VALIDATION 全工程验证（0 违规）。
+
+### ① context.c 资源操作回调注册表（豁免桥接 context.c×2 消除）
+
+- **模式**：仿 lv_serialize_adapters / lv_storage_register_verify——L2 定义注册点，L0（lv.c）在 lv_init 注入真实实现。
+- **context.h** 新增 `LvContextResourceOps`（create/copy/destroy/normalization_destroy 四个函数指针，用前向声明 `struct ConstraintGraph *` / `struct NormalizationResult *` 签名，与 graph_*/normalization_result_destroy 精确类型匹配、零强转）+ `lv_context_register_resource_ops()`。
+- **context.c**：删 constraint_graph.h + normalization.h include；static ops 注册表；`LV_DESTROY_SHIM(destroy_ctx_main_graph/…normalization)` 改手写 void* 直通回调（未注册时 NULL 安全跳过，stream_ctx 保留 L2 强类型 SHIM）；create/copy/destroy 全部调用点改 ops 转发；未注入时 main_graph 保持 NULL 降级（快照/回滚跳过）。
+- **lv.c**：`lv_module_init_context_resources()` 注入 `{graph_create, graph_copy, graph_destroy, normalization_result_destroy}`，经 lv_module_register("context_resources") 注册（仿 serialize_adapters 先例）。
+- **test_circuit_breaker.c**：TEST_MAIN_BEGIN 内补 `lv_init()`（与 test_engine_ops 等先例一致），保证 create 契约。
+
+### ② graph_index universe 校验下沉 L3（豁免桥接 graph_index×1 消除）
+
+- **graph_index.c**：删 type_system.h include；内建 `kGraphTypeUniverseLevels`（GeomType→0/1 两档）+ `graph_type_universe_level()` + `graph_check_universe_constraint()`（语义与原 L4 版一致：外层严格高于内层；原开关 type_set_universe_checking 全库零调用，下沉版不带开关 = 始终检查，等价默认行为）。
+- **type_system.c / type_system.h**：删除孤儿 API（type_get_universe_level / type_check_universe_constraint / type_set_universe_checking / type_is_universe_checking_enabled + kNodeTypeUniverseLevels + s_universe_checking_enabled），全库确认唯一消费者即 graph_index.c。universe_level_to_string / TypeRegion 版 type_get_level 保留。
+- **doc/docs/08_type_system.md**：宇宙层级行与工作流同步更新（下沉说明）。
+
+### ③ 物理目录按层 git mv（批次 C-⑦ 遗留的 CMake 归属 ≠ 物理目录）
+
+- formula 家族 24 件（19 根 + parser/ 4 + 2 internal.h）→ `layer3_geometry/formula/`（内部相对 include 保持同目录结构，parser/ 子目录随迁）。
+- dsl 家族 6 件（5 .c + internal.h）→ `layer4_reasoning/dsl/`。
+- node_deep_copy.c / adaptive_threshold.c / simd_ops.c → `layer3_geometry/`；node_deep_copy.c 相对 include 改 `constraint_graph/graph_node_internal.h`（原 `../layer3_geometry/...` 跨层）。
+- geom_evol.c / interactive_geo.c / meta_repr.c / lv_serialize_adapters.c → `layer4_reasoning/`。
+- **CMakeLists**：同步全部 SOURCES 路径；**删除 L2 块遗留的 simd_ops.c 重复注册**（同文件同时挂 L2+L3 两个 OBJECT 库的隐患，L3 归属为正确）。
+- L1 保留 7 文件（lv_ast/lexer/parser/sema/loader/math_input/parser_safety）全部只用 lv/*.h 公共头，不受迁移影响。
+
+### ④ engine.h 层验证宏字符串化 bug 修复（验证模式首次可构建）
+
+- `lv_ALLOW_LAYER` / `lv_REQUIRE_STRICTLY_ABOVE` 体内 `#lv_CURRENT_LAYER` 对非宏参数使用 `#` → 预处理器报错「'#' is not followed by a macro parameter」，**该 bug 导致 ENABLE_LAYER_VALIDATION 从未真正构建通过**。
+- 新增双层展开辅助 `lv_STRINGIFY_IMPL(x)` / `lv_STRINGIFY(x)` 替换全部 `#宏` 用法。
+
+### 批次 C-⑧ 执行结果
+
+- **build3（默认）**：ninja 922/922 + ctest 170/170 全绿（116.81s，engine.h 改动后复跑）。
+- **build_verify（ENABLE_LAYER_VALIDATION=ON）**：ninja 919/919 全绿 = **0 层间违规**，3 处豁免桥接全部清零，层验证首次全工程可用。
+
+### 决策登记（第 9 章格式）
+
+- context 资源操作回调注册表 / 批次C-⑧ / context.h/c + lv.c + test_circuit_breaker.c / L2 不持有 L3/L4 不透明资源实现，L0 注入（仿 serialize_adapters/storage_verify 注册模式）；未注入降级 NULL 安全 / 全量回归。
+- universe 校验下沉 L3 / 批次C-⑧ / graph_index.c + type_system.c/h + doc 08 / GeomNode 域校验与枚举同层单一事实来源；L4 孤儿 API 全库零消费者删除 / 全量回归。
+- 物理目录归位 40 件 git mv / 批次C-⑧ / CMakeLists + node_deep_copy include / CMake 归属与物理目录对齐；消除 simd_ops 双 OBJECT 注册隐患 / 全量回归。
+- engine.h 字符串化修复 / 批次C-⑧ / engine.h / lv_STRINGIFY 双层展开替代非法 #lv_CURRENT_LAYER，验证模式首次可构建 / build_verify 全绿。
+- 层验证首开 / 批次C-⑧ / ENABLE_LAYER_VALIDATION=ON / 3 豁免清零，0 违规；后续批次可直接以 ON 模式作为架构守门 / 919/919。
+
+## 二十九、批次 C-⑨：公共头卫生与 .c/.h 单一定义对齐（2026-08-14）
+
+用户指令「继续处理下一批架构优化任务」。以脚本做全量架构一致性扫描（CMake SOURCES vs 磁盘 / 公共头引用面），定位并处置脱钩点与死头。
+
+### 扫描结论（临时脚本 scan_arch.py，已删）
+
+- **CMake 层块**：L0=14 / L1=7 / L2=70 / L3=128 / L4=267（含 PROP_VERIFIER）/ L5=33 / L6=26 / L8=1 / L10=3。
+- **重复注册 0**（simd_ops 双 OBJECT 隐患已于 C-⑧ 清除）；**归属不一致 0**（物理目录层号 == CMake 块层号，C-⑧ 归位完成）。
+- **孤儿源文件 65** = preset 55（.lvz 生成源，C-⑦ 裁决保留）+ euclidean_geometry_* 9（**假孤儿**：euclidean_geometry.c 以 `#include "xxx.c"` 拼接的单翻译单元，无需独立注册）+ `_edit_test.c` 1（误提交临时文件，已删）。
+- **孤儿公共头 7**（含相对 include 面）= stream_context_util.h（C 批次已裁决保留）+ layer_validation.h / three_layer_arithmetic.h / preset_register_macros.h（见处置）+ lv_convenience.h / math_theory_guide_cn.h（脱钩修复后非孤儿）+ parametric_curves.h（脱钩修复）。
+
+### 处置明细
+
+**① parametric_curves.c/h 脱钩修复（L3，类型单一定义）**
+- parametric_curves.c 未 include 自己的公共头，本地重复定义 lvPoint2D/lvPoint3D/lvCurveEvalFunc/lvCurveDerivFunc/lvSurfaceEvalFunc/lvSurfaceDerivFunc/lvParametricDomain1D/lvParametricDomain2D 共 8 个 typedef（声明/定义脱钩，签名漂移则静默 UB 风险）。
+- 修复：.c 补 `#include "lv/parametric_curves.h"`，删除 8 个重复 typedef，保留 struct lvParametricCurve/Surface 不透明对象内部布局（头仅前向声明）。
+
+**② lv_convenience.c / math_theory_guide_cn.c 补 include 对齐（L0 / L2）**
+- 两 .c 均未 include 自己的接口头（lv_convenience.h / math_theory_guide_cn.h）。补 include 对齐。
+- 两模块为「预留」：lv_prove / lv_preset_load/unload/apply（L0 便捷层）与 lv_math_theory_*（L2 中文指南查询）全库零调用——能力完备、当前无接入点，保留（仿死模块判定「保留为预留」先例，接口头继续随实现对齐）。
+
+**③ 死头处置**
+- **preset_register_macros.h 删除**（+ CMake lv_HEADERS 移除）：PRESET_REGISTER_SIMPLE 宏全库零 include 零使用，与 .lvz 生成管道无关（convert_presets.py 不引用），真死宏头。
+- **three_layer_arithmetic.h 保留 + 标注**：三层算术安全宏权威实现已收敛 lv_arith_safe.h，本头仅保留转发与编译标志文档，加「兼容遗留头」说明。
+- **layer_validation.h 保留 + 标注**：编译期验证实际由 engine.h lv_ALLOW_LAYER / lv_REQUIRE_STRICTLY_ABOVE 承担，本头 lv_LAYER_CAN_DEPEND 为参考实现；十层依赖模型保持本文件为权威文档源。
+- stream_context_util.h 保持批次 C 裁决（兼容遗留头）不动。
+
+### 批次 C-⑨ 执行结果
+
+- **build3**：ninja 922/922 + ctest 170/170 全绿（114.99s）。
+- 架构一致性：重复注册 0 / 归属不一致 0 / 假孤儿定性（euclidean_geometry 拼接 TU）；垃圾文件 `_edit_test.c` 删除。
+
+### 决策登记（第 9 章格式）
+
+- .c/.h 脱钩修复 / 批次C-⑨ / parametric_curves.c + lv_convenience.c + math_theory_guide_cn.c / 实现补 include 公共头，类型/声明单一事实来源（parametric 删 8 重复 typedef）/ 全量回归。
+- 预留模块标注 / 批次C-⑨ / lv_convenience + math_theory_guide_cn / 全库零调用但能力完备，保留为预留（接口头随实现对齐）/ 全量回归。
+- 死头删除 / 批次C-⑨ / preset_register_macros.h + CMake / 零 include 零使用，非生成管道输入 / 全量回归。
+- 死头保留+标注 / 批次C-⑨ / three_layer_arithmetic.h + layer_validation.h / 兼容遗留或文档权威源（宏实现已由 lv_arith_safe.h / engine.h 承担）/ 全量回归。
+- 垃圾文件删除 / 批次C-⑨ / layer2_resource/_edit_test.c / 误提交临时测试残留，零引用 / 全量回归。

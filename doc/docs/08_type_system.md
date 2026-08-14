@@ -111,7 +111,7 @@ typedef struct LvLambdaTerm {
 | 系统管理 | `type_system_create/destroy`、`type_system_set_well_founded`、`type_system_set_cumulative` | 类型系统生命周期与模式开关 |
 | 类型构造器 | `type_create_point/line_segment/region/function/product/sum/variable/dependent/bottom` | 工厂函数；`type_region_destroy` 释放 |
 | 谓词子类型 | `type_create_predicate_subtype`、`type_check_predicate_subtype_value`、`type_predicate_subtype_get_base` | PVS 风格 `{x:base \| P}` 的构造与值验证 |
-| 宇宙层级 | `type_get_level`、`type_check_level_validity`、`type_check_cumulative`、`type_get_universe_level`、`type_check_universe_constraint`、`type_set_universe_checking` | 层级查询/校验，`type_is_universe_checking_enabled` 查询状态 |
+| 宇宙层级 | `type_get_level`、`type_check_level_validity`、`type_check_cumulative` | 类型区域（TypeRegion）层级查询与累积性校验。几何节点（GeomNode）的包含约束宇宙层级校验已下沉 L3（`graph_add_containment` 内建，见 constraint_graph 模块），不再经 type_system 暴露 |
 | 等价/检查 | `type_check_equivalence`、`type_check_port_compatibility` | 类型等价与端口兼容性（返回 `TypeCheckResult`） |
 | 类型推断 | `type_infer_node`、`type_infer_port`、`type_infer_by_rules`、`type_system_register_inference_rule`、`type_system_get_inference_rules`、`type_system_clear_inference_rules` | 节点/端口推断与规则表管理 |
 | 变量实例化 | `type_instantiate_variable`、`type_substitute_variable` | 多态类型变量实例化与项内替换 |
@@ -127,7 +127,7 @@ typedef struct LvLambdaTerm {
 
 ## 工作流程
 
-1. **系统创建与配置**：`type_system_create()` 后按需 `type_system_set_well_founded` / `type_system_set_cumulative`；非良基公理包以 `type_set_universe_checking(false)` 关闭层级检查。
+1. **系统创建与配置**：`type_system_create()` 后按需 `type_system_set_well_founded` / `type_system_set_cumulative`。几何节点的包含约束宇宙层级校验由 L3 约束图内建（`graph_add_containment`），不依赖 type_system。
 2. **类型构造**：经 `type_create_*()` 工厂构造 `TypeRegion`；函数类型连接 `input_type`/`output_type`，依赖类型绑定 `param_node_id` 与 `body_type`，谓词子类型记录 `base_type` 与谓词约束。
 3. **附加到节点**：`type_attach_to_node()` 将类型区域登记进外部映射表，`type_get_node_type()` 供后续查询。
 4. **类型推断**：`type_infer_node()`/`type_infer_port()` 基于约束图推断；规则表路径 `type_infer_by_rules()` 依优先级取首条匹配规则创建类型并附加。

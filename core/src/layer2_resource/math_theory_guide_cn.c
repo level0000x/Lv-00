@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "lv/math_theory_guide_cn.h" /* 本文件接口头：理论数学中文指南查询 API */
 #include "lv/lv_str_utils.h"
 
 /* ========================================================================

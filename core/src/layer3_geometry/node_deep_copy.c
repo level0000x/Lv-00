@@ -35,7 +35,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 
-#include "../layer3_geometry/constraint_graph/graph_node_internal.h" /* graph_node_deep_copy_detached */
+#include "constraint_graph/graph_node_internal.h" /* graph_node_deep_copy_detached（同层 L3，相对 include） */
 
 /* ============================================================
  * 符号坐标深拷贝

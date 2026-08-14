@@ -17,6 +17,7 @@
 
 #include "lv/lv_storage.h"
 #include "lv/constraint_graph.h"
+#include "lv/meta_repr.h" /* meta_repr_graph_equivalent：round-trip 验证内置比较 */
 #include "lv/lv_utils.h"
 
 /** @brief ConstraintGraph → JSON 字符串 → 存储（lvSerializeFunc 形态适配） */
@@ -49,6 +50,11 @@ static bool graph_json_deser_adapter(void *obj, lvStorage *storage) {
 }
 
 bool lv_serialize_register_graph_adapters(void) {
+    /* round-trip 验证的内置比较/释放回调注册（存储层 L2 不依赖上层类型） */
+    lv_storage_register_verify("ConstraintGraph",
+                               (lvCompareFn) meta_repr_graph_equivalent,
+                               (lvStorageFreeFn) graph_destroy);
+
     return lv_serialize_register_format("ConstraintGraph", "json",
                                          graph_json_ser_adapter,
                                          graph_json_deser_adapter);

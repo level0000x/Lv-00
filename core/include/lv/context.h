@@ -75,6 +75,38 @@ struct NormalizationResult; /* normalization.h */
 struct RewriteRule;         /* rewrite.h */
 struct FuncBlock;           /* func_block.h */
 
+/* ═══════════════════════════════════════════════════════════════
+ * 资源操作回调注册（L0 注入）
+ *
+ * lvContext 持有两个不透明资源：main_graph（ConstraintGraph，L3）
+ * 与 last_normalization（NormalizationResult，L4）。L2 不允许依赖
+ * L3/L4，因此 create/copy/destroy 经此注册表由 L0（lv.c）在 lv_init()
+ * 时注入真实实现（仿 lv_serialize_adapters / lv_storage_register_verify
+ * 注册模式）。
+ *
+ * 未注入时：main_graph / last_normalization 保持 NULL，资源能力降级
+ * （快照/回滚跳过，destroy 对 NULL 安全）。真实引擎路径经 lv_init()
+ * 保证注入。
+ * ═══════════════════════════════════════════════════════════════ */
+typedef struct ConstraintGraph *(*LvContextGraphCreateFn)(void);
+typedef struct ConstraintGraph *(*LvContextGraphCopyFn)(const struct ConstraintGraph *src);
+typedef void (*LvContextGraphDestroyFn)(struct ConstraintGraph *graph);
+typedef void (*LvContextNormalizationDestroyFn)(struct NormalizationResult *norm);
+
+/** @brief context 资源操作集（L0 一次性注入，重复注册以最后一次为准） */
+typedef struct LvContextResourceOps {
+    LvContextGraphCreateFn create;    /**< 创建主约束图（对应 graph_create） */
+    LvContextGraphCopyFn copy;        /**< 深拷贝约束图（对应 graph_copy） */
+    LvContextGraphDestroyFn destroy;  /**< 销毁约束图（对应 graph_destroy） */
+    LvContextNormalizationDestroyFn normalization_destroy; /**< 销毁规范化结果（对应 normalization_result_destroy） */
+} LvContextResourceOps;
+
+/**
+ * @brief 注册 context 资源操作回调（L0 注入点）
+ * @param ops 资源操作集（不可为 NULL；成员允许全为 NULL 表示清空注册）
+ */
+lv_PUBLIC_API void lv_context_register_resource_ops(const LvContextResourceOps *ops);
+
 /* ============================================================
  * 第一部分：上下文状态机枚举
  *

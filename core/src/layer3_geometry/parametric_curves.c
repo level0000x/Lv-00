@@ -22,7 +22,8 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/geo_utils.h"
-#include "lv/lv_vec3.h" /* 收敛：本地 lvPoint3D 副本统一 typedef 到公共 lvVec3 */
+#include "lv/lv_vec3.h"
+#include "lv/parametric_curves.h" /* 公共接口头：lvPoint2D/lvCurveEvalFunc 等类型单一事实来源 */
 
 /* ============================================================
  * 第一部分：数据结构定义
@@ -34,75 +35,10 @@
 /** 最大允许的积分子区间数（防止资源耗尽） */
 #define PARAMETRIC_MAX_INTEGRATION_STEPS 10000
 
-/**
- * @brief 二维点（double 精度，用于数值求值）
- */
-typedef struct {
-    double x;
-    double y;
-} lvPoint2D;
-
-/**
- * @brief 三维点（double 精度，用于数值求值）
- * @note 收敛：与 parametric_curves.h 一致 typedef 到公共 lvVec3
- */
-typedef lvVec3 lvPoint3D;
-
-/**
- * @brief 参数曲线的求值函数类型
- *
- * @param t       参数值
- * @param user_data 用户自定义数据指针
- * @param out     输出点坐标
- */
-typedef void (*lvCurveEvalFunc)(double t, void *user_data, lvPoint2D *out);
-
-/**
- * @brief 参数曲线的导数（切线向量）函数类型
- *
- * @param t       参数值
- * @param user_data 用户自定义数据指针
- * @param out_dx  输出 dx/dt
- * @param out_dy  输出 dy/dt
- */
-typedef void (*lvCurveDerivFunc)(double t, void *user_data, double *out_dx, double *out_dy);
-
-/**
- * @brief 参数曲面的求值函数类型
- *
- * @param u, v    参数值
- * @param user_data 用户自定义数据指针
- * @param out     输出点坐标
- */
-typedef void (*lvSurfaceEvalFunc)(double u, double v, void *user_data, lvPoint3D *out);
-
-/**
- * @brief 参数曲面的偏导数函数类型
- *
- * @param u, v      参数值
- * @param user_data 用户自定义数据指针
- * @param out_du    输出偏导 dP/du (三维向量)
- * @param out_dv    输出偏导 dP/dv (三维向量)
- */
-typedef void (*lvSurfaceDerivFunc)(double u, double v, void *user_data, lvPoint3D *out_du, lvPoint3D *out_dv);
-
-/**
- * @brief 参数域（一维区间）
- */
-typedef struct {
-    double t_min; /**< 参数下界 */
-    double t_max; /**< 参数上界 */
-} lvParametricDomain1D;
-
-/**
- * @brief 参数域（二维矩形区域）
- */
-typedef struct {
-    double u_min; /**< u 参数下界 */
-    double u_max; /**< u 参数上界 */
-    double v_min; /**< v 参数下界 */
-    double v_max; /**< v 参数上界 */
-} lvParametricDomain2D;
+/* 注：lvPoint2D / lvPoint3D / lvCurveEvalFunc / lvCurveDerivFunc /
+ * lvSurfaceEvalFunc / lvSurfaceDerivFunc / lvParametricDomain1D /
+ * lvParametricDomain2D 由公共头 parametric_curves.h 提供（单一事实来源），
+ * 本文件仅定义不透明对象内部布局（struct lvParametricCurve/Surface）。 */
 
 /**
  * @brief 参数曲线结构体

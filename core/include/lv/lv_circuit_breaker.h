@@ -252,6 +252,18 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb);
  */
 void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason);
 
+/**
+ * @brief 获取熔断器状态的可读名称（枚举所在层 L2 的规范实现）
+ *
+ * 状态名表与 lvCircuitBreakerState 枚举同属 L2（枚举单一事实来源），
+ * L4 的上下文级兼容包装 lv_circuit_breaker_state_name(lvContext*)
+ * 委托本函数，避免跨层重复维护状态名。
+ *
+ * @param cb 熔断器实例（可为 NULL，返回"无熔断器"）
+ * @return 状态名称字符串（静态存储，不需释放）
+ */
+const char *lv_circuit_breaker_state_name_cb(const lvCircuitBreaker *cb);
+
 #ifdef __cplusplus
 }
 #endif

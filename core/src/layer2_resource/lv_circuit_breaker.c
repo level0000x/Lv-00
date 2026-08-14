@@ -20,6 +20,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_xmacro.h" /* lvStrToEnumEntry / lv_XMACRO_TO_ENUM_TABLE / lv_enum_to_str */
 
 /* ============================================================
  * 内部辅助
@@ -270,4 +271,26 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
         default:
             return false;
     }
+}
+
+/* ============================================================
+ * 枚举 -> 名称 映射表（数据表化，替代 switch）
+ * 状态名表与 lvCircuitBreakerState 枚举同属 L2（枚举单一事实来源）。
+ * ============================================================ */
+
+#define CIRCUIT_BREAKER_STATE_X(x) \
+    x(CIRCUIT_BREAKER_CLOSED, "关闭（正常）") \
+    x(CIRCUIT_BREAKER_HALF_OPEN, "半开（试探中）") \
+    x(CIRCUIT_BREAKER_OPEN, "打开（熔断）")
+
+/** @brief lv_circuit_breaker_state_name_cb 名称表（按枚举值升序） */
+static const lvStrToEnumEntry s_circuit_breaker_state_name_entries[] = {
+    lv_XMACRO_TO_ENUM_TABLE(CIRCUIT_BREAKER_STATE_X)
+};
+
+const char *lv_circuit_breaker_state_name_cb(const lvCircuitBreaker *cb) {
+    if (!cb)
+        return "无熔断器";
+    return lv_enum_to_str(s_circuit_breaker_state_name_entries,
+                          lv_ARRAY_SIZE(s_circuit_breaker_state_name_entries), (int) cb->state, "未知状态");
 }

@@ -97,9 +97,13 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  * @note 此宏在编译时通过 _Static_assert 检查，不产生运行时代码。
  * @note 当 lv_ENABLE_LAYER_VALIDATION 未定义时，此宏为空操作。
  */
+/* 字符串化辅助（双层展开）：使 # 能作用于外部宏（如 lv_CURRENT_LAYER 的值） */
+#define lv_STRINGIFY_IMPL(x) #x
+#define lv_STRINGIFY(x) lv_STRINGIFY_IMPL(x)
+
 #define lv_ALLOW_LAYER(min_layer)                                                                           \
-    _Static_assert(lv_CURRENT_LAYER >= (min_layer), "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
-                                                    " may not call functions from layer " #min_layer        \
+    _Static_assert(lv_CURRENT_LAYER >= (min_layer), "lv layer boundary violation: layer " lv_STRINGIFY(lv_CURRENT_LAYER) \
+                                                    " may not call functions from layer " lv_STRINGIFY(min_layer) \
                                                     " (only upper layers may call lower layers)."           \
                                                     " See docs/ARCHITECTURE_v3.3.md")
 
@@ -112,8 +116,8 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  * @param target_layer 目标层级编号
  */
 #define lv_REQUIRE_STRICTLY_ABOVE(target_layer)                                                               \
-    _Static_assert(lv_CURRENT_LAYER > (target_layer), "lv layer boundary violation: layer " #lv_CURRENT_LAYER \
-                                                      " must be strictly above layer " #target_layer)
+    _Static_assert(lv_CURRENT_LAYER > (target_layer), "lv layer boundary violation: layer " lv_STRINGIFY(lv_CURRENT_LAYER) \
+                                                      " must be strictly above layer " lv_STRINGIFY(target_layer))
 
 #else
 /* 未启用层级验证时，所有检查宏均为空操作 */
