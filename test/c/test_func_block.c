@@ -1,15 +1,15 @@
 /**
  * @file test_func_block.c
- * @brief 鍑芥暟鍧楃郴缁熸祴璇?- 鎵撳寘銆佸疄渚嬪寲銆佺‘瀹氭€ф鏌ャ€佸瑙ｉ€夋嫨鍣?
+ * @brief 函数块系统测试 - 打包、实例化、确定性检查、多解选择器
  *
- * 娴嬭瘯鍐呭锛?
- * - 鍑芥暟鍧楀垱寤轰笌绠＄悊
- * - 鎵撳寘鎿嶄綔锛堝惈璺ㄨ竟鐣岀害鏉熸娴嬩笌澶勭悊锛?
- * - 纭畾鎬ф鏌ワ紙闈欐€佸眰+鍔ㄦ€佸眰锛?
- * - 瀹炰緥鍖栨搷浣滐紙鍚?褰掔害锛?
- * - 澶氳В閫夋嫨鍣?
- * - 閮ㄥ垎搴旂敤锛堟煰閲屽寲锛?
- * - 鍑芥暟鍧楃粍鍚堝瓙锛堢粍鍚堜笌涔樼Н锛?
+ * 测试内容：
+ * - 函数块创建与管理
+ * - 打包操作（含跨边界约束检测与处理）
+ * - 确定性检查（静态层+动态层）
+ * - 实例化操作（含 β 归约）
+ * - 多解选择器
+ * - 部分应用（柯里化）
+ * - 函数块组合子（组合与乘积）
  */
 
 #include <stdio.h>
@@ -23,14 +23,14 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* ============== 杈呭姪鍑芥暟 ============== */
+/* ============== 辅助函数 ============== */
 
 static int add_port(ConstraintGraph *g, PortType type, int connected_to) {
     graph_add_port(g, type, connected_to, -1);
     return g->next_node_id - 1;
 }
 
-/* ============== 娴嬭瘯锛氬嚱鏁板潡鍒涘缓涓庣鐞?============== */
+/* ============== 测试：函数块创建与管理 ============== */
 
 static void test_func_block_lifecycle(void) {
     printf("Test: func_block lifecycle...\n");
@@ -43,20 +43,20 @@ static void test_func_block_lifecycle(void) {
     lv_ASSERT(fb->input_count == 0);
     lv_ASSERT(fb->output_count == 0);
 
-    /* 璁剧疆鍐呴儴鑺傜偣 */
+    /* 设置内部节点 */
     int internal_ids[] = {1, 2, 3};
     bool ok = func_block_set_internal_nodes(fb, internal_ids, 3);
     lv_ASSERT(ok);
     lv_ASSERT(fb->internal_node_count == 3);
     lv_ASSERT(fb->internal_node_ids[0] == 1);
 
-    /* 璁剧疆杈撳叆绔彛 */
+    /* 设置输入端口 */
     int input_ids[] = {4, 5};
     ok = func_block_set_input_ports(fb, input_ids, 2);
     lv_ASSERT(ok);
     lv_ASSERT(fb->input_count == 2);
 
-    /* 璁剧疆杈撳嚭绔彛 */
+    /* 设置输出端口 */
     int output_ids[] = {6};
     ok = func_block_set_output_ports(fb, output_ids, 1);
     lv_ASSERT(ok);
@@ -67,24 +67,24 @@ static void test_func_block_lifecycle(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氭墦鍖呮搷浣?============== */
+/* ============== 测试：打包操作 ============== */
 
 static void test_pack_basic(void) {
     printf("Test: basic pack operation...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍐呴儴鑺傜偣锛氫袱涓偣 */
+    /* 创建内部节点：两个点 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
 
-    /* 鍒涘缓杈撳叆绔彛 */
+    /* 创建输入端口 */
     int in_port = add_port(g, PORT_INPUT, -1);
 
-    /* 鍒涘缓杈撳嚭绔彛 */
+    /* 创建输出端口 */
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 鎵撳寘 */
+    /* 打包 */
     int internal_ids[] = {p1, p2};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -98,7 +98,7 @@ static void test_pack_basic(void) {
     lv_ASSERT(fb->input_count == 1);
     lv_ASSERT(fb->output_count == 1);
 
-    /* 楠岃瘉鍐呴儴鑺傜偣鐨?namespace_depth 澧炲姞浜?*/
+    /* 验证内部节点的 namespace_depth 增加了 */
     GeomNode *n1 = graph_get_node(g, p1);
     lv_ASSERT(n1->namespace_depth >= 1);
     lv_ASSERT(n1->parent_block_id == fb->id);
@@ -114,19 +114,19 @@ static void test_pack_cross_boundary_detect(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓涓変釜鐐?*/
+    /* 创建三个点 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
-    int p3 = add_point(g, 2, 1, 0, 1); /* 澶栭儴鑺傜偣 */
+    int p3 = add_point(g, 2, 1, 0, 1); /* 外部节点 */
 
-    /* 鍒涘缓绾挎杩炴帴 p1-p2 */
+    /* 创建线段连接 p1-p2 */
     graph_add_line_segment(g, p1, p2);
     int seg_id = g->next_node_id - 1;
 
-    /* 娣诲姞璺ㄨ竟鐣岀害鏉燂細p3 涓庣嚎娈?seg_id 鏈夊叧鑱旓紙p3鍦ㄧ嚎娈典笂锛?*/
+    /* 添加跨边界约束：p3 与线段 seg_id 有关联（p3在线段上） */
     graph_add_incidence(g, p3, seg_id);
 
-    /* 灏濊瘯鎵撳寘 p1, p2, seg_id锛堜笉鍚?p3锛夛紝搴旇妫€娴嬪埌璺ㄨ竟鐣岀害鏉?*/
+    /* 尝试打包 p1, p2, seg_id（不含 p3），应该检测到跨边界约束 */
     int internal_ids[] = {p1, p2, seg_id};
 
     CrossBoundaryConstraint *conflicts = NULL;
@@ -148,21 +148,21 @@ static void test_pack_cross_boundary_promote(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鐐瑰拰绔彛 */
+    /* 创建点和端口 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
-    int p3 = add_point(g, 2, 1, 0, 1); /* 澶栭儴鑺傜偣 */
+    int p3 = add_point(g, 2, 1, 0, 1); /* 外部节点 */
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 鍒涘缓绾挎 */
+    /* 创建线段 */
     graph_add_line_segment(g, p1, p2);
     int seg_id = g->next_node_id - 1;
 
-    /* 娣诲姞璺ㄨ竟鐣岀害鏉燂細p3 鍦ㄧ嚎娈典笂 */
+    /* 添加跨边界约束：p3 在线段上 */
     graph_add_incidence(g, p3, seg_id);
 
-    /* 鎵撳寘锛屼娇鐢?PROMOTE 澶勭悊璺ㄨ竟鐣岀害鏉?*/
+    /* 打包，使用 PROMOTE 处理跨边界约束 */
     int internal_ids[] = {p1, p2, seg_id};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -186,23 +186,23 @@ static void test_pack_cross_boundary_disconnect(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鐐瑰拰绔彛 */
+    /* 创建点和端口 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
-    int p3 = add_point(g, 2, 1, 0, 1); /* 澶栭儴鑺傜偣 */
+    int p3 = add_point(g, 2, 1, 0, 1); /* 外部节点 */
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 鍒涘缓绾挎 */
+    /* 创建线段 */
     graph_add_line_segment(g, p1, p2);
     int seg_id = g->next_node_id - 1;
 
-    /* 娣诲姞璺ㄨ竟鐣岀害鏉?*/
+    /* 添加跨边界约束 */
     int constraint_count_before = g->constraint_count;
     graph_add_incidence(g, p3, seg_id);
     lv_ASSERT(g->constraint_count == constraint_count_before + 1);
 
-    /* 鎵撳寘锛屼娇鐢?DISCONNECT 澶勭悊璺ㄨ竟鐣岀害鏉?*/
+    /* 打包，使用 DISCONNECT 处理跨边界约束 */
     int internal_ids[] = {p1, p2, seg_id};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -226,21 +226,21 @@ static void test_pack_cross_boundary_cancel(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鐐瑰拰绔彛 */
+    /* 创建点和端口 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
-    int p3 = add_point(g, 2, 1, 0, 1); /* 澶栭儴鑺傜偣 */
+    int p3 = add_point(g, 2, 1, 0, 1); /* 外部节点 */
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 鍒涘缓绾挎 */
+    /* 创建线段 */
     graph_add_line_segment(g, p1, p2);
     int seg_id = g->next_node_id - 1;
 
-    /* 娣诲姞璺ㄨ竟鐣岀害鏉?*/
+    /* 添加跨边界约束 */
     graph_add_incidence(g, p3, seg_id);
 
-    /* 鎵撳寘锛屼娇鐢?CANCEL 澶勭悊璺ㄨ竟鐣岀害鏉?*/
+    /* 打包，使用 CANCEL 处理跨边界约束 */
     int internal_ids[] = {p1, p2, seg_id};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -265,7 +265,7 @@ static void test_PACK_RESULT_INVALID_NODES(void) {
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 灏濊瘯鎵撳寘涓嶅瓨鍦ㄧ殑鑺傜偣 */
+    /* 尝试打包不存在的节点 */
     int invalid_ids[] = {999, 1000};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -281,23 +281,23 @@ static void test_PACK_RESULT_INVALID_NODES(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氱‘瀹氭€ф鏌?============== */
+/* ============== 测试：确定性检查 ============== */
 
 static void test_determinism_static_linear(void) {
     printf("Test: static determinism check (linear constraints)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧楋細涓や釜鐐癸紝鍙湁绾挎€х害鏉燂紙INCIDENCE锛?*/
+    /* 创建函数块：两个点，只有线性约束（INCIDENCE） */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 娣诲姞绾挎€х害鏉?*/
+    /* 添加线性约束 */
     graph_add_incidence(g, p1, p2);
 
-    /* 鎵撳寘 */
+    /* 打包 */
     int internal_ids[] = {p1, p2};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -306,10 +306,10 @@ static void test_determinism_static_linear(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 闈欐€佺‘瀹氭€ф鏌?鈥?杩斿洖绫诲瀷鏄?DeterminismStatus (DeterminismState) */
+    /* 静态确定性检查：返回类型是 DeterminismStatus (DeterminismState) */
     DeterminismStatus det_result = func_block_determinism_check_static(fb, g);
 
-    /* 绾挎€х害鏉熺郴缁熷簲璇ユ湁宸查獙璇佹垨閮ㄥ垎楠岃瘉鐘舵€?*/
+    /* 线性约束系统应该有已验证或部分验证状态 */
     lv_ASSERT(det_result == DETERMINISM_STATE_VERIFIED || det_result == DETERMINISM_STATE_PARTIALLY_VERIFIED);
 
     func_block_destroy(fb);
@@ -323,7 +323,7 @@ static void test_determinism_static_quadratic(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧楋細鍖呭惈绾挎鐩镐氦锛堜簩娆＄害鏉燂級 */
+    /* 创建函数块：包含线段相交（二次约束） */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 2, 1, 2, 1);
     int p3 = add_point(g, 0, 1, 2, 1);
@@ -337,10 +337,10 @@ static void test_determinism_static_quadratic(void) {
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 娣诲姞鐩镐氦绾︽潫锛堜簩娆＄害鏉燂級 */
+    /* 添加相交约束（二次约束） */
     graph_add_intersection(g, seg1, seg2, p1);
 
-    /* 鎵撳寘 */
+    /* 打包 */
     int internal_ids[] = {p1, p2, p3, p4, seg1, seg2};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -349,11 +349,11 @@ static void test_determinism_static_quadratic(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 6, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 闈欐€佺‘瀹氭€ф鏌?*/
+    /* 静态确定性检查 */
     DeterminismStatus det_result = func_block_determinism_check_static(fb, g);
 
-    /* 浜屾绾︽潫鍙兘瀵艰嚧澶氱缁撴灉锛堝敮涓€瑙ｃ€佸瑙ｃ€佹棤瑙ｃ€佽秴鏃舵垨瓒呭嚭鑼冨洿锛?*/
-    (void) det_result; /* 鎺ュ彈浠讳綍缁撴灉 */
+    /* 二次约束可能导致多种结果（唯一解、多解、无解、超时或超出范围） */
+    (void) det_result; /* 接受任何结果 */
 
     func_block_destroy(fb);
     graph_destroy(g);
@@ -366,7 +366,7 @@ static void test_determinism_dynamic(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓绠€鍗曞嚱鏁板潡 */
+    /* 创建简单函数块 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
@@ -379,7 +379,7 @@ static void test_determinism_dynamic(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 鍔ㄦ€佺‘瀹氭€ф鏌?鈥?杩斿洖绫诲瀷鏄?DeterminismStatus (DeterminismState) */
+    /* 动态确定性检查：返回类型是 DeterminismStatus (DeterminismState) */
     DeterminismStatus det_result = func_block_determinism_check_dynamic(fb, g, NULL, 0);
 
     lv_ASSERT(det_result == DETERMINISM_STATE_VERIFIED || det_result == DETERMINISM_STATE_PARTIALLY_VERIFIED ||
@@ -391,14 +391,14 @@ static void test_determinism_dynamic(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氬疄渚嬪寲鎿嶄綔 ============== */
+/* ============== 测试：实例化操作 ============== */
 
 static void test_instantiate_basic(void) {
     printf("Test: basic instantiation...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧?*/
+    /* 创建函数块 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
@@ -411,10 +411,10 @@ static void test_instantiate_basic(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 鍒涘缓瀹炲弬鑺傜偣 */
+    /* 创建实参节点 */
     int arg_node = add_point(g, 5, 1, 5, 1);
 
-    /* 瀹炰緥鍖栵細杈撳叆绔彛鏄犲皠鍒板疄鍙傝妭鐐?*/
+    /* 实例化：输入端口映射到实参节点 */
     int arg_mappings[] = {arg_node};
     int *new_node_ids = NULL;
     int new_node_count = 0;
@@ -437,13 +437,13 @@ static void test_instantiate_beta_reduction(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧楋紝鍖呭惈澶氫釜鍐呴儴鑺傜偣 */
+    /* 创建函数块，包含多个内部节点 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 娣诲姞鍐呴儴绾︽潫 */
+    /* 添加内部约束 */
     graph_add_incidence(g, p1, p2);
 
     int internal_ids[] = {p1, p2};
@@ -454,12 +454,12 @@ static void test_instantiate_beta_reduction(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 楠岃瘉杈撳叆绔彛琚爣璁颁负褰㈠紡鍙傛暟 */
+    /* 验证输入端口被标记为形式参数 */
     GeomNode *port_node = graph_get_node(g, in_port);
     lv_ASSERT(port_node->type == GEOM_PORT);
     lv_ASSERT(port_node->data.port->is_formal_param == true);
 
-    /* 鍒涘缓瀹炲弬骞跺疄渚嬪寲 */
+    /* 创建实参并实例化 */
     int arg_node = add_point(g, 10, 1, 10, 1);
     int arg_mappings[] = {arg_node};
     int *new_node_ids = NULL;
@@ -469,7 +469,7 @@ static void test_instantiate_beta_reduction(void) {
 
     lv_ASSERT(inst_result == INSTANTIATE_OK);
 
-    /* 楠岃瘉鏂拌妭鐐硅鍒涘缓 */
+    /* 验证新节点被创建 */
     lv_ASSERT(new_node_count > 0);
 
     lv_free_ptr(new_node_ids);
@@ -484,7 +484,7 @@ static void test_instantiate_precondition(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧?*/
+    /* 创建函数块 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
@@ -497,11 +497,11 @@ static void test_instantiate_precondition(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 璁剧疆鍓嶇疆鏉′欢锛堜笉瀛樺湪鐨勫尯鍩燂級 */
+    /* 设置前置条件（不存在的区域） */
     int invalid_region = 999;
     func_block_set_preconditions(fb, &invalid_region, 1);
 
-    /* 瀹炰緥鍖栧簲璇ュけ璐ワ紝鍥犱负鍓嶇疆鏉′欢涓嶆弧瓒?*/
+    /* 实例化应该失败，因为前置条件不满足 */
     int arg_node = add_point(g, 5, 1, 5, 1);
     int arg_mappings[] = {arg_node};
     int *new_node_ids = NULL;
@@ -517,19 +517,19 @@ static void test_instantiate_precondition(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氬瑙ｉ€夋嫨鍣?============== */
+/* ============== 测试：多解选择器 ============== */
 
 static void test_selector_basic(void) {
     printf("Test: basic selector operations...\n");
 
-    /* 鍒涘缓閫夋嫨鍣?*/
+    /* 创建选择器 */
     SolutionSelector *sel = selector_create(SELECTOR_TYPE_POSITIVE_ROOT);
     lv_ASSERT_NOT_NULL(sel);
     lv_ASSERT(sel->type == SELECTOR_TYPE_POSITIVE_ROOT);
 
     selector_destroy(sel);
 
-    /* 甯﹀弬鑰冭妭鐐圭殑閫夋嫨鍣?*/
+    /* 带参考节点的选择器 */
     sel = selector_create_with_reference(SELECTOR_TYPE_IN_REGION, 100);
     lv_ASSERT_NOT_NULL(sel);
     lv_ASSERT(sel->type == SELECTOR_TYPE_IN_REGION);
@@ -545,13 +545,13 @@ static void test_selector_apply(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍊欓€夎В */
+    /* 创建候选解 */
     int p1 = add_point(g, 1, 1, 1, 1);
     int p2 = add_point(g, 2, 1, 2, 1);
 
     GeomNode *candidates[] = {graph_get_node(g, p1), graph_get_node(g, p2)};
 
-    /* 娴嬭瘯姝ｆ牴閫夋嫨鍣?*/
+    /* 测试正根选择器 */
     SolutionSelector *sel = selector_create(SELECTOR_TYPE_POSITIVE_ROOT);
     int selected = -1;
     bool ok = selector_apply(sel, candidates, 2, &selected);
@@ -559,14 +559,14 @@ static void test_selector_apply(void) {
     lv_ASSERT(selected >= 0 && selected < 2);
     selector_destroy(sel);
 
-    /* 娴嬭瘯璐熸牴閫夋嫨鍣?鈥?褰撳墠寮曟搸鍙兘鍦ㄦ煇浜涙潯浠朵笅杩斿洖 false */
+    /* 测试负根选择器：当前引擎可能在某些条件下返回 false */
     sel = selector_create(SELECTOR_TYPE_NEGATIVE_ROOT);
     ok = selector_apply(sel, candidates, 2, &selected);
-    /* assert(ok); -- 寰呭紩鎿庣ǔ瀹氬悗鎭㈠ */
+    /* assert(ok); -- 待引擎稳定后恢复 */
     (void) ok;
     selector_destroy(sel);
 
-    /* 娴嬭瘯鍗曞€欓€夎В */
+    /* 测试单候选解 */
     GeomNode *single[] = {graph_get_node(g, p1)};
     sel = selector_create(SELECTOR_TYPE_POSITIVE_ROOT);
     ok = selector_apply(sel, single, 1, &selected);
@@ -580,7 +580,7 @@ static void test_selector_apply(void) {
 }
 
 static bool custom_selector_func(GeomNode **candidates, int count, int *selected_index, void *user_data) {
-    /* 鎬绘槸閫夋嫨鏈€鍚庝竴涓?*/
+    /* 总是选择最后一个 */
     *selected_index = count - 1;
     return true;
 }
@@ -590,14 +590,14 @@ static void test_selector_custom(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍊欓€夎В */
+    /* 创建候选解 */
     int p1 = add_point(g, 1, 1, 1, 1);
     int p2 = add_point(g, 2, 1, 2, 1);
     int p3 = add_point(g, 3, 1, 3, 1);
 
     GeomNode *candidates[] = {graph_get_node(g, p1), graph_get_node(g, p2), graph_get_node(g, p3)};
 
-    /* 鍒涘缓鑷畾涔夐€夋嫨鍣?*/
+    /* 创建自定义选择器 */
     int user_data = 42;
     SolutionSelector *sel = selector_create_custom(custom_selector_func, &user_data);
     lv_ASSERT_NOT_NULL(sel);
@@ -606,7 +606,7 @@ static void test_selector_custom(void) {
     int selected = -1;
     bool ok = selector_apply(sel, candidates, 3, &selected);
     lv_ASSERT(ok);
-    lv_ASSERT(selected == 2); /* 鑷畾涔夊嚱鏁伴€夋嫨鏈€鍚庝竴涓?*/
+    lv_ASSERT(selected == 2); /* 自定义函数选择最后一个 */
 
     selector_destroy(sel);
     graph_destroy(g);
@@ -614,14 +614,14 @@ static void test_selector_custom(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氶儴鍒嗗簲鐢紙鏌噷鍖栵級 ============== */
+/* ============== 测试：部分应用（柯里化） ============== */
 
 static void test_partial_apply(void) {
     printf("Test: partial application (currying)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧楋細2涓緭鍏ワ紝1涓緭鍑?*/
+    /* 创建函数块：2个输入，1个输出 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int in_port1 = add_port(g, PORT_INPUT, -1);
     int in_port2 = add_port(g, PORT_INPUT, -1);
@@ -636,7 +636,7 @@ static void test_partial_apply(void) {
     lv_ASSERT(pack_result == PACK_RESULT_OK);
     lv_ASSERT(fb->input_count == 2);
 
-    /* 閮ㄥ垎搴旂敤锛氬浐瀹氱涓€涓弬鏁?*/
+    /* 部分应用：固定第一个参数 */
     int fixed_arg = add_point(g, 5, 1, 5, 1);
     int fixed_mappings[] = {fixed_arg};
 
@@ -644,7 +644,7 @@ static void test_partial_apply(void) {
     bool ok = func_block_partial_apply(fb, g, fixed_mappings, 1, &new_fb);
     lv_ASSERT(ok);
     lv_ASSERT_NOT_NULL(new_fb);
-    lv_ASSERT(new_fb->input_count == 1); /* 鍓╀綑1涓緭鍏?*/
+    lv_ASSERT(new_fb->input_count == 1); /* 剩余1个输入 */
     lv_ASSERT(new_fb->output_count == 1);
 
     func_block_destroy(fb);
@@ -654,14 +654,14 @@ static void test_partial_apply(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氬嚱鏁板潡缁勫悎瀛?============== */
+/* ============== 测试：函数块组合子 ============== */
 
 static void test_func_block_compose(void) {
-    printf("Test: function block composition (g 鈭?f)...\n");
+    printf("Test: function block composition (g ∘ f)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧?f锛?杈撳叆 -> 1杈撳嚭 */
+    /* 创建函数块 f：1输入 -> 1输出 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int f_in = add_port(g, PORT_INPUT, -1);
     int f_out = add_port(g, PORT_OUTPUT, -1);
@@ -675,7 +675,7 @@ static void test_func_block_compose(void) {
     lv_ASSERT(pack_result == PACK_RESULT_OK);
     f->name = strdup("f");
 
-    /* 鍒涘缓鍑芥暟鍧?g锛?杈撳叆 -> 1杈撳嚭 */
+    /* 创建函数块 g：1输入 -> 1输出 */
     int p2 = add_point(g, 1, 1, 1, 1);
     int g_in = add_port(g, PORT_INPUT, -1);
     int g_out = add_port(g, PORT_OUTPUT, -1);
@@ -689,7 +689,7 @@ static void test_func_block_compose(void) {
     lv_ASSERT(pack_result == PACK_RESULT_OK);
     fb_g->name = strdup("g");
 
-    /* 缁勫悎锛歡 鈭?f */
+    /* 组合：g ∘ f */
     FuncBlock *composed = NULL;
     bool ok = func_block_compose(f, fb_g, g, &composed);
     lv_ASSERT(ok);
@@ -706,11 +706,11 @@ static void test_func_block_compose(void) {
 }
 
 static void test_func_block_product(void) {
-    printf("Test: function block product (f 脳 g)...\n");
+    printf("Test: function block product (f × g)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧?f锛?杈撳叆 -> 1杈撳嚭 */
+    /* 创建函数块 f：1输入 -> 1输出 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int f_in = add_port(g, PORT_INPUT, -1);
     int f_out = add_port(g, PORT_OUTPUT, -1);
@@ -724,7 +724,7 @@ static void test_func_block_product(void) {
     lv_ASSERT(pack_result == PACK_RESULT_OK);
     f->name = strdup("f");
 
-    /* 鍒涘缓鍑芥暟鍧?g锛?杈撳叆 -> 1杈撳嚭 */
+    /* 创建函数块 g：2输入 -> 1输出 */
     int p2 = add_point(g, 1, 1, 1, 1);
     int g_in1 = add_port(g, PORT_INPUT, -1);
     int g_in2 = add_port(g, PORT_INPUT, -1);
@@ -739,7 +739,7 @@ static void test_func_block_product(void) {
     lv_ASSERT(pack_result == PACK_RESULT_OK);
     fb_g->name = strdup("g");
 
-    /* 涔樼Н锛歠 脳 g */
+    /* 乘积：f × g */
     FuncBlock *product = NULL;
     bool ok = func_block_product(f, fb_g, g, &product);
     lv_ASSERT(ok);
@@ -953,7 +953,7 @@ static void test_func_block_pipe(void) {
     printf("  PASSED\n");
 }
 
-/* ============== 娴嬭瘯锛氱鍙ｄ緷璧?============== */
+/* ============== 测试：端口依赖 ============== */
 
 static void test_port_dependency(void) {
     printf("Test: port dependency management...\n");
@@ -961,7 +961,7 @@ static void test_port_dependency(void) {
     FuncBlock *fb = func_block_create(1);
     lv_ASSERT_NOT_NULL(fb);
 
-    /* 娣诲姞绔彛渚濊禆 */
+    /* 添加端口依赖 */
     PortDependency dep1;
     memset(&dep1, 0, sizeof(PortDependency));
     dep1.type = PORT_DEP_INCIDENCE;
@@ -989,12 +989,12 @@ static void test_port_dependency(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氳緟鍔╁嚱鏁?============== */
+/* ============== 测试：辅助函数 ============== */
 
 static void test_debug_port_invariants(void) {
     printf("Test: debug_check_port_invariants wiring...\n");
 
-    /* 空图：无端口 → all_valid 通过 */
+    /* 空图无端口，应 all_valid 通过 */
     ConstraintGraph *g = graph_create();
     lv_ASSERT_NOT_NULL(g);
     PortInvariantResult *r = debug_check_port_invariants(g);
@@ -1004,7 +1004,7 @@ static void test_debug_port_invariants(void) {
     debug_port_invariant_result_destroy(r);
     graph_destroy(g);
 
-    /* 违规场景：端口 connected_to 指向图中不存在的节点 → 应检出违规 */
+    /* 伪造非法端口：connected_to 指向图中不存在的节点，应报违规 */
     ConstraintGraph *g2 = graph_create();
     lv_ASSERT_NOT_NULL(g2);
     AddNodeResult ar = graph_add_port(g2, PORT_INPUT, 0, -1);
@@ -1014,7 +1014,7 @@ static void test_debug_port_invariants(void) {
     lv_ASSERT_NOT_NULL(pn);
     lv_ASSERT(pn->type == GEOM_PORT);
     if (pn->data.port) {
-        pn->data.port->connected_to = (GeomNode *) (uintptr_t) 1; /* 伪造：图中不存在 */
+        pn->data.port->connected_to = (GeomNode *) (uintptr_t) 1; /* 伪造：图中不存在的节点 */
     }
     PortInvariantResult *r2 = debug_check_port_invariants(g2);
     lv_ASSERT_NOT_NULL(r2);
@@ -1029,7 +1029,7 @@ static void test_debug_port_invariants(void) {
 static void test_helper_functions(void) {
     printf("Test: helper functions...\n");
 
-    /* 娴嬭瘯纭畾鎬х姸鎬佸瓧绗︿覆杞崲 */
+    /* 测试确定性状态字符串转换 */
     const char *str = determinism_state_to_string(DETERMINISM_STATE_UNVERIFIED);
     lv_ASSERT_STR_EQ(str, "UNVERIFIED");
 
@@ -1042,7 +1042,7 @@ static void test_helper_functions(void) {
     str = determinism_state_to_string(DETERMINISM_STATE_PARTIALLY_VERIFIED);
     lv_ASSERT_STR_EQ(str, "PARTIALLY_VERIFIED");
 
-    /* 娴嬭瘯鎵撳寘缁撴灉瀛楃涓茶浆鎹?*/
+    /* 测试打包结果字符串转换 */
     str = pack_result_to_string(PACK_RESULT_OK);
     lv_ASSERT_STR_EQ(str, "OK");
 
@@ -1061,7 +1061,7 @@ static void test_helper_functions(void) {
     str = pack_result_to_string(PACK_RESULT_CANCELLED);
     lv_ASSERT_STR_EQ(str, "CANCELLED");
 
-    /* 娴嬭瘯渚嬪寲缁撴灉瀛楃涓茶浆鎹?*/
+    /* 测试实例化结果字符串转换 */
     str = instantiate_result_to_string(INSTANTIATE_OK);
     lv_ASSERT_STR_EQ(str, "OK");
 
@@ -1075,14 +1075,14 @@ static void test_helper_functions(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氬寮虹増纭畾鎬ф鏌?============== */
+/* ============== 测试：增强版确定性检查 ============== */
 
 static void test_determinism_check_static_enhanced(void) {
     printf("Test: enhanced static determinism check (v2)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 娴嬭瘯1锛氱┖鍑芥暟鍧?鈫?VERIFIED */
+    /* 测试1：空函数块：VERIFIED */
     {
         FuncBlock *fb = func_block_create(1);
         DeterminismStatus status = func_block_determinism_check_static(fb, g);
@@ -1091,7 +1091,7 @@ static void test_determinism_check_static_enhanced(void) {
         func_block_destroy(fb);
     }
 
-    /* 娴嬭瘯2锛氱嚎鎬х害鏉燂紝鎭板ソ纭畾 鈫?VERIFIED 鎴?PARTIALLY_VERIFIED */
+    /* 测试2：线性约束，恰好确定 → VERIFIED 或 PARTIALLY_VERIFIED */
     {
         int p1 = add_point(g, 0, 1, 0, 1);
         int p2 = add_point(g, 1, 1, 1, 1);
@@ -1114,7 +1114,7 @@ static void test_determinism_check_static_enhanced(void) {
         func_block_destroy(fb);
     }
 
-    /* 娴嬭瘯3锛氬惈浜屾绾︽潫锛堢浉浜わ級 */
+    /* 测试3：含二次约束（相交） */
     {
         int p1 = add_point(g, 0, 1, 0, 1);
         int p2 = add_point(g, 2, 1, 2, 1);
@@ -1140,14 +1140,14 @@ static void test_determinism_check_static_enhanced(void) {
         lv_ASSERT(pr == PACK_RESULT_OK);
 
         DeterminismStatus status = func_block_determinism_check_static(fb, g);
-        /* 浜屾绾︽潫鍙兘杩斿洖 VERIFIED銆丳ARTIALLY_VERIFIED 鎴?NON_DETERMINISTIC */
+        /* 二次约束参数可能返回 VERIFIED、PARTIALLY_VERIFIED 或 NON_DETERMINISTIC */
         lv_ASSERT(status == DETERMINISM_STATE_VERIFIED || status == DETERMINISM_STATE_PARTIALLY_VERIFIED ||
                   status == DETERMINISM_STATE_NON_DETERMINISTIC);
 
         func_block_destroy(fb);
     }
 
-    /* 娴嬭瘯4锛歂ULL 鍙傛暟 鈫?NON_DETERMINISTIC */
+    /* 测试4：NULL 参数 → NON_DETERMINISTIC */
     {
         DeterminismStatus status = func_block_determinism_check_static(NULL, g);
         lv_ASSERT(status == DETERMINISM_STATE_NON_DETERMINISTIC);
@@ -1163,7 +1163,7 @@ static void test_determinism_check_dynamic_enhanced(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 娴嬭瘯1锛氱┖鍑芥暟鍧?鈫?VERIFIED */
+    /* 测试1：空函数块：VERIFIED */
     {
         FuncBlock *fb = func_block_create(1);
         DeterminismStatus status = func_block_determinism_check_dynamic(fb, g, NULL, 0);
@@ -1171,7 +1171,7 @@ static void test_determinism_check_dynamic_enhanced(void) {
         func_block_destroy(fb);
     }
 
-    /* 娴嬭瘯2锛氬甫鍏蜂綋杈撳叆鍊肩殑鍔ㄦ€佹鏌?*/
+    /* 测试2：带具体输入值的动态检查 */
     {
         int p1 = add_point(g, 0, 1, 0, 1);
         int in_port = add_port(g, PORT_INPUT, -1);
@@ -1185,13 +1185,13 @@ static void test_determinism_check_dynamic_enhanced(void) {
         PackResult pr = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
         lv_ASSERT(pr == PACK_RESULT_OK);
 
-        /* 鎻愪緵鍏蜂綋杈撳叆鍊?*/
+        /* 提供具体输入值 */
         SymbolicCoord *input_val = mk_rat(5, 1);
         const SymbolicCoord *inputs[] = {input_val};
 
         DeterminismStatus status = func_block_determinism_check_dynamic(fb, g, inputs, 1);
 
-        /* 鍗曠偣鏃犵害鏉燂紝搴斾负 VERIFIED 鎴?PARTIALLY_VERIFIED */
+        /* 单点无约束，应为 VERIFIED 或 PARTIALLY_VERIFIED */
         lv_ASSERT(status == DETERMINISM_STATE_VERIFIED || status == DETERMINISM_STATE_PARTIALLY_VERIFIED ||
                   status == DETERMINISM_STATE_NON_DETERMINISTIC);
 
@@ -1199,7 +1199,7 @@ static void test_determinism_check_dynamic_enhanced(void) {
         func_block_destroy(fb);
     }
 
-    /* 娴嬭瘯3锛歂ULL 鍙傛暟 鈫?NON_DETERMINISTIC */
+    /* 测试3：NULL 参数 → NON_DETERMINISTIC */
     {
         DeterminismStatus status = func_block_determinism_check_dynamic(NULL, g, NULL, 0);
         lv_ASSERT(status == DETERMINISM_STATE_NON_DETERMINISTIC);
@@ -1210,32 +1210,32 @@ static void test_determinism_check_dynamic_enhanced(void) {
 
 }
 
-/* ============== 娴嬭瘯锛欳ONNECTION 绾︽潫鐨?beta-褰掔害 ============== */
+/* ============== 测试：CONNECTION 约束的 beta-归约 ============== */
 
 static void test_instantiate_connection_beta_reduction(void) {
     printf("Test: instantiation with CONNECTION beta-reduction (3 cases)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍑芥暟鍧楀唴閮ㄧ粨鏋勶細
-     * - in_port (褰㈠紡鍙傛暟) --CONNECTION--> internal_point
-     * - out_port (鍐呴儴灞€閮?
-     * 渚嬪寲鍚庯細
-     *   鎯呭喌 A: in_port 鏄舰寮忓弬鏁?鈫?CONNECTION 閲嶅畾鍚戝埌瀹炲弬
-     *   鎯呭喌 C: internal_point 鏄唴閮ㄥ眬閮?鈫?閲嶆槧灏勫埌澶嶅埗浠?
+    /* 创建函数块内部结构：
+     * - in_port (形式参数) --CONNECTION--> internal_point
+     * - out_port (内部局部)
+     * 例化后：
+     *   情况 A: in_port 是形式参数 → CONNECTION 重定向到实参
+     *   情况 C: internal_point 是内部局部 → 重映射到复制件
      */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 娣诲姞鍐呴儴绾︽潫 */
+    /* 添加内部约束 */
     graph_add_incidence(g, p1, p2);
 
-    /* 娣诲姞 CONNECTION 绾︽潫锛歩n_port 鈫?p1锛堝舰寮忓弬鏁板紩鐢ㄥ唴閮ㄥ眬閮級 */
+    /* 添加 CONNECTION 约束：in_port → p1（形式参数引用内部局部） */
     graph_add_connection(g, in_port, p1);
 
-    /* 娣诲姞 CONNECTION 绾︽潫锛歱2 鈫?out_port锛堝唴閮ㄥ眬閮ㄥ紩鐢ㄨ緭鍑虹鍙ｏ級 */
+    /* 添加 CONNECTION 约束：p2 → out_port（内部局部引用输出端口） */
     graph_add_connection(g, p2, out_port);
 
     int internal_ids[] = {p1, p2};
@@ -1246,15 +1246,15 @@ static void test_instantiate_connection_beta_reduction(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 2, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 楠岃瘉杈撳叆绔彛琚爣璁颁负褰㈠紡鍙傛暟 */
+    /* 验证输入端口被标记为形式参数 */
     GeomNode *port_node = graph_get_node(g, in_port);
     lv_ASSERT(port_node->type == GEOM_PORT);
     lv_ASSERT(port_node->data.port->is_formal_param == true);
 
-    /* 璁板綍渚嬪寲鍓嶇殑绾︽潫鏁伴噺 */
+    /* 记录例化前的约束数量 */
     int constraint_count_before = g->constraint_count;
 
-    /* 鍒涘缓瀹炲弬骞朵緥鍖?*/
+    /* 创建实参并实例化 */
     int arg_node = add_point(g, 10, 1, 10, 1);
     int arg_mappings[] = {arg_node};
     int *new_node_ids = NULL;
@@ -1265,16 +1265,16 @@ static void test_instantiate_connection_beta_reduction(void) {
     lv_ASSERT(inst_result == INSTANTIATE_OK);
     lv_ASSERT(new_node_count > 0);
 
-    /* 楠岃瘉鏂板浜?CONNECTION 绾︽潫锛坆eta-褰掔害鍚庯級 */
+    /* 验证新增的 CONNECTION 约束（beta-归约后） */
     int connection_count_after = 0;
     for (int i = constraint_count_before; i < g->constraint_count; i++) {
         if (g->constraints[i]->type == CONNECTION) {
             connection_count_after++;
         }
     }
-    /* 搴旇鑷冲皯鏈夋柊鐨?CONNECTION 绾︽潫琚垱寤?*/
+    /* 应该至少有新的 CONNECTION 约束被创建 */
     lv_ASSERT(connection_count_after >=
-              0); /* 鍙兘鍥犳儏鍐?B锛堣嚜鐢卞彉閲忥級涓嶅垱寤烘柊绾︽潫 */
+              0); /* 参数可能因情况 B（自由变量）不创建新约束 */
 
     lv_free_ptr(new_node_ids);
     func_block_destroy(fb);
@@ -1288,17 +1288,17 @@ static void test_instantiate_connection_case_b_free_variable(void) {
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓澶栭儴鑺傜偣锛堣嚜鐢卞彉閲忥紝parent_block_id == -1锛?*/
+    /* 创建外部节点（自由变量，parent_block_id == -1） */
     int external_point = add_point(g, 100, 1, 100, 1);
 
-    /* 鍒涘缓鍑芥暟鍧楀唴閮ㄧ粨鏋?*/
+    /* 创建函数块内部结构 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 娣诲姞 CONNECTION 绾︽潫锛歟xternal_point 鈫?in_port
-     * external_point 鐨?parent_block_id == -1 != fb->id 鈫?鎯呭喌 B
-     * 渚嬪寲鍚庡簲淇濇寔鍘熺洰鏍囦笉鍙?*/
+    /* 添加 CONNECTION 约束：external_point → in_port
+     * external_point 的 parent_block_id == -1 != fb->id → 情况 B
+     * 实例化后应保持原目标不变 */
     graph_add_connection(g, external_point, in_port);
 
     int internal_ids[] = {p1};
@@ -1309,13 +1309,13 @@ static void test_instantiate_connection_case_b_free_variable(void) {
     PackResult pack_result = func_block_pack(g, internal_ids, 1, input_ids, 1, output_ids, 1, NULL, 0, &fb);
     lv_ASSERT(pack_result == PACK_RESULT_OK);
 
-    /* 楠岃瘉 external_point 鐨?parent_block_id != fb->id */
+    /* 验证 external_point 的 parent_block_id != fb->id */
     GeomNode *ext_node = graph_get_node(g, external_point);
     lv_ASSERT(ext_node->parent_block_id != fb->id);
 
     int constraint_count_before = g->constraint_count;
 
-    /* 渚嬪寲 */
+    /* 例化 */
     int arg_node = add_point(g, 5, 1, 5, 1);
     int arg_mappings[] = {arg_node};
     int *new_node_ids = NULL;
@@ -1325,11 +1325,11 @@ static void test_instantiate_connection_case_b_free_variable(void) {
 
     lv_ASSERT(inst_result == INSTANTIATE_OK);
 
-    /* 鎯呭喌 B锛氳嚜鐢卞彉閲忓紩鐢ㄤ笉搴斿垱寤烘柊鐨?CONNECTION 绾︽潫
-     * 锛堝洜涓?in_port 鏄舰寮忓弬鏁帮紝鎯呭喌 A 浼氶噸瀹氬悜鍒?arg_node锛?
-     *   浣?external_point 鏄閮ㄨ妭鐐癸紝涓嶅湪鍐呴儴闆嗗悎涓紝
-     *   鎵€浠?src_internal=false, dst_internal=true 鈫?浼氬垱寤烘柊绾︽潫锛?*/
-    /* 楠岃瘉涓嶄細宕╂簝鍗冲彲 */
+    /* 情况 B：自由变量引用不应创建新的 CONNECTION 约束
+     * （因为 in_port 是形式参数，情况 A 会重定向到 arg_node；
+     *   而 external_point 是外部节点，不在内部集合中，
+     *   所以 src_internal=false, dst_internal=true → 会创建新约束） */
+    /* 验证不会崩溃即可 */
     lv_ASSERT(new_node_count >= 0);
 
     lv_free_ptr(new_node_ids);
@@ -1339,12 +1339,12 @@ static void test_instantiate_connection_case_b_free_variable(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氭繁鎷疯礉 ============== */
+/* ============== 测试：深拷贝 ============== */
 
 static void test_func_block_copy_deep(void) {
     printf("Test: func_block_copy deep copy...\n");
 
-    /* 鍒涘缓鍘熷鍑芥暟鍧楀苟璁剧疆鍚勫瓧娈?*/
+    /* 创建原始函数块并设置各字段 */
     FuncBlock *src = func_block_create(42);
     lv_ASSERT_NOT_NULL(src);
 
@@ -1373,11 +1373,11 @@ static void test_func_block_copy_deep(void) {
     src->determinism = DETERMINISM_STATE_VERIFIED;
     src->view_state = FB_VIEW_STATE_COLLAPSED;
 
-    /* 鎵ц娣辨嫹璐?*/
+    /* 执行深拷贝 */
     FuncBlock *dst = func_block_copy(src);
     lv_ASSERT_NOT_NULL(dst);
 
-    /* 楠岃瘉鎵€鏈夊瓧娈靛€肩浉鍚?*/
+    /* 验证所有字段值相同 */
     lv_ASSERT(dst->id == src->id);
     lv_ASSERT(dst->internal_node_count == src->internal_node_count);
     lv_ASSERT(dst->input_count == src->input_count);
@@ -1395,14 +1395,14 @@ static void test_func_block_copy_deep(void) {
     lv_ASSERT_NOT_NULL(dst->selector);
     lv_ASSERT(dst->selector->type == SELECTOR_TYPE_POSITIVE_ROOT);
 
-    /* 淇敼鍓湰涓嶅奖鍝嶅師濮嬪嚱鏁板潡锛堥獙璇佺湡姝ｇ殑娣辨嫹璐濓級 */
+    /* 修改副本不影响原始函数块（验证真正的深拷贝） */
     dst->internal_node_ids[0] = 999;
-    lv_ASSERT(src->internal_node_ids[0] == 10); /* 鍘熷鍊间笉鍙?*/
+    lv_ASSERT(src->internal_node_ids[0] == 10); /* 原始值不变 */
 
     dst->determinism = DETERMINISM_STATE_NON_DETERMINISTIC;
-    lv_ASSERT(src->determinism == DETERMINISM_STATE_VERIFIED); /* 鍘熷鍊间笉鍙?*/
+    lv_ASSERT(src->determinism == DETERMINISM_STATE_VERIFIED); /* 原始值不变 */
 
-    /* 閿€姣佸師濮嬪潡鍚庡壇鏈粛鐒跺彲鐢?*/
+    /* 销毁原始块后副本仍然可用 */
     func_block_destroy(src);
 
     lv_ASSERT(dst->id == 42);
@@ -1414,22 +1414,22 @@ static void test_func_block_copy_deep(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氱畝鍖栫増鎵撳寘 API ============== */
+/* ============== 测试：简化版打包 API ============== */
 
 static void test_func_block_pack_ex(void) {
     printf("Test: func_block_pack_ex (simplified API)...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* 鍒涘缓鍐呴儴鑺傜偣 */
+    /* 创建内部节点 */
     int p1 = add_point(g, 0, 1, 0, 1);
     int p2 = add_point(g, 1, 1, 1, 1);
 
-    /* 鍒涘缓绔彛 */
+    /* 创建端口 */
     int in_port = add_port(g, PORT_INPUT, -1);
     int out_port = add_port(g, PORT_OUTPUT, -1);
 
-    /* 浣跨敤 PackConfig 缁撴瀯浣撻厤缃墦鍖呭弬鏁?*/
+    /* 使用 PackConfig 结构体配置打包参数 */
     int internal_ids[] = {p1, p2};
     int input_ids[] = {in_port};
     int output_ids[] = {out_port};
@@ -1445,7 +1445,7 @@ static void test_func_block_pack_ex(void) {
     config.name = "pack_ex_test";
     config.description = "test pack_ex API";
 
-    /* 鎵ц鎵撳寘 */
+    /* 执行打包 */
     FuncBlock *fb = NULL;
     PackResult result = func_block_pack_ex(g, &config, &fb);
 
@@ -1455,7 +1455,7 @@ static void test_func_block_pack_ex(void) {
     lv_ASSERT(fb->input_count == 1);
     lv_ASSERT(fb->output_count == 1);
 
-    /* 楠岃瘉鍚嶇О鍜屾弿杩拌姝ｇ‘璁剧疆 */
+    /* 验证名称和描述被正确设置 */
     lv_ASSERT_NOT_NULL(fb->name);
     lv_ASSERT_STR_EQ(fb->name, "pack_ex_test");
     lv_ASSERT_NOT_NULL(fb->description);
@@ -1467,28 +1467,28 @@ static void test_func_block_pack_ex(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氳鍥剧姸鎬佺鐞?============== */
+/* ============== 测试：视图状态管理 ============== */
 
 static void test_func_block_view_state(void) {
     printf("Test: view state management...\n");
 
-    /* 鍒涘缓鍑芥暟鍧楋紝榛樿鐘舵€佸簲涓?FB_VIEW_STATE_EXPANDED */
+    /* 创建函数块，默认状态应为 FB_VIEW_STATE_EXPANDED */
     FuncBlock *fb = func_block_create(1);
     lv_ASSERT_NOT_NULL(fb);
     lv_ASSERT(fb->view_state == FB_VIEW_STATE_EXPANDED);
     lv_ASSERT(func_block_get_view_state(fb) == FB_VIEW_STATE_EXPANDED);
 
-    /* 璁剧疆涓?FB_VIEW_STATE_COLLAPSED */
+    /* 设置为 FB_VIEW_STATE_COLLAPSED */
     func_block_set_view_state(fb, FB_VIEW_STATE_COLLAPSED);
     lv_ASSERT(fb->view_state == FB_VIEW_STATE_COLLAPSED);
     lv_ASSERT(func_block_get_view_state(fb) == FB_VIEW_STATE_COLLAPSED);
 
-    /* 璁剧疆涓?FB_VIEW_STATE_PINNED */
+    /* 设置为 FB_VIEW_STATE_PINNED */
     func_block_set_view_state(fb, FB_VIEW_STATE_PINNED);
     lv_ASSERT(fb->view_state == FB_VIEW_STATE_PINNED);
     lv_ASSERT(func_block_get_view_state(fb) == FB_VIEW_STATE_PINNED);
 
-    /* 璁剧疆鍥?FB_VIEW_STATE_EXPANDED */
+    /* 设置为 FB_VIEW_STATE_EXPANDED */
     func_block_set_view_state(fb, FB_VIEW_STATE_EXPANDED);
     lv_ASSERT(func_block_get_view_state(fb) == FB_VIEW_STATE_EXPANDED);
 
@@ -1497,37 +1497,37 @@ static void test_func_block_view_state(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氱‘瀹氭€х姸鎬佸簭鍒楀寲/鍙嶅簭鍒楀寲 ============== */
+/* ============== 测试：确定性状态序列化/反序列化 ============== */
 
 static void test_func_block_serialize_deserialize(void) {
     printf("Test: determinism state serialize/deserialize...\n");
 
-    /* 娴嬭瘯鎵€鏈?4 绉嶇‘瀹氭€х姸鎬?*/
+    /* 测试所有 4 种确定性状态 */
     DeterminismState states[] = {DETERMINISM_STATE_VERIFIED, DETERMINISM_STATE_NON_DETERMINISTIC,
                                  DETERMINISM_STATE_PARTIALLY_VERIFIED, DETERMINISM_STATE_UNVERIFIED};
 
     for (int i = 0; i < 4; i++) {
-        /* 鍒涘缓鍑芥暟鍧楀苟璁剧疆纭畾鎬х姸鎬?*/
+        /* 创建函数块并设置确定性状态 */
         FuncBlock *fb = func_block_create(100 + i);
         lv_ASSERT_NOT_NULL(fb);
         fb->determinism = states[i];
 
-        /* 搴忓垪鍖?*/
+        /* 序列化 */
         char *data = func_block_serialize_state(fb);
         lv_ASSERT_NOT_NULL(data);
         lv_ASSERT(strlen(data) > 0);
 
-        /* 鍒涘缓鏂板嚱鏁板潡骞跺弽搴忓垪鍖?*/
+        /* 创建新函数块并反序列化 */
         FuncBlock *fb2 = func_block_create(200 + i);
         lv_ASSERT_NOT_NULL(fb2);
-        lv_ASSERT(fb2->determinism == DETERMINISM_STATE_UNVERIFIED); /* 榛樿鍊?*/
+        lv_ASSERT(fb2->determinism == DETERMINISM_STATE_UNVERIFIED); /* 默认值 */
 
         bool ok = func_block_deserialize_state(fb2, data);
         lv_ASSERT(ok);
 
-        /* 楠岃瘉鍙嶅簭鍒楀寲鍚庣殑纭畾鎬х姸鎬佷笌鍘熷涓€鑷?
-         * 娉ㄦ剰锛氬綋鍓嶅紩鎿庣増鏈弽搴忓垪鍖栧彲鑳戒笉瀹屽叏鎭㈠鐘舵€?*/
-        /* assert(fb2->determinism == states[i]); -- 寰呭紩鎿庣ǔ瀹氬悗鎭㈠ */
+        /* 验证反序列化后的确定性状态与原始一致
+         * 注意：当前引擎版本反序列化可能不完全恢复状态 */
+        /* assert(fb2->determinism == states[i]); -- 待引擎稳定后恢复 */
         (void) fb2; /* suppress warning */
 
         lv_free_ptr(data);
@@ -1539,20 +1539,20 @@ static void test_func_block_serialize_deserialize(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氭柊澧為璁惧嚱鏁板潡娉ㄥ唽鍜屾煡鎵?============== */
+/* ============== 测试：新增预设函数块注册和查找 ============== */
 
 static void test_registry_new_presets(void) {
     printf("Test: registry new presets...\n");
 
-    /* 鍒濆鍖栨敞鍐岃〃 */
+    /* 初始化注册表 */
     bool ok = func_block_registry_init();
     lv_ASSERT(ok);
 
-    /* 楠岃瘉娉ㄥ唽琛ㄦ€绘暟 */
+    /* 验证注册表总数 */
     int total = func_block_registry_get_count();
     lv_ASSERT(total == 75);
 
-    /* 閫愪竴鏌ユ壘鏂板棰勮 */
+    /* 逐一查找新增预设 */
     const char *new_presets[] = {"circumcenter",          "incenter",   "centroid",           "orthocenter",
                                  "foot_of_perpendicular", "vector_sub", "vector_dot_product", "area_measure",
                                  "taylor_approximation"};
@@ -1564,42 +1564,42 @@ static void test_registry_new_presets(void) {
         lv_ASSERT_NOT_NULL(entry->template_fb);
     }
 
-    /* 楠岃瘉 circumcenter 绫诲埆涓?CONSTRUCTION */
+    /* 验证 circumcenter 类别是 CONSTRUCTION */
     {
         PresetEntry *entry = func_block_registry_find("circumcenter");
         lv_ASSERT_NOT_NULL(entry);
         lv_ASSERT(entry->category == PRESET_CATEGORY_CONSTRUCTION);
     }
 
-    /* 楠岃瘉 vector_sub 绫诲埆涓?ALGEBRAIC */
+    /* 验证 vector_sub 类别是 ALGEBRAIC */
     {
         PresetEntry *entry = func_block_registry_find("vector_sub");
         lv_ASSERT_NOT_NULL(entry);
         lv_ASSERT(entry->category == PRESET_CATEGORY_ALGEBRAIC);
     }
 
-    /* 楠岃瘉 area_measure 绫诲埆涓?MEASUREMENT */
+    /* 验证 area_measure 类别是 MEASUREMENT */
     {
         PresetEntry *entry = func_block_registry_find("area_measure");
         lv_ASSERT_NOT_NULL(entry);
         lv_ASSERT(entry->category == PRESET_CATEGORY_MEASUREMENT);
     }
 
-    /* 楠岃瘉 taylor_approximation 绫诲埆涓?ANALYSIS */
+    /* 验证 taylor_approximation 类别是 ANALYSIS */
     {
         PresetEntry *entry = func_block_registry_find("taylor_approximation");
         lv_ASSERT_NOT_NULL(entry);
         lv_ASSERT(entry->category == PRESET_CATEGORY_ANALYSIS);
     }
 
-    /* 楠岃瘉 PRESET_CATEGORY_ANALYSIS 绫诲埆瀛樺湪 */
+    /* 验证 PRESET_CATEGORY_ANALYSIS 类别存在 */
     {
         const char *cat_str = preset_category_to_string(PRESET_CATEGORY_ANALYSIS);
         lv_ASSERT_NOT_NULL(cat_str);
         lv_ASSERT_STR_EQ(cat_str, "数学分析");
     }
 
-    /* 楠岃瘉 lookup 杩斿洖娣辨嫹璐?*/
+    /* 验证 lookup 返回深拷贝 */
     {
         FuncBlock *lookup_fb = func_block_registry_lookup("midpoint");
         lv_ASSERT_NOT_NULL(lookup_fb);
@@ -1613,39 +1613,39 @@ static void test_registry_new_presets(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氭寜绫诲埆绛涢€?============== */
+/* ============== 测试：按类别筛选 ============== */
 
 static void test_registry_category_filter(void) {
     printf("Test: registry category filter...\n");
 
-    /* 鍒濆鍖栨敞鍐岃〃 */
+    /* 初始化注册表 */
     bool ok = func_block_registry_init();
     lv_ASSERT(ok);
 
-    /* 鍒嗛厤瓒冲澶х殑缂撳啿鍖?*/
+    /* 分配足够大的缓冲区 */
     PresetEntry *entries_buf[128];
 
-    /* CONSTRUCTION 绫诲埆 */
+    /* CONSTRUCTION 类别 */
     int count = func_block_registry_find_by_category(PRESET_CATEGORY_CONSTRUCTION, entries_buf, 128);
     lv_ASSERT(count == 27);
 
-    /* MEASUREMENT 绫诲埆 */
+    /* MEASUREMENT 类别 */
     count = func_block_registry_find_by_category(PRESET_CATEGORY_MEASUREMENT, entries_buf, 128);
     lv_ASSERT(count == 12);
 
-    /* ALGEBRAIC 绫诲埆 */
+    /* ALGEBRAIC 类别 */
     count = func_block_registry_find_by_category(PRESET_CATEGORY_ALGEBRAIC, entries_buf, 128);
     lv_ASSERT(count == 15);
 
-    /* TRANSFORMATION 绫诲埆 */
+    /* TRANSFORMATION 类别 */
     count = func_block_registry_find_by_category(PRESET_CATEGORY_TRANSFORMATION, entries_buf, 128);
     lv_ASSERT(count == 9);
 
-    /* ANALYSIS 绫诲埆 */
+    /* ANALYSIS 类别 */
     count = func_block_registry_find_by_category(PRESET_CATEGORY_ANALYSIS, entries_buf, 128);
     lv_ASSERT(count == 2);
 
-    /* LOGIC 绫诲埆 */
+    /* LOGIC 类别 */
     count = func_block_registry_find_by_category(PRESET_CATEGORY_LOGIC, entries_buf, 128);
     lv_ASSERT(count == 10);
 
@@ -1757,14 +1757,14 @@ static void test_registry_register_unregister(void) {
 
 }
 
-/* ============== 娴嬭瘯锛氶€夋嫨鍣ㄥけ璐ユ儏鍐?============== */
+/* ============== 测试：选择器失败情况 ============== */
 
 static void test_selector_failure_cases(void) {
     printf("Test: selector failure cases...\n");
 
     ConstraintGraph *g = graph_create();
 
-    /* SELECTOR_TYPE_POSITIVE_ROOT锛氭墍鏈夊€欓€?x 鍧愭爣 <= 0锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_POSITIVE_ROOT：所有候选 x 坐标 <= 0，验证返回 false */
     {
         int p1 = add_point(g, -3, 1, 0, 1);
         int p2 = add_point(g, -1, 1, 0, 1);
@@ -1778,7 +1778,7 @@ static void test_selector_failure_cases(void) {
         selector_destroy(sel);
     }
 
-    /* SELECTOR_TYPE_NEGATIVE_ROOT锛氭墍鏈夊€欓€?x 鍧愭爣 >= 0锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_NEGATIVE_ROOT：所有候选 x 坐标 >= 0，验证返回 false */
     {
         int p1 = add_point(g, 0, 1, 0, 1);
         int p2 = add_point(g, 5, 1, 0, 1);
@@ -1792,13 +1792,13 @@ static void test_selector_failure_cases(void) {
         selector_destroy(sel);
     }
 
-    /* SELECTOR_TYPE_IN_REGION锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_IN_REGION：不设置 graph，验证返回 false */
     {
         int p1 = add_point(g, 1, 1, 1, 1);
         GeomNode *candidates[] = {graph_get_node(g, p1)};
 
         SolutionSelector *sel = selector_create_with_reference(SELECTOR_TYPE_IN_REGION, 999);
-        /* 涓嶈皟鐢?selector_set_graph锛実raph 淇濇寔 NULL */
+        /* 不调用 selector_set_graph，graph 保持 NULL */
         int selected = -1;
         bool ok = selector_apply(sel, candidates, 1, &selected);
         /* assert(ok == false); -- engine reverted, selector behavior differs */
@@ -1806,13 +1806,13 @@ static void test_selector_failure_cases(void) {
         selector_destroy(sel);
     }
 
-    /* SELECTOR_TYPE_NEAREST_TO_POINT锛氫笉璁剧疆 graph锛岄獙璇佽繑鍥?false */
+    /* SELECTOR_TYPE_NEAREST_TO_POINT：不设置 graph，验证返回 false */
     {
         int p1 = add_point(g, 1, 1, 1, 1);
         GeomNode *candidates[] = {graph_get_node(g, p1)};
 
         SolutionSelector *sel = selector_create_with_reference(SELECTOR_TYPE_NEAREST_TO_POINT, 999);
-        /* 涓嶈皟鐢?selector_set_graph锛実raph 淇濇寔 NULL */
+        /* 不调用 selector_set_graph，graph 保持 NULL */
         int selected = -1;
         bool ok = selector_apply(sel, candidates, 1, &selected);
         /* assert(ok == false); -- engine reverted, selector behavior differs */
@@ -1825,66 +1825,66 @@ static void test_selector_failure_cases(void) {
 
 }
 
-/* ============== 涓诲嚱鏁?============== */
+/* ============== 主函数 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
     printf("=== Lv-00 Function Block System Test Suite ===\n\n");
-    /* 鐢熷懡鍛ㄦ湡娴嬭瘯 */
+    /* 生命周期测试 */
     TEST_MAIN_RUN(test_func_block_lifecycle);
-    /* 鎵撳寘鎿嶄綔娴嬭瘯 */
+    /* 打包操作测试 */
     TEST_MAIN_RUN(test_pack_basic);
     TEST_MAIN_RUN(test_pack_cross_boundary_detect);
     TEST_MAIN_RUN(test_pack_cross_boundary_promote);
     TEST_MAIN_RUN(test_pack_cross_boundary_disconnect);
     TEST_MAIN_RUN(test_pack_cross_boundary_cancel);
     TEST_MAIN_RUN(test_PACK_RESULT_INVALID_NODES);
-    /* 纭畾鎬ф鏌ユ祴璇?*/
+    /* 确定性检查测试 */
     TEST_MAIN_RUN(test_determinism_static_linear);
     TEST_MAIN_RUN(test_determinism_static_quadratic);
     TEST_MAIN_RUN(test_determinism_dynamic);
-    /* 瀹炰緥鍖栨祴璇?*/
+    /* 实例化测试 */
     TEST_MAIN_RUN(test_instantiate_basic);
     TEST_MAIN_RUN(test_instantiate_beta_reduction);
     TEST_MAIN_RUN(test_instantiate_precondition);
-    /* 閫夋嫨鍣ㄦ祴璇?*/
+    /* 选择器测试 */
     TEST_MAIN_RUN(test_selector_basic);
     TEST_MAIN_RUN(test_selector_apply);
     TEST_MAIN_RUN(test_selector_custom);
-    /* 閮ㄥ垎搴旂敤娴嬭瘯 */
+    /* 部分应用测试 */
     TEST_MAIN_RUN(test_partial_apply);
-    /* 缁勫悎瀛愭祴璇?*/
+    /* 组合子测试 */
     TEST_MAIN_RUN(test_func_block_compose);
     TEST_MAIN_RUN(test_func_block_product);
     /* feedback / branch / pipe combinator tests */
     TEST_MAIN_RUN(test_func_block_feedback);
     TEST_MAIN_RUN(test_func_block_branch);
     TEST_MAIN_RUN(test_func_block_pipe);
-    /* 绔彛渚濊禆娴嬭瘯 */
+    /* 端口依赖测试 */
     TEST_MAIN_RUN(test_port_dependency);
-    /* 杈呭姪鍑芥暟娴嬭瘯 */
+    /* 辅助函数测试 */
     TEST_MAIN_RUN(test_debug_port_invariants);
     TEST_MAIN_RUN(test_helper_functions);
-    /* 澧炲己鐗堢‘瀹氭€ф鏌ユ祴璇?*/
+    /* 增强版确定性检查测试 */
     TEST_MAIN_RUN(test_determinism_check_static_enhanced);
     TEST_MAIN_RUN(test_determinism_check_dynamic_enhanced);
-    /* CONNECTION 绾︽潫 beta-褰掔害娴嬭瘯 */
+    /* CONNECTION 约束 beta-归约测试 */
     TEST_MAIN_RUN(test_instantiate_connection_beta_reduction);
     TEST_MAIN_RUN(test_instantiate_connection_case_b_free_variable);
-    /* 娣辨嫹璐濇祴璇?*/
+    /* 深拷贝测试 */
     TEST_MAIN_RUN(test_func_block_copy_deep);
-    /* 绠€鍖栫増鎵撳寘 API 娴嬭瘯 */
+    /* 简化版打包 API 测试 */
     TEST_MAIN_RUN(test_func_block_pack_ex);
-    /* 瑙嗗浘鐘舵€佺鐞嗘祴璇?*/
+    /* 视图状态管理测试 */
     TEST_MAIN_RUN(test_func_block_view_state);
-    /* 纭畾鎬х姸鎬佸簭鍒楀寲/鍙嶅簭鍒楀寲娴嬭瘯 */
+    /* 确定性状态序列化/反序列化测试 */
     TEST_MAIN_RUN(test_func_block_serialize_deserialize);
-    /* 鏂板棰勮鍑芥暟鍧楁敞鍐屽拰鏌ユ壘娴嬭瘯 */
+    /* 新增预设函数块注册和查找测试 */
     TEST_MAIN_RUN(test_registry_new_presets);
-    /* 鎸夌被鍒瓫閫夋祴璇?*/
+    /* 按类别筛选测试 */
     TEST_MAIN_RUN(test_registry_category_filter);
     /* registry register/unregister/cleanup/traversal order test */
     TEST_MAIN_RUN(test_registry_register_unregister);
-    /* 閫夋嫨鍣ㄥけ璐ユ儏鍐垫祴璇?*/
+    /* 选择器失败情况测试 */
     TEST_MAIN_RUN(test_selector_failure_cases);
     printf("\n=== All function block tests PASSED! ===\n");
 TEST_MAIN_END()
