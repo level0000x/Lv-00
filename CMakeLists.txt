@@ -784,15 +784,9 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_native.c
     # 上层接口实现
     core/src/lv_impl_upper.c
-    core/src/lv_impl_upper_geom.c
-    core/src/lv_impl_upper_algebra.c
-    core/src/lv_impl_upper_visual.c
     core/src/lv_impl_upper_orchestrator.c
     core/src/lv_impl_upper_meta.c
     core/src/lv_impl_upper_app.c
-    core/src/lv_impl_upper_interop.c
-    core/src/lv_impl_upper_preset.c
-    core/src/lv_impl_upper_utils.c
     # 提取的预设实现（从 lv_impl_upper.c 拆分）
     core/src/impl_preset_transformations.c
 )
