@@ -2292,3 +2292,16 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 ### 验证基线
 
 - build3：ninja 956/956 全绿（0 error）+ ctest **171/171** 全绿（72s，含 sparse 回归新断言）。
+
+## 三十六、批次 C-⑯：测试文件中文注释双重编码乱码修复（2026-08-15）
+
+- **误判澄清**：日报遗留项曾记「lv_render_visitor_tikz.c 注释双重编码乱码」——经复核该文件为正常 UTF-8 中文（乱码系 PowerShell Get-Content 按 GBK 代码页解码 UTF-8 文件的显示假象），**文件无缺陷**，该项撤销。
+- **真实受损文件**：全库特征字符扫描（GBK→UTF-8 mojibake 典型字符）确认仅 2 个文件：`test/c/test_func_block.c`（193 处命中）、`test/c/test_proof.c`（99 处命中）。两文件均为合法 UTF-8 但中文注释/printf 字符串是双重编码乱码（自创建起即损坏，git 历史全部版本同损，无法从历史恢复）。
+- **修复方法**：UTF-8→GBK 还原管线（mojibake 字符串按 GBK 编码还原原始字节流→UTF-8 解码）无损还原约 80% 文本；损坏点（GBK 解码遇非法字节对产生的 U+FFFD/'?'，原字节已丢失）按代码上下文**语义重建** 131+54 行（含 Latin-1 类深度损坏行如 `"��ѧ����"`→`"数学分析"`，依据 preset_category.h 单源表确认）。
+- **行为钉**：`lv_ASSERT_STR_EQ(cat_str, "数学分析")` 与 `preset_category_to_string(PRESET_CATEGORY_ANALYSIS)` 返回值一致（LV_PRESET_CATEGORY_ENTRY 单源）；printf 字符串仅影响测试输出不影响断言逻辑。
+- **验证**：纯 ASCII 行（1676+423 行）与 HEAD 逐字节一致（代码结构无损）；U+FFFD 归零；严格 UTF-8 无 BOM LF；test_func_block/test_proof/test_func_block_preset/test_proof_infra/test_proof_strategy_legacy/test_proof_strategy_numeric 全部通过（含 59/117/15/67 项）。库代码零改动（本次仅 2 个测试源文件）。
+
+### 决策登记（第 9 章格式）
+
+- 中文注释双重编码修复 / D4 映射重复（编码层） / 2 文件 325 行（131+54 行语义重建 + 无损还原）/ mojibake 生成时有损（GBK 非法字节对→U+FFFD），无法机械还原，按代码事实语义重建 / test_func_block + test_proof 等 6 项定向测试。
+- 遗留登记：tikz 文件编码误判撤销；全库其余 .c/.h/.py/.js/.md 均无双重编码乱码（特征扫描已覆盖 core/test/tools/examples/module/bootstrap/gui/docs/doc）。
