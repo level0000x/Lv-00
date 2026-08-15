@@ -164,7 +164,7 @@ bool lv_render_visitor_tikz_create(const char *output_path, lvRenderVisitor *vis
     if (fp == NULL)
         return false;
 
-    TikzContext *ctx = (TikzContext *)malloc(sizeof(TikzContext));
+    TikzContext *ctx = (TikzContext *)lv_malloc(sizeof(TikzContext));
     if (ctx == NULL) {
         lv_file_close(fp);
         return false;
@@ -197,6 +197,6 @@ void lv_render_visitor_tikz_destroy(lvRenderVisitor *visitor) {
     TikzContext *ctx = (TikzContext *)visitor->user_data;
     if (ctx->fp)
         lv_file_close(ctx->fp);
-    free(ctx);
+    lv_free((void **) &ctx);
     visitor->user_data = NULL;
 }

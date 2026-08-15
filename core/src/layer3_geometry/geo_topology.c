@@ -415,7 +415,7 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
 
     unsigned char *vertex_set = NULL;
     if (max_vertex >= 0) {
-        vertex_set = (unsigned char *) calloc((size_t) max_vertex + 1, sizeof(unsigned char));
+        vertex_set = (unsigned char *) lv_calloc((size_t) max_vertex + 1, sizeof(unsigned char));
         if (!vertex_set)
             return 0;
         for (i = 0; i < total; i++)
@@ -428,7 +428,7 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
         for (a = 0; a < face_size; a++) {
             for (b = a + 1; b < face_size; b++) {
                 if (faces[i * face_size + a] == faces[i * face_size + b]) {
-                    free(vertex_set);
+                    lv_free((void **) &vertex_set);
                     return 0;
                 }
             }
@@ -438,9 +438,9 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
     /* 2) 边集：从所有面提取规范化的无向边并去重 */
     size_t pairs_per_face = face_size * (face_size - 1) / 2;
     size_t max_edges = n_faces * pairs_per_face;
-    int *edge_set = (int *) calloc(max_edges * 2, sizeof(int)); /* [v0,v1] 成对平铺 */
+    int *edge_set = (int *) lv_calloc(max_edges * 2, sizeof(int)); /* [v0,v1] 成对平铺 */
     if (!edge_set) {
-        free(vertex_set);
+        lv_free((void **) &vertex_set);
         return 0;
     }
     size_t n_edges = 0;
@@ -465,8 +465,8 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
                 }
                 if (found >= 0) {
                     if (reject_dup_edge) {
-                        free(edge_set);
-                        free(vertex_set);
+                        lv_free((void **) &edge_set);
+                        lv_free((void **) &vertex_set);
                         return 0;
                     }
                     continue;
@@ -495,8 +495,8 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
                     }
                 }
                 if (!found) {
-                    free(edge_set);
-                    free(vertex_set);
+                    lv_free((void **) &edge_set);
+                    lv_free((void **) &vertex_set);
                     return 0;
                 }
             }
@@ -506,13 +506,13 @@ int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim) {
     /* 4) 边集/顶点集一致性：每条边的两个端点都必须位于顶点集中 */
     for (i = 0; i < n_edges; i++) {
         if (!vertex_set[edge_set[i * 2]] || !vertex_set[edge_set[i * 2 + 1]]) {
-            free(edge_set);
-            free(vertex_set);
+            lv_free((void **) &edge_set);
+            lv_free((void **) &vertex_set);
             return 0;
         }
     }
 
-    free(edge_set);
-    free(vertex_set);
+    lv_free((void **) &edge_set);
+    lv_free((void **) &vertex_set);
     return 1;
 }

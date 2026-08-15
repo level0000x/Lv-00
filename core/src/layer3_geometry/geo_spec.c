@@ -29,7 +29,7 @@ static lvGeoSpecPoint *parse_point(const char *json) {
     if (json == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_point: json is NULL");
 
-    lvGeoSpecPoint *pt = (lvGeoSpecPoint *) calloc(1, sizeof(lvGeoSpecPoint));
+    lvGeoSpecPoint *pt = (lvGeoSpecPoint *) lv_calloc(1, sizeof(lvGeoSpecPoint));
     if (pt == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_point: calloc failed");
 
@@ -47,7 +47,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
     if (json == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "parse_polygon: json is NULL");
 
-    lvGeoSpecPolygon *poly = (lvGeoSpecPolygon *) calloc(1, sizeof(lvGeoSpecPolygon));
+    lvGeoSpecPolygon *poly = (lvGeoSpecPolygon *) lv_calloc(1, sizeof(lvGeoSpecPolygon));
     if (poly == NULL)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "parse_polygon: calloc failed");
 
@@ -57,9 +57,9 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
     }
 
     poly->count = count;
-    poly->pts = (lvGeoSpecPoint *) calloc((size_t) count, sizeof(lvGeoSpecPoint));
+    poly->pts = (lvGeoSpecPoint *) lv_calloc((size_t) count, sizeof(lvGeoSpecPoint));
     if (poly->pts == NULL) {
-        free(poly);
+        lv_free((void **) &poly);
         return NULL;
     }
 
@@ -137,7 +137,7 @@ void lv_geo_spec_destroy(void *spec) {
     /* 尝试作为多边形释放（含点数组需要额外释放） */
     lvGeoSpecPolygon *poly = (lvGeoSpecPolygon *) spec;
     if (poly->pts != NULL && poly->count > 0) {
-        free(poly->pts);
+        lv_free((void **) &poly->pts);
     }
-    free(spec);
+    lv_free((void **) &spec);
 }
