@@ -124,6 +124,10 @@ node_modules/
 /test_*.txt
 /test_results.*
 
+# 命令日志测试产物（test_proof_infra 每轮 ctest 重写，非源码）
+/test_command_log.json
+build*/test_command_log.json
+
 # Test save files（测试产物，不应提交）
 *_test_save.lvz
 module/axiom_packages/test_saves/
