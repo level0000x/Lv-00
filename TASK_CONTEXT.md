@@ -2251,3 +2251,44 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 ### 后续候选（暂缓）
 
 双 Groebner 引擎族收敛（E-1，拆分前奏）、表达式解析器词法层收敛（E-2）、cuda/hip 先收敛后拆分（A-2，有效编译仅 ~15 行）、>1100 行剩余文件复查（solver_core/normalization 已知不拆、lambda_unify/relation_model 建议留）、版本宏权威源统一（debug.h 3.3.0 兜底）。
+
+## 三十五、批次 C-⑮：日常综合治理（2026-08-15）
+
+日常治理定时任务自动执行：巡检 → 按优先级修复 → 回归 → 分块提交。
+
+### ① bug-diagnosis：lv_free 传值误用缺陷族（最高优先级）
+
+- **现象**：ctest 171 项中 `sparse_linear_algebra_test` SEGFAULT（确定性，崩溃在 `test_sparse_solve_zero_diagonal`）；直接 PowerShell 启动该 exe 却通过（偶发差异）。
+- **定位**：启动方式二分（PowerShell & vs cmd /C vs ctest）→ cmd/ctest 必现、PowerShell 偶过；手工链接命令可执行 → 排除工具链；最小 ninja 工程同样挂起 → 环境边界（命名管道沙箱）确认，与缺陷无关。代码审查定位到 `lv_sparse_solve` 的 -3 错误路径 `lv_free(x_next)`。
+- **根因**：`lv_free(void **ptr)` 契约是「释放 *ptr 并置 NULL」，调用点误传「指针的值」而非「指针的地址」。`*ptr` 读出的是分配体首 8 字节（未初始化垃圾/字符串内容），被当作指针交给 `debug_free` → 魔数不匹配时 `free(垃圾指针)` → 崩溃或堆损坏；首 8 字节恰为 0 时静默泄漏。启动环境不同 → 堆内容不同 → 偶发/必现差异。
+- **同类排查**：全库 grep `lv_free(裸标识符/成员)` 逐点核对声明，共 **36 处 / 6 文件** 同类误用：sparse_linear_algebra.c（5）、interop_export_html.c（2）、interop_export_geojson.c（1）、dsl_compiler_parse.c（1）、critical_pair.c（12）、type_equiv_explorer.c（14，含 `type_equiv_explore_create` 失败路径误释放调用方 TypeSystem 的风险）。
+- **为什么之前没测出来**：`-Wno-incompatible-pointer-types` 编译旗标压制了 `double* → void**` 隐式转换告警；多数调用点在错误路径（OOM）几乎不可达；interop_export_html/geojson 无测试覆盖。
+- **修复**：36 处全部改为 `lv_free((void **) &var)` 取址形式。
+- **回归**：`test_sparse_linear_algebra.c` 的 `test_sparse_solve_zero_diagonal` 新增内存差值断言（create 前记录 → destroy 后对比 current_used，钉住错误路径不得泄漏）；断言数 927→928。修复前该断言在旧代码下失败（泄漏 16B），修复后通过。
+
+### ② incomplete-implementation：lv_loader.c Prove 注释声称与实现脱节
+
+- `lv_loader.c` PROVE_STMT 分支注释声称「只是标记引擎的证明意图」，实际分支为空且不标记任何状态（验证由 `lv_verify_proofs`/`lv_load_file_verified` 完成）。注释改为准确描述加载阶段语义，消除误导。
+
+### ③ code-abstraction-governance：裸 calloc/free 收敛（D6 惯用法重复）
+
+- TASK_CONTEXT 基线声称「layer3+ 裸 malloc/realloc/free = 0」，实测 3 文件 15 处漏网：geo_spec.c（6）、geo_topology.c（7）、lv_render_visitor_tikz.c（2）。
+- 判定：设施已存在（lv_calloc/lv_free）、调用点 15 ≥ 2、差异全为常量（大小/类型）、配对释放同家族、无跨边界所有权 → 行为等价可验证；负面清单不命中。
+- 修复后全库裸分配仅剩 layer2 基础设施（allocator.c/lv_utils.c ops/memory_pool/thread_pool/lv_ringbuf）+ GMP 字符串豁免（lv_str_utils.c mpz_get_str 须系统 free）+ 注释引用。「layer3+ 归零」声明落实。
+
+### ④ dev-automation / 仓库卫生：测试产物与构建状态解除跟踪
+
+- `test_proof_infra.c` 每轮 ctest 重写根目录 `test_command_log.json`（cwd=仓库根），致工作树反复变脏；`build3/.ninja_deps`、`build3/.ninja_log`、`build3/test_command_log.json` 为构建/测试产物误入跟踪。
+- 处置：`git rm --cached` 解除跟踪 + `.gitignore` 增补（test_command_log.json；build3/ 已有忽略规则覆盖其余）。
+
+### 决策登记（第 9 章格式）
+
+- lv_free 传值误用缺陷族 / 缺陷修复 / 36 处 6 文件 / 无 / test_sparse_linear_algebra（928 断言）+ 全量 ctest 171/171。
+- 裸 calloc/free 收敛 / D6 惯用法重复 / 15 处 3 文件 / layer2 基础设施与 GMP 字符串豁免保留 / test_geo_topology + 全量回归 171/171。
+- Prove 注释修正 / 声称与实现脱节 / lv_loader.c 1 处 / 无（注释仅文档）/ 全量构建。
+- 测试产物跟踪解除 / 仓库卫生 / test_command_log.json×2 + build3/.ninja_* / 无 / 全量回归。
+- 遗留登记：preset_instance_execute 为无调用方简化实现（零影响，不发明行为，待人工确认是否删除或接线 func_block 执行链）；graph_index error_buffer/serialize_buffer 按 v3.4.0 迁移计划保留（fallback 仍可达）；ABS.binder 恒 0 为 λ 项已登记限制。
+
+### 验证基线
+
+- build3：ninja 956/956 全绿（0 error）+ ctest **171/171** 全绿（72s，含 sparse 回归新断言）。
