@@ -150,6 +150,16 @@ do_switch5.ps1
 *_migrate*.ps1
 *_migrate*.py
 
+# 一次性模块拆分/修复脚本（历史工具，保留磁盘不跟踪）
+/split_*.py
+/fix_csg*.py
+/fix_dsl_lexer.py
+/check_csg.py
+/edit_memory.py
+/scan_size.py
+/test_regex*.py
+/github-integrations*.js
+
 # 构建诊断输出（根目录与 build3 残留）
 build_verify_build_log*.txt
 build_verify_ctest_log*.txt
