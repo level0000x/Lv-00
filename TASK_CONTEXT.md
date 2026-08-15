@@ -2305,3 +2305,46 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 
 - 中文注释双重编码修复 / D4 映射重复（编码层） / 2 文件 325 行（131+54 行语义重建 + 无损还原）/ mojibake 生成时有损（GBK 非法字节对→U+FFFD），无法机械还原，按代码事实语义重建 / test_func_block + test_proof 等 6 项定向测试。
 - 遗留登记：tikz 文件编码误判撤销；全库其余 .c/.h/.py/.js/.md 均无双重编码乱码（特征扫描已覆盖 core/test/tools/examples/module/bootstrap/gui/docs/doc）。
+
+---
+
+## 三十七、批次 C-⑰：日常综合治理（2026-08-15）
+
+日常治理定时任务自动执行：巡检 → 按优先级修复 → 回归 → 分块提交。
+
+### ① incomplete-implementation：6 个 lv_impl_upper_*.c 空壳占位文件删除
+
+- **现象**：`core/src/lv_impl_upper_{geom,algebra,visual,interop,preset,utils}.c` 注释自述「已按死代码删除，保留本文件仅作为占位」，函数签名扫描确认 6 文件均**零函数体**（仅注释 + 20+ 头文件 include），仍注册于 CMakeLists lv_CORE_SOURCES 编译。
+- **处置**：git rm 删除 6 文件 + CMakeLists 移除 6 条注册。lv_impl_upper_internal.h 保留（lv_impl_upper.c/app/meta/orchestrator 活跃使用 lvObjSlot 对象表）。目标数 956→950。
+- **验证**：ninja 增量重建 exit 0 + ctest 171/171。
+
+### ② incomplete-implementation：preset_instance_execute 零调用方简化实现删除（C-⑮ 遗留项闭环）
+
+- **现象**：`preset_manager_instantiate.c` 的 `preset_instance_execute` 全库零真实调用（唯一引用是 preset_manager_doc.c 生成文档的示例字符串）；注释自述「简化实现」；函数体将 `DETERMINISM_UNVERIFIED` 静默标记为 `DETERMINISM_VERIFIED`（**虚假确定性声称副作用**，未来接入调用即产生误导）。
+- **接线评估**：func_block 无单实例执行原语（仅 `preset_chain_execute` 链级执行），接线需新设计，超出日常治理「零发明行为」边界 → 删除为唯一行为等价处置（grep 三处引用：定义/声明/文档字符串，全部清除）。
+- **同步删除**：`PresetExecutionContext` 孤儿类型（internal.h，零引用）；preset_manager_doc.c 生成示例第 4 步「执行预设」移除、步骤编号 5→4、6→5。
+- **验证**：ninja 增量重建 exit 0 + ctest 171/171（含 test_func_block 族）。
+
+### ③ 仓库卫生：构建产物与一次性脚本解除 git 跟踪
+
+- **build3/ 126 文件**（.fix_check/dbg.c、_build_verify.py、_verify_import/*.ggb、build.ninja、diag*.err 等）与 **build4/lv.pc**：.gitignore 已有 `build3/` 规则但历史遗留入索引（批次 AB 曾提示待处理，C-⑮ 只处理了 3 个文件）→ `git rm --cached -r build3` 全量解除。
+- **根目录杂项 39 项**：诊断日志（build_verify_build_log*.txt / build3_ctest_before.* / gdb_rot_cmd.txt 等，.gitignore 规则已覆盖）+ 一次性拆分/修复脚本（split_*.py / fix_csg*.py / check_csg.py / scan_size.py / test_regex*.py / edit_memory.py / github-integrations*.js，无 ignore 规则）→ 全部 git rm --cached（保留磁盘）。
+- **.gitignore 增补**：`/split_*.py`、`/fix_csg*.py`、`/fix_dsl_lexer.py`、`/check_csg.py`、`/edit_memory.py`、`/scan_size.py`、`/test_regex*.py`、`/github-integrations*.js`。
+- **保留**：convert_presets.py（.lvz 生成管道输入，C-⑦ 裁决）；log/.gitkeep、log/task_reports/.gitkeep（目录占位）；github-integrations*.js 仅解除跟踪不删除磁盘（GUI 潜在资产，待人工确认是否整体删除）。
+- **验证**：git ls-files 杂项归零 + 工作树干净。
+
+### ④ 环境边界登记（构建执行方式）
+
+- ninja 在受限沙箱（workspace-write）下**编译 1-2 个文件后确定性挂起**（CPU≈0、无子进程、批处理间隙、与 stdout 重定向方式无关），danger-full-access 模式 956/956 全量构建正常。根因 = 沙箱对子进程管道/进程创建的拦截（与 C-⑮ 记载「命名管道沙箱」同源）。**今日起构建/测试命令（ninja/ctest）须以全访问模式执行**。
+- 附带验证：mingw32-make 生成器因 CMake 生成文件含中文路径（知识体系化Wiki）在 make 侧 GBK 误解码而不可用，项目须继续使用 ninja 生成器。
+
+### 决策登记（第 9 章格式）
+
+- 空壳占位文件删除 / 死代码 / 6 .c 文件 + CMake 6 条 / lv_impl_upper_internal.h 保留（活跃文件使用 lvObjSlot）/ 全量回归 171/171。
+- preset_instance_execute 删除 / 简化实现闭环（C-⑮ 遗留）/ 1 函数 + 1 孤儿类型 + 文档示例 / 无单实例执行链可接线，虚假确定性标记副作用 / func_block 族测试 + 全量回归 171/171。
+- 构建产物解除跟踪 / 仓库卫生 / build3 126 + build4 1 + 根目录 39 项 / convert_presets.py 等活跃工具保留 / 无（索引操作，磁盘文件保留）。
+- 沙箱构建限制 / 环境边界 / ninja/ctest 全访问模式 / 与 C-⑮ 命名管道沙箱同源 / 全量回归。
+
+### 验证基线
+
+- build3：ninja 增量重建 exit 0（956→950 目标）+ ctest **171/171** 全绿（173.49s）。
