@@ -561,9 +561,9 @@ bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSema
 
             /* ── 形态 3: 其他已命名约束（保留原样，语义由引擎后续处理） */
         } else if (stmt->type == LV_AST_PROVE_STMT) {
-            /* Prove 语句：作为证明目标设置 */
-            /* 当前简化实现：只是标记引擎的证明意图 */
-            /* Prove 语句不会导致引擎重大变化 */
+            /* Prove 语句：加载阶段不改变引擎状态（证明目标不影响图结构）。
+             * 验证语义由 lv_verify_proofs / lv_load_file_verified 完成
+             * （见下方「微自举 B —— 证明验证器」）。 */
         }
     }
 
