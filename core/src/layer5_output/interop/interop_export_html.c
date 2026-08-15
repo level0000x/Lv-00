@@ -69,7 +69,7 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
     /* ---- 3. 构建 HTML ---- */
     FILE *fp = lv_file_open(config->output_path, "w");
     if (!fp) {
-        lv_free(svg_content);
+        lv_free((void **) &svg_content);
         return lv_ERROR_IO;
     }
 
@@ -146,7 +146,7 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
                 svg_body = nl + 1;
         }
         fprintf(fp, "%s\n", svg_body);
-        lv_free(svg_content);
+        lv_free((void **) &svg_content);
     } else {
         fprintf(fp, "    <p>SVG 生成失败</p>\n");
     }

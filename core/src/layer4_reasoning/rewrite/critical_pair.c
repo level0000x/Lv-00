@@ -79,7 +79,7 @@ static ConstraintGraph *apply_rule_once(ConstraintGraph *graph, RewriteRule *rul
     }
 
     RewriteStatus status = apply_rewrite(work, rule, match);
-    lv_free(match);
+    lv_free((void **) &match);
 
     if (status == REWRITE_STATUS_APPLIED || status == REWRITE_STATUS_OK) {
         return work;
@@ -240,7 +240,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
             if (pat_j->var_count > 0) {
                 node_map_j = lv_malloc((size_t) pat_j->var_count * sizeof(int));
                 if (!node_map_j) {
-                    lv_free(node_map_i);
+                lv_free((void **) &node_map_i);
                     graph_destroy(tmp);
                     continue;
                 }
@@ -260,9 +260,9 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
             /* 步骤 3：创建 overlap 图——取节点数较多者为基础 */
             ConstraintGraph *overlap = graph_create();
             if (!overlap) {
-                lv_free(match_ij);
-                lv_free(node_map_i);
-                lv_free(node_map_j);
+                lv_free((void **) &match_ij);
+                lv_free((void **) &node_map_i);
+                lv_free((void **) &node_map_j);
                 graph_destroy(tmp);
                 continue;
             }
@@ -315,9 +315,9 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
             cp->overlap = overlap;
             set->pair_count++;
 
-            lv_free(match_ij);
-            lv_free(node_map_i);
-            lv_free(node_map_j);
+            lv_free((void **) &match_ij);
+            lv_free((void **) &node_map_i);
+            lv_free((void **) &node_map_j);
             graph_destroy(tmp);
         }
     }
@@ -341,7 +341,7 @@ bool critical_pair_compare(CriticalPair *cp) {
         cp->reduced2 = NULL;
     }
     if (cp->mismatches) {
-        lv_free(cp->mismatches);
+        lv_free((void **) &cp->mismatches);
         cp->mismatches = NULL;
     }
     cp->mismatch_count = 0;
@@ -488,12 +488,12 @@ void critical_pair_set_destroy(CriticalPairSet *set) {
             cp->reduced2 = NULL;
         }
         if (cp->mismatches) {
-            lv_free(cp->mismatches);
+            lv_free((void **) &cp->mismatches);
             cp->mismatches = NULL;
         }
     }
-    lv_free(set->pairs);
-    lv_free(set);
+    lv_free((void **) &set->pairs);
+    lv_free((void **) &set);
 }
 
 void critical_pair_get_statistics(const CriticalPairSet *set, int *out_total, int *out_confluent, int *out_pending) {

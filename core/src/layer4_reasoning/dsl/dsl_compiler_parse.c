@@ -631,7 +631,7 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast) {
     root->child_capacity = 8;
     root->children = lv_calloc((size_t) root->child_capacity, sizeof(DslAST *));
     if (!root->children) {
-        lv_free(root);
+        lv_free((void **) &root);
         return false;
     }
 

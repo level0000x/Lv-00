@@ -57,10 +57,10 @@ lvSparseMatrix *lv_sparse_create(int rows, int cols) {
     m->row_ptr = lv_malloc(sizeof(int) * (rows + 1));
 
     if (!m->values || !m->col_idx || !m->row_ptr) {
-        lv_free(m->values);
-        lv_free(m->col_idx);
-        lv_free(m->row_ptr);
-        lv_free(m);
+        lv_free((void **) &m->values);
+        lv_free((void **) &m->col_idx);
+        lv_free((void **) &m->row_ptr);
+        lv_free((void **) &m);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_create: malloc values/col_idx/row_ptr failed");
     }
 
@@ -228,7 +228,7 @@ int lv_sparse_solve(const lvSparseMatrix *A, const double *b, double *x) {
         for (int i = 0; i < n; i++) {
             double diag = lv_sparse_get(A, i, i);
             if (fabs(diag) < diag_tol) {
-                lv_free(x_next);
+                lv_free((void **) &x_next);
                 return -3;
             } /* 零/近零对角线 */
 

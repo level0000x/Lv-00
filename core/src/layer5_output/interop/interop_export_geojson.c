@@ -251,7 +251,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
     char *json = lv_json_buf_finalize(&buf);
     if (json) {
         fputs(json, fp);
-        lv_free(json);
+        lv_free((void **) &json);
     }
     lv_file_close(fp);
     return lv_OK;

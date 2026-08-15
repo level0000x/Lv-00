@@ -280,6 +280,12 @@ static void test_sparse_solve_non_square(void) {
 
 static void test_sparse_solve_zero_diagonal(void) {
     /* A = [0 1; 1 1]：对角线含零元素 */
+    /* 回归钉：-3 错误路径不得泄漏内部迭代缓冲。
+     * 曾因 lv_free(x_next) 传值而非取址（lv_free 契约是 void**），
+     * 行为为 UB：按堆内容不同表现为崩溃或静默泄漏。 */
+    MemoryStats mem_before;
+    lv_get_memory_stats(&mem_before);
+
     lvSparseMatrix *m = lv_sparse_create(2, 2);
     TEST_ASSERT_NOT_NULL(m);
     lv_sparse_set(m, 0, 0, 0.0); /* 0.0 不存储，对角线缺失 */
@@ -289,9 +295,13 @@ static void test_sparse_solve_zero_diagonal(void) {
 
     double b[2] = {1.0, 2.0};
     double x[2] = {0.0, 0.0};
-    TEST_ASSERT_EQ(lv_sparse_solve(m, b, x), -3); /* 零对角线错误码 */
 
+    TEST_ASSERT_EQ(lv_sparse_solve(m, b, x), -3); /* 零对角线错误码 */
     lv_sparse_destroy(m);
+    MemoryStats mem_after;
+    lv_get_memory_stats(&mem_after);
+    TEST_ASSERT(mem_after.current_used == mem_before.current_used,
+                "零对角线错误路径不得泄漏内存");
 }
 
 static void test_sparse_solve_null_args(void) {
