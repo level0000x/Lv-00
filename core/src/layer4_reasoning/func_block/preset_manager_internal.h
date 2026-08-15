@@ -119,12 +119,6 @@ typedef struct {
 } PresetInstantiateOptions;
 
 typedef struct {
-    bool (*cancel_callback)(void *user_data);
-    void (*progress_callback)(int current, int total, void *user_data);
-    void *user_data;
-} PresetExecutionContext;
-
-typedef struct {
     const char **preset_names;
     int count;
     const char *new_name;
@@ -199,7 +193,6 @@ int preset_instantiate_batch(const char **names, const int **input_nodes_array, 
 void preset_instance_destroy(PresetInstanceHandle instance);
 const FuncBlock *preset_instance_get_func_block(PresetInstanceHandle instance);
 bool preset_instance_get_outputs(PresetInstanceHandle instance, int **out_output_ids, int *out_count);
-bool preset_instance_execute(PresetInstanceHandle instance, const PresetExecutionContext *context);
 bool preset_instance_validate(PresetInstanceHandle instance, bool *out_is_valid, char **out_error_message);
 bool preset_compose(const PresetComposition *composition, PresetEntryHandle *out_new_entry);
 bool preset_bind_parameter(const char *preset_name, int param_index, int value, char **out_new_name);

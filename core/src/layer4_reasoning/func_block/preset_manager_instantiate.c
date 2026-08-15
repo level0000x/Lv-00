@@ -259,52 +259,6 @@ error:
  * ============================================================ */
 
 /**
- * @brief 执行预设实例
- *
- * 触发函数块的执行。当前为简化实现，
- * 实际执行逻辑由 func_block 系统内部完成。
- *
- * @param instance 实例句柄
- * @param context  执行上下文（可为NULL）
- * @return true 执行成功
- * @return false 执行失败
- */
-bool preset_instance_execute(PresetInstanceHandle instance, const PresetExecutionContext *context) {
-    if (!instance) {
-        set_error("无效的实例句柄");
-        return false;
-    }
-
-    PresetInstance *inst = (PresetInstance *) instance;
-
-    if (!inst->func_block) {
-        set_error("实例没有关联的函数块");
-        return false;
-    }
-
-    /* 检查取消回调 */
-    if (context && context->cancel_callback) {
-        if (context->cancel_callback(context->user_data)) {
-            set_error("执行已被用户取消");
-            return false;
-        }
-    }
-
-    /* 实际执行：标记函数块为已验证确定性状态，
-     * 完整的执行逻辑依赖于 func_block 系统的约束求解器。 */
-    if (inst->func_block->determinism == DETERMINISM_UNVERIFIED) {
-        inst->func_block->determinism = DETERMINISM_VERIFIED;
-    }
-
-    /* 进度回调 */
-    if (context && context->progress_callback) {
-        context->progress_callback(1, 1, context->user_data);
-    }
-
-    return true;
-}
-
-/**
  * @brief 验证预设实例
  *
  * 验证实例的有效性，包括函数块存在性、
