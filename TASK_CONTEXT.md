@@ -2395,3 +2395,22 @@ C-⑰ 删除了 6 个 lv_impl_upper_*.c 空壳占位文件；用户指令「恢�
 - 占位文件恢复+实现 / 用户指令 / 6 .c + 1 公共头 + 2 内部文件 + CMake / 原假实现不恢复（红线 #6），真实实现 + 显式错误 / 全量回归 172/172（含新 upper_api_test）。
 - lv_upper_api.h 公共声明 / 接口可见性 / 76+1 函数 / 原声明在 src 内部头不可达（测试/绑定无法访问） / upper_api_test。
 - interop coq/lean4/opml 接线条件 / 待接线 / 0 文件 / 需要 lvEngine→ProofNavigator 访问器或 OPML 导出 API 后接线 / 显式 UNSUPPORTED 测试。
+
+### 批次 C-⑰-补②：interop 导出接线闭环（2026-08-17，用户指令「需要补的实现补一下」）
+
+3 个显式 UNSUPPORTED 导出全部转为真实实现：
+
+| 导出 | 接线方式 |
+|------|----------|
+| coq / lean4 | `proof_navigator_create(NULL, ctx)`（与 interop_command_export.c 的 export_graph_coq 同构）→ 临时文件导出 `interop_export_coq/lean` → `lv_file_read_text` 读回 → 清理 |
+| opml | 新增 opml_codec.c 公共设施 `lv_opml_export_navigator`（interop.h 声明）：遍历 ProofNavigator 步骤构造 OPML 内部表示并内存直写 buf，无临时文件 |
+
+**配套设施/修复**：
+- `upper_export_via_temp_file` 泛化为 `const void*` 输入 + format 参数（graph/navigator 两类输入共用）
+- `opml_proof_release_fields` 提取共享释放（steps 描述/dependencies + steps 数组 + axioms，**不释放外壳**——修复 `lv_free(&p)` 释放栈对象的崩溃缺陷，属 C-⑮ lv_free 取址误用族同类，gdb 栈定位）
+- `opml_map_step_type`：ProofStepType→lvProofStepType 映射（值集不一致：PACK_FUNCTION→FUNCTION_APP、UNIFY→EXACT、EX_FALSO→ORACLE 语义就近映射，两侧枚举保持独立，非合并）
+- 发现并登记：`lv_register_opml_plugin` 零调用者（opml 插件从未注册；本接线绕过插件表直连编解码器，插件表消费方仍待接线）
+
+**验证**：test_upper_api 断言 64→68（coq/lean4/opml 内容断言：opml 含 opml_version）；ninja 全绿 + ctest **172/172**（127.94s）。
+
+**决策登记**：coq/lean4/opml 接线 / 用户指令 / interop.c + opml_codec.c + interop.h + lv_upper_api.h + test / lv_free 栈对象缺陷修复（opml_proof_release_fields 不释放外壳）/ upper_api_test + 全量回归 172/172。
