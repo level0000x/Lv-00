@@ -2348,3 +2348,50 @@ L10→L8 死链接清理（待裁决）、L8 依赖链接补全（待裁决）�
 ### 验证基线
 
 - build3：ninja 增量重建 exit 0（956→950 目标）+ ctest **171/171** 全绿（173.49s）。
+
+---
+
+## 三十七-补、批次 C-⑰-补：占位文件恢复与真实实现（2026-08-15，用户指令）
+
+C-⑰ 删除了 6 个 lv_impl_upper_*.c 空壳占位文件；用户指令「恢复了去实现一下」→ 从 git 历史（ca9427c8）恢复文件并**真实实现**（不恢复原假实现）。
+
+### 恢复与实现内容
+
+| 文件 | 函数数 | 实现要点 |
+|------|:---:|------|
+| lv_impl_upper_visual.c | 12 | visual_editor 5 + view_synchronizer 3 + text_code 4（**补 text_code_destroy 接口缺口**） |
+| lv_impl_upper_geom.c | 9 | geom_evol 3 + atp_backend 4 + proof_tptp 2 |
+| lv_impl_upper_algebra.c | 14 | preset_polynomial 族（声明式图节点语义） |
+| lv_impl_upper_interop.c | 6 | geojson/svg/tikz 真导出 + coq/lean4/opml 显式 UNSUPPORTED |
+| lv_impl_upper_preset.c | 40 | func_block_preset 族（32 int64 访问器 + 8 字符串访问器） |
+| lv_impl_upper_utils.c | 4 | alloc_id/get_id_counter/full_verify/export_all |
+
+**基础设施**：lv_impl_upper_internal.h 重建 `UpperState` 对象表（evol/atp_backend/atp_task/visual_editor/view_sync/text_code 6 表 + upper_id 计数器，MAX 64-512），`s_upper_state` 定义于 lv_impl_upper.c；**新建公共头 `core/include/lv/lv_upper_api.h`**（76+1 个接口声明，含契约注释，测试与外部绑定可访问——原声明仅在 src 内部头，测试目标无 core/src include 路径）。
+
+### 假实现缺陷修复（安全红线 #6：静默降级禁止）
+
+原始实现（ca9427c8）大量「假成功/模拟值/硬编码模板」，全部改为显式错误：
+
+| 缺陷 | 原始行为 | 修复 |
+|------|----------|------|
+| algebra 族 52 处 | 错误路径 `return s_upper_state.upper_id++`（假装成功返回假 ID） | `lv_RETURN_ERROR` 分类错误码（INVALID_PARAM/NOT_FOUND/ALLOCATION_FAILED/INVALID_STATE） |
+| geom_evol_step | 未找到引擎返回模拟值 `steps+1` | `lv_ERROR_NOT_FOUND` |
+| geom_evol_create | 传 NULL RHS（geoevol_create 拒绝 → 恒失败） | 新增 `geom_evol_default_rhs`（恒零导数） |
+| interop coq/lean4/opml | 生成硬编码 True 定理/空骨架模板 | `lv_ERROR_UNSUPPORTED`（无 ProofNavigator 访问器 / 无 OPML 导出 API），注释说明接线条件 |
+| interop geojson/svg | 调文件导出 API 但不写 buf、返回错误码当长度 | 「临时文件导出 + lv_file_read_text 读回」真实语义（共享 helper `upper_export_via_temp_file`） |
+| interop tikz | 无真实实现 | `lv_tikz_export` 内存导出（存在内存版 API） |
+| preset registration_time | 模拟固定时间戳 1700000000000LL | `lv_ERROR_UNSUPPORTED`（PresetEntry 无该字段） |
+| preset inverse_name | 模拟 `"inverse_<name>"` 前缀拼接 | 委托 `func_block_preset_get_inverse`（真实逆名查询） |
+| utils full_verify | 依赖已删除的 meta_verify_* 4 旧函数 | 适配 `lv_graph_meta_verify_*` 3 函数（consistency 并入 soundness——其实现内含基础一致性校验） |
+
+### 验证
+
+- 新增 `test/c/test_upper_api.c`（upper_api_test，**64 断言**）：ID 句柄递增、visual_editor/view_sync/text_code 生命周期与往返（含销毁后错误路径、槽位复用）、geom_evol/atp_backend 生命周期与无效句柄、preset 包装族（init/count/exists/字段访问/名称表/UNSUPPORTED 路径）、TikZ 导出（含 tikzpicture 环境断言）、full_verify 空图验证。
+- 编译中修正：注释含 `*/` glob 模式提前闭合（internal.h）、include 前缀（src 本地头保持无前缀）、`lv_ERROR_UNSUPPORTED` 错误码名。
+- 全量：ninja 增量重建 exit 0（950→956 目标）+ ctest **172/172** 全绿（105.86s）。
+
+### 决策登记（第 9 章格式）
+
+- 占位文件恢复+实现 / 用户指令 / 6 .c + 1 公共头 + 2 内部文件 + CMake / 原假实现不恢复（红线 #6），真实实现 + 显式错误 / 全量回归 172/172（含新 upper_api_test）。
+- lv_upper_api.h 公共声明 / 接口可见性 / 76+1 函数 / 原声明在 src 内部头不可达（测试/绑定无法访问） / upper_api_test。
+- interop coq/lean4/opml 接线条件 / 待接线 / 0 文件 / 需要 lvEngine→ProofNavigator 访问器或 OPML 导出 API 后接线 / 显式 UNSUPPORTED 测试。
