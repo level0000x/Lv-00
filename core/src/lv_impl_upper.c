@@ -40,4 +40,10 @@
 #include "lv_impl_upper_internal.h"
 #include "lv/lv_strbuf.h"
 
+/* ============================================================
+ * 全局状态：上层对象表（evol/atp/visual_editor/view_sync/text_code）
+ * 由 lv_impl_upper_*.c 子模块共享，零初始化（C 静态存储期）
+ * ============================================================ */
+UpperState s_upper_state = {0};
+
 

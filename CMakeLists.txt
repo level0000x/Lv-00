@@ -784,9 +784,15 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_native.c
     # 上层接口实现
     core/src/lv_impl_upper.c
+    core/src/lv_impl_upper_geom.c
+    core/src/lv_impl_upper_algebra.c
+    core/src/lv_impl_upper_visual.c
     core/src/lv_impl_upper_orchestrator.c
     core/src/lv_impl_upper_meta.c
     core/src/lv_impl_upper_app.c
+    core/src/lv_impl_upper_interop.c
+    core/src/lv_impl_upper_preset.c
+    core/src/lv_impl_upper_utils.c
     # 提取的预设实现（从 lv_impl_upper.c 拆分）
     core/src/impl_preset_transformations.c
 )
@@ -1860,6 +1866,8 @@ if(BUILD_TESTS)
     # v1.1.0 新模块集成测试
     add_lv_test_auto(test_new_modules CTEST_NAME new_modules_test)
     add_lv_test_auto(test_circuit_breaker CTEST_NAME circuit_breaker_test)
+    # v3.6.0 新增：上层统一接口（lv_upper_api.h）测试
+    add_lv_test_auto(test_upper_api CTEST_NAME upper_api_test)
     # v3.4.0 新增：几何代数模块测试
     add_lv_test_auto(test_ga_multivector)
     add_lv_test_auto(test_geo_invariant)
