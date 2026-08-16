@@ -2414,3 +2414,25 @@ C-⑰ 删除了 6 个 lv_impl_upper_*.c 空壳占位文件；用户指令「恢�
 **验证**：test_upper_api 断言 64→68（coq/lean4/opml 内容断言：opml 含 opml_version）；ninja 全绿 + ctest **172/172**（127.94s）。
 
 **决策登记**：coq/lean4/opml 接线 / 用户指令 / interop.c + opml_codec.c + interop.h + lv_upper_api.h + test / lv_free 栈对象缺陷修复（opml_proof_release_fields 不释放外壳）/ upper_api_test + 全量回归 172/172。
+
+### 批次 C-⑰-补③：插件体系接线（2026-08-17，用户指令「插件体系接一下」）
+
+此前登记的「插件表消费方仍待接线」闭环——coq/lean4/opml 插件注册进入系统初始化生命周期，导出统一经插件表分发：
+
+| 层 | 变更 |
+|----|------|
+| interop_server.c | 新增 `lv_interop_export_proof(plugin_name, nav, out, size)`：进程级插件表按名查找 + export_proof 分发，未注册返回 NOT_FOUND（插件表单例首次有消费方） |
+| interop.h | 分发 API 声明 + `lv_register_coq/lean4/opml_plugin` 公共声明（此前仅定义零声明零调用） |
+| lv.c | 新增 `interop_plugins` 模块（lv_MODULE_PRIO_RESOURCE）：创建 InteropServer 宿主 + 注册三插件；cleanup 清表 + 销毁宿主 |
+| coq_bridge.c | `coq_export_proof` 改接受 ProofNavigator*：`coq_map_step_type`（本地枚举数值分叉豁免）+ bridge_proof_from_navigator 构造 lvBridgeProof |
+| lean4_bridge.c | 同上（`lv_proof_type_to_interop` 映射） |
+| opml_codec.c | 插件注册改 `opml_plugin_export_navigator`（navigator 语义包装）；本地 opml_map_step_type 收敛删除（共享 lv_proof_type_to_interop） |
+| interop_bridge_common.h | 新增 `bridge_proof_from_navigator`（navigator→lvBridgeProof 构造骨架，map_type 回调） |
+| interop_step_type.h | 新增 `lv_proof_type_to_interop`（ProofStepType→lvProofStepType 语义映射：PACK_FUNCTION→FUNCTION_APP、UNIFY→EXACT、EX_FALSO→ORACLE） |
+| lv_impl_upper_interop.c | 三导出（coq/lean4/opml）改走插件分发（内存直写，去除临时文件路径） |
+
+**include 隔离（编译冲突修复）**：bridge_common 不 include interop_step_type.h——Coq 本地枚举（lv_STEP_* 值符号与共享头同名、NORMALIZATION 数值分叉）为 D-1 豁免，include 共享头即值符号冲突；映射经 map_type 回调注入。opml 不再依赖 bridge_common（lvProofStep 同名不同构冲突）。
+
+**验证**：test_upper_api +4 断言（未注册插件 NOT_FOUND、NULL 参数校验）共 **72 断言**全过；ninja 全绿 + ctest **172/172**（98.93s）。
+
+**决策登记**：插件体系接线 / 用户指令 / 10 文件 / Coq 本地枚举豁免隔离（include 级）/ upper_api_test + 全量回归 172/172。遗留登记：插件 import_proof/validate 分发（lv_interop_import_proof 等）暂无上层消费方，待导入接口需求出现时接线。
