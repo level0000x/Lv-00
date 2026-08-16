@@ -11,6 +11,7 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 #include "lv/interop_step_type.h"
+#include "lv/proof.h"
 
 /**
  * @file opml_codec.c
@@ -560,4 +561,100 @@ int lv_register_opml_plugin(lvInteropManager *mgr) {
     plugin.import_proof = opml_import_proof;
     plugin.validate = opml_validate;
     return lv_interop_register_plugin(mgr, &plugin);
+}
+
+/* ============================================================
+ * 上层导出入口：从 ProofNavigator 导出 OPML（批次 C-⑰-补 接线）
+ * ============================================================ */
+
+/** @brief 共享释放：lvOpmlProof 堆成员（steps 描述/dependencies + steps 数组 + axioms）。
+ *  不释放外壳——调用方决定外壳生命周期（栈对象或 lv_free(&p)）。 */
+static void opml_proof_release_fields(lvOpmlProof *p) {
+    if (!p)
+        return;
+    for (int i = 0; i < p->step_count; i++) {
+        lvProofStep *s = &p->steps[i];
+        lv_free((void **) &s->description);
+        lv_darray_free(&s->dependencies);
+    }
+    lv_free((void **) &p->steps);
+    lv_free((void **) &p->axioms);
+}
+
+/**
+ * @brief ProofStepType（proof.h）→ lvProofStepType（interop_step_type.h）映射
+ *
+ * 两枚举值集不同（proof 侧含 PACK_FUNCTION/UNIFY/EX_FALSO，OPML 侧含 EXACT/HAVE/CALC），
+ * 直接对应值一一映射；无直接对应值归入最接近语义：
+ * PACK_FUNCTION→FUNCTION_APP（函数应用）、UNIFY→EXACT（精确匹配）、EX_FALSO→ORACLE（外部归约）。
+ * 映射为导出适配（非枚举合并），两侧枚举保持独立。
+ */
+static int opml_map_step_type(ProofStepType t) {
+    switch (t) {
+        case PROOF_STEP_ADD_NODE:
+            return lv_STEP_ADD_NODE;
+        case PROOF_STEP_ADD_CONSTRAINT:
+            return lv_STEP_ADD_CONSTRAINT;
+        case PROOF_STEP_REWRITE:
+            return lv_STEP_REWRITE;
+        case PROOF_STEP_FUNCTION_APP:
+        case PROOF_STEP_PACK_FUNCTION: /* 无直接对应：函数应用语义 */
+            return lv_STEP_FUNCTION_APP;
+        case PROOF_STEP_NORMALIZATION:
+            return lv_STEP_NORMALIZATION;
+        case PROOF_STEP_UNIFY: /* 无直接对应：精确匹配语义 */
+            return lv_STEP_EXACT;
+        case PROOF_STEP_EX_FALSO: /* 无直接对应：外部归约语义 */
+        case PROOF_STEP_ORACLE:
+            return lv_STEP_ORACLE;
+    }
+    return lv_STEP_ORACLE;
+}
+
+/**
+ * @brief 从 ProofNavigator 导出 OPML JSON（上层导出入口）
+ *
+ * 遍历导航器证明步骤构造 lvOpmlProof 并序列化；失败返回负错误码（lv_ERROR_*）。
+ * 声明于 lv/interop.h。
+ *
+ * @param proof       证明导航器（NULL 时返回 INVALID_PARAM）
+ * @param output      目标缓冲区
+ * @param output_size 目标缓冲区大小
+ * @return 成功返回 0，失败返回负错误码
+ */
+int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int output_size) {
+    lv_CHECK_NOT_NULL(proof);
+    lv_CHECK_NOT_NULL(output);
+    lv_CHECK_ARG(output_size > 0, lv_ERROR_INVALID_PARAM, "invalid output_size");
+
+    lvOpmlProof p;
+    memset(&p, 0, sizeof(p));
+    lv_strlcpy(p.theorem_name, proof->strategy_note ? proof->strategy_note : "lv_proof",
+               sizeof(p.theorem_name));
+    p.step_capacity = proof->step_count > 0 ? proof->step_count : 1;
+    p.steps = (lvProofStep *) lv_calloc((size_t) p.step_capacity, sizeof(lvProofStep));
+    if (!p.steps)
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_opml_export_navigator: steps alloc failed");
+
+    for (int i = 0; i < proof->step_count; i++) {
+        const ProofStep *src = proof->steps[i];
+        lvProofStep *dst = &p.steps[i];
+        dst->id = src ? src->id : i;
+        dst->type = opml_map_step_type(src ? src->type : PROOF_STEP_ORACLE);
+        /* 描述：节点/约束/规则 ID 摘要（NULL 步骤防御） */
+        char desc[128];
+        if (src) {
+            snprintf(desc, sizeof(desc), "step %d: node %d constraint %d rule %d", src->id, src->node_id,
+                     src->constraint_id, src->rule_id);
+        } else {
+            snprintf(desc, sizeof(desc), "step %d", i);
+        }
+        dst->description = lv_strdup_safe(desc);
+        lv_darray_init(&dst->dependencies, sizeof(int));
+        p.step_count++;
+    }
+
+    int rc = opml_export_proof(&p, output, output_size);
+    opml_proof_release_fields(&p);
+    return rc;
 }

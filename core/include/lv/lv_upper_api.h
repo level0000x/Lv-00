@@ -111,9 +111,9 @@ int64_t preset_expression_simplify(lvEngine *ctx, int64_t expr_id);
  * L10 互操作层（导出包装）
  * ============================================================ */
 
-/** 导出为 Coq（当前无 ProofNavigator 访问器，返回 lv_ERROR_UNSUPPORTED） */
+/** 导出为 Coq（经 proof_navigator_create 接线 interop_export_coq），返回写入 buf 的字符数 */
 int64_t upper_interop_export_coq(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size);
-/** 导出为 OPML 大纲（当前无 OPML 导出 API，返回 lv_ERROR_UNSUPPORTED） */
+/** 导出为 OPML 大纲（经 lv_opml_export_navigator 内存导出），返回写入 buf 的字符数 */
 int64_t interop_export_opml(lvEngine *ctx, int64_t session_id, char *buf, int64_t buf_size);
 /** 导出为 GeoJSON，返回写入 buf 的字符数 */
 int64_t upper_interop_export_geojson(lvEngine *ctx, int64_t graph_id, char *buf, int64_t buf_size);
@@ -121,7 +121,7 @@ int64_t upper_interop_export_geojson(lvEngine *ctx, int64_t graph_id, char *buf,
 int64_t upper_interop_export_svg(lvEngine *ctx, int64_t graph_id, char *buf, int64_t buf_size);
 /** 导出为 TikZ，返回写入 buf 的字符数 */
 int64_t upper_interop_export_tikz(lvEngine *ctx, int64_t graph_id, char *buf, int64_t buf_size);
-/** 导出为 Lean4（当前无 ProofNavigator 访问器，返回 lv_ERROR_UNSUPPORTED） */
+/** 导出为 Lean4（经 proof_navigator_create 接线 interop_export_lean），返回写入 buf 的字符数 */
 int64_t interop_export_lean4(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size);
 
 /* ============================================================

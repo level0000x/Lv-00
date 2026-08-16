@@ -169,10 +169,17 @@ static void test_interop_export(void) {
     lv_ASSERT(n < 0);
 
     n = upper_interop_export_coq(engine, 0, buf, (int64_t) sizeof(buf));
-    lv_ASSERT(n < 0);
+    lv_ASSERT(n > 0);
+    lv_ASSERT(strstr(buf, "Proof") != NULL || strstr(buf, "Theorem") != NULL || strstr(buf, "theorem") != NULL);
     n = interop_export_lean4(engine, 0, buf, (int64_t) sizeof(buf));
-    lv_ASSERT(n < 0);
+    lv_ASSERT(n > 0);
     n = interop_export_opml(engine, 0, buf, (int64_t) sizeof(buf));
+    lv_ASSERT(n > 0);
+    lv_ASSERT(strstr(buf, "opml_version") != NULL);
+
+    n = upper_interop_export_coq(NULL, 0, buf, (int64_t) sizeof(buf));
+    lv_ASSERT(n < 0);
+    n = interop_export_opml(NULL, 0, buf, (int64_t) sizeof(buf));
     lv_ASSERT(n < 0);
 
     engine_destroy(engine);

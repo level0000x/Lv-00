@@ -405,6 +405,19 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
  */
 int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config);
 
+/**
+ * @brief 从 ProofNavigator 导出 OPML JSON（上层导出入口）
+ *
+ * 遍历导航器证明步骤构造 OPML 内部表示并序列化为兼容 JSON。
+ * 实现于 layer10_interop/opml_codec.c。
+ *
+ * @param proof       证明导航器（NULL 时返回 INVALID_PARAM）
+ * @param output      目标缓冲区
+ * @param output_size 目标缓冲区大小
+ * @return 成功返回 0，失败返回负错误码（lv_ERROR_*）
+ */
+int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int output_size);
+
 /* ==================== 导入功能 ==================== */
 
 /**
