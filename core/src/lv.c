@@ -34,6 +34,7 @@
 #include "lv/thread_pool.h"
 
 #include "lv/func_block_registry.h"
+#include "lv/interop.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_serialize_adapters.h"
@@ -228,6 +229,36 @@ static bool lv_module_init_context_resources(void) {
     return true;
 }
 
+/** @brief interop 插件宿主（进程级插件表单例的注册入口）
+ * 注册 coq/lean4/opml 三个证明互操作插件；lvPlugin.export_proof 统一接受
+ * ProofNavigator*（navigator 语义），各插件内部转换自身证明表示。
+ * 销毁顺序：先清插件表（纯值类型），再销毁宿主。 */
+static InteropServer *s_interop_plugin_host = NULL;
+
+static bool lv_module_init_interop_plugins(void) {
+    s_interop_plugin_host = interop_server_create(INTEROP_INTERFACE_STDIO);
+    if (!s_interop_plugin_host) {
+        lv_set_error(lv_ERROR_ALLOCATION_FAILED, "interop plugin host create failed");
+        return false;
+    }
+    if (lv_register_coq_plugin(s_interop_plugin_host) != 0 ||
+        lv_register_lean4_plugin(s_interop_plugin_host) != 0 ||
+        lv_register_opml_plugin(s_interop_plugin_host) != 0) {
+        lv_set_error(lv_ERROR_INTERNAL, "interop plugin registration failed");
+        lv_interop_reset_plugins();
+        interop_server_destroy(s_interop_plugin_host);
+        s_interop_plugin_host = NULL;
+        return false;
+    }
+    return true;
+}
+
+static void lv_module_cleanup_interop_plugins(void) {
+    lv_interop_reset_plugins();
+    interop_server_destroy(s_interop_plugin_host);
+    s_interop_plugin_host = NULL;
+}
+
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
@@ -259,6 +290,9 @@ bool lv_init(void) {
     /* context 资源操作注入（main_graph 的 create/copy/destroy 与
      * last_normalization 的 destroy；L2 context 不依赖 L3/L4，由 L0 注入） */
     lv_module_register("context_resources", lv_module_init_context_resources, NULL,
+                       lv_MODULE_PRIO_RESOURCE);
+    /* interop 证明插件注册（coq/lean4/opml；插件表单例 + 宿主生命周期） */
+    lv_module_register("interop_plugins", lv_module_init_interop_plugins, lv_module_cleanup_interop_plugins,
                        lv_MODULE_PRIO_RESOURCE);
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);

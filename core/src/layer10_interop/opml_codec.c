@@ -10,7 +10,7 @@
 #include "lv/lv_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
-#include "lv/interop_step_type.h"
+#include "lv/interop_step_type.h" /* lvProofStepType 单源 + lv_proof_type_to_interop 共享映射 */
 #include "lv/proof.h"
 
 /**
@@ -542,6 +542,16 @@ static int opml_validate(const char *input) {
 }
 
 /**
+ * @brief OPML 插件导出入口（navigator 语义）
+ *
+ * lvPlugin.export_proof 统一接受 ProofNavigator*；OPML 侧直接委托
+ * lv_opml_export_navigator（同一内存导出实现）。
+ */
+static int opml_plugin_export_navigator(void *proof, char *output, int output_size) {
+    return lv_opml_export_navigator((const ProofNavigator *) proof, output, output_size);
+}
+
+/**
  * @brief 注册 OPML 互操作插件到管理器
  *
  * 将 OPML 编解码器注册到 lvInteropManager，使其能够处理
@@ -557,7 +567,7 @@ int lv_register_opml_plugin(lvInteropManager *mgr) {
     lv_strlcpy(plugin.name, "opml", sizeof(plugin.name));
     lv_strlcpy(plugin.version, "1.0.0", sizeof(plugin.version));
     plugin.system = lv_EXT_JSON;
-    plugin.export_proof = opml_export_proof;
+    plugin.export_proof = opml_plugin_export_navigator;
     plugin.import_proof = opml_import_proof;
     plugin.validate = opml_validate;
     return lv_interop_register_plugin(mgr, &plugin);
@@ -582,40 +592,11 @@ static void opml_proof_release_fields(lvOpmlProof *p) {
 }
 
 /**
- * @brief ProofStepType（proof.h）→ lvProofStepType（interop_step_type.h）映射
- *
- * 两枚举值集不同（proof 侧含 PACK_FUNCTION/UNIFY/EX_FALSO，OPML 侧含 EXACT/HAVE/CALC），
- * 直接对应值一一映射；无直接对应值归入最接近语义：
- * PACK_FUNCTION→FUNCTION_APP（函数应用）、UNIFY→EXACT（精确匹配）、EX_FALSO→ORACLE（外部归约）。
- * 映射为导出适配（非枚举合并），两侧枚举保持独立。
- */
-static int opml_map_step_type(ProofStepType t) {
-    switch (t) {
-        case PROOF_STEP_ADD_NODE:
-            return lv_STEP_ADD_NODE;
-        case PROOF_STEP_ADD_CONSTRAINT:
-            return lv_STEP_ADD_CONSTRAINT;
-        case PROOF_STEP_REWRITE:
-            return lv_STEP_REWRITE;
-        case PROOF_STEP_FUNCTION_APP:
-        case PROOF_STEP_PACK_FUNCTION: /* 无直接对应：函数应用语义 */
-            return lv_STEP_FUNCTION_APP;
-        case PROOF_STEP_NORMALIZATION:
-            return lv_STEP_NORMALIZATION;
-        case PROOF_STEP_UNIFY: /* 无直接对应：精确匹配语义 */
-            return lv_STEP_EXACT;
-        case PROOF_STEP_EX_FALSO: /* 无直接对应：外部归约语义 */
-        case PROOF_STEP_ORACLE:
-            return lv_STEP_ORACLE;
-    }
-    return lv_STEP_ORACLE;
-}
-
-/**
  * @brief 从 ProofNavigator 导出 OPML JSON（上层导出入口）
  *
  * 遍历导航器证明步骤构造 lvOpmlProof 并序列化；失败返回负错误码（lv_ERROR_*）。
- * 声明于 lv/interop.h。
+ * 声明于 lv/interop.h。步骤类型映射用共享 lv_proof_type_to_interop
+ * （interop_bridge_common.h，与 Lean 4 同一语义映射）。
  *
  * @param proof       证明导航器（NULL 时返回 INVALID_PARAM）
  * @param output      目标缓冲区
@@ -640,7 +621,7 @@ int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int outp
         const ProofStep *src = proof->steps[i];
         lvProofStep *dst = &p.steps[i];
         dst->id = src ? src->id : i;
-        dst->type = opml_map_step_type(src ? src->type : PROOF_STEP_ORACLE);
+        dst->type = lv_proof_type_to_interop(src ? src->type : PROOF_STEP_ORACLE);
         /* 描述：节点/约束/规则 ID 摘要（NULL 步骤防御） */
         char desc[128];
         if (src) {

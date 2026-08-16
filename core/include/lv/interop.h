@@ -237,6 +237,42 @@ typedef lvInteropPlugin lvPlugin;
 int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin);
 
 /**
+ * @brief 经插件注册表导出证明（插件体系分发入口）
+ *
+ * 按插件名在进程级插件表中查找并调用其 export_proof 回调。
+ * 所有插件的 export_proof 统一接受 ProofNavigator*（navigator 语义），
+ * 各插件内部转换为自己的证明表示（lvBridgeProof / lvOpmlProof）。
+ *
+ * @param[in]  plugin_name  插件名（"coq" / "lean4" / "opml"）
+ * @param[in]  proof        ProofNavigator 指针
+ * @param[out] output       输出缓冲区（写入证明器脚本/OPML JSON）
+ * @param[in]  output_size  输出缓冲区大小（字节）
+ * @return 成功返回 0；插件未找到返回 lv_ERROR_NOT_FOUND，其余返回对应负错误码
+ */
+int lv_interop_export_proof(const char *plugin_name, const ProofNavigator *proof, char *output, int output_size);
+
+/**
+ * @brief 注册 Coq 证明互操作插件（coq_bridge.c，tactic 集合为本地枚举豁免）
+ * @param mgr 互操作管理器指针（非 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
+int lv_register_coq_plugin(lvInteropManager *mgr);
+
+/**
+ * @brief 注册 Lean 4 证明互操作插件（lean4_bridge.c）
+ * @param mgr 互操作管理器指针（非 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
+int lv_register_lean4_plugin(lvInteropManager *mgr);
+
+/**
+ * @brief 注册 OPML 证明互操作插件（opml_codec.c）
+ * @param mgr 互操作管理器指针（非 NULL）
+ * @return 成功返回 0，失败返回 -1
+ */
+int lv_register_opml_plugin(lvInteropManager *mgr);
+
+/**
  * @brief 重置互操作插件注册表（清空所有已注册插件）
  *
  * 插件注册表是进程级全局单例（固定容量，只增不减）。

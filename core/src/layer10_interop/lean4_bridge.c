@@ -35,7 +35,9 @@
 #define LEAN4_TACTIC_MAP_COUNT 9
 #define LEAN4_REVERSE_MAP_COUNT 35
 
-/* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本 */
+/* Lean 4 proof export: 遍历 Lv-00 证明树并生成 Lean 4 tactic 脚本
+ * （插件 export_proof 统一接受 ProofNavigator*；内部经 bridge_proof_from_navigator
+ *   构造 lvBridgeProof，步骤类型按 lv_proof_type_to_interop 语义映射） */
 static int lean4_export_proof(void *proof, char *output, int output_size) {
     lv_CHECK_NOT_NULL(proof);
     lv_CHECK_NOT_NULL(output);
@@ -66,7 +68,12 @@ static int lean4_export_proof(void *proof, char *output, int output_size) {
         (int) (sizeof(tactic_map) / sizeof(tactic_map[0])),
     };
 
-    return bridge_export_proof(proof, output, output_size, &spec);
+    lvBridgeProof bridge;
+    if (bridge_proof_from_navigator((const ProofNavigator *) proof, &bridge, NULL) != 0)
+        return -1;
+    int rc = bridge_export_proof(&bridge, output, output_size, &spec);
+    lv_darray_free(&bridge.steps_da);
+    return rc;
 }
 
 /* Lean 4 proof import: 解析 Lean 4 tactic 脚本并转换为 Lv-00 证明树 */

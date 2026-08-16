@@ -18,6 +18,8 @@
 
 #include "lv.h"
 #include "lv/lv_upper_api.h"
+#include "lv/interop.h" /* lv_interop_export_proof 插件分发 */
+#include "lv/proof.h"   /* proof_navigator_create / destroy */
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -181,6 +183,14 @@ static void test_interop_export(void) {
     lv_ASSERT(n < 0);
     n = interop_export_opml(NULL, 0, buf, (int64_t) sizeof(buf));
     lv_ASSERT(n < 0);
+
+    /* 插件体系分发：未注册插件显式 NOT_FOUND（负值）；NULL 参数校验 */
+    ProofNavigator *nav = proof_navigator_create(NULL, engine);
+    lv_ASSERT(nav != NULL);
+    lv_ASSERT(lv_interop_export_proof("no_such_plugin", nav, buf, (int) sizeof(buf)) < 0);
+    lv_ASSERT(lv_interop_export_proof(NULL, nav, buf, (int) sizeof(buf)) < 0);
+    lv_ASSERT(lv_interop_export_proof("opml", NULL, buf, (int) sizeof(buf)) < 0);
+    proof_navigator_destroy(nav);
 
     engine_destroy(engine);
 }

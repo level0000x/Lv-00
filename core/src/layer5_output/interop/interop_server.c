@@ -741,3 +741,22 @@ int lv_interop_reset_plugins(void) {
     memset(&s_plugin_state, 0, sizeof(s_plugin_state));
     return 0;
 }
+
+/**
+ * @brief 经插件注册表导出证明（插件体系分发入口）
+ *
+ * 按插件名查找并调用 export_proof；所有插件统一接受 ProofNavigator*。
+ * 实现于 interop_server.c（进程级插件表单例）。
+ */
+int lv_interop_export_proof(const char *plugin_name, const ProofNavigator *proof, char *output, int output_size) {
+    if (!plugin_name || !proof || !output || output_size <= 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_interop_export_proof: invalid argument");
+    for (int i = 0; i < s_plugin_state.count; i++) {
+        if (lv_str_eq(s_plugin_state.plugins[i].name, plugin_name)) {
+            if (!s_plugin_state.plugins[i].export_proof)
+                lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "lv_interop_export_proof: plugin has no export_proof");
+            return s_plugin_state.plugins[i].export_proof((void *) proof, output, output_size);
+        }
+    }
+    lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_interop_export_proof: plugin not registered");
+}

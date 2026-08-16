@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include "lv/proof.h" /* ProofStepType（来源枚举） */
+
 /**
  * @brief Lv-00 证明步骤类型枚举（Lean 4 / OPML 共用单源）
  *
@@ -32,6 +34,37 @@ typedef enum {
     lv_STEP_NORMALIZATION,  /**< 规范化 */
     lv_STEP_ORACLE          /**< 外部预言 */
 } lvProofStepType;
+
+/**
+ * @brief ProofStepType（proof.h）→ lvProofStepType 语义映射（导出侧共享）
+ *
+ * 值集不一致：proof 侧含 PACK_FUNCTION/UNIFY/EX_FALSO，本单源含 EXACT/HAVE/CALC。
+ * 直接对应值一一映射；无直接对应值归入最接近语义：
+ * PACK_FUNCTION→FUNCTION_APP（函数应用）、UNIFY→EXACT（精确匹配）、
+ * EX_FALSO→ORACLE（外部归约）。映射为导出适配（非枚举合并），两侧枚举保持独立。
+ * 注：Coq 桥接使用本地枚举（数值分叉豁免），不走本映射。
+ */
+static inline int lv_proof_type_to_interop(ProofStepType t) {
+    switch (t) {
+        case PROOF_STEP_ADD_NODE:
+            return lv_STEP_ADD_NODE;
+        case PROOF_STEP_ADD_CONSTRAINT:
+            return lv_STEP_ADD_CONSTRAINT;
+        case PROOF_STEP_REWRITE:
+            return lv_STEP_REWRITE;
+        case PROOF_STEP_FUNCTION_APP:
+        case PROOF_STEP_PACK_FUNCTION:
+            return lv_STEP_FUNCTION_APP;
+        case PROOF_STEP_NORMALIZATION:
+            return lv_STEP_NORMALIZATION;
+        case PROOF_STEP_UNIFY:
+            return lv_STEP_EXACT;
+        case PROOF_STEP_EX_FALSO:
+        case PROOF_STEP_ORACLE:
+            return lv_STEP_ORACLE;
+    }
+    return lv_STEP_ORACLE;
+}
 
 #ifdef __cplusplus
 }

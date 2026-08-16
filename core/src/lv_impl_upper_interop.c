@@ -122,42 +122,51 @@ int64_t upper_interop_export_tikz(lvEngine *ctx, int64_t graph_id, char *buf, in
 }
 
 /**
- * @brief 导出为 Coq（委托 interop_export_coq，经 proof_navigator_create 接线）
+ * @brief 导出为 Coq（经插件注册表分发，lv_interop_export_proof）
  *
- * 与 interop_command_export.c 的 export_graph_coq 同构：从引擎创建 ProofNavigator，
- * 临时文件导出后读回。无可用引擎时显式报错。
+ * 插件 "coq"（coq_bridge.c，lv_init 时注册）接受 ProofNavigator*，
+ * 内部构造 lvBridgeProof 生成 Coq 脚本，内存直写 buf（无临时文件）。
  */
 int64_t upper_interop_export_coq(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
+    (void) proof_id;
     if (!ctx)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "upper_interop_export_coq: NULL ctx");
+    if (!buf || buf_size <= 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "upper_interop_export_coq: NULL buf or small buf_size");
     ProofNavigator *nav = proof_navigator_create(NULL, ctx);
     if (!nav)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "upper_interop_export_coq: proof_navigator_create failed");
-    int64_t n = upper_export_via_temp_file(nav, INTEROP_EXPORT_COQ, "coq", proof_id, buf, buf_size,
-                                           (int (*)(const void *, const InteropExportConfig *)) interop_export_coq);
+    int rc = lv_interop_export_proof("coq", nav, buf, (int) buf_size);
     proof_navigator_destroy(nav);
-    return n;
+    if (rc != 0)
+        lv_RETURN_ERROR(rc, "upper_interop_export_coq: lv_interop_export_proof failed");
+    return (int64_t) strlen(buf);
 }
 
 /**
- * @brief 导出为 Lean4（委托 interop_export_lean，经 proof_navigator_create 接线）
+ * @brief 导出为 Lean4（经插件注册表分发，lv_interop_export_proof）
  */
 int64_t interop_export_lean4(lvEngine *ctx, int64_t proof_id, char *buf, int64_t buf_size) {
+    (void) proof_id;
     if (!ctx)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interop_export_lean4: NULL ctx");
+    if (!buf || buf_size <= 0)
+        lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "interop_export_lean4: NULL buf or small buf_size");
     ProofNavigator *nav = proof_navigator_create(NULL, ctx);
     if (!nav)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "interop_export_lean4: proof_navigator_create failed");
-    int64_t n = upper_export_via_temp_file(nav, INTEROP_EXPORT_LEAN, "lean4", proof_id, buf, buf_size,
-                                           (int (*)(const void *, const InteropExportConfig *)) interop_export_lean);
+    int rc = lv_interop_export_proof("lean4", nav, buf, (int) buf_size);
     proof_navigator_destroy(nav);
-    return n;
+    if (rc != 0)
+        lv_RETURN_ERROR(rc, "interop_export_lean4: lv_interop_export_proof failed");
+    return (int64_t) strlen(buf);
 }
 
 /**
- * @brief 导出为 OPML 大纲（委托 lv_opml_export_navigator，经 proof_navigator_create 接线）
+ * @brief 导出为 OPML 大纲（经插件注册表分发，lv_interop_export_proof）
  *
- * opml_codec.c 的 lv_opml_export_navigator 直接写调用方 buf（内存导出，无临时文件）。
+ * 插件 "opml"（opml_codec.c，lv_init 时注册）内部构造 OPML 表示，
+ * 经 lv_opml_export_navigator 内存直写 buf。
  */
 int64_t interop_export_opml(lvEngine *ctx, int64_t session_id, char *buf, int64_t buf_size) {
     (void) session_id;
@@ -168,9 +177,9 @@ int64_t interop_export_opml(lvEngine *ctx, int64_t session_id, char *buf, int64_
     ProofNavigator *nav = proof_navigator_create(NULL, ctx);
     if (!nav)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "interop_export_opml: proof_navigator_create failed");
-    int rc = lv_opml_export_navigator(nav, buf, (int) buf_size);
+    int rc = lv_interop_export_proof("opml", nav, buf, (int) buf_size);
     proof_navigator_destroy(nav);
     if (rc != 0)
-        lv_RETURN_ERROR(rc, "interop_export_opml: lv_opml_export_navigator failed");
+        lv_RETURN_ERROR(rc, "interop_export_opml: lv_interop_export_proof failed");
     return (int64_t) strlen(buf);
 }

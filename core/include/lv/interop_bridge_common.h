@@ -10,6 +10,12 @@
 #include "lv/lv_check.h"     /* lv_CHECK_NOT_NULL / lv_CHECK_ARG / lv_RETURN_ERROR */
 #include "lv/lv_str_utils.h" /* lv_str_ltrim */
 #include "lv/lv_strbuf.h"    /* lvStrBuf / lv_strbuf_* */
+#include "lv/proof.h"        /* ProofNavigator / ProofStep / ProofStepType */
+
+/* 注意：本头不 include lv/interop_step_type.h——
+ * Coq 桥接使用本地步骤枚举（NORMALIZATION 等数值分叉，互操作外部契约豁免），
+ * include 共享枚举头会与本地 lv_STEP_* 值符号冲突。步骤类型映射由调用方
+ * （coq_map_step_type / lv_proof_type_to_interop）作为 map_type 回调提供。 */
 
 #ifdef __cplusplus
 extern "C" {
@@ -169,6 +175,53 @@ static inline int bridge_register(lvInteropManager *mgr, const char *name, const
     plugin.import_proof = import_proof;
     plugin.validate = validate;
     return lv_interop_register_plugin(mgr, &plugin);
+}
+
+/* ============================================================
+ * ProofNavigator → 桥接内部表示（插件体系接线，批次 C-⑰-补③）
+ *
+ * lvPlugin.export_proof 统一接受 ProofNavigator*（跨插件一致语义）；
+ * 各插件内部把导航器转换为自己的内部证明结构（lvBridgeProof / lvOpmlProof）。
+ * 步骤类型映射（ProofStepType → 目标枚举）由调用方以 map_type 回调提供：
+ * - Coq：coq_map_step_type（本地枚举，数值分叉豁免）
+ * - Lean4 / OPML：lv_proof_type_to_interop（interop_step_type.h）
+ * ============================================================ */
+
+/**
+ * @brief 从 ProofNavigator 构造 lvBridgeProof（导出侧共享骨架）
+ *
+ * 遍历导航器证明步骤填入桥接内部表示：theorem_name 取 strategy_note
+ * （无则 "lv_proof"），步骤 id/type/description（node/constraint/rule ID 摘要）。
+ * 步骤类型经 map_type 回调映射（NULL 时按 ORACLE 兜底）。
+ *
+ * @param[in]  nav       证明导航器（NULL 返回 -1）
+ * @param[out] out       输出结构（调用方负责 lv_darray_free(&out->steps_da)）
+ * @param[in]  map_type  步骤类型映射回调（NULL 时全部映射为 ORACLE）
+ * @return 0 成功；-1 参数无效
+ */
+static inline int bridge_proof_from_navigator(const ProofNavigator *nav, lvBridgeProof *out,
+                                              int (*map_type)(ProofStepType)) {
+    lv_CHECK_NOT_NULL(nav);
+    lv_CHECK_NOT_NULL(out);
+    memset(out, 0, sizeof(*out));
+    lv_strlcpy(out->theorem_name, nav->strategy_note ? nav->strategy_note : "lv_proof",
+               sizeof(out->theorem_name));
+    lv_darray_init(&out->steps_da, sizeof(lvProofStep));
+    for (int i = 0; i < nav->step_count; i++) {
+        const ProofStep *src = nav->steps[i];
+        lvProofStep step;
+        memset(&step, 0, sizeof(step));
+        step.id = src ? src->id : i;
+        step.type = map_type ? map_type(src ? src->type : PROOF_STEP_ORACLE) : 0;
+        if (src) {
+            snprintf(step.description, sizeof(step.description), "step %d: node %d constraint %d rule %d", src->id,
+                     src->node_id, src->constraint_id, src->rule_id);
+        } else {
+            snprintf(step.description, sizeof(step.description), "step %d", i);
+        }
+        lv_darray_push(&out->steps_da, &step);
+    }
+    return 0;
 }
 
 #ifdef __cplusplus

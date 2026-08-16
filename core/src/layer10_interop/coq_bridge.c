@@ -54,12 +54,43 @@ typedef enum {
 #define COQ_REVERSE_MAP_COUNT 8
 
 /**
- * @brief 将内部证明树导出为 Coq .v 脚本格式
+ * @brief ProofStepType（proof.h）→ Coq 本地步骤类型语义映射
  *
- * 遍历 lvBridgeProof 的步骤数组，将每一步骤类型通过 tactic_map 映射为
- * Coq tactic 名称，生成符合 Coq 8.18 语法的完整 .v 文件内容。
+ * Coq 使用本地枚举（NORMALIZATION=4 与 interop_step_type 的 EXACT=4 数值分叉，
+ * 属互操作外部契约豁免，禁止与 lvProofStepType 单源合并——见文件头注释）。
+ * 直接对应值一一映射；PACK_FUNCTION 归入 FUNCTION_APP（函数应用语义）。
+ */
+static int coq_map_step_type(ProofStepType t) {
+    switch (t) {
+        case PROOF_STEP_ADD_NODE:
+            return lv_STEP_ADD_NODE;
+        case PROOF_STEP_ADD_CONSTRAINT:
+            return lv_STEP_ADD_CONSTRAINT;
+        case PROOF_STEP_REWRITE:
+            return lv_STEP_REWRITE;
+        case PROOF_STEP_FUNCTION_APP:
+        case PROOF_STEP_PACK_FUNCTION:
+            return lv_STEP_FUNCTION_APP;
+        case PROOF_STEP_NORMALIZATION:
+            return lv_STEP_NORMALIZATION;
+        case PROOF_STEP_UNIFY:
+            return lv_STEP_UNIFY;
+        case PROOF_STEP_EX_FALSO:
+            return lv_STEP_EX_FALSO;
+        case PROOF_STEP_ORACLE:
+            return lv_STEP_ORACLE;
+    }
+    return lv_STEP_ORACLE;
+}
+
+/**
+ * @brief 将证明导航器导出为 Coq .v 脚本格式（插件 export_proof 入口）
  *
- * @param proof      lvCoqProof 指针（内部证明结构体）
+ * lvPlugin.export_proof 统一接受 ProofNavigator*：内部经
+ * bridge_proof_from_navigator 构造 lvBridgeProof 后走 bridge_export_proof，
+ * 步骤类型经 coq_map_step_type 映射为 Coq tactic。
+ *
+ * @param proof      ProofNavigator 指针
  * @param output     输出缓冲区（用于写入 Coq 脚本）
  * @param output_size 输出缓冲区大小（字节）
  * @return 成功返回 0，参数无效或缓冲区不足返回 -1
@@ -93,7 +124,12 @@ static int coq_export_proof(void *proof, char *output, int output_size) {
         (int) (sizeof(tactic_map) / sizeof(tactic_map[0])),
     };
 
-    return bridge_export_proof(proof, output, output_size, &spec);
+    lvBridgeProof bridge;
+    if (bridge_proof_from_navigator((const ProofNavigator *) proof, &bridge, coq_map_step_type) != 0)
+        return -1;
+    int rc = bridge_export_proof(&bridge, output, output_size, &spec);
+    lv_darray_free(&bridge.steps_da);
+    return rc;
 }
 
 /**
