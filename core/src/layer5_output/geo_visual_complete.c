@@ -510,6 +510,7 @@ static void cairo_render_point(FILE *fp, const lvVisualObject *obj, const lvVisu
     apply_camera(&px, &py, scene);
     float r = obj->style.stroke_width > 2.0f ? obj->style.stroke_width : 3.0f;
     cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
+    /* exempt: 输出给外部 Cairo 解释器的脚本文本（M_PI 为 Cairo 侧常量，非本库数值计算） */
     fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) px, (double) py, (double) r);
     fprintf(fp, "%scairo_fill(cr);\n", ind);
 }
@@ -570,6 +571,7 @@ static void cairo_render_circle(FILE *fp, const lvVisualObject *obj, const lvVis
     apply_camera(&cx, &cy, scene);
     cairo_write_color(fp, obj->style.stroke_color, obj->style.opacity, ind, "cr");
     cairo_write_style(fp, &obj->style, ind);
+    /* exempt: 输出给外部 Cairo 解释器的脚本文本（M_PI 为 Cairo 侧常量，非本库数值计算） */
     fprintf(fp, "%scairo_arc(cr, %.2f, %.2f, %.2f, 0, 2 * M_PI);\n", ind, (double) cx, (double) cy, (double) r);
     fprintf(fp, "%scairo_stroke_preserve(cr);\n", ind);
     if (obj->style.fill_color[3] > 0.0f) {

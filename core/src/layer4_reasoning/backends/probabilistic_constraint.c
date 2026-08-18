@@ -65,7 +65,7 @@ static double rand_normal_box_muller(void) {
     double u2 = rand_uniform_lcg();
     if (u1 < 1e-12)
         u1 = 1e-12;
-    return sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+    return sqrt(-2.0 * log(u1)) * cos(2.0 * lv_PI * u2);
 }
 
 /* ---- 内部：马尔可夫链模型 ---- */
@@ -815,7 +815,7 @@ static double pdf_normal(ProbDistribution *dist, double x) {
     double mu = (dist->param_count >= 2) ? dist->params[0] : 0.0;
     double sigma = (dist->param_count >= 2) ? dist->params[1] : 1.0;
     double z = (x - mu) / sigma;
-    return exp(-0.5 * z * z) / (sigma * sqrt(2.0 * M_PI));
+    return exp(-0.5 * z * z) / (sigma * sqrt(2.0 * lv_PI));
 }
 static double pdf_beta(ProbDistribution *dist, double x) {
     double alpha = (dist->param_count >= 2) ? dist->params[0] : 1.0;

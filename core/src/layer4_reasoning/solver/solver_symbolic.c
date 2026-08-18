@@ -14,6 +14,7 @@
 #include "lv/symbolic_coord.h"
 #include "solver_common.h"
 #include "lv/lv_parse_utils.h"
+#include "lv/config.h" /* lv_PI（M_PI 收敛：config.h 为 π 权威源） */
 
 /**
  * @brief 在符号坐标上求值多项式
@@ -1159,7 +1160,7 @@ int solve_cubic_exact(const mpz_poly_t *poly, SymbolicCoord **solutions, int max
             acos_arg = -1.0;
         double phi = acos(acos_arg);
         for (int k = 0; k < 3 && sol_count < max_solutions; k++) {
-            double angle = (phi + 2.0 * M_PI * k) / 3.0;
+            double angle = (phi + 2.0 * lv_PI * k) / 3.0;
             double x_k = 2.0 * sqrt_term * cos(angle) - p_over_3;
             solutions[sol_count] = symbolic_coord_create_rational((int64_t) (x_k * lv_SOLVER_SCALE_FACTOR),
                                                                   (uint64_t) lv_SOLVER_SCALE_FACTOR);

@@ -156,7 +156,7 @@ lvInterval lv_interval_sin(lvInterval a) {
     double min_val = fmin(sin_lo, sin_hi);
     double max_val = fmax(sin_lo, sin_hi);
 
-    if (width >= 2.0 * M_PI) {
+    if (width >= 2.0 * lv_PI) {
         /* 区间超过一个完整周期 -> 覆盖全范围 */
         min_val = -1.0;
         max_val = 1.0;
@@ -164,11 +164,11 @@ lvInterval lv_interval_sin(lvInterval a) {
         /* 检查 pi/2 + 2k*pi（sin 峰值点）是否在区间内。
          * 与 float_error 原实现保持一致（含 fmod(k,2) 的保守分支），
          * 保证 float_error 侧输出不变。 */
-        double pi_half = M_PI / 2.0;
-        double k_start = ceil((a.lo - pi_half) / (2.0 * M_PI));
-        double k_end = floor((a.hi - pi_half) / (2.0 * M_PI));
+        double pi_half = lv_PI / 2.0;
+        double k_start = ceil((a.lo - pi_half) / (2.0 * lv_PI));
+        double k_end = floor((a.hi - pi_half) / (2.0 * lv_PI));
         for (double k = k_start; k <= k_end; k += 1.0) {
-            double peak = pi_half + k * 2.0 * M_PI;
+            double peak = pi_half + k * 2.0 * lv_PI;
             if (peak >= a.lo && peak <= a.hi) {
                 if (fmod(k, 2.0) == 0.0) {
                     max_val = 1.0; /* sin(pi/2 + 2k*pi) = 1 */
@@ -194,15 +194,15 @@ lvInterval lv_interval_cos(lvInterval a) {
     double min_val = fmin(cos_lo, cos_hi);
     double max_val = fmax(cos_lo, cos_hi);
 
-    if (width >= 2.0 * M_PI) {
+    if (width >= 2.0 * lv_PI) {
         min_val = -1.0;
         max_val = 1.0;
     } else {
         /* 检查 k*pi（cos 极值点）是否在区间内 */
-        double k_start = ceil(a.lo / M_PI);
-        double k_end = floor(a.hi / M_PI);
+        double k_start = ceil(a.lo / lv_PI);
+        double k_end = floor(a.hi / lv_PI);
         for (double k = k_start; k <= k_end; k += 1.0) {
-            double peak = k * M_PI;
+            double peak = k * lv_PI;
             if (peak >= a.lo && peak <= a.hi) {
                 /* cos(k*pi) = (-1)^k */
                 if (fmod(k, 2.0) == 0.0) {
@@ -289,8 +289,8 @@ lvInterval lv_interval_tan(lvInterval a) {
     lvInterval r;
     /* tan 周期 π，奇点在 π/2 + kπ（k 为整数）。
      * 若区间包含任一奇点，tan 可趋向 ±∞，保守返回全实数。 */
-    double k_lo = ceil((a.lo - M_PI / 2.0) / M_PI);
-    double k_hi = floor((a.hi - M_PI / 2.0) / M_PI);
+    double k_lo = ceil((a.lo - lv_PI / 2.0) / lv_PI);
+    double k_hi = floor((a.hi - lv_PI / 2.0) / lv_PI);
     if (k_lo <= k_hi) {
         r.lo = -HUGE_VAL;
         r.hi = HUGE_VAL;
@@ -634,7 +634,7 @@ lvInterval interval_sin(lvInterval a) {
     /* Normalize the interval to [0, 2*pi) range */
     double lo = a.lo;
     double hi = a.hi;
-    double two_pi = 2.0 * M_PI;
+    double two_pi = 2.0 * lv_PI;
 
     /* If the interval spans more than 2*pi, the result is [-1, 1] */
     if (hi - lo >= two_pi) {
@@ -655,15 +655,15 @@ lvInterval interval_sin(lvInterval a) {
 
     /* 计算极值点覆盖范围：使用区间端点计算所需的 k 范围而非固定 [-100,100] */
     /* 最大值在 pi/2 + k*pi 处，最小值在 -pi/2 + k*pi 处 */
-    double k_min_lo = floor((lo - M_PI / 2.0) / M_PI);
-    double k_max_hi = ceil((hi - M_PI / 2.0) / M_PI);
+    double k_min_lo = floor((lo - lv_PI / 2.0) / lv_PI);
+    double k_max_hi = ceil((hi - lv_PI / 2.0) / lv_PI);
     /* 限制搜索范围避免过大循环（区间跨度已在上方保证 < 2*pi，因此最多覆盖 3 个极值点） */
     if (k_min_lo < -2.0)
         k_min_lo = -2.0;
     if (k_max_hi > 2.0)
         k_max_hi = 2.0;
     for (double k = k_min_lo; k <= k_max_hi; k += 1.0) {
-        double crit = M_PI / 2.0 + k * M_PI;
+        double crit = lv_PI / 2.0 + k * lv_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
             if (sc > r.hi)
@@ -674,7 +674,7 @@ lvInterval interval_sin(lvInterval a) {
     }
 
     for (double k = k_min_lo; k <= k_max_hi; k += 1.0) {
-        double crit = -M_PI / 2.0 + k * M_PI;
+        double crit = -lv_PI / 2.0 + k * lv_PI;
         if (crit >= lo && crit <= hi) {
             double sc = sin(crit);
             if (sc < r.lo)
@@ -696,7 +696,7 @@ lvInterval interval_cos(lvInterval a) {
 
     double lo = a.lo;
     double hi = a.hi;
-    double two_pi = 2.0 * M_PI;
+    double two_pi = 2.0 * lv_PI;
 
     /* If the interval spans more than 2*pi, the result is [-1, 1] */
     if (hi - lo >= two_pi) {
@@ -714,14 +714,14 @@ lvInterval interval_cos(lvInterval a) {
     r.hi = round_up((c_lo < c_hi) ? c_hi : c_lo);
 
     /* 使用区间端点动态计算极值点范围 */
-    double k_min = floor(lo / M_PI);
-    double k_max = ceil(hi / M_PI);
+    double k_min = floor(lo / lv_PI);
+    double k_max = ceil(hi / lv_PI);
     if (k_min < -2.0)
         k_min = -2.0;
     if (k_max > 2.0)
         k_max = 2.0;
     for (double k = k_min; k <= k_max; k += 1.0) {
-        double crit = k * M_PI;
+        double crit = k * lv_PI;
         if (crit >= lo && crit <= hi) {
             double cc = cos(crit);
             if (cc > r.hi)

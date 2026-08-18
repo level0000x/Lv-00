@@ -271,9 +271,9 @@ static bool unary_op_abs(double lo, double hi, double *rlo, double *rhi) {
 static bool unary_op_sin(double lo, double hi, double *rlo, double *rhi) {
     *rlo = fmin(sin(lo), sin(hi));
     *rhi = fmax(sin(lo), sin(hi));
-    int k0 = (int) floor((lo + M_PI / 2) / M_PI), k1 = (int) floor((hi + M_PI / 2) / M_PI);
+    int k0 = (int) floor((lo + lv_PI / 2) / lv_PI), k1 = (int) floor((hi + lv_PI / 2) / lv_PI);
     for (int k = k0; k <= k1; k++) {
-        double x = k * M_PI - M_PI / 2;
+        double x = k * lv_PI - lv_PI / 2;
         if (x >= lo - lv_GAPPA_BOUND_SLACK && x <= hi + lv_GAPPA_BOUND_SLACK) {
             double v = sin(x);
             if (v < *rlo)
@@ -288,9 +288,9 @@ static bool unary_op_sin(double lo, double hi, double *rlo, double *rhi) {
 static bool unary_op_cos(double lo, double hi, double *rlo, double *rhi) {
     *rlo = fmin(cos(lo), cos(hi));
     *rhi = fmax(cos(lo), cos(hi));
-    int k0 = (int) floor(lo / M_PI), k1 = (int) floor(hi / M_PI);
+    int k0 = (int) floor(lo / lv_PI), k1 = (int) floor(hi / lv_PI);
     for (int k = k0; k <= k1; k++) {
-        double x = k * M_PI;
+        double x = k * lv_PI;
         if (x >= lo - lv_GAPPA_BOUND_SLACK && x <= hi + lv_GAPPA_BOUND_SLACK) {
             double v = cos(x);
             if (v < *rlo)

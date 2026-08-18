@@ -305,7 +305,7 @@ static int geodet_check_periodic(double t, const double *param, int dim, double 
     lv_UNUSED(dim);
     lv_UNUSED(detector);
     double period = 1.0;
-    *g = sin(2.0 * M_PI * t / period);
+    *g = sin(2.0 * lv_PI * t / period);
     return 0;
 }
 

@@ -475,7 +475,7 @@ static double transcendental_expr_to_double(const Transcendental *t) {
     const char *base = t->expr ? t->expr->base_name : t->name;
     double base_val;
     if (lv_str_eq(base, "pi")) {
-        base_val = M_PI;
+        base_val = lv_PI;
     } else if (lv_str_eq(base, "e")) {
         base_val = M_E;
     } else {
@@ -518,20 +518,20 @@ static double transcendental_expr_to_double(const Transcendental *t) {
                 coeff_den = lv_parse_long_default(after + 1, 0);
             }
             if (coeff_den > 0) {
-                return M_PI * (double) coeff_num / (double) coeff_den;
+                return lv_PI * (double) coeff_num / (double) coeff_den;
             }
         }
 
         if (lv_str_startswith(name, "pi/")) {
             int64_t den = lv_parse_long_default(name + 3, 0);
             if (den > 0)
-                return M_PI / (double) den;
+                return lv_PI / (double) den;
         }
 
         if (lv_str_startswith(name, "-pi/")) {
             int64_t den = lv_parse_long_default(name + 4, 0);
             if (den > 0)
-                return -M_PI / (double) den;
+                return -lv_PI / (double) den;
         }
 
         if (name[0] == '-' && strstr(name, "*pi")) {
@@ -543,7 +543,7 @@ static double transcendental_expr_to_double(const Transcendental *t) {
                 coeff_den = lv_parse_long_default(after + 1, 0);
             }
             if (coeff_den > 0) {
-                return M_PI * (double) coeff_num / (double) coeff_den;
+                return lv_PI * (double) coeff_num / (double) coeff_den;
             }
         }
     }

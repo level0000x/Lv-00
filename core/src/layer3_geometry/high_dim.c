@@ -29,7 +29,7 @@
  *   - high_dim.h           : 高维模块公共接口定义
  *   - error_codes.h        : 错误码定义（lv_OK / lv_ERROR_*）
  *   - lv_utils.h         : 统一内存分配器和工具函数
- *   - lv_internal.h      : 内部数据结构与常量（M_PI 等）
+ *   - config.h          : 常量（lv_PI 权威源）
  *   - stream.h             : 流式事件输出
  *   - constraint_graph.h   : 约束图接口（保真度计算依赖）
  */
@@ -47,7 +47,7 @@
 
 #include "lv/debug.h" /* LOG_DEBUG, LOG_WARN, LOG_ERROR 等日志宏 */
 #include "lv/error_codes.h"
-#include "lv/lv_internal.h" /* M_PI, lv_SAFE_SNPRINTF 等内部宏 */
+#include "lv/lv_internal.h" /* lv_SAFE_SNPRINTF 等内部宏（lv_PI 权威源在 config.h） */
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
@@ -60,14 +60,5 @@
 /* 注：high_dim 模块无 setter 函数（变量被 high_dim_preset.c 等直接 extern 引用），
  * 不适用 LV_STREAM_CTX_DEFINE 宏，保留手写。 */
 lv_THREAD_LOCAL StreamContext *high_dim_stream_ctx = NULL;
-
-/**
- * 圆周率常量 π
- *
- * 改用 lv_internal.h 中统一定义的 M_PI，
- * 避免常量重复定义，确保全项目精度一致。
- * 值: 3.14159265358979323846
- */
-
 
 

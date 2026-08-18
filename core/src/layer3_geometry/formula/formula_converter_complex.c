@@ -273,7 +273,7 @@ bool formula_convert_arc(const FormulaNode *arc_node, ConstraintGraph *graph, in
 
     /* 获取起止角度（弧度） */
     double start_angle = 0.0;
-    double end_angle = M_PI; /* 默认半圆 */
+    double end_angle = lv_PI; /* 默认半圆 */
 
     if (arc_node->data.geom_arc.start_angle) {
         if (arc_node->data.geom_arc.start_angle->type == NODE_NUMBER) {

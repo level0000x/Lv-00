@@ -291,7 +291,7 @@ double transcendental_to_double(const Transcendental *t) {
     /* Get base constant value */
     double base_val = 0.0;
     if (lv_str_eq(t->name, "pi")) {
-        base_val = M_PI;
+        base_val = lv_PI;
     } else if (lv_str_eq(t->name, "e")) {
         base_val = M_E;
     } else {

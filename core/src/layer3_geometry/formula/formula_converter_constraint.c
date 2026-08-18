@@ -260,7 +260,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
     }
 
     /* 提取角度值（弧度） */
-    double angle_rad = M_PI / 2.0; /* 默认 90 度 */
+    double angle_rad = lv_PI / 2.0; /* 默认 90 度 */
 
     if (constraint_node->data.constraint.participant_count >= 4) {
         const FormulaNode *angle_node = constraint_node->data.constraint.participants[3];

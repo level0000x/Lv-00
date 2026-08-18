@@ -125,7 +125,7 @@ static int compute_winding_number(double px, double py, GeomNode **segments, int
 
     /* 卷绕数 = total_angle / (2π) */
     /* 如果卷绕数不为零，点在内部 */
-    return (int) round(total_angle / (2 * M_PI));
+    return (int) round(total_angle / (2 * lv_PI));
 }
 
 /* 辅助函数：检查点是否在区域边界上 */

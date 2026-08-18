@@ -31,7 +31,7 @@
 #include "lv/proof.h"
 
 #include "lv/error_codes.h"
-#include "lv/lv_internal.h" /* lv_SAFE_SNPRINTF, M_PI 等内部宏 */
+#include "lv/lv_internal.h" /* lv_SAFE_SNPRINTF 等内部宏 */
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
 #include "lv/stream.h"

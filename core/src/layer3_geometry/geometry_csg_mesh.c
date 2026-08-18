@@ -56,8 +56,8 @@ void csg_emit_quad(CSGTriList *out, CSGVec3 v00, CSGVec3 v01, CSGVec3 v10, CSGVe
  */
 void csg_gen_lathe_side_tris(double r1, double r2, double z1, double z2, int slices, CSGTriList *out) {
     for (int j = 0; j < slices; j++) {
-        double t1 = 2.0 * M_PI * (double) j / (double) slices;
-        double t2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
+        double t1 = 2.0 * lv_PI * (double) j / (double) slices;
+        double t2 = 2.0 * lv_PI * (double) (j + 1) / (double) slices;
         double c1 = cos(t1), s1 = sin(t1);
         double c2 = cos(t2), s2 = sin(t2);
 
@@ -79,8 +79,8 @@ void csg_gen_lathe_side_tris(double r1, double r2, double z1, double z2, int sli
  */
 static void csg_emit_disk_sector(CSGVec3 center, double radius, double z, int slices, int j, int winding,
                                  CSGTriList *out) {
-    double t1 = 2.0 * M_PI * (double) j / (double) slices;
-    double t2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
+    double t1 = 2.0 * lv_PI * (double) j / (double) slices;
+    double t2 = 2.0 * lv_PI * (double) (j + 1) / (double) slices;
     double c1 = cos(t1), s1 = sin(t1);
     double c2 = cos(t2), s2 = sin(t2);
     CSGVec3 p1 = {radius * c1, radius * s1, z};
@@ -123,14 +123,14 @@ void csg_gen_sphere_tris(double radius, CSGTriList *out) {
     int slices = 32;
 
     for (int i = 0; i < stacks; i++) {
-        double phi1 = M_PI * (double) i / (double) stacks;
-        double phi2 = M_PI * (double) (i + 1) / (double) stacks;
+        double phi1 = lv_PI * (double) i / (double) stacks;
+        double phi2 = lv_PI * (double) (i + 1) / (double) stacks;
         double sin_p1 = sin(phi1), cos_p1 = cos(phi1);
         double sin_p2 = sin(phi2), cos_p2 = cos(phi2);
 
         for (int j = 0; j < slices; j++) {
-            double theta1 = 2.0 * M_PI * (double) j / (double) slices;
-            double theta2 = 2.0 * M_PI * (double) (j + 1) / (double) slices;
+            double theta1 = 2.0 * lv_PI * (double) j / (double) slices;
+            double theta2 = 2.0 * lv_PI * (double) (j + 1) / (double) slices;
             double sin_t1 = sin(theta1), cos_t1 = cos(theta1);
             double sin_t2 = sin(theta2), cos_t2 = cos(theta2);
 
