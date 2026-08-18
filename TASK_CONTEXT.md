@@ -2436,3 +2436,73 @@ C-⑰ 删除了 6 个 lv_impl_upper_*.c 空壳占位文件；用户指令「恢�
 **验证**：test_upper_api +4 断言（未注册插件 NOT_FOUND、NULL 参数校验）共 **72 断言**全过；ninja 全绿 + ctest **172/172**（98.93s）。
 
 **决策登记**：插件体系接线 / 用户指令 / 10 文件 / Coq 本地枚举豁免隔离（include 级）/ upper_api_test + 全量回归 172/172。遗留登记：插件 import_proof/validate 分发（lv_interop_import_proof 等）暂无上层消费方，待导入接口需求出现时接线。
+
+## 三十八、批次 C-⑱：未完整实现补齐（2026-08-17）
+
+用户选定「未完整实现补齐扫描（C-⑫ 模式）」→ 立项「全部按优先级完整实现」。全库手动盘点（190+ 候选 .c/.h 初筛 + 逐项读上下文定性），按优先级补齐。
+
+### P0 正确性风险
+
+**① algebraic_refine_for_equality 符号二分缺陷（algebraic.c）**：
+- 原实现注释声称「评估中点符号决定缩小哪一半区间」，实际**无条件向中点收缩**（`mid ± half_width*0.5`，无符号评估）——根靠近区间一端时收缩后区间不再含根，同根代数数被误判为不同根。
+- 修复：改为符号二分（`sym_evaluate_poly_double` 评估中点符号 + 收缩到含根一半，与同文件 `refine_algebraic_bounds` 同语义；中点恰为根时收缩到 `lv_rel_tol_scale` 邻域）。
+- 影响面：`algebraic_compare` → `symbolic_coord_compare` 全库 50+ 调用点（归一化/重写/同构检测/冲突检测）。
+- 测试：`test_symbolic_coord_ops.c` 新增 2 个回归（同极小多项式 x²-2 同根不同区间判等、异根 √2/-√2 判不等），281/281 通过。
+
+### P1 功能缺失 / 静默降级
+
+**② func_block add_to_graph 空分支（func_block_preset_internal.c）**：
+- 原 `func_block_preset_instantiate_ex` 的 add_to_graph 分支为空（注释「应该创建实际的约束节点」），而 `func_block_preset_instantiate` 默认 `add_to_graph=true`，调用方（upper API / lv_convenience）期望函数块入图实际没有。
+- 修复：补 `graph_add_function_block` 真实入图，失败回滚 fb 返回错误；补 constraint_graph.h include。
+- 测试：`test_func_block_preset.c` 新增 `test_instantiate_add_to_graph`（midpoint 实例化后图中新增 GEOM_FUNCTION_BLOCK 节点），66 项通过。
+
+**③ PARALLEL 平行约束全链路（ConstraintType 扩展）**：
+- 原 `formula_convert_parallel` 用 `graph_add_containment` 简化表示平行约束——但 containment 类型检查要求 inner=POINT/REGION、outer=REGION/CIRCLE，两条线段必然返回 CONFLICT → **平行约束从公式转换永远失败、静默丢失**。
+- 修复：新增 `ConstraintType::PARALLEL` + `graph_add_parallel`（两线段方向共线），全链路同步：
+  - X-macro（LV_CONSTRAINT_TYPE_X/ENTRY）→ 名称/别名/序列化（meta_repr/graph_serialize/rewrite_apply/module_serialize）自动覆盖
+  - kConstraintAddOps 注册（含 algebra_constrain 按名分发 "parallel"）
+  - Groebner 编码：方向向量叉积为零常量方程 `groebner_engine_encode_parallel`
+  - Solver 方程提取：`extract_parallel` 叉积 mpz 方程
+  - DTMC 构建（unidirectional）、调度特征表、演绎事实格式（新 DEDUCT_FMT_PARALLEL）、WL 哈希（CONSTRAINT_TYPE_COUNT=PARALLEL+1）、匹配掩码、SVG/PDF 样式、formula 导出（\parallel）共 15 处表同步
+  - meta_repr `_Static_assert` 同步为 PARALLEL+1
+- 测试：`test_geometry_core.c` 新增 `test_graph_add_parallel`（成功/两点冲突/名称别名映射），204 项通过；`test_enum_maps.c` 两处 ANGLE+1 同步为 PARALLEL+1。
+
+**④ inequality_reasoning 符号判定 5 桩（inequality_reasoning_core.c）**：
+- 符号判定 vtable 6 个中 5 个（var/power/product/sum/function）原为 `return SIGN_UNKNOWN` 桩，仅 rational 有实现。
+- 补齐（按「基于表达式自身结构」语义）：power（正底数恒正/负底数奇偶指数/零底数正指数）、product（零因子/负因子奇偶/UNKNOWN 传播）、sum（全正/全负/全零/混合）、function（abs/sqrt/norm/max 恒非负）、var（无系统约束保持 UNKNOWN）。
+- 测试：新建 `test/c/test_inequality_reasoning.c`（25 断言），CMakeLists 注册 inequality_reasoning_test。
+
+**⑤ modal 对偶转换静默错判（modal_operators.c）**：
+- `lv_modal_possible_to_necessary_not` / `lv_modal_necessary_to_not_possible` 声称 ◇A→¬□¬A / □A→¬◇¬A，实际只返回未取反的嵌套公式（□A / ◇A）；`lvModalFormula` 结构（op + inner_prop/sub）**无否定节点**无法正确实现。零调用方死接口。
+- 处置：改为显式 `lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED)`（红线：宁可显式报错不可静默错判），头文件注释同步说明接线条件（结构扩展支持否定后）。
+- 测试：新建 `test/c/test_modal_operators.c`（8 断言），CMakeLists 注册 modal_operators_test。
+
+### P2 误导注释 / 占位行为修正
+
+| 位置 | 修正 |
+|------|------|
+| preset_manager.c active_count | 原 `= entry_count`（注释「简化实现」）；改哈希表遍历统计 `is_active` 条目（新 `stats_active_visitor`） |
+| mini_kernel.c 验证器 | 注释「检查栈顶匹配目标公式」→ 准确描述：依赖闭包验证，仅确认引用语句已验证，不执行公式重写与栈顶-目标匹配 |
+| geo_utils.c geo_coord_to_double | 「简化实现」→「委托 symbolics 层」单一事实来源 |
+| lv_impl_upper_geom.c proof_tptp_export | 无约束图时原返回恒真占位 TPTP（误导）；改显式 `lv_ERROR_INVALID_STATE` |
+| solver_equation_extract.c extract_angle | **顺带发现**：原为空桩（angle 约束在方程提取时静默丢弃代数约束力）→ 补齐余弦等式常量方程（与 groebner 编码同构） |
+
+### 验证
+
+- build3：ninja 全绿（目标数随新测试递增）+ ctest **174/174**（20.72s，新增 inequality_reasoning_test + modal_operators_test；原 172 基线 +2）。
+- 分块提交 5 个：`fix(algebraic)` / `feat(func_block)` / `feat(constraint)` / `feat(type_logic)` / `fix(杂项)`。
+
+### 决策登记（第 9 章格式）
+
+- 符号二分修复 / 正确性缺陷 / algebraic_refine_for_equality / 无符号收缩 → 符号二分（同 refine_algebraic_bounds 语义）/ test_symbolic_coord_ops 281/281 + 全量 174/174。
+- add_to_graph 补齐 / M1/M2 / func_block_preset_internal.c / graph_add_function_block 真实入图 / test_func_block_preset 66 + 全量。
+- PARALLEL 约束类型 / M4/M5 / ConstraintType 扩展 + 15 处表同步 / 平行约束从 containment 错误表示改为真实语义 / test_geometry_core 204 + test_enum_maps 同步 + 全量。
+- 符号判定补齐 / M1 / inequality_reasoning_core.c 5 桩 / 结构语义符号分析，保守返回 UNKNOWN / test_inequality_reasoning 25 + 全量。
+- modal 对偶 UNSUPPORTED / M5 / 死接口 + 结构无否定节点 / 显式报错（红线 #6）/ test_modal_operators 8 + 全量。
+- extract_angle 补齐 / M1 / solver_equation_extract.c / 余弦等式常量方程（与 groebner 同构）/ 全量回归。
+
+### 遗留登记
+
+- modal 对偶转换：结构扩展支持否定节点（lvModalFormula 加 negation）后可接线真实实现。
+- interop 插件 import_proof/validate 分发仍无上层消费方（C-⑰-补③ 遗留，待导入接口需求）。
+- 其余有意简化（CUDA/HIP 条件编译 stub、herbie 内置规则表、λ ABS.binder、SVG/PDF 增强清单、算法固有近似）维持豁免。
