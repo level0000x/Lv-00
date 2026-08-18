@@ -21,7 +21,7 @@
 #include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
- * BHK ���ι�����֤�Ž�
+ * BHK 构造语义验证映射
  * ============================================================ */
 
 /** @brief BHK 描述函数指针类型 */
@@ -106,7 +106,7 @@ static void get_bhk_description(const PropFormula *f, char *buf, size_t size) {
 }
 
 /**
- * @brief ��ȡ��ʽ���͵ļ���ӳ������
+ * @brief 获取公式类型的几何映射描述
  */
 /** @brief 公式类型→几何映射描述静态查找表 */
 static const char *s_geometric_mapping_table[] = {
@@ -137,28 +137,28 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
     if (!config)
         config = &default_config;
 
-    /* ��ִ�������߼���֤ */
+    /* 先执行基础逻辑验证 */
     VerifyDetail detail = prop_verifier_verify(premises, premise_count, goal, config);
     result.verified = (detail.result == VERIFY_PROVEN);
 
-    /* ���� BHK ���� */
+    /* 获取 BHK 解释 */
     get_bhk_description(goal, result.bhk_interpretation, sizeof(result.bhk_interpretation));
 
-    /* ���ɼ���ӳ�� */
+    /* 生成几何映射 */
     get_geometric_mapping(goal, result.geometric_mapping, sizeof(result.geometric_mapping));
 
     if (result.verified) {
-        /* ��֤�ɹ�����鹹�������� */
+        /* 验证成功：无需构造描述 */
         result.missing_constructions = 0;
         result.missing_descriptions = NULL;
         result.missing_count = 0;
     } else {
-        /* ��֤ʧ�ܣ�����ȱ�ٵĹ��� */
+        /* 验证失败：统计缺少的构造 */
         char goal_atoms[32][64];
         memset(goal_atoms, 0, sizeof(goal_atoms));
         int atom_count = collect_atoms(goal, goal_atoms, 32);
 
-        /* ͳ��ȱ�ٹ����ԭ������ */
+        /* 统计缺少构造的原子命题 */
         int missing = 0;
         for (int i = 0; i < atom_count; i++) {
             bool found = false;
@@ -176,7 +176,7 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
         result.missing_count = missing;
 
         if (missing > 0) {
-            result.missing_descriptions = (char **) lv_malloc(sizeof(char *) * (size_t) missing); /* �����ڴ� */
+            result.missing_descriptions = (char **) lv_malloc(sizeof(char *) * (size_t) missing); /* 分配内存 */
             if (result.missing_descriptions) {
                 int idx = 0;
                 for (int i = 0; i < atom_count && idx < missing; i++) {
@@ -190,10 +190,10 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
                     if (!found) {
                         lvStrBuf sb_2 = {0};
                         lv_strbuf_printf(&sb_2,
-                                 "ȱ��ԭ������ '%s' "
-                                 "�ļ���֤���Ҫ��Ӧ�ĵ㡢�߶λ�����ڵ㣩",
+                                 "缺少原子命题 '%s' "
+                                 "的构造证物（需要对应的点、线段或几何节点）",
                                  goal_atoms[i]);
-                        result.missing_descriptions[idx] = lv_strdup_safe(sb_2.data); /* �����ַ��� */
+                        result.missing_descriptions[idx] = lv_strdup_safe(sb_2.data); /* 复制字符串 */
                         lv_strbuf_destroy(&sb_2);
                         idx++;
                     }
@@ -201,16 +201,14 @@ BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int
             }
         } else {
             result.missing_descriptions = NULL;
-            /* ��ԭ��ǰ�ᵫ�޷����죺��������������������� */
+            /* 有原子前提但无法构造：所有前提无法组合 */
             result.missing_count = 1;
-            result.missing_descriptions = (char **) lv_malloc(sizeof(char *)); /* �����ڴ� */
+            result.missing_descriptions = (char **) lv_malloc(sizeof(char *)); /* 分配内存 */
             if (result.missing_descriptions) {
                 lvStrBuf sb_3 = {0};
                 lv_strbuf_printf(&sb_3,
-                         "�޷�ͨ������ǰ�����Ϲ���Ŀ�꣨����������������"
-                         "�"
-                         "�");
-                result.missing_descriptions[0] = lv_strdup_safe(sb_3.data); /* �����ַ��� */
+                         "无法通过现有前提组合构造目标（所有前提无法组合）");
+                result.missing_descriptions[0] = lv_strdup_safe(sb_3.data); /* 复制字符串 */
                 lv_strbuf_destroy(&sb_3);
             }
         }
@@ -224,10 +222,9 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result) {
         return;
     if (result->missing_descriptions) {
         for (int i = 0; i < result->missing_count; i++) {
-            lv_free((void **) &result->missing_descriptions[i]); /* �ͷŲ���NULL */
+            lv_free((void **) &result->missing_descriptions[i]); /* 释放并置 NULL */
         }
-        lv_free((void **) &result->missing_descriptions); /* �ͷŲ���NULL */
+        lv_free((void **) &result->missing_descriptions); /* 释放并置 NULL */
     }
     result->missing_count = 0;
 }
-

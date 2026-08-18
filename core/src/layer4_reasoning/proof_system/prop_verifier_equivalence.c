@@ -20,14 +20,14 @@
 #include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
 
 /* ============================================================
- * ����ȼ��Լ��
+ * 等价性约束检查
  * ============================================================ */
 
 bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config) {
     if (!a || !b)
         return false;
 
-    /* �ṹ����Կ���·�� */
+    /* 结构等价可快速返回 */
     if (formula_equal(a, b))
         return true;
 
@@ -35,7 +35,7 @@ bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b,
     if (!config)
         config = &default_config;
 
-    /* ��� a �� b �� b �� a �Ƿ񶼿�֤ */
+    /* 检查 a→b 和 b→a 是否都可证 */
     PropFormula *a_impl_b = prop_formula_create_implication(prop_formula_copy(a), prop_formula_copy(b));
     PropFormula *b_impl_a = prop_formula_create_implication(prop_formula_copy(b), prop_formula_copy(a));
 
@@ -58,7 +58,7 @@ bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *c
     if (!config)
         config = &default_config;
 
-    /* ����ʽ = ��ǰ�ἴ��֤ */
+    /* 重言式 = 无前提即可证 */
     VerifyDetail detail = prop_verifier_verify(NULL, 0, f, config);
     return detail.result == VERIFY_PROVEN;
 }
@@ -69,16 +69,16 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, Verify
     for (int i = 0; i < test_count; i++) {
         const SmokeTest *t = &tests[i];
 
-        /* ���� 13 ��Ҫ���� ex_falso */
+        /* 测试 13 需要启用 ex_falso */
         VerifierConfig config = VERIFIER_CONFIG_DEFAULT;
-        /* ����Ԥ�ڲ���֤�Ĳ��ԣ�ʹ��ֱ������ģʽ */
-        /* ���ڲ��� 13����ըԭ���������� ex_falso */
+        /* 对于预期可证明的测试，使用直接验证模式 */
+        /* 对于测试 13：爆炸原理需要启用 ex_falso */
         if (t->expected_provable && t->premise_count == 1 && t->premises[0] && t->premises[0]->type == PROP_BOTTOM &&
             t->goal && t->goal->type == PROP_ATOM) {
             config.enable_ex_falso = true;
         }
 
-        /* ���̶���С����תΪָ��������ƥ�� API */
+        /* 将固定数组转换为指针参数匹配 API */
         const PropFormula *prem_ptrs[PROP_SMOKE_MAX_PREM_PTRS];
         for (int j = 0; j < t->premise_count && j < PROP_SMOKE_MAX_PREM_PTRS; j++) {
             prem_ptrs[j] = t->premises[j];
@@ -88,7 +88,7 @@ int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, Verify
 
         bool actually_proven = (results[i].result == VERIFY_PROVEN);
 
-        /* ����Ԥ�ڲ���֤�Ĳ��ԣ�����Ƿ�ȷʵ����֤ */
+        /* 对比预期可证明的测试，检查是否确实可证 */
         if (t->expected_provable) {
             if (actually_proven)
                 passed++;

@@ -20,10 +20,10 @@
 #include "lv/stream.h"
 
 /* ============================================================
- * �����̲⼯
+ * 内置烟测集
  * ============================================================ */
 
-/* ��� child �Ƿ��� parent ���ӽڵ㣨�ݹ飩 */
+/* 检查 child 是否是 parent 的子节点（递归） */
 static bool formula_is_descendant(const PropFormula *child, const PropFormula *parent) {
     if (!child || !parent)
         return false;
@@ -35,7 +35,7 @@ static bool formula_is_descendant(const PropFormula *child, const PropFormula *p
     return false;
 }
 
-/* �̲⸨���꣺����ԭ������ */
+/* 烟测辅助宏：构造原子命题 */
 #define ATOM(name) prop_formula_create_atom(name)
 #define AND(a, b) prop_formula_create_conjunction((a), (b))
 #define OR(a, b) prop_formula_create_disjunction((a), (b))
@@ -53,13 +53,13 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
     memset(&tests, 0, sizeof(tests));
 
     /*
-     * �ڴ�������ԣ�
-     * ÿ�����Ϲ�ʽ��AND/OR/IMPL/NEG����ȡ�ӽڵ������Ȩ��
-     * Ϊ���� double-free��ÿ�����Կ��ڵĸ��Ϲ�ʽʹ�ö�����ԭ�����⡣
-     * ����ʱʹ�� formula_is_descendant �ж���Щ��"��"��ʽ��
+     * 内存清理策略：
+     * 每个测试的复合公式（AND/OR/IMPL/NEG）会取子节点作为指针。
+     * 为避免 double-free，每个测试库拥有的复合公式使用独立原子命题。
+     * 清理时使用 formula_is_descendant 判断哪些是"根"公式。
      */
 
-    /* ���� 1: P, P��Q ? Q (modus ponens) */
+    /* 测试 1: P, P→Q ⊢ Q (modus ponens) */
     {
         PropFormula *p = ATOM("P");
         PropFormula *q = ATOM("Q");
@@ -72,7 +72,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[0].description = "P, P->Q |- Q (modus ponens)";
     }
 
-    /* ���� 2: P��Q ? P (��-elimination) */
+    /* 测试 2: P∧Q ⊢ P (∧-elimination) */
     {
         PropFormula *p = ATOM("P");
         PropFormula *q = ATOM("Q");
@@ -84,7 +84,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[1].description = "P/\\Q |- P (conjunction elimination)";
     }
 
-    /* ���� 3: P ? P��Q (��-intro left) */
+    /* 测试 3: P ⊢ P∨Q (∨-intro left) */
     {
         PropFormula *p = ATOM("P");
         PropFormula *q = ATOM("Q");
@@ -96,8 +96,8 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[2].description = "P |- P\\/Q (disjunction introduction left)";
     }
 
-    /* ���� 4: P��Q, Q��R ? P��R (hypothetical syllogism)
-     * ÿ���̺�ʹ�ö�����ԭ������ */
+    /* 测试 4: P→Q, Q→R ⊢ P→R (hypothetical syllogism)
+     * 每个蕴含使用独立的原子命题 */
     {
         PropFormula *pimplq = IMPL(ATOM("P"), ATOM("Q"));
         PropFormula *qimplr = IMPL(ATOM("Q"), ATOM("R"));
@@ -110,7 +110,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[3].description = "P->Q, Q->R |- P->R (hypothetical syllogism)";
     }
 
-    /* ���� 5: P��(Q��R), P��Q ? R */
+    /* 测试 5: P→(Q→R), P∧Q ⊢ R */
     {
         PropFormula *pimplqimplr = IMPL(ATOM("P"), IMPL(ATOM("Q"), ATOM("R")));
         PropFormula *pq = AND(ATOM("P"), ATOM("Q"));
@@ -123,7 +123,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[4].description = "P->(Q->R), P/\\Q |- R";
     }
 
-    /* ���� 6: �� ? �� (trivial) */
+    /* 测试 6: ⊥ ⊢ ⊥ (trivial) */
     {
         PropFormula *bot = BOT();
         tests[5].premises[0] = bot;
@@ -133,7 +133,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[5].description = "_|_ |- _|_ (trivial)";
     }
 
-    /* ���� 7: P, ?P ? �� (?-elimination) */
+    /* 测试 7: P, ¬P ⊢ ⊥ (¬-elimination) */
     {
         PropFormula *p = ATOM("P");
         PropFormula *notp = NEG(p);
@@ -146,7 +146,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[6].description = "P, ~P |- _|_ (negation elimination)";
     }
 
-    /* ���� 8: (P��Q)��(?Q��?P) (contraposition - intuitionistic) */
+    /* 测试 8: (P→Q)→(¬Q→¬P) (contraposition - intuitionistic) */
     {
         PropFormula *contra = IMPL(IMPL(ATOM("P"), ATOM("Q")), IMPL(NEG(ATOM("Q")), NEG(ATOM("P"))));
         tests[7].premise_count = 0;
@@ -155,8 +155,8 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[7].description = "|- (P->Q)->(~Q->~P) (contraposition)";
     }
 
-    /* ���� 9: P��(Q��R) ? (P��Q)��(P��R) (distribution)
-     * ��������ʹ����ȫ������ԭ������ */
+    /* 测试 9: P∧(Q∨R) ⊢ (P∧Q)∨(P∧R) (distribution)
+     * 所有子公式使用独立的原子命题 */
     {
         PropFormula *pqorr = AND(ATOM("P"), OR(ATOM("Q"), ATOM("R")));
         PropFormula *pqorpr = OR(AND(ATOM("P"), ATOM("Q")), AND(ATOM("P"), ATOM("R")));
@@ -167,7 +167,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[8].description = "P/\\(Q\\/R) |- (P/\\Q)\\/(P/\\R) (distribution)";
     }
 
-    /* ���� 10: ??P ? P (NOT provable intuitionistically) */
+    /* 测试 10: ¬¬P ⊢ P (NOT provable intuitionistically) */
     {
         PropFormula *p = ATOM("P");
         PropFormula *notnotp = NEG(NEG(p));
@@ -178,7 +178,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[9].description = "~~P |- P (double negation elimination - NOT intuitionistic)";
     }
 
-    /* ���� 11: ? P��?P (NOT provable intuitionistically) */
+    /* 测试 11: ⊢ P∨¬P (NOT provable intuitionistically) */
     {
         PropFormula *pnotp = OR(ATOM("P"), NEG(ATOM("P")));
         tests[10].premise_count = 0;
@@ -187,7 +187,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[10].description = "|- P\\/~P (LEM - NOT intuitionistic)";
     }
 
-    /* ���� 12: ? ?P��P (NOT provable intuitionistically) */
+    /* 测试 12: ⊢ ¬P∨P (NOT provable intuitionistically) */
     {
         PropFormula *notporp = OR(NEG(ATOM("P")), ATOM("P"));
         tests[11].premise_count = 0;
@@ -196,7 +196,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[11].description = "|- ~P\\/P (LEM variant - NOT intuitionistic)";
     }
 
-    /* ���� 13: �� ? P (explosion - only with ex_falso) */
+    /* 测试 13: ⊥ ⊢ P (explosion - only with ex_falso) */
     {
         PropFormula *bot = BOT();
         PropFormula *p = ATOM("P");
@@ -207,18 +207,18 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
         tests[12].description = "_|_ |- P (explosion - requires ex_falso)";
     }
 
-    /* ���в��� */
+    /* 执行测试 */
     int passed = prop_verifier_run_smoke_tests(tests, PROP_SMOKE_TEST_COUNT, results);
 
-    /* ������ʽ
-     * ÿ�����Կ��ڵĹ�ʽ���ܹ����ӽڵ����ָͬ�롣
-     * ���ԣ���ȥ�أ���ʶ��������ͳһ�ͷš�
+    /* 清理公式
+     * 每个测试库拥有的公式可能被多个子节点指向相同指针。
+     * 策略：先去重，识别哪些是"根"（未被其他复合公式作为子节点）。
      */
     for (int i = 0; i < PROP_SMOKE_TEST_COUNT; i++) {
         const PropFormula *ptrs[PROP_SMOKE_CLEANUP_MAX_PTRS];
         int ptr_count = 0;
         for (int j = 0; j < tests[i].premise_count && ptr_count < PROP_SMOKE_CLEANUP_MAX_PTRS; j++) {
-            /* ȥ�أ������Ѵ��ڵ�ָ�� */
+            /* 去重：跳过已存在的指针 */
             bool dup = false;
             for (int d = 0; d < ptr_count; d++) {
                 if (ptrs[d] == tests[i].premises[j]) {
@@ -241,7 +241,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
                 ptrs[ptr_count++] = tests[i].goal;
         }
 
-        /* ��һ�飺ʶ����Щ��"��"������������ʽ���ӽڵ㣩 */
+        /* 第一遍：识别哪些是"根"（未被其他复合公式作为子节点） */
         bool is_root[PROP_SMOKE_CLEANUP_MAX_PTRS];
         memset(is_root, true, sizeof(is_root));
         for (int k = 0; k < ptr_count; k++) {
@@ -253,7 +253,7 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
             }
         }
 
-        /* �ڶ��飺ֻ�ͷŸ���ʽ */
+        /* 第二遍：只释放根公式 */
         for (int k = 0; k < ptr_count; k++) {
             if (is_root[k]) {
                 prop_formula_destroy((PropFormula *) ptrs[k]);
@@ -263,4 +263,3 @@ int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results) {
 
     return passed;
 }
-

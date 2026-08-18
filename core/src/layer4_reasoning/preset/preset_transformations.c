@@ -1,9 +1,9 @@
 /**
  * @file preset_transformations.c
- * @brief ���α任Ԥ�躯���� - ʵ��
+ * @brief 几何变换预设函数块 - 实现
  *
- * ʵ�ּ��α任ģ�������Ԥ�躯���顣
- * ����ƽ�ơ���ת�����䡢λ�ơ�����任�ȡ�
+ * 实现几何变换模块的预设函数块。
+ * 包含平移、旋转、缩放、位似、反射变换等。
  *
  * @module Transformations
  * @category PRESET_CATEGORY_TRANSFORMATION
@@ -16,7 +16,7 @@
 #include "lv/lv_internal.h"
 #include "lv/preset_blocks.h"
 
-/* ==================== Ԥ�躯�������� ==================== */
+/* ==================== 预设函数块定义 ==================== */
 
 /** 变换模块预设函数块总数 */
 

@@ -189,7 +189,7 @@ extern "C" {
  * 将 Windows Interlocked* 和 GCC/Clang __atomic* 内置函数
  * 统一为 lv_ATOMIC_* 宏，消除分散的 #ifdef _WIN32 分支。
  *
- * 支持的操���：
+ * 支持的操作：
  *   lv_ATOMIC_INC(ptr)         —— 原子自增 1（int）
  *   lv_ATOMIC_DEC(ptr)         —— 原子自减 1（int）
  *   lv_ATOMIC_ADD(ptr, val)    —— 原子加法

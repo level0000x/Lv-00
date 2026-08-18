@@ -67,14 +67,14 @@ static bool try_modus_ponens(ProofContext *ctx, const PropFormula **premises, in
     return false;
 }
 
-/* ���Դ�ǰ����ֱ��ƥ��Ŀ�� */
+/* 尝试从前提直接匹配目标 */
 static bool try_direct_match(const PropFormula **premises, int premise_count, const PropFormula *goal) {
     return premise_contains(premises, premise_count, goal);
 }
 
-/* ���� ?-��ȥ���� ?A �� A �Ƴ� �� */
+/* 尝试 ¬-消去：从 ¬A 和 A 推出 ⊥ */
 static bool try_neg_elim(ProofContext *ctx, const PropFormula **premises, int premise_count) {
-    /* Ŀ���� �ͣ�����Ƿ��� ?A �� A ͬʱ��Ϊǰ�� */
+    /* 目标是 ⊥：检查是否有 ¬A 和 A 同时作为前提 */
     for (int i = 0; i < premise_count; i++) {
         if (premises[i]->type == PROP_NEGATION) {
             const PropFormula *operand = premises[i]->data.unary.operand;
