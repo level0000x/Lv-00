@@ -2506,3 +2506,33 @@ C-⑰ 删除了 6 个 lv_impl_upper_*.c 空壳占位文件；用户指令「恢�
 - modal 对偶转换：结构扩展支持否定节点（lvModalFormula 加 negation）后可接线真实实现。
 - interop 插件 import_proof/validate 分发仍无上层消费方（C-⑰-补③ 遗留，待导入接口需求）。
 - 其余有意简化（CUDA/HIP 条件编译 stub、herbie 内置规则表、λ ABS.binder、SVG/PDF 增强清单、算法固有近似）维持豁免。
+
+## 三十九、批次 C-⑱-补：版本宏权威源统一（2026-08-17，用户指令「都改 1.1.0」）
+
+C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺序相关隐患）。
+
+### 统一前现状
+
+| 位置 | 定义 | 性质 |
+|------|------|------|
+| `lv.h:182-189` | `lv_VERSION_MAJOR/MINOR/PATCH = 1.1.0`，宏生成 `lv_VERSION_STRING` | **权威源** |
+| `debug.h:39` | `lv_VERSION_STRING_MACRO_(3, 3, 0)`（带 `#ifndef` 守卫） | fallback，值错 |
+| `lv_internal.h:93` | `"3.5.0"`（带 `#ifndef` 守卫） | fallback，值错 |
+
+三个头均有 `#ifndef` 守卫 → 若 debug.h/lv_internal.h 先于 lv.h 被 include，fallback 值生效产生版本漂移。
+
+### 统一内容
+
+- `debug.h` / `lv_internal.h` fallback 值 → 1.1.0（与 lv.h 权威源一致），注释登记权威源统一依据。
+- **runtime_monitor.c `lv_diagnostics_generate`**：原硬编码 `"3.3.0"` 写入诊断报告 `diag->version`（版本号错误）→ 改引 `lv_VERSION_STRING` 宏（顺带发现的第 4 处运行期硬编码）。
+- `lv.h` 头部注释「当前版本: 3.3.0」与「统一版本号 v3.3.0」→ 1.1.0（文档一致性）。
+- 全库其余 `3.3.0`/`3.5.0` 命中均为注释内历史 `@version` 标记，非运行期值，不动。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（137.92s）。
+- 提交 `fix(version)`（4 文件，+11/-5）。
+
+### 决策登记（第 9 章格式）
+
+- 版本宏权威源统一 / 遗留闭环（C-⑭）/ debug.h + lv_internal.h fallback 值 + runtime_monitor 硬编码 + lv.h 注释 / fallback 值对齐 lv.h 权威源，运行期改引宏 / 全量回归 174/174。
