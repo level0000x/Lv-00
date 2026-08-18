@@ -85,6 +85,7 @@ static bool function_structurally_equal(const lvExpr *a, const lvExpr *b) {
 static lvSign var_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
     (void)expr;
     (void)sys;
+    /* 变量符号依赖约束系统赋值：无系统时无法确定，返回 UNKNOWN */
     return SIGN_UNKNOWN;
 }
 
@@ -97,28 +98,110 @@ static lvSign rational_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
 }
 
 static lvSign power_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
-    (void)expr;
-    (void)sys;
-    /* 简化：幂的符号由底数和指数共同决定，暂返回 UNKNOWN */
+    /* base^exponent 的符号：
+     * - base 符号已知为正 → 正（任意实数指数）
+     * - base 符号已知为负且指数为偶数 → 正；奇数 → 负
+     * - base 为零且指数为正 → 零
+     * - 其余（含变量底数/未知指数）→ UNKNOWN */
+    lvSign base_s = lv_expr_get_ops(expr->data.power.base->type)->sign(expr->data.power.base, sys);
+    if (base_s == SIGN_POSITIVE)
+        return SIGN_POSITIVE;
+    if (base_s == SIGN_NEGATIVE) {
+        int64_t exp = 0;
+        const lvExpr *e = expr->data.power.exponent;
+        if (e && e->type == EXPR_TYPE_RATIONAL && lv_expr_get_integer(e, &exp)) {
+            if (exp % 2 == 0)
+                return SIGN_POSITIVE;
+            return SIGN_NEGATIVE;
+        }
+        return SIGN_UNKNOWN;
+    }
+    if (base_s == SIGN_ZERO) {
+        int64_t exp = 0;
+        const lvExpr *e = expr->data.power.exponent;
+        if (e && e->type == EXPR_TYPE_RATIONAL && lv_expr_get_integer(e, &exp) && exp > 0)
+            return SIGN_ZERO;
+        return SIGN_UNKNOWN;
+    }
     return SIGN_UNKNOWN;
 }
 
 static lvSign product_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
-    (void)expr;
-    (void)sys;
-    /* 简化：乘积的符号需要递归分析各因子，暂返回 UNKNOWN */
-    return SIGN_UNKNOWN;
+    /* 乘积符号：零因子 → 零；负因子个数奇偶决定正负；
+     * 任一因子 UNKNOWN 且无零因子 → UNKNOWN */
+    bool has_unknown = false;
+    int neg_count = 0;
+    for (uint32_t i = 0; i < expr->data.composite.count; i++) {
+        const lvExpr *op = expr->data.composite.operands[i];
+        if (!op)
+            continue;
+        lvSign s = lv_expr_get_ops(op->type)->sign(op, sys);
+        if (s == SIGN_ZERO)
+            return SIGN_ZERO;
+        if (s == SIGN_NEGATIVE)
+            neg_count++;
+        else if (s == SIGN_POSITIVE)
+            ;
+        else if (s == SIGN_NONNEGATIVE)
+            ;
+        else if (s == SIGN_NONPOSITIVE)
+            neg_count++; /* 非正：若非零则为负，保守按负计 */
+        else
+            has_unknown = true;
+    }
+    if (has_unknown)
+        return SIGN_UNKNOWN;
+    return (neg_count % 2 == 0) ? SIGN_POSITIVE : SIGN_NEGATIVE;
 }
 
 static lvSign sum_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
-    (void)expr;
-    (void)sys;
-    /* 简化：和的符号需要分析各项，暂返回 UNKNOWN */
+    /* 和符号：全部非负且至少一项正 → 正；全部非正且至少一项负 → 负；
+     * 全部为零 → 零；任一 UNKNOWN 或符号混合 → UNKNOWN */
+    bool has_positive = false;
+    bool has_negative = false;
+    bool has_zero = false;
+    bool has_unknown = false;
+    for (uint32_t i = 0; i < expr->data.composite.count; i++) {
+        const lvExpr *op = expr->data.composite.operands[i];
+        if (!op)
+            continue;
+        lvSign s = lv_expr_get_ops(op->type)->sign(op, sys);
+        if (s == SIGN_POSITIVE)
+            has_positive = true;
+        else if (s == SIGN_NEGATIVE)
+            has_negative = true;
+        else if (s == SIGN_ZERO)
+            has_zero = true;
+        else if (s == SIGN_NONNEGATIVE)
+            ;
+        else if (s == SIGN_NONPOSITIVE)
+            ;
+        else
+            has_unknown = true;
+    }
+    if (has_unknown)
+        return SIGN_UNKNOWN;
+    if (has_positive && !has_negative)
+        return SIGN_POSITIVE;
+    if (has_negative && !has_positive)
+        return SIGN_NEGATIVE;
+    if (!has_positive && !has_negative && has_zero)
+        return SIGN_ZERO;
     return SIGN_UNKNOWN;
 }
 
 static lvSign function_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
-    (void)expr;
+    /* 函数应用符号：仅对结构上恒非负的常见函数给出保守判定，
+     * 其余返回 UNKNOWN（不推测参数符号） */
+    if (!expr->data.function.func_name)
+        return SIGN_UNKNOWN;
+    if (lv_str_eq(expr->data.function.func_name, "abs") ||
+        lv_str_eq(expr->data.function.func_name, "sqrt") ||
+        lv_str_eq(expr->data.function.func_name, "norm") ||
+        lv_str_eq(expr->data.function.func_name, "max")) {
+        /* |x|、√x、‖x‖、max(...) 恒非负（定义域内） */
+        return SIGN_NONNEGATIVE;
+    }
     (void)sys;
     return SIGN_UNKNOWN;
 }

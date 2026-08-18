@@ -1862,6 +1862,10 @@ if(BUILD_TESTS)
     # 新增：v1.1.0 新模块集成测试
     add_lv_test_auto(test_rational CTEST_NAME rational_test)
     add_lv_test_auto(test_expr_canon CTEST_NAME expr_canon_test)
+    # 新增：不等式推理表达式符号判定（P1-3 桩补齐）
+    add_lv_test_auto(test_inequality_reasoning CTEST_NAME inequality_reasoning_test)
+    # 新增：模态算子对偶转换 UNSUPPORTED 行为（P1-4）
+    add_lv_test_auto(test_modal_operators CTEST_NAME modal_operators_test)
     add_lv_test_auto(test_proof_trace CTEST_NAME proof_trace_test)
     # v1.1.0 新模块集成测试
     add_lv_test_auto(test_new_modules CTEST_NAME new_modules_test)

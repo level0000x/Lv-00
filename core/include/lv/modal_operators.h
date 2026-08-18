@@ -297,8 +297,12 @@ lv_PUBLIC_API lvTruthValue lv_modal_check_validity(const lvModalFrame *frame, co
  *
  * 将可能算子转换为必然算子和否定的组合。
  *
+ * @note 当前返回 lv_ERROR_UNSUPPORTED（NULL）：lvModalFormula 结构
+ *       （op + inner_prop/sub）不含命题取反节点，无法表达对偶等式中
+ *       的两处否定。结构扩展支持否定前不提供静默错判的简化实现。
+ *
  * @param formula 原始模态公式
- * @return 转换后的模态公式（新分配），失败返回 NULL
+ * @return 转换后的模态公式（新分配）；当前恒为 NULL（UNSUPPORTED）
  */
 lv_PUBLIC_API lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFormula *formula);
 
@@ -307,8 +311,12 @@ lv_PUBLIC_API lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFo
  *
  * 将必然算子转换为可能算子和否定的组合。
  *
+ * @note 当前返回 lv_ERROR_UNSUPPORTED（NULL）：lvModalFormula 结构
+ *       （op + inner_prop/sub）不含命题取反节点，无法表达对偶等式中
+ *       的两处否定。结构扩展支持否定前不提供静默错判的简化实现。
+ *
  * @param formula 原始模态公式
- * @return 转换后的模态公式（新分配），失败返回 NULL
+ * @return 转换后的模态公式（新分配）；当前恒为 NULL（UNSUPPORTED）
  */
 lv_PUBLIC_API lvModalFormula *lv_modal_necessary_to_not_possible(const lvModalFormula *formula);
 

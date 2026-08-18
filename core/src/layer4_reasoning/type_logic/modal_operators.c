@@ -10,6 +10,7 @@
 #include "lv/modal_operators.h"
 #include "lv/lv_xmacro.h"
 #include "lv/lv_utils.h"
+#include "lv/error_codes.h" /* lv_RETURN_ERROR / lv_ERROR_UNSUPPORTED */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -439,19 +440,23 @@ lvTruthValue lv_modal_check_validity(const lvModalFrame *frame, const lvModalFor
  *  模态算子转换（对偶）
  * ================================================================ */
 
+/* 模态对偶转换需要命题取反节点：◇A ≡ ¬□¬A、□A ≡ ¬◇¬A。
+ * lvModalFormula 结构（op + inner_prop/sub）不含否定节点，无法表达
+ * 对偶等式中两处取反。原实现静默返回未取反的嵌套公式（□A / ◇A），
+ * 与文档声称语义不符。结构扩展前显式报 UNSUPPORTED，避免静默错判。 */
+
 lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFormula *formula) {
     if (!formula || formula->op != lv_MODALOP_POSSIBLE)
         return NULL;
-    /* ◇A -> ¬□¬A: 创建 □¬A，然后外层取反由调用者处理 */
-    /* 这里简化为返回等价的嵌套公式 */
-    return lv_modal_formula_create_nested(lv_MODALOP_NECESSARY, formula->sub);
+    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED,
+                         "modal duality unsupported: lvModalFormula lacks negation node (needs ¬□¬A)");
 }
 
 lvModalFormula *lv_modal_necessary_to_not_possible(const lvModalFormula *formula) {
     if (!formula || formula->op != lv_MODALOP_NECESSARY)
         return NULL;
-    /* □A -> ¬◇¬A */
-    return lv_modal_formula_create_nested(lv_MODALOP_POSSIBLE, formula->sub);
+    lv_RETURN_ERROR_NULL(lv_ERROR_UNSUPPORTED,
+                         "modal duality unsupported: lvModalFormula lacks negation node (needs ¬◇¬A)");
 }
 
 /* ================================================================
