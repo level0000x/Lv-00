@@ -1266,24 +1266,46 @@ int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations
         if (a->right_bound < b->left_bound || b->right_bound < a->left_bound)
             return 1; /* 不同根 */
 
-        /* 对 a 进行一步二分细化：计算中点处极小多项式的符号 */
-        double mid_a = (a->left_bound + a->right_bound) * 0.5;
-        /* 使用 Sturm 序列或简单二分来缩小区间 */
-        /* 简化实现：直接缩小区间宽度 */
-        double half_width_a = (a->right_bound - a->left_bound) * 0.5;
-        if (half_width_a > lv_EPSILON_NEWTON) {
-            /* 评估中点符号来决定缩小哪一半区间 */
-            a->right_bound = mid_a + half_width_a * 0.5;
-            a->left_bound = mid_a - half_width_a * 0.5;
-            a->precision_bits += 1;
+        /* 对 a 进行一步二分细化：计算中点处极小多项式的符号，
+         * 收缩到包含根的那一半（与 refine_algebraic_bounds 同语义）。
+         * 原实现无条件向中点收缩，当根靠近区间一端时会把根排除在
+         * 区间外，导致同根被误判为不同根。 */
+        if ((a->right_bound - a->left_bound) > lv_EPSILON_NEWTON) {
+            double mid_a = (a->left_bound + a->right_bound) * 0.5;
+            double val_mid = sym_evaluate_poly_double(&a->minimal_poly, mid_a);
+            double val_left = sym_evaluate_poly_double(&a->minimal_poly, a->left_bound);
+            if (isfinite(val_mid) && isfinite(val_left)) {
+                if (fabs(val_mid) < lv_EPSILON_NEWTON) {
+                    /* 中点恰为根：收缩到中点邻域 */
+                    double eps_rel = lv_rel_tol_scale(lv_EPSILON_NEWTON, mid_a);
+                    a->left_bound = mid_a - eps_rel;
+                    a->right_bound = mid_a + eps_rel;
+                } else if (val_left * val_mid < 0) {
+                    a->right_bound = mid_a; /* 根在左半区间 */
+                } else {
+                    a->left_bound = mid_a; /* 根在右半区间 */
+                }
+                a->precision_bits += 1;
+            }
         }
 
-        double mid_b = (b->left_bound + b->right_bound) * 0.5;
-        double half_width_b = (b->right_bound - b->left_bound) * 0.5;
-        if (half_width_b > lv_EPSILON_NEWTON) {
-            b->right_bound = mid_b + half_width_b * 0.5;
-            b->left_bound = mid_b - half_width_b * 0.5;
-            b->precision_bits += 1;
+        /* 对 b 进行同样的符号二分细化 */
+        if ((b->right_bound - b->left_bound) > lv_EPSILON_NEWTON) {
+            double mid_b = (b->left_bound + b->right_bound) * 0.5;
+            double val_mid = sym_evaluate_poly_double(&b->minimal_poly, mid_b);
+            double val_left = sym_evaluate_poly_double(&b->minimal_poly, b->left_bound);
+            if (isfinite(val_mid) && isfinite(val_left)) {
+                if (fabs(val_mid) < lv_EPSILON_NEWTON) {
+                    double eps_rel = lv_rel_tol_scale(lv_EPSILON_NEWTON, mid_b);
+                    b->left_bound = mid_b - eps_rel;
+                    b->right_bound = mid_b + eps_rel;
+                } else if (val_left * val_mid < 0) {
+                    b->right_bound = mid_b; /* 根在左半区间 */
+                } else {
+                    b->left_bound = mid_b; /* 根在右半区间 */
+                }
+                b->precision_bits += 1;
+            }
         }
 
         /* 再次检查是否可区分 */

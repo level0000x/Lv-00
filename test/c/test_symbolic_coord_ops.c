@@ -981,6 +981,70 @@ void test_cross_type_rational_algebraic_compare(void) {
     PASS();
 }
 
+/** 测试 algebraic_refine_for_equality 符号二分（回归：P0 无符号收缩缺陷）
+ *
+ * 旧实现声称「评估中点符号决定缩小哪一半区间」，实际无条件向中点收缩。
+ * 当根靠近区间一端时（如 √2≈1.41421 位于 [1.4,1.5] 的左端），收缩后
+ * 区间不再包含根，导致两个同根代数数被误判为不同根。
+ */
+void test_algebraic_refine_equality_same_root(void) {
+    /* 极小多项式 x²-2，根为 ±√2 */
+    mpz_poly_t poly;
+    mpz_poly_init(&poly);
+    poly.degree = 2;
+    poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
+    mpz_init_set_si(poly.coeffs[0], -2);
+    mpz_init_set_si(poly.coeffs[1], 0);
+    mpz_init_set_si(poly.coeffs[2], 1);
+
+    /* 两个区间都包含 √2≈1.41421，但一个左偏、一个右偏 */
+    SymbolicCoord *a = symbolic_coord_create_algebraic(&poly, 1.4, 1.5);    /* 根靠近左端 */
+    SymbolicCoord *b = symbolic_coord_create_algebraic(&poly, 1.41, 1.42);  /* 根靠近右端 */
+    mpz_poly_clear(&poly);
+
+    if (a && b) {
+        /* 同根必须判定相等（符号二分收敛后区间保持重叠） */
+        int cmp = symbolic_coord_compare(a, b);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "same root (sqrt2) should compare equal, got %d", cmp);
+        TEST_ASSERT(cmp == 0, buf);
+    }
+
+    symbolic_coord_destroy(a);
+    symbolic_coord_destroy(b);
+    PASS();
+}
+
+/** 测试 algebraic_refine_for_equality 不同根判定 */
+void test_algebraic_refine_equality_distinct_roots(void) {
+    /* 极小多项式 x²-2，两个不同根：√2 与 -√2 */
+    mpz_poly_t poly;
+    mpz_poly_init(&poly);
+    poly.degree = 2;
+    poly.coeffs = lv_malloc(3 * sizeof(mpz_t));
+    mpz_init_set_si(poly.coeffs[0], -2);
+    mpz_init_set_si(poly.coeffs[1], 0);
+    mpz_init_set_si(poly.coeffs[2], 1);
+
+    SymbolicCoord *pos = symbolic_coord_create_algebraic(&poly, 1.4, 1.5);   /* √2 */
+    SymbolicCoord *neg = symbolic_coord_create_algebraic(&poly, -1.5, -1.4); /* -√2 */
+    mpz_poly_clear(&poly);
+
+    if (pos && neg) {
+        /* 不同根必须判定不等，且 √2 > -√2 */
+        int cmp = symbolic_coord_compare(pos, neg);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "distinct roots (sqrt2 vs -sqrt2) should not compare equal, got %d", cmp);
+        TEST_ASSERT(cmp != 0, buf);
+        snprintf(buf, sizeof(buf), "sqrt2 should be greater than -sqrt2, got %d", cmp);
+        TEST_ASSERT(cmp > 0, buf);
+    }
+
+    symbolic_coord_destroy(pos);
+    symbolic_coord_destroy(neg);
+    PASS();
+}
+
 /* ============================================================
  * 位电路熔断 (Bit Burning) 测试
  * ============================================================ */
@@ -1255,6 +1319,8 @@ TEST_MAIN_BEGIN("Symbolic Coordinate Operations")
     TEST_MAIN_RUN(test_cross_type_rational_quadratic);
     TEST_MAIN_RUN(test_cross_type_compare);
     TEST_MAIN_RUN(test_cross_type_rational_algebraic_compare);
+    TEST_MAIN_RUN(test_algebraic_refine_equality_same_root);
+    TEST_MAIN_RUN(test_algebraic_refine_equality_distinct_roots);
 
     /* ── 位电路熔断 ── */
     TEST_MAIN_RUN(test_circuit_operations);
