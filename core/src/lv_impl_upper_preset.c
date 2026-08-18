@@ -397,7 +397,7 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
         if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed");
         int64_t _len = (int64_t) strlen(_js);
         lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        lv_free((void **) &_js);
         return _len;
     }
     PresetMetadata *m = &entry->metadata;
@@ -426,7 +426,7 @@ int64_t func_block_preset_metadata(lvEngine *ctx, const char *name, char *buf, i
         if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_metadata: json_buf_finalize failed (2)");
         int64_t _len = (int64_t) strlen(_js);
         lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        lv_free((void **) &_js);
         return _len;
     }
 }
@@ -674,7 +674,7 @@ int64_t func_block_preset_bindings(lvEngine *ctx, int64_t instance_id, char *buf
         if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed");
         int64_t _len = (int64_t) strlen(_js);
         lv_strlcpy(buf, _js, (size_t) buf_size);
-        lv_free(_js);
+        lv_free((void **) &_js);
         return _len;
     }
     lvJsonBuf _jb;
@@ -692,7 +692,7 @@ int64_t func_block_preset_bindings(lvEngine *ctx, int64_t instance_id, char *buf
     if (!_js) lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "func_block_preset_bindings: json_buf_finalize failed (2)");
     int64_t _len = (int64_t) strlen(_js);
     lv_strlcpy(buf, _js, (size_t) buf_size);
-    lv_free(_js);
+    lv_free((void **) &_js);
     return _len;
 }
 

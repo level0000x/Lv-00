@@ -139,6 +139,25 @@ static void test_preset_wrappers(void) {
     lv_ASSERT(strcmp(func_block_preset_default_value(NULL, "no_such_preset_xyz", 0), "N/A") == 0);
     /* registration_time 无字段支撑：显式不支持（非模拟固定值） */
     lv_ASSERT(func_block_preset_registration_time(NULL, "perpendicular_bisector") < 0);
+
+    /* metadata / bindings JSON 生成路径：C-⑱-补 修复 lv_free 传值误用缺陷族
+     * （4 处 _js 传值 → 取址），此处以内存差值断言钉住修复不得泄漏 */
+    {
+        MemoryStats ms_before;
+        lv_get_memory_stats(&ms_before);
+        char meta_buf[4096];
+        int64_t meta_len = func_block_preset_metadata(NULL, "perpendicular_bisector", meta_buf,
+                                                      (int64_t) sizeof(meta_buf));
+        lv_ASSERT(meta_len > 0);
+        lv_ASSERT(strstr(meta_buf, "\"name\"") != NULL);
+        char bind_buf[2048];
+        int64_t bind_len = func_block_preset_bindings(NULL, 1, bind_buf, (int64_t) sizeof(bind_buf));
+        lv_ASSERT(bind_len > 0);
+        MemoryStats ms_after;
+        lv_get_memory_stats(&ms_after);
+        lv_ASSERT(ms_after.current_used <= ms_before.current_used + 4096);
+    }
+
     lv_ASSERT(func_block_preset_cleanup(NULL) == 0);
 }
 
