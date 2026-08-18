@@ -99,6 +99,20 @@ temp/
 /*_stderr.txt
 /build_output.txt
 
+# 构建/测试诊断残留（根目录与 core 内探针）
+/*_k.err
+/*_k.out
+/*_k.log
+/*_probe*
+/*.write_probe.txt
+/**/.write_probe.txt
+/gdb_rot*.txt
+/lifecycle_k.*
+/build3_ctest_before.json
+/test_output.tex
+/test_tikz_temp.tex
+/test_proof_output.txt
+
 # 日志文件（运行时产生）
 /lv.log*
 
