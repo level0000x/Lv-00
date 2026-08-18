@@ -5,6 +5,7 @@
  */
 
 #include <gmp.h>
+#include <stdarg.h> /* set_error_msg varg（vsnprintf） */
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -76,9 +77,17 @@ static lvOrchestratorInternal *orch_internal(lvSession *s) {
     return (lvOrchestratorInternal *)(s ? s->internal : NULL);
 }
 
-static void set_error_msg(lvSession *s, lvSessionStage st, const char *msg) {
-    if (msg)
-        lv_strlcpy(s->stages[st].error_msg, msg, sizeof(s->stages[st].error_msg));
+/* 阶段错误消息写入：静态消息与 snprintf 格式化路径统一收敛。
+ * 原实现仅支持静态消息，格式化路径需调用方裸写
+ * snprintf(s->stages[st].error_msg, sizeof(...), fmt, ...)（14 处样板）；
+ * varg 化后两种形态统一走本函数，缓冲区长度集中管理。 */
+static void set_error_msg(lvSession *s, lvSessionStage st, const char *fmt, ...) {
+    if (!s || !fmt)
+        return;
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(s->stages[st].error_msg, sizeof(s->stages[st].error_msg), fmt, ap);
+    va_end(ap);
 }
 
 static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char *msg) {
@@ -120,11 +129,9 @@ static int run_stage_parse(lvSession *s) {
     }
     dsl_ast_destroy(ast);
     if (in->token_count >= 2)
-        snprintf(s->stages[lv_STAGE_PARSE].error_msg, sizeof(s->stages[lv_STAGE_PARSE].error_msg),
-                 "解析成功：获得 %d 个标记，tokenize 完整 (括号平衡)", in->token_count);
+        set_error_msg(s, lv_STAGE_PARSE, "解析成功：获得 %d 个标记，tokenize 完整 (括号平衡)", in->token_count);
     else
-        snprintf(s->stages[lv_STAGE_PARSE].error_msg, sizeof(s->stages[lv_STAGE_PARSE].error_msg),
-                 "解析成功：tokenize 完整 (括号平衡)");
+        set_error_msg(s, lv_STAGE_PARSE, "解析成功：tokenize 完整 (括号平衡)");
     s->stages[lv_STAGE_PARSE].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -143,8 +150,8 @@ static int run_stage_resource(lvSession *s) {
         lv_context_set_timeout(in->ctx, (uint64_t)s->config.timeout_ms);
     if (s->config.max_reasoning_depth > 0)
         lv_context_set_max_depth(in->ctx, s->config.max_reasoning_depth);
-    snprintf(s->stages[lv_STAGE_RESOURCE].error_msg, sizeof(s->stages[lv_STAGE_RESOURCE].error_msg),
-             "资源加载成功：上下文创建完成，熔断器就绪 (超时 %dms)", s->config.timeout_ms);
+    set_error_msg(s, lv_STAGE_RESOURCE,
+                  "资源加载成功：上下文创建完成，熔断器就绪 (超时 %dms)", s->config.timeout_ms);
     s->stages[lv_STAGE_RESOURCE].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -173,11 +180,10 @@ static int run_stage_geometry(lvSession *s) {
     int nodes = graph_get_node_count(g);
     int cons = graph_get_constraint_count(g);
     if (nodes >= 1)
-        snprintf(s->stages[lv_STAGE_GEOMETRY].error_msg, sizeof(s->stages[lv_STAGE_GEOMETRY].error_msg),
-                 "几何构造完成：识别 %d 个几何对象，约束图 %d 条约束就绪", nodes, cons);
+        set_error_msg(s, lv_STAGE_GEOMETRY,
+                      "几何构造完成：识别 %d 个几何对象，约束图 %d 条约束就绪", nodes, cons);
     else
-        snprintf(s->stages[lv_STAGE_GEOMETRY].error_msg, sizeof(s->stages[lv_STAGE_GEOMETRY].error_msg),
-                 "几何构造完成：约束图 %d 条约束就绪", cons);
+        set_error_msg(s, lv_STAGE_GEOMETRY, "几何构造完成：约束图 %d 条约束就绪", cons);
     s->stages[lv_STAGE_GEOMETRY].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -217,8 +223,7 @@ static int run_stage_reasoning(lvSession *s) {
         return -1;
     }
     int ms = (int)s->stages[lv_STAGE_REASONING].elapsed_ms;
-    snprintf(s->stages[lv_STAGE_REASONING].error_msg, sizeof(s->stages[lv_STAGE_REASONING].error_msg),
-             "推理完成：成功 proved 命题，策略尝试 2 轮，耗时 %dms", ms);
+    set_error_msg(s, lv_STAGE_REASONING, "推理完成：成功 proved 命题，策略尝试 2 轮，耗时 %dms", ms);
     s->stages[lv_STAGE_REASONING].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -247,8 +252,7 @@ static int run_stage_output(lvSession *s) {
         return -1;
     }
     lv_free((void **)&json);
-    snprintf(s->stages[lv_STAGE_OUTPUT].error_msg, sizeof(s->stages[lv_STAGE_OUTPUT].error_msg),
-             "输出完成：格式=%s，预估 %d 字节，output 内容结构化", fmt, bytes);
+    set_error_msg(s, lv_STAGE_OUTPUT, "输出完成：格式=%s，预估 %d 字节，output 内容结构化", fmt, bytes);
     s->stages[lv_STAGE_OUTPUT].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -256,8 +260,7 @@ static int run_stage_output(lvSession *s) {
 static int run_stage_visual(lvSession *s) {
     lvOrchestratorInternal *in = orch_internal(s);
     if (!s->config.enable_visualization) {
-        snprintf(s->stages[lv_STAGE_VISUAL].error_msg, sizeof(s->stages[lv_STAGE_VISUAL].error_msg),
-                 "可视化未启用，阶段跳过");
+        set_error_msg(s, lv_STAGE_VISUAL, "可视化未启用，阶段跳过");
         s->stages[lv_STAGE_VISUAL].status = lv_STAGE_SKIPPED;
         return 0;
     }
@@ -273,8 +276,7 @@ static int run_stage_visual(lvSession *s) {
         set_error_msg(s, lv_STAGE_VISUAL, "可视化失败：TikZ 渲染失败");
         return -1;
     }
-    snprintf(s->stages[lv_STAGE_VISUAL].error_msg, sizeof(s->stages[lv_STAGE_VISUAL].error_msg),
-             "可视化完成：TikZ 渲染 %d 字节 (输出结构化)", n);
+    set_error_msg(s, lv_STAGE_VISUAL, "可视化完成：TikZ 渲染 %d 字节 (输出结构化)", n);
     s->stages[lv_STAGE_VISUAL].status = lv_STAGE_COMPLETED;
     return 0;
 }
@@ -393,7 +395,7 @@ int lv_orchestrator_run_stage(lvSession *session, lvSessionStage stage) {
         session->success = 0;
         for (int j = stage + 1; j < lv_STAGE_COUNT; j++) {
             session->stages[j].status = lv_STAGE_SKIPPED;
-            snprintf(session->stages[j].error_msg, sizeof(session->stages[j].error_msg), "前置阶段失败，已跳过");
+            set_error_msg(session, (lvSessionStage)j, "前置阶段失败，已跳过");
         }
         return r;
     }
