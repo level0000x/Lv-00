@@ -76,7 +76,7 @@ static void test_geom_type_alias_interop(void) {
     TEST_ASSERT_STR_EQ(lv_geom_type_alias(GEOM_FUNCTION_BLOCK), "function_block");
 
     /* 约束别名：与 interop_constraint_type_name 逐项一致 */
-    for (int t = (int) INCIDENCE; t <= (int) ANGLE; t++) {
+    for (int t = (int) INCIDENCE; t <= (int) PARALLEL; t++) {
         TEST_ASSERT_STR_EQ(interop_constraint_type_name((ConstraintType) t), lv_constraint_type_alias(t));
     }
     TEST_ASSERT_STR_EQ(lv_constraint_type_alias(INCIDENCE), "incidence");
@@ -84,6 +84,7 @@ static void test_geom_type_alias_interop(void) {
     TEST_ASSERT_STR_EQ(lv_constraint_type_alias(CONTAINMENT), "containment");
     TEST_ASSERT_STR_EQ(lv_constraint_type_alias(CONNECTION), "connection");
     TEST_ASSERT_STR_EQ(lv_constraint_type_alias(ANGLE), "angle");
+    TEST_ASSERT_STR_EQ(lv_constraint_type_alias(PARALLEL), "parallel");
 
     /* DOT 形状与既有 meta_repr_export_dot 形状表逐项一致 */
     TEST_ASSERT_STR_EQ(lv_geom_type_dot_shape(GEOM_POINT), "ellipse");
@@ -221,7 +222,7 @@ static void test_entry_macro_uniqueness(void) {
                     "LV_CONSTRAINT_TYPE_ENTRY 规范名重复");
         TEST_ASSERT(!has_duplicate_str(kConAliases, lv_ARRAY_SIZE(kConAliases)),
                     "LV_CONSTRAINT_TYPE_ENTRY 别名重复");
-        TEST_ASSERT_EQ((int) lv_ARRAY_SIZE(kConEnums), (int) ANGLE + 1);
+        TEST_ASSERT_EQ((int) lv_ARRAY_SIZE(kConEnums), (int) PARALLEL + 1);
     }
 
     /* ── LV_PRESET_CATEGORY_ENTRY ── */

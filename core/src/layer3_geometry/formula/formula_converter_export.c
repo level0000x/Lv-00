@@ -275,6 +275,7 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         [CONTAINMENT]  = {"containment",  "\\subset"},
         [CONNECTION]   = {"connection",   "\\leftrightarrow"},
         [ANGLE]        = {"angle",        "\\angle"},
+        [PARALLEL]     = {"parallel",     "\\parallel"},
     };
 #define CONSTRAINT_INFO_COUNT (sizeof(s_constraint_info) / sizeof(s_constraint_info[0]))
 

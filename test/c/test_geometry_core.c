@@ -882,6 +882,68 @@ void test_compress_decompress_roundtrip(void) {
 }
 #endif
 
+/** 测试 graph_add_parallel 平行约束（回归：P1-2 平行约束必然失败缺陷）
+ *
+ * 旧实现 formula_convert_parallel 用 graph_add_containment 简化表示平行约束，
+ * 但 containment 类型检查要求 inner=POINT/REGION、outer=REGION/CIRCLE，
+ * 两条线段作为参数必然返回 ADD_CONSTRAINT_CONFLICT → 平行约束静默丢失。
+ * 新增 ConstraintType::PARALLEL 与 graph_add_parallel 后应真实入图。
+ */
+void test_graph_add_parallel(void) {
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT(g != NULL, "graph_create");
+
+    /* 两条水平线段（平行） */
+    SymbolicCoord *a0[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *a1[] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *b0[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
+    SymbolicCoord *b1[] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(1, 1)};
+    AddNodeResult ra0 = graph_add_point(g, a0, 2);
+    AddNodeResult ra1 = graph_add_point(g, a1, 2);
+    AddNodeResult rb0 = graph_add_point(g, b0, 2);
+    AddNodeResult rb1 = graph_add_point(g, b1, 2);
+    symbolic_coord_destroy(a0[0]); symbolic_coord_destroy(a0[1]);
+    symbolic_coord_destroy(a1[0]); symbolic_coord_destroy(a1[1]);
+    symbolic_coord_destroy(b0[0]); symbolic_coord_destroy(b0[1]);
+    symbolic_coord_destroy(b1[0]); symbolic_coord_destroy(b1[1]);
+    TEST_ASSERT(ra0 == ADD_NODE_OK && ra1 == ADD_NODE_OK && rb0 == ADD_NODE_OK && rb1 == ADD_NODE_OK,
+                "add 4 points");
+
+    /* 构造两条线段（graph_add_line_segment(g, p1, p2)） */
+    AddNodeResult s1 = graph_add_line_segment(g, 0, 1);
+    AddNodeResult s2 = graph_add_line_segment(g, 2, 3);
+    TEST_ASSERT(s1 == ADD_NODE_OK, "add seg1");
+    TEST_ASSERT(s2 == ADD_NODE_OK, "add seg2");
+    int seg1 = graph_get_last_added_node_id(g);
+    /* 第二条线段 ID = 上一条 + 1 */
+    int seg2 = seg1 - 1;
+    TEST_ASSERT(seg1 >= 4, "segment ids after 4 points");
+
+    int before = g->constraint_count;
+
+    /* 平行约束成功添加 */
+    AddConstraintResult pc = graph_add_parallel(g, seg2, seg1);
+    TEST_ASSERT(pc == ADD_CONSTRAINT_OK, "graph_add_parallel should succeed");
+    TEST_ASSERT(g->constraint_count == before + 1, "constraint count +1");
+    Constraint *con = g->constraints[g->constraint_count - 1];
+    TEST_ASSERT(con != NULL && con->type == PARALLEL, "constraint type PARALLEL");
+
+    /* 名称/别名映射（X-macro 单一事实源） */
+    TEST_ASSERT(lv_constraint_type_name(PARALLEL) != NULL &&
+                    strcmp(lv_constraint_type_name(PARALLEL), "PARALLEL") == 0,
+                "lv_constraint_type_name(PARALLEL)");
+    TEST_ASSERT(lv_constraint_type_alias(PARALLEL) != NULL &&
+                    strcmp(lv_constraint_type_alias(PARALLEL), "parallel") == 0,
+                "lv_constraint_type_alias(PARALLEL)");
+
+    /* 非线段节点 → 冲突 */
+    AddConstraintResult bad = graph_add_parallel(g, 0, 1); /* 两个点 */
+    TEST_ASSERT(bad == ADD_CONSTRAINT_CONFLICT, "parallel on two points should conflict");
+
+    graph_destroy(g);
+    PASS();
+}
+
 /** 测试 LVZD 文件 I/O */
 #if 0
 void test_compress_lvzd_io(void) {
@@ -1083,5 +1145,5 @@ TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
 
     /* ── geo_norm 家族（批次 P2） ── */
     TEST_MAIN_RUN(test_geo_norm_family);
-
+    TEST_MAIN_RUN(test_graph_add_parallel);
 TEST_MAIN_END()

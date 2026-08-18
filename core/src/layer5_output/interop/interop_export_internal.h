@@ -55,6 +55,7 @@ static const ConstraintVisual kConstraintVisuals[] = {
     [CONTAINMENT]  = { CONTAINMENT,  { 20, 184, 166}, CONSTRAINT_LINE_DOTTED,      1.0f },
     [CONNECTION]   = { CONNECTION,   {245, 158,  11}, CONSTRAINT_LINE_SOLID,       1.5f },
     [ANGLE]        = { ANGLE,        {168,  85, 247}, CONSTRAINT_LINE_DASH_DOTTED, 1.0f },
+    [PARALLEL]     = { PARALLEL,     { 96, 165, 250}, CONSTRAINT_LINE_DASHED,      1.0f },
 };
 
 /**

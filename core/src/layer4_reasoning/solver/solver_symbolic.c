@@ -448,6 +448,7 @@ int constraint_weight(const Constraint *c) {
         [CONTAINMENT] = 1,
         [ANGLE] = 1,
         [CONNECTION] = 1,
+        [PARALLEL] = 1,
     };
     const int n = (int)(sizeof(kConstraintWeights) / sizeof(kConstraintWeights[0]));
     if (c->type >= 0 && c->type < n)

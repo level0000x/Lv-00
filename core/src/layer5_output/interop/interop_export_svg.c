@@ -37,6 +37,7 @@ static const ConstraintSvgSyntax constraint_svg_syntax[] = {
     [CONTAINMENT] = { "2,4",      "constraint", NULL },
     [ANGLE]       = { "4,2",      "constraint", NULL },
     [CONNECTION]  = { NULL,       NULL, " stroke-width=\"%g\" marker-end=\"url(#arrowhead)\"" },
+    [PARALLEL]    = { "4,2",      "constraint", NULL },
 };
 
 /** @brief 从公共核心表 rgb 生成 SVG 十六进制颜色串（如 "#6b7280"） */

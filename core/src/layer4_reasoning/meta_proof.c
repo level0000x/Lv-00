@@ -358,6 +358,7 @@ static const ConEvalHandler con_eval_table[] = {
     [CONTAINMENT]  = eval_containment,
     [ANGLE]        = eval_angle,
     [CONNECTION]   = eval_default,
+    [PARALLEL]     = eval_default,
 };
 
 /**

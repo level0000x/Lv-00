@@ -49,6 +49,7 @@ unsigned rewrite_participant_type_mask(ConstraintType type, int position) {
         [CONTAINMENT]  = {(1u << GEOM_POINT) | (1u << GEOM_REGION), (1u << GEOM_REGION) | (1u << GEOM_CIRCLE), 0},
         [CONNECTION]   = {1u << GEOM_PORT, 1u << GEOM_PORT, 0},
         [ANGLE]        = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 0},
+        [PARALLEL]     = {1u << GEOM_LINE_SEGMENT, 1u << GEOM_LINE_SEGMENT, 0},
     };
     if ((unsigned)type < sizeof(kConstraintTypeMasks)/sizeof(kConstraintTypeMasks[0]) && (unsigned)position < 3) {
         unsigned mask = kConstraintTypeMasks[type][position];

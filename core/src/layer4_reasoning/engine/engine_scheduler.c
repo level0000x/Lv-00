@@ -610,6 +610,7 @@ static const ConstraintFeatureDelta kConstraintFeatureDeltas[] = {
     [CONTAINMENT]   = {0, 0, 0, 1, 0, 0},
     [ANGLE]         = {0, 0, 0, 0, 1, 0},
     [CONNECTION]    = {0, 0, 0, 0, 0, 1},
+    [PARALLEL]      = {0, 0, 0, 0, 0, 0},
 };
 
 int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features) {

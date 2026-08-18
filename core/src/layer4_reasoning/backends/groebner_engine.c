@@ -674,7 +674,44 @@ static void groebner_engine_encode_angle(const GroebnerEngineEncodeCtx *ctx, con
     groebner_engine_ideal_append(ctx, poly);
 }
 
-/* ── Groebner 引擎编码函数查找表（直接索引：ConstraintType 枚举连续 0-5）── */
+/* PARALLEL(line1, line2)：两条线段平行 = 方向向量叉积为零。
+ * 方向向量 u = B-A、v = D-C（端点坐标为常量），平行条件：
+ *   ux*vy - uy*vx = 0（共线）。
+ * 结果为常量多项式：已平行时近零（跳过），否则作为一致性方程加入理想。 */
+static void groebner_engine_encode_parallel(const GroebnerEngineEncodeCtx *ctx, const Constraint *con) {
+    if (!lv_constraint_has_participants(con, 2)) return;
+    double ax = 0.0, ay = 0.0, bx = 0.0, by = 0.0;
+    double cx = 0.0, cy = 0.0, dx = 0.0, dy = 0.0;
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[0], &ax, &ay, &bx, &by)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    if (!groebner_engine_segment_coords(ctx->graph, con->participants[1], &cx, &cy, &dx, &dy)) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+
+    double ux = bx - ax, uy = by - ay;
+    double vx = dx - cx, vy = dy - cy;
+    double cross = ux * vy - uy * vx;
+
+    /* 已平行：叉积近零，无需加入理想（非编码失败） */
+    if (fabs(cross) < GROEBNER_ZERO_THRESHOLD) return;
+    lvPolynomial *poly = poly_internal_create(ctx->ring, 1, NULL);
+    if (!poly) {
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    poly_internal_add_term(poly, ctx->ring, -1, 0, cross);
+    if (poly->term_count <= 0) {
+        poly_internal_destroy(poly);
+        if (ctx->encode_failed) (*ctx->encode_failed)++;
+        return;
+    }
+    groebner_engine_ideal_append(ctx, poly);
+}
+
+/* ── Groebner 引擎编码函数查找表（直接索引：ConstraintType 枚举连续 0-6）── */
 typedef void (*GroebnerEngineEncodeFn)(const GroebnerEngineEncodeCtx *ctx, const Constraint *con);
 static const GroebnerEngineEncodeFn kGroebnerEngineEncodeTable[] = {
     [INCIDENCE] = groebner_engine_encode_incidence,
@@ -682,7 +719,8 @@ static const GroebnerEngineEncodeFn kGroebnerEngineEncodeTable[] = {
     [INTERSECTION] = groebner_engine_encode_intersection,
     [CONTAINMENT] = groebner_engine_encode_containment,
     [CONNECTION] = groebner_engine_encode_connection,
-    [ANGLE] = groebner_engine_encode_angle
+    [ANGLE] = groebner_engine_encode_angle,
+    [PARALLEL] = groebner_engine_encode_parallel
 };
 
 /**

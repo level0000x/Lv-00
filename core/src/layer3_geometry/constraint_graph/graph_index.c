@@ -216,6 +216,32 @@ AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int li
 }
 
 /**
+ * @brief 添加平行约束（两条线段平行）
+ *
+ * 声明两条线段方向共线（平行）。
+ *
+ * @param graph    约束图指针
+ * @param line1_id 第一条线段 ID
+ * @param line2_id 第二条线段 ID
+ * @return 操作结果枚举
+ */
+AddConstraintResult graph_add_parallel(ConstraintGraph *graph, int line1_id, int line2_id) {
+    GeomNode *l1 = graph_get_node(graph, line1_id);
+    GeomNode *l2 = graph_get_node(graph, line2_id);
+    if (!l1 || !l2)
+        return ADD_CONSTRAINT_CONFLICT;
+    if (l1->type != GEOM_LINE_SEGMENT || l2->type != GEOM_LINE_SEGMENT)
+        return ADD_CONSTRAINT_CONFLICT;
+    int participants[2] = {line1_id, line2_id};
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, PARALLEL, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
+    graph->dirty = true;
+    return ADD_CONSTRAINT_OK;
+}
+
+/**
  * @brief 添加介于约束（B-A-C 共线有序）
  *
  * 声明点 B 在点 A 和点 C 之间，三点共线且有序。
@@ -445,6 +471,12 @@ static AddConstraintResult constraint_add_angle_ops(ConstraintGraph *graph, cons
     (void) count;
     return graph_add_angle(graph, participants[0], participants[1], numeric_value);
 }
+static AddConstraintResult constraint_add_parallel_ops(ConstraintGraph *graph, const int *participants, int count,
+                                                       double numeric_value) {
+    (void) count;
+    (void) numeric_value;
+    return graph_add_parallel(graph, participants[0], participants[1]);
+}
 
 /* 约束类型 → 添加函数 注册表（按枚举顺序；新增约束类型在此加一行即可，
  * 若需经 algebra_constrain 按名接口暴露则补充 name 字段，否则置 NULL） */
@@ -457,6 +489,7 @@ const ConstraintAddOps kConstraintAddOps[] = {
     {CONNECTION, NULL, 2, constraint_arity_exact_2, constraint_add_connection_ops},
     /* ANGLE：需要 numeric_value 参数而 algebra_constrain 无此入参，不暴露按名接口（name=NULL） */
     {ANGLE, NULL, 2, constraint_arity_at_least_2, constraint_add_angle_ops},
+    {PARALLEL, "parallel", 2, constraint_arity_exact_2, constraint_add_parallel_ops},
 };
 
 /* 编译期校验：表条目数与 ConstraintType 枚举值严格对齐（防止枚举与注册表漂移） */

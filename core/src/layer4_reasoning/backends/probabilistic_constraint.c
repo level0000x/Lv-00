@@ -216,7 +216,8 @@ static const DTMCBuildFn kDTMCBuildTable[] = {
     [INTERSECTION] = dtmc_build_bidirectional,
     [CONTAINMENT] = dtmc_build_unidirectional,
     [ANGLE] = dtmc_build_unidirectional,
-    [CONNECTION] = dtmc_build_bidirectional
+    [CONNECTION] = dtmc_build_bidirectional,
+    [PARALLEL] = dtmc_build_unidirectional
 };
 
 /**

@@ -736,10 +736,153 @@ static int extract_containment(const ConstraintGraph *graph, EquationSystem *sys
     return 0;
 }
 
+/* ANGLE(line1, line2)：两条线段夹角等于约束角度（度）。
+ * 方向向量 u = B-A、v = D-C，夹角 θ 的余弦等式（与 groebner 编码同构）：
+ *   (u·v)^2 - cos^2θ · |u|^2 · |v|^2 = 0
+ * 端点坐标为常量时生成常量方程；坐标不可精确转换或角度已满足时跳过。
+ * 原实现为空桩（静默丢弃 angle 约束的代数约束力），此处补齐。 */
 static int extract_angle(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
-    (void)graph;
-    (void)sys;
-    (void)c;
+    if (c->participant_count < 2)
+        return 0;
+    GeomNode *line1 = find_node(graph, c->participants[0]);
+    GeomNode *line2 = find_node(graph, c->participants[1]);
+    if (!line1 || !line2)
+        return 0;
+    if (line1->type != GEOM_LINE_SEGMENT || line2->type != GEOM_LINE_SEGMENT)
+        return 0;
+    if (line1->coord_count < 4 || line2->coord_count < 4)
+        return 0;
+    if (!line1->symbolic_coords || !line2->symbolic_coords)
+        return 0;
+
+    double ax, ay, bx, by, cx, cy, dx, dy;
+    if (!coord_to_double(line1->symbolic_coords[0], &ax) ||
+        !coord_to_double(line1->symbolic_coords[1], &ay) ||
+        !coord_to_double(line1->symbolic_coords[2], &bx) ||
+        !coord_to_double(line1->symbolic_coords[3], &by) ||
+        !coord_to_double(line2->symbolic_coords[0], &cx) ||
+        !coord_to_double(line2->symbolic_coords[1], &cy) ||
+        !coord_to_double(line2->symbolic_coords[2], &dx) ||
+        !coord_to_double(line2->symbolic_coords[3], &dy))
+        return 0;
+
+    double ux = bx - ax, uy = by - ay;
+    double vx = dx - cx, vy = dy - cy;
+    double theta = lv_deg_to_rad(c->numeric_value);
+    double cos_sq = cos(theta) * cos(theta);
+    double dot = ux * vx + uy * vy;
+    double norm_u_sq = geo_norm_sq_2d(ux, uy);
+    double norm_v_sq = geo_norm_sq_2d(vx, vy);
+    double lhs = dot * dot - cos_sq * norm_u_sq * norm_v_sq;
+
+    /* 角度已满足：方程近零，无需加入（非编码失败） */
+    if (fabs(lhs) < lv_EPSILON_DOUBLE)
+        return 0;
+
+    int64_t scale = lv_SOLVER_SCALE_FACTOR;
+    mpz_poly_t poly;
+    if (solver_poly_pool_init(&poly, 0, 1) != 0)
+        return 0;
+    poly.degree = 0;
+    double_to_mpz_scaled(lhs, poly.coeffs[0], scale);
+    if (solver_poly_pool_push(sys, &poly, line1->id, 0) != 0)
+        lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+    return 0;
+}
+
+/* PARALLEL(line1, line2)：两线段方向向量平行 → 叉积为零。
+ * 方向向量 u = (B-A)、v = (D-C)，平行条件 ux*vy - uy*vx = 0。
+ * 端点坐标为常量时生成常量方程；坐标不可精确转换时跳过（返回 0）。 */
+static int extract_parallel(const ConstraintGraph *graph, EquationSystem *sys, const Constraint *c) {
+    if (c->participant_count < 2)
+        return 0;
+    GeomNode *line1 = find_node(graph, c->participants[0]);
+    GeomNode *line2 = find_node(graph, c->participants[1]);
+    if (!line1 || !line2)
+        return 0;
+    if (line1->type != GEOM_LINE_SEGMENT || line2->type != GEOM_LINE_SEGMENT)
+        return 0;
+    if (line1->coord_count < 4 || line2->coord_count < 4)
+        return 0;
+    if (!line1->symbolic_coords || !line2->symbolic_coords)
+        return 0;
+
+    int64_t scale = lv_SOLVER_SCALE_FACTOR;
+    mpz_t l1x1_s, l1y1_s, l1x2_s, l1y2_s;
+    mpz_t l2x1_s, l2y1_s, l2x2_s, l2y2_s;
+    mpz_init(l1x1_s);
+    mpz_init(l1y1_s);
+    mpz_init(l1x2_s);
+    mpz_init(l1y2_s);
+    mpz_init(l2x1_s);
+    mpz_init(l2y1_s);
+    mpz_init(l2x2_s);
+    mpz_init(l2y2_s);
+
+    bool exact1 = coord_to_mpz_scaled_exact(line1->symbolic_coords[0], l1x1_s, scale) &&
+                  coord_to_mpz_scaled_exact(line1->symbolic_coords[1], l1y1_s, scale) &&
+                  coord_to_mpz_scaled_exact(line1->symbolic_coords[2], l1x2_s, scale) &&
+                  coord_to_mpz_scaled_exact(line1->symbolic_coords[3], l1y2_s, scale);
+    bool exact2 = coord_to_mpz_scaled_exact(line2->symbolic_coords[0], l2x1_s, scale) &&
+                  coord_to_mpz_scaled_exact(line2->symbolic_coords[1], l2y1_s, scale) &&
+                  coord_to_mpz_scaled_exact(line2->symbolic_coords[2], l2x2_s, scale) &&
+                  coord_to_mpz_scaled_exact(line2->symbolic_coords[3], l2y2_s, scale);
+
+    if (exact1 && exact2) {
+        mpz_t dx1_s, dy1_s, dx2_s, dy2_s;
+        mpz_init(dx1_s);
+        mpz_init(dy1_s);
+        mpz_init(dx2_s);
+        mpz_init(dy2_s);
+        mpz_sub(dx1_s, l1x2_s, l1x1_s);
+        mpz_sub(dy1_s, l1y2_s, l1y1_s);
+        mpz_sub(dx2_s, l2x2_s, l2x1_s);
+        mpz_sub(dy2_s, l2y2_s, l2y1_s);
+
+        /* cross = dx1*dy2 - dy1*dx2（尺度 2 次：各端点坐标 scale 级 → 叉积 scale² 级，
+         * 与 solver 其余坐标系数同尺度归一策略，push 时不缩放由求解器统一处理） */
+        mpz_poly_t poly;
+        if (solver_poly_pool_init(&poly, 1, 2) == 0) {
+            mpz_t t1, t2;
+            mpz_init(t1);
+            mpz_init(t2);
+            mpz_mul(t1, dx1_s, dy2_s);
+            mpz_mul(t2, dy1_s, dx2_s);
+            mpz_sub(t1, t1, t2);
+            mpz_set(poly.coeffs[0], t1);
+            poly.degree = 0;
+            mpz_clear(t1);
+            mpz_clear(t2);
+            if (solver_poly_pool_push(sys, &poly, line1->id, 0) != 0) {
+                mpz_clear(dx1_s);
+                mpz_clear(dy1_s);
+                mpz_clear(dx2_s);
+                mpz_clear(dy2_s);
+                mpz_clear(l1x1_s);
+                mpz_clear(l1y1_s);
+                mpz_clear(l1x2_s);
+                mpz_clear(l1y2_s);
+                mpz_clear(l2x1_s);
+                mpz_clear(l2y1_s);
+                mpz_clear(l2x2_s);
+                mpz_clear(l2y2_s);
+                lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "push failed (OOM)");
+            }
+        }
+        mpz_clear(dx1_s);
+        mpz_clear(dy1_s);
+        mpz_clear(dx2_s);
+        mpz_clear(dy2_s);
+    }
+
+    mpz_clear(l1x1_s);
+    mpz_clear(l1y1_s);
+    mpz_clear(l1x2_s);
+    mpz_clear(l1y2_s);
+    mpz_clear(l2x1_s);
+    mpz_clear(l2y1_s);
+    mpz_clear(l2x2_s);
+    mpz_clear(l2y2_s);
     return 0;
 }
 
@@ -812,6 +955,7 @@ static const ConstraintExtractFunc constraint_extract_ops[] = {
     [CONTAINMENT] = extract_containment,
     [ANGLE] = extract_angle,
     [CONNECTION] = extract_connection,
+    [PARALLEL] = extract_parallel,
 };
 
 /**

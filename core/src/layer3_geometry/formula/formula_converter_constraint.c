@@ -55,7 +55,7 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
         return false;
     }
 
-    /* 添加 betweenness 约束（简化处理） */
+    /* 添加 betweenness 约束（完整实现） */
     AddConstraintResult result = graph_add_betweenness(graph, p1_id, p2_id, p3_id);
 
     if (result != ADD_CONSTRAINT_OK) {
@@ -90,9 +90,9 @@ bool formula_convert_parallel(const FormulaNode *constraint_node, ConstraintGrap
         return false;
     }
 
-    /* 平行约束目前使用 containment 简化表示 */
-    /* 注意：实际实现可能需要扩展 ConstraintType */
-    AddConstraintResult result = graph_add_containment(graph, l1_id, l2_id);
+    /* 平行约束：真实平行语义（两条线段方向共线），
+     * 取代旧的 containment 简化表示（语义错误且必然失败）。 */
+    AddConstraintResult result = graph_add_parallel(graph, l1_id, l2_id);
 
     if (result != ADD_CONSTRAINT_OK) {
         return false;

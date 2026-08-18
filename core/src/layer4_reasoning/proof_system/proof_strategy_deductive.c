@@ -43,6 +43,7 @@
 #define DEDUCT_FMT_CONTAINMENT     "containment:%d,%d"
 #define DEDUCT_FMT_ANGLE           "angle:%d,%d"
 #define DEDUCT_FMT_CONNECTION      "connection:%d,%d"
+#define DEDUCT_FMT_PARALLEL        "parallel:%d,%d"
 #define DEDUCT_FMT_COINCIDENT      "coincident:%d,%d"
 #define DEDUCT_FMT_CONGRUENT       "congruent:%d,%d,%d,%d,%d,%d"
 #define DEDUCT_FMT_POINT_COORD_STR "point_coord:%d,%s,%s"
@@ -63,6 +64,7 @@ static const DeductFactSpec s_constraint_fact_specs[] = {
     [CONTAINMENT]  = {DEDUCT_FMT_CONTAINMENT, 2},
     [ANGLE]        = {DEDUCT_FMT_ANGLE, 2},
     [CONNECTION]   = {DEDUCT_FMT_CONNECTION, 2},
+    [PARALLEL]     = {DEDUCT_FMT_PARALLEL, 2},
 };
 
 /**

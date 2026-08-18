@@ -41,6 +41,7 @@ static const ConstraintPdfSyntax constraint_pdf_syntax[] = {
     [INTERSECTION] = { NULL,             false, true  },
     [CONTAINMENT]  = { "[6.0 3.0 1.0 3.0] 0 d", true, true },
     [ANGLE]        = { "[4.0 2.0] 0 d",  true,  true  },
+    [PARALLEL]     = { "[4.0 2.0] 0 d",  true,  true  },
 };
 
 /** @brief 从公共核心表 rgb 生成 PDF 颜色三元组（如 "0.42 0.45 0.50"） */

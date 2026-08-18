@@ -295,6 +295,7 @@ static const CheckConstraintHandler check_constraint_handlers[] = {
     [CONTAINMENT]   = check_constraint_default_handler,
     [CONNECTION]    = check_constraint_default_handler,
     [ANGLE]         = check_constraint_default_handler,
+    [PARALLEL]      = check_constraint_default_handler,
 };
 
 /* ── Switch 3: 节点选择策略 handler ── */

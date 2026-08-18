@@ -27,8 +27,8 @@
 /* rewrite_stream_ctx 定义在 rewrite.c 中，通过 getter 函数访问 */
 StreamContext *rewrite_get_stream_context(void);
 
-/* ConstraintType 枚举成员数（INCIDENCE=0 .. ANGLE=5，连续） */
-enum { CONSTRAINT_TYPE_COUNT = ANGLE + 1 };
+/* ConstraintType 枚举成员数（INCIDENCE=0 .. PARALLEL=6，连续） */
+enum { CONSTRAINT_TYPE_COUNT = PARALLEL + 1 };
 
 /**
  * 执行带坐标验证的子图同构匹配。
@@ -265,7 +265,7 @@ int hash_history_count(const HashHistory *hh) {
 
 /* 约束类型 → 拓扑计数槽索引 映射表。
  * 槽位顺序与 compute_wl_initial_labels 中标签混入顺序保持一致：
- * 0=INCIDENCE, 1=BETWEENNESS, 2=INTERSECTION, 3=CONTAINMENT, 4=ANGLE, 5=CONNECTION */
+ * 0=INCIDENCE, 1=BETWEENNESS, 2=INTERSECTION, 3=CONTAINMENT, 4=ANGLE, 5=CONNECTION, 6=PARALLEL */
 static const int s_constraint_count_slots[] = {
     [INCIDENCE]    = 0,
     [BETWEENNESS]  = 1,
@@ -273,6 +273,7 @@ static const int s_constraint_count_slots[] = {
     [CONTAINMENT]  = 3,
     [ANGLE]        = 4,
     [CONNECTION]   = 5,
+    [PARALLEL]     = 6,
 };
 
 /**
@@ -318,6 +319,7 @@ static uint64_t *compute_wl_initial_labels(ConstraintGraph *graph, int node_coun
         label = label * 31 + constraint_counts[CONTAINMENT];
         label = label * 31 + constraint_counts[ANGLE];
         label = label * 31 + constraint_counts[CONNECTION];
+        label = label * 31 + constraint_counts[PARALLEL];
 
         labels[i] = label;
     }

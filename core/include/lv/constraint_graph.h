@@ -155,7 +155,8 @@ typedef enum {
     INTERSECTION, /* 相交约束：两个几何对象在某点相交 */
     CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
     CONNECTION,   /* 连接约束：端口之间的数据流连接 */
-    ANGLE         /* 角度约束：两条线段之间的夹角 */
+    ANGLE,        /* 角度约束：两条线段之间的夹角 */
+    PARALLEL      /* 平行约束：两条线段平行（方向共线） */
 } ConstraintType;
 
 /**
@@ -169,7 +170,8 @@ typedef enum {
     x(INTERSECTION, "INTERSECTION") \
     x(CONTAINMENT, "CONTAINMENT") \
     x(CONNECTION, "CONNECTION") \
-    x(ANGLE, "ANGLE")
+    x(ANGLE, "ANGLE") \
+    x(PARALLEL, "PARALLEL")
 
 /**
  * @brief ConstraintType 全字段条目宏（单一事实来源，并行于 LV_CONSTRAINT_TYPE_X）
@@ -184,7 +186,8 @@ typedef enum {
     x(INTERSECTION, "INTERSECTION", "intersection") \
     x(CONTAINMENT, "CONTAINMENT", "containment") \
     x(CONNECTION, "CONNECTION", "connection") \
-    x(ANGLE, "ANGLE", "angle")
+    x(ANGLE, "ANGLE", "angle") \
+    x(PARALLEL, "PARALLEL", "parallel")
 
 /**
  * @brief 获取约束类型的规范名称（与 ConstraintType 枚举严格对齐）
@@ -671,6 +674,18 @@ lv_PUBLIC_API AddConstraintResult graph_add_connection(ConstraintGraph *graph, i
 lv_PUBLIC_API AddConstraintResult graph_add_angle(ConstraintGraph *graph, int line1_id, int line2_id, double angle_degrees);
 
 /**
+ * @brief 添加平行约束（两条线段平行）
+ *
+ * 声明两条线段方向共线（平行）。
+ *
+ * @param[in] graph     约束图
+ * @param[in] line1_id  第一条线段 ID
+ * @param[in] line2_id  第二条线段 ID
+ * @return 操作结果状态码
+ */
+lv_PUBLIC_API AddConstraintResult graph_add_parallel(ConstraintGraph *graph, int line1_id, int line2_id);
+
+/**
  * @brief 约束添加分派 ops 表条目（单一事实来源）
  *
  * graph_add_constraint_dispatch（按 type 查表）与 algebra_constrain
@@ -693,7 +708,7 @@ typedef struct {
 extern const ConstraintAddOps kConstraintAddOps[];
 /** @brief 表条目数：与 ConstraintType 枚举一一对应（一行一类型，按枚举顺序）；
  *         表定义处（graph_index.c）以 _Static_assert 与 lv_ARRAY_SIZE 对齐校验 */
-#define LV_CONSTRAINT_ADD_OPS_COUNT ((int) (ANGLE) + 1)
+#define LV_CONSTRAINT_ADD_OPS_COUNT ((int) (PARALLEL) + 1)
 
 /**
  * @brief 从约束图中移除节点
