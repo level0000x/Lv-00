@@ -241,6 +241,58 @@ static void test_inverse_operations(void) {
     TEST_PASS("test_inverse_operations");
 }
 
+/**
+ * @brief 测试实例化时 add_to_graph 真实入图（回归：P1-1 空分支缺陷）
+ *
+ * 旧实现中 func_block_preset_instantiate_ex 的 add_to_graph 分支为空，
+ * 而 func_block_preset_instantiate 默认 add_to_graph=true，调用方期望
+ * 函数块被加入约束图实际没有。修复后应新增 GEOM_FUNCTION_BLOCK 节点。
+ */
+static void test_instantiate_add_to_graph(void) {
+    func_block_preset_library_init();
+
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT(g != NULL, "graph_create 失败");
+
+    /* 创建两个输入点（midpoint 预设需要 2 个输入） */
+    SymbolicCoord *ax = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *ay = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *bx = symbolic_coord_create_rational(2, 1);
+    SymbolicCoord *by = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *coords_a[2] = {ax, ay};
+    SymbolicCoord *coords_b[2] = {bx, by};
+    AddNodeResult ar = graph_add_point(g, coords_a, 2);
+    AddNodeResult br = graph_add_point(g, coords_b, 2);
+    symbolic_coord_destroy(ax);
+    symbolic_coord_destroy(ay);
+    symbolic_coord_destroy(bx);
+    symbolic_coord_destroy(by);
+    TEST_ASSERT(ar == ADD_NODE_OK, "添加点 A 失败");
+    TEST_ASSERT(br == ADD_NODE_OK, "添加点 B 失败");
+
+    int before = g->node_count;
+
+    FuncBlock *fb = NULL;
+    int inputs[2];
+    inputs[0] = 0; /* 点 ID 0 */
+    inputs[1] = 1; /* 点 ID 1 */
+    InstantiateResult result =
+        func_block_preset_instantiate("midpoint", inputs, 2, g, &fb);
+
+    TEST_ASSERT(result == lv_INSTANTIATE_OK, "midpoint 实例化应成功");
+    TEST_ASSERT(fb != NULL, "实例化应返回函数块");
+    if (fb) {
+        /* 默认 add_to_graph=true：图中应新增 GEOM_FUNCTION_BLOCK 节点 */
+        TEST_ASSERT(g->node_count == before + 1, "图中应新增 1 个函数块节点");
+        GeomNode *last = g->nodes[g->node_count - 1];
+        TEST_ASSERT(last != NULL && last->type == GEOM_FUNCTION_BLOCK, "新增节点应为函数块类型");
+        func_block_destroy(fb);
+    }
+
+    graph_destroy(g);
+    TEST_PASS("test_instantiate_add_to_graph");
+}
+
 /* ============================================================
  * 主函数
  * ============================================================ */
@@ -258,6 +310,7 @@ TEST_MAIN_BEGIN("预设函数块库测试")
     TEST_MAIN_RUN(test_string_conversions);
     TEST_MAIN_RUN(test_documentation);
     TEST_MAIN_RUN(test_inverse_operations);
+    TEST_MAIN_RUN(test_instantiate_add_to_graph);
     printf("\n========================================\n");
     if (g_fail_count == 0) {
         printf("所有测试通过! (%d 项)\n", g_pass_count);

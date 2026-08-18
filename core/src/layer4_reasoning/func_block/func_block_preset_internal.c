@@ -19,6 +19,7 @@
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/constraint_graph.h" /* graph_add_function_block（add_to_graph 真实入图） */
 
 /* ============================================================
  * 内部辅助函数
@@ -291,8 +292,17 @@ InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, cons
 
     /* 添加到约束图（如果需要） */
     if (options && options->add_to_graph) {
-        /* 这里应该创建实际的约束节点 */
-        /* 简化实现：仅标记为已实例化 */
+        /* 真实入图：将函数块作为 GEOM_FUNCTION_BLOCK 节点加入约束图。
+         * 内部节点/输入输出端口从 fb 已设置的数组读取；
+         * 失败时完整回滚 fb 并返回对应错误码。 */
+        AddNodeResult add_ret = graph_add_function_block(graph, fb->internal_node_ids, fb->internal_node_count,
+                                                         fb->input_port_ids, fb->input_count, fb->output_port_ids,
+                                                         fb->output_count);
+        if (add_ret != ADD_NODE_OK) {
+            func_block_destroy(fb);
+            out_details->result = INSTANTIATE_OUT_OF_MEMORY;
+            return INSTANTIATE_OUT_OF_MEMORY;
+        }
     }
 
     out_details->result = INSTANTIATE_OK;
