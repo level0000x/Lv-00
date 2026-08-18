@@ -356,6 +356,12 @@
 - 豁免点必须有登记，否则默认按漏网处理。
 - 登记是第 3.3 节豁免标注的机器可读版本，二者必须一致。
 
+**批次 R（2026-08-17，C-⑱ 抽象化收敛）**：
+- `lv_PI` / `lv_TWO_PI` / `lv_HALF_PI` / `lv_QUARTER_PI`（config.h，判据 C）——M_PI 平台宏收敛：14 文件 52 处迁移（含 M_PI_2 → lv_HALF_PI）；double 逐位等价已验证（3.141592653589793116）；豁免 2 处（geo_visual_complete.c 输出给外部 Cairo 解释器的脚本文本，负面清单 #2 外部契约，已标注 exempt）；测试：interval_arith_test 等 8 项 + 全量 174/174。
+- `set_error_msg` varg 化（lv_impl_upper_orchestrator.c，判据 A）——阶段错误消息格式化组装 14 处裸 snprintf 吸收至 vsnprintf 封装；缓冲区大小集中管理；测试：orchestrator 相关 + 全量。
+- `lv_snprintf`（lv_utils.h，判据 L，批次 U 设施复用）——prop_verifier_api.c 5 处错误消息组装迁移；行为等价（NUL 终止保证 + 返回值语义一致）；测试：prop_verifier 族 11 项 + 全量。
+- 黑名单新增：裸 `M_PI`（应引 lv_PI，含 lv_TWO_PI/lv_HALF_PI/lv_QUARTER_PI 变体）；错误字段裸 `snprintf(xxx.error_msg/error_message, sizeof, ...)`（应走 varg 封装或 lv_snprintf）。
+
 ---
 
 ## 10. 迁移顺序
@@ -391,6 +397,8 @@
 | `strtok` | 未走 `lv_strtok_r` |
 | `1e-` 字面量 | 未走具名 epsilon 常量 |
 | 手写 `clock_gettime` | 未走 `lv_get_time_us` |
+| 裸 `M_PI` / `M_PI_2` | 未走 `lv_PI` 家族（config.h 权威源；外部契约字符串豁免） |
+| 错误字段裸 `snprintf(xxx.error_msg/error_message, sizeof, ...)` | 未走字段级 varg 封装或 `lv_snprintf` |
 
 ### 11.2 白名单 / 豁免审计
 

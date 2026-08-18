@@ -2536,3 +2536,45 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 ### 决策登记（第 9 章格式）
 
 - 版本宏权威源统一 / 遗留闭环（C-⑭）/ debug.h + lv_internal.h fallback 值 + runtime_monitor 硬编码 + lv.h 注释 / fallback 值对齐 lv.h 权威源，运行期改引宏 / 全量回归 174/174。
+
+## 四十、批次 C-⑲：抽象化收敛 + 编码乱码修复（2026-08-17）
+
+用户选定「抽象化收敛扫描（批次 O/X 模式）」→ 立项「候选 1+2 全部实施」。全库扫描（判据 A-L 六维）发现：枚举↔字符串/线性查找/1e-8 常量等维度已治理完毕，两个真实候选 + 顺带发现 C-⑯ 漏扫乱码。
+
+### ① M_PI → lv_PI 收敛（D3 常量重复，判据 C）
+
+- 现状：17 文件 57 处裸用平台宏 M_PI；config.h 已有 `lv_PI`/`lv_TWO_PI`/`lv_HALF_PI`/`lv_QUARTER_PI` 权威源（W2 单源化），且 conflict_detector/lv_numeric/meta_proof 已有迁移先例。
+- **等价性验证**：M_PI 与 lv_PI 在 double 下逐位相等（3.141592653589793116），迁移行为等价（判据 §1.3 满足）。
+- 迁移：14 文件 52 处（含 formula_eval.c 的 M_PI_2 → lv_HALF_PI）；solver_symbolic.c 补 `#include "lv/config.h"`（原不可达）；geo_visual_complete.c 2 处为输出给外部 Cairo 解释器的脚本文本（负面清单 #2 外部契约）**豁免**并加 exempt 标注；修正 high_dim.c/interop.c 误导注释（lv_PI 权威源在 config.h 非 lv_internal.h）；删除 high_dim.c 悬空圆周率注释块。
+- 验证：ninja 全绿 + 受影响测试 8/8。
+
+### ② 错误消息组装收敛（D1 骨架重复，判据 A/L）
+
+- **orchestrator varg 化**：lv_impl_upper_orchestrator.c 的 `set_error_msg` 原仅支持静态消息，14 处裸 `snprintf(stage.error_msg, sizeof, fmt, ...)` 未收敛 → varg 化（vsnprintf）后静态/格式化统一走封装，缓冲区大小集中管理，补 stdarg.h。
+- **lv_snprintf 迁移**：prop_verifier_api.c 5 处错误消息组装（乱码修复中顺带）→ `lv_snprintf`（批次 U 判据 L 设施复用，NUL 终止保证 + 返回值语义一致）。
+- block_scheduler.c 1 处格式化环检测消息维持 `exempt`（判据 K 已登记豁免）。
+
+### ③ C-⑯ 漏扫乱码修复（新发现缺陷）
+
+- **发现**：全库 mojibake 特征扫描发现 core/src 11 文件双重编码乱码（C-⑯ 只修了 test/c 2 文件，未覆盖 core/src）：4 preset（algebraic/basic_geometry/polygons/transformations）+ 6 prop_verifier（api/bhk/checks/engine/equivalence/trust）+ lv_platform.h。
+- **影响**：prop_verifier_bhk.c 的 missing_descriptions（用户可见错误消息）与 trust.c 的流事件消息为乱码字符串——**影响运行时行为**。
+- **修复**（C-⑯ 同源方法论）：GBK 还原管线无损还原约 30% 文本；损坏点（U+FFFD 原字节丢失）按代码上下文语义重建 115+ 行。
+- 验证：全库 mojibake 特征归零（U+FFFD/U+013F 计数 = 0）。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（119.99s）。
+- 分块提交 5 个：`refactor(constant)` ×2（M_PI 迁移 + 补漏 interop_import_svg）/ `refactor(orchestrator)`（varg 化）/ `fix(encoding)`（乱码 11 文件）/ 文档登记。
+
+### 决策登记（第 9 章格式）
+
+- M_PI 收敛 / 判据 C / 14 文件 52 处 + 2 豁免 / 外部契约字符串豁免（geo_visual_complete Cairo 脚本）/ interval_arith 等 8 测试 + 全量 174/174。
+- set_error_msg varg 化 / 判据 A / 14 处 / 无 / orchestrator 相关 + 全量。
+- lv_snprintf 迁移 / 判据 L / 5 处（prop_verifier_api）/ 无 / prop_verifier 族 + 全量。
+- 乱码修复 / D4 编码重复（C-⑯ 同源）/ 11 文件 115+ 行语义重建 / U+FFFD 有损无法机械还原 / 全库 mojibake 归零 + 全量 174/174。
+
+### 遗留登记
+
+- ABSTRACTION_SPEC §11.1 黑名单新增：裸 `M_PI`、错误字段裸 `snprintf(error_msg, ...)`。
+- 全库枚举↔字符串表已确认 X-macro/数据表化（健康形态），无待收敛孤例。
+- lv_convenience.c(13) / proof_verify.c(10) 等格式化输出 snprintf 未迁移（非错误消息字段，属判据 L 大面迁移，登记待后续批次评估）。
