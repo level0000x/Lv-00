@@ -39,7 +39,7 @@ double geo_coord_to_double(const SymbolicCoord *coord) {
     if (coord == NULL)
         return 0.0;
 
-    /* 简化实现：依赖 symbolic_coord_to_double */
+    /* 委托 symbolics 层的符号坐标 → double 转换（单一事实来源） */
     extern double symbolic_coord_to_double(const SymbolicCoord *c);
     return symbolic_coord_to_double(coord);
 }

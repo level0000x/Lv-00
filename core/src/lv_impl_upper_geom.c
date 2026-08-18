@@ -253,9 +253,10 @@ int64_t proof_tptp_export(lvEngine *ctx, int64_t proof_id, char *buf, int64_t bu
 
     ConstraintGraph *graph = ctx->main_graph;
     if (!graph) {
-        /* 无约束图时返回占位 TPTP */
-        int n = snprintf(buf, (size_t) buf_size, "fof(conjecture, conjecture, $true).");
-        return (int64_t) (n >= 0 ? n : -1);
+        /* 无约束图：无证明可导出。原实现返回恒真占位
+         * fof(conjecture, conjecture, $true). 会误导消费者误以为
+         * 存在有效证明；改为显式报错（红线：宁可显式报错，不可静默错判）。 */
+        lv_RETURN_ERROR(lv_ERROR_INVALID_STATE, "proof_tptp_export: no constraint graph to export");
     }
 
     /* 使用 ATP 编码器将约束图编码为 TPTP FOF 格式 */

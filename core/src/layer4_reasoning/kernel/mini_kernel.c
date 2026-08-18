@@ -664,8 +664,10 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
     /* 2. 逐步骤验证 */
     verifier.verified_step_count = stmt->ref_count;
 
-    /* 3. 检查栈顶是否匹配目标公式 */
-    /* 简化验证：检查所有引用语句是否已通过验证 */
+    /* 3. 依赖闭包验证：检查所有引用语句是否已通过验证。
+     * 注意：本验证器采用依赖闭包语义（Metamath 风格简化验证），
+     * 仅确认证明依赖链完整（引用的定理/公理均已验证），
+     * 不执行证明步骤的公式重写与栈顶-目标匹配。 */
     bool all_verified = true;
     for (int i = 0; i < stmt->ref_count; i++) {
         int ref_id = stmt->proof_refs[i];

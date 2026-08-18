@@ -225,6 +225,16 @@ static void stats_category_visitor(const char *key, void *value, void *ctx) {
     }
 }
 
+/** foreach 回调：统计激活条目数（is_active == true） */
+static void stats_active_visitor(const char *key, void *value, void *ctx) {
+    (void) key;
+    InternalPresetEntry *entry = (InternalPresetEntry *) value;
+    int *active_count = (int *) ctx;
+    if (entry->is_active) {
+        (*active_count)++;
+    }
+}
+
 /**
  * @brief func_block_destroy 的 LV_FIELD_OBJECT 适配器（void(*)(void*) 形态）
  */
@@ -366,7 +376,10 @@ bool preset_library_get_statistics(PresetStatistics *stats) {
     stats->total_count = g_library.entry_count;
     stats->builtin_count = g_library.builtin_count;
     stats->custom_count = g_library.custom_count;
-    stats->active_count = g_library.entry_count; /* 简化实现 */
+    /* 激活数 = 实际参与查找/实例化的条目（is_active == true），
+     * 而非总条目数（含已停用条目）。经哈希表遍历统计。 */
+    stats->active_count = 0;
+    lv_hashtable_str_foreach(g_library.hash_table, stats_active_visitor, &stats->active_count);
 
     /* 统计各类别数量 */
     lv_hashtable_str_foreach(g_library.hash_table, stats_category_visitor, stats->category_counts);
