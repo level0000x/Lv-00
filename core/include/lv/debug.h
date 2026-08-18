@@ -33,10 +33,12 @@ typedef struct ConstraintGraph ConstraintGraph;
 
 /* 版本宏统一定义在 lv.h 中，通过 engine.h 间接包含 */
 /* 如果因某些原因未定义，使用编译期拼接回退 */
+/* 【版本权威源统一】fallback 值与 lv.h 的 lv_VERSION_MAJOR/MINOR/PATCH（1.1.0）保持一致，
+ * 避免 include 顺序不同导致版本字符串漂移 */
 #ifndef lv_VERSION_STRING
 #define lv_VERSION_STRING_EXPAND_(maj, min, pat) #maj "." #min "." #pat
 #define lv_VERSION_STRING_MACRO_(maj, min, pat) lv_VERSION_STRING_EXPAND_(maj, min, pat)
-#define lv_VERSION_STRING lv_VERSION_STRING_MACRO_(3, 3, 0)
+#define lv_VERSION_STRING lv_VERSION_STRING_MACRO_(1, 1, 0)
 #endif
 
 #define lv_NAME "Lv-00 Geometry Metalanguage"

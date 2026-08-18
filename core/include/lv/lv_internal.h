@@ -89,8 +89,10 @@ extern "C" {
 #ifndef lv_DEFAULT_MAX_DEPTH
 #define lv_DEFAULT_MAX_DEPTH 64
 #endif
+/* 【版本权威源统一】fallback 值与 lv.h 的 lv_VERSION_MAJOR/MINOR/PATCH（1.1.0）保持一致，
+ * 避免 include 顺序不同导致版本字符串漂移（原 3.5.0 为历史遗留硬编码） */
 #ifndef lv_VERSION_STRING
-#define lv_VERSION_STRING "3.5.0"
+#define lv_VERSION_STRING "1.1.0"
 #endif
 
 /* ================================================================

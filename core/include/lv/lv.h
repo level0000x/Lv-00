@@ -50,7 +50,7 @@
  * @endcode
  *
  * @section version_sec 版本
- * 当前版本: 3.3.0
+ * 当前版本: 1.1.0
  *
  * @section architecture_sec 架构
  *
@@ -178,7 +178,7 @@ extern "C" {
  *   lv_PATH_SEPARATOR_CHAR/STR 为本文件独有，config.h 无） */
 #include "config.h"
 
-/* ---- 版本信息（统一版本号 v3.3.0，所有模块引用此宏） ---- */
+/* ---- 版本信息（统一版本号 v1.1.0，所有模块引用此宏） ---- */
 #define lv_VERSION_MAJOR 1
 #define lv_VERSION_MINOR 1
 #define lv_VERSION_PATCH 0

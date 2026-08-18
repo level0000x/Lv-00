@@ -806,7 +806,9 @@ lvDiagnostics *lv_diagnostics_generate(void) {
     }
 
     /* 基本信息 */
-    lv_strlcpy(diag->version, "3.3.0", sizeof(diag->version));
+    /* 【版本权威源统一】改用 lv_VERSION_STRING 宏（原硬编码 "3.3.0" 与
+     * lv.h 的 1.1.0 权威源漂移，诊断报告版本号错误） */
+    lv_strlcpy(diag->version, lv_VERSION_STRING, sizeof(diag->version));
     lv_strlcpy(diag->build_date, __DATE__ " " __TIME__, sizeof(diag->build_date));
     diag->uptime_ms = lv_get_time_ns() / lv_NS_PER_MS;
 
