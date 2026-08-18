@@ -2578,3 +2578,54 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 - ABSTRACTION_SPEC §11.1 黑名单新增：裸 `M_PI`、错误字段裸 `snprintf(error_msg, ...)`。
 - 全库枚举↔字符串表已确认 X-macro/数据表化（健康形态），无待收敛孤例。
 - lv_convenience.c(13) / proof_verify.c(10) 等格式化输出 snprintf 未迁移（非错误消息字段，属判据 L 大面迁移，登记待后续批次评估）。
+
+## 四十一、批次 C-⑳：综合治理（未完整实现重扫 + 仓库卫生 + bug 定位 + 大文件评估）（2026-08-19）
+
+用户选定「全部按优先级执行」→ 按风险从低到高推进四方向。
+
+### ① 未完整实现重扫
+
+- 全库 63 处 TODO/占位/桩命中复核，**无 P0/P1 新缺口**：
+  - 已登记豁免/有意设计确认：preset_polynomial 族（C-⑰-补「声明式图节点语义」）、graph_node_stub（真实实现）、rewrite_apply placeholder（算法语义）、smt_backend UNKNOWN 策略、λ ABS.binder（已登记限制）、lambda_church id 占位（有意）、cuda/hip 条件编译 stub（Q3 豁免）。
+  - P2 登记：block_to_text.c「// block body」占位注释（序列化格式声称与实现脱节，无行为影响，文本 DSL 块体为空属格式契约）。
+
+### ② 仓库卫生
+
+- **解除 25+ 构建/测试诊断产物与一次性脚本跟踪**（C-⑰ 漏网）：
+  - 构建诊断：build3_k.* / lifecycle_k.* / build3_ctest_before.* / build3_target_ctest_map*.txt / build_verify_build_log*.txt / build_verify_ctest_log1.txt
+  - 测试输出：test_output.tex / test_tikz_temp.tex / temp_results.txt / one_arg_asserts.txt / s5_funcs.txt / switch5_funcs.txt
+  - 探针/调试：_probe_write_test.txt / core 内 .write_probe.txt / gdb_rot_cmd.txt
+  - 一次性脚本 17 项：split_*.py / fix_csg*.py / check_csg.py / edit_memory.py / scan_size.py / test_regex*.py / github-integrations*.js（.gitignore 已覆盖但历史入索引）
+- .gitignore 增补：/*_k.* / /*_probe* / .write_probe.txt / gdb_rot* / lifecycle_k.* / test_output.tex / test_tikz_temp.tex / test_proof_output.txt
+- 磁盘文件全部保留，仅解除索引跟踪。
+
+### ③ bug 定位：lv_free 传值误用缺陷族补漏（P0）
+
+- **发现**：lv_impl_upper_preset.c 4 处 `lv_free(_js)`（func_block_preset_metadata ×2 / bindings ×2）——C-⑮ 修复 36 处后的**同类新引入缺陷**（C-⑰-补 恢复文件晚于 C-⑮ 扫描）。
+- **根因**：`char *_js = lv_json_buf_finalize(&_jb)` 后 `lv_free(_js)` 传指针值而非地址 → `*ptr` 读 JSON 内容前 8 字节当指针 free；首 8 字节为 0 时静默泄漏（实测路径），非零时崩溃/堆损坏（与 C-⑮ 同款）。
+- **修复**：4 处改 `lv_free((void **) &_js)` 取址形式。
+- **全库复查**：Python 精确扫描 `lv_free(裸标识符)` 与 `lv_free(成员)` 形态，除设施自身（lv_free_ptr_array/lv_free_many）外**零剩余**。
+- **测试**：test_upper_api 新增 metadata/bindings JSON 路径 + 内存差值断言（ms_after <= ms_before + 4096）钉住修复；76/76 通过。
+
+### ④ 大文件拆分评估（cuda/hip + lv_parser + module_lvz）
+
+- **cuda/hip 后端**：1443/1391 行中非 SDK 分支仅 ~18 行存根（其余在 `#ifdef LV_HAS_CUDA/HIP` 完整实现内，当前构建不编译）；**零调用方**（仅 numerical_backend.c 条件 include）；Q3 已登记豁免 → **维持现状，拆分无收益**。
+- **lv_parser.c（1419 行）**：4 分区（语句级/表达式/嵌套泛型/公共 API）递归下降**强互调**（15 前向声明需全公开化），拆分风险高收益低 → **登记暂缓**。
+- **module_lvz.c（1339 行）**：查找表分发已数据表化（健康形态），词法层仅 120 行拆分收益小 → **登记暂缓**。
+- 结论：C-⑭ 剩余大文件（solver_core/normalization/lambda_unify/relation_model 已知不拆）之外的 lv_parser/module_lvz 也评估为**不拆**——拆分收益递减，符合「禁止为拆分而拆分」。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（73.58s；stream_extended_test 并行波动单独重跑通过，非回归）。
+- 分块提交 3 个：`chore`（仓库卫生）/ `fix(memory)`（lv_free 补漏）/ 文档登记。
+
+### 决策登记（第 9 章格式）
+
+- 仓库卫生 / 仓库治理 / 25+ 产物 + 17 脚本解除跟踪 / .gitignore 增补 8 规则 / 无（索引操作，磁盘保留）。
+- lv_free 补漏 / 缺陷修复（C-⑮ 同源）/ 4 处 lv_impl_upper_preset.c / 传值→取址 / test_upper_api 内存差值断言 + 全量 174/174。
+- 大文件不拆 / 架构评估 / cuda-hip 零调用方条件编译豁免（Q3）+ lv_parser 强耦合 + module_lvz 已数据表化 / 拆分收益递减 / 全量回归。
+
+### 遗留登记
+
+- block_to_text.c「// block body」占位注释（P2 注释修正候选）。
+- lv_parser.c / module_lvz.c 拆分暂缓（收益递减，未来语言演进频繁改动时再评估）。
