@@ -262,7 +262,7 @@ static bool svg_path_arc(const char **s, SvgParserState *state, double *out_poin
         double lx = lv_lerp(x_start, dx, t);
         double ly = lv_lerp(y_start, dy, t);
         /* 添加圆弧离差 */
-        double arc_angle = t * M_PI;
+        double arc_angle = t * lv_PI;
         double bulge = sin(arc_angle) * (sf ? 1.0 : -1.0);
         double chord_len = geo_distance_2d(x_start, y_start, dx, dy);
         double bulge_factor = (chord_len > lv_GEO_LENGTH_GUARD) ? (rx / chord_len) * 0.5 : 0.0;
@@ -341,7 +341,7 @@ int svg_parse_circle(double cx, double cy, double r, double *out_points, int max
     int count = 0;
     int samples = 32; /* 32个采样点近似圆 */
     for (int i = 0; i < samples && count < max_points; i++) {
-        double angle = 2.0 * M_PI * (double) i / (double) samples;
+        double angle = 2.0 * lv_PI * (double) i / (double) samples;
         out_points[count * 2] = cx + r * cos(angle);
         out_points[count * 2 + 1] = cy + r * sin(angle);
         count++;
