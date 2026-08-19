@@ -3006,3 +3006,46 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - lv_utils.h 58 个零覆盖（lv_dstr_* / lv_darray 补充 / 端序 load-store / 随机数 / 时间等）：另立批次甄别（多为 L2 基础设施，宜集中补测）。
 - solve_under_assumptions 假设不消费（M5）：需在 cdcl_run 决策阶段消费 assumption_lits 并标记 assumption_failed，专项修复。
+
+## 五十二、批次 C-㉛：lv_utils.h 零覆盖 L2 基础设施契约测试（2026-08-19）
+
+用户「继续推进」。按 C-㉚ 遗留建议，对 lv_utils.h 58 个零覆盖设施甄别并补测。
+
+### ① 甄别结果
+
+- 58 个零覆盖设施中 37 个可独立测试（纯函数/无外部副作用），已全部补测；其余为配置持久化（config_load/save）、INI 解析（lv_ini_parse）、内存毒药检查（lv_memory_check_poison）等需文件/内部状态设施，留待专项。
+- 全部 37 个设施均有实现（lv_utils_misc.c / lv_utils_str.c / lv_utils_array.c / lv_utils.c）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_lv_utils.c`**（CTEST lv_utils_test）：964 断言，37 设施全覆盖（按 test-authoring 三层：等价/边界/性质）：
+  - 数组工具：lv_ensure_capacity（倍增/容量充足不重分配/溢出/失败语义）、lv_cmp_int / lv_cmp_uint64（三态 + INT_MIN/INT_MAX 边界无溢出 + qsort 排序验证）、lv_max_d / lv_max_abs（NULL/非正 n → 0）。
+  - lvDStr：init（惰性分配）/ grow（倍增不破坏内容）/ append_str / append_raw / append_fmt / free（NUL 终止不变量、跨 4096 初始容量倍增）。
+  - lvDArray 补充：init_with_dtor（dtor 逐元素回调）/ reserve / pop（空栈安全）/ clear（保留容量）。
+  - lvTlsVector：ensure（倍增/不重分配）/ clear（保留缓冲）/ cleanup（二次安全）。
+  - FNV-1a：hash / update（分块==一次性）/ hash_str / hash_int——与标准参考值对拍（"a"=0xaf63dc4c8601ec8c、"foobar"=0x85944171f73967e8、空串=offset basis）。
+  - 字节序：store/load be16/32/64 + le16/32/64（已知字节序 + 100 组 roundtrip）。
+  - 时间：us/ms/ns + wallclock（单调性、量级关系、正值）。
+  - 随机：lv_random_init（种子复现确定性）/ int / double（范围、非退化、min>=max 退化返回 min）。
+  - lv_strlcpy_n（完整复制/截断返回源长/dest_size=1 只写 NUL/空源/NULL 安全）。
+  - lv_scratch_buf_cleanup（二次清理安全）。
+
+### ③ 契约差异登记（测试钉住实现现状）
+
+- **lv_ensure_capacity 负 count**：负 count 小于当前容量时走「无需扩容」分支返回 true（负值检查仅当 count >= capacity 时触发，实际不可达）。
+- **lv_dstr 初始容量 4096**：grow 需 extra 越过当前 cap 才扩容（测试用 10000 验证倍增）。
+
+### 验证
+
+- ninja 全绿 + ctest **178/178**（build3 21.74s / build_verify 13.85s，新增 lv_utils_test）。
+- test_lv_utils 964/964。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_utils.h 37 个零覆盖 L2 设施 / 无缺陷修复（纯补测）/ test_lv_utils 964 + 全量 178/178。
+- 2 项契约差异登记 / 契约钉住 / ensure_capacity 负 count、dstr 初始容量 / 按实现现状测试。
+
+### 遗留登记
+
+- config_load/config_save/lv_ini_parse/lv_memory_check_poison 等文件/内部状态设施：待专项批次。
+- lv_auto_free/lv_free_external/lv_free_many/lv_free_ptr_array 批量释放族：可在内存治理批次统一补测。
