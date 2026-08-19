@@ -578,6 +578,12 @@ ProofNavigator *proof_navigator_create(Proposition *target, lvEngine *engine) {
     nav->proof_state = PROOF_STATE_ONGOING;
     nav->strategy_note = NULL; /* LeanGeo风格：策略注释 */
 
+    /* 初始化内嵌 lvDArray 容器（等价表/引理视图），否则 push 时
+     * elem_size=0 静默失败，等价声明与引理视图状态 API 功能失效。 */
+    lv_darray_init(&nav->equivalences, sizeof(PropositionEquivalence));
+    lv_darray_init(&nav->lemma_view_step_ids, sizeof(int));
+    lv_darray_init(&nav->lemma_view_states, sizeof(LemmaViewState));
+
     /* 注册为当前 ghost 依赖链检查导航器 */
     proof_ghost_set_navigator(nav);
 

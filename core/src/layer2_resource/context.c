@@ -783,7 +783,6 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
                  "当前状态:         %s\n"
                  "推理栈深度:       %d / %d\n"
                  "已执行步数:       %lld / %lld\n"
-                 "缓存命中率:       %.1f%% (%lld 次命中 / %lld 次访问)\n"
                  "熔断器状态:       %s\n"
                  "熔断次数:         %d\n"
                  "连续错误:         %d / %d\n"
