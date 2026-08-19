@@ -175,6 +175,31 @@ static void test_string_operations(void) {
     lv_ASSERT(lv_str_skip_ws_n(NULL, bounded) == NULL);
     lv_ASSERT(lv_str_skip_ws_n(bounded, NULL) == bounded);
 
+    /* 测试 lv_snprintf（判据 L，C-㉑ 632 处迁移后核心依赖）：
+     * 正常格式化 / NUL 终止保证 / 返回值语义与 C99 snprintf 一致 */
+    {
+        char sp[32];
+        int n = lv_snprintf(sp, sizeof(sp), "v%d.%d", 1, 2);
+        lv_ASSERT(n == 4);
+        lv_ASSERT_STR_EQ(sp, "v1.2");
+
+        /* 截断：返回完整长度，缓冲 NUL 终止 */
+        n = lv_snprintf(sp, sizeof(sp), "%s", "0123456789012345678901234567890123456789");
+        lv_ASSERT(n == 40);          /* 完整源长度（C99 语义） */
+        lv_ASSERT(strlen(sp) == 31); /* 截断到 sizeof-1 */
+        lv_ASSERT(sp[31] == '\0');   /* NUL 终止保证 */
+    }
+
+    /* 测试 lv_str_startswith（判据 A，前缀收敛后核心依赖） */
+    lv_ASSERT(lv_str_startswith("prefix_suffix", "prefix"));
+    lv_ASSERT(lv_str_startswith("prefix", "prefix"));   /* 完整相等 */
+    lv_ASSERT(!lv_str_startswith("pref", "prefix"));    /* 源短于前缀 */
+    lv_ASSERT(!lv_str_startswith("suffix", "prefix"));  /* 前缀不匹配 */
+    lv_ASSERT(lv_str_startswith("", ""));               /* 双空串 */
+    lv_ASSERT(lv_str_startswith("abc", ""));            /* 空前缀匹配任意（strncmp(...,0)==0） */
+    lv_ASSERT(!lv_str_startswith(NULL, "p"));
+    lv_ASSERT(!lv_str_startswith("abc", NULL));
+
     printf("  PASSED\n");
 }
 
