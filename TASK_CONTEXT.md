@@ -2843,3 +2843,49 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 ### 遗留登记
 
 - 编码健康检查机制：建议纳入未来批次收尾例行项（BOM/CRLF/乱码三查）。
+
+## 四十八、批次 C-㉗：字符串设施零覆盖测试补全（2026-08-19）
+
+用户「继续推进」。全库测试覆盖扫描发现 40 个字符串设施中 31 个零测试覆盖（C-㉑/㉒/㉕ 大迁移后核心依赖），按 test-authoring 三层（等价性/边界/性质）补全。
+
+### ① 覆盖扫描
+
+- lv_str_utils.h 40 个公共设施，31 个在 test/ 目录**零直接测试**（多数被运行隐式覆盖但无契约测试）。
+- 泛化候选复核：lv_str_prefix_len 带界变体（lv_utils_misc 区间 + axiom_pkg_verify 游标）仅 2 处且彼此异构，不满足 ≥3 门槛 → 维持豁免。
+
+### ② 补测内容（test_utils.c test_string_operations，255→377 断言 +122）
+
+| 组 | 设施 |
+|----|------|
+| 判断族 | endswith / contains / is_empty / nonempty / eq / ne / icmp / icmp_n |
+| 关键字匹配 | match_any / match_delimited |
+| 裁剪 | chomp / ltrim / rtrim / trim |
+| 分割 | split / split_free |
+| 解析 | read_quoted / read_token / read_int |
+| 定界符 | skip_balanced / check_balanced / skip_until |
+| 转换 | replace / join / append_sep |
+| 转义族 | escape_xml / json_escape(+alloc) / html_escape(+alloc) / latex_escape(+alloc) / json_read_codepoint / codepoint_to_utf8 |
+
+### ③ 测试钉住的语义（实现契约确认）
+
+- XML `"` 转义为 `&quot;`（查找表含双引号）
+- JSON `\n` 为标准转义对 `\\n`（2 字符，非 `\u000a`）；其他控制字符 `\u00XX`
+- `lv_str_json_read_codepoint` 的 src 为 `\u` 后 4 位十六进制；代理对合并消耗 10 字节；孤立代理返回 0xFFFFFFFF
+- `lv_str_match_delimited("foobar", {foo,bar})` 返回 1（foo 后非分隔跳过，bar 以 NUL 结尾命中）
+- `lv_str_eq(NULL,NULL)` 为 true；`lv_str_icmp(NULL,"x")` 为 -1
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（99.48s）。
+- test_utils **377/377**（新增 122 断言）。
+- 提交 `test(string)`（1 文件，+250）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 测试覆盖 / 31 设施 122 断言 / 无 / test_utils 377 + 全量 174/174。
+- 泛化变体不立项 / 架构评估 / lv_str_prefix_len 带界变体 2 处异构 / 不满足 ≥3 门槛 / 维持豁免。
+
+### 遗留登记
+
+- lv_str_prefix_len 带界变体（需第三调用点出现时再评估）。
+- 建议：其他模块（数值/几何/证明）的零覆盖设施可仿照本批做覆盖扫描补全。
