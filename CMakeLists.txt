@@ -1870,6 +1870,8 @@ if(BUILD_TESTS)
     # v1.1.0 新模块集成测试
     add_lv_test_auto(test_new_modules CTEST_NAME new_modules_test)
     add_lv_test_auto(test_circuit_breaker CTEST_NAME circuit_breaker_test)
+    # 批次 C-㉙：隔离上下文零覆盖 API 契约测试
+    add_lv_test_auto(test_context CTEST_NAME context_test)
     # v3.6.0 新增：上层统一接口（lv_upper_api.h）测试
     add_lv_test_auto(test_upper_api CTEST_NAME upper_api_test)
     # v3.4.0 新增：几何代数模块测试
