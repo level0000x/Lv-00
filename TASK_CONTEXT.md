@@ -2733,3 +2733,36 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - strchr 单次切分（32 处）：登记 lv_str_split_once 新设施评估（批次 O 遗留）。
 - proof_version_isar.c 跳空格 starts_with：如需收敛需新增「跳空白前缀」变体，暂缓。
+
+## 四十五、批次 C-㉔：豁免确认 + 字符串设施契约测试（2026-08-19）
+
+用户「继续」。巡检剩余抽象化候选（注册表/空白跳过/block_to_text），全部判定豁免或格式契约；随后补 C-㉑/㉓ 大迁移后核心依赖的契约测试。
+
+### ① 候选豁免确认（多方向巡检）
+
+| 候选 | 判定 |
+|------|------|
+| 注册表三件套（114 文件含 register） | 语义异构（各注册表元数据字段/查找语义不同），无 ≥3 处同构 |
+| isspace 空白跳过 10 处 | 语义异构：token 结束判定 / trim 尾部 / 字符位置判断，非同一骨架 |
+| block_to_text.c「// block body」占位 | **格式契约**：lv_convert_text_to_block 反向解析器完整实现（已收敛 lv_str_skip_ws/lv_str_read_token），接受空块体；C-⑳ 登记的 P2 撤销 |
+
+### ② 字符串设施契约测试补全（test_utils.c）
+
+- **lv_snprintf**（C-㉑ 632 处迁移后核心依赖）：正常格式化返回值（== C99 snprintf）、截断时返回完整源长度 + NUL 终止保证（sp[size-1]=='\0'）。
+- **lv_str_startswith**（C-㉓ 前缀收敛后核心依赖）：完整相等、源短于前缀、前缀不匹配、双空串、空前缀匹配任意（strncmp(...,0)==0 语义）、NULL 输入安全。
+- test_utils 243/243（新增 16 断言）。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（174.15s）。
+- 提交 `test(string)`（1 文件，+25）。
+
+### 决策登记（第 9 章格式）
+
+- 豁免确认 / 扫描 / 注册表 + 空白跳过 + block_to_text / 语义异构或格式契约 / 全量回归。
+- 契约测试补全 / 测试 / lv_snprintf + lv_str_startswith 16 断言 / 无 / test_utils 243 + 全量 174/174。
+
+### 遗留登记
+
+- strchr 单次切分（32 处）：lv_str_split_once 新设施评估（批次 O 遗留，继续）。
+- proof_version_isar.c 跳空格 starts_with：需新增变体，暂缓。
