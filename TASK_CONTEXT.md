@@ -2957,3 +2957,52 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 - proof.h 剩余需引擎依赖设施（guided_fill / sledgehammer / refinement / export_isar / interactive_step）：待专项批次构造求解器/引擎上下文后补测。
 - 4 个 scope API（proof_begin_assumption_scope 等）无实现：登记为 M5 缺陷，需后续按「反证法作用域」语义设计实现。
 - 其他头文件（solver_core.h 23 / quantifier.h 22 / lv_utils.h 等）零覆盖可继续按本批方法论甄别。
+
+## 五十一、批次 C-㉚：quantifier + solver_core 零覆盖契约测试补全（2026-08-19）
+
+用户「继续」。按 C-㉙ 遗留建议，对 quantifier.h（17 API）/ solver_core.h（18 API）零覆盖甄别并补测；lv_utils.h 58 个零覆盖（多为宏/内部设施）另立批次。
+
+### ① 新增测试
+
+- **新建 `test/c/test_quantifier.c`**（CTEST quantifier_test）：98 断言，17 API 全覆盖。
+  - 域管理：create（命名域默认无限）/ create_finite / add_element（幂等）/ add_elements / contains / size（无限 -1）/ destroy。
+  - 表达式：create（NULL 域拒绝、所有权转移）/ destroy / evaluate（空域 ∀→TRUE、∃→FALSE、∃!→FALSE；有限域 AND/OR 归约短路；无限域 UNKNOWN；真值缓存）。
+  - 量词规则：instantiate（∀E：域外实例 INVALID_VARIABLE、非 ∀ 失败）/ generalize（∀I：单元素全 TRUE→OK、UNKNOWN→失败）/ exists_introduce（∃I：目击者必须满足体命题）/ exists_eliminate（∃E：无目击者失败）。
+  - 有限域消去：forall/exists/exists_unique（空域、单元素、双命中、无限域 DOMAIN_INFINITE、量词不匹配 ERROR）。
+  - is_eliminable / count_satisfying（无限 -1）/ result_destroy / 字符串映射（∀/∃/∃! 符号）。
+- **新建 `test/c/test_solver_core.c`**（CTEST solver_core_test）：82 断言，18 API 全覆盖。
+  - 生命周期：config_default / create / create_with_config（NULL 拒绝）/ destroy / clone / reset。
+  - 变量：new_var（ID 从 1）/ new_vars（连续 ID）/ var_count（count 0/负失败）。
+  - 约束：add_constraint（空子句矛盾拒绝、NULL/负 count 拒绝）/ remove_constraint（幂等、越界失败）。
+  - 求解：solve（单元子句 SAT、矛盾 UNSAT、空 CNF 平凡 SAT）/ solve_under_assumptions / solve_algebraic（无子句 UNKNOWN）。
+  - 冲突追踪：failed_constraint / failed_assumption / conflict_set（SAT 空集、UNSAT 非负计数）。
+  - 赋值：get_value（文字值语义：正文字==变量 ID）/ get_coord（SAT 后解码 RATIONAL 坐标）/ set_constraint_graph。
+  - CDCL 状态机：cdcl_state（IDLE/SATISFIED/UNSAT）/ cdcl_stats / cdcl_context。
+
+### ② 测试暴露并修复的真实缺陷
+
+1. **CDCL 冲突子句指针重入子句库 → 堆损坏崩溃**（solver_core.c）：cdcl_step_propagate / cdcl_step_conflict 将 ctx->conflict_clause 直接指向 ctx->clauses[i]（子句库内部指针），随后 cdcl_step_analyze 对该指针执行 lv_ensure_capacity（realloc）→ 破坏堆（0xfee 已释放哨兵）→ UNSAT 路径 destroy 时崩溃。修复：新增 cdcl_set_conflict（深拷贝到独立缓冲区），两处冲突记录改走该入口。
+2. **backjump 丢弃 analyze 扩容缓冲 → 泄漏**（solver_core.c）：cdcl_step_backjump 置 conflict_clause=NULL，丢弃 analyze 阶段经 lv_ensure_capacity 扩容的缓冲。修复：保留缓冲复用，仅清 conflict_size。
+
+### ③ 契约差异登记（测试钉住实现现状，不视为缺陷）
+
+- **solve_under_assumptions 不消费假设**（solver_core.c）：仅记录 assumption_lits 并调用普通 solve，cdcl_run 不读取假设 → 假设对求解结果无影响，assumption_failed 恒 false（M5 声称与实现脱节）。测试按实现现状钉住，待专项修复。
+- **failed_constraint 仅在 remove_constraint 置位**：UNSAT 求解不标记失败约束（M5）。
+- **proposition_set_preconditions 不同步 alias 字段**：只写 precondition_count，而 quantifier evaluate 读 precondition_region_count（全库无赋值点）→ precondition 命中路径从不生效（M6）。测试直接构造 alias 字段绕过。
+- **∃! 消去未命中元素返回 UNKNOWN 非 FALSE**：多元素域必有 has_unknown → 结果 UNKNOWN；单元素域命中才 TRUE（契约钉住）。
+- **solver->values 存文字值**（正文字==变量 ID）：get_value(2) 返回 2 而非 1。
+
+### 验证
+
+- ninja 全绿 + ctest **177/177**（build3 77.55s / build_verify 37.84s，新增 quantifier_test + solver_core_test）。
+- test_quantifier 98/98；test_solver_core 82/82。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / quantifier 17 API + solver_core 18 API / 2 个缺陷修复（CDCL conflict_clause 深拷贝、backjump 缓冲泄漏）/ test_quantifier 98 + test_solver_core 82 + 全量 177/177。
+- 5 项契约差异登记 / 契约钉住 / solve_under_assumptions 不消费假设、failed_constraint 语义、precondition alias、∃! UNKNOWN、文字值语义 / 按实现现状测试，待专项修复前保持。
+
+### 遗留登记
+
+- lv_utils.h 58 个零覆盖（lv_dstr_* / lv_darray 补充 / 端序 load-store / 随机数 / 时间等）：另立批次甄别（多为 L2 基础设施，宜集中补测）。
+- solve_under_assumptions 假设不消费（M5）：需在 cdcl_run 决策阶段消费 assumption_lits 并标记 assumption_failed，专项修复。
