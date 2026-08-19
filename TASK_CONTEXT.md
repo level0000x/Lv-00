@@ -2889,3 +2889,32 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - lv_str_prefix_len 带界变体（需第三调用点出现时再评估）。
 - 建议：其他模块（数值/几何/证明）的零覆盖设施可仿照本批做覆盖扫描补全。
+
+## 四十九、批次 C-㉘：lv_hash 流式族 + geo_utils 零覆盖测试补全（2026-08-19）
+
+用户「继续」。延续 C-㉗ 的覆盖扫描方法论，补全 lv_hash 流式上下文与 geo_utils 设施。
+
+### ① lv_hash 流式族（test_utils 377→385 断言）
+
+- 覆盖：lv_hash_init/update/str/int32/bool/digest_size/to_hex/to_hex_alloc（独立于已测的单步哈希 lv_hash_string/bytes/int）。
+- 钉住语义：FNV-1a 分块更新 == 整串更新；SHA-256 digest 32B / FNV 8B；NULL 输入语义（str→"(null)"、digest_size NULL→0、to_hex_alloc NULL→NULL）；int32/bool 字段混入可复现；to_hex_alloc 16 字符；缓冲过小置空串。
+
+### ② geo_utils 9 设施（test_geometry_core 204→239 断言）
+
+- 覆盖：geo_distance_3d / geo_approx_equal / geo_bbox_contains_1d+2d / geo_point_on_segment / geo_signed_area_2x / geo_angle / geo_segments_intersect / geo_point_in_region_segments。
+- 钉住语义：distance_3d 3-4-5 与单位立方体对角线；approx_equal eps 钳制（<GEO_EPSILON→GEO_EPSILON）；bbox 含容差边界；point_on_segment 受 APPROX 谓词容差（端点判定不稳定，用内部点）；signed_area_2x 叉积符号/共线零/2 倍面积；angle atan2 四象限 + 重合返回 0 非 NaN；segments_intersect 交叉/平行/共线重叠/分离；point_in_region_segments 三角形射线法内/外 + NULL/零计数安全。
+- 修复：18+9 处 TEST_ASSERT 单参 → 双参（宏要求 cond+msg；行尾注释形态）。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（73.28s）。
+- 提交 `test`（2 文件，+152）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_hash 流式族 8 设施 + geo_utils 9 设施 / 无 / test_utils 385 + test_geometry_core 239 + 全量 174/174。
+- TEST_ASSERT 单参修复 / 测试规范 / 27 处补 msg / 宏契约（cond+msg）/ 全量回归。
+
+### 遗留登记
+
+- 其他头文件零覆盖（proof.h 56 / context.h 30 / solver_core.h 23 / quantifier.h 22 等）：多为间接调用或宏误报，真实缺口待后续批次按本批方法论逐模块甄别。
