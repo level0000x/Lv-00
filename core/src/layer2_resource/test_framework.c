@@ -617,9 +617,8 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
 
             /* 简单匹配（仅检查前缀） */
             bool matches = false;
-            const char *star = strchr(pattern, '*');
-            if (star) {
-                size_t prefix_len = star - pattern;
+            size_t prefix_len = 0;
+            if (lv_str_prefix_len(pattern, '*', &prefix_len)) {
                 if (prefix_len == 0 || strncmp(full_name, pattern, prefix_len) == 0) {
                     matches = true;
                 }

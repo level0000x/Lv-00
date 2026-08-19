@@ -598,9 +598,10 @@ int lv_ini_parse(const char *path, lv_ini_visit_fn visit, void *ctx) {
 
         /* 解析节头 [section]（节名保持原始内容，调用方可按需修剪） */
         if (*trimmed == '[') {
-            const char *close_bracket = strchr(trimmed, ']');
-            if (close_bracket) {
-                size_t slen = (size_t) (close_bracket - (trimmed + 1));
+            size_t close_off = 0;
+            if (lv_str_prefix_len(trimmed, ']', &close_off)) {
+                /* 前缀长度为 ']' 偏移；节名起点为 trimmed+1（跳过 '['） */
+                size_t slen = close_off > 0 ? close_off - 1 : 0;
                 if (slen >= sizeof(current_section)) {
                     slen = sizeof(current_section) - 1;
                 }

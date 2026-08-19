@@ -153,6 +153,23 @@ lvStrSplitResult lv_str_split(const char *str, const char *delim);
 void lv_str_split_free(lvStrSplitResult *result);
 
 /**
+ * @brief 单次切分：查找 str 中首个分隔符，输出其前的前缀长度
+ *
+ * 收敛「strchr(找分隔符) → 计算前缀长度 → 截取/比较」样板
+ * （判据 A，批次 O 登记；lv_utils/lv_utils_config/atp_backend/
+ * test_framework 等 4 处同构调用点）。
+ *
+ * 语义契约：
+ * - 找到分隔符：返回 true，*out_len = 分隔符偏移（不含分隔符本身）
+ * - 未找到：返回 false，*out_len = strlen(str)（调用方按全串处理）
+ * - str 为空串：返回 false，*out_len = 0
+ * 前置条件：str 与 out_len 均非 NULL。
+ * 边界行为：不修改 str；分隔符为 '\0' 时等价于未找到（NUL 非有效分隔符）。
+ * 扩展点：无（单分隔符单次切分；多分隔符/全量分割用 lv_str_split）。
+ */
+bool lv_str_prefix_len(const char *str, char delim, size_t *out_len);
+
+/**
  * @brief strtok_r 的可移植封装（MSVC 下回退到 strtok_s）
  * @param str     要分割的字符串（首次调用传入，后续传 NULL）
  * @param delim   分隔符字符串

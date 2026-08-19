@@ -469,10 +469,9 @@ bool config_save(const ConfigManager *mgr) {
     ConfigItem *item = mgr->items;
     while (item) {
         /* 检测节前缀：如果键包含 '.'，提取节名并在变化时输出节头 */
-        const char *dot = strchr(item->key, '.');
-        if (dot) {
+        size_t section_len = 0;
+        if (lv_str_prefix_len(item->key, '.', &section_len)) {
             char section[256];
-            size_t section_len = (size_t) (dot - item->key);
             if (section_len >= sizeof(section))
                 section_len = sizeof(section) - 1;
             lv_strlcpy_n(section, sizeof(section), item->key, section_len);

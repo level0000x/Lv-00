@@ -567,12 +567,11 @@ static int atp_extract_proof_steps(const char *output, ATPProofStep **out_steps,
             const char *inf = strstr(clause_start, "inference(");
             if (inf && inf < clause_end) {
                 const char *rule_start = inf + strlen("inference(");
-                const char *rule_end = strchr(rule_start, ',');
-                if (rule_end) {
-                    int rule_len = (int) (rule_end - rule_start);
-                    steps[count].inference_rule = (char *) lv_malloc((size_t) rule_len + 1);
+                size_t rule_len = 0;
+                if (lv_str_prefix_len(rule_start, ',', &rule_len)) {
+                    steps[count].inference_rule = (char *) lv_malloc(rule_len + 1);
                     if (steps[count].inference_rule) {
-                        lv_strlcpy_n(steps[count].inference_rule, (size_t) rule_len + 1, rule_start, (size_t) rule_len);
+                        lv_strlcpy_n(steps[count].inference_rule, rule_len + 1, rule_start, rule_len);
                     }
                 }
             }

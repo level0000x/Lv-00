@@ -222,6 +222,18 @@ void lv_str_split_free(lvStrSplitResult *result) {
     result->count = 0;
 }
 
+bool lv_str_prefix_len(const char *str, char delim, size_t *out_len) {
+    if (!str || !out_len)
+        return false;
+    const char *hit = (delim != '\0') ? strchr(str, delim) : NULL;
+    if (hit) {
+        *out_len = (size_t) (hit - str);
+        return true;
+    }
+    *out_len = strlen(str);
+    return false;
+}
+
 char *lv_strtok_r(char *str, const char *delim, char **saveptr) {
     if (!delim || !saveptr) return NULL;
     /* MSVC 的 strtok_s 与 POSIX strtok_r 签名兼容（str, delim, context），

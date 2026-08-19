@@ -200,6 +200,28 @@ static void test_string_operations(void) {
     lv_ASSERT(!lv_str_startswith(NULL, "p"));
     lv_ASSERT(!lv_str_startswith("abc", NULL));
 
+    /* 测试 lv_str_prefix_len（判据 A 单次切分设施，批次 O 登记） */
+    {
+        size_t len = 999;
+        /* 找到分隔符：前缀长度 = 分隔符偏移 */
+        lv_ASSERT(lv_str_prefix_len("a.b.c", '.', &len) == true);
+        lv_ASSERT(len == 1);
+        lv_ASSERT(lv_str_prefix_len("inference(rule,arg)", ',', &len) == true);
+        lv_ASSERT(len == 14); /* "inference(rule" 长度 */
+        /* 未找到：返回 false，长度 = 全串 */
+        lv_ASSERT(lv_str_prefix_len("hello", '|', &len) == false);
+        lv_ASSERT(len == 5);
+        /* 空串：返回 false，长度 0 */
+        lv_ASSERT(lv_str_prefix_len("", ',', &len) == false);
+        lv_ASSERT(len == 0);
+        /* 分隔符在开头：长度 0 */
+        lv_ASSERT(lv_str_prefix_len(",x", ',', &len) == true);
+        lv_ASSERT(len == 0);
+        /* NULL 安全 */
+        lv_ASSERT(lv_str_prefix_len(NULL, ',', &len) == false);
+        lv_ASSERT(lv_str_prefix_len("x", ',', NULL) == false);
+    }
+
     printf("  PASSED\n");
 }
 

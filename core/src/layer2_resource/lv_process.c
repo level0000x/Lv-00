@@ -559,8 +559,9 @@ bool lv_external_process_available(const char *name) {
     char full[1024];
     const char *start = path;
     while (start && *start) {
-        const char *end = strchr(start, ':');
-        size_t len = end ? (size_t) (end - start) : strlen(start);
+        /* 单次切分：找到 ':' 前缀长度；未找到（最后一个段）长度 = 全串 */
+        size_t len = 0;
+        lv_str_prefix_len(start, ':', &len);
         if (len > 0 && len + 2 + strlen(name) < sizeof(full)) {
             memcpy(full, start, len);
             size_t w = len;
