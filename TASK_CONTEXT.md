@@ -2697,3 +2697,39 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - ABSTRACTION_SPEC §11.1 黑名单新增：`lv_malloc(strlen(x) + 1)` 手写复制（→ lv_strdup_safe）。
 - 三态 strcmp（3 处，qsort/comparator）为合法形态，非候选。
+
+## 四十四、批次 C-㉓：前缀匹配收敛 + 豁免确认（2026-08-19）
+
+用户「继续」。扫描剩余抽象化候选（手写前缀/strchr/realloc/常量/内存安全），本批收敛 1 处 + 确认多项豁免。
+
+### ① Coq tactic 前缀匹配收敛（1 处）
+
+- proof_export_enhanced.c `is_coq_tactic_prefix`：手写 `strncmp(rule, prefix, strlen(prefix)) == 0` 真前缀匹配 → `lv_str_startswith`（判据 A，批次 O 登记「proof_version_isar.c 一个静态 starts_with 局部副本」同源；全库唯一纯前缀形态）。
+
+### ② 豁免确认（多项）
+
+| 候选 | 判定 |
+|------|------|
+| lv_lexer.c:118 / proof_strategy_numeric.c:81 `strlen==len && strncmp==0` | 精确长度标识符匹配（判据 C 已登记豁免） |
+| proof_version_isar.c `starts_with` 局部副本 | 跳空格增强包装（lv_str_startswith 无法表达，非纯副本） |
+| 裸 realloc 3 处（allocator.c 2 / lv_utils.c 1） | layer2 基础设施 + 语义特化豁免（已登记） |
+| memcpy+NUL 3 处（approx_counter / solver_core×2） | int 数组 0 终止哨兵（DIMACS 子句，非字符串） |
+| strchr 32 处 | 语义异构（查找 vs 切分），批次 O 登记 lv_str_split_once 新设施待评估 |
+| 魔法常量 64/128/256/1024/4096 数百处 | 多为局部数组容量/结构大小，非全局语义重复，低收益大面 |
+| lv_free 取址误用复查 | 零新误用（C-⑮/C-⑳ 后） |
+| lv_snprintf 错误路径覆盖复查 | 无覆盖（渲染输出路径非错误路径） |
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（135.71s）。
+- 提交 `refactor(string)`（1 文件，+1/-1）。
+
+### 决策登记（第 9 章格式）
+
+- 前缀匹配收敛 / 判据 A / 1 处 / 精确长度 + 跳空格包装豁免 / 全量 174/174。
+- 多项豁免确认 / 扫描 / realloc/memcpy 哨兵/strchr/常量 / 语义特化或低收益 / 全量回归。
+
+### 遗留登记
+
+- strchr 单次切分（32 处）：登记 lv_str_split_once 新设施评估（批次 O 遗留）。
+- proof_version_isar.c 跳空格 starts_with：如需收敛需新增「跳空白前缀」变体，暂缓。
