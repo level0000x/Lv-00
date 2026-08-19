@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file map_block.c
  * @brief 映射块数据实现
  *

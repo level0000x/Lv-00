@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file solver_snapshot.h
  * @brief 求解快照/回滚 — 从 solver.c 拆分
  *

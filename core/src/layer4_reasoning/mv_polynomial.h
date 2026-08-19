@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file mv_polynomial.h
  * @brief 多变量多项式 — Groebner 基计算基础数据结构
  *

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file record_block.c
  * @brief 记录块数据实现
  *

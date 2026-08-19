@@ -1,4 +1,4 @@
-﻿#include <string.h>
+#include <string.h>
 
 #include "lv/control_flow_blocks.h"
 #include "lv/lv_internal.h"

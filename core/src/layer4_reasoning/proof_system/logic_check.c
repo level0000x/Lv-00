@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file logic_check.c
  * @brief 逻辑检查模块（子目录版本）
  *

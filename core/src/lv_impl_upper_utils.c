@@ -1,4 +1,4 @@
-﻿/*
+/*
  * @file lv_impl_upper_utils.c
  * @brief Lv-00 upper unified impl - comprehensive utilities
  * @details Split from lv_impl_upper.c
