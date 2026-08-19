@@ -2918,3 +2918,42 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 ### 遗留登记
 
 - 其他头文件零覆盖（proof.h 56 / context.h 30 / solver_core.h 23 / quantifier.h 22 等）：多为间接调用或宏误报，真实缺口待后续批次按本批方法论逐模块甄别。
+
+## 五十、批次 C-㉙：proof.h / context.h 零覆盖契约测试补全（2026-08-19）
+
+用户「继续推进」。按 C-㉘ 遗留建议，对 proof.h / context.h 做逐头文件零覆盖甄别并补测。
+
+### ① 甄别结果
+
+- **context.h 30 个 API**：26 个零覆盖（create/get_state/set_state/state_name/transition_valid 等 4 个已有覆盖）。全部有实现、纯状态管理、可独立测试。
+- **proof.h 83 个 API**：52 个零覆盖。甄别分类：
+  - 可独立测试的纯设施 ~30 个（流式 setter、公理锁、⊥定义、引理视图、等价、策略/步骤注释、前后置条件、互斥判定、祖先链、断点、搜索树、依赖验证、ghost、多策略管理、类型变量、实例化、不可构造性 NULL 契约、NL 步骤描述）。
+  - 需引擎/求解器/文件 IO 依赖（guided_fill、sledgehammer、refinement、export_isar 等）→ 留待专项批次。
+  - **5 个声明无实现**（proof_begin_assumption_scope / proof_close_assumption_scope / proof_has_global_proposition / proof_scope_is_active / proof_set_stream_context）：M5 声称与实现脱节。其中 proof_set_stream_context 由 LV_STREAM_CTX_DEFINE(proof) 宏生成（有实现，getter 手写于 proof.c）；其余 4 个 scope API 全仓库无定义无调用 → 登记缺陷，不补测试（无法测）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_context.c`**（CTEST_NAME context_test）：143 断言。覆盖 26 个零覆盖 API：参数配置（timeout/max_depth 钳制/max_steps/name/id）、错误管理（set_error 格式化/clear/get_error_code/get_error_message）、推理栈（push/pop/depth/frame、空栈 pop 错误码）、熔断操作（begin/check_timeout、uncancellable 引用计数、record_step 步数熔断、record_error 连续错误熔断、record_success 重置、is_circuit_open）、快照/回滚（标量恢复、可重复回滚、NULL 契约）、reset 语义（状态/错误/推理栈/名称/配置/trip_count）、get_stats 摘要、register_resource_ops NULL 契约。
+- **扩展 `test/c/test_proof_infra.c`**：+46 断言（274→326 总计 326/326，原 280 计数含原有断言）。新增 18 个测试函数覆盖 proof.h 纯设施。
+
+### ③ 修复的真实缺陷（测试暴露）
+
+1. **`lv_context_get_stats` varargs 错位崩溃**（context.c）：格式串含「缓存命中率 %.1f%% (%lld/%lld)」但参数表无对应实参 → vsnprintf 读取错位指针（%s 读到整数 10=0xa）→ SIGSEGV。修复：移除虚构的缓存命中率行（mem_stats 无此字段，属声称与实现脱节 M5）。此前零覆盖从未触发。
+2. **`proof_navigator_create` 未初始化内嵌 lvDArray**（proof_proposition.c）：equivalences / lemma_view_step_ids / lemma_view_states 三个容器未 lv_darray_init（elem_size=0）→ push 静默失败 → 等价声明与引理视图状态 API 功能失效（M6 从不生效）。修复：create 中补 lv_darray_init（3 处）。
+3. **`proof_navigator_add_step` 覆写调用方预设的 step->id**（proof_proposition.c:662）：测试按实现契约改用 add 后分配的 id（祖先链/依赖验证测试相应调整）。
+
+### 验证
+
+- ninja 全绿 + ctest **175/175**（build3 82.51s / build_verify 45.76s，新增 context_test）。
+- test_context 143/143；test_proof_infra 326/326（原 280 中 6 个失败全部归因于缺陷 2/3 与测试假设，修复后全绿）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / context 26 API + proof 18 组设施 / 3 个缺陷修复（get_stats varargs、nav darray 未初始化、add_step id 覆写契约）/ test_context 143 + test_proof_infra 326 + 全量 175/175。
+- 5 个 scope API 声明无实现登记 / 缺陷登记 / M5 声称与实现脱节 / proof.h 声明但无定义无调用 / 待专项补齐（需先定义作用域语义再实现）。
+
+### 遗留登记
+
+- proof.h 剩余需引擎依赖设施（guided_fill / sledgehammer / refinement / export_isar / interactive_step）：待专项批次构造求解器/引擎上下文后补测。
+- 4 个 scope API（proof_begin_assumption_scope 等）无实现：登记为 M5 缺陷，需后续按「反证法作用域」语义设计实现。
+- 其他头文件（solver_core.h 23 / quantifier.h 22 / lv_utils.h 等）零覆盖可继续按本批方法论甄别。
