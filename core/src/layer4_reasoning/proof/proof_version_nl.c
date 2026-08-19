@@ -158,11 +158,9 @@ bool proof_navigator_set_strategy_note(ProofNavigator *nav, const char *strategy
     lv_free((void **) &nav->strategy_note);
 
     if (strategy_note && strategy_note[0] != '\0') {
-        nav->strategy_note = lv_malloc(strlen(strategy_note) + 1);
+        nav->strategy_note = lv_strdup_safe(strategy_note);
         if (!nav->strategy_note)
             return false;
-        /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-        lv_strlcpy(nav->strategy_note, strategy_note, strlen(strategy_note) + 1);
     } else {
         nav->strategy_note = NULL;
     }
@@ -194,11 +192,9 @@ bool proof_step_set_note(ProofStep *step, const char *note) {
     lv_free((void **) &step->note);
 
     if (note && note[0] != '\0') {
-        step->note = lv_malloc(strlen(note) + 1);
+        step->note = lv_strdup_safe(note);
         if (!step->note)
             return false;
-        /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-        lv_strlcpy(step->note, note, strlen(note) + 1);
     } else {
         step->note = NULL;
     }

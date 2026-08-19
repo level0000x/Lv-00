@@ -449,12 +449,11 @@ BacktrackNode *backtrack_node_create(BacktrackNodeType type, const char *label) 
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (label && label[0] != '\0') {
-        node->label = lv_malloc(strlen(label) + 1);
+        node->label = lv_strdup_safe(label);
         if (!node->label) {
             lv_free((void **) &node);
             return NULL;
         }
-        lv_strlcpy(node->label, label, strlen(label) + 1);
     } else {
         node->label = NULL;
     }
@@ -566,10 +565,7 @@ void backtrack_node_mark_backtrack(BacktrackNode *node, const char *strategy_nam
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
-        node->strategy_name = lv_malloc(strlen(strategy_name) + 1);
-        if (node->strategy_name) {
-            lv_strlcpy(node->strategy_name, strategy_name, strlen(strategy_name) + 1);
-        }
+        node->strategy_name = lv_strdup_safe(strategy_name);
     } else {
         node->strategy_name = NULL;
     }
@@ -604,10 +600,9 @@ void proof_search_tree_register_strategy(ProofSearchTree *tree, const char *stra
         return;
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
-    tree->available_strategies[tree->strategy_count] = lv_malloc(strlen(strategy_name) + 1);
+    tree->available_strategies[tree->strategy_count] = lv_strdup_safe(strategy_name);
     if (!tree->available_strategies[tree->strategy_count])
         return;
-    lv_strlcpy(tree->available_strategies[tree->strategy_count], strategy_name, strlen(strategy_name) + 1);
     tree->strategy_count++;
 }
 
@@ -628,10 +623,7 @@ void proof_search_tree_set_strategy(ProofSearchTree *tree, const char *strategy_
 
     /* 使用安全的字符串复制函数，确保缓冲区零终止 */
     if (strategy_name && strategy_name[0] != '\0') {
-        tree->current_strategy = lv_malloc(strlen(strategy_name) + 1);
-        if (tree->current_strategy) {
-            lv_strlcpy(tree->current_strategy, strategy_name, strlen(strategy_name) + 1);
-        }
+        tree->current_strategy = lv_strdup_safe(strategy_name);
     } else {
         tree->current_strategy = NULL;
     }

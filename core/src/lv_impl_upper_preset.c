@@ -284,7 +284,7 @@ int64_t func_block_preset_param_index(lvEngine *ctx, const char *name, const cha
     if (!entry)
         return -1; /* 未找到 */
     for (int i = 0; i < entry->metadata.input_count; i++) {
-        if (entry->metadata.input_params[i].name && strcmp(entry->metadata.input_params[i].name, param_name) == 0) {
+        if (entry->metadata.input_params[i].name && lv_str_eq(entry->metadata.input_params[i].name, param_name)) {
             return (int64_t) i;
         }
     }

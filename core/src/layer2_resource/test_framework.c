@@ -247,15 +247,13 @@ bool lv_test_add_tag(const char *suite_name, const char *test_name, const char *
             int case_index = unbox_case_index(boxed);
             if (lv_index_in_range(case_index, (int) suite->case_count)) {
                 lvTestCase *test_case = &suite->cases[case_index];
-                /* 添加标签（使用安全的字符串复制函数 lv_strlcpy） */
+                /* 添加标签（使用安全的字符串复制函数 lv_strdup_safe） */
                 if (test_case->tag_count < 8) {
                     if (test_case->tag_count == 0) {
                         test_case->tags = (char **) lv_malloc(8 * sizeof(char *));
                     }
-                    test_case->tags[test_case->tag_count] = (char *) lv_malloc(strlen(tag) + 1);
+                    test_case->tags[test_case->tag_count] = lv_strdup_safe(tag);
                     if (test_case->tags[test_case->tag_count]) {
-                        /* 使用安全的字符串复制函数，自动保证零终止 */
-                        lv_strlcpy(test_case->tags[test_case->tag_count], tag, strlen(tag) + 1);
                         test_case->tag_count++;
                     }
                 }

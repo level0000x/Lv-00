@@ -650,12 +650,8 @@ bool lv_resource_track(ResourceTracker *rt, void *resource, lvResourceDestroyFun
     node->destroy = destroy;
 
     /* 复制名称（若有） */
-    if (name) {
-        node->name = (char *) lv_malloc(strlen(name) + 1);
-        if (node->name) {
-            /* [Bug修复] strcpy → lv_strlcpy 防止缓冲区溢出 */
-            lv_strlcpy(node->name, name, strlen(name) + 1);
-        }
+    if (name && name[0] != '\0') {
+        node->name = lv_strdup_safe(name);
     }
 
     /* 追加到双向链表尾部 */
