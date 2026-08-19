@@ -367,7 +367,7 @@ static bool is_one_arg_coq_tactic(const char *rule) {
 static bool is_coq_tactic_prefix(const char *rule) {
     static const char *const kPrefixes[] = { "exact ", "apply ", "rewrite ", "pose ", "assert " };
     for (size_t i = 0; i < sizeof(kPrefixes) / sizeof(kPrefixes[0]); i++) {
-        if (strncmp(rule, kPrefixes[i], strlen(kPrefixes[i])) == 0)
+        if (lv_str_startswith(rule, kPrefixes[i]))
             return true;
     }
     return false;
