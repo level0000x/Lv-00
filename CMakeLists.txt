@@ -1875,6 +1875,8 @@ if(BUILD_TESTS)
     # 批次 C-㉚：量词系统 + CDCL 求解器核心零覆盖契约测试
     add_lv_test_auto(test_quantifier CTEST_NAME quantifier_test)
     add_lv_test_auto(test_solver_core CTEST_NAME solver_core_test)
+    # 批次 C-㉛：lv_utils.h 零覆盖 L2 基础设施契约测试
+    add_lv_test_auto(test_lv_utils CTEST_NAME lv_utils_test)
     # v3.6.0 新增：上层统一接口（lv_upper_api.h）测试
     add_lv_test_auto(test_upper_api CTEST_NAME upper_api_test)
     # v3.4.0 新增：几何代数模块测试
