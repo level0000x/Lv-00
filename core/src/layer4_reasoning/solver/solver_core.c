@@ -119,6 +119,28 @@ static void cdcl_context_init(CDCLContext *ctx) {
 }
 
 /**
+ * @brief 记录冲突子句（深拷贝到独立缓冲区）
+ *
+ * conflict_clause 归 CDCL 上下文所有，不可直接指向子句库内部
+ * （ctx->clauses[i]）：cdcl_step_analyze 会对 conflict_clause 执行
+ * lv_ensure_capacity（realloc），若指向子句库内指针将破坏堆与子句库。
+ * 所有设置冲突子句的路径（propagate / conflict 二次确认）必须经此入口。
+ *
+ * @return true 成功，false 内存不足（调用方按无冲突处理）
+ */
+static bool cdcl_set_conflict(CDCLContext *ctx, const int *clause, int sz) {
+    if (!ctx || !clause || sz <= 0)
+        return false;
+    if (sz > ctx->conflict_capacity) {
+        if (!lv_ensure_capacity((void **) &ctx->conflict_clause, sz, &ctx->conflict_capacity, sizeof(int), 0))
+            return false;
+    }
+    memcpy(ctx->conflict_clause, clause, (size_t) sz * sizeof(int));
+    ctx->conflict_size = sz;
+    return true;
+}
+
+/**
  * @brief 释放 CDCL 上下文中的动态数组
  */
 static void cdcl_context_destroy(CDCLContext *ctx) {
@@ -598,9 +620,8 @@ static CDCLState cdcl_step_propagate(CDCLContext *ctx) {
             continue;
 
         if (false_count == sz) {
-            /* 冲突：所有文字为假 */
-            ctx->conflict_clause = clause;
-            ctx->conflict_size = sz;
+            /* 冲突：所有文字为假（深拷贝到独立缓冲，避免 analyze realloc 破坏子句库） */
+            cdcl_set_conflict(ctx, clause, sz);
             return CDCL_CONFLICT;
         }
 
@@ -647,8 +668,8 @@ static CDCLState cdcl_step_conflict(CDCLContext *ctx) {
             }
         }
         if (all_false) {
-            ctx->conflict_clause = clause;
-            ctx->conflict_size = sz;
+            /* 深拷贝到独立缓冲（同 propagate 的冲突记录路径） */
+            cdcl_set_conflict(ctx, clause, sz);
             return CDCL_CONFLICT;
         }
     }
@@ -831,7 +852,8 @@ static CDCLState cdcl_step_backjump(CDCLContext *ctx) {
     }
 
     ctx->decision_level = target;
-    ctx->conflict_clause = NULL;
+    /* 保留 conflict_clause 缓冲（复用），仅清空大小；不可置 NULL，
+     * 否则 analyze 阶段经 lv_ensure_capacity 扩容的缓冲指针被丢弃泄漏 */
     ctx->conflict_size = 0;
 
     return CDCL_LEARNING;
