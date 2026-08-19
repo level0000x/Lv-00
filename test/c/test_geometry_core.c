@@ -944,6 +944,99 @@ void test_graph_add_parallel(void) {
     PASS();
 }
 
+/** 测试 geo_utils.h 零覆盖设施契约（C-㉘ 补全） */
+void test_geo_utils_facilities(void) {
+    /* geo_distance_3d：3-4-5-√2 直角三角形 */
+    {
+        double d = geo_distance_3d(0, 0, 0, 3, 4, 0);
+        TEST_ASSERT(fabs(d - 5.0) < 1e-12, "3-4-0 to origin = 5");
+        double d2 = geo_distance_3d(0, 0, 0, 1, 1, 1);
+        TEST_ASSERT(fabs(d2 - sqrt(3.0)) < 1e-12, "unit cube diagonal = sqrt3");
+    }
+    /* geo_approx_equal：epsilon 容差 + eps 下限钳制 */
+    {
+        TEST_ASSERT(geo_approx_equal(1.0, 1.0000001, 1e-6) == 1, "assertion failed");
+        TEST_ASSERT(geo_approx_equal(1.0, 1.01, 1e-6) == 0, "assertion failed");
+        TEST_ASSERT(geo_approx_equal(1.0, 1.0, 0.0) == 1, "assertion failed"); /* eps 钳制到 GEO_EPSILON */
+        TEST_ASSERT(geo_approx_equal(1.0, 1.0 + GEO_EPSILON * 0.5, -1.0) == 1, "assertion failed");
+    }
+    /* geo_bbox_contains_1d / 2d：含 epsilon 容差 */
+    {
+        TEST_ASSERT(geo_bbox_contains_1d(0.5, 0.0, 1.0, 1e-9) == 1, "assertion failed");
+        TEST_ASSERT(geo_bbox_contains_1d(1.5, 0.0, 1.0, 1e-9) == 0, "assertion failed");
+        TEST_ASSERT(geo_bbox_contains_1d(-0.1, 0.0, 1.0, 1e-9) == 0, "assertion failed");
+        TEST_ASSERT(geo_bbox_contains_2d(0.5, 0.5, 0.0, 0.0, 1.0, 1.0, 1e-9) == 1, "assertion failed");
+        TEST_ASSERT(geo_bbox_contains_2d(1.5, 0.5, 0.0, 0.0, 1.0, 1.0, 1e-9) == 0, "assertion failed");
+        TEST_ASSERT(geo_bbox_contains_2d(0.5, -0.5, 0.0, 0.0, 1.0, 1.0, 1e-9) == 0, "assertion failed");
+        /* 边界 + eps 容差 */
+        TEST_ASSERT(geo_bbox_contains_2d(1.0 + 1e-10, 0.5, 0.0, 0.0, 1.0, 1.0, 1e-9) == 1, "assertion failed");
+    }
+    /* geo_point_on_segment：在线段上/外（APPROX 谓词容差内） */
+    {
+        TEST_ASSERT(geo_point_on_segment(0.5, 0.5, 0.0, 0.0, 1.0, 1.0) == 1, "assertion failed"); /* 中点 */
+        TEST_ASSERT(geo_point_on_segment(0.3, 0.3, 0.0, 0.0, 1.0, 1.0) == 1, "assertion failed"); /* 内部点 */
+        TEST_ASSERT(geo_point_on_segment(0.5, 0.6, 0.0, 0.0, 1.0, 1.0) == 0, "assertion failed"); /* 偏离 */
+        TEST_ASSERT(geo_point_on_segment(1.5, 1.5, 0.0, 0.0, 1.0, 1.0) == 0, "assertion failed"); /* 延长线 */
+    }
+    /* geo_signed_area_2x：叉积（有符号 2 倍面积） */
+    {
+        /* (0,0)-(1,0)-(0,1) 逆时针 → 正 */
+        TEST_ASSERT(geo_signed_area_2x(0, 0, 1, 0, 0, 1) > 0, "assertion failed");
+        /* 顺时针 → 负 */
+        TEST_ASSERT(geo_signed_area_2x(0, 0, 0, 1, 1, 0) < 0, "assertion failed");
+        /* 共线 → 0 */
+        TEST_ASSERT(fabs(geo_signed_area_2x(0, 0, 1, 1, 2, 2)) < 1e-12, "assertion failed");
+        /* 2 倍面积：底 3 高 4 → 12 */
+        TEST_ASSERT(fabs(geo_signed_area_2x(0, 0, 3, 0, 0, 4) - 12.0) < 1e-12, "assertion failed");
+    }
+    /* geo_angle：atan2 方向角 */
+    {
+        TEST_ASSERT(fabs(geo_angle(0, 0, 1, 0) - 0.0) < 1e-12, "assertion failed"); /* 东 = 0 */
+        TEST_ASSERT(fabs(geo_angle(0, 0, 0, 1) - M_PI_2) < 1e-12, "assertion failed"); /* 北 = π/2 */
+        TEST_ASSERT(fabs(geo_angle(0, 0, -1, 0) - M_PI) < 1e-12, "assertion failed"); /* 西 = π */
+        TEST_ASSERT(geo_angle(0, 0, 0, 0) == 0.0, "assertion failed"); /* 重合 = 0 非 NaN */
+    }
+    /* geo_segments_intersect：线段相交判定 */
+    {
+        /* 交叉相交 */
+        TEST_ASSERT(geo_segments_intersect(0, 0, 1, 1, 0, 1, 1, 0) == 1, "assertion failed");
+        /* 平行不相交 */
+        TEST_ASSERT(geo_segments_intersect(0, 0, 1, 0, 0, 1, 1, 1) == 0, "assertion failed");
+        /* 共线重叠 */
+        TEST_ASSERT(geo_segments_intersect(0, 0, 2, 0, 1, 0, 3, 0) == 1, "assertion failed");
+        /* 分离 */
+        TEST_ASSERT(geo_segments_intersect(0, 0, 1, 0, 2, 0, 3, 0) == 0, "assertion failed");
+    }
+    /* geo_point_in_region_segments：射线法区域判定 */
+    {
+        ConstraintGraph *rg = graph_create();
+        TEST_ASSERT(rg != NULL, "graph_create");
+        /* 三角形 (0,0)-(2,0)-(0,2) 的三条边 */
+        SymbolicCoord *p00[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+        SymbolicCoord *p20[] = {symbolic_coord_create_rational(2, 1), symbolic_coord_create_rational(0, 1)};
+        SymbolicCoord *p02[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(2, 1)};
+        graph_add_point(rg, p00, 2);
+        graph_add_point(rg, p20, 2);
+        graph_add_point(rg, p02, 2);
+        symbolic_coord_destroy(p00[0]); symbolic_coord_destroy(p00[1]);
+        symbolic_coord_destroy(p20[0]); symbolic_coord_destroy(p20[1]);
+        symbolic_coord_destroy(p02[0]); symbolic_coord_destroy(p02[1]);
+        graph_add_line_segment(rg, 0, 1); /* (0,0)-(2,0) */
+        graph_add_line_segment(rg, 1, 2); /* (2,0)-(0,2) */
+        graph_add_line_segment(rg, 2, 0); /* (0,2)-(0,0) */
+        GeomNode *segs[3] = {rg->nodes[3], rg->nodes[4], rg->nodes[5]};
+        /* 内部点 (0.5,0.5) */
+        TEST_ASSERT(geo_point_in_region_segments(0.5, 0.5, segs, 3) == true, "inside point");
+        /* 外部点 (3,3) */
+        TEST_ASSERT(geo_point_in_region_segments(3.0, 3.0, segs, 3) == false, "outside point");
+        /* NULL/空 安全 */
+        TEST_ASSERT(geo_point_in_region_segments(0.5, 0.5, NULL, 0) == false, "null segments");
+        TEST_ASSERT(geo_point_in_region_segments(0.5, 0.5, segs, 0) == false, "zero count");
+        graph_destroy(rg);
+    }
+    PASS();
+}
+
 /** 测试 LVZD 文件 I/O */
 #if 0
 void test_compress_lvzd_io(void) {
@@ -1146,4 +1239,5 @@ TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
     /* ── geo_norm 家族（批次 P2） ── */
     TEST_MAIN_RUN(test_geo_norm_family);
     TEST_MAIN_RUN(test_graph_add_parallel);
+    TEST_MAIN_RUN(test_geo_utils_facilities);
 TEST_MAIN_END()

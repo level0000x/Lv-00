@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "test_unified.h"
+#include "lv/lv_hash.h" /* lvHashCtx / lv_hash_* 流式哈希 */
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -746,6 +747,63 @@ static void test_hash_functions(void) {
     uint64_t ih1 = lv_hash_int(42);
     uint64_t ih2 = lv_hash_int(42);
     lv_ASSERT(ih1 == ih2);
+
+    /* 测试流式哈希上下文（lv_hash_init/update/str/int32/bool/digest/to_hex，
+     * C-㉘ 补全：单步哈希之外的独立 API 族） */
+    {
+        /* FNV-1a 流式：分块更新与整串更新一致 */
+        lvHashCtx c1, c2;
+        lv_hash_init(&c1, LV_HASH_FNV1A);
+        lv_hash_init(&c2, LV_HASH_FNV1A);
+        lv_hash_update(&c1, "hello", 5);
+        lv_hash_str(&c1, "world");
+        lv_hash_str(&c2, "helloworld");
+        char hex1[32], hex2[32];
+        lv_hash_to_hex(&c1, hex1, sizeof(hex1));
+        lv_hash_to_hex(&c2, hex2, sizeof(hex2));
+        lv_ASSERT_STR_EQ(hex1, hex2); /* 分块 == 整串 */
+
+        /* digest_size：FNV 8 字节 / SHA-256 32 字节 */
+        lv_ASSERT(lv_hash_digest_size(&c1) == 8);
+        lvHashCtx cs;
+        lv_hash_init(&cs, LV_HASH_SHA256);
+        lv_ASSERT(lv_hash_digest_size(&cs) == 32);
+
+        /* NULL 输入语义 */
+        lv_hash_str(&cs, NULL); /* → "(null)" */
+        lv_hash_init(NULL, LV_HASH_FNV1A);
+        lv_hash_update(NULL, "x", 1);
+        lv_ASSERT(lv_hash_digest_size(NULL) == 0);
+        lv_ASSERT(lv_hash_to_hex_alloc(NULL) == NULL);
+
+        /* int32 / bool 字段混入（可复现） */
+        lvHashCtx ci1, ci2;
+        lv_hash_init(&ci1, LV_HASH_FNV1A);
+        lv_hash_init(&ci2, LV_HASH_FNV1A);
+        lv_hash_int32(&ci1, 42);
+        lv_hash_bool(&ci1, true);
+        lv_hash_int32(&ci2, 42);
+        lv_hash_bool(&ci2, true);
+        char hi1[32], hi2[32];
+        lv_hash_to_hex(&ci1, hi1, sizeof(hi1));
+        lv_hash_to_hex(&ci2, hi2, sizeof(hi2));
+        lv_ASSERT_STR_EQ(hi1, hi2);
+
+        /* to_hex_alloc 返回 16 字符 hex（FNV 8 字节） */
+        lvHashCtx ca;
+        lv_hash_init(&ca, LV_HASH_FNV1A);
+        lv_hash_str(&ca, "abc");
+        char *halloc = lv_hash_to_hex_alloc(&ca);
+        lv_ASSERT(halloc != NULL && strlen(halloc) == 16);
+        lv_free((void **) &halloc);
+
+        /* 缓冲过小：置空串 */
+        lvHashCtx cb;
+        lv_hash_init(&cb, LV_HASH_FNV1A);
+        char small[4] = { 'x', 'y', 'z', 'w' };
+        lv_hash_to_hex(&cb, small, sizeof(small));
+        lv_ASSERT(small[0] == '\0');
+    }
 
     printf("  PASSED\n");
 }
