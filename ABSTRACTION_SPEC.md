@@ -403,6 +403,7 @@
 | 错误字段裸 `snprintf(xxx.error_msg/error_message, sizeof, ...)` | 未走字段级 varg 封装或 `lv_snprintf` |
 | 裸 `snprintf(` | 未走 `lv_snprintf`（格式化）或 `lv_strlcpy`（纯复制）；豁免：`vsnprintf` 变参、游标追加 `buf + w` |
 | `lv_malloc(strlen(x) + 1)` 手写复制 | 未走 `lv_strdup_safe`；豁免：定长/偏移复制 |
+| `strchr(找分隔符) + 前缀长度计算` 切分 | 未走 `lv_str_prefix_len`；豁免：起点非串首/带上界（泛化候选） |
 
 ### 11.2 白名单 / 豁免审计
 
@@ -420,6 +421,8 @@
 **已准入设施（批次 L P2，2026-08-10）**：`lv_tree_release_recursive`（lv_graph_traversal.h，回调驱动后序递归释放，判据 A）——第一批真实调用点 3（lvTreeNode / lvProofTreeNode（lvDArray 适配）/ BacktrackNode），测试经 test_proof_trace / test_orchestrator destroy 路径覆盖。第二批候选 3 例（proof_trace_tree.c / expr_canonical.c / gappa_dsl.c）形态略异，已登记待后续，迁移时复用本设施。
 
 **已准入设施（批次 N，2026-08-11）**：`lv_parse_int_before`（lv_parse_utils.h，判据 I，4 调用点，test_meta_verify）；`lv_strlcpy` / `lv_strlcat`（lv_utils.h，判据 J，全库 336 调用点，strncpy 归零）；`lv_RESULT_FAIL`（lv_error.h，判据 K，34 调用点，test_error_handling）；`lv_registry_remove_prefix`（lv_registry.h，判据 A 变体，4 调用点，test_registry）；`lv_constraint_has_participants`（lv_constraint_guard.h，判据 H 泛化，25+ 调用点，test_smt_backend 等）。
+
+**已准入设施（批次 R，2026-08-19）**：`lv_str_prefix_len`（lv_str_utils.h，判据 A 单次切分，5 调用点：lv_utils/lv_utils_config/atp_backend/test_framework/lv_process；test_utils 12 断言）。契约：找到分隔符返回 true + 前缀长度；未找到返回 false + 全串长；空串/NUL 分隔符/NULL 边界。泛化候选（需 start/end 界变体）：lv_utils_misc 双分隔符、axiom_pkg_verify 括号内逗号，暂缓。
 
 ---
 

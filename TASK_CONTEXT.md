@@ -2766,3 +2766,42 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - strchr 单次切分（32 处）：lv_str_split_once 新设施评估（批次 O 遗留，继续）。
 - proof_version_isar.c 跳空格 starts_with：需新增变体，暂缓。
+
+## 四十六、批次 C-㉕：lv_str_prefix_len 单次切分设施（2026-08-19）
+
+用户「继续」。推进批次 O 遗留的「strchr 单次切分」候选（32 处 strchr 中筛出 5 处同构切分形态）。
+
+### ① 新设施 lv_str_prefix_len
+
+- 契约：`lv_str_prefix_len(str, delim, *out_len)`——找到分隔符返回 true + 前缀长度（不含分隔符）；未找到返回 false + 全串长；空串/分隔符 NUL 边界；NULL 安全。
+- 收敛「strchr(找分隔符) → 计算前缀长度 → 截取/比较」样板（判据 A）。
+
+### ② 迁移 5 处调用点
+
+| 文件 | 形态 | 说明 |
+|------|------|------|
+| lv_utils.c | `[section]` 节头 `]` 切分 | 调用点保留 `trimmed+1` 偏移（节名起点） |
+| lv_utils_config.c | 键节前缀 `.` 切分 | 标准形态 |
+| atp_backend.c | inference 规则 `,` 切分 | 标准形态 |
+| test_framework.c | 通配符 `*` 前缀 | strncmp 前缀比较 |
+| lv_process.c | PATH `:` 切分 | 未找到 fallback 全串语义天然契合 |
+
+### ③ 豁免登记（泛化候选）
+
+- lv_utils_misc.c 版本号 `-`/`+` 双分隔符：起点非串首（`plus - dash`）→ 需带 start 变体
+- axiom_pkg_verify.c 括号内 `,`：上界约束（`comma < close_paren`）→ 需带 end 变体
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（139.63s）。
+- test_utils 255/255（新增 12 断言：找到/未找到/空串/开头分隔符/NULL）。
+- 提交 `feat(string)`（8 文件，+66/-16）。
+
+### 决策登记（第 9 章格式）
+
+- 新设施准入 / 判据 A / lv_str_prefix_len 5 调用点 / 泛化候选（双分隔符/上界）豁免 / test_utils 255 + 全量 174/174。
+
+### 遗留登记
+
+- lv_str_prefix_len 泛化变体（带 start/end 界）：lv_utils_misc / axiom_pkg_verify 待设施扩展。
+- strchr 其余 27 处为存在性检查/位置判断（非切分），维持豁免。
