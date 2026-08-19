@@ -76,15 +76,15 @@ static void render_geom_point(const GeomNode *node, const char *name, RenderTarg
     }
 
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
+    int n = lv_snprintf(buf, sizeof(buf), "%s = \\left(%.2f, %.2f\\right)\\\\\n", name, x, y);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
+    n = lv_snprintf(buf, sizeof(buf), "%s = Point(%.2f, %.2f)\n", name, x, y);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "point %s(%.2f, %.2f); ", name, x, y);
+    n = lv_snprintf(buf, sizeof(buf), "point %s(%.2f, %.2f); ", name, x, y);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -92,15 +92,15 @@ static void render_geom_line_segment(const GeomNode *node, const char *name, Ren
                                      RenderTarget *dsl) {
     char buf[FORMULA_LATEX_BUF_SIZE];
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "\\overline{%s}\\\\\n", name);
+    int n = lv_snprintf(buf, sizeof(buf), "\\overline{%s}\\\\\n", name);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = Segment()\n", name);
+    n = lv_snprintf(buf, sizeof(buf), "%s = Segment()\n", name);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "segment %s(); ", name);
+    n = lv_snprintf(buf, sizeof(buf), "segment %s(); ", name);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -116,7 +116,7 @@ static void render_geom_region(const GeomNode *node, const char *name, RenderTar
         if (node->data.region.boundary_segments && node->data.region.boundary_segments[j]) {
             formula_node_to_name(node->data.region.boundary_segments[j], seg_name, sizeof(seg_name));
         } else {
-            snprintf(seg_name, sizeof(seg_name), "S?");
+            lv_snprintf(seg_name, sizeof(seg_name), "S?");
         }
         /* 统一走 lv_str_append_sep（游标式追加，首项自动省略分隔符） */
         lv_str_append_sep(seg_list, sizeof(seg_list), &seg_list_len, ", ", seg_name);
@@ -124,15 +124,15 @@ static void render_geom_region(const GeomNode *node, const char *name, RenderTar
     seg_list[seg_list_len] = '\0';
 
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
+    int n = lv_snprintf(buf, sizeof(buf), "\\text{region } %s(\\{%s\\})\\\\\n", name, seg_list);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = Region([%s])\n", name, seg_list);
+    n = lv_snprintf(buf, sizeof(buf), "%s = Region([%s])\n", name, seg_list);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "region %s(%s); ", name, seg_list);
+    n = lv_snprintf(buf, sizeof(buf), "region %s(%s); ", name, seg_list);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -140,15 +140,15 @@ static void render_geom_circle(const GeomNode *node, const char *name, RenderTar
                                RenderTarget *dsl) {
     char buf[FORMULA_LATEX_BUF_SIZE];
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "\\text{circle } %s\\\\\n", name);
+    int n = lv_snprintf(buf, sizeof(buf), "\\text{circle } %s\\\\\n", name);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = Circle()\n", name);
+    n = lv_snprintf(buf, sizeof(buf), "%s = Circle()\n", name);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "circle %s(); ", name);
+    n = lv_snprintf(buf, sizeof(buf), "circle %s(); ", name);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -161,15 +161,15 @@ static void render_geom_port(const GeomNode *node, const char *name, RenderTarge
     }
 
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
+    int n = lv_snprintf(buf, sizeof(buf), "\\text{port } %s(\\text{%s})\\\\\n", name, port_type_str);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = Port('%s')\n", name, port_type_str);
+    n = lv_snprintf(buf, sizeof(buf), "%s = Port('%s')\n", name, port_type_str);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "port %s(%s); ", name, port_type_str);
+    n = lv_snprintf(buf, sizeof(buf), "port %s(%s); ", name, port_type_str);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -181,16 +181,16 @@ static void render_geom_function_block(const GeomNode *node, const char *name, R
     int out_count = node->data.func_block.output_count;
 
     /* LaTeX */
-    int n = snprintf(buf, sizeof(buf), "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
+    int n = lv_snprintf(buf, sizeof(buf), "\\text{func\\_block } %s(\\text{in: }%d, \\text{out: }%d)\\\\\n", name, in_count,
                      out_count);
     render_append(latex, buf, (size_t) n);
 
     /* Python */
-    n = snprintf(buf, sizeof(buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count, out_count);
+    n = lv_snprintf(buf, sizeof(buf), "%s = FuncBlock(inputs=%d, outputs=%d)\n", name, in_count, out_count);
     render_append(python, buf, (size_t) n);
 
     /* DSL */
-    n = snprintf(buf, sizeof(buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
+    n = lv_snprintf(buf, sizeof(buf), "func_block %s(in=%d, out=%d); ", name, in_count, out_count);
     render_append(dsl, buf, (size_t) n);
 }
 
@@ -212,7 +212,7 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
 
     if (!graph) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "NULL graph");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "NULL graph");
         return result;
     }
 
@@ -297,15 +297,15 @@ GraphToFormulaResult *graph_to_formula(const ConstraintGraph *graph) {
         }
 
         /* LaTeX */
-        int n = snprintf(buf, sizeof(buf), "\\text{Constraint: } %s\\\\\n", constraint_latex);
+        int n = lv_snprintf(buf, sizeof(buf), "\\text{Constraint: } %s\\\\\n", constraint_latex);
         render_append(&latex_tgt, buf, (size_t) n);
 
         /* Python */
-        n = snprintf(buf, sizeof(buf), "# Constraint: %s\n", constraint_name);
+        n = lv_snprintf(buf, sizeof(buf), "# Constraint: %s\n", constraint_name);
         render_append(&python_tgt, buf, (size_t) n);
 
         /* DSL */
-        n = snprintf(buf, sizeof(buf), "# constraint %s; ", constraint_name);
+        n = lv_snprintf(buf, sizeof(buf), "# constraint %s; ", constraint_name);
         render_append(&dsl_tgt, buf, (size_t) n);
     }
 

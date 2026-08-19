@@ -99,7 +99,7 @@ void lv_log(lvLogLevel level, const char *fmt, ...) {
         pos = strlen(prefix);
     }
     if (with_src) {
-        snprintf(prefix + pos, sizeof(prefix) - pos, "%s:%d ", __FILE__, __LINE__);
+        lv_snprintf(prefix + pos, sizeof(prefix) - pos, "%s:%d ", __FILE__, __LINE__);
     }
     fprintf(out, "%s%s\n", prefix, buf);
     fflush(out);

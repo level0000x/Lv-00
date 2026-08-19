@@ -1062,12 +1062,12 @@ int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size) {
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interval_to_symbolic: buf is NULL or buf_size is 0");
     }
     if (interval_is_empty(a)) {
-        return snprintf(buf, buf_size, "[empty]");
+        return lv_snprintf(buf, buf_size, "[empty]");
     }
     if (a.is_exact && a.lo == a.hi) {
-        return snprintf(buf, buf_size, "%.17g", a.lo);
+        return lv_snprintf(buf, buf_size, "%.17g", a.lo);
     }
-    return snprintf(buf, buf_size, "[%.17g, %.17g]", a.lo, a.hi);
+    return lv_snprintf(buf, buf_size, "[%.17g, %.17g]", a.lo, a.hi);
 }
 
 /* ========================================================================

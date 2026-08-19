@@ -276,9 +276,9 @@ int coord_to_string(const Coord *c, char *buf, size_t bufsz) {
     if (!xs || !ys) {
         lv_free_external((void **) &xs);
         lv_free_external((void **) &ys);
-        return snprintf(buf, bufsz, "(null)");
+        return lv_snprintf(buf, bufsz, "(null)");
     }
-    int n = snprintf(buf, bufsz, "(%s, %s)", xs, ys);
+    int n = lv_snprintf(buf, bufsz, "(%s, %s)", xs, ys);
     lv_free_external((void **) &xs);
     lv_free_external((void **) &ys);
     return n;

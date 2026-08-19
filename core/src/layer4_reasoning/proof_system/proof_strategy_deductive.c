@@ -115,7 +115,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
 #define DEDUCT_ADD_FACT(fmt_str, ...)                          \
     do {                                                       \
         char _buf[512];                                        \
-        snprintf(_buf, sizeof(_buf), fmt_str, __VA_ARGS__);    \
+        lv_snprintf(_buf, sizeof(_buf), fmt_str, __VA_ARGS__);    \
         bool _dup = false;                                     \
         for (int _fi = 0; _fi < fact_count; _fi++) {           \
             if (facts[_fi] && lv_str_eq(facts[_fi], _buf)) { \
@@ -153,7 +153,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             char *sy = symbolic_coord_serialize(node->symbolic_coords[1]);
             if (sx && sy) {
                 char buf[512];
-                snprintf(buf, sizeof(buf), DEDUCT_FMT_POINT_COORD_STR, node->id, sx, sy);
+                lv_snprintf(buf, sizeof(buf), DEDUCT_FMT_POINT_COORD_STR, node->id, sx, sy);
                 bool dup = false;
                 for (int fi = 0; fi < fact_count; fi++) {
                     if (facts[fi] && lv_str_eq(facts[fi], buf)) {
@@ -176,7 +176,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
     if (extract_step) {
         extract_step->color = PROOF_COLOR_GREEN;
         char buf[256];
-        snprintf(buf, sizeof(buf), "[演绎数据库] 从约束图提取 %d 条初始事实", fact_count);
+        lv_snprintf(buf, sizeof(buf), "[演绎数据库] 从约束图提取 %d 条初始事实", fact_count);
         extract_step->note = lv_strdup_safe(buf);
         proof_navigator_add_step(nav, extract_step);
     }
@@ -428,7 +428,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             if (fixpoint_step) {
                 fixpoint_step->color = PROOF_COLOR_BLUE_UNEXPLORED;
                 char buf[256];
-                snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮迭代达到不动点，共 %d 条事实", iter + 1, fact_count);
+                lv_snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮迭代达到不动点，共 %d 条事实", iter + 1, fact_count);
                 fixpoint_step->note = lv_strdup_safe(buf);
                 proof_navigator_add_step(nav, fixpoint_step);
             }
@@ -440,7 +440,7 @@ bool execute_deductive_database(ProofMultiStrategy *mse, ProofNavigator *nav) {
             if (iter_step) {
                 iter_step->color = PROOF_COLOR_GREEN;
                 char buf[256];
-                snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮推理，新增 %d 条事实，累计 %d 条", iter + 1,
+                lv_snprintf(buf, sizeof(buf), "[演绎数据库] 第 %d 轮推理，新增 %d 条事实，累计 %d 条", iter + 1,
                          new_derived, fact_count);
                 iter_step->note = lv_strdup_safe(buf);
                 proof_navigator_add_step(nav, iter_step);

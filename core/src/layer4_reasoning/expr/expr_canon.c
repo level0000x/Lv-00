@@ -871,7 +871,7 @@ static lvRational *parse_decimal(const char *start, const char *end) {
 
     /* 组合 "num/den" */
     char full[256];
-    int n = snprintf(full, sizeof(full), "%s/%s", num_buf, den_buf);
+    int n = lv_snprintf(full, sizeof(full), "%s/%s", num_buf, den_buf);
     if (n < 0 || (size_t)n >= sizeof(full))
         return NULL;
 

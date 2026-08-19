@@ -160,7 +160,7 @@ SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *confi
     /* 检查后端可用性 */
     if (!smtsolver_is_backend_available(type)) {
         char msg[512];
-        snprintf(msg, sizeof(msg), "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(type));
+        lv_snprintf(msg, sizeof(msg), "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(type));
         smtsolver_set_error(solver, SMT_ERROR_BACKEND_UNAVAILABLE, msg);
     }
 

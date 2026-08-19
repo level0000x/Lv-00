@@ -37,9 +37,9 @@ static int helper_dsl_number(const FormulaNode *node, char *buffer, size_t size,
 {
     int written = 0;
     if (node->data.number.is_integer) {
-        written = snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
+        written = lv_snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
     } else {
-        written = snprintf(buffer, size, "%lld/%llu", (long long) node->data.number.numerator,
+        written = lv_snprintf(buffer, size, "%lld/%llu", (long long) node->data.number.numerator,
                            (unsigned long long) node->data.number.denominator);
     }
     return written;
@@ -111,7 +111,7 @@ static int helper_dsl_equation(const FormulaNode *node, char *buffer, size_t siz
     render_dsl_internal(node->data.equation.lhs, lhs_buf, lv_FORMULA_BUF_SIZE, options);
     render_dsl_internal(node->data.equation.rhs, rhs_buf, lv_FORMULA_BUF_SIZE, options);
 
-    written = snprintf(buffer, size, "%s = %s", lhs_buf, rhs_buf);
+    written = lv_snprintf(buffer, size, "%s = %s", lhs_buf, rhs_buf);
 
     formula_pool_free(lhs_buf);
     formula_pool_free(rhs_buf);
@@ -131,7 +131,7 @@ static int helper_dsl_geom_point(const FormulaNode *node, char *buffer, size_t s
         render_dsl_internal(node->data.geom_point.coords, coords_buf, lv_FORMULA_BUF_LARGE, options);
     }
 
-    written = snprintf(buffer, size, "point %s(%s)",
+    written = lv_snprintf(buffer, size, "point %s(%s)",
                        node->data.geom_point.name ? node->data.geom_point.name : "P", coords_buf);
 
     lv_free((void **) &coords_buf);
@@ -152,7 +152,7 @@ static int helper_dsl_geom_segment(const FormulaNode *node, char *buffer, size_t
         render_dsl_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
     }
 
-    written = snprintf(buffer, size, "segment %s(%s, %s)",
+    written = lv_snprintf(buffer, size, "segment %s(%s, %s)",
                        node->data.geom_segment.name ? node->data.geom_segment.name : "AB", ep1_buf, ep2_buf);
     return written;
 }
@@ -171,7 +171,7 @@ static int helper_dsl_geom_circle(const FormulaNode *node, char *buffer, size_t 
         render_dsl_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
     }
 
-    written = snprintf(buffer, size, "circle %s(%s, %s)",
+    written = lv_snprintf(buffer, size, "circle %s(%s, %s)",
                        node->data.geom_circle.name ? node->data.geom_circle.name : "O", center_buf, radius_buf);
     return written;
 }
@@ -194,7 +194,7 @@ static int helper_dsl_geom_triangle(const FormulaNode *node, char *buffer, size_
     }
 
     written =
-        snprintf(buffer, size, "triangle %s(%s, %s, %s)",
+        lv_snprintf(buffer, size, "triangle %s(%s, %s, %s)",
                  node->data.geom_triangle.name ? node->data.geom_triangle.name : "ABC", v1_buf, v2_buf, v3_buf);
     return written;
 }
@@ -224,7 +224,7 @@ static int helper_dsl_constraint_perpendicular(const FormulaNode *node, char *bu
         render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -237,7 +237,7 @@ static int helper_dsl_constraint_parallel(const FormulaNode *node, char *buffer,
     if (node->data.constraint.participant_count >= 2) {
         render_dsl_internal(node->data.constraint.participants[0], l1_buf, sizeof(l1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
-        written = snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
+        written = lv_snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
     }
     return written;
 }
@@ -252,7 +252,7 @@ static int helper_dsl_constraint_midpoint(const FormulaNode *node, char *buffer,
         render_dsl_internal(node->data.constraint.participants[0], m_buf, sizeof(m_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], a_buf, sizeof(a_buf), options);
         render_dsl_internal(node->data.constraint.participants[2], b_buf, sizeof(b_buf), options);
-        written = snprintf(buffer, size, "midpoint(%s, %s, %s)", m_buf, a_buf, b_buf);
+        written = lv_snprintf(buffer, size, "midpoint(%s, %s, %s)", m_buf, a_buf, b_buf);
     }
     return written;
 }
@@ -262,7 +262,7 @@ static int helper_dsl_geom_region(const FormulaNode *node, char *buffer, size_t 
 {
     int written = 0;
     const char *name = node->data.geom_region.name ? node->data.geom_region.name : "R";
-    written = snprintf(buffer, size, "region %s", name);
+    written = lv_snprintf(buffer, size, "region %s", name);
     return written;
 }
 
@@ -287,7 +287,7 @@ static int helper_dsl_geom_arc(const FormulaNode *node, char *buffer, size_t siz
         render_dsl_internal(node->data.geom_arc.end_angle, end_buf, sizeof(end_buf), options);
     }
 
-    written = snprintf(buffer, size, "arc %s(%s, %s, %s, %s)",
+    written = lv_snprintf(buffer, size, "arc %s(%s, %s, %s, %s)",
                        node->data.geom_arc.name ? node->data.geom_arc.name : "AB", center_buf, radius_buf,
                        start_buf, end_buf);
     return written;
@@ -304,7 +304,7 @@ static int helper_dsl_constraint_angle(const FormulaNode *node, char *buffer, si
         render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -322,7 +322,7 @@ static int helper_dsl_geom_line(const FormulaNode *node, char *buffer, size_t si
     if (node->data.geom_line.point2) {
         render_dsl_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
     }
-    written = snprintf(buffer, size, "line %s(%s, %s)",
+    written = lv_snprintf(buffer, size, "line %s(%s, %s)",
                        node->data.geom_line.name ? node->data.geom_line.name : "l", p1_buf, p2_buf);
     return written;
 }
@@ -340,7 +340,7 @@ static int helper_dsl_geom_vector(const FormulaNode *node, char *buffer, size_t 
     if (node->data.geom_vector.end) {
         render_dsl_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
     }
-    written = snprintf(buffer, size, "vector %s(%s, %s)",
+    written = lv_snprintf(buffer, size, "vector %s(%s, %s)",
                        node->data.geom_vector.name ? node->data.geom_vector.name : "v", s_buf, e_buf);
     return written;
 }
@@ -356,7 +356,7 @@ static int helper_dsl_constraint_bisector(const FormulaNode *node, char *buffer,
         render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -372,7 +372,7 @@ static int helper_dsl_constraint_collinear(const FormulaNode *node, char *buffer
         render_dsl_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_dsl_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -386,7 +386,7 @@ static int helper_dsl_constraint_tangent(const FormulaNode *node, char *buffer, 
     if (node->data.constraint.participant_count >= 2) {
         render_dsl_internal(node->data.constraint.participants[0], l_buf, sizeof(l_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], c_buf, sizeof(c_buf), options);
-        written = snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
+        written = lv_snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
     }
     return written;
 }
@@ -400,7 +400,7 @@ static int helper_dsl_constraint_congruent(const FormulaNode *node, char *buffer
     if (node->data.constraint.participant_count >= 2) {
         render_dsl_internal(node->data.constraint.participants[0], s1_buf, sizeof(s1_buf), options);
         render_dsl_internal(node->data.constraint.participants[1], s2_buf, sizeof(s2_buf), options);
-        written = snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
+        written = lv_snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
     }
     return written;
 }
@@ -474,7 +474,7 @@ static const RenderNodeFunc s_render_dsl_funcs[] = {
 
 static int helper_dsl_unknown(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return snprintf(buffer, size, "<unknown>");
+    return lv_snprintf(buffer, size, "<unknown>");
 }
 
 int render_dsl_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {

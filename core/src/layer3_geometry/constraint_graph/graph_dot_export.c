@@ -101,7 +101,7 @@ static void dot_emit_node(lvStrBuf *sb, const GeomNode *node, const DOTExportCon
     /* exempt: 节点 ID 保留本地 idbuf——html_labels 分支直接用 idbuf 拼接
      * `<label=<...>, shape=...>` 语句，非 lv_dot_node 调用，不适用 lv_dot_node_id */
     char idbuf[32];
-    snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
+    lv_snprintf(idbuf, sizeof(idbuf), "node%d", node->id);
 
     const char *shape = "box";
     if (node->type >= GEOM_POINT && node->type <= GEOM_FUNCTION_BLOCK)
@@ -279,7 +279,7 @@ int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig 
 
     /* 临时 DOT 文件：与输出 SVG 同目录（便于清理） */
     char tmp_dot[1024];
-    snprintf(tmp_dot, sizeof(tmp_dot), "%s.tmp.dot", output_svg);
+    lv_snprintf(tmp_dot, sizeof(tmp_dot), "%s.tmp.dot", output_svg);
 
     if (!lv_dot_write_file(tmp_dot, dot, strlen(dot))) {
         lv_free((void **) &dot);
@@ -288,7 +288,7 @@ int graph_export_dot_to_svg(const ConstraintGraph *graph, const DOTExportConfig 
     lv_free((void **) &dot);
 
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "\"%s\" -Tsvg \"%s\" -o \"%s\"", layout_tool(cfg.layout), tmp_dot, output_svg);
+    lv_snprintf(cmd, sizeof(cmd), "\"%s\" -Tsvg \"%s\" -o \"%s\"", layout_tool(cfg.layout), tmp_dot, output_svg);
     int rc = system(cmd);
     remove(tmp_dot);
     return rc == 0 ? lv_OK : lv_ERROR_IO;

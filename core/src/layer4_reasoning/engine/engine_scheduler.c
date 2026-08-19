@@ -281,7 +281,7 @@ static int extract_assignments_from_graph(const ConstraintGraph *graph, SMTVaria
                 continue;
 
             assignments[idx].var_node_id = node->id;
-            snprintf(assignments[idx].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_%s", node->id, (ci == 0) ? "x" : "y");
+            lv_snprintf(assignments[idx].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_%s", node->id, (ci == 0) ? "x" : "y");
             assignments[idx].is_boolean = false;
             assignments[idx].value.rational.numerator = 0;
             assignments[idx].value.rational.denominator = 1;
@@ -683,7 +683,7 @@ const char *scheduler_feature_summary(const GraphFeatures *features) {
         return "NULL features";
 
     static lv_THREAD_LOCAL char summary[512];
-    snprintf(summary, sizeof(summary),
+    lv_snprintf(summary, sizeof(summary),
              "nodes=%d pts=%d fixed=%d ports=%d blocks=%d "
              "constraints=%d inc=%d btw=%d int=%d cnt=%d ang=%d conn=%d "
              "nl=%d nl_ratio=%.2f eq_est=%d deg_max=%d",
@@ -731,7 +731,7 @@ SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, con
     for (int i = 0; i < sorted_count; i++) {
         if (rule_matches(&sorted_rules[i], &features, scheduler)) {
             if (out_reason && reason_size > 0) {
-                snprintf(out_reason, reason_size, "Rule '%s' matched (priority=%d), backend=%d", sorted_rules[i].name,
+                lv_snprintf(out_reason, reason_size, "Rule '%s' matched (priority=%d), backend=%d", sorted_rules[i].name,
                          sorted_rules[i].priority, (int) sorted_rules[i].target_backend);
             }
             return sorted_rules[i].target_backend;
@@ -740,7 +740,7 @@ SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, con
 
     /* 无匹配规则，使用默认后端 */
     if (out_reason && reason_size > 0) {
-        snprintf(out_reason, reason_size, "No matching rule, using default backend=%d",
+        lv_snprintf(out_reason, reason_size, "No matching rule, using default backend=%d",
                  (int) scheduler->default_backend);
     }
     return scheduler->default_backend;
@@ -776,13 +776,13 @@ static int groebner_solve(EngineScheduler *scheduler, const ConstraintGraph *gra
     /* 设置错误信息 */
     if (status == SOLVER_STATUS_TIMEOUT) {
         out_result->error_code = SMT_ERROR_TIMEOUT_REACHED;
-        snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver timed out");
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver timed out");
     } else if (status == SOLVER_STATUS_OUT_OF_MEMORY) {
         out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
-        snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver out of memory");
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "Groebner solver out of memory");
     } else if (status == SOLVER_STATUS_NO_SOLUTION) {
         out_result->error_code = SMT_ERROR_NONE;
-        snprintf(out_result->error_message, sizeof(out_result->error_message),
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message),
                  "Constraint system has no solution");
     }
 
@@ -800,7 +800,7 @@ static int smt_unavailable_solve(EngineScheduler *scheduler, const ConstraintGra
     (void)graph;
     out_result->sat_result = SMT_RESULT_ERROR;
     out_result->error_code = SMT_ERROR_BACKEND_UNAVAILABLE;
-    snprintf(out_result->error_message, sizeof(out_result->error_message),
+    lv_snprintf(out_result->error_message, sizeof(out_result->error_message),
              "Backend '%s' is not available (not linked)", smtsolver_backend_type_name(out_result->backend_used));
     return 0;
 }
@@ -846,7 +846,7 @@ int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGra
         if (!dispatched) {
             out_result->sat_result = SMT_RESULT_ERROR;
             out_result->error_code = SMT_ERROR_BACKEND_UNAVAILABLE;
-            snprintf(out_result->error_message, sizeof(out_result->error_message), "Unknown backend type %d",
+            lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "Unknown backend type %d",
                      (int) backend_type);
         }
     }

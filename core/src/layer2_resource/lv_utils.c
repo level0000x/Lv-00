@@ -546,9 +546,9 @@ int lv_memory_leak_report(FILE *output) {
         if (curr->file && curr->line > 0) {
             /* 只取文件名部分（去除路径前缀） */
             const char *filename = lv_path_basename(curr->file);
-            snprintf(location, sizeof(location), "%s:%d", filename, curr->line);
+            lv_snprintf(location, sizeof(location), "%s:%d", filename, curr->line);
         } else {
-            snprintf(location, sizeof(location), "<未记录>");
+            lv_snprintf(location, sizeof(location), "<未记录>");
         }
 
         fprintf(output, "0x%p %-12zu %-30s [泄漏]\n", (const void *) curr->data, curr->size, location);

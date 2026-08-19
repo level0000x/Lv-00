@@ -82,13 +82,13 @@ int lv_circuit_breaker_summary(lvContext *ctx, char *buf, size_t buf_size) {
 
     CircuitBreaker *cb = ctx ? &ctx->circuit_breaker : NULL;
     if (!cb) {
-        return snprintf(buf, buf_size, "熔断器：无上下文");
+        return lv_snprintf(buf, buf_size, "熔断器：无上下文");
     }
 
     const char *state_str = lv_circuit_breaker_state_name(ctx);
     uint64_t uptime_ms = lv_circuit_breaker_uptime_us(cb) / lv_US_PER_MS;
 
-    return snprintf(buf, buf_size,
+    return lv_snprintf(buf, buf_size,
                     "熔断器状态：%s | "
                     "连续错误：%d/%d | "
                     "深度：%d/%d | "

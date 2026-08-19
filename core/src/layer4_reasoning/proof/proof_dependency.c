@@ -208,7 +208,7 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
             if (cubic_count > 0 || quartic_count > 0 || higher_count > 0) {
                 /* 如果存在高次方程且无有理数解，标记为可能不可构造 */
                 char report[512];
-                snprintf(report, sizeof(report),
+                lv_snprintf(report, sizeof(report),
                          "代数分析结果:\n"
                          "  二次方程: %d, 三次方程: %d, 四次方程: %d, 高次: %d\n"
                          "  存在三次及以上代数方程，无法保证尺规可构造性。\n"
@@ -279,7 +279,7 @@ UnconstructResult proof_attempt_unconstructibility(ProofNavigator *nav, const Co
                         info->reduction_steps = 1;
 
                         char report[512];
-                        snprintf(report, sizeof(report),
+                        lv_snprintf(report, sizeof(report),
                                  "构造可归约到已知的不可构造问题 '%s'\n"
                                  "（通过 '%s' 归约，来自公理包 '%s'）",
                                  ku->reduces_to, ku->name, pkg->name ? pkg->name : "未知");
@@ -728,7 +728,7 @@ static void backtrack_node_write_dot(lvStrBuf *sb, const BacktrackNode *node, in
     lv_strbuf_printf(&lbl, "[%d] %s", node->id, node->label ? node->label : "");
 
     char extra[256];
-    snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\"",
+    lv_snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=\"%s\", color=\"%s\"",
              shape, fill_color, border_color);
     lv_dot_node_id(sb, "node", node->id, lv_strbuf_cstr(&lbl), extra);
     lv_strbuf_destroy(&lbl);
@@ -737,7 +737,7 @@ static void backtrack_node_write_dot(lvStrBuf *sb, const BacktrackNode *node, in
     if (parent_id >= 0) {
         const char *edge_style = node->is_backtrack_point ? "dashed" : "solid";
         char edge_extra[32];
-        snprintf(edge_extra, sizeof(edge_extra), "style=%s", edge_style);
+        lv_snprintf(edge_extra, sizeof(edge_extra), "style=%s", edge_style);
         lv_dot_edge_id(sb, "node", parent_id, node->id, NULL, edge_extra);
     }
 

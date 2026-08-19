@@ -279,7 +279,7 @@ static bool config_ini_visit(void *ctx, const char *section, const char *key, co
         lv_strlcpy(sec_buf, section, sizeof(sec_buf));
         char *sec_trim = lv_str_trim(sec_buf);
         if (sec_trim[0] != '\0') {
-            snprintf(full_key, sizeof(full_key), "%s.%s", sec_trim, key);
+            lv_snprintf(full_key, sizeof(full_key), "%s.%s", sec_trim, key);
         } else {
             lv_strlcpy(full_key, key, sizeof(full_key));
         }

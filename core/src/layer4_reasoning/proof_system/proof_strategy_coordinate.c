@@ -118,7 +118,7 @@ bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
                 char buf[256];
                 char *sx = symbolic_coord_serialize(cx);
                 char *sy = symbolic_coord_serialize(cy);
-                snprintf(buf, sizeof(buf), "[坐标法] 为点 %d 分配坐标 (%s, %s)", node->id, sx ? sx : "?",
+                lv_snprintf(buf, sizeof(buf), "[坐标法] 为点 %d 分配坐标 (%s, %s)", node->id, sx ? sx : "?",
                          sy ? sy : "?");
                 assign_step->note = lv_strdup_safe(buf);
                 if (sy)
@@ -277,7 +277,7 @@ bool execute_coordinate(ProofMultiStrategy *mse, ProofNavigator *nav) {
     if (summary_step) {
         summary_step->color = verified ? PROOF_COLOR_GREEN : PROOF_COLOR_BLUE_UNEXPLORED;
         char buf[256];
-        snprintf(buf, sizeof(buf), "[坐标法] 坐标分配完成，转化 %d 个约束方程，验证结果：%s", equation_count,
+        lv_snprintf(buf, sizeof(buf), "[坐标法] 坐标分配完成，转化 %d 个约束方程，验证结果：%s", equation_count,
                  verified ? "成功" : "未确认");
         summary_step->note = lv_strdup_safe(buf);
         proof_navigator_add_step(nav, summary_step);

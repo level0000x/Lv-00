@@ -166,7 +166,7 @@ int recursion_validate_non_symbolic_with_axiom(MeasureSystem *sys, int measure_i
 
         if (existing_idx >= 0) {
             /* 更新已有条目 */
-            snprintf(sys->validation_metas[existing_idx].validation_template,
+            lv_snprintf(sys->validation_metas[existing_idx].validation_template,
                      sizeof(sys->validation_metas[existing_idx].validation_template), "%s", axiom_template_name);
         } else {
             /* 添加新条目（统一扩容：lv_ensure_capacity 内含倍增与溢出检查） */

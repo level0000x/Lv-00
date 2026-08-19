@@ -165,7 +165,7 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
 
     if (!ast || !graph) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "NULL input");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "NULL input");
         return result;
     }
 
@@ -186,7 +186,7 @@ FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *
         result->created_node_ids = NULL;
         result->created_constraint_ids = NULL;
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed");
         return result;
     }
 

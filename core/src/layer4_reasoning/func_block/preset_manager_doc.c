@@ -83,20 +83,20 @@ bool preset_get_usage_example(const char *name, char **out_example) {
     if (meta->input_count > 0 && meta->input_params) {
         int offset = 0;
         for (int i = 0; i < meta->input_count && offset < (int) sizeof(inputs_desc) - 1; i++) {
-            int n = snprintf(inputs_desc + offset, sizeof(inputs_desc) - (size_t) offset,
+            int n = lv_snprintf(inputs_desc + offset, sizeof(inputs_desc) - (size_t) offset,
                              "    node%d = graph_create_node(graph, \"point_%d\"); /* %s */\n", i + 1, i + 1,
                              func_block_preset_param_type_string(meta->input_params[i].type));
             if (n > 0)
                 offset += n;
         }
     } else if (meta->input_count > 0) {
-        snprintf(inputs_desc, sizeof(inputs_desc), "    /* 提供 %d 个输入节点 */\n", meta->input_count);
+        lv_snprintf(inputs_desc, sizeof(inputs_desc), "    /* 提供 %d 个输入节点 */\n", meta->input_count);
     }
 
     /* 构建输出说明 */
     char outputs_desc[256] = {0};
     if (meta->output_count > 0) {
-        snprintf(outputs_desc, sizeof(outputs_desc), "    /* 预设产生 %d 个输出: %s */\n", meta->output_count,
+        lv_snprintf(outputs_desc, sizeof(outputs_desc), "    /* 预设产生 %d 个输出: %s */\n", meta->output_count,
                  meta->output_params && meta->output_count > 0
                      ? func_block_preset_param_type_string(meta->output_params[0].type)
                      : "未知类型");

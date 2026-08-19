@@ -63,7 +63,7 @@ int lv_sync_propagate(lvSyncProtocol *proto, lvViewType source_view, void *chang
     if (max_depth <= 0) {
         /* 达到递归深度上限，可能存在循环依赖 */
         if (proto->conflict_count < 16) {
-            snprintf(proto->conflicts[proto->conflict_count], sizeof(proto->conflicts[0]),
+            lv_snprintf(proto->conflicts[proto->conflict_count], sizeof(proto->conflicts[0]),
                      "sync recursion depth exceeded (circular dependency?)");
             proto->conflict_count++;
         }
@@ -106,7 +106,7 @@ int lv_sync_propagate(lvSyncProtocol *proto, lvViewType source_view, void *chang
     if (!convert) {
         /* 未知视图类型，记录冲突 */
         if (proto->conflict_count < 16) {
-            snprintf(proto->conflicts[proto->conflict_count], sizeof(proto->conflicts[0]),
+            lv_snprintf(proto->conflicts[proto->conflict_count], sizeof(proto->conflicts[0]),
                      "unknown source view type: %d", (int) source_view);
             proto->conflict_count++;
         }

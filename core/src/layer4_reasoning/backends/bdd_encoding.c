@@ -285,7 +285,7 @@ int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type) {
         mgr->var_names[id] = lv_strdup_safe(name);
     } else {
         char auto_name[32];
-        snprintf(auto_name, sizeof(auto_name), "bdd_var_%d", id);
+        lv_snprintf(auto_name, sizeof(auto_name), "bdd_var_%d", id);
         mgr->var_names[id] = lv_strdup_safe(auto_name);
     }
     mgr->var_types[id] = type;

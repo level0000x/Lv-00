@@ -977,8 +977,8 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
         }
 
         char extra[64], lbuf[128];
-        snprintf(extra, sizeof(extra), "shape=%s", shape);
-        snprintf(lbuf, sizeof(lbuf), "%s #%d", tname, node->id);
+        lv_snprintf(extra, sizeof(extra), "shape=%s", shape);
+        lv_snprintf(lbuf, sizeof(lbuf), "%s #%d", tname, node->id);
         lv_dot_node_id(&sb, "node", node->id, lbuf, extra);
     }
 
@@ -1002,7 +1002,7 @@ bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *file
             }
         } else if (n == 1) {
             char lbuf[128];
-            snprintf(lbuf, sizeof(lbuf), "%s(#%d)", label, con->id);
+            lv_snprintf(lbuf, sizeof(lbuf), "%s(#%d)", label, con->id);
             lv_dot_node_id(&sb, "node", con->participants[0], lbuf, NULL);
         }
     }

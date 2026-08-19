@@ -66,7 +66,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
             if (desc)
                 desc[0] = '\0';
         } else {
-            snprintf(desc, GRAPH_HASH_DESC_BUF, "%d:%d", node->id, (int) node->type);
+            lv_snprintf(desc, GRAPH_HASH_DESC_BUF, "%d:%d", node->id, (int) node->type);
         }
 
         /* 对于 POINT 类型，拼接符号坐标序列化 */
@@ -82,7 +82,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
                 } else {
                     char *new_desc = (char *) lv_malloc(desc_len + coord_len + 2);
                     if (new_desc) {
-                        snprintf(new_desc, desc_len + coord_len + 2, "%s:%s", desc, coord_str);
+                        lv_snprintf(new_desc, desc_len + coord_len + 2, "%s:%s", desc, coord_str);
                         lv_free((void **) &desc);
                         desc = new_desc;
                     }
@@ -106,7 +106,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph) {
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *c = graph->constraints[i];
         char desc[GRAPH_HASH_CONSTRAINT_DESC];
-        snprintf(desc, GRAPH_HASH_CONSTRAINT_DESC, "C:%d:%d", c->id, (int) c->type);
+        lv_snprintf(desc, GRAPH_HASH_CONSTRAINT_DESC, "C:%d:%d", c->id, (int) c->type);
         uint64_t chash = lv_fnv1a_hash_str(desc);
         gh->hash ^= chash;
         gh->hash *= lv_FNV64_PRIME;

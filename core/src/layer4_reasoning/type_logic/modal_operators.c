@@ -578,13 +578,13 @@ char *lv_modal_formula_to_string(const lvModalFormula *formula) {
     if (formula->sub) {
         char *sub_str = lv_modal_formula_to_string(formula->sub);
         if (sub_str) {
-            snprintf(buf, 256, "%s(%s)", op_str, sub_str);
+            lv_snprintf(buf, 256, "%s(%s)", op_str, sub_str);
             lv_free((void **) &sub_str);
         } else {
-            snprintf(buf, 256, "%s(?)", op_str);
+            lv_snprintf(buf, 256, "%s(?)", op_str);
         }
     } else {
-        snprintf(buf, 256, "%s(P)", op_str);
+        lv_snprintf(buf, 256, "%s(P)", op_str);
     }
     return buf;
 }

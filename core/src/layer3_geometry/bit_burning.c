@@ -40,7 +40,7 @@ bool bit_burning_check(size_t num_bits, BitBurningState *state) {
         state->tripped = true;
         state->bit_count = (uint64_t) num_bits;
         state->consecutive_trips++;
-        snprintf(state->reason, sizeof(state->reason), "中间结果位数 %zu 超过阈值 %d", num_bits, BIT_CUTOFF_THRESHOLD);
+        lv_snprintf(state->reason, sizeof(state->reason), "中间结果位数 %zu 超过阈值 %d", num_bits, BIT_CUTOFF_THRESHOLD);
         return true;
     }
 
@@ -250,7 +250,7 @@ bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *s
 
         case BURN_ACTION_DOWNGRADE: {
             char decl[256];
-            snprintf(decl, sizeof(decl), "位熔断降级: 连续触发 %d 次, 位数 %" PRIu64, state->consecutive_trips,
+            lv_snprintf(decl, sizeof(decl), "位熔断降级: 连续触发 %d 次, 位数 %" PRIu64, state->consecutive_trips,
                      state->bit_count);
             return bit_burning_downgrade_to_amber(graph, node_id, lv_EPSILON_ULTRA, decl);
         }
@@ -370,7 +370,7 @@ void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id) {
             /* 设置默认声明 */
             if (!pn->numeric_assumption_declaration) {
                 char decl[128];
-                snprintf(decl, sizeof(decl), "自动传播降级: 从节点 %d 继承", node_id);
+                lv_snprintf(decl, sizeof(decl), "自动传播降级: 从节点 %d 继承", node_id);
                 pn->numeric_assumption_declaration = lv_strdup(decl);
             }
 
@@ -392,7 +392,7 @@ void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id) {
 
                     if (!n->numeric_assumption_declaration) {
                         char decl[128];
-                        snprintf(decl, sizeof(decl), "坐标继承降级: 从节点 %d", node_id);
+                        lv_snprintf(decl, sizeof(decl), "坐标继承降级: 从节点 %d", node_id);
                         n->numeric_assumption_declaration = lv_strdup(decl);
                     }
                     break;

@@ -68,7 +68,7 @@ static int axiom_unbox_index(void *value) {
 
 /** @brief 构造注册表 key（"<pkg>:<kind>:<name>"，kind: T/U） */
 static void axiom_build_key(const AxiomPackage *pkg, char kind, const char *name, char *buf, size_t bufsz) {
-    snprintf(buf, bufsz, "%p:%c:%s", (const void *) pkg, kind, name);
+    lv_snprintf(buf, bufsz, "%p:%c:%s", (const void *) pkg, kind, name);
 }
 
 /** @brief 移除指定 pkg 的全部注册条目（pkg 销毁时调用，防止残留悬垂索引） */
@@ -80,7 +80,7 @@ static void axiom_registry_remove_pkg(const AxiomPackage *pkg) {
      * 避免对未初始化互斥锁加锁 */
     axiom_name_registry_ensure();
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "%p:", (const void *) pkg);
+    lv_snprintf(prefix, sizeof(prefix), "%p:", (const void *) pkg);
     lv_registry_remove_prefix(&g_axiom_name_registry, prefix);
 }
 

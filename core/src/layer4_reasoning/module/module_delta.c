@@ -67,11 +67,11 @@ void module_set_autosave_config(Module *mod, const AutoSaveConfig *config) {
 static void make_backup_path(char *buf, size_t buf_size, const char *backup_dir, const char *module_name,
                              int index, const char *ext) {
     char fname[64];
-    snprintf(fname, sizeof(fname), "%s_autosave_%d.%s", module_name, index, ext);
+    lv_snprintf(fname, sizeof(fname), "%s_autosave_%d.%s", module_name, index, ext);
     if (backup_dir && backup_dir[0]) {
         size_t dir_len = strlen(backup_dir);
         if (dir_len > 0 && (backup_dir[dir_len - 1] == '/' || backup_dir[dir_len - 1] == '\\')) {
-            snprintf(buf, buf_size, "%s%s", backup_dir, fname);
+            lv_snprintf(buf, buf_size, "%s%s", backup_dir, fname);
         } else {
             lv_path_join(backup_dir, fname, buf, buf_size);
         }
@@ -270,7 +270,7 @@ static uint64_t hash_string_to_u64(const char *hex_str) {
 static char *u64_to_hash_string(uint64_t val) {
     char *result = (char *) lv_malloc(17);
     if (result) {
-        snprintf(result, 17, "%016llx", (unsigned long long) val);
+        lv_snprintf(result, 17, "%016llx", (unsigned long long) val);
     }
     return result;
 }

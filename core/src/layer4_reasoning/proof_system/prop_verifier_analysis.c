@@ -132,7 +132,7 @@ static void classical_visit_binary(const PropFormula *f, void *context) {
         /* A \/ ~A */
         if (left->type == PROP_NEGATION && formula_equal(left->data.unary.operand, right)) {
             char *s = prop_formula_to_string(right);
-            snprintf(ctx->pattern_desc, ctx->desc_size,
+            lv_snprintf(ctx->pattern_desc, ctx->desc_size,
                      "排中律 (LEM): %s \\/ ~%s，直觉主义逻辑中不可证", s, s);
             lv_free((void **)&s);
             ctx->found = true;
@@ -141,7 +141,7 @@ static void classical_visit_binary(const PropFormula *f, void *context) {
         /* ~A \/ A */
         if (right->type == PROP_NEGATION && formula_equal(right->data.unary.operand, left)) {
             char *s = prop_formula_to_string(left);
-            snprintf(ctx->pattern_desc, ctx->desc_size,
+            lv_snprintf(ctx->pattern_desc, ctx->desc_size,
                      "排中律 (LEM): ~%s \\/ %s，直觉主义逻辑中不可证", s, s);
             lv_free((void **)&s);
             ctx->found = true;
@@ -158,7 +158,7 @@ static void classical_visit_binary(const PropFormula *f, void *context) {
             antecedent->data.unary.operand->type == PROP_NEGATION &&
             formula_equal(antecedent->data.unary.operand->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
-            snprintf(ctx->pattern_desc, ctx->desc_size,
+            lv_snprintf(ctx->pattern_desc, ctx->desc_size,
                      "双重否定消去: ~~%s -> %s，直觉主义逻辑中不可证", s, s);
             lv_free((void **)&s);
             ctx->found = true;
@@ -170,7 +170,7 @@ static void classical_visit_binary(const PropFormula *f, void *context) {
             antecedent->data.binary.right->type == PROP_BOTTOM &&
             formula_equal(antecedent->data.binary.left->data.unary.operand, consequent)) {
             char *s = prop_formula_to_string(consequent);
-            snprintf(ctx->pattern_desc, ctx->desc_size,
+            lv_snprintf(ctx->pattern_desc, ctx->desc_size,
                      "反证法 (RAA): (~%s -> _|_) -> %s，直觉主义逻辑中不可证", s, s);
             lv_free((void **)&s);
             ctx->found = true;
@@ -223,7 +223,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
 
     if (detail.result == VERIFY_PROVEN) {
         analysis.is_inconstructible = false;
-        snprintf(analysis.reason, sizeof(analysis.reason), "验证器报告为可构造，跳过不可构造性分析");
+        lv_snprintf(analysis.reason, sizeof(analysis.reason), "验证器报告为可构造，跳过不可构造性分析");
         return analysis;
     }
 
@@ -232,13 +232,13 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
     /* 检查是否包含经典逻辑模式 */
     char pattern_desc[PROP_PATTERN_DESC_BUFSIZE] = {0};
     if (config->use_intuitionistic && has_classical_pattern(goal, pattern_desc, sizeof(pattern_desc))) {
-        snprintf(analysis.reason, sizeof(analysis.reason),
+        lv_snprintf(analysis.reason, sizeof(analysis.reason),
                  "直觉主义限制: "
                  "%s，在直觉主义逻辑中，证明无法提供具体构造，"
                  "因为排中律或双重否定消除等经典原则不可用",
                  pattern_desc);
     } else if (detail.result == VERIFY_TIMEOUT) {
-        snprintf(analysis.reason, sizeof(analysis.reason),
+        lv_snprintf(analysis.reason, sizeof(analysis.reason),
                  "验证超时: 证明搜索在 %d 毫秒内未完成。"
                  "可能需要更多步骤或更复杂的构造/证明组合。",
                  config->timeout_ms);
@@ -268,13 +268,13 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
         if (missing_count > 0) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
-            snprintf(analysis.reason, sizeof(analysis.reason),
+            lv_snprintf(analysis.reason, sizeof(analysis.reason),
                      "缺少构造: 目标需要原子命题 [%s] 的构造，"
                      "但当前前提未提供。在 BHK 解释下，"
                      "每个原子命题都需要一个构造证据（点、线段或图形）。",
                      lv_strbuf_cstr(&missing_sb));
         } else {
-            snprintf(analysis.reason, sizeof(analysis.reason),
+            lv_snprintf(analysis.reason, sizeof(analysis.reason),
                      "构造缺失: "
                      "前提中包含所有目标原子命题，但无法通过"
                      "证明规则将其组合成目标。可能需要更长的蕴含前提"
@@ -291,7 +291,7 @@ InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFo
     if (analysis.subgoal_descriptions) {
         analysis.subgoal_descriptions[0] = (char *) lv_malloc(512); /* 分配内存 */
         if (analysis.subgoal_descriptions[0]) {
-            snprintf(analysis.subgoal_descriptions[0], 512, "目标: %s | 状态: %s | 步骤: %d/%d",
+            lv_snprintf(analysis.subgoal_descriptions[0], 512, "目标: %s | 状态: %s | 步骤: %d/%d",
                      prop_formula_to_string(goal), detail.result == VERIFY_TIMEOUT ? "超时" : "未找到证明",
                      detail.steps_used, detail.max_steps);
         }

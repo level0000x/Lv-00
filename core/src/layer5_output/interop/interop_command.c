@@ -252,7 +252,7 @@ static int handle_cmd_get_graph(lvEngine *engine, const InteropCommand *cmd, Int
             size_t json_len = strlen(json_str);
             if (json_len >= sizeof(resp->data)) {
                 lv_strlcpy(resp->data, json_str, sizeof(resp->data));
-                snprintf(resp->data + sizeof(resp->data) - 64, 64, "...(truncated, total=%zu bytes)", json_len);
+                lv_snprintf(resp->data + sizeof(resp->data) - 64, 64, "...(truncated, total=%zu bytes)", json_len);
             } else {
                 lv_strlcpy(resp->data, json_str, sizeof(resp->data));
             }
@@ -967,7 +967,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
     }
 
     resp->status_code = lv_ERROR_UNSUPPORTED;
-    snprintf(resp->data, sizeof(resp->data), "Unknown command type: %d (command name: \"%s\")", cmd->type,
+    lv_snprintf(resp->data, sizeof(resp->data), "Unknown command type: %d (command name: \"%s\")", cmd->type,
              cmd->command_name[0] ? cmd->command_name : "(unknown)");
     resp->data_len = strlen(resp->data);
     return lv_OK;

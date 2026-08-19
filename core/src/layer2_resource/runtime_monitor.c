@@ -723,17 +723,17 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     if (check->value >= check->threshold_critical) {
         check->status = HEALTH_CRITICAL;
-        snprintf(check->message, sizeof(check->message), "Memory usage critical: %.1f MB", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "Memory usage critical: %.1f MB", check->value);
         report->overall = HEALTH_CRITICAL;
     } else if (check->value >= check->threshold_warning) {
         check->status = HEALTH_WARNING;
-        snprintf(check->message, sizeof(check->message), "Memory usage high: %.1f MB", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "Memory usage high: %.1f MB", check->value);
         if (report->overall < HEALTH_WARNING) {
             report->overall = HEALTH_WARNING;
         }
     } else {
         check->status = HEALTH_OK;
-        snprintf(check->message, sizeof(check->message), "Memory usage normal: %.1f MB", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "Memory usage normal: %.1f MB", check->value);
     }
 
     /* CPU 检查 */
@@ -745,17 +745,17 @@ lvHealthReport *lv_runtime_health_check(void) {
 
     if (check->value >= check->threshold_critical) {
         check->status = HEALTH_CRITICAL;
-        snprintf(check->message, sizeof(check->message), "CPU usage critical: %.1f%%", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "CPU usage critical: %.1f%%", check->value);
         report->overall = HEALTH_CRITICAL;
     } else if (check->value >= check->threshold_warning) {
         check->status = HEALTH_WARNING;
-        snprintf(check->message, sizeof(check->message), "CPU usage high: %.1f%%", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "CPU usage high: %.1f%%", check->value);
         if (report->overall < HEALTH_WARNING) {
             report->overall = HEALTH_WARNING;
         }
     } else {
         check->status = HEALTH_OK;
-        snprintf(check->message, sizeof(check->message), "CPU usage normal: %.1f%%", check->value);
+        lv_snprintf(check->message, sizeof(check->message), "CPU usage normal: %.1f%%", check->value);
     }
 
     /* 线程检查 */
@@ -769,7 +769,7 @@ lvHealthReport *lv_runtime_health_check(void) {
     int monitor_threads = lv_env_get_int("lv_MONITOR_THREADS", 1, 1, 64);
     check->value = (double) monitor_threads;
     check->status = HEALTH_OK;
-    snprintf(check->message, sizeof(check->message), "Thread count: %d (configurable via lv_MONITOR_THREADS)",
+    lv_snprintf(check->message, sizeof(check->message), "Thread count: %d (configurable via lv_MONITOR_THREADS)",
              monitor_threads);
 
     /* 计时器检查 */
@@ -777,14 +777,14 @@ lvHealthReport *lv_runtime_health_check(void) {
     lv_strlcpy(check->name, "Active Timers", sizeof(check->name));
     check->value = s_runtime_state.perf.timer_count;
     check->status = HEALTH_OK;
-    snprintf(check->message, sizeof(check->message), "%u active timers", s_runtime_state.perf.timer_count);
+    lv_snprintf(check->message, sizeof(check->message), "%u active timers", s_runtime_state.perf.timer_count);
 
     /* 性能统计检查 */
     check = &report->checks[4];
     lv_strlcpy(check->name, "Performance Stats", sizeof(check->name));
     check->value = s_runtime_state.perf.stats_count;
     check->status = HEALTH_OK;
-    snprintf(check->message, sizeof(check->message), "%u performance stats tracked", s_runtime_state.perf.stats_count);
+    lv_snprintf(check->message, sizeof(check->message), "%u performance stats tracked", s_runtime_state.perf.stats_count);
 
     return report;
 }

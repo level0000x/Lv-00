@@ -71,7 +71,7 @@ static bool safe_transition(lvContext *ctx, lvContextState new_state, const char
     if (ec != lv_OK) {
         /* 转移失败时设置上下文错误信息 */
         ctx->error_code = ec;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "%s: 状态转移失败（当前状态 %s -> 目标状态 %s）",
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "%s: 状态转移失败（当前状态 %s -> 目标状态 %s）",
                  op_name, lv_context_state_name(ctx->state), lv_context_state_name(new_state));
         return false;
     }
@@ -109,7 +109,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
     /* 只有 IDLE 和 COMPLETE 状态允许开始新的证明 */
     if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_COMPLETE) {
         ctx->error_code = lv_ERROR_INVALID_STATE;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message),
                  "lv_prove: 当前状态 %s 不允许开始新证明（需要 IDLE 或 COMPLETE）", lv_context_state_name(ctx->state));
         return -2;
     }
@@ -125,7 +125,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
         ctx->main_graph = graph_create();
         if (!ctx->main_graph) {
             ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建约束图失败");
+            lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建约束图失败");
             return -3;
         }
     }
@@ -165,7 +165,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
     if (!engine) {
         ctx->state = lv_CONTEXT_ERROR;
         ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建引擎失败");
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 创建引擎失败");
         return -4;
     }
 
@@ -190,7 +190,7 @@ int lv_prove(lvContext *ctx, const char *goal) {
         /* 证明失败：矛盾、超时或资源耗尽 */
         ctx->state = lv_CONTEXT_ERROR;
         ctx->error_code = lv_ERROR_PROOF_FAILED;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 证明失败（重写-求解流水线返回 %d）", steps);
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_prove: 证明失败（重写-求解流水线返回 %d）", steps);
         return -4;
     }
 }
@@ -221,7 +221,7 @@ int lv_preset_load(lvContext *ctx, const char *name) {
     /* ---- 检查预设库状态 ---- */
     if (!preset_library_is_initialized()) {
         ctx->error_code = lv_ERROR_MODULE_ERROR;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message),
                  "lv_preset_load: 预设库未初始化，请先调用 preset_library_init()");
         return -2;
     }
@@ -230,7 +230,7 @@ int lv_preset_load(lvContext *ctx, const char *name) {
     PresetEntryHandle entry = preset_find(name);
     if (!entry) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 预设 '%s' 不存在", name);
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 预设 '%s' 不存在", name);
         return -3;
     }
 
@@ -244,7 +244,7 @@ int lv_preset_load(lvContext *ctx, const char *name) {
                                 sizeof(void *), 1)) {
             preset_release(entry);
             ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组扩容失败");
+            lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_load: 模块引用数组扩容失败");
             return -4;
         }
     }
@@ -288,7 +288,7 @@ int lv_preset_unload(lvContext *ctx, const char *name) {
 
     if (found_idx < 0) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_unload: 上下文中未加载预设 '%s'", name);
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_unload: 上下文中未加载预设 '%s'", name);
         return -3;
     }
 
@@ -328,7 +328,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     /* 仅允许在 IDLE 或 PARSING 状态下应用预设 */
     if (ctx->state != lv_CONTEXT_IDLE && ctx->state != lv_CONTEXT_PARSING) {
         ctx->error_code = lv_ERROR_INVALID_STATE;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 当前状态 %s 不允许应用预设",
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 当前状态 %s 不允许应用预设",
                  lv_context_state_name(ctx->state));
         return -2;
     }
@@ -348,7 +348,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
 
     if (!target) {
         ctx->error_code = lv_ERROR_NOT_FOUND;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message),
                  "lv_preset_apply: 预设 '%s' 未加载，请先调用 lv_preset_load()", name);
         return -3;
     }
@@ -357,7 +357,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
     const PresetMetadata *meta = preset_get_metadata(target);
     if (!meta) {
         ctx->error_code = lv_ERROR_INTERNAL;
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 无法获取预设 '%s' 的元数据", name);
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_preset_apply: 无法获取预设 '%s' 的元数据", name);
         return -4;
     }
 
@@ -374,7 +374,7 @@ int lv_preset_apply(lvContext *ctx, const char *name) {
 
     if (ir != INSTANTIATE_OK) {
         ctx->error_code = lv_ERROR_INTERNAL;
-        snprintf(ctx->error_message, sizeof(ctx->error_message),
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message),
                  "lv_preset_apply: 预设 '%s' 实例化失败 (result=%d)", name, (int) ir);
         return -4;
     }

@@ -48,27 +48,27 @@ static const BHKDescFunc s_bhk_desc_funcs[] = {
 };
 
 static void bhk_desc_atom(const PropFormula *f, char *buf, size_t size) {
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "原子命题 %s 需要一个具体证物（点、线段或圆）",
              f->data.atom.name);
 }
 
 static void bhk_desc_conjunction(const PropFormula *f, char *buf, size_t size) {
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "合取 %s 的证明是一个证明对 (a, b)，"
              "对应几何中的复合函数块（双投影端口）",
              prop_formula_to_string(f));
 }
 
 static void bhk_desc_disjunction(const PropFormula *f, char *buf, size_t size) {
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "析取 %s 的证明是一个带标签的证物（左/右），"
              "对应几何中的和类型函数块（带标签的取证件）",
              prop_formula_to_string(f));
 }
 
 static void bhk_desc_implication(const PropFormula *f, char *buf, size_t size) {
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "蕴含 %s 的证明是一个构造性函数，"
              "将前件的证明转换为后件的证物，"
              "对应几何中的标准函数块（输入端口、输出端口）",
@@ -76,7 +76,7 @@ static void bhk_desc_implication(const PropFormula *f, char *buf, size_t size) {
 }
 
 static void bhk_desc_negation(const PropFormula *f, char *buf, size_t size) {
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "否定 %s 的证明是一个将 %s 的证明转换为 ⊥ 的构造，"
              "对应几何中的函数块（反演输入端口）",
              prop_formula_to_string(f), prop_formula_to_string(f->data.unary.operand));
@@ -84,14 +84,14 @@ static void bhk_desc_negation(const PropFormula *f, char *buf, size_t size) {
 
 static void bhk_desc_bottom(const PropFormula *f, char *buf, size_t size) {
     (void)f;
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "矛盾 ⊥ 没有证物（不可构造），"
              "对应几何中的空模式（无开放端口）");
 }
 
 static void bhk_desc_true(const PropFormula *f, char *buf, size_t size) {
     (void)f;
-    snprintf(buf, size,
+    lv_snprintf(buf, size,
              "真 ⊤ 的证明是平凡构造（单位类型），"
              "对应几何中的单位对象");
 }

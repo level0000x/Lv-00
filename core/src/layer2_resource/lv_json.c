@@ -920,7 +920,7 @@ bool lv_json_buf_append_int(lvJsonBuf *buf, long long v) {
         return false;
     lv_json_buf_begin_value(buf);
     char num[32];
-    snprintf(num, sizeof(num), "%lld", v);
+    lv_snprintf(num, sizeof(num), "%lld", v);
     lv_json_buf_append_raw(buf, num);
     return true;
 }
@@ -931,7 +931,7 @@ bool lv_json_buf_append_double(lvJsonBuf *buf, double v) {
     lv_json_buf_begin_value(buf);
     /* 与 graph_serialize.c numeric_value 序列化风格一致 */
     char num[64];
-    snprintf(num, sizeof(num), "%.15g", v);
+    lv_snprintf(num, sizeof(num), "%.15g", v);
     lv_json_buf_append_raw(buf, num);
     return true;
 }

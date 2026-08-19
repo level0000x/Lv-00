@@ -272,8 +272,8 @@ int lv_alg_rational_to_string(const AlgRational *r, char *buf, size_t size) {
     mpq_t q;
     char nb[24], db[24];
     mpq_init(q);
-    snprintf(nb, sizeof(nb), "%lld", (long long) r->num);
-    snprintf(db, sizeof(db), "%lld", (long long) r->den);
+    lv_snprintf(nb, sizeof(nb), "%lld", (long long) r->num);
+    lv_snprintf(db, sizeof(db), "%lld", (long long) r->den);
     mpq_set_str(q, nb, 10);
     mpz_set_str(mpq_denref(q), db, 10);
     mpq_canonicalize(q);

@@ -220,7 +220,7 @@ static int singular_kernel_init_locked(void) {
     }
 
     /* 记录版本信息 */
-    snprintf(g_singular_state.version_str, sizeof(g_singular_state.version_str),
+    lv_snprintf(g_singular_state.version_str, sizeof(g_singular_state.version_str),
              "Singular %s (internal groebner engine)", SINGULAR_BACKEND_VERSION);
 
     g_singular_state.initialized = 1;

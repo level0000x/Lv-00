@@ -120,12 +120,12 @@ lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den) {
 
     /* 通过字符串中转，避免 Windows LLP64 下 unsigned long 32 位截断 */
     char num_str[32];
-    snprintf(num_str, sizeof(num_str), "%lld", (long long) num);
+    lv_snprintf(num_str, sizeof(num_str), "%lld", (long long) num);
     mpz_set_str(mpq_numref(r->value), num_str, 10);
 
     char den_str[32];
     /* den 为 uint64_t，使用 %llu 避免大值输出为负数的符号错误 */
-    snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long) den);
+    lv_snprintf(den_str, sizeof(den_str), "%llu", (unsigned long long) den);
     mpz_set_str(mpq_denref(r->value), den_str, 10);
 
     mpq_canonicalize(r->value);

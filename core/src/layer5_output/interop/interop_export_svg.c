@@ -42,7 +42,7 @@ static const ConstraintSvgSyntax constraint_svg_syntax[] = {
 
 /** @brief 从公共核心表 rgb 生成 SVG 十六进制颜色串（如 "#6b7280"） */
 static void constraint_rgb_to_svg_hex(const ConstraintVisual *vis, char *hex, size_t hex_size) {
-    snprintf(hex, hex_size, "#%02x%02x%02x", vis->rgb[0], vis->rgb[1], vis->rgb[2]);
+    lv_snprintf(hex, hex_size, "#%02x%02x%02x", vis->rgb[0], vis->rgb[1], vis->rgb[2]);
 }
 
 /* ---- SVG 约束渲染 ops（BETWEENNESS/INTERSECTION 特判 + default 核心表驱动，

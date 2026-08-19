@@ -183,9 +183,9 @@ bool lv_render_scene(const lvRenderVisitor *visitor, const lvVisualScene *scene)
 
     /* 场景标题 */
     char title[64];
-    int n = snprintf(title, sizeof(title), "Lv-00 Scene (%zu objects)", scene->object_count);
+    int n = lv_snprintf(title, sizeof(title), "Lv-00 Scene (%zu objects)", scene->object_count);
     if (!lv_index_in_range(n, (int) sizeof(title)))
-        snprintf(title, sizeof(title), "Lv-00 Scene");
+        lv_snprintf(title, sizeof(title), "Lv-00 Scene");
 
     /* 开始场景 */
     if (visitor->begin_scene && !visitor->begin_scene(visitor->user_data, title,

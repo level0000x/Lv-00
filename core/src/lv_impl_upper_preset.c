@@ -191,7 +191,7 @@ const char *func_block_preset_version(lvEngine *ctx, const char *name) {
         return "0.0.0";
     /* 使用 static 缓冲区组装版本字符串 */
     static char version_buf[32];
-    snprintf(version_buf, sizeof(version_buf), "%d.%d.%d", entry->metadata.version_major, entry->metadata.version_minor,
+    lv_snprintf(version_buf, sizeof(version_buf), "%d.%d.%d", entry->metadata.version_major, entry->metadata.version_minor,
              entry->metadata.version_patch);
     return version_buf;
 }
@@ -512,14 +512,14 @@ int64_t func_block_preset_doc(lvEngine *ctx, const char *name, char *buf, int64_
     const char *sname = name ? name : "unknown";
     PresetEntry *entry = func_block_registry_find(name);
     if (!entry) {
-        return (int64_t) snprintf(buf, (size_t) buf_size, "# Preset: %s\n\n## Error\nPreset not found.\n", sname);
+        return (int64_t) lv_snprintf(buf, (size_t) buf_size, "# Preset: %s\n\n## Error\nPreset not found.\n", sname);
     }
     PresetMetadata *m = &entry->metadata;
     const char *ver = func_block_preset_version(ctx, name);
     const char *cat = func_block_preset_category_name(ctx, (int64_t) m->category);
     const char *cx = func_block_preset_complexity_name(ctx, (int64_t) m->complexity);
 
-    int64_t written = (int64_t) snprintf(buf, (size_t) buf_size,
+    int64_t written = (int64_t) lv_snprintf(buf, (size_t) buf_size,
                                          "# Preset: %s\n\n"
                                          "## Description\n%s\n\n"
                                          "## Metadata\n"
@@ -538,20 +538,20 @@ int64_t func_block_preset_doc(lvEngine *ctx, const char *name, char *buf, int64_
     if (written >= buf_size - 1)
         return written;
     for (int i = 0; i < m->precondition_count && written < buf_size - 1; i++) {
-        int r = (int) snprintf(buf + written, (size_t) (buf_size - written), "- %s\n",
+        int r = (int) lv_snprintf(buf + written, (size_t) (buf_size - written), "- %s\n",
                                m->preconditions[i] ? m->preconditions[i] : "N/A");
         if (r < 0)
             break;
         written += (int64_t) r;
     }
     if (written < buf_size - 1) {
-        int r = (int) snprintf(buf + written, (size_t) (buf_size - written), "\n## Postconditions (%d)\n",
+        int r = (int) lv_snprintf(buf + written, (size_t) (buf_size - written), "\n## Postconditions (%d)\n",
                                m->postcondition_count);
         if (r >= 0)
             written += (int64_t) r;
     }
     for (int i = 0; i < m->postcondition_count && written < buf_size - 1; i++) {
-        int r = (int) snprintf(buf + written, (size_t) (buf_size - written), "- %s\n",
+        int r = (int) lv_snprintf(buf + written, (size_t) (buf_size - written), "- %s\n",
                                m->postconditions[i] ? m->postconditions[i] : "N/A");
         if (r < 0)
             break;
@@ -702,7 +702,7 @@ int64_t func_block_preset_search(lvEngine *ctx, const char *query, char *buf, in
     if (!buf || buf_size <= 0)
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "func_block_preset_search: NULL buf or small buf_size");
     if (!query || query[0] == '\0') {
-        return (int64_t) snprintf(buf, (size_t) buf_size, "[]");
+        return (int64_t) lv_snprintf(buf, (size_t) buf_size, "[]");
     }
     int64_t written = 1; /* 预留给 '[' */
     buf[0] = '[';

@@ -442,7 +442,7 @@ void lambda_substitution_snprint(LambdaSubstitution *subs, char *buf, size_t siz
     size_t pos = 0;
 
     for (LambdaSubstitution *s = subs; s && pos < size - 1; s = s->next) {
-        int n = snprintf(buf + pos, size - pos,
+        int n = lv_snprintf(buf + pos, size - pos,
                          "[%d↦%s]", s->index,
                          s->replacement ? "?" : "NULL");
         if (n < 0) break;

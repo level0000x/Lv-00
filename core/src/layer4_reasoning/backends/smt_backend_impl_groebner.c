@@ -123,13 +123,13 @@ int groebner_backend_init(SMTSolver *solver, const ConstraintGraph *graph) {
 
         /* x 坐标变量 */
         char name_buf[GROEBNER_VAR_NAME_MAX];
-        snprintf(name_buf, sizeof(name_buf), "p%d_x", node->id);
+        lv_snprintf(name_buf, sizeof(name_buf), "p%d_x", node->id);
         var_names[var_idx] = lv_strdup_safe(name_buf);
         node_var_map[node->id] = var_idx;
         var_idx++;
 
         /* y 坐标变量 */
-        snprintf(name_buf, sizeof(name_buf), "p%d_y", node->id);
+        lv_snprintf(name_buf, sizeof(name_buf), "p%d_y", node->id);
         var_names[var_idx] = lv_strdup_safe(name_buf);
         var_idx++;
     }
@@ -813,7 +813,7 @@ static void groebner_manual_encode_containment(const GroebnerManualEncodeCtx *ct
                 if (n_ep >= 2) {
                     int pts[3] = {endpoints[0], inner_id, endpoints[1]};
                     char label[64];
-                    snprintf(label, sizeof(label), "containment_seg_%d", si);
+                    lv_snprintf(label, sizeof(label), "containment_seg_%d", si);
                     int poly_id = _poly_create_collinear(ctx->registry, ctx->ring_id, ctx->var_map, pts, ctx->vc, label);
                     if (poly_id >= 0) {
                         ideal_add_generator(ctx->registry, ctx->ideal_id, poly_id);
@@ -931,7 +931,7 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
             lv_LOG_ERROR("%d 个约束无法编码为多项式（端点/变量映射缺失），返回 UNKNOWN 而非不可信判定",
                          encode_failed);
             char msg[160];
-            snprintf(msg, sizeof(msg),
+            lv_snprintf(msg, sizeof(msg),
                      "%d constraint(s) could not be encoded into polynomials; result would be unreliable",
                      encode_failed);
             smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, msg);
@@ -944,7 +944,7 @@ SMTSatResult groebner_backend_solve(SMTSolver *solver, const ConstraintGraph *gr
             lv_LOG_ERROR("%d 个约束无法编码为多项式（节点坐标/变量映射缺失），返回 UNKNOWN 而非不可信判定",
                          primary_encode_failed);
             char msg[160];
-            snprintf(msg, sizeof(msg),
+            lv_snprintf(msg, sizeof(msg),
                      "%d constraint(s) could not be encoded into polynomials; result would be unreliable",
                      primary_encode_failed);
             smtsolver_set_error(solver, SMT_ERROR_ENCODING_FAILED, msg);
@@ -1086,7 +1086,7 @@ int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_result) {
 
         /* x 坐标赋值 */
         assignments[assignment_count].var_node_id = i;
-        snprintf(assignments[assignment_count].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_x", i);
+        lv_snprintf(assignments[assignment_count].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_x", i);
         assignments[assignment_count].is_boolean = false;
         assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
@@ -1100,7 +1100,7 @@ int groebner_backend_decode(SMTSolver *solver, SMTSolverResult *out_result) {
 
         /* y 坐标赋值 */
         assignments[assignment_count].var_node_id = i;
-        snprintf(assignments[assignment_count].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_y", i);
+        lv_snprintf(assignments[assignment_count].var_name, SMT_VAR_NAME_MAX_LEN, "p%d_y", i);
         assignments[assignment_count].is_boolean = false;
         assignments[assignment_count].value.rational.numerator = 0;
         assignments[assignment_count].value.rational.denominator = 1;
@@ -1299,7 +1299,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
     if (!smtlib2_buf) {
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = SMT_ERROR_MEMORY_EXHAUSTED;
-        snprintf(out_result->error_message, sizeof(out_result->error_message), "Failed to allocate SMT-LIB2 buffer");
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "Failed to allocate SMT-LIB2 buffer");
         return -1;
     }
 
@@ -1309,7 +1309,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
         lv_free((void **) &smtlib2_buf);
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = SMT_ERROR_ENCODING_FAILED;
-        snprintf(out_result->error_message, sizeof(out_result->error_message), "SMT-LIB2 encoding failed");
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "SMT-LIB2 encoding failed");
         return -1;
     }
 
@@ -1320,7 +1320,7 @@ int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverRe
     if (rc < 0) {
         out_result->sat_result = SMT_RESULT_ERROR;
         out_result->error_code = (SMTErrorCode) (-rc);
-        snprintf(out_result->error_message, sizeof(out_result->error_message), "Solver encoding failed");
+        lv_snprintf(out_result->error_message, sizeof(out_result->error_message), "Solver encoding failed");
         return -1;
     }
 

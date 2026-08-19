@@ -191,7 +191,7 @@ bool formula_node_to_name(const GeomNode *node, char *out_name, size_t buf_size)
     {
     const char *prefix = ((unsigned)node->type < NODE_PREFIX_COUNT && s_node_prefixes[node->type])
                              ? s_node_prefixes[node->type] : "N";
-    snprintf(out_name, buf_size, "%s%d", prefix, node->id);
+    lv_snprintf(out_name, buf_size, "%s%d", prefix, node->id);
     }
 
     return true;

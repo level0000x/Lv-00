@@ -72,7 +72,7 @@ lv_REGISTRY_STATIC(geo_event_registry, GEO_EVENT_MAX_EVENTS);
 
 /** @brief 构造事件注册表 key（栈缓冲区，调用方提供） */
 static void geodet_build_key(const lvEventDetector *detector, int event_id, char *buf, size_t bufsz) {
-    snprintf(buf, bufsz, "%p:%d", (const void *) detector, event_id);
+    lv_snprintf(buf, bufsz, "%p:%d", (const void *) detector, event_id);
 }
 
 /* ========================================================================
@@ -670,7 +670,7 @@ void geo_event_detector_destroy(lvEventDetector *detector) {
     /* 从事件注册表移除该检测器的所有条目（防止残留悬垂 value） */
     geo_event_registry_ensure();
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "%p:", (const void *) detector);
+    lv_snprintf(prefix, sizeof(prefix), "%p:", (const void *) detector);
     lv_registry_remove_prefix(&g_geo_event_registry, prefix);
 
     lv_free((void **) &detector);
@@ -773,7 +773,7 @@ lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const d
 
     /* 遍历所有注册事件（通过注册表条目，仅处理当前检测器） */
     char geodet_prefix[64];
-    snprintf(geodet_prefix, sizeof(geodet_prefix), "%p:", (const void *) detector);
+    lv_snprintf(geodet_prefix, sizeof(geodet_prefix), "%p:", (const void *) detector);
 
     int geo_reg_count = lv_registry_count(&g_geo_event_registry);
     for (int i = 0; i < geo_reg_count; ++i) {

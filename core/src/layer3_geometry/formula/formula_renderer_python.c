@@ -37,17 +37,17 @@ static int helper_python_number(const FormulaNode *node, char *buffer, size_t si
 {
     int written = 0;
     if (node->data.number.is_integer) {
-        written = snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
+        written = lv_snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
     } else {
         if (options && options->fraction_mode) {
-            written = snprintf(buffer, size, "Fraction(%lld, %llu)", (long long) node->data.number.numerator,
+            written = lv_snprintf(buffer, size, "Fraction(%lld, %llu)", (long long) node->data.number.numerator,
                                (unsigned long long) node->data.number.denominator);
         } else {
             if (node->data.number.denominator == 0) {
-                written = snprintf(buffer, size, "NaN");
+                written = lv_snprintf(buffer, size, "NaN");
             } else {
                 double val = (double) node->data.number.numerator / (double) node->data.number.denominator;
-                written = snprintf(buffer, size, "%.*f", options ? options->precision : 6, val);
+                written = lv_snprintf(buffer, size, "%.*f", options ? options->precision : 6, val);
             }
         }
     }
@@ -121,7 +121,7 @@ static int helper_python_equation(const FormulaNode *node, char *buffer, size_t 
     render_python_internal(node->data.equation.rhs, rhs_buf, lv_FORMULA_BUF_SIZE, options);
 
     /* 方程转换为比较表达式 */
-    written = snprintf(buffer, size, "(%s == %s)", lhs_buf, rhs_buf);
+    written = lv_snprintf(buffer, size, "(%s == %s)", lhs_buf, rhs_buf);
 
     formula_pool_free(lhs_buf);
     formula_pool_free(rhs_buf);
@@ -142,9 +142,9 @@ static int helper_python_geom_point(const FormulaNode *node, char *buffer, size_
     }
 
     if (node->data.geom_point.name) {
-        written = snprintf(buffer, size, "%s = Point(%s)", node->data.geom_point.name, coords_buf);
+        written = lv_snprintf(buffer, size, "%s = Point(%s)", node->data.geom_point.name, coords_buf);
     } else {
-        written = snprintf(buffer, size, "Point(%s)", coords_buf);
+        written = lv_snprintf(buffer, size, "Point(%s)", coords_buf);
     }
 
     lv_free((void **) &coords_buf);
@@ -165,7 +165,7 @@ static int helper_python_geom_segment(const FormulaNode *node, char *buffer, siz
         render_python_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
     }
 
-    written = snprintf(buffer, size, "Segment(%s, %s)", ep1_buf, ep2_buf);
+    written = lv_snprintf(buffer, size, "Segment(%s, %s)", ep1_buf, ep2_buf);
     return written;
 }
 
@@ -183,7 +183,7 @@ static int helper_python_geom_circle(const FormulaNode *node, char *buffer, size
         render_python_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
     }
 
-    written = snprintf(buffer, size, "Circle(%s, %s)", center_buf, radius_buf);
+    written = lv_snprintf(buffer, size, "Circle(%s, %s)", center_buf, radius_buf);
     return written;
 }
 
@@ -204,7 +204,7 @@ static int helper_python_geom_triangle(const FormulaNode *node, char *buffer, si
         render_python_internal(node->data.geom_triangle.vertex3, v3_buf, sizeof(v3_buf), options);
     }
 
-    written = snprintf(buffer, size, "Triangle(%s, %s, %s)", v1_buf, v2_buf, v3_buf);
+    written = lv_snprintf(buffer, size, "Triangle(%s, %s, %s)", v1_buf, v2_buf, v3_buf);
     return written;
 }
 
@@ -233,7 +233,7 @@ static int helper_python_constraint_perpendicular(const FormulaNode *node, char 
         render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "perpendicular(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -246,7 +246,7 @@ static int helper_python_constraint_parallel(const FormulaNode *node, char *buff
     if (node->data.constraint.participant_count >= 2) {
         render_python_internal(node->data.constraint.participants[0], l1_buf, sizeof(l1_buf), options);
         render_python_internal(node->data.constraint.participants[1], l2_buf, sizeof(l2_buf), options);
-        written = snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
+        written = lv_snprintf(buffer, size, "parallel(%s, %s)", l1_buf, l2_buf);
     }
     return written;
 }
@@ -261,7 +261,7 @@ static int helper_python_constraint_midpoint(const FormulaNode *node, char *buff
         render_python_internal(node->data.constraint.participants[0], m_buf, sizeof(m_buf), options);
         render_python_internal(node->data.constraint.participants[1], a_buf, sizeof(a_buf), options);
         render_python_internal(node->data.constraint.participants[2], b_buf, sizeof(b_buf), options);
-        written = snprintf(buffer, size, "%s = midpoint(%s, %s)", m_buf, a_buf, b_buf);
+        written = lv_snprintf(buffer, size, "%s = midpoint(%s, %s)", m_buf, a_buf, b_buf);
     }
     return written;
 }
@@ -271,7 +271,7 @@ static int helper_python_geom_region(const FormulaNode *node, char *buffer, size
 {
     int written = 0;
     const char *name = node->data.geom_region.name ? node->data.geom_region.name : "R";
-    written = snprintf(buffer, size, "Region('%s')", name);
+    written = lv_snprintf(buffer, size, "Region('%s')", name);
     return written;
 }
 
@@ -296,7 +296,7 @@ static int helper_python_geom_arc(const FormulaNode *node, char *buffer, size_t 
         render_python_internal(node->data.geom_arc.end_angle, end_buf, sizeof(end_buf), options);
     }
 
-    written = snprintf(buffer, size, "Arc('%s', center=%s, radius=%s, start_angle=%s, end_angle=%s)",
+    written = lv_snprintf(buffer, size, "Arc('%s', center=%s, radius=%s, start_angle=%s, end_angle=%s)",
                        node->data.geom_arc.name ? node->data.geom_arc.name : "AB", center_buf, radius_buf,
                        start_buf, end_buf);
     return written;
@@ -313,7 +313,7 @@ static int helper_python_constraint_angle(const FormulaNode *node, char *buffer,
         render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "angle(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -331,7 +331,7 @@ static int helper_python_geom_line(const FormulaNode *node, char *buffer, size_t
     if (node->data.geom_line.point2) {
         render_python_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
     }
-    written = snprintf(buffer, size, "Line(%s, %s)", p1_buf, p2_buf);
+    written = lv_snprintf(buffer, size, "Line(%s, %s)", p1_buf, p2_buf);
     return written;
 }
 
@@ -348,7 +348,7 @@ static int helper_python_geom_vector(const FormulaNode *node, char *buffer, size
     if (node->data.geom_vector.end) {
         render_python_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
     }
-    written = snprintf(buffer, size, "Vector(%s, %s)", s_buf, e_buf);
+    written = lv_snprintf(buffer, size, "Vector(%s, %s)", s_buf, e_buf);
     return written;
 }
 
@@ -363,7 +363,7 @@ static int helper_python_constraint_bisector(const FormulaNode *node, char *buff
         render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "bisector(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -379,7 +379,7 @@ static int helper_python_constraint_collinear(const FormulaNode *node, char *buf
         render_python_internal(node->data.constraint.participants[0], p1_buf, sizeof(p1_buf), options);
         render_python_internal(node->data.constraint.participants[1], p2_buf, sizeof(p2_buf), options);
         render_python_internal(node->data.constraint.participants[2], p3_buf, sizeof(p3_buf), options);
-        written = snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
+        written = lv_snprintf(buffer, size, "collinear(%s, %s, %s)", p1_buf, p2_buf, p3_buf);
     }
     return written;
 }
@@ -393,7 +393,7 @@ static int helper_python_constraint_tangent(const FormulaNode *node, char *buffe
     if (node->data.constraint.participant_count >= 2) {
         render_python_internal(node->data.constraint.participants[0], l_buf, sizeof(l_buf), options);
         render_python_internal(node->data.constraint.participants[1], c_buf, sizeof(c_buf), options);
-        written = snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
+        written = lv_snprintf(buffer, size, "tangent(%s, %s)", l_buf, c_buf);
     }
     return written;
 }
@@ -407,7 +407,7 @@ static int helper_python_constraint_congruent(const FormulaNode *node, char *buf
     if (node->data.constraint.participant_count >= 2) {
         render_python_internal(node->data.constraint.participants[0], s1_buf, sizeof(s1_buf), options);
         render_python_internal(node->data.constraint.participants[1], s2_buf, sizeof(s2_buf), options);
-        written = snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
+        written = lv_snprintf(buffer, size, "congruent(%s, %s)", s1_buf, s2_buf);
     }
     return written;
 }
@@ -427,7 +427,7 @@ static int helper_python_compound(const FormulaNode *node, char *buffer, size_t 
 
         render_python_internal(node->data.compound.statements[i], stmt_buf, lv_FORMULA_BUF_SIZE, options);
 
-        int w = snprintf(ptr, remaining, "%s\n", stmt_buf);
+        int w = lv_snprintf(ptr, remaining, "%s\n", stmt_buf);
         formula_pool_free(stmt_buf);
 
         /* exempt: w 为 snprintf 返回码（n<0||n>=remaining 是返回码检测，非索引越界），
@@ -482,7 +482,7 @@ static const RenderNodeFunc s_render_python_funcs[] = {
 
 static int helper_python_unknown(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
-    return snprintf(buffer, size, "# <unknown>");
+    return lv_snprintf(buffer, size, "# <unknown>");
 }
 
 int render_python_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {

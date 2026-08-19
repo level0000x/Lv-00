@@ -382,7 +382,7 @@ TemplateTestResult axiom_template_run_tests(AxiomPackage *pkg, const char *templ
             if (result.failed < total) {
                 result.failed++;
                 char msg[AXIOM_TEST_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg), "[FACTORY] '%s': expected %s, got %s", factory_tests[i].template_name,
+                lv_snprintf(msg, sizeof(msg), "[FACTORY] '%s': expected %s, got %s", factory_tests[i].template_name,
                          factory_tests[i].expected_result ? "pass" : "fail", passed ? "pass" : "fail");
                 result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }
@@ -400,7 +400,7 @@ TemplateTestResult axiom_template_run_tests(AxiomPackage *pkg, const char *templ
             if (result.failed < total) {
                 result.failed++;
                 char msg[AXIOM_TEST_MSG_BUF_SIZE];
-                snprintf(msg, sizeof(msg), "[USER] '%s': expected %s, got %s", user_tests[i].template_name,
+                lv_snprintf(msg, sizeof(msg), "[USER] '%s': expected %s, got %s", user_tests[i].template_name,
                          user_tests[i].expected_result ? "pass" : "fail", passed ? "pass" : "fail");
                 result.failure_messages[result.failed - 1] = lv_strdup_safe(msg);
             }

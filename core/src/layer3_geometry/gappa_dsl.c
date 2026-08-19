@@ -543,11 +543,11 @@ char *lv_gappa_prove(const char *script) {
 
     char buf[512];
     if (result.goals_total == 0) {
-        snprintf(buf, sizeof(buf), "proof result: no goals, %d hypotheses parsed", hyp_count);
+        lv_snprintf(buf, sizeof(buf), "proof result: no goals, %d hypotheses parsed", hyp_count);
     } else if (result.success) {
-        snprintf(buf, sizeof(buf), "proof succeeded: all %d/%d goals proven", result.goals_proven, result.goals_total);
+        lv_snprintf(buf, sizeof(buf), "proof succeeded: all %d/%d goals proven", result.goals_proven, result.goals_total);
     } else {
-        snprintf(buf, sizeof(buf), "proof result: %d/%d goals proven, %d failed", result.goals_proven,
+        lv_snprintf(buf, sizeof(buf), "proof result: %d/%d goals proven, %d failed", result.goals_proven,
                  result.goals_total, result.goals_failed);
     }
 

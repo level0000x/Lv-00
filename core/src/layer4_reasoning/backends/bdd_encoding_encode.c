@@ -158,7 +158,7 @@ static BDDNode *bdd_encode_angle(BDDManager *mgr, const Constraint *con, int n, 
 
         for (int bit = 0; bit < 8; bit++) {
             char var_name[48];
-            snprintf(var_name, sizeof(var_name), "angle_c%d_bit%d", con->id, bit);
+            lv_snprintf(var_name, sizeof(var_name), "angle_c%d_bit%d", con->id, bit);
             int bit_var = bdd_new_var(mgr, var_name, BDD_BOOLEAN);
             if (bit_var < 0)
                 break;
@@ -196,7 +196,7 @@ static BDDNode *bdd_encode_connection(BDDManager *mgr, const Constraint *con, in
         base1 = mgr->var_count;
         for (int bit = 0; bit < 64; bit++) {
             char var_name[48];
-            snprintf(var_name, sizeof(var_name), "conn_%d_src_bit%d", con->id, bit);
+            lv_snprintf(var_name, sizeof(var_name), "conn_%d_src_bit%d", con->id, bit);
             if (bdd_new_var(mgr, var_name, BDD_BOOLEAN) < 0)
                 return NULL;
         }
@@ -205,7 +205,7 @@ static BDDNode *bdd_encode_connection(BDDManager *mgr, const Constraint *con, in
         base2 = mgr->var_count;
         for (int bit = 0; bit < 64; bit++) {
             char var_name[48];
-            snprintf(var_name, sizeof(var_name), "conn_%d_dst_bit%d", con->id, bit);
+            lv_snprintf(var_name, sizeof(var_name), "conn_%d_dst_bit%d", con->id, bit);
             if (bdd_new_var(mgr, var_name, BDD_BOOLEAN) < 0)
                 return NULL;
         }

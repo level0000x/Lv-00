@@ -575,7 +575,7 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph, const int *
 
         /* 非连接约束需要用户决策 */
         if (error_msg && error_size > 0) {
-            snprintf(error_msg, error_size,
+            lv_snprintf(error_msg, error_size,
                      "跨边界%d: 约束#%d (type=%d) 涉及外部节点#%d，"
                      "请选择: promote/disconnect/cancel",
                      i, cbs[i].constraint_id, (int) cbs[i].type, cbs[i].node_ids[0]);

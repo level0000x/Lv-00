@@ -160,7 +160,7 @@ lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched) {
     if (topo_count < n) {
         result.success = 0;
         /* exempt: 格式化消息样板（snprintf 形态）不适用 lv_RESULT_FAIL，见 ABSTRACTION_SPEC 判据 K 豁免登记 */
-        snprintf(result.error_msg, sizeof(result.error_msg), "Cycle detected in block graph: %d/%d blocks sorted",
+        lv_snprintf(result.error_msg, sizeof(result.error_msg), "Cycle detected in block graph: %d/%d blocks sorted",
                  topo_count, n);
     } else {
         /* 按拓扑序执行所有块 */

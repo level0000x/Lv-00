@@ -369,7 +369,7 @@ int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, doubl
     cmd->y1 = 20.0;
     cmd->color_rgba = lv_trust_color_rgba(lv_COLOR_GREEN);
     cmd->trust_color = lv_COLOR_GREEN;
-    snprintf(cmd->text, sizeof(cmd->text), "Lv-00 v%s | 健康: %d%%", lv_VERSION_STRING, health);
+    lv_snprintf(cmd->text, sizeof(cmd->text), "Lv-00 v%s | 健康: %d%%", lv_VERSION_STRING, health);
 
     /* 命令 2: 引擎状态文本 */
     if (out->count < out->capacity) {
@@ -379,7 +379,7 @@ int lv_proto_draw_commands(void *engine, double offset_x, double offset_y, doubl
         cmd->y1 = 40.0;
         cmd->color_rgba = lv_trust_color_rgba(lv_COLOR_BLUE);
         cmd->trust_color = lv_COLOR_BLUE;
-        snprintf(cmd->text, sizeof(cmd->text), "画布: %.0fx%.0f | 缩放: %.2f", canvas_w, canvas_h, scale);
+        lv_snprintf(cmd->text, sizeof(cmd->text), "画布: %.0fx%.0f | 缩放: %.2f", canvas_w, canvas_h, scale);
     }
 
     return 0;
@@ -423,10 +423,10 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     /* 行 0: 整体健康状态 */
     lvTableRow *row = &out->rows[out->count++];
     row->id = 0;
-    snprintf(row->name, sizeof(row->name), "系统健康");
-    snprintf(row->node_type, sizeof(row->node_type), "Health");
-    snprintf(row->coord_x, sizeof(row->coord_x), "%d%%", health);
-    snprintf(row->coord_y, sizeof(row->coord_y), "-");
+    lv_snprintf(row->name, sizeof(row->name), "系统健康");
+    lv_snprintf(row->node_type, sizeof(row->node_type), "Health");
+    lv_snprintf(row->coord_x, sizeof(row->coord_x), "%d%%", health);
+    lv_snprintf(row->coord_y, sizeof(row->coord_y), "-");
     row->constraint_count = 0;
     row->color_rgba = lv_trust_color_rgba(health >= 80   ? lv_COLOR_GREEN
                                           : health >= 50 ? lv_COLOR_YELLOW
@@ -439,14 +439,14 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     if (out->count < out->capacity) {
         row = &out->rows[out->count++];
         row->id = 1;
-        snprintf(row->name, sizeof(row->name), "几何节点");
-        snprintf(row->node_type, sizeof(row->node_type), "NodeStats");
-        snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, nodes);
-        snprintf(row->coord_y, sizeof(row->coord_y), "-");
+        lv_snprintf(row->name, sizeof(row->name), "几何节点");
+        lv_snprintf(row->node_type, sizeof(row->node_type), "NodeStats");
+        lv_snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, nodes);
+        lv_snprintf(row->coord_y, sizeof(row->coord_y), "-");
         row->constraint_count = 0;
         row->color_rgba = lv_trust_color_rgba(lv_COLOR_BLUE);
         row->trust_color = lv_COLOR_BLUE;
-        snprintf(row->status, sizeof(row->status), "Info");
+        lv_snprintf(row->status, sizeof(row->status), "Info");
         row->parent_block_id = -1;
     }
 
@@ -454,14 +454,14 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     if (out->count < out->capacity) {
         row = &out->rows[out->count++];
         row->id = 2;
-        snprintf(row->name, sizeof(row->name), "约束");
-        snprintf(row->node_type, sizeof(row->node_type), "ConstraintStats");
-        snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, constraints);
-        snprintf(row->coord_y, sizeof(row->coord_y), "-");
+        lv_snprintf(row->name, sizeof(row->name), "约束");
+        lv_snprintf(row->node_type, sizeof(row->node_type), "ConstraintStats");
+        lv_snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, constraints);
+        lv_snprintf(row->coord_y, sizeof(row->coord_y), "-");
         row->constraint_count = 0;
         row->color_rgba = lv_trust_color_rgba(lv_COLOR_BLUE);
         row->trust_color = lv_COLOR_BLUE;
-        snprintf(row->status, sizeof(row->status), "Info");
+        lv_snprintf(row->status, sizeof(row->status), "Info");
         row->parent_block_id = -1;
     }
 
@@ -469,14 +469,14 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     if (out->count < out->capacity) {
         row = &out->rows[out->count++];
         row->id = 3;
-        snprintf(row->name, sizeof(row->name), "求解器调用");
-        snprintf(row->node_type, sizeof(row->node_type), "SolverStats");
-        snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, solver_calls);
-        snprintf(row->coord_y, sizeof(row->coord_y), "-");
+        lv_snprintf(row->name, sizeof(row->name), "求解器调用");
+        lv_snprintf(row->node_type, sizeof(row->node_type), "SolverStats");
+        lv_snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, solver_calls);
+        lv_snprintf(row->coord_y, sizeof(row->coord_y), "-");
         row->constraint_count = 0;
         row->color_rgba = lv_trust_color_rgba(lv_COLOR_BLUE);
         row->trust_color = lv_COLOR_BLUE;
-        snprintf(row->status, sizeof(row->status), "Info");
+        lv_snprintf(row->status, sizeof(row->status), "Info");
         row->parent_block_id = -1;
     }
 
@@ -484,14 +484,14 @@ int lv_proto_table_rows(void *engine, lvTableRowList *out) {
     if (out->count < out->capacity) {
         row = &out->rows[out->count++];
         row->id = 4;
-        snprintf(row->name, sizeof(row->name), "重写步数");
-        snprintf(row->node_type, sizeof(row->node_type), "RewriteStats");
-        snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, rewrite_steps);
-        snprintf(row->coord_y, sizeof(row->coord_y), "-");
+        lv_snprintf(row->name, sizeof(row->name), "重写步数");
+        lv_snprintf(row->node_type, sizeof(row->node_type), "RewriteStats");
+        lv_snprintf(row->coord_x, sizeof(row->coord_x), "%" PRIu64, rewrite_steps);
+        lv_snprintf(row->coord_y, sizeof(row->coord_y), "-");
         row->constraint_count = 0;
         row->color_rgba = lv_trust_color_rgba(lv_COLOR_BLUE);
         row->trust_color = lv_COLOR_BLUE;
-        snprintf(row->status, sizeof(row->status), "Info");
+        lv_snprintf(row->status, sizeof(row->status), "Info");
         row->parent_block_id = -1;
     }
 
@@ -520,7 +520,7 @@ int lv_proto_dsl_text(void *engine, char *out, size_t buf_size) {
     int health = lv_health_check();
 
     /* 将系统信息包装为 DSL 注释格式输出 */
-    int w = snprintf(out, buf_size,
+    int w = lv_snprintf(out, buf_size,
                      "%% ========== Lv-00 DSL Export ==========\n"
                      "%% 引擎健康评分: %d / 100\n"
                      "%%\n",
@@ -549,7 +549,7 @@ int lv_proto_dsl_text(void *engine, char *out, size_t buf_size) {
 
     /* 添加导出脚注 */
     if (w + 40 < (int) buf_size) {
-        w += snprintf(out + w, buf_size - w, "%%\n%% [Lv-00 DSL Export Complete]\n");
+        w += lv_snprintf(out + w, buf_size - w, "%%\n%% [Lv-00 DSL Export Complete]\n");
     }
 
     out[(w < (int) buf_size) ? w : (int) buf_size - 1] = '\0';
@@ -584,8 +584,8 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     if (!root)
         lv_RETURN_ERROR(lv_ERROR_OUT_OF_MEMORY, "lv_proto_tree: root calloc failed");
 
-    snprintf(root->id, sizeof(root->id), "root");
-    snprintf(root->label, sizeof(root->label), "Lv-00 Engine v%s", lv_VERSION_STRING);
+    lv_snprintf(root->id, sizeof(root->id), "root");
+    lv_snprintf(root->label, sizeof(root->label), "Lv-00 Engine v%s", lv_VERSION_STRING);
     root->trust_color = (health >= 80) ? lv_COLOR_GREEN : (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
     root->status = lv_TREE_ROOT;
     root->node_id = 0;
@@ -602,8 +602,8 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     {
         lvTreeNode *child = (lvTreeNode *) lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
-            snprintf(child->id, sizeof(child->id), "health");
-            snprintf(child->label, sizeof(child->label), "健康评分: %d/100", health);
+            lv_snprintf(child->id, sizeof(child->id), "health");
+            lv_snprintf(child->label, sizeof(child->label), "健康评分: %d/100", health);
             child->trust_color = (health >= 80) ? lv_COLOR_GREEN : (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
             child->status = lv_TREE_PENDING;
             child->node_id = 1;
@@ -615,10 +615,10 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     {
         lvTreeNode *child = (lvTreeNode *) lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
-            snprintf(child->id, sizeof(child->id), "solver");
+            lv_snprintf(child->id, sizeof(child->id), "solver");
             uint64_t solver_calls = 0;
             parse_sysinfo_u64(sys_info, SYSINFO_FIELD_SOLVER_CALLS, &solver_calls);
-            snprintf(child->label, sizeof(child->label), "Solver: %" PRIu64 " calls", solver_calls);
+            lv_snprintf(child->label, sizeof(child->label), "Solver: %" PRIu64 " calls", solver_calls);
             child->trust_color = lv_COLOR_BLUE;
             child->status = lv_TREE_PENDING;
             child->node_id = 2;
@@ -630,10 +630,10 @@ int lv_proto_tree(void *engine, lvTreeNode **out_root) {
     {
         lvTreeNode *child = (lvTreeNode *) lv_calloc(1, sizeof(lvTreeNode));
         if (child) {
-            snprintf(child->id, sizeof(child->id), "memory");
+            lv_snprintf(child->id, sizeof(child->id), "memory");
             double cur_mb = 0.0;
             parse_sysinfo_double(sys_info, SYSINFO_FIELD_CURRENT_MEM, &cur_mb);
-            snprintf(child->label, sizeof(child->label), "Memory: %.2f MB", cur_mb);
+            lv_snprintf(child->label, sizeof(child->label), "Memory: %.2f MB", cur_mb);
             child->trust_color = lv_COLOR_BLUE;
             child->status = lv_TREE_PENDING;
             child->node_id = 3;
@@ -675,21 +675,21 @@ int lv_proto_topology(void *engine, lvTopoGraph *out) {
     /* 块 0: Input */
     lvTopoBlock *block = &out->blocks[out->block_count++];
     block->id = 0;
-    snprintf(block->name, sizeof(block->name), "Input");
+    lv_snprintf(block->name, sizeof(block->name), "Input");
     block->layout_x = 100.0;
     block->layout_y = 150.0;
 
     /* 块 1: Engine */
     block = &out->blocks[out->block_count++];
     block->id = 1;
-    snprintf(block->name, sizeof(block->name), "Lv-00 Engine");
+    lv_snprintf(block->name, sizeof(block->name), "Lv-00 Engine");
     block->layout_x = 300.0;
     block->layout_y = 150.0;
 
     /* 块 2: Output */
     block = &out->blocks[out->block_count++];
     block->id = 2;
-    snprintf(block->name, sizeof(block->name), "Output");
+    lv_snprintf(block->name, sizeof(block->name), "Output");
     block->layout_x = 500.0;
     block->layout_y = 150.0;
 
@@ -755,14 +755,14 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     step->step_id = 0;
     step->step_index = 0;
     step->kind = lv_PROOF_STEP_AXIOM;
-    snprintf(step->label, sizeof(step->label), "Init");
-    snprintf(step->description, sizeof(step->description), "Lv-00 Engine v%s 初始化完成", lv_VERSION_STRING);
+    lv_snprintf(step->label, sizeof(step->label), "Init");
+    lv_snprintf(step->description, sizeof(step->description), "Lv-00 Engine v%s 初始化完成", lv_VERSION_STRING);
     step->color = lv_COLOR_GREEN;
     step->dependency_count = 0;
     step->dependency_ids = NULL;
     step->is_backtrack_point = 0;
     step->is_explored = 1;
-    snprintf(step->strategy, sizeof(step->strategy), "engine");
+    lv_snprintf(step->strategy, sizeof(step->strategy), "engine");
     step->node_id = -1;
     step->constraint_id = -1;
 
@@ -771,8 +771,8 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     step->step_id = 1;
     step->step_index = 1;
     step->kind = lv_PROOF_STEP_TACTIC;
-    snprintf(step->label, sizeof(step->label), "Solve");
-    snprintf(step->description, sizeof(step->description),
+    lv_snprintf(step->label, sizeof(step->label), "Solve");
+    lv_snprintf(step->description, sizeof(step->description),
              "构造 %" PRIu64 " 节点, %" PRIu64 " 约束, %" PRIu64 " 次求解器调用", nodes, constraints, solver_calls);
     step->color = (health >= 80) ? lv_COLOR_GREEN : (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
     step->dependency_count = 1;
@@ -781,7 +781,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
         step->dependency_ids[0] = 0;
     step->is_backtrack_point = 0;
     step->is_explored = 1;
-    snprintf(step->strategy, sizeof(step->strategy), "groebner");
+    lv_snprintf(step->strategy, sizeof(step->strategy), "groebner");
     step->node_id = -1;
     step->constraint_id = -1;
 
@@ -790,8 +790,8 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     step->step_id = 2;
     step->step_index = 2;
     step->kind = lv_PROOF_STEP_LEMMA;
-    snprintf(step->label, sizeof(step->label), "Health");
-    snprintf(step->description, sizeof(step->description), "系统健康评分: %d/100", health);
+    lv_snprintf(step->label, sizeof(step->label), "Health");
+    lv_snprintf(step->description, sizeof(step->description), "系统健康评分: %d/100", health);
     step->color = (health >= 80) ? lv_COLOR_GREEN : (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
     step->dependency_count = 1;
     step->dependency_ids = (int *) lv_malloc(sizeof(int));
@@ -799,7 +799,7 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
         step->dependency_ids[0] = 1;
     step->is_backtrack_point = 0;
     step->is_explored = 1;
-    snprintf(step->strategy, sizeof(step->strategy), "health_check");
+    lv_snprintf(step->strategy, sizeof(step->strategy), "health_check");
     step->node_id = -1;
     step->constraint_id = -1;
 
@@ -807,8 +807,8 @@ int lv_proto_proof_navigator(void *engine, lvProofNavigator *out) {
     out->total_steps = 3;
     out->green_count = (health >= 80) ? 2 : (health >= 50) ? 1 : 0;
     out->final_color = (health >= 80) ? lv_COLOR_GREEN : (health >= 50) ? lv_COLOR_YELLOW : lv_COLOR_RED;
-    snprintf(out->strategy_label, sizeof(out->strategy_label), "系统状态");
-    snprintf(out->nl_summary, sizeof(out->nl_summary), "Lv-00 引擎 v%s | 节点: %" PRIu64 " | 健康: %d%%",
+    lv_snprintf(out->strategy_label, sizeof(out->strategy_label), "系统状态");
+    lv_snprintf(out->nl_summary, sizeof(out->nl_summary), "Lv-00 引擎 v%s | 节点: %" PRIu64 " | 健康: %d%%",
              lv_VERSION_STRING, nodes, health);
     out->is_complete = 1;
 
@@ -868,15 +868,15 @@ int lv_proto_engine_status(void *engine, lvEngineStatus *out) {
 
     /* 根据健康分数判断引擎状态 */
     if (health >= 80) {
-        snprintf(out->engine_state, sizeof(out->engine_state), "idle");
+        lv_snprintf(out->engine_state, sizeof(out->engine_state), "idle");
     } else if (health >= 50) {
-        snprintf(out->engine_state, sizeof(out->engine_state), "running");
+        lv_snprintf(out->engine_state, sizeof(out->engine_state), "running");
     } else {
-        snprintf(out->engine_state, sizeof(out->engine_state), "error");
+        lv_snprintf(out->engine_state, sizeof(out->engine_state), "error");
     }
 
     /* 后端信息：版本 + 健康摘要 */
-    snprintf(out->backend_info, sizeof(out->backend_info), "GMP+Groebner | v%s | health=%d%%", lv_VERSION_STRING,
+    lv_snprintf(out->backend_info, sizeof(out->backend_info), "GMP+Groebner | v%s | health=%d%%", lv_VERSION_STRING,
              health);
 
     return 0;
@@ -979,11 +979,11 @@ int lv_proto_terminal_exec(void *engine, const char *command, lvTerminalResponse
     memset(out, 0, sizeof(*out));
 
     if (engine && command) {
-        snprintf(out->output, sizeof(out->output), "ok: '%s' received", command);
+        lv_snprintf(out->output, sizeof(out->output), "ok: '%s' received", command);
         out->success = 1;
         out->error_code = 0;
     } else {
-        snprintf(out->output, sizeof(out->output), "error: invalid input");
+        lv_snprintf(out->output, sizeof(out->output), "error: invalid input");
         out->success = 0;
         out->error_code = -1;
     }

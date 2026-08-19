@@ -297,8 +297,8 @@ void lv_orchestrator_config_default(lvSessionConfig *out) {
     out->max_reasoning_depth = 8;
     out->timeout_ms = 5000;
     out->enable_visualization = 0;
-    snprintf(out->input_format, sizeof(out->input_format), "dsl");
-    snprintf(out->output_format, sizeof(out->output_format), "json");
+    lv_snprintf(out->input_format, sizeof(out->input_format), "dsl");
+    lv_snprintf(out->output_format, sizeof(out->output_format), "json");
 }
 
 lvSession *lv_orchestrator_create(const lvSessionConfig *config) {
@@ -315,11 +315,11 @@ lvSession *lv_orchestrator_create(const lvSessionConfig *config) {
     else
         lv_orchestrator_config_default(&s->config);
     if (!s->config.output_format[0])
-        snprintf(s->config.output_format, sizeof(s->config.output_format), "json");
+        lv_snprintf(s->config.output_format, sizeof(s->config.output_format), "json");
     if (!s->config.input_format[0])
-        snprintf(s->config.input_format, sizeof(s->config.input_format), "dsl");
+        lv_snprintf(s->config.input_format, sizeof(s->config.input_format), "dsl");
     s->session_id = (int)((int64_t)now_ms() & 0x7FFFFFFF);
-    snprintf(s->session_name, sizeof(s->session_name), "orchestrator-session");
+    lv_snprintf(s->session_name, sizeof(s->session_name), "orchestrator-session");
     s->success = 0;
     for (int i = 0; i < lv_STAGE_COUNT; i++) {
         s->stages[i].stage = (lvSessionStage)i;
@@ -428,13 +428,13 @@ int lv_orchestrator_run(lvSession *session, const char *input_path) {
     in->last_run = lv_STAGE_PENDING;
     if (input_path && input_path[0]) {
         if (!lv_file_read_text(input_path, in->input, sizeof(in->input))) {
-            snprintf(in->last_error, sizeof(in->last_error), "无法读取输入文件: %s", input_path);
-            snprintf(session->final_error, sizeof(session->final_error), "无法读取输入文件: %s", input_path);
+            lv_snprintf(in->last_error, sizeof(in->last_error), "无法读取输入文件: %s", input_path);
+            lv_snprintf(session->final_error, sizeof(session->final_error), "无法读取输入文件: %s", input_path);
             return -1;
         }
     } else if (!in->input[0]) {
-        snprintf(in->last_error, sizeof(in->last_error), "无输入：请提供 input_path 或预先设置输入");
-        snprintf(session->final_error, sizeof(session->final_error), "无输入：请提供 input_path 或预先设置输入");
+        lv_snprintf(in->last_error, sizeof(in->last_error), "无输入：请提供 input_path 或预先设置输入");
+        lv_snprintf(session->final_error, sizeof(session->final_error), "无输入：请提供 input_path 或预先设置输入");
         return -1;
     }
     int rc = 0;

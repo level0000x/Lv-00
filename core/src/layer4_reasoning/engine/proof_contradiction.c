@@ -152,7 +152,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                 if (step_i->constraint_id > 0 && step_i->constraint_id == step_j->constraint_id &&
                     step_i->type == PROOF_STEP_ADD_CONSTRAINT && step_j->type == PROOF_STEP_EX_FALSO) {
                     *out_type = CONTRADICTION_TYPE_P_AND_NOT_P;
-                    snprintf(out_desc, 512, "命题 P (步骤 %d) 与其否定 NOT P (步骤 %d) 同时成立", step_i->id,
+                    lv_snprintf(out_desc, 512, "命题 P (步骤 %d) 与其否定 NOT P (步骤 %d) 同时成立", step_i->id,
                              step_j->id);
                     return true;
                 }
@@ -166,7 +166,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
             ProofStep *step = nav->steps[i];
             if (step && step->type == PROOF_STEP_EX_FALSO && step->is_completed) {
                 *out_type = CONTRADICTION_TYPE_FALSE_DERIVED;
-                snprintf(out_desc, 512, "从前提推导出矛盾 (步骤 %d, 爆炸原理)", step->id);
+                lv_snprintf(out_desc, 512, "从前提推导出矛盾 (步骤 %d, 爆炸原理)", step->id);
                 return true;
             }
         }
@@ -184,7 +184,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                 int dep_id = step->dependency_step_ids[d];
                 if (dep_id == step->id) {
                     *out_type = CONTRADICTION_TYPE_CYCLE;
-                    snprintf(out_desc, 512, "步骤 %d 存在自依赖（循环依赖）", step->id);
+                    lv_snprintf(out_desc, 512, "步骤 %d 存在自依赖（循环依赖）", step->id);
                     return true;
                 }
 
@@ -194,7 +194,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                         for (int d2 = 0; d2 < nav->steps[j]->dependency_count; d2++) {
                             if (nav->steps[j]->dependency_step_ids[d2] == step->id) {
                                 *out_type = CONTRADICTION_TYPE_CYCLE;
-                                snprintf(out_desc, 512, "步骤 %d 和步骤 %d 之间存在循环依赖", step->id, dep_id);
+                                lv_snprintf(out_desc, 512, "步骤 %d 和步骤 %d 之间存在循环依赖", step->id, dep_id);
                                 return true;
                             }
                         }
@@ -238,7 +238,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                             /* 快速检查：如果类型种类不同，直接判定为矛盾 */
                             if (tr_a->kind != tr_b->kind) {
                                 *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
-                                snprintf(out_desc, 512,
+                                lv_snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型种类不同（%d vs %d）",
                                          port_a->id, port_b->id, (int) tr_a->kind, (int) tr_b->kind);
@@ -248,7 +248,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                             /* 检查类型级别是否兼容 */
                             if (tr_a->level != tr_b->level) {
                                 *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
-                                snprintf(out_desc, 512,
+                                lv_snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型级别不同（%d vs %d）",
                                          port_a->id, port_b->id, tr_a->level, tr_b->level);
@@ -260,7 +260,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                                 tr_b->variable_id > 0) {
                                 /* 不同具体变量，记录矛盾 */
                                 *out_type = CONTRADICTION_TYPE_TYPE_MISMATCH;
-                                snprintf(out_desc, 512,
+                                lv_snprintf(out_desc, 512,
                                          "端口 %d 和端口 %d 类型不兼容："
                                          "类型变量不同（var_%d vs var_%d）",
                                          port_a->id, port_b->id, tr_a->variable_id, tr_b->variable_id);
@@ -283,7 +283,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
             /* 规范化步骤可能发现算术矛盾 */
             if (step->retained_node_id < 0 && step->merged_count > 0) {
                 *out_type = CONTRADICTION_TYPE_ARITHMETIC;
-                snprintf(out_desc, 512, "规范化步骤 %d 发现算术矛盾：合并节点时产生不一致", step->id);
+                lv_snprintf(out_desc, 512, "规范化步骤 %d 发现算术矛盾：合并节点时产生不一致", step->id);
                 return true;
             }
         }
@@ -314,7 +314,7 @@ bool lv_detect_contradiction(const ConstraintGraph *graph, const ProofNavigator 
                     }
                     if (same_participants && con->type != con2->type) {
                         *out_type = CONTRADICTION_TYPE_GEOMETRIC;
-                        snprintf(out_desc, 512, "约束 %d (%d) 和约束 %d (%d) 在相同节点上冲突", con->id,
+                        lv_snprintf(out_desc, 512, "约束 %d (%d) 和约束 %d (%d) 在相同节点上冲突", con->id,
                                  (int) con->type, con2->id, (int) con2->type);
                         return true;
                     }
@@ -419,9 +419,9 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *
     /* 步骤 1: 添加否定假设 */
     char assumption_stmt[512];
     if (goal->name) {
-        snprintf(assumption_stmt, sizeof(assumption_stmt), "假设 NOT (%s) 成立", goal->name);
+        lv_snprintf(assumption_stmt, sizeof(assumption_stmt), "假设 NOT (%s) 成立", goal->name);
     } else {
-        snprintf(assumption_stmt, sizeof(assumption_stmt), "假设目标命题的否定成立");
+        lv_snprintf(assumption_stmt, sizeof(assumption_stmt), "假设目标命题的否定成立");
     }
 
     lv_contradiction_path_add_node(path, assumption_stmt, "反证法初始假设", true);
@@ -487,7 +487,7 @@ bool lv_engine_proof_by_contradiction(lvProofEngine *engine, const Proposition *
                         if (step_count > 0) {
                             /* 记录推导步骤 */
                             char step_stmt[512];
-                            snprintf(step_stmt, sizeof(step_stmt), "应用规则 '%s' 进行推导",
+                            lv_snprintf(step_stmt, sizeof(step_stmt), "应用规则 '%s' 进行推导",
                                      matches[0]->rule ? matches[0]->rule->name : "unknown");
                             lv_contradiction_path_add_node(
                                 path, step_stmt, matches[0]->rule ? matches[0]->rule->name : "rule application", false);

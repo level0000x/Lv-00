@@ -340,7 +340,7 @@ static int gappa_unbox_index(void *value) {
 
 /** @brief 构造注册表 key（"<set>:<expr_lhs>"） */
 static void gappa_build_key(const lvGappaPredSet *set, const char *expr_lhs, char *buf, size_t bufsz) {
-    snprintf(buf, bufsz, "%p:%s", (const void *) set, expr_lhs);
+    lv_snprintf(buf, bufsz, "%p:%s", (const void *) set, expr_lhs);
 }
 
 /** @brief 移除指定 set 的全部注册条目（init/clear 时调用，防止残留过期映射） */
@@ -349,7 +349,7 @@ static void gappa_pred_registry_remove_set(const lvGappaPredSet *set) {
         return;
     }
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "%p:", (const void *) set);
+    lv_snprintf(prefix, sizeof(prefix), "%p:", (const void *) set);
     lv_registry_remove_prefix(&g_gappa_pred_registry, prefix);
 }
 
@@ -705,7 +705,7 @@ static void gappa_apply_rules(lvGappaPredSet *output, const GappaRule *rules, si
                     lvGappaPredicate np;
                     memset(&np, 0, sizeof(np));
                     np.type = lv_PRED_BND;
-                    snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, pa->expr_lhs, pb->expr_lhs);
+                    lv_snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, pa->expr_lhs, pb->expr_lhs);
                     np.bound_lo = iv.lo;
                     np.bound_hi = iv.hi;
                     np.is_hypothesis = pa->is_hypothesis;
@@ -730,7 +730,7 @@ static void gappa_apply_rules(lvGappaPredSet *output, const GappaRule *rules, si
                 lvGappaPredicate np;
                 memset(&np, 0, sizeof(np));
                 np.type = lv_PRED_BND;
-                snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, output->preds[i].expr_lhs);
+                lv_snprintf(np.expr_lhs, sizeof(np.expr_lhs), rule->fmt, output->preds[i].expr_lhs);
                 np.bound_lo = iv.lo;
                 np.bound_hi = iv.hi;
                 np.is_hypothesis = output->preds[i].is_hypothesis;

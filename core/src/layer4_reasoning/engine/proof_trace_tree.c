@@ -570,7 +570,7 @@ bool lv_trace_tree_export_dot(const lvProofTraceTree *tree, const char *path) {
                                                          : "unexplored");
 
         char extra[128];
-        snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=%s",
+        lv_snprintf(extra, sizeof(extra), "shape=%s, style=filled, fillcolor=%s",
                  kTraceNodeProps[type_idx].dot_shape, kTraceNodeProps[type_idx].dot_fill);
         lv_dot_node_id(&sb, "n", node->id, lv_strbuf_cstr(&lbl), extra);
         lv_strbuf_destroy(&lbl);

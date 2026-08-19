@@ -571,7 +571,7 @@ char *lv_proof_compiler_to_graphviz(const lvProofObject *proof, const lvProofTra
                                                                          : "lightblue";
 
         char extra[128];
-        snprintf(extra, sizeof(extra), "style=filled, fillcolor=%s", color);
+        lv_snprintf(extra, sizeof(extra), "style=filled, fillcolor=%s", color);
         lv_dot_node_id(&sb, "S", step->step_id, label, extra);
     }
 

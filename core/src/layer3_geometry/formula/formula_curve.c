@@ -61,7 +61,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
     /* 参数验证 */
     if (!equation_node || sample_count <= 0) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "Invalid parameters");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "Invalid parameters");
         return result;
     }
 
@@ -69,7 +69,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
     result->points = (CurveSamplePoint *) lv_calloc(sample_count, sizeof(CurveSamplePoint)); /* 统一内存分配器 */
     if (!result->points) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed");
         return result;
     }
 
@@ -100,7 +100,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
     double *grid_values = (double *) lv_calloc((grid_size + 1) * (grid_size + 1), sizeof(double)); /* 统一内存分配器 */
     if (!grid_values) {
         result->success = false;
-        snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed for grid");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "Memory allocation failed for grid");
         return result;
     }
 
@@ -169,7 +169,7 @@ EquationCurveResult *formula_convert_equation_to_curve(const FormulaNode *equati
     result->success = (point_idx > 0);
 
     if (!result->success) {
-        snprintf(result->error_message, sizeof(result->error_message), "No curve points found in the specified region");
+        lv_snprintf(result->error_message, sizeof(result->error_message), "No curve points found in the specified region");
     }
 
     return result;
@@ -755,7 +755,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             }
             if (node) {
                 char buf[FORMULA_BUF_SIZE];
-                int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:CIRCLE:%.6f:%.6f:%.6f", cx, cy, r);
+                int n = lv_snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:CIRCLE:%.6f:%.6f:%.6f", cx, cy, r);
                 /* 检查snprintf返回值：尺寸安全（CIRCLE格式最大约60字节），但防御性检查不可省略 */
                 if (n < 0 || (size_t) n >= sizeof(buf)) {
                     buf[sizeof(buf) - 1] = '\0'; /* 确保零终止 */
@@ -820,7 +820,7 @@ bool formula_convert_equation(const FormulaNode *equation_node, ConstraintGraph 
             }
             if (node) {
                 char buf[FORMULA_BUF_SIZE];
-                int n = snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:LINE:%.6f:%.6f:%.6f", a, b, c);
+                int n = lv_snprintf(buf, sizeof(buf), "IMPLICIT_CURVE:LINE:%.6f:%.6f:%.6f", a, b, c);
                 /* 防御性检查：确保snprintf输出零终止 */
                 if (n < 0 || (size_t) n >= sizeof(buf)) {
                     buf[sizeof(buf) - 1] = '\0';

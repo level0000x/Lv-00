@@ -37,9 +37,9 @@
 static int helper_ascii_number(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     if (node->data.number.is_integer) {
-        return snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
+        return lv_snprintf(buffer, size, "%lld", (long long) node->data.number.numerator);
     } else {
-        return snprintf(buffer, size, "%lld/%llu", (long long) node->data.number.numerator,
+        return lv_snprintf(buffer, size, "%lld/%llu", (long long) node->data.number.numerator,
                         (unsigned long long) node->data.number.denominator);
     }
 }
@@ -96,7 +96,7 @@ static int helper_ascii_equation(const FormulaNode *node, char *buffer, size_t s
     char lhs[lv_FORMULA_BUF_SIZE], rhs[lv_FORMULA_BUF_SIZE];
     render_ascii_internal(node->data.equation.lhs, lhs, sizeof(lhs), options);
     render_ascii_internal(node->data.equation.rhs, rhs, sizeof(rhs), options);
-    return snprintf(buffer, size, "%s = %s", lhs, rhs);
+    return lv_snprintf(buffer, size, "%s = %s", lhs, rhs);
 }
 
 /* ---------- 坐标列表 ----------
@@ -143,7 +143,7 @@ static int helper_ascii_geom_point(const FormulaNode *node, char *buffer, size_t
     if (node->data.geom_point.coords) {
         render_ascii_internal(node->data.geom_point.coords, coords_buf, lv_FORMULA_BUF_LARGE, options);
     }
-    written = snprintf(buffer, size, "point(%s)", node->data.geom_point.name ? node->data.geom_point.name : "P");
+    written = lv_snprintf(buffer, size, "point(%s)", node->data.geom_point.name ? node->data.geom_point.name : "P");
     lv_free((void **) &coords_buf);
     return written;
 }
@@ -161,9 +161,9 @@ static int helper_ascii_geom_segment(const FormulaNode *node, char *buffer, size
         render_ascii_internal(node->data.geom_segment.endpoint2, ep2_buf, sizeof(ep2_buf), options);
     }
     if (node->data.geom_segment.name) {
-        written = snprintf(buffer, size, "segment(%s)", node->data.geom_segment.name);
+        written = lv_snprintf(buffer, size, "segment(%s)", node->data.geom_segment.name);
     } else {
-        written = snprintf(buffer, size, "segment(%s%s)", ep1_buf, ep2_buf);
+        written = lv_snprintf(buffer, size, "segment(%s%s)", ep1_buf, ep2_buf);
     }
     return written;
 }
@@ -181,9 +181,9 @@ static int helper_ascii_geom_line(const FormulaNode *node, char *buffer, size_t 
         render_ascii_internal(node->data.geom_line.point2, p2_buf, sizeof(p2_buf), options);
     }
     if (node->data.geom_line.name) {
-        written = snprintf(buffer, size, "line(%s)", node->data.geom_line.name);
+        written = lv_snprintf(buffer, size, "line(%s)", node->data.geom_line.name);
     } else {
-        written = snprintf(buffer, size, "line(%s%s)", p1_buf, p2_buf);
+        written = lv_snprintf(buffer, size, "line(%s%s)", p1_buf, p2_buf);
     }
     return written;
 }
@@ -200,7 +200,7 @@ static int helper_ascii_geom_circle(const FormulaNode *node, char *buffer, size_
     if (node->data.geom_circle.radius) {
         render_ascii_internal(node->data.geom_circle.radius, radius_buf, sizeof(radius_buf), options);
     }
-    written = snprintf(buffer, size, "circle(%s, %s)",
+    written = lv_snprintf(buffer, size, "circle(%s, %s)",
                        node->data.geom_circle.name ? node->data.geom_circle.name : "O", radius_buf);
     return written;
 }
@@ -221,9 +221,9 @@ static int helper_ascii_geom_triangle(const FormulaNode *node, char *buffer, siz
         render_ascii_internal(node->data.geom_triangle.vertex3, v3_buf, sizeof(v3_buf), options);
     }
     if (node->data.geom_triangle.name) {
-        written = snprintf(buffer, size, "triangle(%s)", node->data.geom_triangle.name);
+        written = lv_snprintf(buffer, size, "triangle(%s)", node->data.geom_triangle.name);
     } else {
-        written = snprintf(buffer, size, "triangle(%s%s%s)", v1_buf, v2_buf, v3_buf);
+        written = lv_snprintf(buffer, size, "triangle(%s%s%s)", v1_buf, v2_buf, v3_buf);
     }
     return written;
 }
@@ -231,7 +231,7 @@ static int helper_ascii_geom_triangle(const FormulaNode *node, char *buffer, siz
 static int helper_ascii_geom_polygon(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
-    written = snprintf(buffer, size, "polygon(%s, %d)",
+    written = lv_snprintf(buffer, size, "polygon(%s, %d)",
                        node->data.geom_polygon.name ? node->data.geom_polygon.name : "P",
                        node->data.geom_polygon.vertex_count);
     return written;
@@ -240,7 +240,7 @@ static int helper_ascii_geom_polygon(const FormulaNode *node, char *buffer, size
 static int helper_ascii_geom_region(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options)
 {
     int written = 0;
-    written = snprintf(buffer, size, "region(%s)", node->data.geom_region.name ? node->data.geom_region.name : "R");
+    written = lv_snprintf(buffer, size, "region(%s)", node->data.geom_region.name ? node->data.geom_region.name : "R");
     return written;
 }
 
@@ -262,7 +262,7 @@ static int helper_ascii_geom_arc(const FormulaNode *node, char *buffer, size_t s
     if (node->data.geom_arc.end_angle) {
         render_ascii_internal(node->data.geom_arc.end_angle, end_buf, sizeof(end_buf), options);
     }
-    written = snprintf(buffer, size, "arc(%s, %s, %s, %s, %s)",
+    written = lv_snprintf(buffer, size, "arc(%s, %s, %s, %s, %s)",
                        node->data.geom_arc.name ? node->data.geom_arc.name : "AB", center_buf, radius_buf,
                        start_buf, end_buf);
     return written;
@@ -281,9 +281,9 @@ static int helper_ascii_geom_vector(const FormulaNode *node, char *buffer, size_
         render_ascii_internal(node->data.geom_vector.end, e_buf, sizeof(e_buf), options);
     }
     if (node->data.geom_vector.name) {
-        written = snprintf(buffer, size, "vector(%s)", node->data.geom_vector.name);
+        written = lv_snprintf(buffer, size, "vector(%s)", node->data.geom_vector.name);
     } else {
-        written = snprintf(buffer, size, "vector(%s%s)", s_buf, e_buf);
+        written = lv_snprintf(buffer, size, "vector(%s%s)", s_buf, e_buf);
     }
     return written;
 }
@@ -393,7 +393,7 @@ static int helper_ascii_unknown(const FormulaNode *node, char *buffer, size_t si
 {
     (void) node;
     (void) options;
-    return snprintf(buffer, size, "<unknown>");
+    return lv_snprintf(buffer, size, "<unknown>");
 }
 
 int render_ascii_internal(const FormulaNode *node, char *buffer, size_t size, const RenderOptions *options) {

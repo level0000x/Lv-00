@@ -633,7 +633,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
         int ref_id = stmt->proof_refs[i];
         if (ref_id < 0 || ref_id >= kernel->statement_count) {
             verifier.last_result = MINI_VERIFY_FAIL_STACK;
-            snprintf(verifier.error_detail, sizeof(verifier.error_detail), "证明引用 %d 越界", ref_id);
+            lv_snprintf(verifier.error_detail, sizeof(verifier.error_detail), "证明引用 %d 越界", ref_id);
             return verifier.last_result;
         }
         MiniStatement *ref = kernel->statements[ref_id];
@@ -646,7 +646,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
         if (ref->type == MINI_STMT_HYP) {
             if (!mini_verifier_push_hypothesis(&verifier, ref_id)) {
                 verifier.last_result = MINI_VERIFY_FAIL_STACK;
-                snprintf(verifier.error_detail, sizeof(verifier.error_detail), "假设栈溢出");
+                lv_snprintf(verifier.error_detail, sizeof(verifier.error_detail), "假设栈溢出");
                 return verifier.last_result;
             }
         }
@@ -654,7 +654,7 @@ MiniVerifyResult mini_kernel_prove_theorem(MiniKernel *kernel, int stmt_id) {
         /* 检查循环引用 */
         if (verifier.current_depth > kernel->config.max_proof_depth && kernel->config.max_proof_depth > 0) {
             verifier.last_result = MINI_VERIFY_FAIL_CYCLE;
-            snprintf(verifier.error_detail, sizeof(verifier.error_detail), "超过最大证明深度 %d",
+            lv_snprintf(verifier.error_detail, sizeof(verifier.error_detail), "超过最大证明深度 %d",
                      kernel->config.max_proof_depth);
             return verifier.last_result;
         }
@@ -826,7 +826,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath) {
             char *trimmed = lv_str_trim(formula);
             if (strlen(trimmed) == 0) {
                 /* exempt: trimmed 为 lv_str_trim 偏移指针，sizeof(formula) 非剩余容量，非 L1 纯复制候选 */
-                snprintf(trimmed, sizeof(formula), "%s", label);
+                lv_snprintf(trimmed, sizeof(formula), "%s", label);
             }
 
             int id = mini_internal_add_statement(kernel, type, label, trimmed);

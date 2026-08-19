@@ -56,7 +56,7 @@ int render_mathml_internal(const FormulaNode *node, char *buffer, size_t size, c
     lv_strbuf_init(&esc_sb);
     lv_str_escape_xml(&esc_sb, latex_buf, (size_t) latex_len);
 
-    int written = snprintf(buffer, size,
+    int written = lv_snprintf(buffer, size,
                            "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\">\n"
                            "  <semantics>\n"
                            "    <mrow>\n"

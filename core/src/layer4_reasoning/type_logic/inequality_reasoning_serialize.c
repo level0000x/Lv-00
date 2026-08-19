@@ -46,7 +46,7 @@ char *lv_ineq_to_string(const lvInequality *ineq) {
         return NULL;
 
     const char *label = ineq->label ? ineq->label : "ineq";
-    snprintf(s, buf_size, "%s: left %s right", label, ineq_type_str(ineq->type));
+    lv_snprintf(s, buf_size, "%s: left %s right", label, ineq_type_str(ineq->type));
     return s;
 }
 
@@ -66,7 +66,7 @@ char *lv_ineq_proof_to_string(const lvInequalityProof *proof) {
     const char *status_str = lv_enum_to_str(s_ineq_status_str_entries, lv_ARRAY_SIZE(s_ineq_status_str_entries),
                                             (int) proof->status, "UNKNOWN");
 
-    snprintf(s, buf_size, "Proof: %s, %d steps", status_str, proof->step_count);
+    lv_snprintf(s, buf_size, "Proof: %s, %d steps", status_str, proof->step_count);
     return s;
 }
 

@@ -789,7 +789,7 @@ static FormulaNode *parse_dsl_constraint(ParserContext *ctx) {
     NodeType constraint_type = get_constraint_type(constraint_name);
     if ((int) constraint_type < 0) {
         char err_buf[lv_MAX_TEMP_MSG_SIZE];
-        snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
+        lv_snprintf(err_buf, sizeof(err_buf), "未知的约束类型: %s", constraint_name);
         formula_set_error(ctx, err_buf);
         lv_free((void **) &constraint_name);
         return NULL;

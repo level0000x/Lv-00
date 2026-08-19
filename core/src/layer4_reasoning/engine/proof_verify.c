@@ -47,14 +47,14 @@
 lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
     if (!trace) {
         if (out_error) {
-            snprintf(out_error, 512, "溯源树为 NULL");
+            lv_snprintf(out_error, 512, "溯源树为 NULL");
         }
         return lv_VERIFY_ERROR;
     }
 
     if (!trace->root) {
         if (out_error) {
-            snprintf(out_error, 512, "溯源树缺少根节点");
+            lv_snprintf(out_error, 512, "溯源树缺少根节点");
         }
         return lv_VERIFY_ERROR;
     }
@@ -62,7 +62,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
     /* 检查根节点状态 */
     if (trace->root->status != TRACE_STATUS_PROVED) {
         if (out_error) {
-            snprintf(out_error, 512, "根节点状态为 %d（期望 PROVED=%d）", (int) trace->root->status,
+            lv_snprintf(out_error, 512, "根节点状态为 %d（期望 PROVED=%d）", (int) trace->root->status,
                      (int) TRACE_STATUS_PROVED);
         }
         return lv_VERIFY_INCOMPLETE;
@@ -76,7 +76,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
         /* 推导节点必须有子节点（依赖） */
         if (node->type == TRACE_NODE_DERIVATION && node->children.count == 0) {
             if (out_error) {
-                snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
+                lv_snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
             }
             return lv_VERIFY_INVALID;
         }
@@ -84,7 +84,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
         /* 检查未完成的子目标 */
         if (node->type == TRACE_NODE_GOAL && node->status == TRACE_STATUS_UNEXPLORED) {
             if (out_error) {
-                snprintf(out_error, 512, "子目标节点 %u ('%s') 未被探索", node->id, node->label);
+                lv_snprintf(out_error, 512, "子目标节点 %u ('%s') 未被探索", node->id, node->label);
             }
             return lv_VERIFY_INCOMPLETE;
         }
@@ -95,7 +95,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
     if (computed != trace->final_color) {
         /* 警告但不标记为无效 */
         if (out_error) {
-            snprintf(out_error, 512, "警告：信任颜色不一致（计算值=%d, 记录值=%d）", (int) computed,
+            lv_snprintf(out_error, 512, "警告：信任颜色不一致（计算值=%d, 记录值=%d）", (int) computed,
                      (int) trace->final_color);
         }
     }
@@ -120,7 +120,7 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
 lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph *graph, char *out_error) {
     if (!step) {
         if (out_error) {
-            snprintf(out_error, 512, "证明步骤为 NULL");
+            lv_snprintf(out_error, 512, "证明步骤为 NULL");
         }
         return lv_VERIFY_ERROR;
     }
@@ -128,7 +128,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph
     /* 检查步骤类型 */
     if (step->type < PROOF_STEP_ADD_NODE || step->type > PROOF_STEP_ORACLE) {
         if (out_error) {
-            snprintf(out_error, 512, "步骤 %d 的类型 %d 无效", step->id, (int) step->type);
+            lv_snprintf(out_error, 512, "步骤 %d 的类型 %d 无效", step->id, (int) step->type);
         }
         return lv_VERIFY_INVALID;
     }
@@ -136,7 +136,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph
     /* 检查步骤是否完成 */
     if (!step->is_completed) {
         if (out_error) {
-            snprintf(out_error, 512, "步骤 %d 尚未完成", step->id);
+            lv_snprintf(out_error, 512, "步骤 %d 尚未完成", step->id);
         }
         return lv_VERIFY_INCOMPLETE;
     }
@@ -146,7 +146,7 @@ lvVerifyResult lv_verify_proof_step(const ProofStep *step, const ConstraintGraph
         bool found = (graph_get_constraint(graph, step->constraint_id) != NULL);
         if (!found) {
             if (out_error) {
-                snprintf(out_error, 512, "步骤 %d 引用的约束 %d 在约束图中不存在", step->id, step->constraint_id);
+                lv_snprintf(out_error, 512, "步骤 %d 引用的约束 %d 在约束图中不存在", step->id, step->constraint_id);
             }
             return lv_VERIFY_INVALID;
         }

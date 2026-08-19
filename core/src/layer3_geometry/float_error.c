@@ -897,12 +897,12 @@ bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPT
     /* 步骤 4: 构造证明文本 */
     char proof_buf[512];
     if (eq_count > 0) {
-        snprintf(proof_buf, sizeof(proof_buf),
+        lv_snprintf(proof_buf, sizeof(proof_buf),
                  "FPTaylor analysis for var_id=%d: %d constraint equations, "
                  "taylor_order=%d, abs_err=%.6e, rel_err=%.6e",
                  var_id, eq_count, cfg ? cfg->taylor_order : 1, max_abs_err, max_rel_err);
     } else {
-        snprintf(proof_buf, sizeof(proof_buf), "FPTaylor analysis for var_id=%d: no relevant constraints found",
+        lv_snprintf(proof_buf, sizeof(proof_buf), "FPTaylor analysis for var_id=%d: no relevant constraints found",
                  var_id);
     }
 
@@ -961,7 +961,7 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
 
     /* 构造证明文本 */
     char proof_buf[512];
-    snprintf(proof_buf, sizeof(proof_buf),
+    lv_snprintf(proof_buf, sizeof(proof_buf),
              "expr=\"%s\", order=%d, center=%.6e, interval=[%.6e, %.6e], "
              "abs_err=%.6e, rel_err=%.6e",
              expr, config.taylor_order, tf.center_val, tf.interval_lo, tf.interval_hi, out->absolute_error,

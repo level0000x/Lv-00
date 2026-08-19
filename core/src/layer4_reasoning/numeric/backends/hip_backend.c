@@ -1656,10 +1656,10 @@ const char *lv_hip_backend_version(void) {
             int major = hip_version / HIP_VERSION_MAJOR_BASE;
             int minor = (hip_version % HIP_VERSION_MAJOR_BASE) / HIP_VERSION_MINOR_BASE;
             int patch = (hip_version % HIP_VERSION_MINOR_BASE) / HIP_VERSION_PATCH_BASE;
-            snprintf(version_str, sizeof(version_str),
+            lv_snprintf(version_str, sizeof(version_str),
                      "HIP %d.%d.%d (ROCm)", major, minor, patch);
         } else {
-            snprintf(version_str, sizeof(version_str),
+            lv_snprintf(version_str, sizeof(version_str),
                      "HIP %s (ROCm)", HIP_BACKEND_VERSION);
         }
     }

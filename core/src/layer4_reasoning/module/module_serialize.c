@@ -240,7 +240,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
              * 统一走 lv_path_dirname + lv_path_join（替换手写 strrchr/memcpy 样板） */
             char dep_path[1024];
             char dep_name_buf[520];
-            snprintf(dep_name_buf, sizeof(dep_name_buf), "%s.lvz", dep->name);
+            lv_snprintf(dep_name_buf, sizeof(dep_name_buf), "%s.lvz", dep->name);
 
             size_t dir_len = 0;
             const char *dir_start = lv_path_dirname(filepath, &dir_len);
@@ -250,7 +250,7 @@ static bool load_recursive(Module *mod, const char *filepath, Module **loaded, i
                 lv_strlcpy_n(dir_buf, sizeof(dir_buf), dir_start, dlen);
                 lv_path_join(dir_buf, dep_name_buf, dep_path, sizeof(dep_path));
             } else {
-                snprintf(dep_path, sizeof(dep_path), "%s.lvz", dep->name);
+                lv_snprintf(dep_path, sizeof(dep_path), "%s.lvz", dep->name);
             }
 
             /* 创建依赖模块 */

@@ -591,7 +591,7 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
         } else {
             /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
             if (verifier->strict_mode) {
-                snprintf(report.results[i].description, sizeof(report.results[i].description),
+                lv_snprintf(report.results[i].description, sizeof(report.results[i].description),
                          "严格模式失败：检查项 %d 被禁用，不允许跳过验证", i);
                 report.results[i].passed = 0;
                 report.failed_checks++;
@@ -603,7 +603,7 @@ lvVerifyReport lv_meta_verify_session(lvMetaVerifier *verifier, const lvSession 
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary), "Meta-verification (%s): %d/%d passed, %d failed, %d skipped",
+    lv_snprintf(report.summary, sizeof(report.summary), "Meta-verification (%s): %d/%d passed, %d failed, %d skipped",
              verifier->strict_mode ? "strict" : "normal", report.passed_checks, report.total_checks,
              report.failed_checks, report.skipped_checks);
     return report;
@@ -858,7 +858,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
         if (!(verifier->check_mask & lv_bit_mask((unsigned) i))) {
             /* 严格模式下不允许跳过任何检查：被禁用的检查项视为失败 */
             if (verifier->strict_mode) {
-                snprintf(report.results[i].description, sizeof(report.results[i].description),
+                lv_snprintf(report.results[i].description, sizeof(report.results[i].description),
                          "严格模式失败：检查项 %d 被禁用，不允许跳过验证", i);
                 report.results[i].passed = 0;
                 report.failed_checks++;
@@ -885,7 +885,7 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof) {
     }
 
     /* 生成摘要 */
-    snprintf(report.summary, sizeof(report.summary),
+    lv_snprintf(report.summary, sizeof(report.summary),
              "Proof meta-verification (%s): %d/%d passed, %d failed, %d skipped",
              verifier->strict_mode ? "strict" : "normal", report.passed_checks, report.total_checks,
              report.failed_checks, report.skipped_checks);

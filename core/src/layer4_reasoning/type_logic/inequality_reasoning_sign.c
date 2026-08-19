@@ -262,7 +262,7 @@ bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos) {
 
             if (unmatched > 0) {
                 char buf[256];
-                snprintf(buf, sizeof(buf),
+                lv_snprintf(buf, sizeof(buf),
                          "Partial SOS decomposition: %u square(s) found, but %u term(s) "
                          "could not be matched. Check for non-quadratic or cross terms "
                          "without matching squares.",
@@ -326,7 +326,7 @@ bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos) {
             if ((unsigned)s < sizeof(kSignDescriptionTable) / sizeof(kSignDescriptionTable[0]))
                 sign_desc = kSignDescriptionTable[s];
             char buf[256];
-            snprintf(buf, sizeof(buf),
+            lv_snprintf(buf, sizeof(buf),
                      "Expression is %s — not directly decomposable into sum of squares. "
                      "Consider rewriting as explicit a^2 + b^2 + ... form.",
                      sign_desc);

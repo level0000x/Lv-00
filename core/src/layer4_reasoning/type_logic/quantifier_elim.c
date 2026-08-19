@@ -70,7 +70,7 @@ lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr, lvQ
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_TRUE;
-        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_empty_%d", expr->id);
+        (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -88,7 +88,7 @@ lvQuantResult lv_quant_eliminate_forall_finite(const lvQuantifiedExpr *expr, lvQ
     out_result->truth_value = combined_truth;
 
     /* 创建结果命题：P(d1) ∧ ... ∧ P(dn) */
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ForallElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
                     expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
@@ -145,7 +145,7 @@ lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr, lvQ
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_FALSE;
-        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_empty_%d", expr->id);
+        (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -169,7 +169,7 @@ lvQuantResult lv_quant_eliminate_exists_finite(const lvQuantifiedExpr *expr, lvQ
     out_result->truth_value = combined_truth;
 
     /* 创建结果命题：P(d1) ∨ ... ∨ P(dn) */
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsElim_%s_%d", expr->variable_name ? expr->variable_name : "x",
                     expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {
@@ -233,7 +233,7 @@ lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *ex
     if (expr->domain->element_count == 0) {
         out_result->status = lv_QUANT_DOMAIN_EMPTY;
         out_result->truth_value = lv_FALSE;
-        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_empty_%d", expr->id);
+        (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_empty_%d", expr->id);
         out_result->result_prop = create_result_proposition(expr->id, name_buf);
         return lv_QUANT_DOMAIN_EMPTY;
     }
@@ -265,7 +265,7 @@ lvQuantResult lv_quant_eliminate_exists_unique_finite(const lvQuantifiedExpr *ex
     }
 
     /* 创建结果命题 */
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_%s_%d",
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ExistsUniqueElim_%s_%d",
                     expr->variable_name ? expr->variable_name : "x", expr->id);
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
     if (!out_result->result_prop) {

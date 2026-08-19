@@ -254,7 +254,7 @@ bool preset_bind_parameter(const char *preset_name, int param_index, int value, 
 
     /* 生成新预设名称：原名称 + _bound_ + 索引 */
     char new_name[PRESET_BUFFER_SIZE];
-    int written = snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, param_index);
+    int written = lv_snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, param_index);
     /* exempt: snprintf 返回码检测（非索引语义），勿替换为 lv_index_in_range */
     if (written < 0 || (size_t) written >= sizeof(new_name)) {
         unlock_library();

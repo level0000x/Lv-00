@@ -214,7 +214,7 @@ void rotate_logs(void) {
     int i;
 
     /* 如果存在则删除最旧的文件 */
-    snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, lv_LOG_MAX_FILES);
+    lv_snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, lv_LOG_MAX_FILES);
     lv_path_join(s_debug_state.log_dir_path, name_buf, old_path, lv_LOG_PATH_MAX);
     if (lv_file_exists(old_path)) {
         remove(old_path);
@@ -222,9 +222,9 @@ void rotate_logs(void) {
 
     /* 重命名现有文件: .4 -> .5, .3 -> .4, 依此类推 */
     for (i = lv_LOG_MAX_FILES - 1; i >= 1; i--) {
-        snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i);
+        lv_snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i);
         lv_path_join(s_debug_state.log_dir_path, name_buf, old_path, lv_LOG_PATH_MAX);
-        snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i + 1);
+        lv_snprintf(name_buf, sizeof(name_buf), "%s.%d", lv_DEBUG_LOG_BASENAME, i + 1);
         lv_path_join(s_debug_state.log_dir_path, name_buf, new_path, lv_LOG_PATH_MAX);
         if (lv_file_exists(old_path)) {
             rename(old_path, new_path);
@@ -241,7 +241,7 @@ void rotate_logs(void) {
     s_debug_state.current_log_size = 0;
 
     lv_path_join(s_debug_state.log_dir_path, lv_DEBUG_LOG_BASENAME, old_path, lv_LOG_PATH_MAX);
-    snprintf(name_buf, sizeof(name_buf), "%s.1", lv_DEBUG_LOG_BASENAME);
+    lv_snprintf(name_buf, sizeof(name_buf), "%s.1", lv_DEBUG_LOG_BASENAME);
     lv_path_join(s_debug_state.log_dir_path, name_buf, new_path, lv_LOG_PATH_MAX);
     if (lv_file_exists(old_path)) {
         rename(old_path, new_path);

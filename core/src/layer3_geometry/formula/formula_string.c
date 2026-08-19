@@ -42,9 +42,9 @@ static int str_snprintf_fallback(char *buf, size_t buf_size, const char *fallbac
 
 static void str_number(const FormulaNode *node, char *buf, size_t buf_size) {
             if (node->data.number.is_integer) {
-                snprintf(buf, buf_size, "%lld", (long long) node->data.number.numerator);
+                lv_snprintf(buf, buf_size, "%lld", (long long) node->data.number.numerator);
             } else {
-                snprintf(buf, buf_size, "%lld/%llu", (long long) node->data.number.numerator,
+                lv_snprintf(buf, buf_size, "%lld/%llu", (long long) node->data.number.numerator,
                          (unsigned long long) node->data.number.denominator);
             }
 

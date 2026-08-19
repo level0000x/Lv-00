@@ -69,7 +69,7 @@ static struct {
 
 /** @brief 构造用例注册表 key（"<suite>\x1f<case>"，\x1f 为极少出现在名称中的控制字符） */
 static void build_case_key(const char *suite_name, const char *test_name, char *buf, size_t bufsz) {
-    snprintf(buf, bufsz, "%s\x1f%s", suite_name, test_name);
+    lv_snprintf(buf, bufsz, "%s\x1f%s", suite_name, test_name);
 }
 
 /** @brief 装箱用例索引（注册表 value；索引在 cases 数组扩容 realloc 后保持有效） */
@@ -615,7 +615,7 @@ lvTestReport *lv_test_run_by_pattern(const char *pattern) {
 
             /* 构建完整测试名 */
             char full_name[256];
-            snprintf(full_name, sizeof(full_name), "%s.%s", suite->name, test_case->name);
+            lv_snprintf(full_name, sizeof(full_name), "%s.%s", suite->name, test_case->name);
 
             /* 简单匹配（仅检查前缀） */
             bool matches = false;
@@ -679,7 +679,7 @@ bool lv_test_register_parameterized(const char *suite_name, const char *test_nam
     /* 为每个数据点注册一个测试 */
     for (uint32_t i = 0; i < data_count; i++) {
         char name[lv_TEST_NAME_MAX_LEN];
-        snprintf(name, sizeof(name), "%s/%u", test_name, i);
+        lv_snprintf(name, sizeof(name), "%s/%u", test_name, i);
 
         if (!lv_test_register(suite_name, name, func)) {
             return false;

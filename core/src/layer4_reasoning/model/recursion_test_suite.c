@@ -181,12 +181,12 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试1: 符号测度递减 ---- */
     {
         RecursionTestResult *tr = &test_results[0];
-        snprintf(tr->name, sizeof(tr->name), "symbolic_measure_decreasing");
+        lv_snprintf(tr->name, sizeof(tr->name), "symbolic_measure_decreasing");
 
         Measure *m_len = measure_create_symbolic("length", MEASURE_KIND_LENGTH, 0);
         if (!m_len) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create symbolic measure");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create symbolic measure");
         } else {
             /* 创建两个符号坐标值，a > b */
             SymbolicCoord *val_a = symbolic_coord_create_rational(25, 1); /* 25 */
@@ -204,7 +204,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_LESS, got %s",
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_LESS, got %s",
                          measure_compare_result_to_string(cmp));
             }
         }
@@ -213,12 +213,12 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试2: 非符号测度递减 ---- */
     {
         RecursionTestResult *tr = &test_results[1];
-        snprintf(tr->name, sizeof(tr->name), "non_symbolic_measure_decreasing");
+        lv_snprintf(tr->name, sizeof(tr->name), "non_symbolic_measure_decreasing");
 
         Measure *m_custom = measure_create_custom("depth_cmp", test_non_symbolic_compare, NULL);
         if (!m_custom) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create custom measure");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create custom measure");
         } else {
             /* 非符号测度的 measure_compare 返回 MEASURE_UNKNOWN（需要 GeomNode） */
             SymbolicCoord *val_a = symbolic_coord_create_rational(5, 1);
@@ -236,7 +236,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_UNKNOWN for non-symbolic, got %s",
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Expected MEASURE_UNKNOWN for non-symbolic, got %s",
                          measure_compare_result_to_string(cmp));
             }
         }
@@ -245,12 +245,12 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试3: 递归深度限制 ---- */
     {
         RecursionTestResult *tr = &test_results[2];
-        snprintf(tr->name, sizeof(tr->name), "recursion_depth_limit");
+        lv_snprintf(tr->name, sizeof(tr->name), "recursion_depth_limit");
 
         RecursionContext *ctx = recursion_context_create(3); /* 最大深度3 */
         if (!ctx) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create recursion context");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create recursion context");
         } else {
             /* 进入递归4次（超过最大深度3） */
             RecursionCheckResult r1 = recursion_context_enter(ctx, 1, NULL, NULL);
@@ -266,7 +266,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 passed_count++;
             } else {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg),
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg),
                          "Depth limit not enforced correctly: r1=%s r2=%s r3=%s r4=%s",
                          recursion_check_result_to_string(r1), recursion_check_result_to_string(r2),
                          recursion_check_result_to_string(r3), recursion_check_result_to_string(r4));
@@ -277,19 +277,19 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试4: 互递归交叉检查 ---- */
     {
         RecursionTestResult *tr = &test_results[3];
-        snprintf(tr->name, sizeof(tr->name), "mutual_recursion_cross_check");
+        lv_snprintf(tr->name, sizeof(tr->name), "mutual_recursion_cross_check");
 
         Measure *m = measure_create_symbolic("depth", MEASURE_KIND_DEPTH, 0);
         if (!m) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create measure");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create measure");
         } else {
             RecursionContext *ctx_a = recursion_context_create(100);
             RecursionContext *ctx_b = recursion_context_create(100);
 
             if (!ctx_a || !ctx_b) {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create contexts");
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create contexts");
             } else {
                 recursion_context_set_measure(ctx_a, m);
                 recursion_context_set_measure(ctx_b, m);
@@ -435,10 +435,10 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                      */
                     tr->passed = true;
                     passed_count++;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg), "OK");
+                    lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "OK");
                 } else {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg),
+                    lv_snprintf(tr->error_msg, sizeof(tr->error_msg),
                              "Cross-check should fail for non-decreasing cross values");
                 }
 
@@ -453,12 +453,12 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试5: 选择器块评估 ---- */
     {
         RecursionTestResult *tr = &test_results[4];
-        snprintf(tr->name, sizeof(tr->name), "selector_block_evaluation");
+        lv_snprintf(tr->name, sizeof(tr->name), "selector_block_evaluation");
 
         ConstraintGraph *graph = graph_create();
         if (!graph) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create graph");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create graph");
         } else {
             /* 创建一个简单的区域（三角形）和测试点 */
             /* 三角形顶点：(0,0), (4,0), (0,3) */
@@ -469,7 +469,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 !symbolic_coord_pair_create_rational(4, 1, 0, 1, &p1_coords[0], &p1_coords[1]) ||
                 !symbolic_coord_pair_create_rational(0, 1, 3, 1, &p2_coords[0], &p2_coords[1])) {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create fixture coords");
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create fixture coords");
             } else {
                 graph_add_point(graph, p0_coords, 2);
                 graph_add_point(graph, p1_coords, 2);
@@ -484,7 +484,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                 SymbolicCoord *test_pt_coords[2];
                 if (!symbolic_coord_pair_create_rational(1, 1, 1, 1, &test_pt_coords[0], &test_pt_coords[1])) {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test point coords");
+                    lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test point coords");
                 } else {
                     graph_add_point(graph, test_pt_coords, 2);
 
@@ -492,7 +492,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                     SelectorBlock *sb = selector_block_create(1, graph);
             if (!sb) {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create selector block");
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create selector block");
             } else {
                 /* 设置条件：测试点是否在区域内 */
                 /* 注意：我们使用节点索引作为ID */
@@ -520,7 +520,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                     passed_count++;
                 } else {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Branches should be disjoint");
+                    lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Branches should be disjoint");
                 }
                 }
                 }
@@ -533,17 +533,17 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
     /* ---- 测试6: 角度测度符号计算 ---- */
     {
         RecursionTestResult *tr = &test_results[5];
-        snprintf(tr->name, sizeof(tr->name), "angle_measure_symbolic");
+        lv_snprintf(tr->name, sizeof(tr->name), "angle_measure_symbolic");
 
         Measure *m_angle = measure_create_symbolic("angle", MEASURE_KIND_ANGLE, 0);
         if (!m_angle) {
             tr->passed = false;
-            snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create angle measure");
+            lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create angle measure");
         } else {
             ConstraintGraph *graph = create_test_graph();
             if (!graph || graph->node_count < 4) {
                 tr->passed = false;
-                snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test graph");
+                lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Failed to create test graph");
                 if (graph)
                     destroy_test_graph(graph);
             } else {
@@ -582,7 +582,7 @@ int recursion_run_builtin_tests(MeasureSystem *sys, RecursionTestResult **result
                     passed_count++;
                 } else {
                     tr->passed = false;
-                    snprintf(tr->error_msg, sizeof(tr->error_msg), "Angle test failed: 45deg=%s, 90deg=%s",
+                    lv_snprintf(tr->error_msg, sizeof(tr->error_msg), "Angle test failed: 45deg=%s, 90deg=%s",
                              test_45_ok ? "OK" : "FAIL", test_90_ok ? "OK" : "FAIL");
                 }
 

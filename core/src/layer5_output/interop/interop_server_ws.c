@@ -299,7 +299,7 @@ static bool ws_header_contains_token(const char *value, size_t len, const char *
 /** 发送 HTTP 错误响应（400/500 等） */
 static void ws_http_reply_error(WsSock sock, int status, const char *reason) {
     char resp[256];
-    int rlen = snprintf(resp, sizeof(resp),
+    int rlen = lv_snprintf(resp, sizeof(resp),
                         "HTTP/1.1 %d %s\r\n"
                         "Connection: close\r\n"
                         "Content-Length: 0\r\n"
@@ -393,7 +393,7 @@ static bool ws_http_handshake(WsSock sock, const char *req) {
     /* 仅支持 RFC 6455 协议版本 13（RFC 6455 §4.2.2） */
     if (ws_version != 13) {
         char resp[256];
-        int rlen = snprintf(resp, sizeof(resp),
+        int rlen = lv_snprintf(resp, sizeof(resp),
                             "HTTP/1.1 426 Upgrade Required\r\n"
                             "Connection: close\r\n"
                             "Sec-WebSocket-Version: 13\r\n"
@@ -407,7 +407,7 @@ static bool ws_http_handshake(WsSock sock, const char *req) {
 
     /* Sec-WebSocket-Accept = base64(SHA1(key + GUID)) */
     char concat[sizeof(key) + sizeof(WS_GUID) + 1];
-    int n = snprintf(concat, sizeof(concat), "%s%s", key, WS_GUID);
+    int n = lv_snprintf(concat, sizeof(concat), "%s%s", key, WS_GUID);
     if (n < 0 || (size_t) n >= sizeof(concat)) {
         ws_http_reply_error(sock, 400, "Bad Request");
         return false;
@@ -425,7 +425,7 @@ static bool ws_http_handshake(WsSock sock, const char *req) {
 
     /* 返回 101 Switching Protocols */
     char resp[512];
-    int rlen = snprintf(resp, sizeof(resp),
+    int rlen = lv_snprintf(resp, sizeof(resp),
                         "HTTP/1.1 101 Switching Protocols\r\n"
                         "Upgrade: websocket\r\n"
                         "Connection: Upgrade\r\n"

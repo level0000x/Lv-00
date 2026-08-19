@@ -74,7 +74,7 @@ bool execute_vector_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
     if (start_step) {
         start_step->color = PROOF_COLOR_GREEN;
         char buf[256];
-        snprintf(buf, sizeof(buf), "[向量法] 提取 %d 个几何点，构建向量表达式进行代数推导", point_count);
+        lv_snprintf(buf, sizeof(buf), "[向量法] 提取 %d 个几何点，构建向量表达式进行代数推导", point_count);
         start_step->note = lv_strdup_safe(buf);
         proof_navigator_add_step(nav, start_step);
     }

@@ -326,7 +326,7 @@ static bool execute_strategy_cases(lvProofEngine *engine, const Proposition *goa
 
     for (int c = 0; c < num_cases && c < branch_cap; c++) {
         char case_label[128];
-        snprintf(case_label, sizeof(case_label), "Case %d", c + 1);
+        lv_snprintf(case_label, sizeof(case_label), "Case %d", c + 1);
 
         lvProofTraceNode *case_node = lv_trace_node_create(TRACE_NODE_DERIVATION, case_label);
         if (!case_node) {
@@ -334,7 +334,7 @@ static bool execute_strategy_cases(lvProofEngine *engine, const Proposition *goa
             continue;
         }
 
-        snprintf(case_node->description, sizeof(case_node->description), "第 %d 种情况的分析与证明", c + 1);
+        lv_snprintf(case_node->description, sizeof(case_node->description), "第 %d 种情况的分析与证明", c + 1);
 
         /* 尝试对每种情况使用直接证明 */
         bool case_success = execute_strategy_direct(engine, goal, tree);
@@ -723,7 +723,7 @@ bool lv_proof_engine_prove_with_strategy(lvProofEngine *engine, const Propositio
 
     /* 记录策略信息到根节点描述 */
     if (tree->root) {
-        snprintf(tree->root->description, sizeof(tree->root->description), "使用 %s 策略证明: %s",
+        lv_snprintf(tree->root->description, sizeof(tree->root->description), "使用 %s 策略证明: %s",
                  get_strategy_name_zh(strategy_type), goal->name ? goal->name : "unnamed goal");
     }
 

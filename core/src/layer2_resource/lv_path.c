@@ -28,7 +28,7 @@ bool lv_path_join(const char *dir, const char *file, char *out, size_t out_size)
     if (!dir || !file || !out || out_size == 0) {
         return false;
     }
-    int written = snprintf(out, out_size, "%s%c%s", dir, lv_PATH_SEPARATOR, file);
+    int written = lv_snprintf(out, out_size, "%s%c%s", dir, lv_PATH_SEPARATOR, file);
     return (written >= 0 && (size_t) written < out_size);
 }
 
@@ -176,7 +176,7 @@ int lv_path_remove(const char *path) {
                 child = tmp;
                 child_cap = need;
             }
-            snprintf(child, need, "%s/%s", path, entry->d_name);
+            lv_snprintf(child, need, "%s/%s", path, entry->d_name);
             (void) lv_path_remove(child);
         }
         lv_free(&child);
@@ -252,7 +252,7 @@ bool lv_temp_path(char *out, size_t out_size) {
         out[base + 1] = '\0';
         base++;
     }
-    snprintf(out + base, out_size - base, "lv_tmp_%08lx_%010llu_%06lu",
+    lv_snprintf(out + base, out_size - base, "lv_tmp_%08lx_%010llu_%06lu",
              (unsigned long) GetCurrentProcessId(),
              (unsigned long long) lv_get_time_ns(),
              (unsigned long) s_temp_counter);
@@ -262,7 +262,7 @@ bool lv_temp_path(char *out, size_t out_size) {
     if (!tmpdir || !tmpdir[0]) {
         tmpdir = "/tmp";
     }
-    int written = snprintf(out, out_size, "%s/lv_tmp_%08d_%010llu_%06lu",
+    int written = lv_snprintf(out, out_size, "%s/lv_tmp_%08d_%010llu_%06lu",
                            tmpdir, (int) getpid(),
                            (unsigned long long) lv_get_time_ns(),
                            (unsigned long) s_temp_counter);
@@ -285,7 +285,7 @@ const char *lv_path_home_dir(void) {
             const char *hd = getenv("HOMEDRIVE");
             const char *hp = getenv("HOMEPATH");
             if (hd && hp && hd[0] && hp[0]) {
-                snprintf(home_path, MAX_PATH, "%s%s", hd, hp);
+                lv_snprintf(home_path, MAX_PATH, "%s%s", hd, hp);
             }
         }
     }

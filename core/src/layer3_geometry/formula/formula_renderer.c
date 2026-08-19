@@ -217,7 +217,7 @@ char *formula_render_point_latex(const char *name, const FormulaNode **coords, i
     /* HEAP_ALLOCATED: 结果字符串 */
     char *result = (char *) lv_malloc(lv_POINT_LATEX_BUF_SIZE);
     if (result) {
-        snprintf(result, lv_POINT_LATEX_BUF_SIZE, "%s = \\left(%s\\right)", name, coords_buf);
+        lv_snprintf(result, lv_POINT_LATEX_BUF_SIZE, "%s = \\left(%s\\right)", name, coords_buf);
     }
 
     formula_pool_free(coords_buf);
@@ -237,7 +237,7 @@ char *formula_render_segment_latex(const char *name) {
     /* HEAP_ALLOCATED: 结果字符串 */
     char *result = (char *) lv_malloc(lv_SEGMENT_LATEX_BUF_SIZE);
     if (result) {
-        snprintf(result, lv_SEGMENT_LATEX_BUF_SIZE, "\\overline{%s}", name);
+        lv_snprintf(result, lv_SEGMENT_LATEX_BUF_SIZE, "\\overline{%s}", name);
     }
     return result;
 }
@@ -261,7 +261,7 @@ char *formula_render_circle_latex(const char *name, const char *center, const Fo
     /* HEAP_ALLOCATED: 结果字符串 */
     char *result = (char *) lv_malloc(lv_CIRCLE_LATEX_BUF_SIZE);
     if (result) {
-        snprintf(result, lv_CIRCLE_LATEX_BUF_SIZE,
+        lv_snprintf(result, lv_CIRCLE_LATEX_BUF_SIZE,
                  "\\text{circle } %s \\text{ with center } %s \\text{ and radius } %s", name, center, radius_buf);
     }
     return result;
@@ -278,7 +278,7 @@ char *formula_render_fraction_latex(int64_t numerator, uint64_t denominator) {
     /* HEAP_ALLOCATED: 结果字符串 */
     char *result = (char *) lv_malloc(lv_FRACTION_LATEX_BUF_SIZE);
     if (result) {
-        snprintf(result, lv_FRACTION_LATEX_BUF_SIZE, "\\frac{%lld}{%llu}", (long long) numerator,
+        lv_snprintf(result, lv_FRACTION_LATEX_BUF_SIZE, "\\frac{%lld}{%llu}", (long long) numerator,
                  (unsigned long long) denominator);
     }
     return result;

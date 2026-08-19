@@ -51,7 +51,7 @@ lv_REGISTRY_STATIC(config_registry, 64);
 
 /** @brief 构造复合注册表 key（栈缓冲区，调用方提供） */
 static void config_build_key(const lvPluginConfig *config, const char *key, char *buf, size_t bufsz) {
-    snprintf(buf, bufsz, "C:%p:%s", (const void *) config, key);
+    lv_snprintf(buf, bufsz, "C:%p:%s", (const void *) config, key);
 }
 
 /** @brief 配置项析构回调（lv_registry remove/destroy 时释放 entry） */
@@ -85,7 +85,7 @@ void lv_plugin_config_destroy(lvPluginConfig *config) {
     /* 从注册表移除并释放该 config 的所有条目（按前缀批量移除） */
     config_registry_ensure();
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
+    lv_snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
     lv_registry_remove_prefix(&g_config_registry, prefix);
 
     if (config->entries)
@@ -155,7 +155,7 @@ int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
 
     /* 遍历注册表条目，仅输出当前 config 的配置项 */
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
+    lv_snprintf(prefix, sizeof(prefix), "C:%p:", (const void *) config);
 
     int total = lv_registry_count(&g_config_registry);
     for (int i = 0; i < total; i++) {

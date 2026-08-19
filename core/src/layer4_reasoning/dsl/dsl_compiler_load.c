@@ -345,7 +345,7 @@ static bool handle_remove_constraint(ConstraintGraph *graph, const DslIROperatio
         int rc = graph_deactivate_constraint(graph, cid);
         if (rc != lv_OK) {
             char detail[128];
-            snprintf(detail, sizeof(detail), "约束 #%d 移除失败（错误码 %d）", cid, rc);
+            lv_snprintf(detail, sizeof(detail), "约束 #%d 移除失败（错误码 %d）", cid, rc);
             dsl_record_ir_result(graph, "remove_constraint", detail);
         }
     }
@@ -413,7 +413,7 @@ static bool handle_check_sat(ConstraintGraph *graph, const DslIROperation *op,
         graph->context->last_status = (int) comp.status;
     const char *verdict = (comp.status == lv_CONSTRAINT_STATUS_INCONSISTENT) ? "unsat" : "sat";
     char detail[256];
-    snprintf(detail, sizeof(detail), "%s（status=%d，%s；冲突约束=%d，冗余=%d，自由度=%d）",
+    lv_snprintf(detail, sizeof(detail), "%s（status=%d，%s；冲突约束=%d，冗余=%d，自由度=%d）",
              verdict, (int) comp.status, comp.diagnostic ? comp.diagnostic : "无诊断",
              comp.conflicting_constraint_id, comp.redundant_constraint_count, comp.free_degree_count);
     dsl_record_ir_result(graph, "check_sat", detail);
@@ -434,7 +434,7 @@ static bool handle_label(ConstraintGraph *graph, const DslIROperation *op,
                 node->numeric_assumption_declaration = s;
         } else {
             char detail[192];
-            snprintf(detail, sizeof(detail), "实体#%d label=\"%s\"", gid, text);
+            lv_snprintf(detail, sizeof(detail), "实体#%d label=\"%s\"", gid, text);
             dsl_record_ir_result(graph, "label", detail);
         }
     }

@@ -557,7 +557,7 @@ size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst
         } else if (c < 0x20) {
             /* 其他控制字符编码为 \u00XX */
             seg = uesc;
-            seg_len = (size_t) snprintf(uesc, sizeof(uesc), "\\u%04x", c);
+            seg_len = (size_t) lv_snprintf(uesc, sizeof(uesc), "\\u%04x", c);
         } else {
             seg = (const char *) &src[i];
             seg_len = 1;
@@ -687,7 +687,7 @@ char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator) {
         free(den_str);
         return NULL;
     }
-    snprintf(buf, need, "%s/%s", num_str, den_str);
+    lv_snprintf(buf, need, "%s/%s", num_str, den_str);
     free(num_str);
     free(den_str);
     return buf;

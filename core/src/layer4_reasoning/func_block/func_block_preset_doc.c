@@ -38,7 +38,7 @@ size_t func_block_preset_generate_doc(const char *preset_name, char *out_buffer,
         return 0;
     func_block_preset_properties_string(m->properties, props_buffer, props_buf_size);
 
-    int written = snprintf(out_buffer, buffer_size,
+    int written = lv_snprintf(out_buffer, buffer_size,
                            "# %s\n\n"
                            "## 描述\n\n%s\n\n"
                            "## 数学定义\n\n`%s`\n\n"
@@ -71,7 +71,7 @@ size_t func_block_preset_generate_index(char *out_buffer, size_t buffer_size) {
     size_t written = 0;
     size_t remaining = buffer_size;
 
-    int n = snprintf(out_buffer, remaining,
+    int n = lv_snprintf(out_buffer, remaining,
                      "# Lv-00 预设函数块库\n\n"
                      "## 概述\n\n"
                      "本库提供 %d 个标准化几何预设函数块，用于理论数学研究。\n\n"
@@ -92,7 +92,7 @@ size_t func_block_preset_generate_index(char *out_buffer, size_t buffer_size) {
                                   PRESET_CATEGORY_TRANSFORMATION, PRESET_CATEGORY_ALGEBRAIC, PRESET_CATEGORY_LOGIC};
 
     for (int c = 0; c < 5; c++) {
-        n = snprintf(out_buffer + written, remaining, "### %s\n\n", categories[c]);
+        n = lv_snprintf(out_buffer + written, remaining, "### %s\n\n", categories[c]);
         if (n < 0)
             return buffer_size + 1;
         if ((size_t) n >= remaining)
@@ -106,7 +106,7 @@ size_t func_block_preset_generate_index(char *out_buffer, size_t buffer_size) {
             if (g_preset_library.entries[i].metadata.category != cat_enums[c])
                 continue;
 
-            n = snprintf(out_buffer + written, remaining, "- **%s**: %s\n", g_preset_library.entries[i].metadata.name,
+            n = lv_snprintf(out_buffer + written, remaining, "- **%s**: %s\n", g_preset_library.entries[i].metadata.name,
                          g_preset_library.entries[i].metadata.description);
             if (n < 0)
                 return buffer_size + 1;
@@ -116,7 +116,7 @@ size_t func_block_preset_generate_index(char *out_buffer, size_t buffer_size) {
             remaining -= (size_t) n;
         }
 
-        n = snprintf(out_buffer + written, remaining, "\n");
+        n = lv_snprintf(out_buffer + written, remaining, "\n");
         if (n < 0)
             return buffer_size + 1;
         if ((size_t) n >= remaining)

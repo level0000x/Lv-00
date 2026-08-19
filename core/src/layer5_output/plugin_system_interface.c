@@ -77,7 +77,7 @@ int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
     /* 插件级查重（per-plugin：同一插件不能注册同名接口），
      * 由 lv_registry 完成 strcmp 查重 + 尾部追加 + 扩容 */
     char plugin_key[lv_PLUGIN_NAME_MAX + 32];
-    snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, iface->name);
+    lv_snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, iface->name);
     if (!lv_registry_put(&g_plugin_iface_registry, plugin_key, iface)) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "lv_plugin_register_interface: interface already registered");
     }
@@ -89,7 +89,7 @@ int lv_plugin_register_interface(lvPlugin *plugin, lvPluginInterface *iface) {
      * 容量不足或内存不足时跳过，与旧语义（容量满仅跳过系统注册表）一致 */
     if (system && system->interface_count < system->interface_capacity) {
         char system_key[64];
-        snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
+        lv_snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
         lv_registry_put(&g_system_iface_registry, system_key, iface);
         system->interfaces[system->interface_count++] = iface;
     }
@@ -112,7 +112,7 @@ int lv_plugin_unregister_interface(lvPlugin *plugin, const char *name) {
 
     /* 从插件注册表中查找并移除（lv_registry_remove 前移紧凑） */
     char plugin_key[lv_PLUGIN_NAME_MAX + 32];
-    snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, name);
+    lv_snprintf(plugin_key, sizeof(plugin_key), "P:%p:%s", (const void *) plugin, name);
     lvPluginInterface *iface = (lvPluginInterface *) lv_registry_get(&g_plugin_iface_registry, plugin_key);
     if (!iface) {
         lv_RETURN_ERROR(lv_ERROR_NOT_FOUND, "lv_plugin_unregister_interface: interface not found");
@@ -123,7 +123,7 @@ int lv_plugin_unregister_interface(lvPlugin *plugin, const char *name) {
     lvPluginSystem *system = plugin->context->system;
     if (system) {
         char system_key[64];
-        snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
+        lv_snprintf(system_key, sizeof(system_key), "S:%p:%p", (const void *) system, (const void *) iface);
         lv_registry_remove(&g_system_iface_registry, system_key);
 
         /* 影子数组按指针删除（尾部交换，保持旧语义） */
@@ -163,7 +163,7 @@ lvPluginInterface *lv_plugin_query_interface(lvPluginSystem *system, const char 
 
     /* 遍历系统级注册表条目，仅匹配当前 system */
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
+    lv_snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
 
     int count = lv_registry_count(&g_system_iface_registry);
     for (int i = 0; i < count; i++) {
@@ -232,7 +232,7 @@ lvPluginInterface **lv_plugin_query_interfaces(lvPluginSystem *system, const cha
 
     /* 遍历系统级注册表条目，仅匹配当前 system */
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
+    lv_snprintf(prefix, sizeof(prefix), "S:%p:", (const void *) system);
 
     int total = lv_registry_count(&g_system_iface_registry);
 

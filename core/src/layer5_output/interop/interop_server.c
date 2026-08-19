@@ -474,7 +474,7 @@ int interop_server_process_command(InteropServer *server, const char *input, cha
     InteropCommand cmd;
     int result = interop_parse_command(input, &cmd);
     if (result != lv_OK) {
-        snprintf(output, output_size,
+        lv_snprintf(output, output_size,
                  "{\"error\": \"Parse error\", \"code\": %d, "
                  "\"input_preview\": \"%.64s\"}",
                  result, input);

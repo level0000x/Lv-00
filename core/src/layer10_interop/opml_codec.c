@@ -625,10 +625,10 @@ int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int outp
         /* 描述：节点/约束/规则 ID 摘要（NULL 步骤防御） */
         char desc[128];
         if (src) {
-            snprintf(desc, sizeof(desc), "step %d: node %d constraint %d rule %d", src->id, src->node_id,
+            lv_snprintf(desc, sizeof(desc), "step %d: node %d constraint %d rule %d", src->id, src->node_id,
                      src->constraint_id, src->rule_id);
         } else {
-            snprintf(desc, sizeof(desc), "step %d", i);
+            lv_snprintf(desc, sizeof(desc), "step %d", i);
         }
         dst->description = lv_strdup_safe(desc);
         lv_darray_init(&dst->dependencies, sizeof(int));

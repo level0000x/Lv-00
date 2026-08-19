@@ -717,7 +717,7 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx) {
     }
 
     /* 生成摘要 */
-    snprintf(report->summary, sizeof(report->summary), "完备性报告: %d 次剪枝, %d 已证明, %d 未证明, %d 非法",
+    lv_snprintf(report->summary, sizeof(report->summary), "完备性报告: %d 次剪枝, %d 已证明, %d 未证明, %d 非法",
              report->total_prunings, report->proven_prunings, report->unproven_prunings, report->invalid_prunings);
 
     return report;
@@ -1101,11 +1101,11 @@ static bool meta_groebner_candidate_excluded(const ConstraintGraph *graph, int n
         if (!node || !node->is_active || node->type != GEOM_POINT)
             continue;
         char name[64];
-        snprintf(name, sizeof(name), "p%d_x", node->id);
+        lv_snprintf(name, sizeof(name), "p%d_x", node->id);
         guard.var_names[vi] = lv_strdup(name);
         if (!guard.var_names[vi])
             return false;
-        snprintf(name, sizeof(name), "p%d_y", node->id);
+        lv_snprintf(name, sizeof(name), "p%d_y", node->id);
         guard.var_names[vi + 1] = lv_strdup(name);
         if (!guard.var_names[vi + 1])
             return false;

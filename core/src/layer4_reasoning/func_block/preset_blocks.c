@@ -807,7 +807,7 @@ char *preset_blocks_generate_single_doc(const char *name) {
     PRESET_REGISTRY_UNLOCK();
 
     /* 在锁外执行格式化操作（不访问共享数据） */
-    snprintf(doc, size,
+    lv_snprintf(doc, size,
              "## %s\n\n"
              "**类别**: %s\n\n"
              "**描述**: %s\n\n"

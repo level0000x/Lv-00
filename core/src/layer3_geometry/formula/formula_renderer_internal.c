@@ -340,7 +340,7 @@ int render_binary_via(const FormulaNode *node, const char *fmt, unsigned flags, 
         }
     }
 
-    int written = snprintf(buffer, size, fmt, left_buf, right_buf);
+    int written = lv_snprintf(buffer, size, fmt, left_buf, right_buf);
 
     formula_pool_free(left_buf);
     formula_pool_free(right_buf);
@@ -366,7 +366,7 @@ int render_unary_via(const FormulaNode *node, const char *prefix, const char *su
         }
     }
 
-    int written = snprintf(buffer, size, "%s%s%s", prefix, operand_buf, suffix);
+    int written = lv_snprintf(buffer, size, "%s%s%s", prefix, operand_buf, suffix);
 
     formula_pool_free(operand_buf);
     return written;
@@ -385,7 +385,7 @@ int dispatch_via(const FormulaNode *node, char *buffer, size_t size, const Rende
     if (fallback) {
         return fallback(node, buffer, size, options);
     }
-    return snprintf(buffer, size, "<unknown>");
+    return lv_snprintf(buffer, size, "<unknown>");
 }
 
 const char *formula_render_trig_name(const FormulaNode *node, const char *const *names, size_t count) {

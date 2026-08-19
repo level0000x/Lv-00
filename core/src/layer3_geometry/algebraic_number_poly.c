@@ -449,7 +449,7 @@ AlgPoly lv_alg_poly_derivative(const AlgPoly *p, AlgPolyError *err) {
 int lv_alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
     if (!p) {
         if (buf && size > 0) {
-            snprintf(buf, size, "(null)");
+            lv_snprintf(buf, size, "(null)");
         }
         return 6; /* strlen("(null)") */
     }
@@ -498,7 +498,7 @@ int lv_alg_poly_to_string(const AlgPoly *p, char *buf, size_t size) {
         /* 零多项式 */
         int len = 1;
         if (buf && size > 0) {
-            snprintf(buf, size, "0");
+            lv_snprintf(buf, size, "0");
         }
         return len;
     }

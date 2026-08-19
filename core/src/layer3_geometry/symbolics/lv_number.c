@@ -241,7 +241,7 @@ static uint64_t float_op_hash(const lvNumber *n) {
 static char *float_op_to_string(const lvNumber *n) {
     const FloatImpl *f = (const FloatImpl *) n->impl;
     char buf[64];
-    int len = snprintf(buf, sizeof(buf), "%.17g", f->value);
+    int len = lv_snprintf(buf, sizeof(buf), "%.17g", f->value);
     if (len < 0) len = 0;
     char *str = (char *) lv_malloc((size_t)(len + 1));
     lv_CHECK_ALLOC(str, NULL);
@@ -364,7 +364,7 @@ static uint64_t int_op_hash(const lvNumber *n) {
 static char *int_op_to_string(const lvNumber *n) {
     const IntImpl *in = (const IntImpl *) n->impl;
     char buf[32];
-    int len = snprintf(buf, sizeof(buf), "%" PRId64, in->value);
+    int len = lv_snprintf(buf, sizeof(buf), "%" PRId64, in->value);
     if (len < 0) len = 0;
     char *str = (char *) lv_malloc((size_t)(len + 1));
     lv_CHECK_ALLOC(str, NULL);

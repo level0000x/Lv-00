@@ -198,7 +198,7 @@ int lv_gc_parse(const char *source, void *engine) {
         /* 未知字符 */
         {
             char err_msg[64];
-            snprintf(err_msg, sizeof(err_msg), "unexpected character '%c' (0x%02X)", *p, (unsigned char) *p);
+            lv_snprintf(err_msg, sizeof(err_msg), "unexpected character '%c' (0x%02X)", *p, (unsigned char) *p);
             gc_set_error(err_msg);
             return -1;
         }

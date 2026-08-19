@@ -34,7 +34,7 @@
  */
 static void generate_session_id(char *buf, size_t buf_size) {
     time_t now = time(NULL);
-    snprintf(buf, buf_size, "sess_%llx", (unsigned long long) now);
+    lv_snprintf(buf, buf_size, "sess_%llx", (unsigned long long) now);
 }
 
 /**
@@ -240,7 +240,7 @@ char *proof_session_get_state_json(const lvProofSession *session) {
     if (!json)
         return NULL;
 
-    (void) snprintf(json, lv_SESSION_JSON_MAX,
+    (void) lv_snprintf(json, lv_SESSION_JSON_MAX,
                     "{\n"
                     "  \"session_id\": \"%s\",\n"
                     "  \"status\": \"%s\",\n"

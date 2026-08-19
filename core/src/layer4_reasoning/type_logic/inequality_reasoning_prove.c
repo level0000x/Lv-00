@@ -46,7 +46,7 @@ lvInequalityStatus lv_ineq_prove(lvInequality *ineq, const lvInequalitySystem *s
                                 p->steps[0].method = INEQ_METHOD_DIRECT;
                                 p->steps[0].justification = (char *) lv_malloc(128);
                                 if (p->steps[0].justification)
-                                    snprintf(p->steps[0].justification, 128, "Direct constraint from system (id=%u)",
+                                    lv_snprintf(p->steps[0].justification, 128, "Direct constraint from system (id=%u)",
                                              i);
                             }
                             *proof = p;
@@ -261,7 +261,7 @@ static lvInequalityStatus prove_sos_method(lvInequality *ineq, const lvInequalit
             if (lv_expr_sos_decompose(ineq->left, &sos) && sos) {
                 if (proof) {
                     char buf[256];
-                    snprintf(buf, sizeof(buf), "SOS decomposition: expression is sum of %u square(s) >= 0",
+                    lv_snprintf(buf, sizeof(buf), "SOS decomposition: expression is sum of %u square(s) >= 0",
                              sos->count);
                     *proof = lv_ineq_make_proof(ineq, INEQ_STATUS_PROVED, INEQ_METHOD_SOS, buf, NULL);
                 }

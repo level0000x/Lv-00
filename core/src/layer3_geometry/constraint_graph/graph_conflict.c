@@ -952,7 +952,7 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     /* 流式事件: 冲突检测结果 */
     if (graph_stream_ctx && *out_conflict_count > 0) {
         char desc[128];
-        snprintf(desc, sizeof(desc), "冲突检测完成: 发现 %d 个冲突", *out_conflict_count);
+        lv_snprintf(desc, sizeof(desc), "冲突检测完成: 发现 %d 个冲突", *out_conflict_count);
         stream_emit_simple(graph_stream_ctx, STREAM_EVENT_CONFLICT_DETECTED, desc, *out_conflict_count);
     }
 

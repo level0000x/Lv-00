@@ -73,7 +73,7 @@ void lv_hash_to_hex(lvHashCtx *ctx, char *buf, size_t buf_size) {
         lv_sha256_final(&ctx->u.sha256, hash);
         lv_str_hex_encode(hash, 32, buf);
     } else {
-        snprintf(buf, buf_size, "%016llx", (unsigned long long) ctx->u.fnv1a);
+        lv_snprintf(buf, buf_size, "%016llx", (unsigned long long) ctx->u.fnv1a);
     }
     buf[digest * 2] = '\0';
 }

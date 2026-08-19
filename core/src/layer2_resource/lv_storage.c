@@ -753,7 +753,7 @@ static char *serialize_key_build(const char *type_name, const char *format) {
     size_t len = strlen(type_name) + strlen(fmt) + 2; /* type + ':' + fmt + '\0' */
     char *key = (char *) lv_malloc(len);
     if (!key) return NULL;
-    snprintf(key, len, "%s:%s", type_name, fmt);
+    lv_snprintf(key, len, "%s:%s", type_name, fmt);
     return key;
 }
 

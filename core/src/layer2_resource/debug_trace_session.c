@@ -231,7 +231,7 @@ void debug_log(LogLevel level, const char *module, const char *fmt, ...) {
 
         /* 构建日志行 */
         char log_line[lv_DEBUG_LOG_LINE_BUF_SIZE];
-        int len = snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
+        int len = lv_snprintf(log_line, sizeof(log_line), "[%s] [%s] [%s] %s\n", timestamp, log_level_string(level),
                            module ? module : "unknown", message);
 
         /* ERROR 和 WARN 输出到 stderr，其余输出到 stdout */

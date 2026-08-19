@@ -262,7 +262,7 @@ int lv_network_block_connect(lvNetworkBlock *block) {
 #endif
 
     char port_str[16];
-    snprintf(port_str, sizeof(port_str), "%d", port);
+    lv_snprintf(port_str, sizeof(port_str), "%d", port);
 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));

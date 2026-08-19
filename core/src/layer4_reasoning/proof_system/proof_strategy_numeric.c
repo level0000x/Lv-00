@@ -464,7 +464,7 @@ bool execute_numeric_verification(ProofMultiStrategy *mse, ProofNavigator *nav) 
         if (step) {
             step->color = PROOF_COLOR_YELLOW;
             char buf[256];
-            snprintf(buf, sizeof(buf), "[数值验证] 表达式语法不支持，无法求值: %s %s %s", claim.lhs, claim.comparator,
+            lv_snprintf(buf, sizeof(buf), "[数值验证] 表达式语法不支持，无法求值: %s %s %s", claim.lhs, claim.comparator,
                      claim.rhs);
             step->note = lv_strdup_safe(buf);
             proof_navigator_add_step(nav, step);
@@ -507,7 +507,7 @@ bool execute_numeric_verification(ProofMultiStrategy *mse, ProofNavigator *nav) 
     bound.absolute_error = half_width;
     bound.relative_error = (abs_center > DBL_MIN) ? half_width / abs_center : half_width;
     char proof_buf[512];
-    snprintf(proof_buf, sizeof(proof_buf),
+    lv_snprintf(proof_buf, sizeof(proof_buf),
              "numeric verification: %s %s %s; lhs=[%.6e, %.6e], rhs=[%.6e, %.6e], diff=[%.6e, %.6e], "
              "abs_err=%.6e, rel_err=%.6e",
              claim.lhs, rel, claim.rhs, lhs_iv.lo, lhs_iv.hi, rhs_iv.lo, rhs_iv.hi, diff.lo, diff.hi,
@@ -528,7 +528,7 @@ bool execute_numeric_verification(ProofMultiStrategy *mse, ProofNavigator *nav) 
     if (step) {
         step->color = step_color;
         char buf[384];
-        snprintf(buf, sizeof(buf),
+        lv_snprintf(buf, sizeof(buf),
                  "[数值验证] %s %s %s => %s（区间 [%.6e, %.6e]，TrustColor=%s，abs_err=%.3e，容差=%.0e）", claim.lhs, rel,
                  claim.rhs, success ? "成立" : (holds ? "区间成立但误差界超容差，无法确认" : "不成立"), diff.lo, diff.hi,
                  trust_color_name(tc), half_width, NUMERIC_VERIFY_TOLERANCE);

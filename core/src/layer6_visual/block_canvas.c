@@ -181,7 +181,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
             p->id = canvas->next_port_id++;
             p->is_input = 1;
             p->index = i;
-            snprintf(p->name, sizeof(p->name), "in_%d", i);
+            lv_snprintf(p->name, sizeof(p->name), "in_%d", i);
             p->rel_x = 0.0;
             p->rel_y = block.height * (i + 1) / (input_count + 1);
         }
@@ -191,7 +191,7 @@ int lv_block_canvas_add_block(lvBlockCanvasView *canvas, const char *label, doub
             p->id = canvas->next_port_id++;
             p->is_input = 0;
             p->index = i;
-            snprintf(p->name, sizeof(p->name), "out_%d", i);
+            lv_snprintf(p->name, sizeof(p->name), "out_%d", i);
             p->rel_x = block.width;
             p->rel_y = block.height * (i + 1) / (output_count + 1);
         }

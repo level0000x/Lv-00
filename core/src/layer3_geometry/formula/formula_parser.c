@@ -251,7 +251,7 @@ bool formula_expect_char(ParserContext *ctx, char c) {
  */
 void formula_set_error(ParserContext *ctx, const char *msg) {
     if (!ctx->has_error) {
-        snprintf(ctx->error_message, sizeof(ctx->error_message), "Error at line %d, column %d: %s", ctx->line,
+        lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "Error at line %d, column %d: %s", ctx->line,
                  ctx->column, msg);
         ctx->has_error = true;
         lv_set_error(lv_ERROR_PARSE, "%s", ctx->error_message);

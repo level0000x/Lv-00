@@ -114,7 +114,7 @@ bool execute_full_angle_method(ProofMultiStrategy *mse, ProofNavigator *nav) {
     if (start_step) {
         start_step->color = PROOF_COLOR_GREEN;
         char buf[256];
-        snprintf(buf, sizeof(buf), "[全角法] 提取 %d 条有向线，构建全角关系进行消点推理", line_count);
+        lv_snprintf(buf, sizeof(buf), "[全角法] 提取 %d 条有向线，构建全角关系进行消点推理", line_count);
         start_step->note = lv_strdup_safe(buf);
         proof_navigator_add_step(nav, start_step);
     }

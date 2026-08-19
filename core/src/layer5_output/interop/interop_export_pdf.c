@@ -46,7 +46,7 @@ static const ConstraintPdfSyntax constraint_pdf_syntax[] = {
 
 /** @brief 从公共核心表 rgb 生成 PDF 颜色三元组（如 "0.42 0.45 0.50"） */
 static void constraint_rgb_to_pdf_rg(const ConstraintVisual *vis, char *rg, size_t rg_size) {
-    snprintf(rg, rg_size, "%.2f %.2f %.2f",
+    lv_snprintf(rg, rg_size, "%.2f %.2f %.2f",
              vis->rgb[0] / 255.0, vis->rgb[1] / 255.0, vis->rgb[2] / 255.0);
 }
 

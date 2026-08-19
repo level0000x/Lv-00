@@ -696,7 +696,7 @@ bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bind
 
     /* 生成新预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, lv_ATOMIC_ADD(&g_bind_counter, 1));
+    lv_snprintf(new_name, sizeof(new_name), "%s_bound_%d", preset_name, lv_ATOMIC_ADD(&g_bind_counter, 1));
 
     /* 创建新函数块 */
     FuncBlock *new_fb = func_block_create(fb->id + 10000);
@@ -711,7 +711,7 @@ bool preset_partial_bind(const char *preset_name, const PresetParamBinding *bind
     }
     if (fb->description) {
         char desc_buf[512];
-        snprintf(desc_buf, sizeof(desc_buf), "%s（部分绑定）", fb->description);
+        lv_snprintf(desc_buf, sizeof(desc_buf), "%s（部分绑定）", fb->description);
         new_fb->description = lv_strdup(desc_buf);
     }
 
@@ -977,7 +977,7 @@ static bool preset_compose(const char *preset_a, const char *preset_b, PresetCom
         func_block_destroy(fb_b);
         return false;
     }
-    snprintf(new_name, sizeof(new_name), "%s%d", compose_prefix, lv_ATOMIC_ADD(&g_compose_counter, 1));
+    lv_snprintf(new_name, sizeof(new_name), "%s%d", compose_prefix, lv_ATOMIC_ADD(&g_compose_counter, 1));
 
     /* 使用现有的组合函数 */
     FuncBlock *composed = NULL;
@@ -1078,7 +1078,7 @@ bool preset_make_recursive(const char *base_preset, int max_iterations, char **o
 
     /* 生成递归预设名称 */
     char new_name[MAX_PRESET_NAME_LENGTH];
-    snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, lv_ATOMIC_ADD(&g_recursive_counter, 1));
+    lv_snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, lv_ATOMIC_ADD(&g_recursive_counter, 1));
 
     /* 创建递归预设（简化实现：复制原预设并添加递归标记） */
     FuncBlock *recursive_fb = func_block_copy(fb);
@@ -1095,7 +1095,7 @@ bool preset_make_recursive(const char *base_preset, int max_iterations, char **o
 
     if (recursive_fb->description) {
         char desc_buf[512];
-        snprintf(desc_buf, sizeof(desc_buf), "%s（递归版本，最大迭代%d次）", recursive_fb->description, max_iterations);
+        lv_snprintf(desc_buf, sizeof(desc_buf), "%s（递归版本，最大迭代%d次）", recursive_fb->description, max_iterations);
         lv_free((void **) &recursive_fb->description);
         recursive_fb->description = lv_strdup(desc_buf);
     }

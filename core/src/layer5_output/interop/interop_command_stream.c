@@ -56,7 +56,7 @@ int handle_cmd_stream_start(lvEngine *engine, const InteropCommand *cmd, Interop
         int cb_id = stream_register_callback_ex(sctx, interop_stream_callback, NULL, filter);
         if (cb_id >= 0) {
             s_stream_callback_id = cb_id;
-            snprintf(resp->data, sizeof(resp->data),
+            lv_snprintf(resp->data, sizeof(resp->data),
                      "{\"result\": \"ok\", \"callback_id\": %d, "
                      "\"filter\": \"0x%08X\"}",
                      cb_id, filter);
@@ -106,7 +106,7 @@ int handle_cmd_stream_filter(lvEngine *engine, const InteropCommand *cmd, Intero
     StreamContext *sctx = engine_get_stream_context(engine);
     if (sctx && new_mask != STREAM_FILTER_NONE) {
         char filter_buf[32];
-        snprintf(filter_buf, sizeof(filter_buf), "0x%08X", new_mask);
+        lv_snprintf(filter_buf, sizeof(filter_buf), "0x%08X", new_mask);
         lvJsonBuf _jb;
         interop_resp_json_init(&_jb, 128);
         lv_json_buf_begin_object(&_jb);
@@ -125,7 +125,7 @@ int handle_cmd_stream_filter(lvEngine *engine, const InteropCommand *cmd, Intero
     } else {
         resp->status_code = lv_ERROR_INVALID_PARAM;
         char err_buf[512];
-        snprintf(err_buf, sizeof(err_buf), "Invalid filter mask: %s", cmd->params[0]);
+        lv_snprintf(err_buf, sizeof(err_buf), "Invalid filter mask: %s", cmd->params[0]);
         lvJsonBuf _jb;
         interop_resp_json_init(&_jb, 128);
         lv_json_buf_begin_object(&_jb);
@@ -147,7 +147,7 @@ int handle_cmd_stream_stats(lvEngine *engine, const InteropCommand *cmd, Interop
     if (sctx) {
         long total = stream_get_total_event_count(sctx);
         long dropped = stream_get_dropped_count(sctx);
-        snprintf(resp->data, sizeof(resp->data),
+        lv_snprintf(resp->data, sizeof(resp->data),
                  "{\"total_events\": %ld, \"dropped\": %ld, "
                  "\"engine_start\": %ld, \"normalize_merge\": %ld, "
                  "\"rewrite_applied\": %ld, \"solve_variable_resolved\": %ld, "

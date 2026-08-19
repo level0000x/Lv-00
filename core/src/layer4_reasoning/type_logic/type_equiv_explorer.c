@@ -272,7 +272,7 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts, const TypeRegion *l
     root->depth = 0;
     root->parent_index = -1;
     root->applied_rule_index = -1;
-    snprintf(root->applied_rule_name, sizeof(root->applied_rule_name), "(root)");
+    lv_snprintf(root->applied_rule_name, sizeof(root->applied_rule_name), "(root)");
 
     exp->queue[exp->queue_tail++] = root;
     return exp;

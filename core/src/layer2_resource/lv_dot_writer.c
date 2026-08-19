@@ -110,15 +110,15 @@ void lv_dot_end(lvStrBuf *sb) {
  * 消除各 DOT 导出器散落的 idbuf/frombuf/tobuf + snprintf 三连样板。 */
 void lv_dot_node_id(lvStrBuf *sb, const char *prefix, int id, const char *label, const char *extra_attrs) {
     char idbuf[32];
-    snprintf(idbuf, sizeof(idbuf), "%s%d", prefix, id);
+    lv_snprintf(idbuf, sizeof(idbuf), "%s%d", prefix, id);
     lv_dot_node(sb, idbuf, label, extra_attrs);
 }
 
 void lv_dot_edge_id(lvStrBuf *sb, const char *prefix, int from_id, int to_id, const char *label,
                     const char *extra_attrs) {
     char frombuf[32], tobuf[32];
-    snprintf(frombuf, sizeof(frombuf), "%s%d", prefix, from_id);
-    snprintf(tobuf, sizeof(tobuf), "%s%d", prefix, to_id);
+    lv_snprintf(frombuf, sizeof(frombuf), "%s%d", prefix, from_id);
+    lv_snprintf(tobuf, sizeof(tobuf), "%s%d", prefix, to_id);
     lv_dot_edge(sb, frombuf, tobuf, label, extra_attrs);
 }
 

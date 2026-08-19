@@ -65,12 +65,12 @@ bool ggb_extract_attr(const char *tag_start, size_t tag_len, const char *attr_na
     out_value[0] = '\0';
 
     char search[128];
-    int search_len = snprintf(search, sizeof(search), "%s=\"", attr_name);
+    int search_len = lv_snprintf(search, sizeof(search), "%s=\"", attr_name);
     if (search_len < 0)
         return false;
 
     char search_single[128];
-    int ssl = snprintf(search_single, sizeof(search_single), "%s='", attr_name);
+    int ssl = lv_snprintf(search_single, sizeof(search_single), "%s='", attr_name);
     if (ssl < 0)
         return false;
 

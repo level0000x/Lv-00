@@ -776,7 +776,7 @@ int lv_context_get_stats(const lvContext *ctx, char *buf, size_t buf_size) {
 
     /* 格式化统计信息 */
     int written =
-        snprintf(buf, buf_size,
+        lv_snprintf(buf, buf_size,
                  "=== lvContext 统计信息 ===\n"
                  "上下文 ID:        %llu\n"
                  "名称:             %s\n"
@@ -838,7 +838,7 @@ void lv_context_reset(lvContext *ctx) {
         ctx->main_graph = s_resource_ops.create();
         if (!ctx->main_graph) {
             ctx->error_code = lv_ERROR_OUT_OF_MEMORY;
-            snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_context_reset: 创建主约束图失败");
+            lv_snprintf(ctx->error_message, sizeof(ctx->error_message), "lv_context_reset: 创建主约束图失败");
             ctx->state = lv_CONTEXT_ERROR;
             lv_context_leave_uncancellable(ctx);
             return;

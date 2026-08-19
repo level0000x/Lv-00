@@ -60,7 +60,7 @@ static char *generate_c_code(const lvMultiVector *mv, const GACodegenOptions *op
     if (opts->include_header) {
         hdr = "/* Auto-generated GA code (C target) */\n";
     }
-    snprintf(buf, GA_CODEGEN_BUF_SIZE,
+    lv_snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s/* 多重向量初始化 */\n"
              "%sdouble %s[GA_MV_DIM];\n"
              "%sfor (int i = 0; i < GA_MV_DIM; i++)\n"
@@ -82,7 +82,7 @@ static char *generate_cpp_code(const lvMultiVector *mv, const GACodegenOptions *
     if (opts->include_header) {
         hdr = "// Auto-generated GA code (C++ target)\n";
     }
-    snprintf(buf, GA_CODEGEN_BUF_SIZE,
+    lv_snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s// 多重向量初始化\n"
              "%sstd::array<double, GA_MV_DIM> %s{};\n",
              hdr, ind, var);
@@ -102,7 +102,7 @@ static char *generate_cuda_code(const lvMultiVector *mv, const GACodegenOptions 
     if (opts->include_header) {
         hdr = "// Auto-generated GA code (CUDA target)\n";
     }
-    snprintf(buf, GA_CODEGEN_BUF_SIZE,
+    lv_snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s__global__ void ga_compute(double *%s) {\n"
              "%s%sfor (int i = 0; i < GA_MV_DIM; i++)\n"
              "%s%s%s%s[i] = 0.0;\n"
@@ -124,7 +124,7 @@ static char *generate_python_code(const lvMultiVector *mv, const GACodegenOption
     if (opts->include_header) {
         hdr = "# Auto-generated GA code (Python target)\nimport numpy as np\n\n";
     }
-    snprintf(buf, GA_CODEGEN_BUF_SIZE,
+    lv_snprintf(buf, GA_CODEGEN_BUF_SIZE,
              "%s# 多重向量初始化\n"
              "%s%s = np.zeros(GA_MV_DIM)\n",
              hdr, ind, var);

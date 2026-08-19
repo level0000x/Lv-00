@@ -397,7 +397,7 @@ UnifyStatus proof_unify(const ConstraintGraph *construction, Proposition *propos
     if (proof_stream_ctx != NULL) {
         const char *status_str = unify_result_to_string(coord_status);
         char buf[128];
-        snprintf(buf, sizeof(buf), "证明合一检查: %s", status_str);
+        lv_snprintf(buf, sizeof(buf), "证明合一检查: %s", status_str);
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_UNIFY, buf, 0);
     }
 
@@ -655,7 +655,7 @@ bool proof_navigator_add_step(ProofNavigator *nav, ProofStep *step) {
     /* 流式输出：证明步骤添加 */
     if (proof_stream_ctx) {
         char desc_buf[128];
-        snprintf(desc_buf, sizeof(desc_buf), "证明步骤添加: %s", proof_step_type_to_string(step->type));
+        lv_snprintf(desc_buf, sizeof(desc_buf), "证明步骤添加: %s", proof_step_type_to_string(step->type));
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_ADDED, desc_buf, nav->step_count);
     }
 
@@ -759,7 +759,7 @@ bool proof_navigator_prev(ProofNavigator *nav) {
     /* 流式事件：回退到上一步 */
     if (proof_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "证明导航: 回退到步骤 %d", nav->current_step);
+        lv_snprintf(buf, sizeof(buf), "证明导航: 回退到步骤 %d", nav->current_step);
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, buf, 0);
     }
 
@@ -781,7 +781,7 @@ bool proof_navigator_goto(ProofNavigator *nav, int step_index) {
     /* 流式事件：跳转到指定步骤 */
     if (proof_stream_ctx != NULL) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "证明导航: 跳转到步骤 %d", step_index);
+        lv_snprintf(buf, sizeof(buf), "证明导航: 跳转到步骤 %d", step_index);
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, buf, 0);
     }
 
@@ -808,7 +808,7 @@ bool proof_navigator_next_breakpoint(ProofNavigator *nav) {
             /* 流式事件：跳转到断点 */
             if (proof_stream_ctx != NULL) {
                 char buf[128];
-                snprintf(buf, sizeof(buf), "证明导航: 跳转到断点步骤 %d", nav->current_step);
+                lv_snprintf(buf, sizeof(buf), "证明导航: 跳转到断点步骤 %d", nav->current_step);
                 stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, buf, 0);
             }
 

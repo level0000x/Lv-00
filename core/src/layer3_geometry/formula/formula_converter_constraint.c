@@ -349,7 +349,7 @@ bool formula_convert_angle(const FormulaNode *constraint_node, ConstraintGraph *
                  * 求解器可解析此字符串获取完整的角度约束信息。
                  */
                 char buf[FORMULA_BUF_SIZE];
-                snprintf(buf, sizeof(buf), "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g", a_id, b_id, c_id, angle_rad,
+                lv_snprintf(buf, sizeof(buf), "ANGLE_CONSTRAINT:%d:%d:%d:%.10g:%.10g:%.10g", a_id, b_id, c_id, angle_rad,
                          cos_theta, sin_theta);
                 aux_node->numeric_assumption_declaration = lv_strdup_safe(buf);
             }

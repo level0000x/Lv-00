@@ -240,11 +240,11 @@ static int interop_export_graph_to_file(lvEngine *engine, const InteropCommand *
     }
     const char *fmt_name = interop_export_format_name(format);
     if (rc == lv_OK) {
-        snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"format\": \"%s\", \"path\": \"%s\"}",
+        lv_snprintf(resp->data, sizeof(resp->data), "{\"result\": \"ok\", \"format\": \"%s\", \"path\": \"%s\"}",
                  fmt_name, path);
     } else {
         resp->status_code = rc;
-        snprintf(resp->data, sizeof(resp->data),
+        lv_snprintf(resp->data, sizeof(resp->data),
                  "{\"result\": \"failed\", \"format\": \"%s\", \"path\": \"%s\", \"code\": %d}", fmt_name, path, rc);
     }
     return lv_OK;
@@ -300,7 +300,7 @@ int handle_cmd_export_graph(lvEngine *engine, const InteropCommand *cmd, Interop
             return kExportFormatHandlers[i].handler(engine, cmd, resp);
     }
     resp->status_code = lv_ERROR_UNSUPPORTED;
-    snprintf(resp->data, sizeof(resp->data), "Unsupported export format: %s", fmt);
+    lv_snprintf(resp->data, sizeof(resp->data), "Unsupported export format: %s", fmt);
     return lv_OK;
 }
 

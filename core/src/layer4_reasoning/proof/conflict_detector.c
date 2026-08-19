@@ -462,7 +462,7 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph, const C
                         double py = symbolic_coord_to_double(y_coord);
                         double ox = symbolic_coord_to_double(other->symbolic_coords[0]);
                         double oy = symbolic_coord_to_double(other->symbolic_coords[1]);
-                        snprintf(desc, sizeof(desc),
+                        lv_snprintf(desc, sizeof(desc),
                                  "点 %d 被约束与点 %d 重合（约束 %d），但坐标不同："
                                  "(%.6g,%.6g) vs (%.6g,%.6g)。",
                                  i, other_id, cons->id, px, py, ox, oy);
@@ -487,7 +487,7 @@ static int detect_point_position_conflicts(const ConstraintGraph *graph, const C
                     double det = fabs(geo_signed_area_2x(ax, ay, bx, by, px, py));
                     if (det > eps * 1000.0) {
                         char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                        snprintf(desc, sizeof(desc),
+                        lv_snprintf(desc, sizeof(desc),
                                  "点 %d 被约束在线段 %d 上（约束 %d），但行列式偏差 %.6g 超出容差。", i, line_id,
                                  cons->id, det);
                         report_constraint_conflict(report, cons, CONFLICT_POINT_POSITION, CONFLICT_SEVERITY_WARNING,
@@ -555,7 +555,7 @@ static int detect_distance_conflicts(const ConstraintGraph *graph, const Conflic
             if (diff > eps) {
                 /* 距离值不同，报告矛盾 */
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                snprintf(desc, sizeof(desc),
+                lv_snprintf(desc, sizeof(desc),
                          "实体 %d 和 %d 之间存在矛盾的距离约束："
                          "约束 %d 要求距离 %.10g，约束 %d 要求距离 %.10g（差值 %.10g > 容差 %.10g）",
                          a1, b1, c1->id, c1->numeric_value, c2->id, c2->numeric_value, diff, eps);
@@ -633,7 +633,7 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
             /* 角度差不是 0（相同角度）也不是 180 度（互补角度），则矛盾 */
             if (diff > angle_eps && fabs(diff - lv_PI) > angle_eps) {
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                snprintf(desc, sizeof(desc),
+                lv_snprintf(desc, sizeof(desc),
                          "实体 %d 和 %d 之间存在矛盾的角度约束："
                          "约束 %d 要求 %.6g 弧度，约束 %d 要求 %.6g 弧度（差值 %.6g 弧度）",
                          a1, b1, c1->id, c1->numeric_value, c2->id, c2->numeric_value, diff);
@@ -654,7 +654,7 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
             bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
             if (same_pair) {
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                snprintf(desc, sizeof(desc), "线段 %d 和 %d 同时被约束为平行（约束 %d）和垂直（约束 %d），这是矛盾的。",
+                lv_snprintf(desc, sizeof(desc), "线段 %d 和 %d 同时被约束为平行（约束 %d）和垂直（约束 %d），这是矛盾的。",
                          a1, b1, c1->type == CONSTRAINT_PARALLEL ? c1->id : c2->id,
                          c1->type == CONSTRAINT_PERPENDICULAR ? c1->id : c2->id);
 
@@ -673,7 +673,7 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
             int line2 = c2->participants[0];
             if (line1 == line2) {
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                snprintf(desc, sizeof(desc), "线段 %d 同时被约束为水平（约束 %d）和垂直（约束 %d），这是矛盾的。",
+                lv_snprintf(desc, sizeof(desc), "线段 %d 同时被约束为水平（约束 %d）和垂直（约束 %d），这是矛盾的。",
                          line1, c1->type == CONSTRAINT_HORIZONTAL ? c1->id : c2->id,
                          c1->type == CONSTRAINT_VERTICAL ? c1->id : c2->id);
 
@@ -692,7 +692,7 @@ static int check_constraint_pair_conflict(const ConstraintGraph *graph, Constrai
             bool same_pair = (a1 == a2 && b1 == b2) || (a1 == b2 && b1 == a2);
             if (same_pair) {
                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                snprintf(desc, sizeof(desc), "线段 %d 和 %d 同时被约束为相交（约束 %d）和平行（约束 %d），这是矛盾的。",
+                lv_snprintf(desc, sizeof(desc), "线段 %d 和 %d 同时被约束为相交（约束 %d）和平行（约束 %d），这是矛盾的。",
                          a1, b1, c1->type == INTERSECTION ? c1->id : c2->id,
                          c1->type == CONSTRAINT_PARALLEL ? c1->id : c2->id);
 
@@ -803,7 +803,7 @@ static int detect_transitive_equality_conflicts(const ConstraintGraph *graph, co
         if (ra == rb) {
             /* 同一等价类中的两个实体有非零距离约束 —— 矛盾 */
             char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-            snprintf(desc, sizeof(desc),
+            lv_snprintf(desc, sizeof(desc),
                      "传递等式矛盾：实体 %d 和 %d 通过 COINCIDENT 约束被标记为同一位置，"
                      "但距离约束 %d 要求它们之间的距离为 %.10g（非零）。",
                      a, b, cons->id, cons->numeric_value);
@@ -884,7 +884,7 @@ static lvTraversalResult cyclic_on_cycle_cb(void *ctx, int from_id, int to_id, v
     CyclicDetectCtx *c = (CyclicDetectCtx *)ctx;
     Constraint *con = (Constraint *)edge_info;
     char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-    snprintf(desc, sizeof(desc),
+    lv_snprintf(desc, sizeof(desc),
              "循环依赖检测到环：节点 %d → 节点 %d（经由约束 %d）。"
              "约束图中存在循环引用，可能导致求解器无法收敛。",
              from_id, to_id, con ? con->id : -1);
@@ -1044,7 +1044,7 @@ int lv_conflict_detect_all(const ConstraintGraph *graph, const ConflictDetectorC
                             int cnt = pair_constraint_count[a * graph->node_count + b];
                             if (cnt > 2) {
                                 char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-                                snprintf(desc, sizeof(desc),
+                                lv_snprintf(desc, sizeof(desc),
                                          "代数过约束：节点 %d 和 %d 之间存在 %d 个距离/角度约束，"
                                          "超过自由度允许的最大值（2 个独立约束）。",
                                          a, b, cnt);
@@ -1117,7 +1117,7 @@ int lv_conflict_detect_for_node(const ConstraintGraph *graph, int node_id, Confl
             continue;
         if (constraint_has_duplicate_participants(c)) {
             char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-            snprintf(desc, sizeof(desc), "节点 %d 的约束 %d 包含重复参与者。", node_id, c->id);
+            lv_snprintf(desc, sizeof(desc), "节点 %d 的约束 %d 包含重复参与者。", node_id, c->id);
             report_constraint_conflict(report, c, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_WARNING, desc,
                                        "检查约束参与者是否正确。");
         }
@@ -1150,14 +1150,14 @@ int lv_conflict_detect_for_constraint(const ConstraintGraph *graph, int constrai
     int expected = expected_participant_count(target->type);
     if (expected >= 0 && target->participant_count != expected) {
         char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-        snprintf(desc, sizeof(desc), "约束 %d（类型 %d）期望 %d 个参与者，实际有 %d 个。", constraint_id, target->type,
+        lv_snprintf(desc, sizeof(desc), "约束 %d（类型 %d）期望 %d 个参与者，实际有 %d 个。", constraint_id, target->type,
                  expected, target->participant_count);
         report_constraint_conflict(report, target, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_ERROR, desc,
                                    "按约束类型重新创建约束，确保参与者数量正确。");
     }
     if (constraint_has_duplicate_participants(target)) {
         char desc[CONFLICT_MAX_DESCRIPTION_LEN];
-        snprintf(desc, sizeof(desc), "约束 %d 包含重复参与者，可能表示退化几何关系。", constraint_id);
+        lv_snprintf(desc, sizeof(desc), "约束 %d 包含重复参与者，可能表示退化几何关系。", constraint_id);
         report_constraint_conflict(report, target, CONFLICT_UNKNOWN, CONFLICT_SEVERITY_WARNING, desc,
                                    "检查约束参与者是否互不相同。");
     }
@@ -1213,7 +1213,7 @@ int lv_conflict_report_to_json(const ConflictReport *report, char *buffer, size_
 
     /* 简化的 JSON 序列化 */
     int written =
-        snprintf(buffer, buffer_size,
+        lv_snprintf(buffer, buffer_size,
                  "{\"conflict_count\":%d,\"has_critical\":%s,\"has_error\":%s,\"has_warning\":%s,\"conflicts\":[",
                  report->conflict_count, report->has_critical ? "true" : "false", report->has_error ? "true" : "false",
                  report->has_warning ? "true" : "false");
@@ -1226,7 +1226,7 @@ int lv_conflict_report_to_json(const ConflictReport *report, char *buffer, size_
     for (int i = 0; i < report->conflict_count; i++) {
         const ConflictRecord *rec = &report->conflicts[i];
 
-        int n = snprintf(buffer + pos, buffer_size - pos, "%s{\"type\":\"%s\",\"severity\":\"%s\"}", i > 0 ? "," : "",
+        int n = lv_snprintf(buffer + pos, buffer_size - pos, "%s{\"type\":\"%s\",\"severity\":\"%s\"}", i > 0 ? "," : "",
                          lv_conflict_type_name(rec->type), lv_conflict_severity_name(rec->severity));
 
         if (n < 0 || (size_t) n >= buffer_size - pos)

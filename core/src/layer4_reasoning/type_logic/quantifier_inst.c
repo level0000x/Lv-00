@@ -87,7 +87,7 @@ lvQuantResult lv_quantifier_instantiate(const lvQuantifiedExpr *expr, int instan
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s(%d).P(%d)", quant_str,
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s(%d).P(%d)", quant_str,
                     expr->variable_name ? expr->variable_name : "x", expr->id, instance_id);
 
     out_result->result_prop = create_result_proposition(expr->body_proposition->id, name_buf);
@@ -171,7 +171,7 @@ lvQuantResult lv_quantifier_generalize(const lvQuantifiedExpr *expr, lvQuantifie
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
                     expr->variable_name ? expr->variable_name : "x", expr->variable_name ? expr->variable_name : "x");
 
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
@@ -257,7 +257,7 @@ lvQuantResult lv_quant_exists_introduce(lvQuantifiedExpr *expr, int witness_id, 
 
     /* 创建结果命题 */
     quant_str = lv_quant_to_string(expr->quantifier);
-    (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
+    (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "%s%s∈D.P(%s)", quant_str,
                     expr->variable_name ? expr->variable_name : "x", expr->variable_name ? expr->variable_name : "x");
 
     out_result->result_prop = create_result_proposition(expr->id, name_buf);
@@ -330,7 +330,7 @@ lvQuantResult lv_quant_exists_eliminate(const lvQuantifiedExpr *exists_expr, str
 
     /* 使用目标命题作为结果 */
     if (target_prop) {
-        (void) snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ElimE_%s_%d",
+        (void) lv_snprintf(name_buf, RESULT_NAME_BUF_SIZE, "ElimE_%s_%d",
                         exists_expr->variable_name ? exists_expr->variable_name : "x", exists_expr->id);
         out_result->result_prop = create_result_proposition(target_prop->id, name_buf);
     }

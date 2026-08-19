@@ -32,7 +32,7 @@
  * 字符串操作实现
  * ============================================================ */
 
-int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
+int lv_safe_lv_snprintf(char *dest, size_t dest_size, const char *fmt, ...) {
     PRESET_CHECK_NULL(dest, error);
     PRESET_CHECK_NULL(fmt, error);
 

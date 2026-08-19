@@ -65,7 +65,7 @@ int render_html_internal(const FormulaNode *node, char *buffer, size_t size, con
     }
     lv_str_html_escape(latex_buf, esc_len, esc_buf, need + 1);
 
-    int written = snprintf(buffer, size, "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
+    int written = lv_snprintf(buffer, size, "<span class=\"mathjax-container\" data-formula=\"%s\">\\(%s\\)</span>",
                            esc_buf, esc_buf);
 
     lv_free((void **) &esc_buf);

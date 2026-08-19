@@ -270,7 +270,7 @@ int axiom_package_add_internal_ref(AxiomPackage *pkg, int lemma_block_id, int de
 
     /* 生成引用标识符 */
     char ref_id[64];
-    snprintf(ref_id, sizeof(ref_id), "internal:lemma:%d", lemma_block_id);
+    lv_snprintf(ref_id, sizeof(ref_id), "internal:lemma:%d", lemma_block_id);
 
     DependencyRef ref;
     memset(&ref, 0, sizeof(DependencyRef));
@@ -303,7 +303,7 @@ int axiom_package_add_external_ref(AxiomPackage *pkg, const char *ref_string, in
 
     /* 生成引用标识符 */
     char ref_id[64];
-    snprintf(ref_id, sizeof(ref_id), "external:%.48s", ref_string);
+    lv_snprintf(ref_id, sizeof(ref_id), "external:%.48s", ref_string);
 
     DependencyRef ref;
     memset(&ref, 0, sizeof(DependencyRef));
@@ -337,7 +337,7 @@ int axiom_package_add_author_assertion(AxiomPackage *pkg, int dependent_node_id)
 
     /* 生成引用标识符 */
     char ref_id[64];
-    snprintf(ref_id, sizeof(ref_id), "author:node:%d", dependent_node_id);
+    lv_snprintf(ref_id, sizeof(ref_id), "author:node:%d", dependent_node_id);
 
     DependencyRef ref;
     memset(&ref, 0, sizeof(DependencyRef));
