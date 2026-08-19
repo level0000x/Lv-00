@@ -2805,3 +2805,41 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - lv_str_prefix_len 泛化变体（带 start/end 界）：lv_utils_misc / axiom_pkg_verify 待设施扩展。
 - strchr 其余 27 处为存在性检查/位置判断（非切分），维持豁免。
+
+## 四十七、批次 C-㉖：编码健康检查 + BOM 修复（2026-08-19）
+
+用户「继续推进」。全库编码健康检查（UTF-8 无 BOM LF 规范符合性）发现并修复 BOM 污染。
+
+### ① 编码健康检查结果
+
+| 检查项 | 结果 |
+|--------|------|
+| UTF-8 BOM（.c/.h） | **11 个文件**含 BOM（违反规范） |
+| CRLF 行尾（.c/.h） | 25 个文件工作区 CRLF（git 索引已 LF，无实际 blob 差异） |
+| 双重编码乱码 | 0（C-⑲ 已归零） |
+
+### ② BOM 移除（11 文件）
+
+- 位置：lv_impl_upper_utils.c / mv_polynomial.h / solver_snapshot.h / logic_check.c / layer6 控制流与数据块 7 文件（if/match/while/list/map/record/ui_block）。
+- 成因：早前拆分/迁移脚本写入（git 索引含 BOM）。
+- 修复：移除首行前 0xEF 0xBB 0xBF，diff 仅首行 -BOM，行为无变化。
+- 顺带：25 个 preset/impl 文件工作区 CRLF 归一化 LF（索引本就 LF，git add 后无实际变更，未污染提交）。
+
+### ③ 抽象化候选重扫（信噪比评估）
+
+- 注册表/空白跳过/strchr/桩函数重扫：全部判定语义异构或错误路径误报——纯正则无法区分「真桩」与「错误路径 return」，该扫描方向**登记终止**（依赖读上下文人工判定，效率低）。
+- 字符串设施（snprintf/strdup/strcmp/前缀/切分/跳过）已全面收敛，无新候选。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（114.53s）。
+- 提交 `chore(encoding)`（11 文件，+11/-11）。
+
+### 决策登记（第 9 章格式）
+
+- BOM 修复 / 编码卫生 / 11 文件去除 UTF-8 BOM / 早前脚本写入 / 全量回归 174/174。
+- 桩函数正则扫描终止 / 方法论 / 误报率高（错误路径 return 干扰）/ 需人工判定 / 无。
+
+### 遗留登记
+
+- 编码健康检查机制：建议纳入未来批次收尾例行项（BOM/CRLF/乱码三查）。
