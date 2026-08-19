@@ -2629,3 +2629,36 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - block_to_text.c「// block body」占位注释（P2 注释修正候选）。
 - lv_parser.c / module_lvz.c 拆分暂缓（收益递减，未来语言演进频繁改动时再评估）。
+
+## 四十二、批次 C-㉑：判据 L snprintf 收敛大面迁移（2026-08-19）
+
+用户选定「snprintf 收敛大面迁移（判据 L）」。全库分类统计：严格 L1（格式串恰为 "%s"）5 处、L2（格式化写入）446 处。
+
+### ① L1 纯复制收敛（4 处）
+
+- 严格 L1 剩余 5 处（上批已迁 30 处）：迁移 4 处——interactive_geo.c 头部（`snprintf(buf, bufsz, "%s", hdr)` → `lv_strlcpy`）、lv_impl_upper_geom.c proof_tptp_export（TPTP 文本复制）、lv_impl_upper_interop.c output_path、mini_kernel.c trimmed。
+- 豁免 2 处：mini_kernel（`lv_str_trim` 偏移指针 + 基址 sizeof，判据 L 豁免①）、interactive_geo 游标追加（`buf + w`，批次 U3 豁免）。
+- `lv_strlcpy` 返回源长度与 C99 snprintf("%s") 一致（含截断返回完整源长）——行为等价。
+
+### ② L2 格式化收敛（632 处/126 文件）
+
+- 全库裸 snprintf → `lv_snprintf` 批量迁移（一次性脚本 + 逐文件验证）：格式化输出/序列化/渲染路径（lv_protocol 56、smt_backend_impl_smtlib2 28、formula_renderer_latex 27、formula_renderer_python 24、formula_converter_export 23 等）。
+- **lv_snprintf 安全性增强**：NUL 终止保证 + NULL buf/size 0 显式 `lv_RETURN_ERROR`（把裸 snprintf 的 NULL buf 未定义行为变为可诊断错误）；正常路径 vsnprintf 逐位一致。
+- **脚本 bug 修复**：正则 lookbehind `(?<!lv_)` 仅防 lv_ 前缀，误把 `vsnprintf(` 替换为 `vlv_snprintf(`（34 处/23 文件）——已全库恢复为 vsnprintf，归零验证。
+- 裸 snprintf（非 lv_/vs 前缀）**全库归零**（仅剩 2 处注释引用）。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（124.22s）。
+- 分块提交 2 个：`refactor(string)` L1（4 处）/ L2（632 处）。
+
+### 决策登记（第 9 章格式）
+
+- L1 收敛 / 判据 L / 4 处迁移 + 2 豁免 / 偏移指针 + 游标追加豁免（已登记）/ 全量 174/174。
+- L2 收敛 / 判据 L / 632 处 126 文件 / 无（行为等价 + 安全性增强）/ 全量 174/174。
+- vsnprintf 误替换修复 / 脚本缺陷 / 34 处恢复 / 正则 lookbehind 局限 / 归零验证。
+
+### 遗留登记
+
+- ABSTRACTION_SPEC §11.1 黑名单新增：裸 `snprintf(`（→ lv_snprintf / lv_strlcpy；豁免 vsnprintf / 游标追加）。
+- L2 迁移后 `vsnprintf` 调用点（34 处，varg 封装内部）为合法形态，非候选。

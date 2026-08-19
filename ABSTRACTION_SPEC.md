@@ -164,7 +164,9 @@
 
 **判定规则**：L1 命中者**必须**收敛为 `lv_strlcpy`，调用方按返回值用途 `(int)` 强转 `size_t`。**豁免**：① `dst` 为 `lv_str_trim` 等返回的偏移指针、`size` 用基址 `sizeof` 者（非纯复制）；② 游标追加形态 `snprintf(buf + w, rem, "%s", ...)`（归入游标缓冲链，批次 U3）。L2 待设施落地后实施。
 
-**已有实例**：L1 全库 33 处命中，30 处纯复制迁移为 `lv_strlcpy`（18 文件），3 处豁免（mini_kernel 1 偏移指针 + interactive_geo 2 游标追加）。
+**已有实例**：L1 全库 33 处命中，30 处纯复制迁移为 `lv_strlcpy`（18 文件），3 处豁免（mini_kernel 1 偏移指针 + interactive_geo 2 游标追加）。**批次 R（2026-08-19）补漏**：严格 L1（格式串恰为 "%s"）剩余 5 处迁移 4 处（interactive_geo 头部 / proof_tptp_export / interop output_path / mini_kernel trimmed），mini_kernel 偏移指针豁免维持，interactive_geo 游标追加维持批次 U3 豁免。
+
+**L2 落地（批次 R，2026-08-19）**：`lv_snprintf` 已准入（lv_utils.h），全库 632 处/126 文件裸 snprintf → lv_snprintf 收敛完毕（含此前 prop_verifier_api 等已迁移处）。裸 snprintf（非 lv_/vs 前缀）全库归零（仅剩 2 处注释引用）。lv_snprintf 提供 NUL 终止保证 + NULL 参数显式报错（把裸 snprintf 的 NULL buf 未定义行为变为可诊断错误）；正常路径 vsnprintf 逐位一致。
 
 ### 1.13 粒度门槛
 
@@ -399,6 +401,7 @@
 | 手写 `clock_gettime` | 未走 `lv_get_time_us` |
 | 裸 `M_PI` / `M_PI_2` | 未走 `lv_PI` 家族（config.h 权威源；外部契约字符串豁免） |
 | 错误字段裸 `snprintf(xxx.error_msg/error_message, sizeof, ...)` | 未走字段级 varg 封装或 `lv_snprintf` |
+| 裸 `snprintf(` | 未走 `lv_snprintf`（格式化）或 `lv_strlcpy`（纯复制）；豁免：`vsnprintf` 变参、游标追加 `buf + w` |
 
 ### 11.2 白名单 / 豁免审计
 
