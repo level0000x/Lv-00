@@ -68,14 +68,14 @@ static int64_t upper_export_via_temp_file(const void *input, InteropExportFormat
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "upper_export_via_temp_file: NULL input");
 
     char path[512];
-    snprintf(path, sizeof(path), "lv_%s_%lld.tmp", tag, (long long) id);
+    lv_snprintf(path, sizeof(path), "lv_%s_%lld.tmp", tag, (long long) id);
 
     InteropExportConfig config;
     memset(&config, 0, sizeof(config));
     config.format = format;
     config.include_proofs = 0;
     config.pretty_print = 1;
-    snprintf(config.output_path, sizeof(config.output_path), "%s", path);
+    (void) lv_strlcpy(config.output_path, path, sizeof(config.output_path));
 
     int rc = file_exporter(input, &config);
     if (rc != lv_OK) {

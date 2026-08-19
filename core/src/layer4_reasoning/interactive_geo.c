@@ -303,7 +303,7 @@ ConstraintMaintainStatus interactive_geo_drag_end(lvInteractiveGeo *g, double x,
             int n = sb->binding_count;
             sb->object_ids[n] = cs->drag_target_id;
             char buf[256];
-            snprintf(buf, sizeof(buf), "move(point(%d), (%.6f, %.6f))\n", cs->drag_target_id, x, y);
+            lv_snprintf(buf, sizeof(buf), "move(point(%d), (%.6f, %.6f))\n", cs->drag_target_id, x, y);
             sb->script_snippets[n] = lv_strdup(buf);
             sb->binding_count++;
             int len = (int) strlen(buf);
@@ -510,7 +510,7 @@ int interactive_geo_snapshot(lvInteractiveGeo *g) {
     if (!buf)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "interactive_geo_snapshot: malloc failed");
     lvGeoCanvasState *cs = &g->canvas_state;
-    int n = snprintf(buf, SNAP_LEN,
+    int n = lv_snprintf(buf, SNAP_LEN,
                      "{\"mode\":%d,\"drag_target\":%d,\"drag_pos\":[%.17g,%.17g],"
                      "\"zoom\":%.17g,\"offset\":[%.17g,%.17g],\"selected_count\":%d,\"modified\":%s}",
                      (int) cs->current_mode, cs->drag_target_id, cs->drag_current_x, cs->drag_current_y, cs->zoom_level,
@@ -613,7 +613,7 @@ int interactive_geo_generate_script(lvInteractiveGeo *g, ScriptLanguage lang, ch
             hdr = "# Lv-00 script\n\n";
             break;
     }
-    int w = snprintf(buf, (size_t) bufsz, "%s", hdr);
+    int w = (int) lv_strlcpy(buf, hdr, (size_t) bufsz);
     if (w < 0 || w >= bufsz)
         lv_RETURN_ERROR(lv_ERROR_INTERNAL, "interactive_geo_generate_script: snprintf header failed");
     for (int i = 0; i < sb->binding_count; i++) {
@@ -621,7 +621,7 @@ int interactive_geo_generate_script(lvInteractiveGeo *g, ScriptLanguage lang, ch
         if (rem <= 0)
             break;
         if (sb->script_snippets[i]) {
-            int l = snprintf(buf + w, (size_t) rem, "%s", sb->script_snippets[i]);
+            int l = lv_snprintf(buf + w, (size_t) rem, "%s", sb->script_snippets[i]);
             if (l > 0 && l < rem)
                 w += l;
         }
@@ -635,7 +635,7 @@ int interactive_geo_get_stats(const lvInteractiveGeo *g, char *buf, int bufsz) {
     if (!g || !buf || bufsz <= 0)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "interactive_geo_get_stats: NULL parameter or bufsz<=0");
     const lvGeoCanvasState *cs = &g->canvas_state;
-    int n = snprintf(buf, (size_t) bufsz,
+    int n = lv_snprintf(buf, (size_t) bufsz,
                      "{\"mode\":%d,\"active\":%d,\"selected\":%d,\"drag\":%d,"
                      "\"zoom\":%.4f,\"snapshots\":%d,\"constraints\":%d,\"affected\":%d,"
                      "\"singular_encounters\":%d,\"singular_avoidances\":%d,"

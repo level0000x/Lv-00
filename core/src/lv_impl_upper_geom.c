@@ -264,7 +264,7 @@ int64_t proof_tptp_export(lvEngine *ctx, int64_t proof_id, char *buf, int64_t bu
     if (!tptp_text)
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "proof_tptp_export: atp_encode failed");
 
-    int n = snprintf(buf, (size_t) buf_size, "%s", tptp_text);
+    int n = (int) lv_strlcpy(buf, tptp_text, (size_t) buf_size);
     lv_free((void **) &tptp_text);
     return (int64_t) (n >= 0 ? n : -1);
 }
