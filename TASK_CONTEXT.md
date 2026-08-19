@@ -2662,3 +2662,38 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - ABSTRACTION_SPEC §11.1 黑名单新增：裸 `snprintf(`（→ lv_snprintf / lv_strlcpy；豁免 vsnprintf / 游标追加）。
 - L2 迁移后 `vsnprintf` 调用点（34 处，varg 封装内部）为合法形态，非候选。
+
+## 四十三、批次 C-㉒：层验证确认 + strdup/strcmp 收敛（2026-08-19）
+
+用户「继续」。先做 C-㉑ 大迁移（632 处 snprintf 跨 L1-L10）的 build_verify 层验证，再收敛剩余字符串惯用法。
+
+### ① build_verify 层验证确认
+
+- C-㉑ 迁移 632 处 snprintf 横跨全部 10 层，跑 ENABLE_LAYER_VALIDATION=ON 构建确认层边界未破坏。
+- ninja 325/325 全绿（`-Dlv_CURRENT_LAYER=N -Dlv_ENABLE_LAYER_VALIDATION` 编译期断言全过）+ ctest **174/174**（90.52s）= 0 层间违规。
+
+### ② strcmp 收敛（1 处）
+
+- 全库 strcmp 直接调用 4 处：lv_impl_upper_preset.c param_index 的 `== 0` 相等判断 → `lv_str_eq`；其余 3 处为三态比较（`< 0`/`> 0`，qsort/comparator 语义）维持不动；lv_str_utils.c 2 处为设施内部（lv_str_endswith/lv_str_eq 实现）合法。
+
+### ③ 手写 strdup 收敛（8 处）
+
+- 8 处手写 `lv_malloc(strlen(x) + 1)` + `lv_strlcpy` → `lv_strdup_safe`（proof_dependency 4 / proof_version_nl 2 / lv_utils_misc 1 / test_framework 1）。
+- **严格行为等价**：原空串分支返回 NULL，lv_strdup_safe 返回空串副本——下游判空处（如 lv_utils_misc 的 `node->name ? ... : "<未命名>"`）保留 `name[0] != '\0'` 条件保证等价。
+- 手写 `lv_malloc(strlen+1)` 全库**归零**。
+
+### 验证
+
+- ninja 全绿 + ctest **174/174**（145.50s）。
+- 提交 `refactor(string)`（5 文件，+11/-29）。
+
+### 决策登记（第 9 章格式）
+
+- 层验证确认 / 架构 / C-㉑ 632 处迁移跨层 / 无 / build_verify 325 目标 + 174/174。
+- strdup 收敛 / 判据 A（D6）/ 8 处 / 空串语义保留 / 全量 174/174。
+- strcmp 收敛 / 判据 A / 1 处 / 三态比较豁免（3 处）/ 全量 174/174。
+
+### 遗留登记
+
+- ABSTRACTION_SPEC §11.1 黑名单新增：`lv_malloc(strlen(x) + 1)` 手写复制（→ lv_strdup_safe）。
+- 三态 strcmp（3 处，qsort/comparator）为合法形态，非候选。

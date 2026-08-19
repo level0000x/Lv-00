@@ -402,6 +402,7 @@
 | 裸 `M_PI` / `M_PI_2` | 未走 `lv_PI` 家族（config.h 权威源；外部契约字符串豁免） |
 | 错误字段裸 `snprintf(xxx.error_msg/error_message, sizeof, ...)` | 未走字段级 varg 封装或 `lv_snprintf` |
 | 裸 `snprintf(` | 未走 `lv_snprintf`（格式化）或 `lv_strlcpy`（纯复制）；豁免：`vsnprintf` 变参、游标追加 `buf + w` |
+| `lv_malloc(strlen(x) + 1)` 手写复制 | 未走 `lv_strdup_safe`；豁免：定长/偏移复制 |
 
 ### 11.2 白名单 / 豁免审计
 
