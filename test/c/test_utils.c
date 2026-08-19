@@ -222,6 +222,256 @@ static void test_string_operations(void) {
         lv_ASSERT(lv_str_prefix_len("x", ',', NULL) == false);
     }
 
+    /* 核心字符串判断设施契约测试（C-㉗ 补全零覆盖缺口） */
+    /* lv_str_endswith */
+    lv_ASSERT(lv_str_endswith("hello.txt", ".txt"));
+    lv_ASSERT(!lv_str_endswith("hello.txt", ".md"));
+    lv_ASSERT(lv_str_endswith("abc", "abc"));   /* 完整相等 */
+    lv_ASSERT(!lv_str_endswith("ab", "abc"));   /* 源短于后缀 */
+    lv_ASSERT(lv_str_endswith("", ""));         /* 双空串 */
+    lv_ASSERT(!lv_str_endswith(NULL, "x"));
+    lv_ASSERT(!lv_str_endswith("x", NULL));
+    /* lv_str_contains */
+    lv_ASSERT(lv_str_contains("hello world", "world"));
+    lv_ASSERT(!lv_str_contains("hello", "xyz"));
+    lv_ASSERT(lv_str_contains("abc", ""));      /* 空子串恒包含 */
+    lv_ASSERT(!lv_str_contains(NULL, "x"));
+    lv_ASSERT(!lv_str_contains("x", NULL));
+    /* lv_str_is_empty / lv_str_nonempty */
+    lv_ASSERT(lv_str_is_empty(""));
+    lv_ASSERT(lv_str_is_empty(NULL));
+    lv_ASSERT(!lv_str_is_empty("x"));
+    lv_ASSERT(lv_str_nonempty("x"));
+    lv_ASSERT(!lv_str_nonempty(""));
+    lv_ASSERT(!lv_str_nonempty(NULL));
+    /* lv_str_eq / lv_str_ne（含 NULL 语义） */
+    lv_ASSERT(lv_str_eq("abc", "abc"));
+    lv_ASSERT(!lv_str_eq("abc", "abd"));
+    lv_ASSERT(lv_str_eq(NULL, NULL));           /* 双 NULL 相等 */
+    lv_ASSERT(!lv_str_eq(NULL, "x"));
+    lv_ASSERT(!lv_str_eq("x", NULL));
+    lv_ASSERT(lv_str_ne("a", "b"));
+    lv_ASSERT(!lv_str_ne("a", "a"));
+    /* lv_str_icmp / lv_str_icmp_n（ASCII 大小写折叠） */
+    lv_ASSERT(lv_str_icmp("AbC", "aBc") == 0);
+    lv_ASSERT(lv_str_icmp("abc", "abd") < 0);
+    lv_ASSERT(lv_str_icmp("abd", "abc") > 0);
+    lv_ASSERT(lv_str_icmp("", "") == 0);
+    lv_ASSERT(lv_str_icmp(NULL, NULL) == 0);
+    lv_ASSERT(lv_str_icmp(NULL, "x") < 0);
+    lv_ASSERT(lv_str_icmp("x", NULL) > 0);
+    lv_ASSERT(lv_str_icmp_n("ABC", "abc", 3) == 0);
+    lv_ASSERT(lv_str_icmp_n("ABCX", "abcY", 3) == 0); /* 前 3 相同 */
+    lv_ASSERT(lv_str_icmp_n("abc", "abd", 3) < 0);
+    lv_ASSERT(lv_str_icmp_n("abc", "abd", 2) == 0); /* 前 2 相同 */
+
+    /* lv_str_match_any / lv_str_match_delimited（关键字表匹配） */
+    {
+        static const char *const kws[] = { "foo", "bar", NULL };
+        lv_ASSERT(lv_str_match_any("xxfooyy", kws) == 0);      /* 子串命中 */
+        lv_ASSERT(lv_str_match_any("bar", kws) == 1);
+        lv_ASSERT(lv_str_match_any("baz", kws) == -1);          /* 无命中 */
+        lv_ASSERT(lv_str_match_any(NULL, kws) == -1);
+        lv_ASSERT(lv_str_match_any("x", NULL) == -1);
+        /* delimited：命中后须分隔符结尾 */
+        lv_ASSERT(lv_str_match_delimited("foo ", kws) == 0);   /* 空白结尾 */
+        lv_ASSERT(lv_str_match_delimited("foo(", kws) == 0);   /* 括号结尾 */
+        lv_ASSERT(lv_str_match_delimited("foobar", kws) == 1); /* "foo"后非分隔跳过，"bar"以NUL结尾命中 */
+        lv_ASSERT(lv_str_match_delimited("foo", kws) == 0);    /* NUL 结尾 */
+    }
+    /* lv_str_chomp（去尾部 \n\r） */
+    {
+        char s1[] = "hello\n";
+        lv_ASSERT_STR_EQ(lv_str_chomp(s1), "hello");
+        char s2[] = "hello\r\n";
+        lv_ASSERT_STR_EQ(lv_str_chomp(s2), "hello");
+        char s3[] = "hello";
+        lv_ASSERT_STR_EQ(lv_str_chomp(s3), "hello");
+        lv_ASSERT(lv_str_chomp(NULL) == NULL);
+    }
+    /* lv_str_ltrim / rtrim / trim */
+    {
+        char t1[] = "  hi  ";
+        lv_ASSERT_STR_EQ(lv_str_trim(t1), "hi");
+        char t2[] = "\t\n x \r";
+        lv_ASSERT_STR_EQ(lv_str_trim(t2), "x");
+        char t3[] = "   ";
+        lv_ASSERT_STR_EQ(lv_str_trim(t3), "");
+        lv_ASSERT(lv_str_trim(NULL) == NULL);
+        char t4[] = "  left";
+        lv_ASSERT_STR_EQ(lv_str_ltrim(t4), "left");
+        char t5[] = "right  ";
+        lv_ASSERT_STR_EQ(lv_str_rtrim(t5), "right");
+    }
+    /* lv_str_split（全量分割） */
+    {
+        lvStrSplitResult sp = lv_str_split("a,b,c", ",");
+        lv_ASSERT(sp.count == 3);
+        lv_ASSERT_STR_EQ(sp.items[0], "a");
+        lv_ASSERT_STR_EQ(sp.items[1], "b");
+        lv_ASSERT_STR_EQ(sp.items[2], "c");
+        lv_str_split_free(&sp);
+        lv_ASSERT(sp.items == NULL && sp.count == 0); /* free 后清空 */
+        /* 无分隔符 → 单段 */
+        sp = lv_str_split("abc", ";");
+        lv_ASSERT(sp.count == 1);
+        lv_ASSERT_STR_EQ(sp.items[0], "abc");
+        lv_str_split_free(&sp);
+        lv_str_split_free(NULL); /* NULL 安全 */
+    }
+    /* lv_str_skip_balanced / lv_str_check_balanced（定界符扫描，字符串字面量感知） */
+    {
+        lv_ASSERT(lv_str_check_balanced("(a(b)c)", '(', ')'));
+        lv_ASSERT(!lv_str_check_balanced("(a(b)c", '(', ')'));
+        lv_ASSERT(!lv_str_check_balanced("a)b(c", '(', ')'));
+        lv_ASSERT(lv_str_check_balanced("(\")\")", '(', ')'));
+        lv_ASSERT(lv_str_check_balanced(NULL, '(', ')') == false);
+        /* skip_balanced 返回闭定界符后位置 */
+        const char *bal = "(abc)def";
+        lv_ASSERT(lv_str_skip_balanced(bal, '(', ')') == bal + 5);
+        const char *unbal = "(abc";
+        lv_ASSERT(lv_str_skip_balanced(unbal, '(', ')') == NULL); /* 不平衡 */
+        const char *notopen = "xyz";
+        lv_ASSERT(lv_str_skip_balanced(notopen, '(', ')') == notopen); /* 首字符非 open 原样返回 */
+    }
+    /* lv_str_skip_until */
+    {
+        const char *su = "abc;def";
+        lv_ASSERT(lv_str_skip_until(su, ";") == su + 3);
+        const char *su2 = "abc";
+        lv_ASSERT(lv_str_skip_until(su2, ";") == su2 + 3); /* 未找到 → 串尾 */
+        lv_ASSERT(lv_str_skip_until(NULL, ";") == NULL);
+    }
+    /* lv_str_read_int（流式整数解析） */
+    {
+        const char *ri = "  42 rest";
+        int64_t v = 0;
+        lv_ASSERT(lv_str_read_int(&ri, &v));
+        lv_ASSERT(v == 42);
+        lv_ASSERT(lv_str_startswith(ri, " rest")); /* 指针推进到数字后 */
+        const char *rn = "-17x";
+        lv_ASSERT(lv_str_read_int(&rn, &v));
+        lv_ASSERT(v == -17);
+        const char *rb = "abc";
+        lv_ASSERT(!lv_str_read_int(&rb, &v)); /* 非数字开头 */
+        lv_ASSERT(!lv_str_read_int(NULL, &v));
+        const char *rc = "5";
+        int64_t vc = 0;
+        lv_ASSERT(lv_str_read_int(&rc, &vc));
+        lv_ASSERT(vc == 5);
+    }
+    /* lv_str_read_quoted / lv_str_read_token（流式解析） */
+    {
+        const char *rq = "  \"hello\" rest";
+        char *out = NULL;
+        lv_ASSERT(lv_str_read_quoted(&rq, &out));
+        lv_ASSERT_STR_EQ(out, "hello");
+        lv_free((void **) &out);
+        lv_ASSERT(lv_str_startswith(rq, " rest"));
+        const char *rq_bad = "  plain";
+        lv_ASSERT(!lv_str_read_quoted(&rq_bad, &out)); /* 非引号开头失败 */
+        lv_ASSERT(out == NULL);
+
+        const char *rt = "  alpha,beta";
+        lv_ASSERT(lv_str_read_token(&rt, &out, ",") != NULL);
+        lv_ASSERT_STR_EQ(out, "alpha");
+        lv_free((void **) &out);
+        lv_ASSERT(*rt == ','); /* 停在分隔符 */
+    }
+    /* lv_str_replace（全部替换） */
+    {
+        char *r = lv_str_replace("a-b-c", "-", "+");
+        lv_ASSERT_STR_EQ(r, "a+b+c");
+        lv_free((void **) &r);
+        r = lv_str_replace("hello", "x", "y"); /* 无匹配 → 原串 */
+        lv_ASSERT_STR_EQ(r, "hello");
+        lv_free((void **) &r);
+        r = lv_str_replace("aaa", "a", "bb"); /* 重叠匹配 */
+        lv_ASSERT_STR_EQ(r, "bbbbbb");
+        lv_free((void **) &r);
+        lv_ASSERT(lv_str_replace(NULL, "a", "b") == NULL);
+        lv_ASSERT(lv_str_replace("abc", "", "x") == NULL); /* 空 old 失败 */
+    }
+    /* lv_str_join（拼接） */
+    {
+        const char *items[] = { "a", "b", "c" };
+        char *j = lv_str_join(items, 3, ",");
+        lv_ASSERT_STR_EQ(j, "a,b,c");
+        lv_free((void **) &j);
+        const char *one[] = { "only" };
+        j = lv_str_join(one, 1, ",");
+        lv_ASSERT_STR_EQ(j, "only");
+        lv_free((void **) &j);
+        const char *empty_items[] = { "a", NULL, "c" };
+        j = lv_str_join(empty_items, 3, "-");
+        lv_ASSERT_STR_EQ(j, "a--c"); /* NULL 项跳过分隔符逻辑：i>0 时仍插分隔符 */
+        lv_free((void **) &j);
+        lv_ASSERT(lv_str_join(NULL, 3, ",") == NULL);
+    }
+    /* lv_str_append_sep（游标式追加，首项无分隔符） */
+    {
+        char buf[32] = {0};
+        size_t pos = 0;
+        lv_ASSERT(lv_str_append_sep(buf, sizeof(buf), &pos, ",", "a"));
+        lv_ASSERT(lv_str_append_sep(buf, sizeof(buf), &pos, ",", "b"));
+        lv_ASSERT(lv_str_append_sep(buf, sizeof(buf), &pos, ",", "c"));
+        lv_ASSERT_STR_EQ(buf, "a,b,c");
+        lv_ASSERT(!lv_str_append_sep(buf, sizeof(buf), &pos, ",", NULL));
+    }
+    /* escape 族（XML/JSON/HTML/LaTeX） */
+    {
+        /* XML：& < > " ' 转义 */
+        lvStrBuf xsb = {0};
+        lv_strbuf_init(&xsb);
+        lv_str_escape_xml(&xsb, "a<b>&\"c", 7);
+        lv_ASSERT_STR_EQ(lv_strbuf_cstr(&xsb), "a&lt;b&gt;&amp;&quot;c");
+        lv_strbuf_destroy(&xsb);
+        /* JSON：引号/反斜杠/控制字符 */
+        char jbuf[64];
+        size_t jn = lv_str_json_escape("a\"b\\c", 5, jbuf, sizeof(jbuf));
+        lv_ASSERT(jn == 7); /* "a\"b\\c" 长度 */
+        lv_ASSERT_STR_EQ(jbuf, "a\\\"b\\\\c");
+        size_t jlen = 0;
+        char *jalloc = lv_str_json_escape_alloc("x\ny", 3, &jlen);
+        lv_ASSERT(jlen == 4); /* x + \\n(2) + y，\n 为标准 JSON 转义对 */
+        lv_ASSERT_STR_EQ(jalloc, "x\\ny");
+        lv_free((void **) &jalloc);
+        /* HTML：& < > " ' */
+        char hbuf[64];
+        size_t hn = lv_str_html_escape("a<b>", 4, hbuf, sizeof(hbuf));
+        lv_ASSERT(hn == 10); /* a + &lt;(4) + b + &gt;(4) */
+        lv_ASSERT_STR_EQ(hbuf, "a&lt;b&gt;");
+        char *halloc = lv_str_html_escape_alloc("'x'");
+        lv_ASSERT_STR_EQ(halloc, "&#39;x&#39;");
+        lv_free((void **) &halloc);
+        /* LaTeX：特殊字符转义 */
+        char lbuf[64];
+        size_t ln = lv_str_latex_escape("a_b%c", 5, lbuf, sizeof(lbuf));
+        lv_ASSERT(ln > 5); /* 有转义 */
+        char *lalloc = lv_str_latex_escape_alloc("100%");
+        lv_ASSERT(lalloc != NULL && strstr(lalloc, "\\%") != NULL); /* % 被转义为 \% */
+        lv_free((void **) &lalloc);
+        /* JSON codepoint 读取（src 为 \u 后的 4 位十六进制；代理对合并） */
+        size_t adv = 0;
+        unsigned int cp = lv_str_json_read_codepoint("0041x", 5, &adv);
+        lv_ASSERT(cp == 0x41); /* 'A' */
+        lv_ASSERT(adv == 4);
+        /* 代理对：\uD83D\uDE00 → U+1F600 */
+        cp = lv_str_json_read_codepoint("D83D\\uDE00", 10, &adv);
+        lv_ASSERT(cp == 0x1F600);
+        lv_ASSERT(adv == 10);
+        /* 孤立高代理 → 0xFFFFFFFF */
+        cp = lv_str_json_read_codepoint("D83D", 4, &adv);
+        lv_ASSERT(cp == 0xFFFFFFFFu);
+        /* codepoint → UTF-8（1-4 字节） */
+        char u8[8];
+        size_t n1 = lv_str_codepoint_to_utf8(0x41, u8, sizeof(u8));
+        lv_ASSERT(n1 == 1 && (unsigned char) u8[0] == 0x41);
+        size_t n2 = lv_str_codepoint_to_utf8(0x4E2D, u8, sizeof(u8)); /* 中 */
+        lv_ASSERT(n2 == 3);
+        lv_ASSERT((unsigned char) u8[0] == 0xE4 && (unsigned char) u8[1] == 0xB8 && (unsigned char) u8[2] == 0xAD);
+    }
+
     printf("  PASSED\n");
 }
 
