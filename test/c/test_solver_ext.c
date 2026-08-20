@@ -282,6 +282,48 @@ static void test_resultant_api(void) {
     printf("  test_resultant_api: PASSED\n");
 }
 
+/* ============== 测试：多解分支处理 ============== */
+
+static void test_multibranch_api(void) {
+    SymbolicCoord **branches = (SymbolicCoord **)0x1;
+    int branch_count = 99;
+
+    /* NULL 契约 → TIMEOUT */
+    TEST_ASSERT_EQ(solver_handle_multiple_solutions(NULL, NULL, NULL, NULL), SOLVER_STATUS_TIMEOUT);
+    TEST_ASSERT_EQ(solver_handle_multiple_solutions(NULL, NULL, &branches, NULL), SOLVER_STATUS_TIMEOUT);
+    TEST_ASSERT_EQ(solver_handle_multiple_solutions(NULL, NULL, NULL, &branch_count), SOLVER_STATUS_TIMEOUT);
+
+    /* 空系统 → UNIQUE + out 参数置 NULL/0 */
+    EquationSystem *sys = equation_system_create();
+    TEST_ASSERT_NOT_NULL(sys);
+    branches = NULL;
+    branch_count = -1;
+    TEST_ASSERT_EQ(solver_handle_multiple_solutions(NULL, sys, &branches, &branch_count), SOLVER_STATUS_UNIQUE);
+    TEST_ASSERT_NULL(branches);
+    TEST_ASSERT_EQ(branch_count, 0);
+
+    /* 含约束图提取系统（线性，无二次方程）→ UNIQUE（无分支） */
+    ConstraintGraph *g = make_solver_graph();
+    TEST_ASSERT_NOT_NULL(g);
+    solver_extract_equations_full(g, sys);
+    branches = NULL;
+    branch_count = -1;
+    SolverStatus st = solver_handle_multiple_solutions(NULL, sys, &branches, &branch_count);
+    TEST_ASSERT(st == SOLVER_STATUS_UNIQUE || st == SOLVER_STATUS_OK, "提取系统分支状态合法");
+    if (st == SOLVER_STATUS_OK) {
+        /* 多解分支：逐分支释放 */
+        for (int b = 0; b < branch_count; b++) {
+            if (branches && branches[b])
+                lv_free((void **)&branches[b]);
+        }
+        lv_free((void **)&branches);
+    }
+
+    graph_destroy(g);
+    equation_system_destroy(sys);
+    printf("  test_multibranch_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Solver Ext Test Suite")
@@ -296,6 +338,7 @@ TEST_MAIN_BEGIN("Lv-00 Solver Ext Test Suite")
     TEST_MAIN_RUN(test_feedback_api);
     TEST_MAIN_RUN(test_sparse_solve_api);
     TEST_MAIN_RUN(test_resultant_api);
+    TEST_MAIN_RUN(test_multibranch_api);
 
     lv_cleanup();
 TEST_MAIN_END()

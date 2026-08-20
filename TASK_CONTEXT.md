@@ -4092,3 +4092,44 @@ add/sub/mul/div/equal 等 inline API）。
   仍列 GMP/代数专项。
 - mpz_poly_get_str 序列化缺陷登记待专项。
 - 剩余专项：interop.h 16（socket 基建）。
+
+## 七十、批次 C-㊹续4：mpz_poly_get_str 缺陷修复 + 多解分支契约测试（2026-08-20）
+
+用户「继续推进」。收尾 solver GMP 专项：修复 C-㊹续3 登记的 mpz_poly_get_str
+观察缺陷 + 覆盖 solver_handle_multiple_solutions 契约。
+
+### ① 缺陷修复（mpz_poly_get_str 恒 NULL）
+
+- **根因**：`(int)((SIZE_MAX / sizeof(char *)) - 1)` 将 SIZE_MAX/8-1 截断为
+  int 得到负值（-2），溢出检查 `degree > -2` 恒真 → 任何 degree >= 0 的
+  多项式都误返回 NULL（C-㊹续3 gdb 反汇编定位的"NULL 返回路径"即此）。
+- **修复**：改用 size_t 比较（`(size_t)p->degree + 1 > SIZE_MAX/sizeof(char*)`），
+  保留溢出防护语义。
+- 验证：test_resultant_api 恢复 mpz_poly_get_str 断言（返回非 NULL +
+  内容非空）；全工程头文件改动重编译 + 190/190。
+
+### ② 多解分支契约测试（test_solver_ext.c 追加 test_multibranch_api，+9 断言）
+
+- NULL 契约（out_branches/out_branch_count NULL）→ TIMEOUT。
+- 空系统 → UNIQUE + out 参数置 NULL/0。
+- 含约束图提取系统（线性）→ UNIQUE（无二次方程）或 OK（多解）+
+  分支逐条释放。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **190/190**（build3 206.49s / build_verify 102.79s）。
+- test_solver_ext 61/61（**solver.h 12 个零覆盖全部覆盖完毕**）。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / 整数截断溢出 / mpz_poly_get_str 恒 NULL → size_t 比较 /
+  gdb 反汇编定位、测试钉住（get_str 断言恢复）。
+- 测试补全 / 覆盖 / solver_handle_multiple_solutions 契约（NULL/空/线性）
+  / test_solver_ext 61 + 全量 190/190；二次方程分支正路径登记遗留
+  （需方程 push 设施）。
+
+### 遗留登记
+
+- solver_handle_multiple_solutions 二次方程分支正路径（需内部方程 push
+  设施或公开 API 扩展）列入代数专项。
+- **剩余专项：interop.h 16（socket 基建）**——solver GMP 专项全部收尾。
