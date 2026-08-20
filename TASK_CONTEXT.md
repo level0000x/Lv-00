@@ -3223,3 +3223,77 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - **proof.h 零覆盖/未实现清单清零**（C-㉙~C-㉟ 五批次补全 83 个 API 中全部
   可测项）。剩余：其他模块（solver_core.h 之外）的 M1-M6 盘点可另启批次。
+
+## 五十七、批次 C-㊱：增强证明引擎（proof_engine_enhanced.h）零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。全局扫描主要头文件 API 零覆盖比例，proof_engine_enhanced.h（33 API / 31 零覆盖 / 94%）为最大缺口，选为本批目标。
+
+### ① 甄别
+
+- 实现已拆分子模块：proof_engine.c（生命周期）/ proof_strategy.c（866 行）/
+  proof_trace_tree.c（672 行）/ proof_contradiction.c（550 行）/ proof_verify.c /
+  proof_optimize.c / proof_export.c——无 TODO/桩（emptylike 仅 optimize 2 处，为
+  `(void)` 参数与静态空注释），全部为真实实现。
+
+### ② 新增测试
+
+- **新建 `test/c/test_proof_engine_enhanced.c`**（CTEST proof_engine_enhanced_test）：
+  109 断言，覆盖 25+ 个零覆盖 API：
+  - 溯源树：create/destroy/node_create/destroy/add_child/set_status/
+    compute_color/find_path/export_dot/to_json（含 NULL 契约、父子指针、深度、
+    颜色递归、DOT/JSON 内容抽查）。
+  - 反证法：contradiction_path create/destroy/add_node（ID 递增/内容）、
+    detect_contradiction（NULL 契约/空结构无矛盾）、engine_proof_by_contradiction
+    （NULL 契约/空图执行不崩溃）。
+  - 引擎生命周期：create（默认/指定配置）/destroy/set_rule_library/
+    register_strategy（优先级排序/NULL）/get_stats/prove 家族 NULL 契约。
+  - 验证：verify_proof（NULL/无根/未证明 INCOMPLETE/完整 VALID/空推导 INVALID）、
+    verify_proof_step（NULL/未完成 INCOMPLETE/完成 VALID）。
+  - 优化：compute_proof_complexity（NULL→0 等）/simplify_proof/optimize_proof
+    （冗余节点移除）。
+  - 导出：to_natural_language（zh/en）/to_latex/to_coq/to_isar（NULL 契约 +
+    非空输出）。
+
+### ③ 测试暴露并修复的真实缺陷（3 处）
+
+1. **lv_trace_tree_find_path 越界写堆**（proof_trace_tree.c）：临时 path/stack
+   数组按 `tree->all_nodes.count` 分配，但 DFS 遍历 children 链会访问未注册进
+   all_nodes 的节点（公开 lv_trace_node_add_child 不注册）→ `path[path_len++]`
+   越界 → free 时尾部魔数不匹配崩溃（0xADBEEF02）。修复：按 max_length 分配
+   （路径长度上界）+ 写入处与栈 push 处双上限保护 + 循环边界改为 max_length。
+2. **verify/optimize/simplify 遍历 all_nodes 漏检未注册节点**（proof_verify.c /
+   proof_optimize.c）：三者遍历 `trace->all_nodes`，而公开构造的子节点不在
+   all_nodes → 空推导节点不被检测（INVALID 漏报）、冗余节点不被移除（M6
+   从不生效：all_nodes 声称"所有节点"但公开构造路径不填充）。修复：改为沿
+   children 递归遍历（verify_node_recursive / optimize_copy_recursive /
+   simplify_mark_recursive），兼容公开构造与引擎内部注册两条路径。
+
+### ④ 契约差异登记
+
+- lv_trace_node_add_child 不注册节点到 tree->all_nodes：公开 API 构造的树
+  all_nodes 仅含 root。find_path/verify/optimize/simplify 修复后按 children
+  遍历，不依赖 all_nodes；export/compute_color 亦按 children 递归——契约统一
+  为"树结构由 children 表达，all_nodes 为引擎流程缓存"。
+
+### 验证
+
+- ninja 全绿 + ctest **182/182**（build3 23.14s / build_verify 42.11s，
+  新增 proof_engine_enhanced_test）。
+- test_proof_engine_enhanced 109/109。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / proof_engine_enhanced 25+ 零覆盖 API / 3 个缺陷修复
+  （find_path 越界、verify/optimize/simplify all_nodes 依赖）/ test_proof_engine_enhanced
+  109 + 全量 182/182。
+- 遍历契约统一 / 契约钉住 / children 为树结构权威、all_nodes 为缓存 /
+  公开构造与引擎注册两路径行为一致。
+
+### 遗留登记
+
+- proof_engine_enhanced.h 剩余引擎流程依赖设施（prove/auto_prove/
+  prove_with_strategy 正路径、detect_contradiction 6 类型正路径）需构造真实
+  图/导航器场景，留待引擎集成专项。
+- 全局扫描其余头文件：type_system.h 27 / axiom_pkg.h 21 / interop.h 21 /
+  constraint_graph.h 20 / solver.h 17 / unify.h 16 / engine.h 16 / module.h 16 /
+  normalization.h 15 / formula_parser.h 12 零覆盖，可继续按本批方法论逐头甄别。
