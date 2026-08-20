@@ -166,6 +166,9 @@ FormulaNode *formula_create_geom_point(const char *name, FormulaNode *coords) {
         return NULL;
     }
     node->data.geom_point.coords = coords;
+    /* 修复（C-㊸ 测试暴露）：destroy 对标量子节点 unref（LV_DF_C），
+     * create 须对称 ref（M4），NULL 安全 */
+    formula_node_ref(coords);
     return node;
 }
 
@@ -181,6 +184,9 @@ FormulaNode *formula_create_geom_segment(const char *name, FormulaNode *ep1, For
     }
     node->data.geom_segment.endpoint1 = ep1;
     node->data.geom_segment.endpoint2 = ep2;
+    /* 修复（C-㊸）：与 destroy unref 对称的 ref（M4），NULL 安全 */
+    formula_node_ref(ep1);
+    formula_node_ref(ep2);
     return node;
 }
 
@@ -195,6 +201,9 @@ FormulaNode *formula_create_geom_circle(const char *name, FormulaNode *center, F
     }
     node->data.geom_circle.center = center;
     node->data.geom_circle.radius = radius;
+    /* 修复（C-㊸）：与 destroy unref 对称的 ref（M4），NULL 安全 */
+    formula_node_ref(center);
+    formula_node_ref(radius);
     return node;
 }
 
@@ -211,6 +220,10 @@ FormulaNode *formula_create_geom_triangle(const char *name, FormulaNode *v1, For
     node->data.geom_triangle.vertex1 = v1;
     node->data.geom_triangle.vertex2 = v2;
     node->data.geom_triangle.vertex3 = v3;
+    /* 修复（C-㊸）：与 destroy unref 对称的 ref（M4），NULL 安全 */
+    formula_node_ref(v1);
+    formula_node_ref(v2);
+    formula_node_ref(v3);
     return node;
 }
 
@@ -233,6 +246,11 @@ FormulaNode *formula_create_geom_polygon(const char *name, FormulaNode **vertice
             return NULL;
         }
         memcpy(node->data.geom_polygon.vertices, vertices, sizeof(FormulaNode *) * vertex_count);
+        /* 修复（C-㊸ 测试暴露）：父节点持有子节点引用（ref），与
+         * destroy 的 LV_DF_A unref 对称——原实现只复制不 ref，导致
+         * destroy 时子节点引用被提前归还、调用者侧双释放（M4） */
+        for (int i = 0; i < vertex_count; i++)
+            formula_node_ref(vertices[i]);
         node->data.geom_polygon.vertex_count = vertex_count;
     }
     return node;
@@ -257,6 +275,9 @@ FormulaNode *formula_create_geom_region(const char *name, FormulaNode **segments
             return NULL;
         }
         memcpy(node->data.geom_region.boundary_segments, segments, sizeof(FormulaNode *) * segment_count);
+        /* 修复（C-㊸ 测试暴露）：与 destroy LV_DF_A unref 对称的 ref（M4） */
+        for (int i = 0; i < segment_count; i++)
+            formula_node_ref(segments[i]);
         node->data.geom_region.segment_count = segment_count;
     }
     return node;
@@ -277,6 +298,11 @@ FormulaNode *formula_create_geom_arc(const char *name, FormulaNode *center, Form
     node->data.geom_arc.radius = radius;
     node->data.geom_arc.start_angle = start_angle;
     node->data.geom_arc.end_angle = end_angle;
+    /* 修复（C-㊸）：与 destroy unref 对称的 ref（M4），NULL 安全 */
+    formula_node_ref(center);
+    formula_node_ref(radius);
+    formula_node_ref(start_angle);
+    formula_node_ref(end_angle);
     return node;
 }
 
@@ -290,6 +316,9 @@ FormulaNode *formula_create_constraint(NodeType constraint_type, FormulaNode **p
             return NULL;
         }
         memcpy(node->data.constraint.participants, participants, sizeof(FormulaNode *) * count);
+        /* 修复（C-㊸ 测试暴露）：与 destroy LV_DF_A unref 对称的 ref（M4） */
+        for (int i = 0; i < count; i++)
+            formula_node_ref(participants[i]);
         node->data.constraint.participant_count = count;
     }
     return node;
@@ -305,6 +334,10 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count) {
             return NULL;
         }
         memcpy(node->data.compound.statements, statements, sizeof(FormulaNode *) * count);
+        /* 修复（C-㊸ 测试暴露）：与 destroy LV_DF_A unref 对称的 ref（M4）；
+         * compound_add_statement 追加的语句同样由 destroy unref，故也须 ref */
+        for (int i = 0; i < count; i++)
+            formula_node_ref(statements[i]);
         node->data.compound.statement_count = count;
         node->data.compound.statement_capacity = count;
     }
@@ -322,6 +355,9 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "failed to realloc statements array");
 
     compound->data.compound.statements[compound->data.compound.statement_count++] = statement;
+    /* 修复（C-㊸）：追加语句同样须 ref——destroy 对数组元素 unref，
+     * 不 ref 则调用者引用被提前归还（与 create_compound 对称） */
+    formula_node_ref(statement);
     return 0;
 }
 
