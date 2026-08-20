@@ -3608,3 +3608,81 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   工具），测试基建需检测 dot 可用性，列入环境相关专项。
 - 继续零覆盖扫描顺序：unify.h 15 / engine.h 13 / module.h 14 /
   formula_parser.h 12；interop.h 16 与 solver.h 17 维持专项暂缓。
+
+## 六十二、批次 C-㊶：合一（unify.h）15 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 unify.h（实测 ctest 口径 15 个零覆盖）。
+
+### ① 甄别
+
+- 15 个零覆盖 API 按族分组：等价存储族 6（unify_equivalence_storage_init/
+  lv_unify_equivalence_storage_cleanup/unify_clear_equivalences/
+  unify_equivalence_count/unify_declare_proposition_equivalence/
+  unify_find_equivalent_proposition）、合一族 4（unify_construction_with_
+  proposition_coord/_hash_filtered/_detailed + unify_failure_info_destroy）、
+  精细化匹配族 3（unify_coords_equal/unify_match_coords/
+  unify_match_constraints）、实例化 1（unify_instantiate_proposition）、
+  流式上下文 1（unify_set_stream_context）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_unify_ext.c`**（CTEST unify_ext_test）：85 断言，
+  8 个测试函数：
+  - test_equivalence_storage_api：init 可重复调用重置、declare（双向/
+    反向重复更新不新增）、find（双向查找/NULL 契约/不存在 0）、
+    transformation 图所有权（clear 释放）、clear/cleanup 后重新声明。
+  - test_coords_equal_api：NULL → 0、同坐标 → 1、不同坐标 → 0、
+    coord_count 不同 → 0、coord_count>0 但数组 NULL → 0。
+  - test_match_coords_api：双 NULL → 0、单 NULL → -1、相同 → 0、
+    不同 → 非 0。
+  - test_match_constraints_api：NULL → -1、同构 → 1 对（bindings 输出）、
+    命题无约束 → 0、构造无对应 → -1。
+  - test_unify_status_api：NULL → FAILED（修复后）、同构 → OK、
+    异构 → coord 返回 COORD_MISMATCH / hash_filtered 返回
+    CONSTRAINT_MISMATCH（契约差异登记）。
+  - test_detailed_unify_api：destroy(NULL) 安全、NULL 入参 → FAILED +
+    failure 填充、out_failure NULL 可用、同构 OK、异构失败 + destroy。
+  - test_instantiate_api：NULL 契约 → false、正路径端口 type_region
+    替换为 concrete_type（引用语义）、未知节点 id 深拷贝成功。
+  - test_stream_ctx_api：unify_set_stream_context(NULL) 安全。
+
+### ③ 测试暴露并修复的真实缺陷（6 处）
+
+1. **M5 × 3：unify_coords_equal / unify_equivalence_storage_init /
+   unify_equivalence_count 头文件声明但全库无实现**（零引用故链接未暴露，
+   新测试链接期暴露）——按头注释契约补齐实现（coords_equal 逐坐标
+   symbolic_coord_compare + NULL/数组检查；init = 重置存储状态；count =
+   TLS 存储 count）。
+2. **M2 × 3：unify_construction_with_proposition / _coord / _hash_filtered
+   对 NULL 入参崩溃**（graph_normalize(NULL) 解引用）——与 detailed 版本
+   对齐，入口返回 UNIFY_STATUS_FAILED。
+
+### ④ 测试侧契约适配（2 处）
+
+- 异构方向：合一以 proposition 遍历约束——命题无约束则恒 OK，须以
+  「含约束命题 vs 无约束构造」构造异构。
+- hash_filtered 约束不匹配返回 CONSTRAINT_MISMATCH（与基础版一致），
+  coord 版返回 COORD_MISMATCH——族内契约差异登记，按各自断言。
+
+### 验证
+
+- ninja 全绿 + ctest **186/186**（build3 96.25s / build_verify 56.52s，
+  新增 unify_ext_test）。
+- test_unify_ext 85/85。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声称与实现脱节 / unify.h 3 个声明无实现 API 补齐 +
+  3 个合一 API NULL 崩溃修复 / 新测试链接期暴露、test_unify_ext 85 +
+  全量 186/186。
+- 缺陷修复 / M2 NULL 契约缺失 / 合一三族入口 NULL → FAILED 与 detailed
+  对齐 / 族内失败码差异（COORD vs CONSTRAINT）按实现断言。
+- 测试补全 / 覆盖 / unify.h 15 零覆盖 API 全部接入契约测试 /
+  test_unify_ext 85 + 全量 186/186。
+
+### 遗留登记
+
+- unify_instantiate_proposition 的 concrete_type 深拷贝化（type_region_
+  deep_copy 导出）仍为文档登记的设计债（引用语义风险），维持现状。
+- 继续零覆盖扫描顺序：engine.h 13 / module.h 14 / formula_parser.h 12；
+  interop.h 16 与 solver.h 17 维持专项暂缓。
