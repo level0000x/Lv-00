@@ -3686,3 +3686,69 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   deep_copy 导出）仍为文档登记的设计债（引用语义风险），维持现状。
 - 继续零覆盖扫描顺序：engine.h 13 / module.h 14 / formula_parser.h 12；
   interop.h 16 与 solver.h 17 维持专项暂缓。
+
+## 六十三、批次 C-㊷：引擎（engine.h）13 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 engine.h（实测 ctest 口径 13 个零覆盖）。
+
+### ① 甄别
+
+- 13 个零覆盖 API 全部为真实实现，按族分组：资源族 5（engine_add_rewrite_
+  rule/engine_load_module/engine_load_axiom_package/engine_set_rewrite_step_
+  limit/engine_get_rewrite_step_limit）、冻结点族 2（engine_restore_frozen_
+  point/engine_destroy_frozen_point，create_frozen_point 已覆盖本批测消费
+  路径）、电路跳闸族 2（engine_handle_circuit_trip/_with_action）、流程族 3
+  （engine_rewrite_and_solve/engine_unify/engine_pack_function）、流式族 1
+  （engine_emit_stream_event）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_engine_ext.c`**（CTEST engine_ext_test）：65 断言，
+  9 个测试函数：
+  - test_rewrite_rule_api：NULL 契约 → false、正路径 rewrite_rule_create
+    → add → true（所有权转移，engine_destroy 统一释放规则）。
+  - test_rewrite_step_limit_api：get(NULL) → 默认值、set(NULL) 安全、
+    设置/获取往返、<=0 回默认、create 默认值。
+  - test_frozen_point_api：create(NULL) → NULL、destroy(NULL) 安全、
+    restore NULL 契约、正路径：打点 → 加节点 → restore → 图回滚 0 节点
+    （快照消耗，恢复后引擎自动重新打点）。
+  - test_circuit_trip_api：handle(NULL) → IGNORE、无冻结点无溢出 → IGNORE、
+    with_action NULL/非法动作 → ERROR、IGNORE→IGNORE、DOWNGRADE→
+    DOWNGRADE、ROLLBACK（无冻结点）→ ROLLBACK。
+  - test_stream_event_api：emit(NULL,…) 安全、engine 发射不崩溃。
+  - test_load_module_axiom_api：NULL → INVALID_PATH/NULL_POINTER、
+    文件缺失 → 非 OK。
+  - test_engine_unify_api：NULL → FAILED、同构 → OK、异构（构造缺约束）
+    → 非 OK。
+  - test_pack_function_api：NULL 契约/节点不存在/端口类型不对 → false、
+    正路径 2 点 + 输入输出端口 → true + 函数块节点。
+  - test_rewrite_solve_api：NULL → 负值、空引擎空图 → >= 0 步数。
+
+### ③ 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：13 个 API 契约与实现注释一致。
+
+### ④ 测试侧契约适配（1 处，沿用 C-㊶ 经验）
+
+- engine_unify 异构方向：合一以 proposition 遍历约束——须以「含约束命题
+  vs 缺约束构造」构造失败路径。
+
+### 验证
+
+- ninja 全绿 + ctest **187/187**（build3 282.25s / build_verify 69.04s，
+  新增 engine_ext_test）。
+- test_engine_ext 65/65。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / engine.h 13 零覆盖 API 全部接入契约测试 /
+  无实现缺陷暴露 / test_engine_ext 65 + 全量 187/187。
+- 契约钉住 / 规则所有权转移、冻结点恢复后快照消耗并自动重新打点、
+  电路跳闸三动作映射、步数上限 <=0 回默认 / 与实现注释一致。
+
+### 遗留登记
+
+- engine_load_module / engine_load_axiom_package 正路径（真实 .lvmod/.lvax
+  文件加载）需样本文件基建，列入文件格式专项。
+- 继续零覆盖扫描顺序：module.h 14 / formula_parser.h 12；
+  interop.h 16 与 solver.h 17 维持专项暂缓。
