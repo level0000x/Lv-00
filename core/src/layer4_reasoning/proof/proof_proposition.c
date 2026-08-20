@@ -27,6 +27,7 @@
 
 #include "lv/lv_xmacro.h"
 #include "lv/lv_lifecycle.h"
+#include "proof_navigator_internal.h" /* nav_emit（作用域流式事件） */
 
 /* ── 流式上下文声明 ── */
 /* ── 命题销毁栈初始容量 ── */
@@ -635,6 +636,11 @@ void proof_navigator_destroy(ProofNavigator *nav) {
     /* 释放策略注释 */
     lv_free((void **) &nav->strategy_note);
 
+    /* 释放反证法作用域数组（scope_assumptions 为借用引用，不释放命题本身） */
+    lv_free((void **) &nav->scope_ids);
+    lv_free((void **) &nav->scope_active);
+    lv_free((void **) &nav->scope_assumptions);
+
     /* 流式输出: 证明导航器销毁 */
     if (proof_stream_ctx) {
         stream_emit_simple(proof_stream_ctx, STREAM_EVENT_PROOF_STEP_APPLIED, "证明导航器销毁", nav->step_count);
@@ -836,4 +842,134 @@ ProofStep *proof_navigator_current_step(ProofNavigator *nav) {
         return NULL;
     }
     return nav->steps[nav->current_step];
+}
+
+/* ========================================================================
+ * 反证法作用域（v3.4-academic 整改，C-㉟ 补齐）
+ *
+ * 修复 M5 声称与实现脱节：proof.h 声明了 4 个作用域 API（begin/close/
+ * is_active/has_global），但此前全仓库无实现、无调用。现按头文件契约与
+ * proof_widget.c 消费语义实现：
+ *
+ * 数据结构（与 proof.h 字段布局、proof_widget.c 消费一致）：
+ *   - scope_ids[i]          : 第 i 个作用域的 ID（next_scope_id 单调分配）
+ *   - scope_active[i]       : 作用域是否激活
+ *   - scope_assumptions[i]  : 作用域假设命题（借用引用，不拥有；销毁 nav
+ *                             时由导航器负责释放，调用方管理命题生命周期）
+ *   - scope_count           : 数组长度
+ *   - next_scope_id         : 下一作用域 ID 计数器
+ *
+ * 作用域语义：
+ *   - begin：追加作用域记录（扩容按 lv_ensure_capacity 倍增），返回新 ID；
+ *     assumption 为 NULL 也允许（假设缺失的"无条件作用域"，用于条件推理）。
+ *   - close：标记非激活（保留记录供 is_active 查询返回 false），不释放
+ *     假设引用（借用语义）；作用域 ID 不复用。
+ *   - is_active：按 ID 线性查找激活记录。
+ *   - has_global_proposition：命题不属于任何激活作用域的假设集合
+ *     （非条件性）视为全局；NULL 参数返回 false。
+ * ======================================================================== */
+
+/**
+ * @brief 在导航器中查找作用域记录下标（线性扫描）
+ * @return 记录下标，未找到返回 -1
+ */
+static int proof_scope_find_index(const ProofNavigator *nav, lvProofScopeId scope_id) {
+    if (!nav)
+        return -1;
+    for (int i = 0; i < nav->scope_count; i++) {
+        if (nav->scope_ids[i] == scope_id)
+            return i;
+    }
+    return -1;
+}
+
+lvProofScopeId proof_begin_assumption_scope(ProofNavigator *nav, const Proposition *assumption) {
+    if (!nav)
+        return lv_PROOF_SCOPE_INVALID;
+
+    /* 扩容（倍增；初始容量 0 → 8）
+     * 注意：三个数组各自维护独立容量（scope_capacity 为共享标量），
+     * 若复用同一 capacity 指针，第一次 lv_ensure_capacity 会更新其值，
+     * 后续调用因 count < capacity 直接返回而不分配 → 写越界。 */
+    if (nav->scope_count >= nav->scope_capacity) {
+        int cap_ids = nav->scope_capacity;
+        int cap_active = nav->scope_capacity;
+        int cap_assump = nav->scope_capacity;
+        if (!lv_ensure_capacity((void **) &nav->scope_ids, nav->scope_count, &cap_ids, sizeof(lvProofScopeId), 1) ||
+            !lv_ensure_capacity((void **) &nav->scope_active, nav->scope_count, &cap_active, sizeof(bool), 1) ||
+            !lv_ensure_capacity((void **) &nav->scope_assumptions, nav->scope_count, &cap_assump,
+                                sizeof(Proposition *), 1)) {
+            /* 扩容失败：回退容量，返回无效 ID */
+            nav->scope_capacity = 0;
+            return lv_PROOF_SCOPE_INVALID;
+        }
+        /* 取最大容量（三数组同步扩容到同尺度） */
+        nav->scope_capacity = (cap_ids > cap_active) ? cap_ids : cap_active;
+        if (cap_assump > nav->scope_capacity)
+            nav->scope_capacity = cap_assump;
+    }
+
+    /* 分配新作用域 ID（从 1 起，0 保留给 lv_PROOF_SCOPE_GLOBAL；
+     * next_scope_id 恒为"下一可用 ID"，分配后递增，保证单调） */
+    if (nav->next_scope_id <= lv_PROOF_SCOPE_GLOBAL)
+        nav->next_scope_id = lv_PROOF_SCOPE_GLOBAL + 1;
+    lvProofScopeId new_id = nav->next_scope_id;
+
+    /* 递增计数器（饱和到 INT_MAX-1，避免有符号溢出；作用域 ID 为正数，
+     * 与 lv_PROOF_SCOPE_GLOBAL=0 / lv_PROOF_SCOPE_INVALID=-1 哨兵不冲突） */
+    if (nav->next_scope_id < INT_MAX) {
+        nav->next_scope_id++;
+    }
+
+    int idx = nav->scope_count;
+    nav->scope_ids[idx] = new_id;
+    nav->scope_active[idx] = true;
+    nav->scope_assumptions[idx] = (Proposition *) assumption; /* 借用 */
+    nav->scope_count++;
+
+    /* 流式事件：作用域开启 */
+    if (proof_stream_ctx) {
+        nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "假设作用域开启: scope_id=%d", new_id);
+    }
+
+    return new_id;
+}
+
+bool proof_close_assumption_scope(ProofNavigator *nav, lvProofScopeId scope_id) {
+    if (!nav || scope_id <= lv_PROOF_SCOPE_GLOBAL)
+        return false;
+
+    int idx = proof_scope_find_index(nav, scope_id);
+    if (idx < 0 || !nav->scope_active[idx])
+        return false; /* 不存在或已关闭 */
+
+    /* 标记非激活（保留记录供 is_active 查询）；不释放假设（借用语义） */
+    nav->scope_active[idx] = false;
+
+    /* 流式事件：作用域关闭 */
+    if (proof_stream_ctx) {
+        nav_emit(proof_stream_ctx, STREAM_EVENT_INFO, "假设作用域关闭: scope_id=%d", scope_id);
+    }
+
+    return true;
+}
+
+bool proof_scope_is_active(const ProofNavigator *nav, lvProofScopeId scope_id) {
+    if (!nav || scope_id <= lv_PROOF_SCOPE_GLOBAL)
+        return false;
+
+    int idx = proof_scope_find_index(nav, scope_id);
+    return (idx >= 0) && nav->scope_active[idx];
+}
+
+bool proof_has_global_proposition(const ProofNavigator *nav, const Proposition *prop) {
+    if (!nav || !prop)
+        return false;
+
+    /* 命题不属于任何激活作用域的假设集合 → 全局（非条件性） */
+    for (int i = 0; i < nav->scope_count; i++) {
+        if (nav->scope_active[i] && nav->scope_assumptions[i] == prop)
+            return false;
+    }
+    return true;
 }
