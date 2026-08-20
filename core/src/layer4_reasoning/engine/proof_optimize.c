@@ -63,6 +63,45 @@ static bool is_redundant_node(const lvProofTraceNode *node) {
     return false;
 }
 
+/* 递归复制节点到优化树（跳过冗余节点，沿 children 遍历，
+ * 覆盖公开 lv_trace_node_add_child 构造的未注册节点） */
+static void optimize_copy_recursive(const lvProofTraceNode *src_node, lvProofTraceNode *dst_parent,
+                                    lvProofTraceTree *optimized, uint32_t *removed_count) {
+    if (!src_node)
+        return;
+
+    for (int i = 0; i < src_node->children.count; i++) {
+        lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&src_node->children, i);
+        lvProofTraceNode *src_child = *child_p;
+
+        /* 跳过冗余节点 */
+        if (is_redundant_node(src_child)) {
+            (*removed_count)++;
+            continue;
+        }
+
+        /* 创建新节点并复制属性 */
+        lvProofTraceNode *new_node = lv_trace_node_create(src_child->type, src_child->label);
+        if (!new_node)
+            continue;
+
+        lv_strlcpy(new_node->description, src_child->description, sizeof(new_node->description));
+        new_node->status = src_child->status;
+        new_node->trust_color = src_child->trust_color;
+        new_node->proposition = src_child->proposition;
+        new_node->step = src_child->step;
+        new_node->rule = src_child->rule;
+        new_node->elapsed_ms = src_child->elapsed_ms;
+
+        /* 添加到优化后的树 */
+        lv_trace_node_add_child(dst_parent, new_node);
+        trace_tree_register_node(optimized, new_node);
+
+        /* 递归复制子节点 */
+        optimize_copy_recursive(src_child, new_node, optimized, removed_count);
+    }
+}
+
 /**
  * @brief 优化证明（消除冗余步骤）
  *
@@ -72,6 +111,7 @@ static bool is_redundant_node(const lvProofTraceNode *node) {
  *   3. 简化信任颜色传播路径
  *
  * 优化过程创建新的溯源树，不修改原始树。
+ * 沿 children 递归复制，不依赖 all_nodes（公开构造路径的节点不在其中）。
  *
  * @param trace         原始溯源树
  * @param out_optimized 输出优化后的溯源树
@@ -89,40 +129,9 @@ bool lv_optimize_proof(const lvProofTraceTree *trace, lvProofTraceTree **out_opt
     if (!optimized)
         lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "lv_optimize_proof: tree creation failed");
 
-    /* 复制非冗余节点 */
+    /* 递归复制非冗余节点 */
     uint32_t removed_count = 0;
-
-    for (int i = 0; i < trace->all_nodes.count; i++) {
-        lvProofTraceNode **src_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
-        lvProofTraceNode *src_node = *src_p;
-
-        /* 跳过根节点（已由 create 创建） */
-        if (src_node == trace->root)
-            continue;
-
-        /* 跳过冗余节点 */
-        if (is_redundant_node(src_node)) {
-            removed_count++;
-            continue;
-        }
-
-        /* 创建新节点并复制属性 */
-        lvProofTraceNode *new_node = lv_trace_node_create(src_node->type, src_node->label);
-        if (!new_node)
-            continue;
-
-        lv_strlcpy(new_node->description, src_node->description, sizeof(new_node->description));
-        new_node->status = src_node->status;
-        new_node->trust_color = src_node->trust_color;
-        new_node->proposition = src_node->proposition;
-        new_node->step = src_node->step;
-        new_node->rule = src_node->rule;
-        new_node->elapsed_ms = src_node->elapsed_ms;
-
-        /* 添加到优化后的树 */
-        lv_trace_node_add_child(optimized->root, new_node);
-        trace_tree_register_node(optimized, new_node);
-    }
+    optimize_copy_recursive(trace->root, optimized->root, optimized, &removed_count);
 
     /* 更新优化后的树状态 */
     optimized->is_complete = trace->is_complete;
@@ -181,6 +190,22 @@ uint32_t lv_compute_proof_complexity(const lvProofTraceTree *trace) {
     return score;
 }
 
+/* 递归标记冗余节点为阻塞（沿 children 遍历，覆盖未注册节点） */
+static uint32_t simplify_mark_recursive(lvProofTraceNode *node) {
+    if (!node)
+        return 0;
+    uint32_t removed = 0;
+    if (is_redundant_node(node)) {
+        lv_trace_node_set_status(node, TRACE_STATUS_BLOCKED);
+        removed++;
+    }
+    for (int i = 0; i < node->children.count; i++) {
+        lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, i);
+        removed += simplify_mark_recursive(*child_p);
+    }
+    return removed;
+}
+
 /**
  * @brief 简化证明（原地修改）
  *
@@ -196,17 +221,8 @@ uint32_t lv_simplify_proof(lvProofTraceTree *trace) {
     if (!trace)
         return 0;
 
-    uint32_t removed = 0;
-
-    /* 标记冗余节点为阻塞 */
-    for (int i = 0; i < trace->all_nodes.count; i++) {
-        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
-        lvProofTraceNode *node = *node_p;
-        if (is_redundant_node(node)) {
-            lv_trace_node_set_status(node, TRACE_STATUS_BLOCKED);
-            removed++;
-        }
-    }
+    /* 沿 children 递归标记冗余节点为阻塞 */
+    uint32_t removed = simplify_mark_recursive(trace->root);
 
     /* 重新计算信任颜色 */
     if (trace->root) {

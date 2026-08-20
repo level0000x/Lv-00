@@ -31,12 +31,44 @@
 /* ============== 证明验证 ============== */
 /* 独立验证证明正确性，检查每步合法性（公理引用、推理规则使用、变量绑定） */
 
+/* 递归验证节点子树：推导节点必须有子节点、子目标必须已探索 */
+static lvVerifyResult verify_node_recursive(const lvProofTraceNode *node, char *out_error) {
+    if (!node)
+        return lv_VERIFY_VALID;
+
+    /* 推导节点必须有子节点（依赖） */
+    if (node->type == TRACE_NODE_DERIVATION && node->children.count == 0) {
+        if (out_error) {
+            lv_snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
+        }
+        return lv_VERIFY_INVALID;
+    }
+
+    /* 检查未完成的子目标 */
+    if (node->type == TRACE_NODE_GOAL && node->status == TRACE_STATUS_UNEXPLORED) {
+        if (out_error) {
+            lv_snprintf(out_error, 512, "子目标节点 %u ('%s') 未被探索", node->id, node->label);
+        }
+        return lv_VERIFY_INCOMPLETE;
+    }
+
+    /* 递归子节点 */
+    for (int i = 0; i < node->children.count; i++) {
+        lvProofTraceNode **child_p = (lvProofTraceNode **)lv_darray_get(&node->children, i);
+        lvVerifyResult r = verify_node_recursive(*child_p, out_error);
+        if (r != lv_VERIFY_VALID)
+            return r;
+    }
+    return lv_VERIFY_VALID;
+}
+
 /**
  * @brief 验证证明的正确性
  *
  * 对溯源树进行完整性验证：
  *   1. 检查根节点状态是否为已证明
- *   2. 检查所有推导节点的依赖是否完整
+ *   2. 检查所有推导节点的依赖是否完整（沿 children 递归遍历，
+ *      覆盖公开 lv_trace_node_add_child 构造的未注册节点）
  *   3. 检查是否存在未完成的子目标
  *   4. 检查信任颜色传播是否正确
  *
@@ -68,27 +100,11 @@ lvVerifyResult lv_verify_proof(const lvProofTraceTree *trace, char *out_error) {
         return lv_VERIFY_INCOMPLETE;
     }
 
-    /* 检查所有节点 */
-    for (int i = 0; i < trace->all_nodes.count; i++) {
-        lvProofTraceNode **node_p = (lvProofTraceNode **)lv_darray_get(&trace->all_nodes, i);
-        lvProofTraceNode *node = *node_p;
-
-        /* 推导节点必须有子节点（依赖） */
-        if (node->type == TRACE_NODE_DERIVATION && node->children.count == 0) {
-            if (out_error) {
-                lv_snprintf(out_error, 512, "推导节点 %u ('%s') 没有子节点（缺少推导依据）", node->id, node->label);
-            }
-            return lv_VERIFY_INVALID;
-        }
-
-        /* 检查未完成的子目标 */
-        if (node->type == TRACE_NODE_GOAL && node->status == TRACE_STATUS_UNEXPLORED) {
-            if (out_error) {
-                lv_snprintf(out_error, 512, "子目标节点 %u ('%s') 未被探索", node->id, node->label);
-            }
-            return lv_VERIFY_INCOMPLETE;
-        }
-    }
+    /* 沿 children 递归检查全部节点（不再依赖 all_nodes：
+     * 公开 lv_trace_node_add_child 构造的子节点不在 all_nodes 中） */
+    lvVerifyResult check = verify_node_recursive(trace->root, out_error);
+    if (check != lv_VERIFY_VALID)
+        return check;
 
     /* 检查信任颜色传播 */
     TrustColor computed = lv_trace_node_compute_color(trace->root);

@@ -441,7 +441,9 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
     } SearchFrame;
 
     int ncount = tree->all_nodes.count;
-    SearchFrame *stack = (SearchFrame *) lv_calloc((size_t)ncount, sizeof(SearchFrame));
+    /* 栈容量 = max_length：DFS 深度上界 = 路径长度上界，避免未注册节点
+     * 使栈深度越过 ncount（与 path 分配修复配套） */
+    SearchFrame *stack = (SearchFrame *) lv_calloc((size_t) max_length, sizeof(SearchFrame));
     if (!stack)
         lv_RETURN_ERROR_VAL(lv_ERROR_ALLOCATION_FAILED, 0, "lv_trace_tree_find_path: stack calloc failed");
 
@@ -456,8 +458,14 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
                             "lv_trace_tree_find_path: visited set create failed");
     }
 
-    /* 记录路径 */
-    lvProofTraceNode **path = (lvProofTraceNode **) lv_malloc((size_t)ncount * sizeof(lvProofTraceNode *));
+    /* 记录路径
+     * 修复（C-㊱ 测试暴露）：path 临时数组此前按 tree->all_nodes.count 分配，
+     * 但 DFS 遍历的是 children 链，节点未必全部注册进 all_nodes
+     * （lv_trace_node_add_child 不注册），导致 path[path_len++] 越界写堆。
+     * 改为按 max_length 分配（输出容量上界 = 路径长度上界），
+     * 并在写入处做上限保护。 */
+    lvProofTraceNode **path =
+        (lvProofTraceNode **) lv_malloc((size_t) max_length * sizeof(lvProofTraceNode *));
     if (!path) {
         lv_hashtable_i64_destroy(visited);
         lv_free((void **) &stack);
@@ -477,7 +485,7 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
 
     uint32_t result = 0;
 
-    while (top < (uint32_t)ncount) {
+    while (top < (uint32_t) max_length) {
         lvProofTraceNode *current = stack[top].node;
         bool found_child = false;
 
@@ -486,6 +494,11 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
             lvProofTraceNode *child = *child_p;
 
             if (!VISIT_CHECK(child->id)) {
+                /* 路径上界保护：path 容量 = max_length，防止未注册节点
+                 * 使 path_len 越过分配大小（与分配修复配套） */
+                if (path_len >= max_length) {
+                    goto cleanup;
+                }
                 VISIT_MARK(child->id);
                 path[path_len++] = child;
 
@@ -497,6 +510,10 @@ uint32_t lv_trace_tree_find_path(const lvProofTraceTree *tree, uint32_t from_id,
                     goto cleanup;
                 }
 
+                /* 栈上界保护：top+1 需 < max_length（stack 容量） */
+                if (top + 1 >= (uint32_t) max_length) {
+                    goto cleanup;
+                }
                 top++;
                 stack[top].node = child;
                 stack[top].depth = stack[top - 1].depth + 1;
