@@ -4016,3 +4016,35 @@ resultant 与 solver_handle_multiple_solutions 登记 GMP 专项遗留。
   列入 GMP/代数专项。
 - 剩余专项：interop.h 16（socket 基建）、engine 模块/公理包文件加载
   正路径样本（.lvmod/.lvax 样本文件基建）。
+
+## 六十八、批次 C-㊹续2：引擎文件加载正路径（动态样本 roundtrip）（2026-08-20）
+
+用户「继续推进」。收尾 C-㊷ 遗留的 engine_load_module / engine_load_axiom_
+package 正路径——无需手工样本：测试内用 module_save / axiom_package_save
+动态生成样本文件后加载。
+
+### ① 实现方式
+
+- test_engine_ext.c 的 test_load_module_axiom_api 追加正路径段（+6 断言，
+  函数扩至 71 总）：
+  - module_create → module_save 生成 .lvmod（LVZ 文本）→
+    engine_load_module → MODULE_LOAD_OK → 清理。
+  - axiom_package_create → axiom_package_save 生成 .lvax →
+    engine_load_axiom_package → AXIOM_LOAD_OK → 清理。
+
+### ② 验证
+
+- ninja 全绿 + ctest **190/190**（build3 146.72s / build_verify 67.79s）。
+- test_engine_ext 71/71（含既有 NULL/文件缺失契约 + 新正路径）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / engine 模块/公理包加载正路径（动态样本 roundtrip，
+  免手工样本基建）/ test_engine_ext 71 + 全量 190/190。
+- 契约钉住 / module_save↔engine_load_module 与 axiom_package_save↔
+  engine_load_axiom_package 自洽 / 样本即产品格式（.lvmod/.lvax）。
+
+### 遗留登记
+
+- 剩余专项：interop.h 16（socket 基建）、solver GMP/代数族 2 个
+  （compute_algebraic_resultant / solver_handle_multiple_solutions）。
