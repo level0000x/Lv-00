@@ -10,10 +10,10 @@
  *   - 消元族：eliminate_geometry / analyze_out_of_scope
  *   - 反馈族：solver_feedback_destroy
  *   - 稀疏族：solver_sparse_solve（C-㊹续 补齐实现后）
+ *   - 结式族：compute_algebraic_resultant（C-㊹续3，mpz_poly_t 构造）
  *
- * 登记遗留（GMP 专项）：compute_algebraic_resultant（需 mpz_poly_t
- * 构造）、solver_handle_multiple_solutions（需二次方程系统 + 分支
- * 笛卡尔积场景）。
+ * 登记遗留（GMP 专项）：solver_handle_multiple_solutions（需二次方程
+ * 系统 + 分支笛卡尔积场景）。
  *
  * 契约要点（与实现核对）：
  *   - solver_extract_equations_full：NULL → -1；空图 → 0。
@@ -21,6 +21,8 @@
  *   - analyze_out_of_scope：NULL → OUT_OF_SCOPE；空图 → OUT_OF_SCOPE
  *     + suggestion 非 NULL（调用者 free）。
  *   - solver_sparse_solve 委托 solve_algebraic_system（NULL → TIMEOUT）。
+ *   - compute_algebraic_resultant：NULL/空多项式 → false；degree > 4
+ *     → false（MPZ_RES_INPUT_DEGREE_MAX）。
  */
 
 #include <stdio.h>
@@ -218,6 +220,68 @@ static void test_sparse_solve_api(void) {
     printf("  test_sparse_solve_api: PASSED\n");
 }
 
+/* 构造 mpz_poly_t（coeffs[i] = 第 i 次幂系数）；deg < 0 返回空多项式 */
+static mpz_poly_t make_mpz_poly(int deg, const int *coeffs) {
+    mpz_poly_t p;
+    mpz_poly_init(&p);
+    if (deg < 0)
+        return p;
+    p.degree = deg;
+    p.coeffs = lv_malloc(((size_t) deg + 1) * sizeof(mpz_t));
+    for (int i = 0; i <= deg; i++)
+        mpz_init_set_si(p.coeffs[i], coeffs[i]);
+    return p;
+}
+
+/* ============== 测试：代数结式（compute_algebraic_resultant） ============== */
+
+static void test_resultant_api(void) {
+    /* NULL 契约 → false */
+    TEST_ASSERT(!compute_algebraic_resultant(NULL, NULL, ALG_OP_SUM, NULL), "全 NULL");
+    TEST_ASSERT(!compute_algebraic_resultant(NULL, NULL, ALG_OP_PRODUCT, NULL), "全 NULL product");
+
+    mpz_poly_t result;
+    mpz_poly_init(&result);
+
+    /* 空多项式（degree=-1）→ false */
+    mpz_poly_t empty_p;
+    mpz_poly_init(&empty_p);
+    int lin1_c[2] = {1, 1};  /* x + 1 */
+    mpz_poly_t p = make_mpz_poly(1, lin1_c);
+    TEST_ASSERT(!compute_algebraic_resultant(&empty_p, &p, ALG_OP_SUM, &result), "空多项式");
+
+    /* 线性多项式 SUM 结式：x+1 与 x-1 → true + 结果非空 */
+    int lin2_c[2] = {-1, 1}; /* x - 1 */
+    mpz_poly_t q = make_mpz_poly(1, lin2_c);
+    TEST_ASSERT(compute_algebraic_resultant(&p, &q, ALG_OP_SUM, &result), "线性 SUM 结式");
+    TEST_ASSERT(result.degree >= 0, "结式结果非空");
+    TEST_ASSERT_NOT_NULL(result.coeffs);
+    /* 直接读系数验证（mpz_poly_get_str 对非负 degree 多项式返回 NULL 为
+     * 独立观察缺陷，另行登记，本测试不依赖序列化路径） */
+    char *s = mpz_get_str(NULL, 10, result.coeffs[0]);
+    TEST_ASSERT_NOT_NULL(s);
+    lv_free_external((void **)&s);
+
+    /* PRODUCT 结式同样可计算 */
+    mpz_poly_clear(&result);
+    mpz_poly_init(&result);
+    TEST_ASSERT(compute_algebraic_resultant(&p, &q, ALG_OP_PRODUCT, &result), "线性 PRODUCT 结式");
+
+    /* 高次（degree 5 > MAX=4）→ false */
+    int deg5_c[6] = {1, 2, 3, 4, 5, 6};
+    mpz_poly_t d5 = make_mpz_poly(5, deg5_c);
+    mpz_poly_clear(&result);
+    mpz_poly_init(&result);
+    TEST_ASSERT(!compute_algebraic_resultant(&d5, &p, ALG_OP_SUM, &result), "高次越界失败");
+
+    mpz_poly_clear(&result);
+    mpz_poly_clear(&d5);
+    mpz_poly_clear(&q);
+    mpz_poly_clear(&p);
+    mpz_poly_clear(&empty_p);
+    printf("  test_resultant_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Solver Ext Test Suite")
@@ -231,6 +295,7 @@ TEST_MAIN_BEGIN("Lv-00 Solver Ext Test Suite")
     TEST_MAIN_RUN(test_out_of_scope_api);
     TEST_MAIN_RUN(test_feedback_api);
     TEST_MAIN_RUN(test_sparse_solve_api);
+    TEST_MAIN_RUN(test_resultant_api);
 
     lv_cleanup();
 TEST_MAIN_END()
