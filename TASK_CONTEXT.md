@@ -4250,9 +4250,56 @@ graph 域相邻的 lv_graph_traversal.h（12/11 零覆盖）。
 - 全局复核揭示的下一批零覆盖头文件（按规模）：algebraic_number.h 75
   （GMP 代数数域）、simd_ops.h 63（SIMD 平台相关）、debug.h 38、
   lv_utils.h 33、geo_halfedge_mesh.h 30、inequality_reasoning.h 23、
-  lv_json.h 23、lv_thread.h 22、recursion.h 21、axiom_rule_engine.h 20、
+  lv_thread.h 22、recursion.h 21、axiom_rule_engine.h 20、
   lv_numeric.h 19、runtime_monitor.h 19、geometry_transform.h 17、
   formula_converter.h 16、lv_number.h 16、three_valued_logic.h 13、
   lv_storage.h 13、lv_graph_traversal.h（本批完成）、modal_operators.h 11
   等——可继续按本批方法论逐头甄别（宏/平台相关头如 lv_platform.h
   lv_xmacro.h 等登记豁免：编译期/宏设施不属运行时契约面）。
+
+## 七十三、批次 C-㊺续：JSON 库（lv_json.h）23 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按全局复核候选清单选 lv_json.h（23 个 ctest 零覆盖，
+纯内存操作）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_json_ext.c`**（CTEST json_ext_test）：61 断言，
+  5 个测试函数：
+  - test_buf_build_api：lv_json_buf_append_char/fmt/raw/raw_value/
+    begin_value/ensure（raw+fmt 拼接、ensure 扩容、begin_value 数组元素
+    逗号分隔、append_raw_value 一步分隔）。
+  - test_parse_scalar_api：parse_int（正/负/非法）、parse_int64（溢出
+    false）、parse_uint64（拒绝负号）、parse_double、parse_bool。
+  - test_cursor_string_api：peek/next/expect/skip_ws 游标、parse_string
+    （转义）、skip_value（对象/数组/字符串）。
+  - test_parse_field_array_api：parse_field（对象字段遍历/空对象 false）、
+    parse_int_array（正路径 + 越界截断）、parse_double_array。
+  - test_get_api：get_int/double/bool/string 顶层键查询 + NULL 契约 +
+    键不存在。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：23 个 API 契约与头注释一致（int64/uint64
+  溢出、parse_field 尾部逗号容忍、数组越界截断等语义按文档验证）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **193/193**（build3 226.98s / build_verify 131.05s，
+  新增 json_ext_test）。
+- test_json_ext 61/61。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_json.h 23 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露 / test_json_ext 61 + 全量 193/193。
+- 契约钉住 / JSON 解析数值溢出/转义/字段容错、写入缓冲扩容/元素分隔 /
+  与头注释一致。
+
+### 遗留登记
+
+- 下一批候选：inequality_reasoning.h 23 / lv_thread.h 22 /
+  recursion.h 21 / axiom_rule_engine.h 20 / lv_numeric.h 19 /
+  runtime_monitor.h 19 / geometry_transform.h 17 / lv_number.h 16 /
+  three_valued_logic.h 13 / lv_storage.h 13 等；大块头 algebraic_
+  number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
