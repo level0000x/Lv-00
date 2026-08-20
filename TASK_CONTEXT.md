@@ -3126,3 +3126,37 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - proof.h 4 个 scope API 无实现（M5）：待「反证法作用域」语义设计。
 - proof.h 引擎依赖设施（guided_fill/sledgehammer/refinement/export_isar）：待专项批次。
+
+## 五十五、批次 C-㉞：proof.h 引擎依赖设施专项契约测试（2026-08-20）
+
+用户「继续推进」。按 C-㉝ 遗留建议，补测此前因「需引擎/求解器/文件 IO 依赖」留待专项的 proof.h 设施。甄别后发现多数依赖仅为判空或不 deref，可独立测试。
+
+### ① 新增测试
+
+- **新建 `test/c/test_proof_version_ext.c`**（CTEST proof_version_ext_test）：76 断言，12 设施全覆盖：
+  - proof_guided_fill / fill_suggestions_destroy：纯启发式（solver 仅判空；空目标→lambda、triangle→构造器链、未知目标→refine fallback + solver 非空额外建议、intersect→case split）。
+  - proof_sledgehammer_dispatch / sledgehammer_report_destroy：SYNC 调度（结果数组/计数/best_index/耗时）、ASYNC 回退同步一致、TIMEOUT 不崩、NULL 契约。
+  - proof_refinement_check / refinement_check_report_destroy：无谓词条目 OK、谓词条目 OK/UNSAT 依 SMT 后端、报告计数一致、输入只读、NULL 契约。
+  - proof_export_isar：NULL/空契约、多命题类型导出（theory/imports/lemma label 清洗/qed/end）、全 NULL 元素框架。
+  - proof_interactive_step：validate_noop 步骤成功、越界类型失败不改变步数、NULL nav。
+  - proof_attempt_unconstructibility / proof_check_unconstructibility / unconstruct_info_destroy：NULL 契约 + 无 engine 空图 MAYBE_POSSIBLE。
+  - proof_export_latex / proof_export_coq：文件导出成功 + 内容抽查（documentclass/Theorem/Qed/注释）。
+
+### ② 契约差异登记
+
+- proof_refinement_check 的恒假谓词：SMT 后端可用时经真实求解（UNSAT→失败 / UNKNOWN→保守通过），字符串启发式仅在 SMT 不可用时触发——断言放宽为 OK 或 UNSAT。
+- proof_sledgehammer_dispatch ASYNC 模式已回退为同步（并发缺陷修复说明见源码），行为与 SYNC 一致。
+
+### 验证
+
+- ninja 全绿 + ctest **180/180**（build3 15.72s / build_verify 12.40s，新增 proof_version_ext_test）。
+- test_proof_version_ext 76/76。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / proof.h 引擎依赖设施 12 个 / 无缺陷修复（纯补测）/ test_proof_version_ext 76 + 全量 180/180。
+- 2 项契约差异登记 / 契约钉住 / refinement SMT 后端行为、sledgehammer ASYNC 回退 / 按实现现状测试。
+
+### 遗留登记
+
+- proof.h 4 个 scope API 无实现（M5）：待「反证法作用域」语义设计，为 proof.h 最后遗留。
