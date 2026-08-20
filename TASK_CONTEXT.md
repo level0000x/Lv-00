@@ -3950,3 +3950,69 @@ module_export_svg/tikz/pdf 原无实现、零消费者——裁决为**补齐实
 
 - 剩余专项：interop.h 16（socket 基建）与 solver.h 17（GMP 基建）、
   engine 模块/公理包文件加载正路径样本（.lvmod/.lvax 样本文件基建）。
+
+## 六十七、批次 C-㊹续：求解器（solver.h）零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。执行 solver.h 专项（原登记 17 GMP 依赖族暂缓）——实测
+公共 API ctest 口径 12 个零覆盖，本批覆盖其中 10 个；compute_algebraic_
+resultant 与 solver_handle_multiple_solutions 登记 GMP 专项遗留。
+
+### ① 甄别
+
+- 12 个零覆盖按族分组：方程系统族 4（equation_system_count/destroy/
+  get_var_id/get_coord_index）、提取族 1（solver_extract_equations_full）、
+  Groebner 族 1（groebner_basis_compute）、消元族 2（eliminate_geometry/
+  analyze_out_of_scope）、反馈族 1（solver_feedback_destroy）、稀疏族 1
+  （solver_sparse_solve）、GMP 族 2（compute_algebraic_resultant/
+  solver_handle_multiple_solutions 登记遗留）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_solver_ext.c`**（CTEST solver_ext_test）：42 断言，
+  7 个测试函数：
+  - test_equation_system_api：create/count/destroy NULL 契约、get_var_id/
+    get_coord_index NULL/越界 → -1、正路径 extract → count>0 + 访问器有效。
+  - test_extract_equations_api：NULL → -1、空图 → 0、含约束图 → >0。
+  - test_groebner_api：NULL/空系统 → OK、含约束系统 → 合法状态。
+  - test_eliminate_api：NULL 契约 → OK（实现静默成功）、含约束图 → OK。
+  - test_out_of_scope_api：NULL → OUT_OF_SCOPE、空图 → OUT_OF_SCOPE +
+    suggestion 非空（调用者 free）。
+  - test_feedback_api：destroy(NULL) 安全、create（带/不带 message）→
+    destroy。
+  - test_sparse_solve_api：NULL → TIMEOUT、含约束图 → 合法状态 +
+    result 可释放。
+
+### ③ 测试暴露并修复的真实缺陷（2 处）
+
+1. **M5：solver_sparse_solve 头文件声明但全库无实现**（零消费者故链接未
+   暴露）——补齐实现：委托 solve_algebraic_system(graph, NULL, 0,
+   out_result)（稀疏矩阵专用路径 sparse_linear_algebra.h 留待优化，
+   行为与完整求解语义等价）。
+2. **M2/M4：groebner_basis_compute 的 buchberger_groebner 未初始化
+   remainder 崩溃**：两处 `MVPolynomial remainder;`（栈上未初始化）直接
+   传入 polynomial_reduce（内部 mv_poly_copy 先 clear dst）→ 解引用未
+   初始化 GMP 句柄 → SIGSEGV（gdb 定位）。修复：两处先 mv_poly_init
+   （各分支已有 clear/所有权转移，补充初始化即可）。
+
+### ④ 验证
+
+- ninja 全绿 + ctest **190/190**（build3 110.91s / build_verify 28.84s，
+  新增 solver_ext_test；stream_extended 并行抖动单跑复绿，非回归）。
+- test_solver_ext 42/42。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声明无实现 / solver_sparse_solve 补齐（委托完整求解）/
+  test_solver_ext 42 + 全量 190/190。
+- 缺陷修复 / M2 未初始化局部变量 / buchberger_groebner 两处 remainder
+  mv_poly_init / gdb 定位 SIGSEGV、测试钉住。
+- 测试补全 / 覆盖 / solver.h 10 零覆盖 API 接入契约测试 /
+  test_solver_ext 42 + 全量 190/190。
+
+### 遗留登记
+
+- compute_algebraic_resultant（需 mpz_poly_t 构造与结式代数场景）、
+  solver_handle_multiple_solutions（需二次方程系统 + 分支笛卡尔积场景）
+  列入 GMP/代数专项。
+- 剩余专项：interop.h 16（socket 基建）、engine 模块/公理包文件加载
+  正路径样本（.lvmod/.lvax 样本文件基建）。
