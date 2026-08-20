@@ -4133,3 +4133,65 @@ add/sub/mul/div/equal 等 inline API）。
 - solver_handle_multiple_solutions 二次方程分支正路径（需内部方程 push
   设施或公开 API 扩展）列入代数专项。
 - **剩余专项：interop.h 16（socket 基建）**——solver GMP 专项全部收尾。
+
+## 七十一、批次 C-㊹续5：互操作（interop.h）零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。最后一个专项 interop.h——实测 ctest 口径 21 个零覆盖
+（1 个类型名噪声），本批覆盖 16 个；interop_server_run（socket 阻塞循环）
+登记遗留。
+
+### ① 甄别
+
+- 21 个零覆盖按族分组：插件族 6（lv_interop_register_plugin/reset_plugins/
+  export_proof + lv_register_coq/lean4/opml_plugin）、定理族 5（context
+  create/destroy/add_call/export_calls/import_external_theorem）、命令族 1
+  （interop_execute_command）、导出族 8（export_coq/lean/html/svg/geojson/
+  canonical + lv_opml_export_navigator）、补全族 1（free_completions）、
+  流式族 1（set_stream_context）、服务器族 1（server_run 遗留）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_interop_ext.c`**（CTEST interop_ext_test）：49 断言，
+  6 个测试函数：
+  - test_plugin_registry_api：register_plugin（NULL plugin → -1、mgr 忽略
+    NULL 成功 0）、coq/lean4/opml 注册（NULL mgr → -1）、export_proof
+    NULL 契约 → -1。
+  - test_theorem_context_api：context_create（默认/自定义名）、add_call
+    （NULL 契约/多参数累积/参数 NULL 校验）、export_calls（COQ/LEAN → 0
+    + 输出非空）、destroy(NULL) 安全。
+  - test_import_theorem_api：NULL 契约、空名/非法字符/哈希过短 → 
+    INVALID_PARAM、合法参数执行不崩溃。
+  - test_execute_command_api：NULL 契约 → INVALID_PARAM、PING → 0 + 响应
+    非空、未知命令 → UNSUPPORTED。
+  - test_export_null_api：export_* 系列 NULL → INVALID_PARAM、opml NULL
+    navigator → 负错误码、canonical 正路径（graph + 临时文件 → 0 + 内容
+    非空）。
+  - test_stream_completions_api：set_stream_context(NULL) 安全、
+    free_completions(NULL) 安全。
+
+### ③ 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）；3 处契约差异按实现断言：register_plugin
+  mgr 参数被忽略（NULL 成功）、coq/lean4/opml 注册检查 mgr（NULL → -1）、
+  lv_RETURN_ERROR 宏统一返回 -1（非枚举错误码）。
+
+### ④ 验证
+
+- ninja 全绿 + ctest **191/191**（build3 171.45s / build_verify 91.41s，
+  新增 interop_ext_test）。
+- test_interop_ext 49/49。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / interop.h 16 零覆盖 API 接入契约测试（无 socket
+  依赖面）/ test_interop_ext 49 + 全量 191/191。
+- 契约差异登记 / register_plugin mgr 忽略、内置注册检查 mgr、RETURN_ERROR
+  宏返回 -1 / 按实现断言。
+
+### 遗留登记
+
+- interop_server_run（socket 阻塞主循环）需网络测试环境（端口绑定 +
+  连接模拟），列入环境相关专项；export_proof 未注册分支需合法
+  ProofNavigator 构造（引擎集成专项）。
+- **全部头文件零覆盖专项收尾**（type_system/axiom_pkg/constraint_graph/
+  unify/engine/module/formula_parser/solver/interop 完成）。
