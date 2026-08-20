@@ -3160,3 +3160,66 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 ### 遗留登记
 
 - proof.h 4 个 scope API 无实现（M5）：待「反证法作用域」语义设计，为 proof.h 最后遗留。
+
+## 五十六、批次 C-㉟：反证法作用域（scope API）实现补齐（2026-08-20）
+
+用户「继续推进」。按 C-㉞ 遗留建议，补齐 proof.h 最后遗留：4 个 scope API 此前**仅有声明、无实现、无调用**（M5 声称与实现脱节）。
+
+### ① 缺陷定性（M5）
+
+- proof.h 声明 proof_begin_assumption_scope / proof_close_assumption_scope /
+  proof_scope_is_active / proof_has_global_proposition，全仓库无定义。
+- ProofNavigator 的 scope_ids/scope_active/scope_assumptions/scope_count/
+  scope_capacity/next_scope_id 字段已被 proof_widget.c 消费（假设列表展示），
+  但 nav destroy 未释放 → 双重问题：API 缺失 + 潜在泄漏。
+- 影响：P1 功能缺失（公开 API 承诺的假设作用域能力不可用）。
+
+### ② 实现（proof_proposition.c，nav 生命周期归属）
+
+1. **proof_begin_assumption_scope**：追加作用域记录（三数组 lv_ensure_capacity
+   倍增扩容），返回单调递增 ID（从 1 起，0=GLOBAL 保留）；assumption 借用引用
+   不拥有；NULL 假设允许（无条件作用域）。
+2. **proof_close_assumption_scope**：标记非激活（保留记录供 is_active 查询），
+   不释放假设；不存在/已关闭/哨兵 ID 返回 false。
+3. **proof_scope_is_active**：按 ID 线性查找激活记录。
+4. **proof_has_global_proposition**：命题不在任何激活作用域假设集合 → 全局。
+5. **proof_navigator_destroy**：补释放三个 scope 数组。
+6. include proof_navigator_internal.h（nav_emit 流式事件）。
+
+### ③ 测试暴露并修复的实现缺陷
+
+1. **三数组同 capacity 扩容越界**：三次 lv_ensure_capacity 复用同一
+   &nav->scope_capacity 指针，首次调用更新容量后后续调用因 count<capacity
+   直接返回不分配 → scope_active/scope_assumptions 仍 NULL → 写越界崩溃。
+   修复：各用独立局部 capacity，取最大值回写。
+2. **ID 计数器饱和条件错误**：`next_scope_id < lv_PROOF_SCOPE_INVALID - 1`
+   即 `next < -2` 恒 false（INVALID=-1）→ 计数器从不递增 → 所有作用域 ID
+   重复。修复：`next_scope_id < INT_MAX` 饱和。
+
+### ④ 测试
+
+- **新建 `test/c/test_proof_scope.c`**（CTEST proof_scope_test）：55 断言。
+  - 生命周期：begin（ID 从 1 起/单调递增/假设引用记录/scope_active 标记）、
+    is_active、close（保留记录仅标记）、has_global（作用域内假设非全局/
+    目标命题全局/关闭后回归全局）。
+  - 边界：NULL nav/prop、不存在 ID、GLOBAL=0/INVALID=-1 哨兵、NULL 假设
+    （无条件作用域）、重复 close 幂等失败、批量 12 作用域（倍增扩容 +
+    全关闭）。
+
+### 验证
+
+- ninja 全绿 + ctest **181/181**（build3 86.83s / build_verify 42.31s，
+  新增 proof_scope_test）。
+- test_proof_scope 55/55。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声称与实现脱节 / proof.h 4 个 scope API 补齐 + destroy 清理 /
+  行为变化：新 API 从无实现变为可用，作用域字段从裸数据变为受管 / test_proof_scope 55。
+- 作用域语义登记 / 契约钉住 / 借用引用不拥有、close 保留记录、ID 单调 /
+  对齐 proof_widget.c 消费语义。
+
+### 遗留登记
+
+- **proof.h 零覆盖/未实现清单清零**（C-㉙~C-㉟ 五批次补全 83 个 API 中全部
+  可测项）。剩余：其他模块（solver_core.h 之外）的 M1-M6 盘点可另启批次。
