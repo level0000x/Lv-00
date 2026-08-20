@@ -3752,3 +3752,75 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   文件加载）需样本文件基建，列入文件格式专项。
 - 继续零覆盖扫描顺序：module.h 14 / formula_parser.h 12；
   interop.h 16 与 solver.h 17 维持专项暂缓。
+
+## 六十四、批次 C-㊷续：模块（module.h）11 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 module.h（实测 ctest 口径 14 个零覆盖；
+其中 module_export_svg/tikz/pdf 声明无实现，登记 M5 盘点专项，本批覆盖
+其余 11 个）。
+
+### ① 甄别
+
+- 11 个零覆盖 API 全部为真实实现，按族分组：版本族 2（module_compare_
+  versions/module_parse_version_constraint）、自动保存族 3（module_set_
+  autosave_config/module_autosave/module_recover_from_backup）、增量族 2
+  （module_apply_delta/module_delta_destroy）、图 JSON 族 1（module_
+  deserialize_graph_from_json）、文件族 2（module_load/module_save）、
+  流式上下文 1（module_set_stream_context）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_module_ext.c`**（CTEST module_ext_test）：51 断言，
+  6 个测试函数：
+  - test_version_api：compare（NULL → 0/相等 0/大小比较）、parse（NULL 契约/
+    精确/>=/^/~/区间五种格式正反例）。
+  - test_autosave_api：set_config NULL 安全、autosave(NULL) → WRITE_ERROR、
+    未启用 → 静默 OK、启用后 autosave 写备份文件（fopen 验证存在）、
+    recover（NULL → PARSE_ERROR/无备份 → FILE_NOT_FOUND/同名模块正路径
+    → OK + 模块非空）、备份文件清理。
+  - test_delta_api：delta_destroy(NULL) 安全、apply（NULL mod/delta/
+    delta_data → false、非法 JSON → false）、compute_delta 基本可用 +
+    销毁。
+  - test_json_graph_api：deserialize_graph NULL 契约 → false、正路径
+    module_set_graph + serialize_graph_to_json → JSON → deserialize 到
+    新模块 → 恢复节点数。
+  - test_save_load_api：load NULL → PARSE_ERROR、save 无效路径 →
+    FILE_ERROR、roundtrip save → load → OK。
+  - test_stream_ctx_api：module_set_stream_context(NULL) 安全。
+
+### ③ 测试暴露并登记的缺陷（1 处，M5 盘点）
+
+- **module_export_svg / module_export_tikz / module_export_pdf 头文件声明
+  但全库无实现**（零消费者故链接未暴露）：完整可视化功能（节点形状/
+  颜色、约束线型、PDF 需 LaTeX），非简单契约——登记 M5 盘点专项裁决
+  （补齐实现 vs 删除声明），本批不实现不测。
+
+### ④ 测试侧契约适配（2 处）
+
+- Module 为不透明类型：mod->graph 不可直接访问，用 module_set_graph /
+  module_get_graph（所有权转移语义）。
+- module_recover_from_backup：NULL 参数 → MODULE_LOAD_PARSE_ERROR，
+  无备份文件 → MODULE_LOAD_FILE_NOT_FOUND（实现契约差异按各自断言）。
+
+### 验证
+
+- ninja 全绿 + ctest **188/188**（build3 160.61s / build_verify 153.02s，
+  新增 module_ext_test；performance_test 并行时序抖动单跑复绿，非回归）。
+- test_module_ext 51/51。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / module.h 11 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露（export 三件套登记 M5 盘点）/
+  test_module_ext 51 + 全量 188/188。
+- M5 盘点登记 / module_export_svg/tikz/pdf 声明无实现零消费者 /
+  补齐 vs 删声明待专项裁决 / 本批不引入半成品实现。
+- 契约钉住 / autosave 未启用静默 OK、recover 无备份 FILE_NOT_FOUND、
+  save 空图模块可写、apply_delta 校验基线哈希 + JSON / 与实现一致。
+
+### 遗留登记
+
+- module_export_svg/tikz/pdf 的 M5 裁决（补齐 vs 删除声明）列入
+  incomplete-implementation 专项。
+- 继续零覆盖扫描顺序：formula_parser.h 12；
+  interop.h 16 与 solver.h 17 维持专项暂缓。
