@@ -3455,3 +3455,85 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   type_infer_port 连接端口正路径（需 graph_add_connection 场景）。
 - 继续零覆盖扫描顺序：axiom_pkg.h 21 / interop.h 21 / constraint_graph.h 20 /
   unify.h 16 / engine.h 16 / module.h 16 / formula_parser.h 12。
+
+## 六十、批次 C-㊴：公理包（axiom_pkg.h）16 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 axiom_pkg.h（原登记 21，实测 ctest 口径
+16 个零覆盖；interop.h 16 因含 socket 服务器设施测试基建重，顺延）。
+
+### ① 甄别
+
+- 既有 test_axiom_pkg.c 已覆盖 9 个 API（create/destroy/模板注册/已知不可构造/
+  compute_content_hash/validate_dependencies 等）。
+- 剩余 16 个零覆盖全部为真实实现，按族分组：依赖引用族 8（register_dependency_ref/
+  mark_lemma_stale/add_internal_ref/add_external_ref/add_author_assertion/
+  validate_dependencies_with_hashes/auto_degrade_invalidated/reverify_lemmas）、
+  模板/缓存族 4（template_set_level/template_compress/store_expansion_cache/
+  clear_expansion_cache）、验证族 3（add_unconstructible_template/
+  verify_unconstructible/validate_normal_form）、流式上下文 1（axiom_set_
+  stream_context）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_axiom_pkg_ext.c`**（CTEST axiom_pkg_ext_test）：
+  113 断言，7 个测试函数：
+  - test_depref_register_api：register（NULL 契约/正常注册条目字段默认
+    ref_type=REF_INTERNAL、颜色 GREEN）、mark_lemma_stale（NULL/未找到 -1/
+    找到 0 + 遗留注释 + 颜色 YELLOW）。
+  - test_depref_chain_refs_api：add_internal_ref（NULL/负 id/正常：ref_type=
+    INTERNAL、hash_valid=true、ref_id 格式、哈希 64 字符）、add_external_ref
+    （NULL/负 id/正常：EXTERNAL、hash_valid=false、external_ref/trust_comment
+    复制）、add_author_assertion（NULL/负 id/正常：AUTHOR、原始色 YELLOW）。
+  - test_depref_validate_api：validate（NULL 契约 out 参数置 NULL/0、空包 0、
+    正确哈希不失效、错误哈希失效 1 且输出数组含 ref_id）、auto_degrade
+    （NULL → 0/失效引用依赖节点 GREEN→YELLOW/作者断言节点降级）。
+  - test_template_level_api：set_level（NULL 安全/LEVEL_ONE 不变/LEVEL_TWO
+    置压缩态）、compress（NULL 安全/仅二级模板生效/一级模板无效）。
+  - test_expansion_cache_api：store（NULL pkg → false/正常 true）、lookup
+    命中同一图对象/不同模板名未命中、clear（NULL 安全/清空后 count==0）。
+  - test_unconstructible_api：add_unconstructible_template（NULL 契约/正常
+    接管 construction）、lookup 匹配、verify_unconstructible（NULL/节点
+    不存在/无匹配 false、正路径：声明含模板名 + 归约约束兼容 → true 且
+    trust=YELLOW、known green_verified → GREEN）、validate_normal_form
+    （NULL/空图违规/INCIDENCE 2 参与者匹配/参与者数不匹配/无括号失败）。
+  - test_stream_ctx_api：axiom_set_stream_context(NULL) 安全往返。
+
+### ③ 测试暴露并修复的真实缺陷（1 处，M5 声称与实现脱节）
+
+- **axiom_set_stream_context 头文件声明无实现**：axiom_pkg.h 声明公开 API
+  `axiom_set_stream_context`，但实现定义的是 `axiom_pkg_set_stream_context`
+  （axiom_pkg.c），且 axiom_pkg_internal.h 又声明第三种名字
+  `axiom_package_set_stream_context`——三个名字互不对齐，头文件声明的符号
+  链接失败（新增测试链接期暴露）。修复：实现改名 `axiom_set_stream_context`
+  对齐头文件；internal.h 删除第三种名字声明（公开 API 声明收口到头文件）。
+
+### ④ 测试侧契约适配（1 处）
+
+- **graph_add_line_segment 返回 AddNodeResult 成功码（ADD_NODE_OK=0）而非
+  节点 id**：线段节点 id 需 graph_get_last_added_node_id 获取——首版测试误
+  用返回值做 id 导致 incidence 约束加在错误节点（constraint_count=0），
+  修正后正路径通过。
+
+### 验证
+
+- ninja 全绿 + ctest **184/184**（build3 75.94s / build_verify 36.52s，
+  新增 axiom_pkg_ext_test）。
+- test_axiom_pkg_ext 113/113。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声称与实现脱节 / axiom_set_stream_context 三名字不齐 →
+  实现对齐头文件公开 API、internal.h 收口 / 新测试链接期暴露、test_
+  axiom_pkg_ext 113 + 全量 184/184。
+- 测试补全 / 覆盖 / axiom_pkg.h 16 零覆盖 API 全部接入契约测试 /
+  test_axiom_pkg_ext 113 + 全量 184/184。
+
+### 遗留登记
+
+- reverify_lemmas 正路径行为契约登记：add_internal_ref 存储
+  compute_lemma_block_hash，reverify 用 compute_content_hash 比较 → 内引用
+  必然判定 stale（两哈希函数口径不同，属设计差异，测试按行为断言）；
+  若后续统一哈希口径需另行评审。
+- 继续零覆盖扫描顺序：interop.h 16（含 socket 服务器设施，需网络测试基建，
+  与 solver.h GMP 族同批评估）/ constraint_graph.h 20 / unify.h 15 /
+  engine.h 16 / module.h 16 / formula_parser.h 12。
