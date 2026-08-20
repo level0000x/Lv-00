@@ -256,11 +256,11 @@ static void test_resultant_api(void) {
     TEST_ASSERT(compute_algebraic_resultant(&p, &q, ALG_OP_SUM, &result), "线性 SUM 结式");
     TEST_ASSERT(result.degree >= 0, "结式结果非空");
     TEST_ASSERT_NOT_NULL(result.coeffs);
-    /* 直接读系数验证（mpz_poly_get_str 对非负 degree 多项式返回 NULL 为
-     * 独立观察缺陷，另行登记，本测试不依赖序列化路径） */
-    char *s = mpz_get_str(NULL, 10, result.coeffs[0]);
+    /* 序列化验证（mpz_poly_get_str 的 SIZE_MAX 截断溢出缺陷已修复） */
+    char *s = mpz_poly_get_str(&result);
     TEST_ASSERT_NOT_NULL(s);
-    lv_free_external((void **)&s);
+    TEST_ASSERT(strlen(s) > 0, "结式字符串非空");
+    lv_free((void **)&s);
 
     /* PRODUCT 结式同样可计算 */
     mpz_poly_clear(&result);

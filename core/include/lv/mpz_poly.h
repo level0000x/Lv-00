@@ -245,11 +245,14 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     if (p->degree < 0) {
         return lv_strdup("0");
     }
-    /* 整数溢出检查：确保 (degree + 1) * sizeof(char*) 不会溢出 */
-    if (p->degree > (int) ((SIZE_MAX / sizeof(char *)) - 1)) {
+    /* 整数溢出检查：确保 (degree + 1) * sizeof(char*) 不会溢出。
+     * 修复（C-㊹续3 观察缺陷）：原 `(int)((SIZE_MAX / sizeof(char *)) - 1)`
+     * 把 SIZE_MAX/8-1 截断为 int 得到负值（-2），使 `degree > -2` 恒真，
+     * 任何 degree >= 0 的多项式都误返回 NULL——改用 size_t 比较。 */
+    size_t coeff_count = (size_t) p->degree + 1;
+    if (coeff_count > SIZE_MAX / sizeof(char *)) {
         return NULL;
     }
-    size_t coeff_count = (size_t) (p->degree + 1);
     char **coeff_strs = lv_malloc(coeff_count * sizeof(char *));
     for (int i = 0; i <= p->degree; i++) {
         coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);
