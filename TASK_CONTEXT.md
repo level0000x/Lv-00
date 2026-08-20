@@ -4195,3 +4195,64 @@ add/sub/mul/div/equal 等 inline API）。
   ProofNavigator 构造（引擎集成专项）。
 - **全部头文件零覆盖专项收尾**（type_system/axiom_pkg/constraint_graph/
   unify/engine/module/formula_parser/solver/interop 完成）。
+
+## 七十二、批次 C-㊺：图遍历抽象层（lv_graph_traversal.h）12 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。全局复核扫描（所有公共头 ctest 口径）揭示九大专项之外
+仍有大量零覆盖头文件（algebraic_number.h 75 / simd_ops.h 63 /
+geo_halfedge_mesh.h 55 等）——零覆盖治理继续推进。本批选与 constraint_
+graph 域相邻的 lv_graph_traversal.h（12/11 零覆盖）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_graph_traversal_ext.c`**（CTEST graph_traversal_ext_
+  test）：45 断言，6 个测试函数：
+  - test_util_api：lv_graph_count_nodes（NULL → 0/空图/加节点计数）、
+    lv_graph_has_cycle（NULL/无约束图 false）、lv_graph_topological_sort
+    （NULL 参数 → -1/无约束图 → lv_OK + count + out_nodes 释放）。
+  - test_string_api：lv_traversal_order_to_string（5 枚举 + 未知 UNKNOWN）、
+    lv_traversal_result_to_string（3 枚举 + 未知）。
+  - test_bfs_api：lv_bfs_run（NULL spec/node_count=0 → -1、DAG 从 0 出发
+    BFS → 出队 4 + 访问序、visit NULL 仅遍历）。
+  - test_topo_run_api：lv_topo_run（NULL → -1、DAG 拓扑序 4 节点 +
+    位置关系校验、有环 → 排序数 < 节点数）。
+  - test_cycle_detect_api：lv_cycle_detect（NULL → false、DAG 无环、
+    回边图有环）。
+  - test_tree_api：lv_tree_traverse（前序 0,1,3,2 访问序、root NULL /
+    get_children NULL → -1）、lv_tree_release_recursive（inline 后序
+    释放：子先父后 + cleanup 释放 children）。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）。3 处测试侧契约适配：
+  1. lvGetChildrenFunc 签名（int 返回 + void***）与 lvTreeGetChildrenFn
+     （void** + int*）为两个不同回调类型，须分别提供。
+  2. lv_tree_traverse 契约：get_children 返回的数组由遍历方 lv_free——
+     回调须每次返回新分配的堆数组（传栈数组会堆损坏）。
+  3. lv_tree_traverse root NULL / get_children NULL → -1；cycle_detect
+     的 seeds 须在 0..node_count-1 范围内（越界种子越界写 visited）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **192/192**（build3 396.96s / build_verify 164.71s，
+  新增 graph_traversal_ext_test；performance_test 并行抖动单跑复绿）。
+- test_graph_traversal_ext 45/45。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_graph_traversal.h 12 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露 / test_graph_traversal_ext 45 + 全量 192/192。
+- 契约钉住 / lv_tree_traverse 回调数组堆分配由遍历方释放、
+  两回调类型分离、seeds 范围约束 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核揭示的下一批零覆盖头文件（按规模）：algebraic_number.h 75
+  （GMP 代数数域）、simd_ops.h 63（SIMD 平台相关）、debug.h 38、
+  lv_utils.h 33、geo_halfedge_mesh.h 30、inequality_reasoning.h 23、
+  lv_json.h 23、lv_thread.h 22、recursion.h 21、axiom_rule_engine.h 20、
+  lv_numeric.h 19、runtime_monitor.h 19、geometry_transform.h 17、
+  formula_converter.h 16、lv_number.h 16、three_valued_logic.h 13、
+  lv_storage.h 13、lv_graph_traversal.h（本批完成）、modal_operators.h 11
+  等——可继续按本批方法论逐头甄别（宏/平台相关头如 lv_platform.h
+  lv_xmacro.h 等登记豁免：编译期/宏设施不属运行时契约面）。
