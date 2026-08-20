@@ -1770,6 +1770,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_edge_cases CTEST_NAME edge_cases_test)
     add_lv_test_auto(test_complex_graph CTEST_NAME complex_graph_test)
     add_lv_test_auto(test_normalization CTEST_NAME normalization_test)
+    add_lv_test_auto(test_formula_ext CTEST_NAME formula_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试
