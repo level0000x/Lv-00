@@ -3901,3 +3901,52 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   engine/module/formula_parser 全部批次完成）。剩余专项：interop.h 16
   （socket 基建）与 solver.h 17（GMP 基建）、module_export_* M5 裁决、
   engine 模块/公理包文件加载正路径样本。
+
+## 六十六、批次 C-㊹：模块可视化导出（module_export_svg/tikz/pdf）M5 补齐（2026-08-20）
+
+用户「继续推进」。执行 C-㊷续 遗留的 M5 裁决：module.h 声明的
+module_export_svg/tikz/pdf 原无实现、零消费者——裁决为**补齐实现**
+（可视化导出为自包含纯文本生成，不依赖外部工具执行，契约明确）。
+
+### ① 实现
+
+- **新建 `core/src/layer4_reasoning/module/module_export.c`**（注册入
+  lv_L4_MODULE_SOURCES）：
+  - module_export_svg：XML 头 + 约束链式连线（<line>）+ 节点圆
+    （<circle>，类型色复用 LV_GEOM_TYPE_ENTRY COLOR 列）+ 类型标签
+    （<text>，XML 转义）。
+  - module_export_tikz：tikzpicture + \draw 约束线段 + \filldraw 节点 +
+    \node 标签。
+  - module_export_pdf：生成可编译 LaTeX 文档（documentclass + tikz
+    宏包 + tikzpicture；PDF 由用户侧 pdflatex 编译，本函数仅产出
+    .tex 源）。
+  - 契约：NULL mod/filepath → false；无图模块（module_get_graph NULL）
+    → false；无坐标节点跳过渲染。
+  - 坐标提取 module_export_node_xy（symbolic_coords[0..1]）、转义
+    module_export_xml_escape（& < > " '）。
+
+### ② 新增测试（test_module_ext.c 追加 test_export_api，+20 断言）
+
+- NULL 契约：三个 export(NULL mod) / 无图模块 → false。
+- 正路径：2 点 + 线段 + INCIDENCE 约束 → 三格式导出 true + 文件存在
+  + 内容非空（ftell 检查）。
+- 临时文件用后清理。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **189/189**（build3 86.26s / build_verify 40.16s；
+  新增 export 实现无新 ctest 目标，module_ext_test 扩至 71 断言）。
+- test_module_ext 71/71。
+
+### 决策登记（第 9 章格式）
+
+- M5 补齐 / module_export_svg/tikz/pdf 声明无实现零消费者 / 裁决=补齐
+  自包含文本导出 / module_export.c 新建 + module_ext_test 71 + 全量
+  189/189。
+- 契约钉住 / 导出为纯文本生成（PDF 编译在用户侧）、类型色单一事实来源
+  LV_GEOM_TYPE_ENTRY / 与 graph_dot_export 同源。
+
+### 遗留登记
+
+- 剩余专项：interop.h 16（socket 基建）与 solver.h 17（GMP 基建）、
+  engine 模块/公理包文件加载正路径样本（.lvmod/.lvax 样本文件基建）。
