@@ -164,6 +164,27 @@ static void test_load_module_axiom_api(void) {
     AxiomLoadStatus as = engine_load_axiom_package(engine, "no_such_file.lvax");
     TEST_ASSERT(as != AXIOM_LOAD_OK, "公理包文件缺失加载失败");
 
+    /* 正路径（C-㊹续2）：动态生成样本文件后加载——
+     * module_save 生成 .lvmod（LVZ 文本）→ engine_load_module；
+     * axiom_package_save 生成 .lvax → engine_load_axiom_package */
+    Module *mod = module_create("RoundtripMod", "1.0.0");
+    TEST_ASSERT_NOT_NULL(mod);
+    const char *lvmod = "./_tmp_c45_roundtrip.lvmod";
+    remove(lvmod);
+    TEST_ASSERT_EQ(module_save(mod, lvmod), MODULE_SAVE_OK);
+    TEST_ASSERT_EQ(engine_load_module(engine, lvmod), MODULE_LOAD_OK);
+    remove(lvmod);
+    module_destroy(mod);
+
+    AxiomPackage *pkg = axiom_package_create("RoundtripAxiom", "1.0.0");
+    TEST_ASSERT_NOT_NULL(pkg);
+    const char *lvax = "./_tmp_c45_roundtrip.lvax";
+    remove(lvax);
+    TEST_ASSERT_EQ(axiom_package_save(pkg, lvax), AXIOM_SAVE_OK);
+    TEST_ASSERT_EQ(engine_load_axiom_package(engine, lvax), AXIOM_LOAD_OK);
+    remove(lvax);
+    axiom_package_destroy(pkg);
+
     engine_destroy(engine);
     printf("  test_load_module_axiom_api: PASSED\n");
 }
