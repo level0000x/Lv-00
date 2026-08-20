@@ -1192,6 +1192,7 @@ set(lv_L4_MODEL_SOURCES
 # module 模块域：增量、LVZ、序列化
 set(lv_L4_MODULE_SOURCES
     core/src/layer4_reasoning/module/module_delta.c
+    core/src/layer4_reasoning/module/module_export.c
     core/src/layer4_reasoning/module/module_lvz.c
     core/src/layer4_reasoning/module/module_serialize.c
     core/src/layer4_reasoning/module/module_serialize_msgpack.c

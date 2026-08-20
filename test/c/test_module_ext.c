@@ -207,10 +207,76 @@ static void test_stream_ctx_api(void) {
     printf("  test_stream_ctx_api: PASSED\n");
 }
 
+/* ============== 测试：可视化导出（C-㊹ 补齐实现后） ============== */
+
+static void test_export_api(void) {
+    /* NULL 契约 → false */
+    TEST_ASSERT(!module_export_svg(NULL, "x.svg"), "NULL mod");
+    TEST_ASSERT(!module_export_tikz(NULL, "x.tex"), "NULL mod");
+    TEST_ASSERT(!module_export_pdf(NULL, "x.tex"), "NULL mod");
+
+    /* 无 graph 模块 → false */
+    Module *empty = module_create("EmptyMod", "1.0.0");
+    TEST_ASSERT_NOT_NULL(empty);
+    TEST_ASSERT(!module_export_svg(empty, "x.svg"), "无图模块");
+    TEST_ASSERT(!module_export_tikz(empty, "x.tex"), "无图模块");
+    TEST_ASSERT(!module_export_pdf(empty, "x.tex"), "无图模块");
+
+    /* 正路径：2 点 + 线段 + 关联约束 → 三格式导出文件非空 */
+    Module *mod = module_create("ExportMod", "1.0.0");
+    TEST_ASSERT_NOT_NULL(mod);
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+    int p0 = add_point(g, 0, 1, 0, 1);
+    int p1 = add_point(g, 1, 1, 1, 1);
+    TEST_ASSERT(graph_add_line_segment(g, p0, p1) == ADD_NODE_OK, "线段节点");
+    int seg = graph_get_last_added_node_id(g);
+    TEST_ASSERT(graph_add_incidence(g, p0, seg) >= 0, "关联约束");
+    module_set_graph(mod, g);
+
+    const char *svg_path = "./_tmp_c44_export.svg";
+    const char *tikz_path = "./_tmp_c44_export.tex";
+    const char *pdf_path = "./_tmp_c44_export_pdf.tex";
+    remove(svg_path);
+    remove(tikz_path);
+    remove(pdf_path);
+
+    TEST_ASSERT(module_export_svg(mod, svg_path), "SVG 导出");
+    TEST_ASSERT(module_export_tikz(mod, tikz_path), "TikZ 导出");
+    TEST_ASSERT(module_export_pdf(mod, pdf_path), "PDF 源导出");
+
+    /* 文件存在且内容非空 */
+    FILE *f = fopen(svg_path, "r");
+    TEST_ASSERT(f != NULL, "SVG 文件存在");
+    if (f) {
+        TEST_ASSERT(fseek(f, 0, SEEK_END) == 0 && ftell(f) > 0, "SVG 内容非空");
+        fclose(f);
+    }
+    f = fopen(tikz_path, "r");
+    TEST_ASSERT(f != NULL, "TikZ 文件存在");
+    if (f) {
+        TEST_ASSERT(fseek(f, 0, SEEK_END) == 0 && ftell(f) > 0, "TikZ 内容非空");
+        fclose(f);
+    }
+    f = fopen(pdf_path, "r");
+    TEST_ASSERT(f != NULL, "PDF 源文件存在");
+    if (f) {
+        TEST_ASSERT(fseek(f, 0, SEEK_END) == 0 && ftell(f) > 0, "PDF 源内容非空");
+        fclose(f);
+    }
+
+    remove(svg_path);
+    remove(tikz_path);
+    remove(pdf_path);
+    module_destroy(empty);
+    module_destroy(mod);
+    printf("  test_export_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Module Ext Test Suite")
-    printf("=== Lv-00 Module Ext Test Suite (batch C-㊷续) ===\n\n");
+    printf("=== Lv-00 Module Ext Test Suite (batch C-㊷续 / C-㊹ export) ===\n\n");
     lv_init();
 
     TEST_MAIN_RUN(test_version_api);
@@ -218,6 +284,7 @@ TEST_MAIN_BEGIN("Lv-00 Module Ext Test Suite")
     TEST_MAIN_RUN(test_delta_api);
     TEST_MAIN_RUN(test_json_graph_api);
     TEST_MAIN_RUN(test_save_load_api);
+    TEST_MAIN_RUN(test_export_api);
     TEST_MAIN_RUN(test_stream_ctx_api);
 
     lv_cleanup();
