@@ -99,9 +99,11 @@ static void test_autosave_api(void) {
     TEST_ASSERT_NOT_NULL(out);
     module_destroy(out);
 
-    /* 清理备份文件 */
+    /* 清理备份文件（.lvz 文本 + .bin 二进制双备份） */
     remove(backup_path);
     remove("./AutoSaveMod_autosave_1.lvz");
+    remove("./AutoSaveMod_autosave_0.bin");
+    remove("./AutoSaveMod_autosave_1.bin");
     module_destroy(mod);
     printf("  test_autosave_api: PASSED\n");
 }
