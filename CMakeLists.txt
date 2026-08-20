@@ -1962,6 +1962,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_engine_ops CTEST_NAME engine_ops_test)
     # 引擎调度器测试
     add_lv_test_auto(test_engine_scheduler CTEST_NAME engine_scheduler_test)
+    add_lv_test_auto(test_engine_ext CTEST_NAME engine_ext_test)
     # 信任颜色映射系统测试（Gap 1）
     add_lv_test_auto(test_trust_color CTEST_NAME trust_color_test)
     # Layer5 输出层操作测试
