@@ -41,7 +41,9 @@ extern "C" {
 
 /* Thread-local stream context (defined in axiom_pkg.c) */
 extern lv_THREAD_LOCAL StreamContext *axiom_stream_ctx;
-void axiom_package_set_stream_context(StreamContext *ctx);
+/* setter 公开 API 由 axiom_pkg.h 声明（axiom_set_stream_context），
+ * internal.h 不再重复声明（曾以第三种名字 axiom_package_set_stream_context
+ * 声明，与头文件/实现均脱节，C-㊴ 已统一） */
 
 
 #ifdef __cplusplus
