@@ -1883,6 +1883,8 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_proof_version_ext CTEST_NAME proof_version_ext_test)
     # 批次 C-㉟：反证法作用域（scope API）契约测试
     add_lv_test_auto(test_proof_scope CTEST_NAME proof_scope_test)
+    # 批次 C-㊱：增强证明引擎零覆盖 API 契约测试
+    add_lv_test_auto(test_proof_engine_enhanced CTEST_NAME proof_engine_enhanced_test)
     # v3.6.0 新增：上层统一接口（lv_upper_api.h）测试
     add_lv_test_auto(test_upper_api CTEST_NAME upper_api_test)
     # v3.4.0 新增：几何代数模块测试
