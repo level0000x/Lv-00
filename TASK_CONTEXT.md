@@ -3086,3 +3086,43 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - lv_utils 零覆盖已全部补测完毕（C-㉛ + C-㉜ 共 49 设施）。剩余头文件零覆盖（如 proof.h 引擎依赖设施、scope API 无实现）见前批遗留。
 - solve_under_assumptions 假设不消费（M5）：待专项修复。
+
+## 五十四、批次 C-㉝：solve_under_assumptions M5 缺陷修复（假设真正参与求解）（2026-08-19）
+
+用户「继续推进」。按 C-㉚/C-㉜ 遗留，修复 solver_core 的 M5 声称-实现脱节缺陷：`lv_solver_solve_under_assumptions` 此前仅记录假设不消费，假设对求解结果无影响、`assumption_failed` 恒 false。
+
+### ① 缺陷定性（M5 声称与实现脱节）
+
+- 声称：solver_core.h 文档承诺「在假设下求解」「假设失败标记」。
+- 实际：`cdcl_run` 从不读取 `assumption_lits`；`assumption_failed` 分配清零后永不被置位。
+- 影响：P0 正确性风险——调用方以为假设约束了求解，实际静默忽略，可能产出错误 SAT 判定。
+
+### ② 补齐实现（3 处改动）
+
+1. **假设注入**（cdcl_run）：`assumption_count > 0` 时，重置搜索状态（撤销既有 trail、层 0），将每个假设文字作为独立决策层赋值注入（决策层 1..k），记录 `ctx->assumption_levels = k`；注入前初始化 `trail_lim[0]`（cdcl_step_restart 读取，realloc 区域未清零）。变量已赋值且与假设相反 → 标记该假设失败并立即 UNSAT。
+2. **假设层保护**（cdcl_step_analyze）：回跳目标 `bt_level < assumption_levels` → 直接返回 UNSAT（冲突根源在假设层，无法在保留假设下解决）；而非钳制回跳（会死循环）。
+3. **失败假设标记**（lv_solver_solve）：UNSAT 时，凡假设文字所在变量层级 ∈ [1, assumption_levels]（仍参与冲突）→ `assumption_failed[i] = true`。
+4. **CDCLContext 新增字段** `assumption_levels`（solver_core.h）。
+
+### ③ 测试（test_solver_core.c 重写假设契约）
+
+- 兼容假设 {1,2}（x1=x2 约束）→ SAT，无失败假设。
+- 矛盾假设 {1,-2}（违反 x1=x2）→ UNSAT，`failed_assumption(1)` 与 `failed_assumption(-2)` 均 true。
+- 单假设 {-1} → SAT（x2 可取假），未失败。
+- 无假设求解 → SAT；失败标记在下次 SAT 求解后清除；NULL 契约。
+- 修正测试原用错误约束 `(1∨2)∧(-1∨-2)`（恒真式）→ 真等值约束 `(-1∨2)∧(1∨-2)`。
+
+### 验证
+
+- ninja 全绿 + ctest **179/179**（build3 80.59s / build_verify 43.33s）。
+- test_solver_core 88/88（+6 断言）。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声称与实现脱节 / solver_core 假设求解 3 处补齐 + 1 字段 / 行为变化：矛盾假设由"静默 SAT"改为正确 UNSAT + 失败标记 / test_solver_assumptions 重写。
+- 假设层保护语义 / 契约钉住 / bt_level < assumption_levels → UNSAT / 对齐 MiniSat 假设求解语义。
+
+### 遗留登记
+
+- proof.h 4 个 scope API 无实现（M5）：待「反证法作用域」语义设计。
+- proof.h 引擎依赖设施（guided_fill/sledgehammer/refinement/export_isar）：待专项批次。
