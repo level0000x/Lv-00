@@ -146,6 +146,12 @@ typedef struct {
     CDCLState state;    /**< 当前 CDCL 状态 */
     int decision_level; /**< 当前决策层级 */
 
+    /* 假设求解（C-㉝ 新增）：
+     * assumption_levels 记录本次求解注入的假设层数（决策层 1..k 为假设层）。
+     * 冲突分析回跳目标钳制在假设层之上（不得撤销假设），保证假设真正约束搜索；
+     * 0 = 无假设。 */
+    int assumption_levels; /**< 假设层数（0 = 无假设） */
+
     /* 统计 */
     int64_t conflicts;        /**< 冲突计数 */
     int64_t decisions;        /**< 决策计数 */

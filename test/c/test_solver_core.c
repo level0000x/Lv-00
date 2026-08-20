@@ -203,26 +203,44 @@ static void test_solver_assumptions(void) {
     lv_solver_new_var(s); /* 变量 1 */
     lv_solver_new_var(s); /* 变量 2 */
 
-    /* 约束：x1 = x2（(1 ∨ 2) 与 (-1 ∨ -2)） */
-    lvSolverLit c1[] = {1, 2};
-    lvSolverLit c2[] = {-1, -2};
+    /* 约束：x1 = x2（(-1 ∨ 2) 与 (1 ∨ -2)） */
+    lvSolverLit c1[] = {-1, 2};
+    lvSolverLit c2[] = {1, -2};
     lv_solver_add_constraint(s, c1, 2);
     lv_solver_add_constraint(s, c2, 2);
 
-    /* 实现契约（M5 缺陷登记）：lv_solver_solve_under_assumptions 仅记录假设，
-     * 不参与求解（cdcl_run 不消费 assumption_lits），故假设不影响求解结果；
-     * assumption_failed 恒为 false。此处钉住记录语义与失败查询契约。 */
-    lvSolverLit assum[] = {1, -2};
-    lvSolverResult r = lv_solver_solve_under_assumptions(s, assum, 2);
-    TEST_ASSERT_MSG(r == lv_SOLVER_SAT, "假设仅记录，求解结果不受假设影响（当前实现）");
-    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, 1), "假设失败标记恒 false（当前实现）");
-    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, -2), "假设失败标记恒 false（当前实现）");
+    /* 修复后契约（C-㉝）：假设作为决策层赋值注入，真正约束求解；
+     * 假设与公式冲突 → UNSAT 且 assumption_failed 标记。 */
+
+    /* 兼容假设：x1=真, x2=真 → SAT，无失败假设 */
+    lvSolverLit assum_ok[] = {1, 2};
+    lvSolverResult r = lv_solver_solve_under_assumptions(s, assum_ok, 2);
+    TEST_ASSERT_MSG(r == lv_SOLVER_SAT, "兼容假设 SAT");
+    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, 1), "兼容假设 1 未失败");
+    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, 2), "兼容假设 2 未失败");
+
+    /* 矛盾假设：x1=真, x2=假 → 违反 x1=x2 → UNSAT，标记失败 */
+    lvSolverLit assum_bad[] = {1, -2};
+    r = lv_solver_solve_under_assumptions(s, assum_bad, 2);
+    TEST_ASSERT_MSG(r == lv_SOLVER_UNSAT, "矛盾假设 UNSAT");
+    TEST_ASSERT_MSG(lv_solver_failed_assumption(s, 1), "矛盾假设 1 失败");
+    TEST_ASSERT_MSG(lv_solver_failed_assumption(s, -2), "矛盾假设 -2 失败");
+
+    /* 单变量矛盾：假设 x1=假，但约束强制 x1=x2 且可满足时单独检验 */
+    lvSolverLit assum_one[] = {-1};
+    r = lv_solver_solve_under_assumptions(s, assum_one, 1);
+    TEST_ASSERT_MSG(r == lv_SOLVER_SAT, "单假设 x1=假 可满足（x2=假）");
+    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, -1), "单假设未失败");
 
     /* 无假设求解 */
     TEST_ASSERT_MSG(lv_solver_solve_under_assumptions(s, NULL, 0) == lv_SOLVER_SAT, "无假设 SAT");
 
+    /* 假设失败标记在下次求解后重置（仅反映最近一次求解） */
+    lv_solver_solve_under_assumptions(s, assum_ok, 2);
+    TEST_ASSERT_MSG(!lv_solver_failed_assumption(s, 1), "SAT 后假设失败标记清除");
+
     /* NULL 安全 */
-    TEST_ASSERT_MSG(lv_solver_solve_under_assumptions(NULL, assum, 1) == lv_SOLVER_UNKNOWN, "NULL UNKNOWN");
+    TEST_ASSERT_MSG(lv_solver_solve_under_assumptions(NULL, assum_ok, 1) == lv_SOLVER_UNKNOWN, "NULL UNKNOWN");
     TEST_ASSERT_MSG(!lv_solver_failed_assumption(NULL, 1), "NULL 不失败");
 
     lv_solver_destroy(s);

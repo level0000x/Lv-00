@@ -820,6 +820,16 @@ static CDCLState cdcl_step_analyze(CDCLContext *ctx) {
     }
     ctx->conflict_size = write;
 
+    /* 假设层保护（C-㉝）：若冲突分析需要回跳到假设层之下
+     * （bt_level < assumption_levels），说明冲突根源在假设层
+     * （假设与公式/假设间矛盾），无法在保留假设下解决 → UNSAT。
+     * 失败假设由 lv_solver_solve 按最终赋值标记。 */
+    if (bt_level < ctx->assumption_levels) {
+        lv_free((void **) &seen);
+        lv_free((void **) &resolving);
+        return CDCL_UNSAT;
+    }
+
     ctx->backtrack_level = bt_level;
 
     lv_free((void **) &seen);
@@ -1104,6 +1114,65 @@ static CDCLState cdcl_run(lvSolver *solver) {
     /* 确保 var_count 同步 */
     ctx->var_count = solver->var_count;
 
+    /* 假设求解：将假设文字作为决策层赋值注入（决策层 1..k）
+     * 修复 M5 声称与实现脱节：此前 assumption_lits 仅记录不消费，
+     * 假设对求解结果无影响。现注入为 trail 决策赋值，由传播/冲突
+     * 机制自然约束搜索；UNSAT 时由 lv_solver_solve 按最终赋值标记
+     * 失败假设。 */
+    if (solver->assumption_count > 0 && solver->assumption_lits) {
+        /* 重置搜索状态：撤销全部既有赋值，从干净状态注入假设 */
+        cdcl_undo_trail(ctx, 0);
+        ctx->decision_level = 0;
+        ctx->state = CDCL_PROPAGATING;
+        ctx->assumption_levels = 0; /* 注入完成前清零 */
+
+        /* 初始化决策层 0 的 trail 起始位置（cdcl_step_restart 读取
+         * trail_lim[0]，realloc 新区域未清零，必须显式写入） */
+        if (ctx->trail_lim_capacity < 1) {
+            if (!lv_ensure_capacity((void **) &ctx->trail_lim, 0, &ctx->trail_lim_capacity, sizeof(int), 1)) {
+                return CDCL_IDLE;
+            }
+        }
+        ctx->trail_lim[0] = 0;
+
+        for (int i = 0; i < solver->assumption_count; i++) {
+            int lit = solver->assumption_lits[i];
+            int var = (lit < 0) ? -lit : lit;
+            if (var < 1 || var > ctx->var_count)
+                continue; /* 越界变量忽略 */
+
+            /* 变量已赋值（层0单元传播或前序假设）：
+             * 若与假设相反 → 该假设失败，直接 UNSAT（lit 与既有赋值矛盾）。
+             * 若与假设一致 → 假设已满足，无需注入新层。 */
+            if (ctx->assigns[var] != 0) {
+                if (ctx->assigns[var] != lit) {
+                    /* 假设与已传播赋值矛盾：标记失败并 UNSAT */
+                    if (solver->assumption_failed && i < solver->assumption_failed_cap)
+                        solver->assumption_failed[i] = true;
+                    ctx->assumption_levels = ctx->decision_level;
+                    return CDCL_UNSAT;
+                }
+                continue; /* 假设已满足 */
+            }
+
+            /* 进入新决策层并赋值假设文字 */
+            ctx->decision_level++;
+            int needed = ctx->decision_level + 1;
+            if (!lv_ensure_capacity((void **) &ctx->trail_lim, needed - 1,
+                                    &ctx->trail_lim_capacity, sizeof(int), 1)) {
+                ctx->decision_level--;
+                return CDCL_IDLE; /* 内存不足，按未求解处理 */
+            }
+            ctx->trail_lim[ctx->decision_level] = ctx->trail.count;
+            cdcl_assign(ctx, lit, -1); /* -1 = 决策赋值 */
+            ctx->decisions++;
+        }
+        /* 记录假设层数（决策层 1..assumption_levels 为假设层） */
+        ctx->assumption_levels = ctx->decision_level;
+    } else {
+        ctx->assumption_levels = 0;
+    }
+
     /* 初始状态 */
     if (ctx->state == CDCL_IDLE) {
         ctx->state = CDCL_PROPAGATING;
@@ -1155,6 +1224,21 @@ lvSolverResult lv_solver_solve(lvSolver *solver) {
         for (int v = 1; v <= solver->var_count && v <= ctx->var_count; v++) {
             if (v <= solver->var_capacity) {
                 solver->values[v - 1] = ctx->assigns[v];
+            }
+        }
+    }
+
+    /* UNSAT 时标记失败假设：冲突根源在假设层（bt_level < assumption_levels）
+     * 或假设与公式矛盾。判定：假设文字仍在假设层（levels ∈ [1, assumption_levels]）
+     * 即参与了冲突 → 失败。修复 M5：此前 assumption_failed 恒 false。 */
+    if (final_state == CDCL_UNSAT && solver->assumption_count > 0 && solver->assumption_failed) {
+        CDCLContext *ctx = &solver->cdcl;
+        for (int i = 0; i < solver->assumption_count; i++) {
+            int lit = solver->assumption_lits[i];
+            int var = (lit < 0) ? -lit : lit;
+            if (var >= 1 && var <= ctx->var_count && ctx->levels[var] >= 1 &&
+                ctx->levels[var] <= ctx->assumption_levels) {
+                solver->assumption_failed[i] = true;
             }
         }
     }
