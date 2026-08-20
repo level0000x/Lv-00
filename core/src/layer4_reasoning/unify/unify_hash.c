@@ -34,6 +34,11 @@
 
 UnifyStatus unify_construction_with_proposition_hash_filtered(const ConstraintGraph *construction,
                                                               const ConstraintGraph *proposition) {
+    /* 修复（C-㊶ 测试暴露）：NULL 入参直接 graph_normalize 解引用崩溃；
+     * 与 detailed 版本对齐返回 UNIFY_STATUS_FAILED */
+    if (!construction || !proposition)
+        return UNIFY_STATUS_FAILED;
+
     /* 合一前执行图规范化遍（设计文档 3.8 节） */
     if (construction) {
         geo_normalize((ConstraintGraph *) construction, true);

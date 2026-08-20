@@ -88,6 +88,22 @@ void unify_clear_equivalences(void) {
     lv_tls_vector_clear(&g_equivalences);
 }
 
+/* unify_equivalence_storage_init —— 公开 API（批次 C-㊶ 补齐）
+ * 头文件契约：可重复调用，后续调用会重置存储状态（线程安全）。
+ * 原实现缺失（M5：头文件声明但无定义，全库零引用故链接未暴露）。
+ * 等价声明存储为 TLS lvTlsVector（惰性分配），无需显式分配；
+ * init 语义即重置存储状态 = 清空全部等价声明（保留 vector 容量）。 */
+void unify_equivalence_storage_init(void) {
+    unify_clear_equivalences();
+}
+
+/* unify_equivalence_count —— 公开 API（批次 C-㊶ 补齐）
+ * 头文件契约：返回当前线程存储中的等价声明数量。
+ * 原实现缺失（M5，同 init），语义为返回 TLS 存储的 count。 */
+int unify_equivalence_count(void) {
+    return g_equivalences.count;
+}
+
 void lv_unify_equivalence_storage_cleanup(void) {
     unify_clear_equivalences();
     lv_tls_vector_cleanup(&g_equivalences);

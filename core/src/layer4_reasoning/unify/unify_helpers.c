@@ -186,6 +186,35 @@ int nodes_coords_equal(GeomNode *a, GeomNode *b) {
     return 0;
 }
 
+/* ---------------------------------------------------------------------------
+ * unify_coords_equal —— 公开 API（批次 C-㊶ 补齐）
+ *
+ * 头文件契约（unify.h）：
+ *   1. NULL 检查：任一节点为 NULL 则判定为不相等
+ *   2. 坐标数量一致性：coord_count 不同则不可能相等
+ *   3. 数组指针检查：若 coord_count > 0 但 symbolic_coords 为 NULL，
+ *      判定为不相等
+ *   4. 逐坐标比较：对每个坐标槽位调用 symbolic_coord_compare
+ * 不关心节点的几何类型，仅检查 symbolic_coords 数组的内容一致性。
+ * 原实现缺失（M5：头文件声明但无定义，全库零引用故链接未暴露），
+ * 测试批次 C-㊶ 按注释契约补齐。
+ * ------------------------------------------------------------------------- */
+int unify_coords_equal(const GeomNode *a, const GeomNode *b) {
+    if (!a || !b)
+        return 0;
+    if (a->coord_count != b->coord_count)
+        return 0;
+    if (a->coord_count > 0 && (!a->symbolic_coords || !b->symbolic_coords))
+        return 0;
+    for (int c = 0; c < a->coord_count; c++) {
+        if (!a->symbolic_coords[c] || !b->symbolic_coords[c])
+            return 0;
+        if (symbolic_coord_compare(a->symbolic_coords[c], b->symbolic_coords[c]) != 0)
+            return 0;
+    }
+    return 1;
+}
+
 /* --- 节点坐标哈希：函数指针表 --- */
 static uint64_t coord_hash_point_port(GeomNode *node) {
     uint64_t h = 0;
