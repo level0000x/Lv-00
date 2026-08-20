@@ -3378,3 +3378,80 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
 - 继续零覆盖扫描顺序：type_system.h 27 / axiom_pkg.h 21 / interop.h 21 /
   constraint_graph.h 20 / unify.h 16 / engine.h 16 / module.h 16 /
   formula_parser.h 12。
+
+## 五十九、批次 C-㊳：类型系统（type_system.h）零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选最大缺口 type_system.h（原登记 27 零覆盖），
+实测 ctest 口径（test/c/ 无调用）为 34 个零覆盖 API，本批覆盖其中 25+ 个。
+
+### ① 甄别
+
+- 既有 test_type_system.c 已覆盖 30 个 API（工厂族/等价/依赖/层级/推断等）。
+- 剩余 34 个零覆盖 API 全部为真实实现（无桩），按族分组甄别：
+  深拷贝族 4（deep_copy/deep_free/foreach_child/region_destroy）、
+  谓词子类型族 3、端口/推断族 4（check_port_compatibility/infer_port/
+  substitute_variable/normalize）、推断规则表 4（register/get/clear/
+  infer_by_rules）、重写路径族 6（create/destroy/record/replay/
+  get_rewrite_path/set_stream_context）、路径探索器 11（path_explorer_*）、
+  type_print 1。
+
+### ② 新增测试
+
+- **新建 `test/c/test_type_system_ext.c`**（CTEST type_system_ext_test）：
+  152 断言，7 个测试函数：
+  - test_region_deep_copy_api：deep_copy（NULL/简单类型/复合函数递归复制/
+    别名复制）、deep_free(NULL)、foreach_child（NULL 契约/9 字段回调计数/
+    函数类型 2 个非 NULL 子节点）、region_destroy(NULL)。
+  - test_predicate_subtype_api：create（NULL ts/base/name → NULL/正常创建
+    kind/base/predicate_name/expr/level/constraint_id=-1）、get_base（NULL/
+    非谓词/谓词）、check_predicate_subtype_value（NULL 契约/未附加 false/
+    附加基类型 true）。
+  - test_port_infer_api：check_port_compatibility（NULL → ERROR/同类型 OK/
+    不同类型 MISMATCH）、infer_port（NULL 契约/无端口节点 false/无连接端口
+    → VARIABLE）、substitute_variable（NULL 契约/匹配变量引用替换/不匹配
+    原样返回/函数类型递归替换 input）、normalize（NULL 契约/简单类型恒等/
+    别名展开 → 被别名类型）。
+  - test_inference_rules_api：register（NULL → -1/正常 → 0）、get（NULL →
+    NULL+count=0/默认 5 规则）、clear（NULL 安全/count 归零且数组保留）、
+    infer_by_rules（NULL 契约/节点不存在/点节点 + 规则 → OK 且附加 POINT）。
+  - test_rewrite_path_api：create/destroy(NULL)、record(NULL) 安全、空路径
+    回放失败、连续 3 步链回放成功/部分成功/越界失败、断链回放失败、
+    get_rewrite_path（NULL → NULL/正常非 NULL）、set_stream_context(NULL)。
+  - test_path_explorer_api：11 个 API 全家族——create（NULL 契约/正常）、
+    destroy(NULL)、get_current/get_step_count/get_steps 初值与 NULL、get_
+    applicable_rules（NULL 契约/无规则 NO_RULES/同类型 GOAL_REACHED）、
+    preview_rule（NULL/越界/无规则 INVALID_RULE）、apply_rule（NULL/越界/
+    无规则 INVALID_RULE）、undo（NULL/空 UNDO_EMPTY）、check_goal（NULL/
+    不同类型 false/同类型 true）、save_path（NULL 契约/空探索导出空路径）。
+  - test_type_print_api：type_print(NULL) 安全/简单与复合类型打印不崩溃。
+
+### ③ 测试暴露的契约要点（2 处，非缺陷，测试侧适配）
+
+1. **type_attach_to_node 要求 node_id > 0**（实现约束，头注释「节点 ID
+   （必须 > 0）」）：add_point 第一个节点 id 为 0，infer_by_rules 正路径
+   改用第二个节点（id=1）验证。
+2. **get_inference_rules 在 clear 后 count==0 但数组保留**（指针非 NULL）：
+   契约是「count 归零、容量保留」，测试只断言 count，不断言 NULL。
+
+### ④ 验证
+
+- ninja 全绿 + ctest **183/183**（build3 163.85s / build_verify 70.64s，
+  新增 type_system_ext_test）。
+- test_type_system_ext 152/152。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / type_system.h 25+ 零覆盖 API 全部接入契约测试 /
+  无实现缺陷暴露（实现契约与头注释一致，2 处为测试侧适配）/
+  test_type_system_ext 152 + 全量 183/183。
+- 契约钉住 / 深拷贝产物须 deep_free 配对、normalize 可能返回原类型指针、
+  substitute 匹配变量为引用语义、attach 要求 node_id>0 / 与实现注释一致。
+
+### 遗留登记
+
+- type_system.h 剩余未覆盖：PathExplorer apply_rule/preview_rule 正路径
+  （需向 TypeSystem 注入 rewrite_rules——type_system.h 无公开添加重写规则
+  API，需 rewrite.h 的 RewritePattern 构造设施，列入引擎集成专项）、
+  type_infer_port 连接端口正路径（需 graph_add_connection 场景）。
+- 继续零覆盖扫描顺序：axiom_pkg.h 21 / interop.h 21 / constraint_graph.h 20 /
+  unify.h 16 / engine.h 16 / module.h 16 / formula_parser.h 12。
