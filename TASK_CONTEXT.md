@@ -3824,3 +3824,80 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
   incomplete-implementation 专项。
 - 继续零覆盖扫描顺序：formula_parser.h 12；
   interop.h 16 与 solver.h 17 维持专项暂缓。
+
+## 六十五、批次 C-㊸：公式解析器（formula_parser.h）17 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 formula_parser.h（原登记 12，实测
+公共 API ctest 口径为 17 个零覆盖；内部解析辅助 formula_peek/consume 等
+为子模块共享设施，不属公共契约面）。
+
+### ① 甄别
+
+- 17 个零覆盖公共 API 全部为真实实现，按族分组：解析族 2（formula_detect_
+  syntax/formula_parser_get_last_error）、生命周期族 3（formula_node_ref/
+  refcount/copy）、构建族 12（create_identifier/_equation/_coord_list/
+  _geom_point/_geom_segment/_geom_circle/_geom_triangle/_geom_polygon/
+  _geom_region/_geom_arc/_constraint/_compound/formula_compound_add_statement）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_formula_ext.c`**（CTEST formula_ext_test）：106 断言，
+  6 个测试函数：
+  - test_syntax_detect_api：detect（NULL/空 → unknown、LaTeX 命令 → latex、
+    DSL 关键字 → dsl、Python 特征 → python、默认 dsl）、parse（NULL 契约/
+    非法输入 → NULL/合法 DSL 点声明 → 非 NULL）、get_last_error（错误后
+    非空）。
+  - test_node_ref_api：ref/refcount NULL → 0、create 后 1、ref 递增、
+    destroy 递减归零释放。
+  - test_node_copy_api：copy(NULL) → NULL、数值/变量拷贝（值+name 一致、
+    指针不同）、二元运算递归拷贝（子节点独立）+ 引用计数语义。
+  - test_create_primitive_api：number（denominator=0 → NULL/numerator/
+    denominator/is_integer）、identifier（NULL name → NULL/name 复制）。
+  - test_create_geom_api：name NULL → NULL（7 个几何构造器）、coord_list
+    （数组复制 + ref）、点/线段/圆/三角形/多边形/区域/弧各类型字段正确。
+  - test_create_expr_api：equation（lhs/rhs 引用）、constraint（参与者
+    数组）、compound（数组复制/容量）+ add_statement（NULL 契约/非
+    compound -1/追加扩容 + ref）。
+
+### ③ 测试暴露并修复的真实缺陷（1 处，M4 引用计数不对称，10 个子点）
+
+- **formula AST 容器构造器缺子节点 ref（双释放堆损坏）**：destroy 宏
+  （LV_DF_C 标量/LV_DF_A 数组）统一对子节点 formula_node_destroy（unref），
+  但 create_geom_point/segment/circle/triangle/arc（标量子节点）、
+  create_geom_polygon/region/constraint/compound（数组元素）、
+  formula_compound_add_statement（追加语句）复制引用时均不 ref——引用
+  计数不对称：destroy 父时子节点引用被提前归还（调用者持有引用提前归零
+  释放），调用者随后 destroy 子节点双释放（gdb 定位 SIGSEGV）。
+  修复：10 处 create/追加补 formula_node_ref（与 coord_list/binary_op/
+  equation 既有对称模式一致；NULL 安全）。
+
+### ④ 测试侧契约适配（2 处）
+
+- formula_parser.h 未被 lv.h 聚合导出：测试显式 include
+  "lv/formula_parser.h"（聚合面缺口登记）。
+- compound 销毁顺序：create_compound 数组复制不 ref 时调用者须先父后子
+  销毁（修复后已对称，测试仍按先父后子以验证双释放不再发生）。
+
+### 验证
+
+- ninja 全绿 + ctest **189/189**（build3 143.89s / build_verify 13.93s，
+  新增 formula_ext_test；stream_extended 并行抖动单跑复绿，非回归）。
+- test_formula_ext 106/106。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M4 引用计数不对称 / formula AST 容器 10 处补 ref /
+  测试 gdb 定位双释放、test_formula_ext 106 + 全量 189/189。
+- 测试补全 / 覆盖 / formula_parser.h 17 零覆盖公共 API 接入契约测试 /
+  test_formula_ext 106 + 全量 189/189。
+- 契约钉住 / create-ref 与 destroy-unref 对称为 AST 引用计数权威语义 /
+  数组与标量子节点统一。
+
+### 遗留登记
+
+- formula_parser.h 内部解析辅助（formula_peek/consume/expect_char 等
+  15 个）为解析器子模块共享设施，非公共契约面，不纳入零覆盖测试。
+- **零覆盖扫描队列清零**（type_system/axiom_pkg/constraint_graph/unify/
+  engine/module/formula_parser 全部批次完成）。剩余专项：interop.h 16
+  （socket 基建）与 solver.h 17（GMP 基建）、module_export_* M5 裁决、
+  engine 模块/公理包文件加载正路径样本。
