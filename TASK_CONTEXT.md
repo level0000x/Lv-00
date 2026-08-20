@@ -4048,3 +4048,47 @@ package 正路径——无需手工样本：测试内用 module_save / axiom_pac
 
 - 剩余专项：interop.h 16（socket 基建）、solver GMP/代数族 2 个
   （compute_algebraic_resultant / solver_handle_multiple_solutions）。
+
+## 六十九、批次 C-㊹续3：求解器 GMP 族（compute_algebraic_resultant）契约测试（2026-08-20）
+
+用户「继续推进」。执行 solver GMP 专项之一：compute_algebraic_resultant
+（mpz_poly_t 构造设施 mpz_poly.h 完整可用，含 init/clear/set/get_str/
+add/sub/mul/div/equal 等 inline API）。
+
+### ① 新增测试（test_solver_ext.c 追加 test_resultant_api，+9 断言）
+
+- 构造辅助 make_mpz_poly（degree + 系数数组 → mpz_poly_t）。
+- NULL 契约：compute_algebraic_resultant(NULL, NULL, op, NULL) → false。
+- 空多项式（degree=-1）→ false。
+- 线性 SUM 结式（x+1 与 x-1）→ true + result.degree >= 0 + coeffs 非 NULL
+  + 系数可读（mpz_get_str）。
+- 线性 PRODUCT 结式 → true。
+- 高次（degree 5 > MPZ_RES_INPUT_DEGREE_MAX=4）→ false。
+- 清理：全部 mpz_poly_clear。
+
+### ② 独立观察缺陷登记（不修，另行批次）
+
+- **mpz_poly_get_str 对非负 degree 多项式返回 NULL**：gdb 断 lv_str_join
+  未命中 + 反汇编确认走 NULL 返回路径（degree>=0 时）；手动复现其逻辑
+  （coeff_strs + lv_str_join）正常返回——疑似优化/链接下的 inline 副本
+  行为或序列化路径缺陷。本测试改用 mpz_get_str 直接读系数，不依赖
+  序列化；缺陷登记待专项。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **190/190**（build3 245.61s / build_verify 121.53s）。
+- test_solver_ext 51/51（含 result 9 断言）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / compute_algebraic_resultant 契约（NULL/空/线性
+  SUM+PRODUCT/高次越界）/ test_solver_ext 51 + 全量 190/190。
+- 观察登记 / mpz_poly_get_str 序列化 NULL 行为 / 独立缺陷待专项 /
+  测试不依赖序列化路径。
+
+### 遗留登记
+
+- solver_handle_multiple_solutions（需二次方程系统 + 分支笛卡尔积场景）
+  仍列 GMP/代数专项。
+- mpz_poly_get_str 序列化缺陷登记待专项。
+- 剩余专项：interop.h 16（socket 基建）。
