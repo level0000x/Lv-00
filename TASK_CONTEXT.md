@@ -3297,3 +3297,84 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 - 全局扫描其余头文件：type_system.h 27 / axiom_pkg.h 21 / interop.h 21 /
   constraint_graph.h 20 / solver.h 17 / unify.h 16 / engine.h 16 / module.h 16 /
   normalization.h 15 / formula_parser.h 12 零覆盖，可继续按本批方法论逐头甄别。
+
+## 五十八、批次 C-㊲：归一化（normalization.h）15 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。延续零覆盖契约测试方法论，选 normalization.h（15 零覆盖）
+为本批目标；solver.h 17（GMP 依赖族）显式暂缓（见遗留登记）。
+
+### ① 甄别
+
+- normalization.h 全部 API 均为真实实现（无桩/TODO），缺的是契约测试；
+  其中 15 个 API 零调用覆盖：merge 回调族（set/get_merge_callback）、
+  NormalizationLog 族（create/destroy/record）、RewriteHistory 族
+  （create/destroy/add/check_cycle）、graph_topological_sort_stable、
+  normalization_verify_idempotency、merge 运算族（merge_line_segments/
+  merge_regions/find_merge_candidates/merge_candidates_destroy/apply_merges）、
+  normalization_set_stream_context。
+
+### ② 新增测试（test/c/test_normalization.c，+184 行）
+
+- 既有文件为旧式私有计数（int failures），补 `g_pass_count`/`g_fail_count`
+  全局并接入 TEST_MAIN_RUN 框架；新增 6 个契约测试函数（约 40 断言），
+  登记于 main 块「=== C-㊲: 零覆盖设施 ===」之后：
+  - **test_merge_callback_api**：set/get_merge_callback 存取往返、回调可调用
+    且 user_data 生效、NULL 复位。
+  - **test_norm_log_api**：create/record/destroy、条目内容（深度/步号/是否
+    合并）、NULL 契约（record(NULL,…) 安全、destroy(NULL) 安全）、批量记录。
+  - **test_rewrite_history_api**：create/destroy、空历史无循环、重复图检测
+    到循环、修改后无循环、NULL history/graph 契约（check_cycle(NULL,…) 返回
+    false、add(NULL,…) 安全）。
+  - **test_topological_idempotency_api**：graph_topological_sort_stable(NULL)
+    安全、空图/简单图幂等（normalization_verify_idempotency 通过）。
+  - **test_merge_ops_api**：merge_line_segments/merge_regions(NULL, NULL)→-1、
+    find_merge_candidates(NULL, &n)→NULL 且 n=0、merge_candidates_destroy(NULL,0)
+    安全、log=NULL 降级、正路径（find → merge → destroy 全流程 + 合并计数）。
+  - **test_stream_ctx_api**：normalization_set_stream_context(NULL) 禁用
+    流式输出安全往返。
+
+### ③ 测试暴露并修复的真实缺陷（7 处，全部为 NULL 契约缺失）
+
+normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 静默降级
+的对立面——无契约防护），逐一补 NULL 守卫：
+
+1. **merge_line_segments(NULL, …)** → 解引用 graph->node_count 崩溃；改
+   `if (!graph) return -1;`。
+2. **merge_regions(NULL, …)** → 同上；`return -1`。
+3. **find_merge_candidates(NULL, out_count)** → 解引用 graph->node_count 崩溃；
+   改 `if (!graph || !out_count)` 返回 NULL 且 out_count 置 0。
+4. **apply_merges(NULL, …)** → 解引用 graph->node_count 崩溃；`return -1`。
+5. **graph_topological_sort_stable(NULL)** → 解引用 graph->constraint_count
+   崩溃；`return`。
+6. **rewrite_history_check_cycle(NULL, …)** → 解引用 history->history 崩溃；
+   改 `if (!history || !graph) return false;`。
+7. **rewrite_history_add(NULL, …)** → 同上；`return`。
+
+### ④ 契约差异登记
+
+- 无返回值的 void API（graph_topological_sort_stable/rewrite_history_add/
+  set_stream_context(NULL)）对 NULL 采用静默 no-op；有返回值的 API 返回
+  哨兵（-1 / false / NULL）并保持 out 参数归零——NULL 入参不再构成崩溃面，
+  与既有 normalize 主流程（normalization_result 等）NULL 契约一致。
+
+### 验证
+
+- ninja 全绿 + ctest **182/182**（build3 77.02s / build_verify 40.21s；
+  test_normalization 为既有目标，无新增 ctest）。
+- test_normalization 6 新函数全 PASS（含既有 326 断言回归）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / normalization.h 15 零覆盖 API 全部接入契约测试 /
+  7 处 NULL 守卫修复 / test_normalization +184 行 + 全量 182/182。
+- NULL 契约统一 / 契约钉住 / 归一化族 NULL 入参一律哨兵/no-op、out 参数
+  归零 / 与 normalization_result 既有 NULL 契约一致。
+
+### 遗留登记
+
+- **solver.h 17 零覆盖显式暂缓**：equation_system 族 / solver_feedback 族 /
+  algebraic/GMP 依赖族需构造 GMP 数域与反馈回调场景，测试基建成本高，
+  列入后续专项（与 C-㊱ 引擎集成专项同批评估）。
+- 继续零覆盖扫描顺序：type_system.h 27 / axiom_pkg.h 21 / interop.h 21 /
+  constraint_graph.h 20 / unify.h 16 / engine.h 16 / module.h 16 /
+  formula_parser.h 12。
