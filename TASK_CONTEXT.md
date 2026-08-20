@@ -3049,3 +3049,40 @@ C-⑭ 遗留项闭环：`lv_VERSION_STRING` 三处定义不一致（include 顺�
 
 - config_load/config_save/lv_ini_parse/lv_memory_check_poison 等文件/内部状态设施：待专项批次。
 - lv_auto_free/lv_free_external/lv_free_many/lv_free_ptr_array 批量释放族：可在内存治理批次统一补测。
+
+## 五十三、批次 C-㉜：lv_utils 文件 IO + 批量释放族 + 内存检查契约测试（2026-08-19）
+
+用户「继续推进」。按 C-㉛ 遗留建议，补测剩余 lv_utils 零覆盖设施。
+
+### ① 新增测试
+
+- **新建 `test/c/test_lv_utils_ext.c`**（CTEST lv_utils_ext_test）：72 断言，12 设施全覆盖：
+  - 配置持久化：config_save / config_load（NULL 契约、无文件失败、int/bool/double/string/数组类型无损往返、节头分组、double %.17g 无损、文件内容抽查）。
+  - INI 解析：lv_ini_parse（节/键值/注释/空行、回调中止、NULL path/visit 契约、不存在文件失败、值传 eq+1 原始内容契约）。
+  - 批量释放族：lv_free_many（NULL 终止链表、空链表安全）、lv_free_ptr_array（count 语义、数组指针置 NULL）、lv_auto_free（释放并置 NULL）、lv_free_external（系统 free 释放外部内存、NULL 安全）。
+  - 指针数组复制：lv_copy_ptr_array（NULL/count<=0 → NULL、指针值保留）。
+  - 内存检查：lv_memory_check_poison（清洁缓冲 true、NULL/0 安全）、lv_memory_limit_exceeded（默认无上限 false）。
+
+### ② 测试暴露并修复的真实缺陷
+
+1. **config_save/config_load 往返键名不对称（双重前缀）**（lv_utils_config.c）：save 在节头内仍输出完整 dotted 键（`geom.max_points = 1000`），load 的 config_ini_visit 对节内键再加节前缀 → 重载后键变为 `geom.geom.max_points`，get 找不到原键（M5 声称-实现脱节：save/load 往返契约被破坏）。修复：序列化函数增加显式 key 参数，config_save 节内输出去前缀键名（与 config_ini_visit 的节前缀重建对称）。零覆盖前往返路径从未被测试。
+
+### ③ 契约差异登记
+
+- lv_ini_parse 的 value 传 `eq+1` 原始内容（含前导空格，未 trim）——与 config_ini_visit 内部自行 trim 的消费方式一致，属契约而非缺陷。
+- lv_copy_ptr_array count<=0 返回 NULL。
+
+### 验证
+
+- ninja 全绿 + ctest **179/179**（build3 88.55s / build_verify 42.77s，新增 lv_utils_ext_test）。
+- test_lv_utils_ext 72/72。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_utils 文件 IO + 批量释放族 + 内存检查 12 设施 / 1 个缺陷修复（config save/load 往返键名双重前缀）/ test_lv_utils_ext 72 + 全量 179/179。
+- 2 项契约差异登记 / 契约钉住 / ini value 原始内容、copy_ptr_array count<=0 / 按实现现状测试。
+
+### 遗留登记
+
+- lv_utils 零覆盖已全部补测完毕（C-㉛ + C-㉜ 共 49 设施）。剩余头文件零覆盖（如 proof.h 引擎依赖设施、scope API 无实现）见前批遗留。
+- solve_under_assumptions 假设不消费（M5）：待专项修复。
