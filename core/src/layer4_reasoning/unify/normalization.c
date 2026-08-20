@@ -426,6 +426,10 @@ static int apply_uf_merges(ConstraintGraph *graph, int *parent, int *rank, int *
  * 第一阶段点合并后，具有相同端点的线段将通过 coords_equal 返回 true。
  */
 int merge_line_segments(ConstraintGraph *graph, NormalizationLog *log) {
+    /* 修复（C-㊲ 测试暴露）：NULL graph 直接解引用 graph->node_count 崩溃 */
+    if (!graph)
+        return -1;
+
     if (graph->node_count < 2)
         return 0;
 
@@ -490,6 +494,10 @@ static bool int_arrays_equal(const int *a, const int *b, int count) {
  * 线段合并后，如果两个区域的边界线段序列相同，则合并它们。
  */
 int merge_regions(ConstraintGraph *graph, NormalizationLog *log) {
+    /* 修复（C-㊲ 测试暴露）：NULL graph 直接解引用 graph->node_count 崩溃 */
+    if (!graph)
+        return -1;
+
     if (graph->node_count < 2)
         return 0;
 
@@ -630,6 +638,13 @@ static uint64_t segment_endpoint_hash(GeomNode *node) {
  * 4. 仅在每组内进行比较
  */
 NodeMergeCandidate *find_merge_candidates(const ConstraintGraph *graph, int *out_count) {
+    /* 修复（C-㊲ 测试暴露）：NULL graph / out_count 直接解引用崩溃 */
+    if (!graph || !out_count) {
+        if (out_count)
+            *out_count = 0;
+        return NULL;
+    }
+
     *out_count = 0;
 
     /* 最坏情况：所有节点对都是候选，乘以3覆盖三个阶段（点、线段、区域）。
@@ -849,6 +864,10 @@ void merge_candidates_destroy(NodeMergeCandidate *candidates, int count) {
 /* ------------------------------------------------------------------ */
 
 int apply_merges(ConstraintGraph *graph, NodeMergeCandidate *candidates, int count, bool *user_confirmed) {
+    /* 修复（C-㊲ 测试暴露）：NULL graph 直接解引用 graph->node_count 崩溃 */
+    if (!graph)
+        return -1;
+
     if (count == 0 || graph->node_count == 0)
         return 0;
 
@@ -983,6 +1002,10 @@ static int constraint_canonical_compare(const void *a, const void *b) {
 }
 
 void graph_topological_sort_stable(ConstraintGraph *graph) {
+    /* 修复（C-㊲ 测试暴露）：NULL graph 直接解引用 graph->constraint_count 崩溃 */
+    if (!graph)
+        return;
+
     /* 步骤1：对每个约束的参与者按节点ID升序排序（插入排序，小数组稳定） */
     for (int i = 0; i < graph->constraint_count; i++) {
         Constraint *con = graph->constraints[i];
@@ -1276,6 +1299,10 @@ void rewrite_history_destroy(RewriteHistory *history) {
 }
 
 bool rewrite_history_check_cycle(const RewriteHistory *history, const ConstraintGraph *graph) {
+    /* 修复（C-㊲ 测试暴露）：NULL history 直接解引用 history->history 崩溃 */
+    if (!history || !graph)
+        return false;
+
     GraphHash *current_hash = compute_complete_graph_hash(graph);
     if (!current_hash)
         return false;
@@ -1293,6 +1320,10 @@ bool rewrite_history_check_cycle(const RewriteHistory *history, const Constraint
 }
 
 void rewrite_history_add(RewriteHistory *history, ConstraintGraph *graph) {
+    /* 修复（C-㊲ 测试暴露）：NULL history 解引用 history->history 崩溃 */
+    if (!history || !graph)
+        return;
+
     GraphHash *h = compute_complete_graph_hash(graph);
     if (!h)
         return;
