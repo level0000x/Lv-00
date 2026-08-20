@@ -405,29 +405,30 @@ bool config_load(ConfigManager *mgr) {
  * 配置序列化（类型 -> 格式化函数 查找表，替代 switch 分派）
  * ============================================================ */
 
-/** @brief 配置项序列化函数签名（写出 key = value 一行） */
-typedef void (*ConfigSerializeFn)(FILE *f, const ConfigItem *item);
+/** @brief 配置项序列化函数签名（写出 key = value 一行；key 由调用方给出，
+ *  节内键由 config_save 去掉节前缀，保证 save→load 往返键名一致） */
+typedef void (*ConfigSerializeFn)(FILE *f, const char *key, const ConfigItem *item);
 
-static void config_serialize_int(FILE *f, const ConfigItem *item) {
-    fprintf(f, "%s = %d\n", item->key, item->value.int_val);
+static void config_serialize_int(FILE *f, const char *key, const ConfigItem *item) {
+    fprintf(f, "%s = %d\n", key, item->value.int_val);
 }
 
-static void config_serialize_bool(FILE *f, const ConfigItem *item) {
-    fprintf(f, "%s = %s\n", item->key, item->value.bool_val ? "true" : "false");
+static void config_serialize_bool(FILE *f, const char *key, const ConfigItem *item) {
+    fprintf(f, "%s = %s\n", key, item->value.bool_val ? "true" : "false");
 }
 
-static void config_serialize_double(FILE *f, const ConfigItem *item) {
+static void config_serialize_double(FILE *f, const char *key, const ConfigItem *item) {
     /* %.17g 保证 double 无损往返（如 1e-8 不会被 %.6f 截断成 0.000000） */
-    fprintf(f, "%s = %.17g\n", item->key, item->value.double_val);
+    fprintf(f, "%s = %.17g\n", key, item->value.double_val);
 }
 
-static void config_serialize_string(FILE *f, const ConfigItem *item) {
-    fprintf(f, "%s = %s\n", item->key, item->value.string_val);
+static void config_serialize_string(FILE *f, const char *key, const ConfigItem *item) {
+    fprintf(f, "%s = %s\n", key, item->value.string_val);
 }
 
-static void config_serialize_array(FILE *f, const ConfigItem *item) {
+static void config_serialize_array(FILE *f, const char *key, const ConfigItem *item) {
     /* 数组类型：逐元素序列化 */
-    fprintf(f, "%s = [", item->key);
+    fprintf(f, "%s = [", key);
     if (item->value.array_val && item->array_count > 0) {
         for (size_t ai = 0; ai < item->array_count; ai++) {
             if (ai > 0)
@@ -469,6 +470,7 @@ bool config_save(const ConfigManager *mgr) {
     ConfigItem *item = mgr->items;
     while (item) {
         /* 检测节前缀：如果键包含 '.'，提取节名并在变化时输出节头 */
+        const char *out_key = item->key; /* 默认输出完整键 */
         size_t section_len = 0;
         if (lv_str_prefix_len(item->key, '.', &section_len)) {
             char section[256];
@@ -480,6 +482,10 @@ bool config_save(const ConfigManager *mgr) {
                 fprintf(f, "\n[%s]\n", section);
                 lv_strlcpy(last_section, section, sizeof(last_section));
             }
+
+            /* 节内键输出去前缀名（"geom.max_points" → "max_points"），
+             * 与 config_ini_visit 的节前缀重建对称，保证 save→load 往返一致 */
+            out_key = item->key + section_len + 1;
         } else {
             /* 无节前缀的键：如果之前在某个节内，先输出空行退出节 */
             if (last_section[0] != '\0') {
@@ -490,7 +496,7 @@ bool config_save(const ConfigManager *mgr) {
 
         /* 按类型查表输出键值对；未知类型不输出（保持原 default 空分支语义） */
         if ((unsigned) item->type < lv_ARRAY_SIZE(kConfigSerializers) && kConfigSerializers[item->type]) {
-            kConfigSerializers[item->type](f, item);
+            kConfigSerializers[item->type](f, out_key, item);
         }
         item = item->next;
     }
