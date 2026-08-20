@@ -1771,6 +1771,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_complex_graph CTEST_NAME complex_graph_test)
     add_lv_test_auto(test_normalization CTEST_NAME normalization_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
+    add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试
     add_lv_test_auto(test_graph_hash CTEST_NAME graph_hash_test)
     add_lv_test_auto(test_constraint_compatibility CTEST_NAME constraint_compatibility_test)
