@@ -3537,3 +3537,74 @@ normalization.c 中 7 个公开函数对 NULL 入参直接解引用崩溃（M2 �
 - 继续零覆盖扫描顺序：interop.h 16（含 socket 服务器设施，需网络测试基建，
   与 solver.h GMP 族同批评估）/ constraint_graph.h 20 / unify.h 15 /
   engine.h 16 / module.h 16 / formula_parser.h 12。
+
+## 六十一、批次 C-㊵：约束图（constraint_graph.h）14 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按遗留登记顺序选 constraint_graph.h（实测 ctest 口径
+14 个零覆盖，核心几何设施；unify.h 15 顺延）。
+
+### ① 甄别
+
+- 14 个零覆盖 API 全部为真实实现，按族分组：约束族 4（graph_add_angle/
+  graph_remove_constraint/graph_deactivate_constraint/graph_detect_redundancy）、
+  索引族 6（graph_find_constraints_involving/graph_node_index_insert/
+  graph_constraint_index_insert/graph_index_rebuild/graph_mark_dirty/
+  graph_sync_nodes）、工具族 4（graph_find_app_sink_input/graph_set_error/
+  graph_set_stream_context/graph_export_dot_to_svg）。
+
+### ② 新增测试
+
+- **新建 `test/c/test_constraint_graph_ext.c`**（CTEST constraint_graph_ext_test）：
+  78 断言，7 个测试函数：
+  - test_angle_constraint_api：graph_add_angle（NULL/非线段参与者 →
+    ADD_CONSTRAINT_CONFLICT、正路径：两条线段 + 角度 → OK + 约束类型 ANGLE/
+    参与者/角度值/脏标记）。
+  - test_remove_deactivate_api：graph_remove_constraint（越界 NOT_FOUND/
+    正路径移除 → count 减、脏标记、graph_get_constraint 返回 NULL）、
+    graph_deactivate_constraint（NULL → INVALID_PARAM/未找到 NOT_FOUND/
+    正常 lv_OK + is_active=false/重复废弃 UNKNOWN）。
+  - test_involving_index_api：graph_find_constraints_involving（NULL/out NULL/
+    max<=0 → 0、正路径 incidence 涉及节点 → 1、不涉及 → 0、容量限制、
+    废弃后查询过滤为 0）。
+  - test_redundancy_api：graph_detect_redundancy（NULL/parts NULL/n<=0 → -1、
+    无该约束 → 0、相同参与者 → 1、不同参与者 → 0）。
+  - test_index_maintenance_api：mark_dirty（NULL 安全/置位）、sync_nodes
+    （NULL 安全/清脏/INCIDENCE 参与者 trust>GREEN → GREEN）、node_index_
+    insert/constraint_index_insert（重复插入后按 ID 查询仍一致）、
+    index_rebuild（NULL 安全/重建后节点与约束可查）。
+  - test_error_stream_sink_api：graph_set_error（NULL 安全/error_buffer
+    写入 + graph_get_error 读取）、graph_set_stream_context(NULL) 安全、
+    graph_find_app_sink_input（NULL/parent<0/无匹配 → -1、INPUT 端口
+    parent=42 命中、OUTPUT 同 parent 不命中、is_formal_param=true 不命中）。
+  - test_dot_svg_null_api：graph_export_dot_to_svg（NULL graph/output →
+    lv_ERROR_INVALID_PARAM；正路径依赖外部 graphviz 工具，仅测契约边界）。
+
+### ③ 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：14 个 API 契约与实现注释一致。
+
+### ④ 测试侧契约适配（1 处，沿用 C-㊴ 经验）
+
+- graph_add_line_segment / graph_add_port 返回 AddNodeResult 成功码
+  （ADD_NODE_OK=0）而非节点 id；节点 id 用 graph_get_last_added_node_id
+  获取。
+
+### 验证
+
+- ninja 全绿 + ctest **185/185**（build3 90.19s / build_verify 43.20s，
+  新增 constraint_graph_ext_test）。
+- test_constraint_graph_ext 78/78。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / constraint_graph.h 14 零覆盖 API 全部接入契约测试 /
+  无实现缺陷暴露 / test_constraint_graph_ext 78 + 全量 185/185。
+- 契约钉住 / 约束移除按下标、废弃按 id 且保留数据审计、冗余检测
+  1/0/-1 三态、反向索引惰性重建按 is_active 过滤 / 与实现注释一致。
+
+### 遗留登记
+
+- graph_export_dot_to_svg 正路径依赖外部 graphviz（system() 调用 layout
+  工具），测试基建需检测 dot 可用性，列入环境相关专项。
+- 继续零覆盖扫描顺序：unify.h 15 / engine.h 13 / module.h 14 /
+  formula_parser.h 12；interop.h 16 与 solver.h 17 维持专项暂缓。
