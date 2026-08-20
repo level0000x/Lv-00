@@ -467,3 +467,15 @@ SolverStatus solve_algebraic_system(ConstraintGraph *graph, const int *dirty_var
     solver_snapshot_free(&snapshot);
     return SOLVER_STATUS_OK;
 }
+
+/* ================================================================== */
+/*  PUBLIC API: solver_sparse_solve                                    */
+/* ================================================================== */
+
+SolverStatus solver_sparse_solve(ConstraintGraph *graph, GroebnerResult **out_result) {
+    /* 补齐（C-㊹续 测试暴露）：solver.h 声明但原实现缺失（M5，零消费者
+     * 故链接未暴露）——委托完整代数求解路径保证入口可用；
+     * 稀疏矩阵专用路径（sparse_linear_algebra.h 的 lv_sparse_*）留待
+     * 后续按需优化，当前行为与 solve_algebraic_system 语义等价。 */
+    return solve_algebraic_system(graph, NULL, 0, out_result);
+}

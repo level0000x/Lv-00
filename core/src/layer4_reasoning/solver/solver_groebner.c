@@ -427,6 +427,10 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
                 }
 
                 MVPolynomial remainder;
+                /* 修复（C-㊹续 测试暴露）：remainder 未初始化即传入
+                 * polynomial_reduce（内部 mv_poly_copy 先 clear dst）→
+                 * 解引用未初始化 GMP 句柄崩溃；须先 mv_poly_init */
+                mv_poly_init(&remainder, var_count);
                 polynomial_reduce(&s_poly, G, g_count, &remainder);
                 mv_poly_clear(&s_poly);
 
@@ -537,6 +541,9 @@ static SolverStatus buchberger_groebner(MVPolynomial **F, int f_count, MVPolynom
             }
 
             MVPolynomial remainder;
+            /* 修复（C-㊹续）：同上——remainder 须先 mv_poly_init 再传入
+             * polynomial_reduce（内部 mv_poly_copy clear dst） */
+            mv_poly_init(&remainder, var_count);
             polynomial_reduce(G[i], temp_G ? temp_G : NULL, temp_G ? (g_count - 1) : 0, &remainder);
 
             lv_free((void **) &temp_G);
