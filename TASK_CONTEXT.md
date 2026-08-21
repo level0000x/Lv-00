@@ -4495,3 +4495,49 @@ lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
 - 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 / lv_numeric.h 19 /
   runtime_monitor.h 19 / geometry_transform.h 17 / lv_storage.h 13 等；
   大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十八、批次 C-㊺续6：数值工具（lv_numeric.h）19 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 lv_numeric.h（19 个 ctest 零覆盖，纯数值
+函数 + inline 工具）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_lv_numeric_ext.c`**（CTEST lv_numeric_ext_test）：
+  55 断言，6 个测试函数：
+  - test_compare_api：is_zero/is_equal/is_positive/is_negative/
+    is_integer_double（epsilon 阈值语义：|x|<eps / x>eps）。
+  - test_range_api：is_in_range（闭区间四态）、clamp（三态）、
+    index_in_range（inline：0/bound-1/bound/负/bound<=0 恒 false）。
+  - test_convert_api：rad_to_deg（π→180°）、sign/sign_int（三态）、
+    mpq_set_d_checked（1.5/-0.25 → mpq_get_d 精确值）。
+  - test_poly_api：evaluate_quadratic/cubic（Horner 值验证：2x²+3x+1、
+    x³-2x²+4x-8）。
+  - test_fd_api：finite_difference（f(x)=x² 导数 ≈2x：中心/前向/默认
+    步长）、finite_difference_vec（2 分量）、fd_step_adaptive（eps*max(1,|x|)）、
+    fd_step_relative（eps*(|x|+1)）。
+  - test_lerp_api：lerp（t=0→a / t=1→b / 中点）。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：19 个 API 契约与头注释一致（epsilon 语义、
+  Horner 求值、自适应步长、有限差分近似）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **198/198**（build3 189.40s / build_verify 98.57s，
+  新增 lv_numeric_ext_test）。
+- test_lv_numeric_ext 55/55。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_numeric.h 19 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露 / test_lv_numeric_ext 55 + 全量 198/198。
+- 契约钉住 / epsilon 比较语义、闭区间范围、Horner 求值、自适应/相对
+  步长、中心/前向差分 / 与头注释一致。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 /
+  runtime_monitor.h 19 / geometry_transform.h 17 / lv_storage.h 13 等；
+  大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
