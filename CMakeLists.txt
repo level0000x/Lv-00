@@ -1774,6 +1774,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_formula_ext CTEST_NAME formula_ext_test)
     add_lv_test_auto(test_graph_traversal_ext CTEST_NAME graph_traversal_ext_test)
     add_lv_test_auto(test_json_ext CTEST_NAME json_ext_test)
+    add_lv_test_auto(test_three_valued_logic_ext CTEST_NAME three_valued_logic_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试
