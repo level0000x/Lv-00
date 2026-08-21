@@ -4346,3 +4346,58 @@ Kleene 强三值逻辑纯函数）。
   runtime_monitor.h 19 / geometry_transform.h 17 / lv_number.h 16 /
   lv_storage.h 13 等；大块头 algebraic_number.h 75 /
   geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十五、批次 C-㊺续3：不等式推理（inequality_reasoning.h）23 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 inequality_reasoning.h（23 个 ctest 零覆盖，
+纯符号计算 + GMP 有理数）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_inequality_ext.c`**（CTEST inequality_ext_test）：
+  45 断言，6 个测试函数：
+  - test_system_api：system_destroy(NULL) 安全、system_add（NULL 契约 +
+    x≥0 约束）、add_var_constraint（NULL + y>0 约束，mpq_t 值）。
+  - test_prove_api：proof_destroy(NULL)、prove（NULL 契约 + 1≤2 简单
+    不等式状态合法 + proof 状态一致）、prove_with_method（指定方法状态
+    合法 + proof 可释放）。
+  - test_sign_api：常量表达式 → UNKNOWN（符号判定仅经系统约束推断）、
+    x≥0 → NONNEGATIVE、y>0 → POSITIVE、is_positive/is_nonnegative
+    相应判定、NULL 契约。
+  - test_classic_api：am_gm（两数下/上界）、cauchy_schwarz（一维）、
+    rearrangement（两序列最小/最大和）、schur、jensen（NULL 权重）、
+    triangle（输出数量 ≤ max）。
+  - test_transform_api：transitive（a≤b≤c 链传递 → 结果）、merge（同向
+    合并 → 结果）。
+  - test_geometry_sos_api：triangle_area / weitzenbock / erdos_mordell
+    （输出可释放）、sos_decompose（NULL 契约 + 平方表达式分解 →
+    项数 ≥ 1）、sos_destroy(NULL) 安全。
+
+### ② 测试暴露的契约要点（2 处，非缺陷，测试侧适配）
+
+1. **lv_expr_sign 仅经系统约束推断变量符号**（`c->left == expr` 匹配），
+   对常量表达式返回 SIGN_UNKNOWN——正路径须先添加变量约束（x≥0 →
+   NONNEGATIVE、y>0 → POSITIVE）。
+2. **lv_ineq_prove_with_method 返回任意合法状态**（UNPROVED..UNKNOWN），
+   按枚举范围断言。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **195/195**（build3 72.63s / build_verify 74.44s，
+  新增 inequality_ext_test）。
+- test_inequality_ext 45/45。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / inequality_reasoning.h 23 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露（2 处测试侧契约适配）/
+  test_inequality_ext 45 + 全量 195/195。
+- 契约钉住 / 符号判定经约束推断、销毁族 NULL 安全、经典不等式构造
+  输出可释放 / 与实现一致。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / recursion.h 21 / axiom_rule_engine.h 20 /
+  lv_numeric.h 19 / runtime_monitor.h 19 / geometry_transform.h 17 /
+  lv_number.h 16 / lv_storage.h 13 等；大块头 algebraic_number.h 75 /
+  geo_halfedge_mesh.h 55 列入专项评估。
