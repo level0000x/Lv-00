@@ -1779,6 +1779,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_number_ext CTEST_NAME lv_number_ext_test)
     add_lv_test_auto(test_recursion_ext CTEST_NAME recursion_ext_test)
     add_lv_test_auto(test_lv_numeric_ext CTEST_NAME lv_numeric_ext_test)
+    add_lv_test_auto(test_runtime_monitor_ext CTEST_NAME runtime_monitor_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试

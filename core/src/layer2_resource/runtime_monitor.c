@@ -585,12 +585,21 @@ void lv_health_shutdown(void) {
 }
 
 void lv_health_set_memory_thresholds(double warning_mb, double critical_mb) {
+    /* 修复（C-㊺续7 测试暴露）：未初始化 mutex 直接锁定崩溃（M2），
+     * 惰性确保 health 子系统初始化（lv_health_init 幂等） */
+    if (!s_runtime_state.health.initialized) {
+        lv_health_init();
+    }
     LV_SCOPE_LOCK(&s_runtime_state.health.mutex);
     s_runtime_state.health.memory_warning_mb = warning_mb;
     s_runtime_state.health.memory_critical_mb = critical_mb;
 }
 
 void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent) {
+    /* 修复（C-㊺续7）：同上——未初始化 mutex 直接锁定崩溃 */
+    if (!s_runtime_state.health.initialized) {
+        lv_health_init();
+    }
     LV_SCOPE_LOCK(&s_runtime_state.health.mutex);
     s_runtime_state.health.cpu_warning_percent = warning_percent;
     s_runtime_state.health.cpu_critical_percent = critical_percent;
@@ -1199,4 +1208,42 @@ bool lv_event_trace_export_chrome(const char *path) {
 
     lv_json_buf_free(&buf);
     return true;
+}
+
+/* ============================================================
+ * lv_perf_get_all_timer_stats —— 补齐实现（批次 C-㊺续7）
+ *
+ * 头文件声明但原实现缺失（M5，零消费者故链接未暴露）。
+ * 契约：遍历已注册计时器，输出 lvPerfStats 数组（调用者 lv_free 释放），
+ * 返回实际数量（受 max_count 截断）；out_stats 为 NULL 或 max_count==0
+ * 时返回 0。
+ * ============================================================ */
+uint32_t lv_perf_get_all_timer_stats(lvPerfStats **out_stats, uint32_t max_count) {
+    if (!out_stats || max_count == 0)
+        return 0;
+    *out_stats = NULL;
+
+    uint32_t n = s_runtime_state.perf.timer_count;
+    if (n > max_count)
+        n = max_count;
+    if (n == 0)
+        return 0;
+
+    lvPerfStats *arr = lv_calloc((size_t) n, sizeof(lvPerfStats));
+    if (!arr)
+        return 0;
+
+    LV_SCOPE_LOCK(&s_runtime_state.perf.mutex);
+    for (uint32_t i = 0; i < n; i++) {
+        lvTimer *t = s_runtime_state.perf.timers[i];
+        if (!t)
+            continue;
+        lv_strlcpy(arr[i].name, t->name, sizeof(arr[i].name));
+        arr[i].count = t->call_count;
+        arr[i].last_val = (double) t->total_ns;
+        arr[i].last_time_ns = t->elapsed_ns;
+    }
+
+    *out_stats = arr;
+    return n;
 }
