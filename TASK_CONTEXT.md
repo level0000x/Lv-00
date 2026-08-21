@@ -4401,3 +4401,45 @@ Kleene 强三值逻辑纯函数）。
   lv_numeric.h 19 / runtime_monitor.h 19 / geometry_transform.h 17 /
   lv_number.h 16 / lv_storage.h 13 等；大块头 algebraic_number.h 75 /
   geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十六、批次 C-㊺续4：数值句柄（lv_number.h）16 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 lv_number.h（16 个全零覆盖，句柄式 vtable
+数值抽象）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_lv_number_ext.c`**（CTEST lv_number_ext_test）：
+  59 断言，4 个测试函数：
+  - test_factory_api：from_rational(3/2 → RATIONAL + 1.5)、from_int(7 →
+    INTEGER)、from_double(2.5 → FLOAT)、destroy(NULL) 安全。
+  - test_compare_api：compare（-1/0/1）、eq/lt/gt/lte/gte 全关系 +
+    NULL 契约（compare(NULL)→0、布尔查询→false）。
+  - test_query_api：is_zero/is_one/is_negative/is_positive（非零且非负）/
+    is_integer（INTEGER 类型 + 整值）/type/hash（相等值同 hash）+ NULL。
+  - test_convert_api：to_double/to_int（截断语义）+ NULL → 0.0/0。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：16 个 API 契约与实现一致（NULL 安全、
+  委托 vtable compare、is_positive = 非零且非负）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **196/196**（build3 24.02s / build_verify 49.16s，
+  新增 lv_number_ext_test）。
+- test_lv_number_ext 59/59。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_number.h 16 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露 / test_lv_number_ext 59 + 全量 196/196。
+- 契约钉住 / 句柄式 vtable 委托、全 API NULL 安全、is_positive 语义 /
+  与实现一致。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / recursion.h 21 / axiom_rule_engine.h 20 /
+  lv_numeric.h 19 / runtime_monitor.h 19 / geometry_transform.h 17 /
+  lv_storage.h 13 等；大块头 algebraic_number.h 75 /
+  geo_halfedge_mesh.h 55 列入专项评估。
