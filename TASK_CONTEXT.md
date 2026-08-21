@@ -4303,3 +4303,46 @@ graph 域相邻的 lv_graph_traversal.h（12/11 零覆盖）。
   runtime_monitor.h 19 / geometry_transform.h 17 / lv_number.h 16 /
   three_valued_logic.h 13 / lv_storage.h 13 等；大块头 algebraic_
   number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十四、批次 C-㊺续2：三值逻辑（three_valued_logic.h）13 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 three_valued_logic.h（13 个全零覆盖，
+Kleene 强三值逻辑纯函数）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_three_valued_logic_ext.c`**（CTEST three_valued_
+  logic_ext_test）：62 断言，4 个测试函数：
+  - test_and_or_not_api：AND/OR 3×3 真值表全枚举 + NOT 三态。
+  - test_implies_equiv_api：IMPLIES/EQUIV 3×3 真值表全枚举。
+  - test_batch_api：and_all（TRUE 归约/FALSE 短路/UNKNOWN 传播）、or_all
+    （FALSE 归约/TRUE 短路/UNKNOWN 传播）、空数组恒等元（and_all→TRUE、
+    or_all→FALSE）。
+  - test_predicate_api：is_known/is_true/is_false、from_bool、to_bool_
+    conservative（仅 TRUE→true）、to_bool_optimistic（非 FALSE→true）。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：真值表与 Kleene 强三值逻辑定义逐项一致；
+  空数组归约按恒等元（AND 恒等 TRUE / OR 恒等 FALSE）验证。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **194/194**（build3 206.15s / build_verify 115.96s，
+  新增 three_valued_logic_ext_test）。
+- test_three_valued_logic_ext 62/62。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / three_valued_logic.h 13 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露 / test_three_valued_logic_ext 62 + 全量 194/194。
+- 契约钉住 / Kleene 三值真值表、短路归约、恒等元、保守/乐观转换 /
+  与定义一致。
+
+### 遗留登记
+
+- 下一批候选：inequality_reasoning.h 23 / lv_thread.h 22 /
+  recursion.h 21 / axiom_rule_engine.h 20 / lv_numeric.h 19 /
+  runtime_monitor.h 19 / geometry_transform.h 17 / lv_number.h 16 /
+  lv_storage.h 13 等；大块头 algebraic_number.h 75 /
+  geo_halfedge_mesh.h 55 列入专项评估。
