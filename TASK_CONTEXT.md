@@ -4443,3 +4443,55 @@ Kleene 强三值逻辑纯函数）。
   lv_numeric.h 19 / runtime_monitor.h 19 / geometry_transform.h 17 /
   lv_storage.h 13 等；大块头 algebraic_number.h 75 /
   geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十七、批次 C-㊺续5：递归系统（recursion.h）20 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 recursion.h（20 个 ctest 零覆盖 + 宏常量
+lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_recursion_ext.c`**（CTEST recursion_ext_test）：
+  52 断言，7 个测试函数：
+  - test_global_depth_api：reset → depth 0 → enter/leave 配对、熔断
+    （enter 至深度上限 128 → false + triggered → reset 恢复）。
+  - test_context_api：context_reset(NULL) 安全 + 正常、set_depth_callback
+    （NULL 安全 + 回调注册）。
+  - test_selector_api：set_branch_nodes（NULL 安全/数组复制）、
+    count_branch_nodes（NULL → -1/计数）、validate_branches（互斥/重叠/
+    空分支）、evaluate（NULL → false/无测试点 → PENDING）。
+  - test_nonsymbolic_api：register_non_symbolic（NULL 契约 + 正常）、
+    validate_non_symbolic（空系统 true）、validate_non_symbolic_measure
+    （NULL → ERROR + 状态合法）、validate_non_symbolic_with_axiom
+    （NULL → -1）。
+  - test_mutual_validate_api：check_mutual_with_contexts（NULL → false/
+    两上下文不崩溃）、recursion_validate_measure（NULL 契约）。
+  - test_run_tests_api：run_builtin_tests（NULL sys 临时系统 → 通过数 ≥ 0
+    + 结果数组释放）、run_measure_tests（NULL 契约）。
+  - test_stream_api：recursion_set_stream_context(NULL) 安全。
+
+### ② 测试暴露的契约要点（2 处，非缺陷，测试侧适配）
+
+1. recursion_validate_non_symbolic_measure 全 NULL → RECURSION_CHECK_
+   RESULT_ERROR（非 MEASURE_UNKNOWN）。
+2. 非符号测度验证状态按合法枚举范围断言。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **197/197**（build3 195.93s / build_verify 111.52s，
+  新增 recursion_ext_test）。
+- test_recursion_ext 52/52。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / recursion.h 20 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露（2 处测试侧契约适配）/
+  test_recursion_ext 52 + 全量 197/197。
+- 契约钉住 / 全局深度熔断 128 阈值、选择器分支互斥、非符号测度注册
+  验证、内置测试套件可运行 / 与实现一致。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 / lv_numeric.h 19 /
+  runtime_monitor.h 19 / geometry_transform.h 17 / lv_storage.h 13 等；
+  大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
