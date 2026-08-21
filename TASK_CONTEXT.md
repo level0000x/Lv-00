@@ -4541,3 +4541,61 @@ lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
 - 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 /
   runtime_monitor.h 19 / geometry_transform.h 17 / lv_storage.h 13 等；
   大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 七十九、批次 C-㊺续7：运行时监控（runtime_monitor.h）19 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 runtime_monitor.h（19 个 ctest 零覆盖，
+日志/计时器/性能/健康/诊断/追踪族）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_runtime_monitor_ext.c`**（CTEST runtime_monitor_ext_
+  test）：28 断言，6 个测试函数：
+  - test_log_api：lv_log_init(NULL) 默认配置、set_level/set_targets/
+    set_callback（调用不崩溃）、lv_log_write 委托主通道（不崩溃）、
+    set_file 临时文件。
+  - test_timer_api：lv_timer_create（依赖 perf_init）、pause/resume/
+    reset 生命周期、elapsed_ms/ns NULL → 0。
+  - test_perf_api：perf_init、stats_create/record（count/mean）、
+    perf_stats_reset 清零、get_all_timer_stats 计数。
+  - test_health_api：set_cpu/memory_thresholds（调用不崩溃——修复后
+    惰性初始化）。
+  - test_diag_api：diagnostics_generate → write_file（临时文件存在 +
+    内容非空）→ destroy。
+  - test_trace_api：event_trace_init、record/begin/end、get_all 计数、
+    export_chrome 临时文件、set_stream_context(NULL)。
+
+### ② 测试暴露并修复的真实缺陷（2 处）
+
+1. **M5：lv_perf_get_all_timer_stats 声明无实现**（零消费者故链接未
+   暴露）——补齐：遍历 s_runtime_state.perf.timers 输出 lvPerfStats
+   数组（调用者 lv_free），受 max_count 截断，NULL 契约返回 0。
+2. **M2：lv_health_set_memory/cpu_thresholds 未初始化 mutex 即锁定
+   崩溃**（LV_SCOPE_LOCK 访问未初始化 health.mutex → 访问冲突）——
+   修复：入口惰性确保 lv_health_init（幂等）。
+
+### ③ 测试侧契约适配（1 处）
+
+- lv_log_write 委托统一主通道（lv_log_message），runtime 回调机制
+  （set_callback）不经由 lv_log_write 触发——按委托语义断言不崩溃。
+
+### ④ 验证
+
+- ninja 全绿 + ctest **199/199**（build3 122.17s / build_verify 58.76s，
+  新增 runtime_monitor_ext_test）。
+- test_runtime_monitor_ext 28/28。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声明无实现 / lv_perf_get_all_timer_stats 补齐 /
+  test_runtime_monitor_ext 28 + 全量 199/199。
+- 缺陷修复 / M2 未初始化锁 / health_set_* 惰性初始化 / 测试 gdb 定位
+  访问冲突、测试钉住。
+- 测试补全 / 覆盖 / runtime_monitor.h 19 零覆盖 API 接入契约测试 /
+  test_runtime_monitor_ext 28 + 全量 199/199。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 /
+  geometry_transform.h 17 / lv_storage.h 13 等；
+  大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
