@@ -5264,3 +5264,53 @@ layer4_reasoning/type_logic/modal_operators.c。
 - 用户追加"顺便再找需要重构的"：本批已发现并修复 graph_copy NULL
   坐标缺陷；后续候选扫描见下批。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十一、批次 C-㊺续19：错误处理增强层（lv_error.h）17 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 lv_error.h（17 个 ctest 零覆盖，
+错误上下文传播 + 链式追踪 + 便捷宏）。实现位于 layer2_resource/lv_error.c
+（lv_strlcpy/lv_FORMAT_PRINTF 为别处声明/宏，已排除）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_lv_error_ext.c`**（CTEST lv_error_ext_test）：76
+  断言，4 个测试函数：
+  - test_error_context_api：context_current（延迟初始化、同实例）、
+    context_init（手动初始化、NULL）、context_cleanup（重置后可 reinit）。
+  - test_error_set_read_api：初始无错误（code=OK/message=""/cause=NULL/
+    file=NULL/func=NULL/line=0）、set（返回 false + 格式化消息、不填位置）、
+    set_at（填 file/func/line）、set_with_cause（cause 链）、push（走 TLS
+    上下文返回 true）、clear、NULL 契约全覆盖。
+  - test_error_chain_api：format_chain 根因优先（含 root/wrapped/caused
+    by/文件名）、无错误 NULL、栈满丢弃最旧（13 帧→8 帧，丢弃 frame0..4
+    保留 frame5..12）。
+  - test_error_macro_api：lv_ERROR_CTX_RETURN/RETURN_NULL/RETURN_NEG1
+    （set_at + 对应返回）、lv_ERROR_CTX_WRAP（cause 链 + 返回指定值）。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致；测试初版三处断言与实现语义不符已修正：push 走
+  TLS 上下文而非局部 ctx、栈满保留 frame5 起、helper_ret_neg1 返回类型
+  bool→int）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **213/213**（build3 15.92s / build_verify 13.54s，
+  新增 lv_error_ext_test；212 → 213）。
+- test_lv_error_ext 76/76。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_error.h 17 个零覆盖 API 接入契约测试 /
+  test_lv_error_ext 76 + 全量 213/213。
+- 契约钉住 / set 系列返回 false、无错误哨兵值、set_at 填位置、push 走
+  TLS、format_chain 根因优先、栈满丢弃最旧 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：autodiff.h 14、memory_pool.h 13、parametric_curves.h
+  13、plugin_system.h 12 等。
+- 重构候选（上批扫描）：is_rational_zero/remove_square_factors ×3
+  （symbolic 三族，需核对载体语义）、get_timestamp ×2、trust_color_name
+  ×3、constraint/geom_type_to_string ×2、read_file ×2、wildcard_match ×2。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
