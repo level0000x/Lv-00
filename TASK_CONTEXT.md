@@ -5637,3 +5637,63 @@ layer4_reasoning/axiom/axiom_grade.c（lv_XMACRO_ENUM/lv_PROPAGATE 为
   axiom_rule_engine.h 9 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十九、批次 C-㊺续27（多头并行）：AST 节点 + 公理规则引擎 17 零覆盖契约测试 + 1 处 JSON 往返缺陷修复（2026-08-24）
+
+用户「继续推进同时弄多个吧尝试一轮」——本批并行推进 2 个头文件（lv_ast.h
+8 个 + axiom_rule_engine.h 9 个 = 17 个零覆盖 API）。lv_api_spec.h 经核对
+为**命名规范文档**（lv_l0_export_geojson 等仅注释示例非函数声明），跳过。
+
+### ① 新增测试（2 个文件，92 断言）
+
+- **新建 `test/c/test_lv_ast_ext.c`**（CTEST lv_ast_ext_test）：38 断言，
+  3 个测试函数：
+  - test_ast_literal_api：create_rational（num/den）、create_decimal
+    （double）、create_bool（int）、create_string（深拷贝非字面量指针）。
+  - test_ast_call_logic_api：create_call_typed（3 参数链式链接 + 顺序 +
+    child_count、空参数）、create_logic_binary（AND op/left/right）、
+    create_unary（NOT op/operand）。
+  - test_ast_print_api：递归打印不崩溃、NULL 安全。
+- **新建 `test/c/test_axiom_rule_engine_ext.c`**（CTEST axiom_rule_engine_
+  ext_test）：54 断言，3 个测试函数：
+  - test_rule_library_query_api：get_by_id/get_by_name（索引命中、
+    不存在 NULL、NULL 契约）。
+  - test_rule_copy_json_api：rule_copy（深拷贝独立、tags 复制、动态字段
+    重置防 double-free）、rule_to_json（含 id/name/type/priority）、
+    rule_from_json（往返、非法 type 范围保持默认）、NULL 契约。
+  - test_rule_difficulty_api：level_to_string（1-10 中文 + 越界未知）、
+    dimension_to_string（结构复杂度 + 越界未知）、proposition/step
+    assess_difficulty（NULL 返回默认评估）。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M4）
+
+- **lv_rule_from_json type 范围校验错误**：原校验区间
+  [RULE_TYPE_AXIOM, RULE_TYPE_DEFINITION] 排除 RULE_TYPE_INFERENCE(0)/
+  REWRITE(1) 等合法类型，JSON 往返会丢失类型（INFERENCE 规则解析后变
+  AXIOM）。修复：改为校验全部 8 种规则类型
+  [RULE_TYPE_INFERENCE, RULE_TYPE_CONSTRUCTOR]。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **222/222**（build3 92.04s / build_verify 44.76s，
+  新增 2 个测试目标；220 → 222）。
+- 新测试：lv_ast_ext 38/38、axiom_rule_engine_ext 54/54。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_ast.h 8 + axiom_rule_engine.h 9 零覆盖 API 接入
+  契约测试 / test_lv_ast_ext 38 + test_axiom_rule_engine_ext 54 + 全量
+  222/222。
+- 缺陷修复 / M4 JSON 往返 / from_json type 校验排除合法类型 / 校验全
+  8 种规则类型。
+- 登记 / 扫描方法 / lv_api_spec.h 为命名规范文档（注释示例非函数），
+  零覆盖误报跳过。
+- 契约钉住 / AST 字面量深拷贝、call 链式链接、rule_copy 防 double-free、
+  difficulty 字符串表 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_hashtable.h 3、
+  lv_arena.h 8、lv_heap.h 7 等（多为已有测试的目标，余量渐少）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

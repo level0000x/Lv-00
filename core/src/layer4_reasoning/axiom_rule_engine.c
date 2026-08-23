@@ -720,7 +720,10 @@ lvRule *lv_rule_from_json(const char *json) {
 
     int tv;
     if (lv_json_get_int(json, "type", &tv)) {
-        if (tv >= RULE_TYPE_AXIOM && tv <= RULE_TYPE_DEFINITION)
+        /* [修复] 原校验区间 [RULE_TYPE_AXIOM, RULE_TYPE_DEFINITION] 排除
+         * RULE_TYPE_INFERENCE(0)/REWRITE(1) 等合法类型，JSON 往返会丢失
+         * 类型。改为校验全部 8 种规则类型（0..RULE_TYPE_CONSTRUCTOR）。 */
+        if (tv >= RULE_TYPE_INFERENCE && tv <= RULE_TYPE_CONSTRUCTOR)
             rtype = (lvRuleType)tv;
     }
 
