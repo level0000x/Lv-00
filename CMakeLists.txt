@@ -1788,6 +1788,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_alg_quadratic_ext CTEST_NAME alg_quadratic_ext_test)
     add_lv_test_auto(test_alg_interval_ext CTEST_NAME alg_interval_ext_test)
     add_lv_test_auto(test_alg_poly_ext CTEST_NAME alg_poly_ext_test)
+    add_lv_test_auto(test_geo_halfedge_mesh_ext CTEST_NAME geo_halfedge_mesh_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试

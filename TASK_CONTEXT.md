@@ -4936,3 +4936,83 @@ poly.c（4 处，含 1 处非测试暴露）：
 - 剩余候选：geo_halfedge_mesh.h 55（ctest-zero 30）、debug.h 38、
   lv_utils.h 33、simd_ops.h 63（平台相关）等。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 八十六、批次 C-㊺续14：Halfedge 网格（geo_halfedge_mesh.h）30 零覆盖契约测试 + 9 处缺陷修复（2026-08-23）
+
+用户「继续推进；顺便清理工程债务」。按遗留登记选 geo_halfedge_mesh.h
+（ctest-zero 30）。实现位于 layer3_geometry/geo_halfedge_mesh.c。
+
+### ① 新增测试
+
+- **新建 `test/c/test_geo_halfedge_mesh_ext.c`**（CTEST geo_halfedge_mesh_ext_
+  test）：89 断言，6 个测试函数：
+  - test_he_construct_api：default_config/create_default/vertex_count/
+    edge_count/face_count（空网格 0、加顶点后 3、NULL 契约）。
+  - test_he_valid_api：validate/is_valid（空网格、含三角面、NULL）。
+  - test_he_face_query_api：face_count/face_halfedge/halfedge_face/
+    halfedge_next 环绕闭合/edge_halfedge/face_area/face_valence/
+    halfedge_corner_angle（正方形三角化 2 面各 0.5 面积）。
+  - test_he_vertex_query_api：vertex_out_halfedge/halfedge_vertex/
+    halfedge_twin/vertex_angle（正方形角 90°）/vertex_curvature（2π-角）/
+    vertex_normal（z 轴）/compute_normals/compute_curvature。
+  - test_he_iterator_api：短名 vertex/face 迭代器、mesh 前缀顶点迭代器
+    （4 顶点全遍历）、out_iter、mesh 面迭代器（2 面全遍历）、NULL 契约。
+  - test_he_addface_legacy_api：add_face 通用五边形（valence 5、面积正）、
+    退化面拒绝（count<3/相邻重复/非法顶点/NULL）、legacy
+    halfedge_mesh_add_vertex/add_face（M5 补齐）。
+
+### ② 测试暴露并修复的真实缺陷（9 处）
+
+M5 缺失实现（6 处，按头注释契约补齐）：
+1. **lv_he_mesh_compute_normals / compute_curvature**：无实现。补齐：
+   compute_normals 委托 update_geometry 重算面+顶点法线；compute_curvature
+   逐顶点刷新离散曲率。
+2. **lv_he_mesh_edge_count / face_count / vertex_count**：无实现。补齐：
+   NULL 安全返回对应计数。
+3. **lv_he_mesh_is_valid**：无实现。补齐：委托 validate。
+4. **lv_halfedge_mesh_add_vertex / add_face（legacy）**：无实现。补齐：
+   add_vertex 委托 lv_he_mesh_add_vertex；add_face 委托通用面构造。
+5. **lv_he_mesh_add_face（通用多边形）**：无实现（此前仅 triangle/quad）。
+   补齐：任意 3..16 边形，扇形三角化法线/面积，相邻退化/非法顶点检查，
+   add_face_triangle 改为委托 add_face 消除重复。
+
+M4 拓扑/几何缺陷（3 处）：
+6. **add_halfedge_pair 方向错误**：共享边已存在时无条件返回 existing，
+   当请求方向与存储方向相反时返回方向错误的半边，两个面环交叉覆盖
+   he_next 导致拓扑损坏（face_query 的 next 环绕不闭合暴露）。修复：
+   方向相反时返回孪生半边。
+7. **顶点迭代器边界网格断链**：原实现依赖 twin→next 拓扑链计算 count
+   并推进，边界网格中边界半边 next 未链成环，迭代提前终止（旧测试刻意
+   跳过依赖迭代器的几何量，未暴露）。修复：改为扫描式实现（遍历以 v 为
+   起点的所有半边），不依赖拓扑链，对边界/破损网格鲁棒。
+8. **mesh 前缀迭代器语义错误**：lv_he_mesh_vertex_iter_begin/face_iter_begin
+   把 flags 当索引 0 硬编码委托，导致"网格级迭代"实际只迭代顶点 0/面 0。
+   修复：按命名语义改为网格级遍历（current 依次为顶点/面索引）。
+9. **vertex_angle / vertex_normal 拓扑推导错误**：取 he_vertex[twin(prev_he)]
+   在任意网格下恒等于 he 自身终点（twin 反转起点终点），导致 p0==p2 恒
+   成立、角恒为 0/法线错误。修复：正确推导——对每条入边 he（终点 v），
+   面内角由 he 起点与 he_next[he] 终点张成，跳过边界入边；normal 用
+   (vb-v)×(va-v) 保证面外方向。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **208/208**（build3 90.00s / build_verify 44.14s，
+  新增 geo_halfedge_mesh_ext_test；207 → 208）。
+- test_geo_halfedge_mesh_ext 89/89。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / geo_halfedge_mesh.h 30 个 ctest 零覆盖 API 接入契约
+  测试 / test_geo_halfedge_mesh_ext 89 + 全量 208/208。
+- 缺陷修复 / M5 缺失实现 / compute_normals/compute_curvature/计数/is_valid/
+  legacy/通用 add_face 6 处 / 按头契约补齐（非删声明）。
+- 缺陷修复 / M4 拓扑 / add_halfedge_pair 方向、顶点迭代器边界断链、
+  mesh 前缀迭代器语义、vertex_angle/normal 推导 / 契约测试暴露并钉住。
+- 契约钉住 / 共享边方向返回孪生、扫描式迭代器鲁棒、网格级迭代语义、
+  面角正确推导 / 与头注释一致。
+
+### 遗留登记
+
+- **geo_halfedge_mesh.h 零覆盖收尾**。
+- 剩余候选：debug.h 38、lv_utils.h 33、simd_ops.h 63（平台相关）等。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
