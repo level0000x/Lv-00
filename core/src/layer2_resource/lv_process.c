@@ -42,11 +42,28 @@
  * 扩容策略与输出字节语义一致。
  * ============================================================ */
 
-/** @brief 成功收尾：保证 out_stdout 始终为非 NULL 的 NUL 结尾缓冲（lvStrBuf 恒 NUL 结尾） */
+/** @brief 成功收尾：保证 out_stdout 始终为 lv_malloc 堆分配的 NUL 结尾缓冲
+ *
+ * 修复（C-㊺续35 测试暴露）：lvStrBuf 带 256 字节 SSO 栈缓冲，小输出
+ * （< 256B）时 ob->data 指向调用者栈帧（lv_run_win/lv_run_posix 局部
+ * ob），原实现直接移交 ob->data 会让调用者拿到悬垂栈指针，且按头契约
+ * lv_free 释放栈地址导致堆损坏（0xC0000374）。此处统一提升为堆拷贝。
+ */
 static int lv_process_finalize(lvStrBuf *ob, char **out_stdout, size_t *out_len, int *exit_code, int exit_code_v) {
-    *out_stdout = ob->data;
-    *out_len = ob->len;
+    size_t len = ob->len;
+    char *heap = (char *) lv_malloc(len + 1);
+    if (!heap) {
+        lv_strbuf_destroy(ob);
+        *out_stdout = NULL;
+        *out_len = 0;
+        *exit_code = -1;
+        return (int) lv_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(heap, lv_strbuf_cstr(ob), len + 1);
+    *out_stdout = heap;
+    *out_len = len;
     *exit_code = exit_code_v;
+    lv_strbuf_destroy(ob);
     return (int) lv_OK;
 }
 

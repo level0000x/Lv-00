@@ -6216,3 +6216,70 @@ lv_convenience.h 4 + smt_bitvector.h 2 + geo_topology.h 2 = 31 个零覆盖 API�
   （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零七、批次 C-㊺续35（超大批量）：7 头文件 23 零覆盖契约测试 + 1 处严重缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（lv_backend_plugin.h 7 + lv_render_visitor.h 3 + math_input.h 2 +
+lv_process.h 2 + lv_export_common.h 2 + lambda_term.h 2 + lv.h 5
+（version_major/minor/patch 宏 + get/set_log_level）= 23 个零覆盖 API），
+7 个新测试文件。
+
+### ① 新增测试（7 个文件，89 断言）
+
+- **test_lv_backend_plugin_ext.c**（23）：registry_init/count、register
+  （重复名拒绝/NULL 契约）、find（按名/NULL）、unregister（末元素前移）、
+  init_all/cleanup_all（回调计数、NULL 安全）。
+- **test_lv_render_visitor_ext.c**（14）：render_scene（双 NULL/visitor
+  NULL/空场景 true）、tikz_create（NULL 契约/成功填充回调与 user_data/
+  空场景渲染）、tikz_destroy（重复销毁/NULL 安全）。
+- **test_math_input_ext.c**（17）：detect_format（NULL/空 -1、LaTeX 1、
+  GCLC 2、纯文本 0）、parse（去 $/trim/返回长度/NULL 契约）。
+- **test_lv_process_ext.c**（12）：available（NULL/空 false、cmd true、
+  缺失 false）、run（NULL 参数 → NULL_POINTER、argv[0] NULL →
+  INVALID_PARAM、cmd /c echo 捕获输出 + lv_free）。
+- **test_lv_export_common_ext.c**（8）：xml_escape（五实体/原样/截断/NULL
+  契约）、write_file（写读回/data NULL 0 字节）。
+- **test_lambda_term_ext.c**（7）：eval_full（(λx.x)(λx.x) → ABS、NULL、
+  自由变量）、set_max_steps（小上限/0/-1 恢复默认）。
+- **test_lv_version_ext.c**（8）：version_major/minor/patch 宏与
+  lv_VERSION_STRING 一致、get/set_log_level 往返。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M4 严重）
+
+- **lv_process_finalize 移交 SSO 栈缓冲（悬垂指针 + 堆损坏）**：lvStrBuf
+  带 256 字节 SSO 栈缓冲，子进程输出 < 256 字节时 ob->data 指向
+  lv_run_win/lv_run_posix 局部 ob 的 stack 数组。原实现把 ob->data 直接
+  移交 out_stdout：调用者拿到函数返回后的**悬垂栈指针**，且按头契约
+  lv_free 释放栈地址 → 堆损坏（Windows 0xC0000374）。修复：finalize 统一
+  提升为 lv_malloc 堆拷贝（NUL 结尾），成功路径 out_stdout 恒为堆指针，
+  内存不足时置 NULL + 返回 lv_ERROR_OUT_OF_MEMORY。
+
+另：测试构造 double-free 修正（非实现缺陷）——(λx.x)(λx.x) 应用的两个
+子项必须独立分配（create_app 接管双子项所有权，同指针会双重释放）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **275/275**（build3 152.08s / build_verify 68.72s，
+  新增 7 个测试目标；268 → 275）。
+- 新测试合计 89 断言全过。
+- 零覆盖扫描复核：本批 7 头清零。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 23 个零覆盖 API 接入契约测试 / 7 测试文件
+  89 断言 + 全量 275/275。
+- 缺陷修复 / M4 悬垂指针+堆损坏 / lv_process_finalize 移交 SSO 栈缓冲 /
+  finalize 统一提升为 lv_malloc 堆拷贝（小输出与大输出一致）。
+- 契约钉住 / 后端插件注册表生命周期、渲染访问器遍历、数学输入格式、
+  外部进程执行/可用性、XML 转义/文件写出、λ 求值/步数上限、版本宏/日志
+  级别 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（load 依赖动态库较重，
+  建议独立批次）、autodiff.h 14（lv_ad_* 直用名）、lv.h 上层剩余 API（含
+  lv_normalize/lv_prove 等）、gappa_propagate.h 1（lv_gappa_propagate_backward）
+  等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
