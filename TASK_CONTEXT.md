@@ -5804,3 +5804,103 @@ sha256.h 5 + three_valued_logic.h 2 + lv_strbuf.h 2 = 32 个零覆盖 API）。
   gappa_propagate.h 7、interval_arith.h 7、lv_circuit_breaker.h 已完等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零二、批次 C-㊺续30（超大批量）：6 头文件 32 零覆盖契约测试 + 1 处死代码修复 + 4 项豁免（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（interval_arith.h 7 + gappa_propagate.h 7 + io_blocks.h 6 + lv_log.h 4 +
+lv_registry.h 4 + proof_trace.h 4 + runtime_guard.h 4 = 36 个零覆盖 API）。
+其中 32 个接入契约测试，4 个（runtime_guard.h）登记编译期开关豁免。
+
+### ① 新增测试（6 个文件，215 断言）
+
+- **test_interval_arith_ext.c**（52）：sub（[1,2]-[3,4]=[-3,-1]、is_exact 传播、
+  退化区间）、sqrt（精确退化 0.25→0.5、[0,9]→[0,3]、负下界截断）、sin/cos
+  （单调区间、极值点含入、≥2π 宽区间 [-1,1]）、log（[1,e]、非正下界
+  -HUGE_VAL、全非正双 -HUGE_VAL）、abs（全正/全负/跨零 4 分支）、neg
+  （翻转 + 双 neg 回归）。
+- **test_gappa_propagate_ext.c**（65）：pred_set init/add/find/clear（expr_lhs
+  查重、find 输出副本、未找到 -1）、不同集合同名隔离（注册表
+  "<set>:<expr_lhs>" 复合 key）、config_default（max_iterations=1、
+  precision=1e-15、backward=false）、propagate_set（x+y=[4,6]、y-x=[1,3]、
+  (x)^2=[1,4]、x*y=[3,8]、x/y=[0.25,0.667]、derived>0、NULL 契约）、
+  propagate（"x+1"→[0,2]、"2*x"→[-2,2]、sqrt/log 定义域、NULL 契约）。
+- **test_io_blocks_ext.c**（22）：file_block_create（effect 保存、四端口 -1、
+  base 分配）/destroy、network_block_create（effect 固定 NETWORK、端口 -1）、
+  ui_event_block_create（effect、event/action 端口 -1）、destroy NULL 安全。
+- **test_lv_log_ext.c**（8）：get_level 默认 INFO、set_output(tmpfile) +
+  enable_timestamp/source 前缀断言（[HH:MM:SS] + lv_log.c 源位置）、
+  level>FATAL 忽略不输出、状态恢复。
+- **test_lv_registry_ext.c**（32）：registry_clear（destroy 回调调用、幂等、
+  清空后可继续 put 无需 re-init、NULL 安全）；模块生命周期（本进程不调用
+  lv_init，注册表仅测试模块）——register 重复名/NULL 名拒绝、count 递增、
+  init_all 按优先级升序调用、cleanup_all 反向降序、失败模块 init 使
+  init_all 返回 false。
+- **test_proof_trace_ext.c**（36）：alloc 初始状态（0 步、incomplete、越界
+  NULL）、add_step/get_rule/get_step_count（索引往返、越界 NULL、NULL 契约）、
+  长规则名截断（200 字符 → ≤127 且前缀匹配）、mark_complete→is_complete
+  true、export 包含规则名（调用者 lv_free）、NULL 安全。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M5 死代码）
+
+- **proof_trace.h 的 4 个公共 API 无创建入口（死代码）**：proof_trace.c 的
+  create/destroy 是 static（proof_trace_internal_create/destroy）且全库无调用
+  点，头文件声明的 lv_proof_trace_add_step/get_step_count/get_rule/
+  is_complete 无法从外部构造 ProofTrace 实例，bootstrap_test_oracle 的
+  test_oracle_verify_proof_valid 永远不可达成功路径。另发现
+  lv_proof_trace_mark_complete/lv_proof_trace_export 实现存在但头未声明
+  （未声明公共函数）。修复：公开 alloc/free（命名 lv_proof_trace_alloc/
+  lv_proof_trace_free，避开 L5 proof_compiler 已占用的 lv_proof_trace_create
+  符号——两系统类型不同，lvProofTrace 带 events 流 vs ProofTrace 带 steps
+  数组），并在 proof_trace.h 补齐 mark_complete/export 声明；更正
+  "外部使用 proof_compiler.h 的版本"误导注释（两系统相互独立）。
+
+### ③ 豁免登记（编译期开关，4 个）
+
+- **runtime_guard.h 的 lv_guard_init/destroy/get_stats/reset_stats**：
+  lv_ENABLE_RUNTIME_GUARDS 未在 CMake 或任何头文件定义，runtime_guard.c
+  整个编译单元不参与构建，4 个 API 在二进制中不存在（不可链接）——
+  与 lv_platform.h 等宏/编译期头同类的编译期可选保护设施，登记豁免；
+  关闭时 lv_verify_data_integrity 为头内 static inline（恒 true）。
+
+### ④ 验证
+
+- ninja 全绿 + ctest **241/241**（build3 108.20s / build_verify 56.69s，
+  新增 6 个测试目标；235 → 241）。
+- 新测试合计 215 断言全过。
+- 零覆盖扫描复核：本批 6 头清零，lv_registry.h 仅剩宏
+  lv_REGISTRY_STATIC(_DECL)（豁免），runtime_guard.h 4 项按③登记。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 6 头文件 32 个零覆盖 API 接入契约测试 / 6 测试文件
+  215 断言 + 全量 241/241。
+- 缺陷修复 / M5 死代码 / proof_trace create/destroy static 无调用点致公共
+  API 不可用 / 公开 alloc/free + 补齐 mark_complete/export 声明，命名避开
+  L5 已占符号。
+- 豁免登记 / 编译期开关 / runtime_guard.h 4 API（lv_ENABLE_RUNTIME_GUARDS
+  未定义，不参与编译）/ 与宏/编译期头同类，登记豁免。
+- 契约钉住 / 区间端点向外取整与定义域保守处理、Gappa 谓词查重与推导规则
+  边界、IO 块工厂字段、日志前缀开关、模块优先级序、证明追踪步骤截断 /
+  与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（lv_plugin_load/
+  unload/reload/config_load/config_save/load_entry 等真实函数）、
+  representation_converter.h 8、autodiff.h 14（lv_ad_* 直用名）、
+  inequality_reasoning.h 7、meta_verify.h 6、expr_canon.h 9、lv.h 上层
+  API 17（含 lv_set_log_level/lv_get_log_level/lv_normalize/lv_prove 等）、
+  lv_dot_writer.h 8、geo_predicate.h 8、geometry_transform.h 6、
+  engine_scheduler.h 5、allocator.h 5、fast_index.h 4、lv_mempool.h 4、
+  geo_aabb_tree.h 4、geo_dynamic.h 7、expr_canonical.h 6、lv_str_utils.h 5、
+  lv_backend_plugin.h 7、gc_language.h 3、status_codes.h 3、lv_lexer.h 3、
+  lv_stream_context.h 3、conflict_detector.h 3、logic_check.h 3、
+  equiv_class.h 3、ecosystem.h 3、circuit_breaker.h 3、lv_convenience.h 4、
+  lv_render_visitor.h 3、ode_integrator.h 2、smt_bitvector.h 2、math_input.h 2、
+  geo_topology.h 2、lv_process.h 2、lv_export_common.h 2、lambda_term.h 2、
+  gappa_propagate.h 1（lv_gappa_propagate_backward）等（宏误报已按既有规则
+  过滤：lv_XMACRO_*/lv_RETURN_ERROR*/lv_CHECK_*/lv_SAFE_*/lv_RUNTIME_*/
+  lv_ATOMIC_*/lv_MUTEX_*/lv_RWLOCK_*/cross_platform/lv_api_spec 等）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

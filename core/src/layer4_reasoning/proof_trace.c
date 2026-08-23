@@ -55,11 +55,20 @@ struct ProofTrace {
  * ============================================================ */
 
 /**
- * @brief 创建新的证明轨迹（内部实现，外部使用 proof_compiler.h 的版本）
+ * @brief 创建新的证明轨迹
+ *
+ * 分配并初始化 ProofTrace（lvDArray 步骤数组 + 完成标志 + 起止时间戳）。
+ * 此创建入口与 proof_compiler.h 的 lv_proof_trace_create（lvProofTrace，
+ * 事件流结构）是两个独立系统：本函数返回 proof_trace.h 的 ProofTrace，
+ * 供 lv_proof_trace_add_step / get_step_count / get_rule / is_complete /
+ * mark_complete / export 使用。此前 create/destroy 为 static 且无调用点，
+ * 导致头文件声明的 4 个公共 API 无法从外部构造实例（死代码），
+ * 现公开为 lv_proof_trace_alloc / lv_proof_trace_free（命名避开 L5
+ * proof_compiler 已占用的 lv_proof_trace_create 符号）。
  *
  * @return 新创建的证明轨迹指针，失败返回 NULL
  */
-static ProofTrace *proof_trace_internal_create(void) {
+ProofTrace *lv_proof_trace_alloc(void) {
     ProofTrace *trace = lv_calloc(1, sizeof(ProofTrace));
     if (!trace)
         return NULL;
@@ -77,11 +86,11 @@ static ProofTrace *proof_trace_internal_create(void) {
 }
 
 /**
- * @brief 销毁证明轨迹（内部实现，外部使用 proof_compiler.h 的版本）
+ * @brief 销毁证明轨迹
  *
  * @param trace 要销毁的证明轨迹
  */
-static void proof_trace_internal_destroy(ProofTrace *trace) {
+void lv_proof_trace_free(ProofTrace *trace) {
     if (!trace)
         return;
     lv_darray_free(&trace->steps);

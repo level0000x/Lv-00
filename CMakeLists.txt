@@ -2095,6 +2095,14 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_groebner_parallel CTEST_NAME groebner_parallel_test)
     add_lv_test_auto(test_proof_rule_numeric CTEST_NAME proof_rule_numeric_test)
     add_lv_test_auto(test_proof_strategy_legacy CTEST_NAME proof_strategy_legacy_test)
+
+    # 批次 C-㊺续30：零覆盖契约测试
+    add_lv_test_auto(test_interval_arith_ext CTEST_NAME interval_arith_ext_test)
+    add_lv_test_auto(test_gappa_propagate_ext CTEST_NAME gappa_propagate_ext_test)
+    add_lv_test_auto(test_io_blocks_ext CTEST_NAME io_blocks_ext_test)
+    add_lv_test_auto(test_lv_log_ext CTEST_NAME lv_log_ext_test)
+    add_lv_test_auto(test_lv_registry_ext CTEST_NAME lv_registry_ext_test)
+    add_lv_test_auto(test_proof_trace_ext CTEST_NAME proof_trace_ext_test)
 endif()
 
 # ============================================================
