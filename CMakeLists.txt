@@ -1797,6 +1797,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_memory_pool_ext CTEST_NAME memory_pool_ext_test)
     add_lv_test_auto(test_parametric_curves_ext CTEST_NAME parametric_curves_ext_test)
     add_lv_test_auto(test_config_ext CTEST_NAME config_ext_test)
+    add_lv_test_auto(test_control_flow_blocks_ext CTEST_NAME control_flow_blocks_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试

@@ -5450,3 +5450,47 @@ parametric_curves.c。
   control_flow_blocks.h 11、effect_system.h 10 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十五、批次 C-㊺续23：控制流块（control_flow_blocks.h）11 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 control_flow_blocks.h（11 个 ctest
+零覆盖，If/While/Match 三种控制流块）。实现位于
+layer6_visual/control_flow/{if_block,while_block,match_block}.c。
+
+### ① 新增测试
+
+- **新建 `test/c/test_control_flow_blocks_ext.c`**（CTEST control_flow_
+  blocks_ext_test）：46 断言，3 个测试函数：
+  - test_if_block_api：create（端口 -1、determinism=PURE）、set_branches
+    （NULL → -1、成功 0、二次覆盖）、destroy（NULL 安全）。
+  - test_while_block_api：create（端口 -1、determinism=LOOP_REQUIRES_
+    PROOF、max_iterations 正）、set_body（NULL → -1、成功 0）、
+    set_invariant（NULL → -1、invariant 置 VERIFIED、NULL 不变更）。
+  - test_match_block_api：create(3)（case_count/cases 数组/端口 -1）、
+    set_case（正常 index/越界/NULL → -1）、set_default（成功 0/NULL →
+    -1）、create(0)（cases NULL、set_case → -1）。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致，一次通过）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **217/217**（build3 14.26s / build_verify 13.94s，
+  新增 control_flow_blocks_ext_test；216 → 217）。
+- test_control_flow_blocks_ext 46/46。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / control_flow_blocks.h 11 个零覆盖 API 接入契约测试 /
+  test_control_flow_blocks_ext 46 + 全量 217/217。
+- 契约钉住 / 端口初始 -1、determinism 转移（PURE/CONDITIONAL/
+  LOOP_REQUIRES_PROOF/VERIFIED）、setter NULL → -1、match 越界拒绝 /
+  与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_number.h 11、
+  effect_system.h 10、lv_api_spec.h 10 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
