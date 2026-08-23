@@ -30,6 +30,7 @@
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 
+#include <gmp.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -61,7 +62,21 @@ AlgQuadratic lv_alg_quadratic_create(int64_t a_val, int64_t a_den, int64_t b_val
 
     AlgRationalError r_err;
     result.a = lv_alg_rational_create(a_val, a_den, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, (r_err == lv_alg_rational_ERR_ZERO_DEN)
+                                        ? lv_alg_quadratic_ERR_INVALID
+                                        : lv_alg_quadratic_ERR_OVERFLOW);
+        result.d = 0;
+        return result;
+    }
     result.b = lv_alg_rational_create(b_val, b_den, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, (r_err == lv_alg_rational_ERR_ZERO_DEN)
+                                        ? lv_alg_quadratic_ERR_INVALID
+                                        : lv_alg_quadratic_ERR_OVERFLOW);
+        result.d = 0;
+        return result;
+    }
     result.d = d;
 
     alg_set_error_quadratic(err, lv_alg_quadratic_OK);
@@ -145,14 +160,34 @@ AlgQuadratic lv_alg_quadratic_mul(const AlgQuadratic *x, const AlgQuadratic *y, 
     AlgRational d_rat = lv_alg_rational_from_int(x->d);
     AlgRationalError r_err;
 
+    /* 溢出时统一返回零元 + ERR_OVERFLOW（局部宏收敛 7 处重复错误块） */
+#define lv_QUAD_MUL_CHECK()                                    \
+    do {                                                       \
+        if (r_err != lv_alg_rational_OK) {                     \
+            alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW); \
+            AlgRational zz = {0, 1};                           \
+            AlgQuadratic ret = {zz, zz, 0};                    \
+            return ret;                                        \
+        }                                                      \
+    } while (0)
+
     AlgRational _t1 = lv_alg_rational_mul(&x->a, &y->a, &r_err);
+    lv_QUAD_MUL_CHECK();
     AlgRational _t2 = lv_alg_rational_mul(&x->b, &y->b, &r_err);
+    lv_QUAD_MUL_CHECK();
     AlgRational _t3 = lv_alg_rational_mul(&_t2, &d_rat, &r_err);
-    AlgRational new_a = lv_alg_rational_add(&_t1, &_t3, NULL);
+    lv_QUAD_MUL_CHECK();
+    AlgRational new_a = lv_alg_rational_add(&_t1, &_t3, &r_err);
+    lv_QUAD_MUL_CHECK();
 
     AlgRational _t4 = lv_alg_rational_mul(&x->a, &y->b, &r_err);
+    lv_QUAD_MUL_CHECK();
     AlgRational _t5 = lv_alg_rational_mul(&x->b, &y->a, &r_err);
-    AlgRational new_b = lv_alg_rational_add(&_t4, &_t5, NULL);
+    lv_QUAD_MUL_CHECK();
+    AlgRational new_b = lv_alg_rational_add(&_t4, &_t5, &r_err);
+    lv_QUAD_MUL_CHECK();
+
+#undef lv_QUAD_MUL_CHECK
 
     AlgQuadratic result;
     result.a = new_a;
@@ -181,9 +216,11 @@ AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, 
      * 其中 conj(y) = a - b*sqrt(d)
      *       norm(y) = a^2 - b^2*d
      */
+    AlgQuadraticError local_err = lv_alg_quadratic_OK;
     AlgQuadratic conj_y = lv_alg_quadratic_conj(y);
-    AlgRational norm_y = lv_alg_quadratic_norm(y, err);
-    if (err && *err != lv_alg_quadratic_OK) {
+    AlgRational norm_y = lv_alg_quadratic_norm(y, &local_err);
+    if (local_err != lv_alg_quadratic_OK) {
+        alg_set_error_quadratic(err, local_err);
         AlgQuadratic z;
         memset(&z, 0, sizeof(z));
         return z;
@@ -195,8 +232,9 @@ AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, 
         return z;
     }
 
-    AlgQuadratic numerator = lv_alg_quadratic_mul(x, &conj_y, err);
-    if (err && *err != lv_alg_quadratic_OK) {
+    AlgQuadratic numerator = lv_alg_quadratic_mul(x, &conj_y, &local_err);
+    if (local_err != lv_alg_quadratic_OK) {
+        alg_set_error_quadratic(err, local_err);
         AlgQuadratic z;
         memset(&z, 0, sizeof(z));
         return z;
@@ -205,8 +243,13 @@ AlgQuadratic lv_alg_quadratic_div(const AlgQuadratic *x, const AlgQuadratic *y, 
     /* 将结果除以范数（有理数） */
     AlgRationalError r_err;
     numerator.a = lv_alg_rational_div(&numerator.a, &norm_y, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
+        AlgQuadratic z;
+        memset(&z, 0, sizeof(z));
+        return z;
+    }
     numerator.b = lv_alg_rational_div(&numerator.b, &norm_y, &r_err);
-
     if (r_err != lv_alg_rational_OK) {
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
         AlgQuadratic z;
@@ -246,10 +289,26 @@ AlgRational lv_alg_quadratic_norm(const AlgQuadratic *x, AlgQuadraticError *err)
      */
     AlgRationalError r_err;
     AlgRational a_sq = lv_alg_rational_mul(&x->a, &x->a, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     AlgRational b_sq = lv_alg_rational_mul(&x->b, &x->b, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     AlgRational d_rat = lv_alg_rational_from_int(x->d);
     AlgRational b_sq_d = lv_alg_rational_mul(&b_sq, &d_rat, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     AlgRational norm = lv_alg_rational_sub(&a_sq, &b_sq_d, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
 
     alg_set_error_quadratic(err, lv_alg_quadratic_OK);
     return norm;
@@ -274,33 +333,75 @@ int lv_alg_quadratic_cmp_exact(const AlgQuadratic *x, const AlgQuadratic *y, Alg
         alg_set_error_quadratic(err, lv_alg_quadratic_ERR_DOMAIN);
         return 0;
     }
+    if (x->d < 0) {
+        /* d < 0 无法构成实数域，按无效参数处理 */
+        alg_set_error_quadratic(err, lv_alg_quadratic_ERR_INVALID);
+        return 0;
+    }
 
-    /* 精确比较：x - y = (a1-a2) + (b1-b2)*sqrt(d) */
-    /* 若 b1-b2 == 0，则直接比较有理部分 */
-    /* 若 b1-b2 != 0，则 x == y 当且仅当 a1==a2 且 b1==b2 */
+    /* 精确比较：x - y = (a1-a2) + (b1-b2)*sqrt(d) = da + db*sqrt(d) */
     AlgRational diff_a = lv_alg_rational_sub(&x->a, &y->a, NULL);
     AlgRational diff_b = lv_alg_rational_sub(&x->b, &y->b, NULL);
 
-    if (lv_alg_rational_is_zero(&diff_b)) {
-        /* 纯有理数比较 */
+    /* 若 db == 0 或 d == 0（sqrt(0)=0），退化为纯有理数比较 */
+    if (lv_alg_rational_is_zero(&diff_b) || x->d == 0) {
         AlgRational _zero = lv_alg_rational_zero();
         alg_set_error_quadratic(err, lv_alg_quadratic_OK);
         return lv_alg_rational_cmp(&diff_a, &_zero);
     }
 
-    if (lv_alg_rational_is_zero(&diff_a) && lv_alg_rational_is_zero(&diff_b)) {
+    /* 若 da == 0：diff = db*sqrt(d)，d > 0 时符号 = sign(db) */
+    if (lv_alg_rational_is_zero(&diff_a)) {
         alg_set_error_quadratic(err, lv_alg_quadratic_OK);
-        return 0;
+        return diff_b.num > 0 ? 1 : -1;
     }
 
-    /* 含 sqrt(d) 分量的精确比较：
-     * diff = diff_a + diff_b * sqrt(d)
-     * 若 diff_b > 0：diff_a + diff_b*sqrt(d) > 0 当且仅当 diff_a > -diff_b*sqrt(d)
-     *   即 diff_a^2 > diff_b^2 * d（当 diff_a > 0 时）
-     *   或 diff_a^2 < diff_b^2 * d（当 diff_a < 0 时）
-     * 使用近似值进行判断 */
-    alg_set_error_quadratic(err, lv_alg_quadratic_OK);
-    return lv_alg_quadratic_cmp(x, y);
+    /* 若 da 与 db 同号：diff 符号即该号（sqrt(d) >= 0 不改变符号） */
+    if ((diff_a.num > 0) == (diff_b.num > 0)) {
+        alg_set_error_quadratic(err, lv_alg_quadratic_OK);
+        return diff_a.num > 0 ? 1 : -1;
+    }
+
+    /* 异号：diff 符号 = sign(da² - db²*d)（两侧非负，平方保持序） */
+    /* 使用 GMP 任意精度有理数精确比较，避免 int64 溢出（先例：rational.c） */
+    {
+        char buf[32];
+        mpq_t qa2, qb2, qd;
+        mpq_init(qa2);
+        mpq_init(qb2);
+        mpq_init(qd);
+
+        /* qa2 = diff_a² */
+        lv_snprintf(buf, sizeof(buf), "%lld", (long long) diff_a.num);
+        mpq_set_str(qa2, buf, 10);
+        lv_snprintf(buf, sizeof(buf), "%lld", (long long) diff_a.den);
+        mpz_set_str(mpq_denref(qa2), buf, 10);
+        mpq_canonicalize(qa2);
+        mpq_mul(qa2, qa2, qa2);
+
+        /* qb2 = diff_b² * d */
+        lv_snprintf(buf, sizeof(buf), "%lld", (long long) diff_b.num);
+        mpq_set_str(qb2, buf, 10);
+        lv_snprintf(buf, sizeof(buf), "%lld", (long long) diff_b.den);
+        mpz_set_str(mpq_denref(qb2), buf, 10);
+        mpq_canonicalize(qb2);
+        mpq_mul(qb2, qb2, qb2);
+        lv_snprintf(buf, sizeof(buf), "%lld", (long long) x->d);
+        mpq_set_str(qd, buf, 10);
+        mpq_mul(qb2, qb2, qd);
+
+        int s = mpq_cmp(qa2, qb2); /* da² vs db²*d */
+        mpq_clear(qa2);
+        mpq_clear(qb2);
+        mpq_clear(qd);
+
+        alg_set_error_quadratic(err, lv_alg_quadratic_OK);
+        /* da > 0, db < 0：diff > 0 ⟺ da² > db²*d ⟺ s > 0 */
+        /* da < 0, db > 0：diff > 0 ⟺ da² < db²*d ⟺ s < 0 */
+        if (diff_a.num > 0)
+            return (s > 0) ? 1 : (s < 0) ? -1 : 0;
+        return (s < 0) ? 1 : (s > 0) ? -1 : 0;
+    }
 }
 
 double lv_alg_quadratic_to_double(const AlgQuadratic *x) {
@@ -327,8 +428,8 @@ int lv_alg_quadratic_to_string(const AlgQuadratic *x, char *buf, size_t size) {
         lv_strbuf_printf(&sb, "/%lld", (long long) x->a.den);
     }
 
-    /* sqrt(d) 部分 */
-    if (!lv_alg_rational_is_zero(&x->b)) {
+    /* sqrt(d) 部分：d==0 时 sqrt(0)=0，b 分量无意义，忽略 */
+    if (!lv_alg_rational_is_zero(&x->b) && x->d != 0) {
         if (lv_alg_rational_is_positive(&x->b)) {
             lv_strbuf_printf(&sb, " + ");
         } else {

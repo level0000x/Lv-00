@@ -4834,3 +4834,105 @@ I/O + 序列化文件族 + 后端注册 + 验证族）。
 - algebraic_number.h 剩余 55 个（quadratic/interval/poly 族）待后续子批。
 - 既有全局内存泄漏 WARN（lv 分配追踪计数含合法滞留，storage_ext 等
   既有测试同样存在，非本批引入，退出码 0）。
+
+## 八十五、批次 C-㊺续13：代数数域（algebraic_number.h）二次代数数/区间/多项式三族 55 零覆盖契约测试 + 10 处缺陷修复（2026-08-23）
+
+用户「继续推进；有 bug 都修一下，不要求最简实现，最小化工程债务」。按
+上批遗留登记选 algebraic_number.h 剩余三族（quadratic 18 / interval 18 /
+poly 19 = 55 个零覆盖），一次收尾整个头文件。实现位于
+layer3_geometry/algebraic_number_quadratic.c / _interval.c / _poly.c。
+
+### ① 新增测试（3 个文件，258 断言）
+
+- **新建 `test/c/test_alg_quadratic_ext.c`**（CTEST alg_quadratic_ext_test）：
+  72 断言，5 个测试函数。create（约分、d<0→ERR_INVALID、零分母→
+  ERR_INVALID 修复点）、from_rational/sqrt、add/sub/mul/div（同域精确值、
+  异域 ERR_DOMAIN、NULL、溢出 ERR_OVERFLOW 修复点）、neg/conj/norm
+  （溢出修复点）、div 零范数 ERR_INVALID、cmp/cmp_exact（同域相等、异域
+  ERR_DOMAIN、接近值精确符号、d==0 退化修复点）、to_double/to_string
+  （分数/负系数/d==0 退化格式修复点）、is_rational/rational_part/
+  error_string。
+- **新建 `test/c/test_alg_interval_ext.c`**（CTEST alg_interval_ext_test）：
+  80 断言，4 个测试函数。create（交换 lo/hi、零分母 ERR_INVALID 修复点）、
+  point/from_quadratic（完全平方点区间、√2 包围含 1.4142、溢出修复点）、
+  add/sub/mul（跨零端点积）、div（除数含零 ERR_DIV_BY_ZERO）、neg、
+  intersect（空 ERR_EMPTY）、hull、contains/contains_rational/is_empty/
+  is_point、width（溢出修复点）/midpoint/bisect、to_string（整数/分数）、
+  error_string、quadratic_to_interval 跨层。
+- **新建 `test/c/test_alg_poly_ext.c`**（CTEST alg_poly_ext_test）：106
+  断言，6 个测试函数。zero/const/linear/quadratic/x（首项零降次）、
+  eval_int（Horner、溢出 ERR_OVERFLOW）/eval_rational（溢出修复点）、
+  add/sub/mul（超限 ERR_DEGREE、溢出）、neg（INT64_MIN 安全修复点）、
+  lead/const_coef、is_zero/is_const、discriminant（deg0/1/2/超限）、
+  rational_roots（线性/二次完全平方/重根/无实根/三次 (x-1)(x-2)(x-3)/
+  常数/重复根去重修复点）、derivative、to_string（多项式/NULL）、
+  has_real_roots、error_string。
+
+### ② 测试暴露并修复的真实缺陷（10 处，全部 M4 类）
+
+quadratic.c（5 处）：
+1. **create 零分母错误码丢失**：a_den/b_den==0 时内部 rational create 的
+   r_err 被忽略，返回 OK+0/1。修复：检查 r_err，ZERO_DEN→ERR_INVALID、
+   OVERFLOW→ERR_OVERFLOW。
+2. **mul 溢出静默**：7 个内部 rational 乘/加的 r_err 全部被丢弃，溢出
+   返回 OK。修复：逐步检查，任一溢出→ERR_OVERFLOW（局部宏收敛重复块）。
+3. **norm 溢出静默**：a²/b²/d 乘积 r_err 被丢弃。修复：逐步检查。
+4. **div 错误链断裂**：norm/mul 的溢出经 err 检查（err NULL 时静默）、
+   两次 rational_div 共用一个 r_err 互相覆盖。修复：本地 err 捕获 +
+   分别检查。
+5. **cmp_exact 声称精确实为近似**：diff_b != 0 时回退 double 近似比较，
+   接近的代数数会误判。修复：符号判定（da/db 同号直接定号、异号用
+   GMP mpq 精确比较 da² 与 db²*d），d==0 退化纯有理比较。
+6. **to_string d==0 畸形**：b 分量非零且 d==0 时输出 "a + b*" 畸形。
+   修复：d==0 时忽略 b 分量（√0=0 值退化纯有理）。
+
+interval.c（4 处）：
+7. **create 零分母错误码丢失**：同 quadratic，检查 r_err 映射 ERR_INVALID。
+8. **add/sub/mul 溢出静默**：rational 加/减/乘 r_err 被丢弃。修复：逐步
+   检查映射 ERR_OVERFLOW（mul 四个端点乘积逐一检查）。
+9. **from_quadratic 精确路径溢出静默**：b*sqrt(d) 与相加 r_err 被丢弃。
+   修复：检查映射 ERR_OVERFLOW。
+10. **width/midpoint 溢出静默**：sub/add/div r_err 被丢弃。修复：检查
+    映射 ERR_OVERFLOW。
+
+poly.c（4 处，含 1 处非测试暴露）：
+11. **eval_rational 溢出静默**：Horner 循环内 mul/add r_err 被丢弃。修复：
+    逐步检查映射 ERR_OVERFLOW。
+12. **neg 对 INT64_MIN UB**：-INT64_MIN 溢出。修复：饱和到 INT64_MAX
+    （neg 无 err 通道，饱和保正确性）。
+13. **rational_roots 溢出 UB**：-b（b==INT64_MIN）、2a、-b±√disc 直接
+    计算溢出。修复：全部改 alg_sub_overflow/alg_add_overflow/alg_mul_
+    overflow 检测，溢出返回 ERR_OVERFLOW。
+14. **rational_roots 重复根**：x^n 因子降次链 + 有理根定理候选约分后
+    重复（如 x³-x² 返回 {0,0,1}）。修复：coef[0]==0 分支先递归降次
+    多项式、末尾去重追加 0 根；候选枚举用 root_exists 去重。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **207/207**（build3 88.03s / build_verify 43.32s，
+  新增 3 个测试目标；204 → 207）。
+- 新测试：quadratic 72/72、interval 80/80、poly 106/106。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / algebraic_number.h 全部 75 个零覆盖 API 接入契约
+  测试（rational 20 + quadratic 18 + interval 18 + poly 19）/
+  algebraic_number_ext 63 + alg_quadratic_ext 72 + alg_interval_ext 80 +
+  alg_poly_ext 106 + 全量 207/207。
+- 缺陷修复 / M4 溢出与错误码链 / 6 模块 14 处溢出静默或错误码丢失 /
+  契约测试逐步检查 + 映射 ERR_OVERFLOW 钉住。
+- 缺陷修复 / M4 声称与实现脱节 / cmp_exact 用 double 近似冒充精确 /
+  GMP 任意精度精确比较（先例 rational.c），同号直接定号 + 异号平方比较。
+- 缺陷修复 / M4 边界 UB / neg 与 rational_roots 对 INT64_MIN/2a/±√disc
+  直接运算 / 溢出检测 + 饱和处理。
+- 缺陷修复 / M4 语义 / rational_roots 重复根 / 去重追加 + 候选去重。
+- 契约钉住 / 错误码映射统一 / 零分母→ERR_INVALID（rational 层 ERR_ZERO_
+  DEN 上抛为对应族 INVALID）、rational 溢出→族 ERR_OVERFLOW / 与头注释
+  错误码枚举一致。
+
+### 遗留登记
+
+- **algebraic_number.h 75 个零覆盖全部收尾**，该头文件治理完成。
+- 剩余候选：geo_halfedge_mesh.h 55（ctest-zero 30）、debug.h 38、
+  lv_utils.h 33、simd_ops.h 63（平台相关）等。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

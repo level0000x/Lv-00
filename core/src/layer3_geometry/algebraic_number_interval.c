@@ -37,7 +37,23 @@ AlgInterval lv_alg_interval_create(int64_t lo_val, int64_t lo_den, int64_t hi_va
     AlgRationalError r_err;
 
     result.lo = lv_alg_rational_create(lo_val, lo_den, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, (r_err == lv_alg_rational_ERR_ZERO_DEN)
+                                        ? lv_alg_interval_ERR_INVALID
+                                        : lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
     result.hi = lv_alg_rational_create(hi_val, hi_den, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, (r_err == lv_alg_rational_ERR_ZERO_DEN)
+                                        ? lv_alg_interval_ERR_INVALID
+                                        : lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
 
     /* 确保 lo <= hi */
     if (lv_alg_rational_cmp(&result.lo, &result.hi) > 0) {
@@ -70,7 +86,17 @@ AlgInterval lv_alg_interval_from_quadratic(const AlgQuadratic *x, AlgIntervalErr
         AlgRationalError r_err;
         AlgRational sqrt_d_rat = lv_alg_rational_from_int(sqrt_d);
         AlgRational b_sqrt_d = lv_alg_rational_mul(&x->b, &sqrt_d_rat, &r_err);
+        if (r_err != lv_alg_rational_OK) {
+            alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+            AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+            return z;
+        }
         AlgRational exact = lv_alg_rational_add(&x->a, &b_sqrt_d, &r_err);
+        if (r_err != lv_alg_rational_OK) {
+            alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+            AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+            return z;
+        }
         alg_set_error_interval(err, lv_alg_interval_OK);
         return lv_alg_interval_point(&exact);
     }
@@ -101,8 +127,21 @@ AlgInterval lv_alg_interval_add(const AlgInterval *x, const AlgInterval *y, AlgI
     }
 
     AlgInterval result;
-    result.lo = lv_alg_rational_add(&x->lo, &y->lo, NULL);
-    result.hi = lv_alg_rational_add(&x->hi, &y->hi, NULL);
+    AlgRationalError r_err;
+    result.lo = lv_alg_rational_add(&x->lo, &y->lo, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
+    result.hi = lv_alg_rational_add(&x->hi, &y->hi, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
     alg_set_error_interval(err, lv_alg_interval_OK);
     return result;
 }
@@ -116,8 +155,21 @@ AlgInterval lv_alg_interval_sub(const AlgInterval *x, const AlgInterval *y, AlgI
     }
 
     AlgInterval result;
-    result.lo = lv_alg_rational_sub(&x->lo, &y->hi, NULL);
-    result.hi = lv_alg_rational_sub(&x->hi, &y->lo, NULL);
+    AlgRationalError r_err;
+    result.lo = lv_alg_rational_sub(&x->lo, &y->hi, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
+    result.hi = lv_alg_rational_sub(&x->hi, &y->lo, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        result.lo = lv_alg_rational_zero();
+        result.hi = lv_alg_rational_zero();
+        return result;
+    }
     alg_set_error_interval(err, lv_alg_interval_OK);
     return result;
 }
@@ -131,10 +183,31 @@ AlgInterval lv_alg_interval_mul(const AlgInterval *x, const AlgInterval *y, AlgI
     }
 
     /* 计算四个端点乘积，取最小和最大 */
-    AlgRational p1 = lv_alg_rational_mul(&x->lo, &y->lo, NULL);
-    AlgRational p2 = lv_alg_rational_mul(&x->lo, &y->hi, NULL);
-    AlgRational p3 = lv_alg_rational_mul(&x->hi, &y->lo, NULL);
-    AlgRational p4 = lv_alg_rational_mul(&x->hi, &y->hi, NULL);
+    AlgRationalError r_err;
+    AlgRational p1 = lv_alg_rational_mul(&x->lo, &y->lo, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+        return z;
+    }
+    AlgRational p2 = lv_alg_rational_mul(&x->lo, &y->hi, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+        return z;
+    }
+    AlgRational p3 = lv_alg_rational_mul(&x->hi, &y->lo, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+        return z;
+    }
+    AlgRational p4 = lv_alg_rational_mul(&x->hi, &y->hi, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        AlgInterval z = {lv_alg_rational_zero(), lv_alg_rational_zero()};
+        return z;
+    }
 
     AlgRational lo = p1, hi = p1;
     if (lv_alg_rational_cmp(&p2, &lo) < 0)
@@ -274,8 +347,14 @@ AlgRational lv_alg_interval_width(const AlgInterval *x, AlgIntervalError *err) {
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         return lv_alg_rational_zero();
     }
+    AlgRationalError r_err;
+    AlgRational w = lv_alg_rational_sub(&x->hi, &x->lo, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     alg_set_error_interval(err, lv_alg_interval_OK);
-    return lv_alg_rational_sub(&x->hi, &x->lo, NULL);
+    return w;
 }
 
 AlgRational lv_alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err) {
@@ -283,10 +362,20 @@ AlgRational lv_alg_interval_midpoint(const AlgInterval *x, AlgIntervalError *err
         alg_set_error_interval(err, lv_alg_interval_ERR_NULL);
         return lv_alg_rational_zero();
     }
-    AlgRational sum = lv_alg_rational_add(&x->lo, &x->hi, NULL);
+    AlgRationalError r_err;
+    AlgRational sum = lv_alg_rational_add(&x->lo, &x->hi, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     AlgRational two = lv_alg_rational_from_int(2);
+    AlgRational mid = lv_alg_rational_div(&sum, &two, &r_err);
+    if (r_err != lv_alg_rational_OK) {
+        alg_set_error_interval(err, lv_alg_interval_ERR_OVERFLOW);
+        return lv_alg_rational_zero();
+    }
     alg_set_error_interval(err, lv_alg_interval_OK);
-    return lv_alg_rational_div(&sum, &two, NULL);
+    return mid;
 }
 
 void lv_alg_interval_bisect(const AlgInterval *x, AlgInterval *lower, AlgInterval *upper,

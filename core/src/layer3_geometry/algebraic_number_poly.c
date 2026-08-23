@@ -40,6 +40,18 @@ static void lv_alg_poly_normalize(AlgPoly *p) {
     }
 }
 
+/**
+ * @brief 判断根数组中是否已存在等价根（去重用）
+ * @return true 已存在，false 不存在
+ */
+static bool lv_alg_poly_root_exists(const AlgRational *roots, int count, const AlgRational *r) {
+    for (int i = 0; i < count; i++) {
+        if (lv_alg_rational_eq(&roots[i], r))
+            return true;
+    }
+    return false;
+}
+
 AlgPoly lv_alg_poly_zero(void) {
     AlgPoly p;
     memset(p.coef, 0, sizeof(p.coef));
@@ -125,8 +137,16 @@ AlgRational lv_alg_poly_eval_rational(const AlgPoly *p, const AlgRational *r, Al
 
     for (int i = p->degree; i >= 0; i--) {
         result = lv_alg_rational_mul(&result, r, &r_err);
+        if (r_err != lv_alg_rational_OK) {
+            alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+            return lv_alg_rational_zero();
+        }
         AlgRational coef_r = lv_alg_rational_from_int(p->coef[i]);
         result = lv_alg_rational_add(&result, &coef_r, &r_err);
+        if (r_err != lv_alg_rational_OK) {
+            alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+            return lv_alg_rational_zero();
+        }
     }
 
     alg_set_error_poly(err, lv_alg_poly_OK);
@@ -223,7 +243,8 @@ AlgPoly lv_alg_poly_mul(const AlgPoly *p, const AlgPoly *q, AlgPolyError *err) {
 AlgPoly lv_alg_poly_neg(const AlgPoly *p) {
     AlgPoly result;
     for (int i = 0; i <= lv_alg_poly_MAX_DEGREE; i++) {
-        result.coef[i] = -p->coef[i];
+        /* INT64_MIN 取负溢出 → 饱和到 INT64_MAX（取负无 err 通道，饱和保正确性） */
+        result.coef[i] = (p->coef[i] == INT64_MIN) ? INT64_MAX : -p->coef[i];
     }
     result.degree = p->degree;
     return result;
@@ -291,8 +312,14 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
 
     if (p->degree == 1) {
         /* ax + b = 0 => x = -b/a */
+        /* 检测 -b 溢出（b == INT64_MIN 时 -b 无 int64 表示） */
+        int64_t neg_b;
+        if (alg_sub_overflow(0, p->coef[0], &neg_b)) {
+            alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+            return 0;
+        }
         AlgRationalError r_err;
-        roots[found] = lv_alg_rational_create(-p->coef[0], p->coef[1], &r_err);
+        roots[found] = lv_alg_rational_create(neg_b, p->coef[1], &r_err);
         found++;
         alg_set_error_poly(err, lv_alg_poly_OK);
         return found;
@@ -310,10 +337,22 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
             return 0;
         }
 
+        /* 2a 可能溢出，先检测 */
+        int64_t two_a;
+        if (alg_mul_overflow(2, p->coef[2], &two_a)) {
+            alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+            return 0;
+        }
+
         if (disc == 0) {
             /* 重根 x = -b/(2a) */
+            int64_t neg_b;
+            if (alg_sub_overflow(0, p->coef[1], &neg_b)) {
+                alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+                return 0;
+            }
             AlgRationalError r_err;
-            roots[found] = lv_alg_rational_create(-p->coef[1], 2 * p->coef[2], &r_err);
+            roots[found] = lv_alg_rational_create(neg_b, two_a, &r_err);
             found++;
             alg_set_error_poly(err, lv_alg_poly_OK);
             return found;
@@ -328,13 +367,24 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
          * + 相对容差），语义不同，不可替换。 */
         if (alg_is_perfect_square(disc)) {
             int64_t sqrt_disc = alg_isqrt(disc);
+            /* -b 与 ±sqrt(disc) 均检测溢出 */
+            int64_t neg_b;
+            if (alg_sub_overflow(0, p->coef[1], &neg_b)) {
+                alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+                return 0;
+            }
+            int64_t n1, n2;
+            if (alg_sub_overflow(neg_b, sqrt_disc, &n1) || alg_add_overflow(neg_b, sqrt_disc, &n2)) {
+                alg_set_error_poly(err, lv_alg_poly_ERR_OVERFLOW);
+                return 0;
+            }
             AlgRationalError r_err;
             if (found < max_roots) {
-                roots[found] = lv_alg_rational_create(-p->coef[1] - sqrt_disc, 2 * p->coef[2], &r_err);
+                roots[found] = lv_alg_rational_create(n1, two_a, &r_err);
                 found++;
             }
             if (found < max_roots) {
-                roots[found] = lv_alg_rational_create(-p->coef[1] + sqrt_disc, 2 * p->coef[2], &r_err);
+                roots[found] = lv_alg_rational_create(n2, two_a, &r_err);
                 found++;
             }
         }
@@ -346,12 +396,8 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
 
     /* 高次多项式：使用有理根定理枚举候选 */
     if (p->coef[0] == 0) {
-        /* x=0 是一个根，降次后递归 */
-        if (found < max_roots) {
-            roots[found] = lv_alg_rational_zero();
-            found++;
-        }
-        /* 降次：p(x) / x */
+        /* x=0 是一个根：先对降次多项式递归求根，再在末尾去重追加 0。
+         * 顺序保证：递归路径（如 x²-x）已含 0 时不重复追加。 */
         AlgPoly reduced;
         memset(reduced.coef, 0, sizeof(reduced.coef));
         reduced.degree = p->degree - 1;
@@ -359,8 +405,12 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
             reduced.coef[i - 1] = p->coef[i];
         }
         lv_alg_poly_normalize(&reduced);
-        int sub_found = lv_alg_poly_rational_roots(&reduced, roots + found, max_roots - found, err);
-        return found + sub_found;
+        int sub_found = lv_alg_poly_rational_roots(&reduced, roots, max_roots, err);
+        AlgRational zero_rat = lv_alg_rational_zero();
+        if (!lv_alg_poly_root_exists(roots, sub_found, &zero_rat) && sub_found < max_roots) {
+            roots[sub_found++] = zero_rat;
+        }
+        return sub_found;
     }
 
     /* 有理根定理：候选 p/q 满足 p | a_0, q | a_n */
@@ -391,21 +441,21 @@ int lv_alg_poly_rational_roots(const AlgPoly *p, AlgRational *roots, int max_roo
         }
     }
 
-    /* 枚举所有候选 p/q 和 -p/q */
+    /* 枚举所有候选 p/q 和 -p/q（去重：不同因子对可能产生同一约分根） */
     for (int i = 0; i < p_count && found < max_roots; i++) {
         for (int j = 0; j < q_count && found < max_roots; j++) {
             /* 正候选 */
             AlgRationalError r_err;
             AlgRational candidate = lv_alg_rational_create(p_factors[i], q_factors[j], &r_err);
             AlgRational val = lv_alg_poly_eval_rational(p, &candidate, NULL);
-            if (lv_alg_rational_is_zero(&val)) {
+            if (lv_alg_rational_is_zero(&val) && !lv_alg_poly_root_exists(roots, found, &candidate)) {
                 roots[found++] = candidate;
             }
             /* 负候选 */
             if (found < max_roots) {
                 candidate = lv_alg_rational_create(-p_factors[i], q_factors[j], &r_err);
                 val = lv_alg_poly_eval_rational(p, &candidate, NULL);
-                if (lv_alg_rational_is_zero(&val)) {
+                if (lv_alg_rational_is_zero(&val) && !lv_alg_poly_root_exists(roots, found, &candidate)) {
                     roots[found++] = candidate;
                 }
             }
