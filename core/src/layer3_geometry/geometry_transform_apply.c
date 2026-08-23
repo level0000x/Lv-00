@@ -269,3 +269,87 @@ bool lv_transform_sequence_apply(const lvTransformSequence *seq, mpq_t x, mpq_t 
     return true;
 }
 
+/* ============================================================
+ * 补齐实现（批次 C-㊺续9）：以下 5 个 API 头文件声明但原实现缺失
+ * （M5，零消费者故链接未暴露）
+ * ============================================================ */
+
+void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t src_y, mpq_t dst_x, mpq_t dst_y) {
+    if (!t || !t->matrix_valid || !dst_x || !dst_y)
+        return;
+
+    /* dst_x = a*src_x + b*src_y + tx；dst_y = c*src_x + d*src_y + ty */
+    mpq_t temp;
+    mpq_init(temp);
+
+    mpq_mul(dst_x, t->matrix.a, src_x);
+    mpq_mul(temp, t->matrix.b, src_y);
+    mpq_add(dst_x, dst_x, temp);
+    mpq_add(dst_x, dst_x, t->matrix.tx);
+
+    mpq_mul(dst_y, t->matrix.c, src_x);
+    mpq_mul(temp, t->matrix.d, src_y);
+    mpq_add(dst_y, dst_y, temp);
+    mpq_add(dst_y, dst_y, t->matrix.ty);
+
+    mpq_clear(temp);
+}
+
+void lv_transform_identity_double(double out[16]) {
+    if (!out)
+        return;
+    memset(out, 0, 16 * sizeof(double));
+    out[0] = 1.0;
+    out[5] = 1.0;
+    out[10] = 1.0;
+    out[15] = 1.0;
+}
+
+void lv_transform_translate_double(double out[16], double x, double y, double z) {
+    lv_transform_identity_double(out);
+    if (!out)
+        return;
+    out[12] = x;
+    out[13] = y;
+    out[14] = z;
+}
+
+void lv_transform_rotate_double(double out[16], double angle_rad, double x, double y, double z) {
+    lv_transform_identity_double(out);
+    if (!out)
+        return;
+
+    /* Rodrigues 公式：绕单位轴 (x,y,z) 旋转 angle_rad */
+    double len = sqrt(x * x + y * y + z * z);
+    if (len < 1e-15) {
+        return; /* 零轴：保持恒等 */
+    }
+    double nx = x / len, ny = y / len, nz = z / len;
+    double c = cos(angle_rad), s = sin(angle_rad), t = 1.0 - c;
+
+    out[0] = t * nx * nx + c;
+    out[1] = t * nx * ny - s * nz;
+    out[2] = t * nx * nz + s * ny;
+    out[4] = t * nx * ny + s * nz;
+    out[5] = t * ny * ny + c;
+    out[6] = t * ny * nz - s * nx;
+    out[8] = t * nx * nz - s * ny;
+    out[9] = t * ny * nz + s * nx;
+    out[10] = t * nz * nz + c;
+}
+
+void lv_transform_scale_double(double out[16], double sx, double sy, double sz) {
+    lv_transform_identity_double(out);
+    if (!out)
+        return;
+    out[0] = sx;
+    out[5] = sy;
+    out[10] = sz;
+}
+
+/* 补齐（C-㊺续9）：头文件声明 lv_transform_sequence_compose_all，
+ * 原实现缺失（M5）——委托既有 sequence_composite（语义等价） */
+lvTransform *lv_transform_sequence_compose_all(const lvTransformSequence *seq) {
+    return lv_transform_sequence_composite(seq);
+}
+

@@ -275,17 +275,21 @@ bool lv_transform_is_orientation_preserving(const lvTransform *t);
 lvTransform *lv_transform_inverse(const lvTransform *t);
 /**
  * @brief 计算点关于直线的反射
+ * @param px 被反射点 P 的 X 坐标（有理数）
+ * @param py 被反射点 P 的 Y 坐标（有理数）
  * @param ax 直线上点 A 的 X 坐标（有理数）
  * @param ay 直线上点 A 的 Y 坐标（有理数）
  * @param bx 直线上点 B 的 X 坐标（有理数）
  * @param by 直线上点 B 的 Y 坐标（有理数）
- * @param px 被反射点 P 的 X 坐标（有理数）
- * @param py 被反射点 P 的 Y 坐标（有理数）
  * @param rx 反射结果 X 坐标（输出，有理数）
  * @param ry 反射结果 Y 坐标（输出，有理数）
  * @return 成功返回 true，失败返回 false
+ *
+ * @note 修复（C-㊺续9 测试暴露）：原声明参数顺序 (ax,ay,bx,by,px,py) 与
+ *       实现及内部调用（geometry_transform_analysis.c，点在前）不一致
+ *       （M4 声称与实现脱节）——统一为点在前 (px,py,ax,ay,bx,by)。
  */
-bool lv_reflect_point(const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by, const mpq_t px, const mpq_t py,
+bool lv_reflect_point(const mpq_t px, const mpq_t py, const mpq_t ax, const mpq_t ay, const mpq_t bx, const mpq_t by,
                       mpq_t rx, mpq_t ry);
 
 /* -- Sequence API -- */
