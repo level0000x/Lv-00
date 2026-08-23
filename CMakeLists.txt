@@ -2120,6 +2120,15 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_fast_index_ext CTEST_NAME fast_index_ext_test)
     add_lv_test_auto(test_lv_lexer_ext CTEST_NAME lv_lexer_ext_test)
     add_lv_test_auto(test_ode_integrator_ext CTEST_NAME ode_integrator_ext_test)
+
+    # 批次 C-㊺续33：零覆盖契约测试
+    add_lv_test_auto(test_meta_verify_ext CTEST_NAME meta_verify_ext_test)
+    add_lv_test_auto(test_engine_scheduler_ext CTEST_NAME engine_scheduler_ext_test)
+    add_lv_test_auto(test_lv_mempool_ext CTEST_NAME lv_mempool_ext_test)
+    add_lv_test_auto(test_geo_aabb_tree_ext CTEST_NAME geo_aabb_tree_ext_test)
+    add_lv_test_auto(test_gc_language_ext CTEST_NAME gc_language_ext_test)
+    add_lv_test_auto(test_ecosystem_ext CTEST_NAME ecosystem_ext_test)
+    add_lv_test_auto(test_circuit_breaker_ext CTEST_NAME circuit_breaker_ext_test)
 endif()
 
 # ============================================================

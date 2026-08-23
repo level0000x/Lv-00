@@ -6079,3 +6079,74 @@ lv_expr_canon"桩实现"标注已过时（实现完整），登记说明。
   （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零五、批次 C-㊺续33（超大批量）：7 头文件 28 零覆盖契约测试 + 1 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（meta_verify.h 6 + engine_scheduler.h 5 + lv_mempool.h 4 + geo_aabb_tree.h 4 +
+gc_language.h 3 + ecosystem.h 3 + circuit_breaker.h 3 = 28 个零覆盖 API），
+7 个新测试文件。
+
+### ① 新增测试（7 个文件，97 断言）
+
+- **test_meta_verify_ext.c**（28）：enable/disable_check（初始全启用 63、
+  bit 置位/清位、越界/NULL 安全）、set_strict 往返、report summary/result
+  （NULL/越界契约）、verify_proof（verifier NULL → "Invalid verifier"、
+  全启用 + proof NULL → 各检查失败、全禁用 → 全跳过、仅 STRUCTURAL →
+  failed 1 + skipped 5）。
+- **test_engine_scheduler_ext.c**（10）：未初始化（pending_count 0、
+  execute_pending false、schedule 错误码、NULL 契约）、初始化后
+  （scheduler 惰性创建、main_graph NULL → schedule 0 / execute false、
+  未知任务名 0、shutdown 后 schedule 错误码）。
+- **test_lv_mempool_ext.c**（4）：create/alloc 写入/free 归还再 alloc、
+  destroy NULL 安全、零块大小创建不崩。
+- **test_geo_aabb_tree_ext.c**（21）：aabb2d_center（(0,0)-(2,4) → (1,2)）、
+  aabb3d_ray_query（box0 命中 t=0.5 / 错向未命中 / NULL 树）、旧版兼容
+  build/query（2D 点树命中 box 输出坐标、3D 构建、无效参数 NULL/0）。
+- **test_gc_language_ext.c**（12）：parse 成功（关键字计数、注释不计数、
+  非关键字 0、成功无错误）、parse 失败（未知字符/NULL 源 → -1 + 错误串）。
+- **test_ecosystem_ext.c**（12）：init 幂等、register（成功/重复拒绝/NULL/
+  layer 越界）、shutdown 清空 + 未初始化拒绝、重新 init。
+- **test_circuit_breaker_ext.c**（10）：now_us 单调、uptime_us（NULL 0/
+  刚启动小值/未来 start 0）、record_failure ctx 版（NULL false、连续 3 次
+  跳闸 OPEN）。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M5）
+
+- **lv_aabb_tree_build / lv_aabb_tree_query（旧版兼容）声明无实现**：geo_aabb_
+  tree.h 声明了无维度后缀的旧版构建/查询接口，但实现拆分后（aabb_tree_2d.c /
+  aabb_tree_3d.c 模板生成 lv_aabb2d_* / lv_aabb3d_* 系列）未覆盖这两个兼容
+  符号，全库无调用点、无实现（调用即链接错误）。修复：在 aabb_tree_2d.c
+  补齐包装——build 按 dim 2/3 将点数组转为退化包围盒后委托
+  lv_aabb2d_build / lv_aabb3d_build；query 按 2D 包围盒经
+  lv_aabb2d_range_query 收集命中并输出坐标（x,y 交错）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **261/261**（build3 23.88s / build_verify 23.26s，
+  新增 7 个测试目标；254 → 261）。
+- 新测试合计 97 断言全过。
+- 零覆盖扫描复核：本批 7 头清零。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 28 个零覆盖 API 接入契约测试 / 7 测试文件
+  97 断言 + 全量 261/261。
+- 缺陷修复 / M5 声明无实现 / 旧版 AABB 兼容 build/query / 点数组委托 2D/3D
+  树构建 + range_query 坐标输出。
+- 契约钉住 / 元验证器默认全启用、调度器向后兼容空操作、内存池块往返、
+  AABB 射线/中心/旧版查询、GC 关键字计数、生态注册生命周期、熔断时间戳/
+  跳闸 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（load 依赖动态库较重，
+  建议独立批次）、autodiff.h 14（lv_ad_* 直用名）、lv.h 上层 API 17（含
+  lv_set_log_level/lv_get_log_level/lv_normalize/lv_prove 等）、allocator.h 5、
+  geo_dynamic.h 7、expr_canonical.h 6、lv_str_utils.h 5、lv_backend_plugin.h 7、
+  lv_convenience.h 4、lv_render_visitor.h 3、smt_bitvector.h 2、math_input.h 2、
+  geo_topology.h 2、lv_process.h 2、lv_export_common.h 2、lambda_term.h 2、
+  gappa_propagate.h 1（lv_gappa_propagate_backward）等（宏误报已按既有规则
+  过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
