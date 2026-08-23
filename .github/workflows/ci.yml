@@ -10,6 +10,8 @@ jobs:
   # ── Ubuntu: 完整 CMake 构建 + CTest ────────────────────────
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
