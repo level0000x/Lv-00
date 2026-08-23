@@ -5314,3 +5314,51 @@ layer4_reasoning/type_logic/modal_operators.c。
   （symbolic 三族，需核对载体语义）、get_timestamp ×2、trust_color_name
   ×3、constraint/geom_type_to_string ×2、read_file ×2、wildcard_match ×2。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十二、批次 C-㊺续20：内存池系统（memory_pool.h）13 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 memory_pool.h（13 个 ctest 零覆盖，
+对象池 clear + 全局内存统计 + 预定义池）。实现位于 layer2_resource/
+memory_pool.c（autodiff.h 14 个经核对为向后兼容别名误报——test_autodiff
+经 ad_* 别名已全覆盖，跳过）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_memory_pool_ext.c`**（CTEST memory_pool_ext_test）：
+  46 断言，3 个测试函数：
+  - test_mem_stats_api：reset 初始、register_type（NULL → -1、ID 递增、
+    名称深拷贝）、record_alloc/free（按类型计数、current/peak 字节、
+    total 汇总）、非法/越界 type_id（忽略或仅记 total）、get_global_
+    stats（NULL 契约）、print_stats（stdout/NULL）、reset 释放类型名
+    防泄漏后可重注册。
+  - test_preset_pools_api：init（成功 + 幂等二次）、get_*_pool 非空且
+    实例不同、池分配/回收往返、cleanup 后池 NULL、cleanup 后可重新
+    init、二次 cleanup 幂等。
+  - test_pool_clear_api：create → alloc 3 → stats（3 alloc/3 used）→
+    clear（used 0）→ 重新分配复用 → NULL 契约。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致，一次通过）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **214/214**（build3 14.63s / build_verify 12.61s，
+  新增 memory_pool_ext_test；213 → 214）。
+- test_memory_pool_ext 46/46。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / memory_pool.h 13 个零覆盖 API 接入契约测试 /
+  test_memory_pool_ext 46 + 全量 214/214。
+- 登记 / 扫描方法 / autodiff.h 经向后兼容别名（ad_*）误报零覆盖，核对
+  后确认 test_autodiff 已全覆盖，跳过（避免重复测试）。
+- 契约钉住 / 统计计数/字节汇总、reset 释放名称防泄漏、预定义池幂等
+  init + cleanup 可重入 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：parametric_curves.h 13、plugin_system.h 12、
+  config.h 12、lv_number.h 11 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

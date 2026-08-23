@@ -1794,6 +1794,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_simd_ops_ext CTEST_NAME simd_ops_ext_test)
     add_lv_test_auto(test_modal_operators_ext CTEST_NAME modal_operators_ext_test)
     add_lv_test_auto(test_lv_error_ext CTEST_NAME lv_error_ext_test)
+    add_lv_test_auto(test_memory_pool_ext CTEST_NAME memory_pool_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试
