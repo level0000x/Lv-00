@@ -4740,3 +4740,50 @@ header-only static inline 平台抽象）。
 
 - 下一批候选：lv_storage.h 13 等；大块头 algebraic_number.h 75 /
   geo_halfedge_mesh.h 55 列入专项评估。
+
+## 八十三、批次 C-㊺续11：统一存储（lv_storage.h）13 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 lv_storage.h（13 个 ctest 零覆盖，存储
+I/O + 序列化文件族 + 后端注册 + 验证族）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_storage_ext.c`**（CTEST storage_ext_test）：30 断言，
+  4 个测试函数：
+  - test_storage_io_api：mem:// 后端 open/write/tell/size/flush/seek/read/
+    eof/is_open 全流程 + 全 NULL 契约。
+  - test_serialize_file_api：自定义类型注册 → serialize_to_file（临时
+    文件）→ deserialize_from_file → 值一致；NULL 契约。
+  - test_backend_api：重复 scheme 注册失败、NULL 契约、ops NULL 失败。
+  - test_verify_api：register_verify（NULL 安全）、roundtrip_verify
+    （mem:// 内存往返一致）。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M4）
+
+- **lv_storage_system_cleanup 后系统不可恢复**：cleanup 清空后端注册表，
+  但 g_backend_registry_once（lv_once 幂等标志）未重置——后续 system_init
+  不再重新注册 file/mem 后端，open 失败（测试首次 cleanup 后序列化文件
+  族全失败）。修复：cleanup 末尾重置 once 标志（Windows InitOnceInitialize
+  / POSIX 重拷 PTHREAD_ONCE_INIT）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **203/203**（build3 87.68s / build_verify 45.64s，
+  新增 storage_ext_test）。
+- test_storage_ext 30/30。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M4 生命周期 / storage cleanup 后 once 未重置系统不可恢复 /
+  测试隔离序列化族暴露、修复钉住。
+- 测试补全 / 覆盖 / lv_storage.h 13 零覆盖 API 接入契约测试 /
+  test_storage_ext 30 + 全量 203/203。
+- 契约钉住 / mem:// 内存往返、序列化注册表 round-trip、后端注册查重、
+  cleanup 后可重新 init / 与实现一致。
+
+### 遗留登记
+
+- **小头文件零覆盖批次完成**（lv_graph_traversal/lv_json/three_valued_
+  logic/inequality/lv_number/recursion/lv_numeric/runtime_monitor/axiom_
+  rule/geometry_transform/lv_thread/lv_storage 全部收尾）。
+- 大块头：algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
