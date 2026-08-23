@@ -390,6 +390,10 @@ int lv_dyn_graph_add_node(lvDynGraph *graph, lvDynNodeType type, const int *pare
 }
 
 lvDynNode *lv_dyn_graph_get_node(lvDynGraph *graph, int node_id) {
+    /* 修复（C-㊺续34 测试暴露）：原实现无 NULL 守卫，remove_node(NULL,...)
+     * 经 get_node_index 解引用 graph 崩溃 */
+    if (!graph)
+        return NULL;
     int index = get_node_index(graph, node_id);
     if (index == lv_DYN_INVALID || index >= graph->node_count) {
         return NULL;

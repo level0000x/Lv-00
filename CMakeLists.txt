@@ -2129,6 +2129,15 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_gc_language_ext CTEST_NAME gc_language_ext_test)
     add_lv_test_auto(test_ecosystem_ext CTEST_NAME ecosystem_ext_test)
     add_lv_test_auto(test_circuit_breaker_ext CTEST_NAME circuit_breaker_ext_test)
+
+    # 批次 C-㊺续34：零覆盖契约测试
+    add_lv_test_auto(test_allocator_ext CTEST_NAME allocator_ext_test)
+    add_lv_test_auto(test_geo_dynamic_ext CTEST_NAME geo_dynamic_ext_test)
+    add_lv_test_auto(test_expr_canonical_ext CTEST_NAME expr_canonical_ext_test)
+    add_lv_test_auto(test_lv_str_utils_ext CTEST_NAME lv_str_utils_ext_test)
+    add_lv_test_auto(test_lv_convenience_ext CTEST_NAME lv_convenience_ext_test)
+    add_lv_test_auto(test_smt_bitvector_ext CTEST_NAME smt_bitvector_ext_test)
+    add_lv_test_auto(test_geo_topology_ext CTEST_NAME geo_topology_ext_test)
 endif()
 
 # ============================================================

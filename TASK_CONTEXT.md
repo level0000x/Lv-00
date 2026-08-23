@@ -6150,3 +6150,69 @@ gc_language.h 3 + ecosystem.h 3 + circuit_breaker.h 3 = 28 个零覆盖 API）�
   过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零六、批次 C-㊺续34（超大批量）：7 头文件 31 零覆盖契约测试 + 1 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（allocator.h 5 + geo_dynamic.h 7 + expr_canonical.h 6 + lv_str_utils.h 5 +
+lv_convenience.h 4 + smt_bitvector.h 2 + geo_topology.h 2 = 31 个零覆盖 API，
+其中 lv_DYN_INVALID 为宏经返回值覆盖），7 个新测试文件。
+
+### ① 新增测试（7 个文件，133 断言）
+
+- **test_allocator_ext.c**（16）：get 永不 NULL、raw/debug 实例（name/alloc/free
+  非空）、set（NULL 不切换、返回先前、往返 raw/debug）、reset 切回调试。
+- **test_geo_dynamic_ext.c**（22）：add_node（成功 id/NULL -1）、create_circle
+  （2 父节点、类型）、remove_node（存在/不存在/NULL 契约）、update_all
+  （初始无 DIRTY 0、NULL 0）、mark_dirty + reset_states 恢复、geo_dynamic_step
+  （Euler 位移、NULL/空/dt<=0 无操作）。
+- **test_expr_canonical_ext.c**（29）：create_rational_mpq（3/2 非常量整、
+  5/1 get_integer、NULL 契约）、is_constant（rational true/variable false/
+  NULL false）、get_integer（分母 1 输出/out NULL）、sum_n/product_n
+  （count/operands、NULL/0/坏项契约）、free 置 NULL。
+- **test_lv_str_utils_ext.c**（22）：mpq_to_string（"3/2"/"5/1"/"5"（omit）/
+  NULL）、append_sep（重复字符）、append_cell（左对齐补空格/NULL 空串/
+  超宽不截断）、strbuf_join（3 项/分隔符 NULL/空/NULL sb）、strtok_r
+  （"a,b,c" 三切分/NULL delim/saveptr）。
+- **test_lv_convenience_ext.c**（15）：参数契约（ctx/name NULL/空名 → -1）、
+  未加载 preset（apply/unload → -3）、prove 非 IDLE/COMPLETE → -2、prove
+  正常路径不崩溃（返回值在 [-4,0]）。
+- **test_smt_bitvector_ext.c**（14）：shift_left（1<<1=2、溢出 8 位截断 0、
+  0 位移不变）、shift_right（4>>1=2、>>2=1、全移出 0）。
+- **test_geo_topology_ext.c**（15）：euler_characteristic（四面体/立方体=2、
+  带边界=1、负数/2E<3F/闭 χ>2 → -1）、is_simplicial_complex（共享边三角
+  形/边列表/退化/负顶点/NULL/空/dim 越界/四面体）。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M5）
+
+- **lv_dyn_graph_get_node 无 NULL 守卫**：remove_node(NULL, 0) 经 get_node →
+  get_node_index 解引用 NULL graph 崩溃。修复：get_node 开头加
+  `if (!graph) return NULL;`（惠及所有经 get_node 的调用方）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **268/268**（build3 155.31s / build_verify 91.65s，
+  新增 7 个测试目标；261 → 268）。
+- 新测试合计 133 断言全过。
+- 零覆盖扫描复核：本批 7 头清零。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 31 个零覆盖 API 接入契约测试 / 7 测试文件
+  133 断言 + 全量 268/268。
+- 缺陷修复 / M5 NULL 契约违约 / lv_dyn_graph_get_node 无 NULL 守卫致
+  remove_node(NULL) 崩溃 / 加 NULL 守卫。
+- 契约钉住 / 分配器切换语义、动态图节点/圆/状态/步进、表达式复合/查询、
+  字符串格式化/join/token、便捷 API 错误码、位向量位移截断、欧拉示性数/
+  单纯复形 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（load 依赖动态库较重，
+  建议独立批次）、autodiff.h 14（lv_ad_* 直用名）、lv.h 上层 API 17（含
+  lv_set_log_level/lv_get_log_level/lv_normalize/lv_prove 等）、
+  lv_backend_plugin.h 7、lv_render_visitor.h 3、math_input.h 2、lv_process.h 2、
+  lv_export_common.h 2、lambda_term.h 2、gappa_propagate.h 1
+  （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
