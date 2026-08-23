@@ -31,8 +31,13 @@ static void test_available(void) {
     TEST_ASSERT(!lv_external_process_available(NULL), "NULL false");
     TEST_ASSERT(!lv_external_process_available(""), "empty false");
 
+#ifdef _WIN32
     /* cmd 在 Windows PATH 中 */
     TEST_ASSERT(lv_external_process_available("cmd"), "cmd available");
+#else
+    /* sh 在 POSIX PATH 中 */
+    TEST_ASSERT(lv_external_process_available("sh"), "sh available");
+#endif
 
     /* 不存在的工具 */
     TEST_ASSERT(!lv_external_process_available("no-such-tool-xyz-123"), "missing false");
@@ -58,9 +63,15 @@ static void test_run(void) {
     TEST_ASSERT_EQ(lv_external_process_run("cmd", argv0, NULL, 0, 5000, &out, &out_len, &exit_code),
                    (int) lv_ERROR_INVALID_PARAM);
 
-    /* 正常执行：cmd /c echo hello */
+    /* 正常执行：平台命令输出 hello（Windows cmd / POSIX sh） */
+#ifdef _WIN32
     char *argv_echo[] = {"cmd", "/c", "echo", "hello", NULL};
-    int rc = lv_external_process_run("cmd", argv_echo, NULL, 0, 5000, &out, &out_len, &exit_code);
+    const char *echo_exe = "cmd";
+#else
+    char *argv_echo[] = {"sh", "-c", "echo hello", NULL};
+    const char *echo_exe = "sh";
+#endif
+    int rc = lv_external_process_run(echo_exe, argv_echo, NULL, 0, 5000, &out, &out_len, &exit_code);
     TEST_ASSERT_EQ(rc, (int) lv_OK);
     TEST_ASSERT_EQ(exit_code, 0);
     TEST_ASSERT_NOT_NULL(out);

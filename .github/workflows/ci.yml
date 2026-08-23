@@ -22,7 +22,17 @@ jobs:
         run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build
-        run: cmake --build build --parallel $(nproc)
+        run: |
+          set -o pipefail
+          cmake --build build --parallel $(nproc) 2>&1 | tee /tmp/build.log
+
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-build-log
+          path: /tmp/build.log
+          if-no-files-found: ignore
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure --parallel $(nproc)
