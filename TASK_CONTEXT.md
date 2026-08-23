@@ -5404,3 +5404,49 @@ parametric_curves.c。
   control_flow_blocks.h 11 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十四、批次 C-㊺续22：运行时配置系统（config.h）12 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 config.h（12 个 ctest 零覆盖，运行时
+配置生命周期 + 单键访问 + JSON 读写）。实现位于 layer2_resource/lv_config.c
+（通用 getter 在 lv.c，A/B 双注册表）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_config_ext.c`**（CTEST config_ext_test）：53 断言，
+  3 个测试函数：
+  - test_config_lifecycle_api：default（X-macro 默认值）、current（首次从
+    默认初始化、单例）、apply（应用副本、NULL→-1）、reset 恢复默认。
+  - test_config_key_api：set_int/set_double（匹配键、未知键 false、NULL）、
+    get_int/get_double（默认值回落）、get_bool（非零 true/零 false）、
+    get_string（A 命中返回 default、未知回落默认）、类型安全
+    getter/setter（X-macro 生成）联动。
+  - test_config_json_api：to_json（合法 JSON 含键、NULL/过小 -1）、
+    load_json（文件缺失/NULL -1、临时文件往返应用、未知键全量替换语义
+    ——未在 JSON 的键恢复默认）。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致；测试初版一处断言与实现语义不符已修正：load_json
+  以默认配置为基准全量替换，第二次加载仅含未知键的 JSON 时未列键恢复
+  默认而非保留旧值）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **216/216**（build3 13.69s / build_verify 13.37s，
+  新增 config_ext_test；215 → 216）。
+- test_config_ext 53/53。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / config.h 12 个零覆盖 API 接入契约测试 /
+  test_config_ext 53 + 全量 216/216。
+- 契约钉住 / 默认值表、current 单例、apply/reset、单键 set 匹配、通用
+  getter 回落、to_json/load_json 对称（全量替换语义）/ 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_number.h 11、
+  control_flow_blocks.h 11、effect_system.h 10 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
