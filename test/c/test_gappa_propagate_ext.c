@@ -217,6 +217,43 @@ static void test_propagate_expr_api(void) {
     TEST_ASSERT_EQ(lv_gappa_propagate("x + 1", &lo, NULL), -1);
 }
 
+/* ============== 测试：反向传播 backward（批次 C-㊺续36 追加） ============== */
+
+static void test_propagate_backward_api(void) {
+    lvGappaPredSet out;
+    lv_gappa_pred_set_init(&out);
+
+    /* NULL 契约 */
+    TEST_ASSERT_EQ(lv_gappa_propagate_backward(NULL, NULL, &out, NULL), 0);
+
+    /* BND 目标：复制目标区间为 hypothesis */
+    lvGappaPredicate goal = make_bnd("z", 1.0, 2.0);
+    int needed = lv_gappa_propagate_backward(&goal, NULL, &out, NULL);
+    TEST_ASSERT_EQ(needed, 1);
+    lvGappaPredicate f;
+    memset(&f, 0, sizeof(f));
+    TEST_ASSERT(lv_gappa_pred_set_find(&out, "z", &f) >= 0, "found z");
+    TEST_ASSERT_DOUBLE(f.bound_lo, 1.0, 1e-9);
+    TEST_ASSERT_DOUBLE(f.bound_hi, 2.0, 1e-9);
+    TEST_ASSERT(f.is_hypothesis, "hypothesis flag");
+    lv_gappa_pred_set_clear(&out);
+
+    /* ABS 目标：|x - 0.5| <= 0.25 → x ∈ [0.25, 0.75] */
+    memset(&goal, 0, sizeof(goal));
+    goal.type = lv_PRED_ABS;
+    strncpy(goal.expr_lhs, "x - 0.5", sizeof(goal.expr_lhs) - 1);
+    strncpy(goal.expr_rhs, "0.5", sizeof(goal.expr_rhs) - 1);
+    goal.bound_abs = 0.25;
+    needed = lv_gappa_propagate_backward(&goal, NULL, &out, NULL);
+    TEST_ASSERT_EQ(needed, 1);
+    memset(&f, 0, sizeof(f));
+    TEST_ASSERT(lv_gappa_pred_set_find(&out, "x", &f) >= 0, "derived x");
+    TEST_ASSERT_DOUBLE(f.bound_lo, 0.25, 1e-9);
+    TEST_ASSERT_DOUBLE(f.bound_hi, 0.75, 1e-9);
+
+    lv_gappa_pred_set_clear(&out);
+}
+
 /* ============== Main ============== */
 
 TEST_MAIN_BEGIN("GappaPropagateExt")
@@ -227,5 +264,6 @@ TEST_MAIN_BEGIN("GappaPropagateExt")
     TEST_MAIN_RUN(test_config_default_api);
     TEST_MAIN_RUN(test_propagate_set_api);
     TEST_MAIN_RUN(test_propagate_expr_api);
+    TEST_MAIN_RUN(test_propagate_backward_api);
 
 TEST_MAIN_END()

@@ -180,6 +180,13 @@ const char *lv_get_last_error_message(void) {
     return g_error_message;
 }
 
+/**
+ * @brief 获取当前线程的最后错误消息（兼容别名，补齐自 C-㊺续36）
+ */
+const char *lv_get_last_error(void) {
+    return lv_get_last_error_message();
+}
+
 int lv_get_error_description(char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) {
         lv_RETURN_ERROR(lv_ERROR_INVALID_PARAM, "buf is NULL or buf_size is 0");

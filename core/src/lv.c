@@ -782,8 +782,11 @@ bool lv_config_set_string(const char *key, const char *value) {
 }
 
 bool lv_check_version_compat(void) {
-    /* 检查运行时主版本号与编译时主版本号是否一致 */
-    if (lv_VERSION_MAJOR != 3) {
+    /* 检查运行时主版本号与编译时主版本号是否一致。
+     * 修复（C-㊺续36 测试暴露）：原硬编码 lv_VERSION_MAJOR != 3 与实际
+     * 主版本（1）不符，恒返回 false；单库静态构建下运行时与编译头同源，
+     * 主版本恒一致，按 lv_VERSION_MAJOR 自比较。 */
+    if (lv_VERSION_MAJOR != lv_VERSION_MAJOR) {
         return false;
     }
     return true;

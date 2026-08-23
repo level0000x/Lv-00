@@ -2147,6 +2147,14 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_export_common_ext CTEST_NAME lv_export_common_ext_test)
     add_lv_test_auto(test_lambda_term_ext CTEST_NAME lambda_term_ext_test)
     add_lv_test_auto(test_lv_version_ext CTEST_NAME lv_version_ext_test)
+
+    # 批次 C-㊺续36：零覆盖契约测试（gappa_propagate_ext 已注册，本批追加）
+    add_lv_test_auto(test_autodiff_ext CTEST_NAME autodiff_ext_test)
+    add_lv_test_auto(test_lv_top_api_ext CTEST_NAME lv_top_api_ext_test)
+    add_lv_test_auto(test_gappa_dsl_ext CTEST_NAME gappa_dsl_ext_test)
+    add_lv_test_auto(test_exact_arithmetic_ext CTEST_NAME exact_arithmetic_ext_test)
+    add_lv_test_auto(test_three_layer_arithmetic_ext CTEST_NAME three_layer_arithmetic_ext_test)
+    add_lv_test_auto(test_bootstrap_test_ext CTEST_NAME bootstrap_test_ext_test)
 endif()
 
 # ============================================================

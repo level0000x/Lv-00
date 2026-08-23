@@ -364,6 +364,14 @@ lv_PUBLIC_API lvErrorCode lv_get_last_error_code(void);
  */
 lv_PUBLIC_API const char *lv_get_last_error_message(void);
 /**
+ * @brief 获取当前线程的最后错误消息（兼容别名）
+ *
+ * 文档/示例中引用（lv.h 的 lv_get_last_error() 用法），本批补齐声明与实现
+ * （C-㊺续36）：语义等价 lv_get_last_error_message()，返回线程局部错误
+ * 消息或错误码默认描述，调用者无需释放。
+ */
+lv_PUBLIC_API const char *lv_get_last_error(void);
+/**
  * @brief 获取当前线程的完整错误描述（包含错误码名称和信息）
  * @param buf 输出缓冲区
  * @param buf_size 缓冲区大小

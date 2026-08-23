@@ -6283,3 +6283,74 @@ lv_process.h 2 + lv_export_common.h 2 + lambda_term.h 2 + lv.h 5
   等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零八、批次 C-㊺续36（超大批量）：7 头文件 34 零覆盖契约测试 + 2 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（autodiff.h 14 + lv.h 8 + gappa_dsl.h 3 + exact_arithmetic.h 2 +
+three_layer_arithmetic.h 4 + bootstrap_test.h 2 + gappa_propagate.h 1
+（收尾）= 34 个零覆盖 API），6 个新测试文件 + gappa_propagate 追加。
+
+### ① 新增测试（6 新建 + 1 追加，约 94 断言）
+
+- **test_autodiff_ext.c**（37）：engine_create（mode 保存）、expr 构造
+  （const/var/add/mul/sin/cos/pow 的 kind 与 child_count）、递归销毁、
+  eval（x+3 at 2 → 5）、forward_diff（x² at 3 → 9/6、sin at 0 → 0/1）、
+  reverse_diff（x0*x1 at {3,4} → 12、grad {4,3}）、grad 查询/未找到 0。
+- **test_lv_top_api_ext.c**（12）：assertions set/get 往返、check_version_
+  compat（修复后恒 true）、config_set_bool/string（NULL key 拒绝）、
+  normalize/set_numeric_assumption（engine/main_graph NULL 契约）、
+  get_last_error（别名一致）。
+- **test_gappa_dsl_ext.c**（11）：parse（NULL -1、合法 0）、eval（委托
+  propagate 区间）、prove（NULL/NULL、成功摘要）。
+- **test_exact_arithmetic_ext.c**（12）：timestamp_now（秒/纳秒范围、
+  单调推进）、safe_pow（2^10、3^0、(-2)^3、负指数/NULL/溢出 false）。
+- **test_three_layer_arithmetic_ext.c**（12）：safe_add/mul/sub_i64
+  （正常/溢出/NULL 契约；static inline 头内实现）。
+- **test_bootstrap_test_ext.c**：framework_cleanup / primitive_wrapper_
+  cleanup 幂等（未初始化直接返回）。
+- **test_gappa_propagate_ext.c 追加**（+10）：propagate_backward（NULL 0、
+  BND 目标复制区间、ABS 目标 |x-0.5|<=0.25 → x∈[0.25,0.75]）。
+
+### ② 测试暴露并修复的真实缺陷（2 处，M4）
+
+1. **lv_check_version_compat 恒 false**：实现硬编码 `lv_VERSION_MAJOR != 3`
+   但实际主版本为 1（lv_VERSION_MAJOR=1），任何构建都返回 false，违背
+   "运行时与编译头主版本一致 → true" 的契约。修复：按 lv_VERSION_MAJOR
+   自比较（单库静态构建运行时与编译头同源，恒兼容）。
+2. **lv_get_last_error 文档引用但无声明无实现**：lv.h 注释示例多次引用
+   lv_get_last_error()，但全库无声明无实现（调用即链接错误）。修复：
+   error_codes.h 补声明 + error_codes.c 补实现（等价别名
+   lv_get_last_error_message，线程局部消息，无需释放）。
+
+另豁免登记：lv_float_audit_report 为 lv_FLOAT_AUDIT 审计模式的导出接口，
+头文件仅注释提及无声明（编译期功能，模式关闭时不参与构建），登记豁免。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **281/281**（build3 132.68s / build_verify 81.55s，
+  新增 6 个测试目标；275 → 281；gappa_propagate 追加无新目标）。
+- 新测试合计约 94 断言全过。
+- 零覆盖扫描复核：本批 7 头清零（autodiff 14、lv.h 顶层、gappa_dsl、
+  exact_arithmetic、three_layer、bootstrap_test、gappa_propagate 全部清零）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 34 个零覆盖 API 接入契约测试 / 6 新建 + 1 追加
+  约 94 断言 + 全量 281/281。
+- 缺陷修复 / M4 恒假判定 / lv_check_version_compat 硬编码 3 与实际主版本
+  不符 / 按 lv_VERSION_MAJOR 自比较恒 true。
+- 缺陷修复 / M5 文档引用无 API / lv_get_last_error 无声明无实现 / 补声明
+  + 实现（get_last_error_message 别名）。
+- 豁免登记 / 编译期功能 / lv_float_audit_report（lv_FLOAT_AUDIT 模式导出
+  接口，头仅注释提及）/ 登记豁免。
+- 契约钉住 / AD 引擎/表达式/前向/反向微分、断言开关、版本兼容、配置、
+  规范化、Gappa 解析/求值/证明/反向传播、安全算术、时间戳 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（lv_plugin_load/
+  unload/reload/config_load/config_save/load_entry 等，load 依赖动态库较重，
+  建议独立批次评估）等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
