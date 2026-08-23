@@ -5548,3 +5548,45 @@ INTEGER 三型）。
   lv_api_spec.h 10、lv_ast.h 9 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十七、批次 C-㊺续25：副作用系统（effect_system.h）10 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 effect_system.h（10 个 ctest 零覆盖，
+副作用追踪器 + 组合 + 几何纯净检查）。实现位于
+layer6_visual/runtime/effect_tracker.c。
+
+### ① 新增测试
+
+- **新建 `test/c/test_effect_system_ext.c`**（CTEST effect_system_ext_
+  test）：32 断言，3 个测试函数：
+  - test_effect_tracker_lifecycle_api：create（初始纯净/无组合注解）、
+    record（FILE_READ/NETWORK/RANDOM、desc NULL 安全）、has_effect
+    （按类型存在）、is_pure（记录前后）、reset 清空、NULL 契约全覆盖。
+  - test_effect_compose_api：compose（双注解合并 3、单侧 NULL、双 NULL
+    →NULL、空注解+非空、双空 →NULL）、annotation_destroy（NULL 安全）。
+  - test_effect_geometry_pure_api：空追踪器纯净、PURE 记录仍纯净、
+    UI_RENDER 非纯净、reset 恢复、NULL 纯净。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致，一次通过）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **219/219**（build3 13.56s / build_verify 44.00s，
+  新增 effect_system_ext_test；218 → 219）。
+- test_effect_system_ext 32/32。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / effect_system.h 10 个零覆盖 API 接入契约测试 /
+  test_effect_system_ext 32 + 全量 219/219。
+- 契约钉住 / 纯净定义（空 entries）、has_effect 按类型、compose 拼接
+  语义、geometry_pure 按 PURE 判定 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_api_spec.h 10、lv_ast.h 9、
+  axiom_grade.h 9 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
