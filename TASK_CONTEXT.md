@@ -4648,3 +4648,54 @@ lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
 - 下一批候选：lv_thread.h 22 / geometry_transform.h 17 /
   lv_storage.h 13 等；大块头 algebraic_number.h 75 /
   geo_halfedge_mesh.h 55 列入专项评估。
+
+## 八十一、批次 C-㊺续9：几何变换（geometry_transform.h）17 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 geometry_transform.h（17 个 ctest 零覆盖，
+矩阵变换纯数学）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_geometry_transform_ext.c`**（CTEST geometry_transform_
+  ext_test）：60 断言，5 个测试函数：
+  - test_refcount_api：ref/unref（NULL 安全 + 计数 1→2→3→递减归零释放）。
+  - test_apply_api：apply_double（平移 2,3 点 1,1 → 3,4）、apply_mpq
+    （mpq 精确）、apply_double4x4（恒等顶点不变）。
+  - test_matrix_api：get_matrix（恒等/平移矩阵元素）、identity_double
+    （主对角）、translate_double（tx/ty/tz）、rotate_double（绕 z 90°：
+    out[1]=-1、out[4]=+1 列主序）、scale_double。
+  - test_sequence_group_api：sequence_add（NULL 契约 + 所有权 ref）、
+    compose_all（合成平移）、group_add_generator（NULL + 正常）、
+    group_destroy(NULL)。
+  - test_order_reflect_api：order（恒等 1/平移 0/NULL -1）、reflect_point
+    （x 轴反射 (2,3) → (2,-3)）、identify_symmetries(NULL) → 0。
+
+### ② 测试暴露并修复的真实缺陷（7 处）
+
+1. **M5 × 6**：lv_transform_apply_mpq / identity_double / translate_double /
+   rotate_double / scale_double / sequence_compose_all 头文件声明但全库
+   无实现（零消费者故链接未暴露）——补齐（apply_mpq 仿 apply_point 的
+   mpq 精确仿射；4x4 双精度矩阵族；compose_all 委托既有 composite）。
+2. **M4 × 1**：lv_reflect_point 头文件声明参数顺序 (ax,ay,bx,by,px,py) 与
+   实现及内部调用（点在前 px,py,ax,ay,bx,by）不一致（同类 mpq_t 参数
+   编译无警示）——以实现/内部调用为准统一头文件声明与注释。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **201/201**（build3 97.48s / build_verify 50.11s，
+  新增 geometry_transform_ext_test）。
+- test_geometry_transform_ext 60/60。
+
+### 决策登记（第 9 章格式）
+
+- 缺陷修复 / M5 声明无实现 ×6 / 变换应用与 4x4 矩阵族补齐 /
+  test_geometry_transform_ext 60 + 全量 201/201。
+- 缺陷修复 / M4 签名脱节 / lv_reflect_point 参数顺序统一为点在前 /
+  头文件声明与实现/内部调用对齐。
+- 测试补全 / 覆盖 / geometry_transform.h 17 零覆盖 API 接入契约测试 /
+  test_geometry_transform_ext 60 + 全量 201/201。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / lv_storage.h 13 等；
+  大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
