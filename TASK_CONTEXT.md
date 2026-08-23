@@ -5016,3 +5016,61 @@ M4 拓扑/几何缺陷（3 处）：
 - **geo_halfedge_mesh.h 零覆盖收尾**。
 - 剩余候选：debug.h 38、lv_utils.h 33、simd_ops.h 63（平台相关）等。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 八十七、批次 C-㊺续15：调试日志环形缓冲区 + 工具函数（debug.h / lv_utils.h）19 零覆盖契约测试（2026-08-23）
+
+用户「继续推进；顺便清理工程债务」。按遗留登记选 debug.h 与 lv_utils.h
+两头的 ctest 零覆盖 API。精确扫描后 debug.h 实际 7 个（lv_log_map_level /
+lv_module_register 为注释误报，分属 lv_utils_misc.c 内部 / lv_registry.h），
+lv_utils.h 实际 12 个（lv_LOG_WARNING 为宏非 API）。共 19 个，一次收尾。
+
+### ① 新增测试（2 个文件，113 断言）
+
+- **新建 `test/c/test_debug_log_ext.c`**（CTEST debug_log_ext_test）：36
+  断言，4 个测试函数：
+  - test_ringbuf_create_api：create（capacity<1 回退默认 256）、destroy NULL
+    安全。
+  - test_ringbuf_write_export_api：write 3 条 → export 按插入顺序（消息/级别/
+    行号断言）、空缓冲导出 NULL+count0、溢出覆盖（容量 4 写 6 条保留最新 4
+    条）、write NULL 安全、export NULL 契约。
+  - test_ringbuf_clear_resize_api：clear 后导出空、resize 扩大保留现有条目、
+    resize 缩小保留最新 3 条丢弃最旧、capacity<1/NULL 失败。
+  - test_log_with_context_api：ctx NULL 安全、lv_LOG_CTX 宏路径。
+- **新建 `test/c/test_lv_utils_array_ext.c`**（CTEST lv_utils_array_ext_test）：
+  77 断言，5 个测试函数：
+  - test_insertion_sort_api：乱序排序、幂等、单元素/空/NULL 安全、大元素
+    （>64B 堆分配路径）。
+  - test_shift_api：shift_left 删除前移、shift_right 腾位右移、越界空操作、
+    buffer_consume 前缀消费/全消费/pos==0/NULL 契约。
+  - test_multiset_unique_api：多集相等（乱序/重复/长度不等/空/NULL）、
+    append_unique（新值/重复拒绝/NULL）。
+  - test_copy_tracked_api：copy_int_array（正常/count<=0→NULL/溢出保护）、
+    malloc_tracked/calloc_tracked（零大小非 NULL）。
+  - test_time_fmt_str_api：format_time（epoch "1970-01-01"、NULL 契约）、
+    fmt_tmp（格式化内容、NULL）、strncat（追加/截断 NUL/满缓冲补 NUL/NULL）。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（两个头文件实现与契约一致，仅测试初版两处断言与实现语义不符已修正：
+  copy_int_array count<=0 → NULL；resize 缩小保留最新而非"n4 起"）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **210/210**（build3 175.40s / build_verify 82.26s，
+  新增 2 个测试目标；208 → 210）。
+- 新测试：debug_log_ext 36/36、lv_utils_array_ext 77/77。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / debug.h 7 + lv_utils.h 12 零覆盖 API 接入契约测试 /
+  test_debug_log_ext 36 + test_lv_utils_array_ext 77 + 全量 210/210。
+- 契约钉住 / 环形缓冲溢出覆盖、resize 保留最新、export 按序、copy count<=0
+  →NULL、strncat 满缓冲补 NUL / 与实现一致。
+- 登记 / 扫描方法 / 注释误报过滤（lv_log_map_level/lv_module_register 为
+  注释提及；lv_LOG_WARNING 为宏）避免虚假零覆盖。
+
+### 遗留登记
+
+- **debug.h 与 lv_utils.h 零覆盖收尾**。
+- 剩余候选：simd_ops.h 63（平台相关，登记评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
