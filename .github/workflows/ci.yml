@@ -10,8 +10,6 @@ jobs:
   # ── Ubuntu: 完整 CMake 构建 + CTest ────────────────────────
   build-and-test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -36,20 +34,15 @@ jobs:
           path: /tmp/build.log
           if-no-files-found: ignore
 
-      - name: Push build log to ci-debug branch (on failure)
+      - name: Report build errors (on failure)
         if: failure()
         shell: bash
         run: |
           set -x
-          git config user.name "ci-bot"
-          git config user.email "ci@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git checkout -B ci-debug
-          mkdir -p ci-logs
-          cp /tmp/build.log "ci-logs/build-$(date +%s)-${{ github.sha }}.log" 2>/dev/null || true
-          git add ci-logs/ 2>/dev/null || true
-          git commit -m "ci: capture build log for $(echo ${GITHUB_SHA} | head -c 8)" 2>/dev/null || true
-          git push origin ci-debug 2>/dev/null || true
+          grep -nE "error:|fatal error|undefined reference|Error [0-9]" /tmp/build.log | head -30 | while IFS= read -r line; do
+            echo "::error file=build.log::$line"
+          done
+          grep -c "error:" /tmp/build.log || true
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure --parallel $(nproc)
