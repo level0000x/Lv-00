@@ -5362,3 +5362,45 @@ memory_pool.c（autodiff.h 14 个经核对为向后兼容别名误报——test_
   config.h 12、lv_number.h 11 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十三、批次 C-㊺续21：参数曲线曲面（parametric_curves.h）13 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 parametric_curves.h（13 个 ctest
+零覆盖，参数曲线 + 参数曲面完整 API）。实现位于 layer3_geometry/
+parametric_curves.c。
+
+### ① 新增测试
+
+- **新建 `test/c/test_parametric_curves_ext.c`**（CTEST parametric_curves_
+  ext_test）：64 断言，2 个测试函数：
+  - test_curve_api：create（域有效/无效/NULL eval）、is_closed/get_domain、
+    evaluate（t=0→(1,0)、t=π/2→(0,1)、域外拒绝不静默外推）、tangent
+    （圆切线）、arc_length（单位圆 ≈2π、直线长 5、n_steps<=0 默认、无
+    导数 -1.0）、NULL 契约全覆盖。
+  - test_surface_api：create（域有效/无效/NULL eval）、get_domain、
+    evaluate（平面 (1,1,5)）、normal（du×dv=(0,0,1)）、area（2×3 矩形
+    =6）、无偏导数 normal/area 失败、NULL 契约全覆盖。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致，一次通过）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **215/215**（build3 12.16s / build_verify 12.82s，
+  新增 parametric_curves_ext_test；214 → 215）。
+- test_parametric_curves_ext 64/64。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / parametric_curves.h 13 个零覆盖 API 接入契约测试 /
+  test_parametric_curves_ext 64 + 全量 215/215。
+- 契约钉住 / 域外拒绝不静默外推、无导数函数失败哨兵（-1.0/false）、
+  弧长/面积数值积分精度、create 域校验 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、config.h 12、lv_number.h 11、
+  control_flow_blocks.h 11 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
