@@ -5494,3 +5494,57 @@ layer6_visual/control_flow/{if_block,while_block,match_block}.c。
   effect_system.h 10、lv_api_spec.h 10 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十六、批次 C-㊺续24：数值统一抽象层（lv_number.h）11 零覆盖契约测试 + 2 处跨类型缺陷修复（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 lv_number.h（11 个 ctest 零覆盖，
+from_string/算术/pow/to_string/clone/type_name）。实现位于
+layer3_geometry/symbolics/lv_number.c（ops vtable 分发，RATIONAL/FLOAT/
+INTEGER 三型）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_lv_number_ops_ext.c`**（CTEST lv_number_ops_ext_
+  test）：53 断言，4 个测试函数：
+  - test_number_from_string_api：3/4→RATIONAL、7→有理数、1.5→FLOAT、
+    非法（"abc"/""/NULL）→ NULL。
+  - test_number_arith_api：int add/sub/mul/div（除法截断）、int 除零
+    →NULL、float 算术、neg（6→-6、-4→4）、abs（正/负）、NULL 契约。
+  - test_number_pow_api：^0→1、^3→8、^-2→0.25（修复点）、float 基
+    1.5^2→2.25（修复点）。
+  - test_number_convert_api：to_string（"42"、有理数、浮点、NULL）、
+    clone（独立句柄）、type_name（5 类型 + 越界 Unknown）。
+
+### ② 测试暴露并修复的真实缺陷（2 处，M4）
+
+1. **pow 负指数整数截断**：lv_number_pow 负指数路径用
+   lv_number_div(one(int), pos(int)) 走整数除法，2^-2 得 1/4 = 0。
+   修复：先求 base^|exp| 再经 double 取倒数（1.0 / pos_d），避免截断。
+2. **跨类型运算无类型提升**：原 add/sub/mul/div 直接 a->ops->op(a, b)，
+   跨类型（int×float）时把 b->impl 按 a 的实现类型解读（IntImpl/FloatImpl
+   布局不同）产生垃圾值（1.5^2 经快速幂 int×float 得 4.6e18）——与源码
+   注释"类型不同转 double 运算"声称脱节。修复：lv_number_binary 统一
+   入口，同类型直通 vtable，跨类型提升到 double 计算返回 float。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **218/218**（build3 94.53s / build_verify 45.16s，
+  新增 lv_number_ops_ext_test；217 → 218）。
+- test_lv_number_ops_ext 53/53。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_number.h 11 个零覆盖 API 接入契约测试 /
+  test_lv_number_ops_ext 53 + 全量 218/218。
+- 缺陷修复 / M4 数值语义 / pow 负指数整数截断 / double 取倒数。
+- 缺陷修复 / M4 声称与实现脱节 / 跨类型运算无提升（注释声称转 double
+  实为直接 vtable 分发）/ lv_number_binary 统一入口 + double 提升。
+- 契约钉住 / from_string 解析优先级、int 除法截断、除零 NULL、pow 幂
+  语义（含负指数）、to_string/clone/type_name / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、effect_system.h 10、
+  lv_api_spec.h 10、lv_ast.h 9 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

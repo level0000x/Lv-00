@@ -498,28 +498,55 @@ lvNumber *lv_number_from_string(const char *str) {
  * 算术运算（通过 ops vtable 分发，含类型提升）
  * ============================================================ */
 
-lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b) {
+/**
+ * @brief 二元运算统一入口：同类型直通 vtable，跨类型提升到 double
+ *
+ * [修复] 原实现直接 a->ops->op(a, b) 无类型提升，跨类型（如 int×float）
+ * 会把 b->impl 按 a 的实现类型解读（IntImpl/FloatImpl 布局不同）产生
+ * 垃圾值——与源码注释"若两个操作数类型不同，将两者都转换为 double
+ * 运算"的声称脱节。现按注释语义实现提升：跨类型时对 double 值直接
+ * 计算并返回 float 类型（不再复用 a 的 ops，避免提升后仍按错误布局
+ * 解读）。
+ */
+static lvNumber *lv_number_binary(const lvNumber *a, const lvNumber *b, int op_kind) {
     lv_CHECK_NULL(a, NULL);
     lv_CHECK_NULL(b, NULL);
-    return a->ops->add(a, b);
+
+    if (a->ops == b->ops) {
+        switch (op_kind) {
+            case 0: return a->ops->add(a, b);
+            case 1: return a->ops->sub(a, b);
+            case 2: return a->ops->mul(a, b);
+            default: return a->ops->div(a, b);
+        }
+    }
+
+    double da = a->ops->to_double(a);
+    double db = b->ops->to_double(b);
+    double dr;
+    switch (op_kind) {
+        case 0: dr = da + db; break;
+        case 1: dr = da - db; break;
+        case 2: dr = da * db; break;
+        default: dr = da / db; break;
+    }
+    return lv_number_from_double(dr);
+}
+
+lvNumber *lv_number_add(const lvNumber *a, const lvNumber *b) {
+    return lv_number_binary(a, b, 0);
 }
 
 lvNumber *lv_number_sub(const lvNumber *a, const lvNumber *b) {
-    lv_CHECK_NULL(a, NULL);
-    lv_CHECK_NULL(b, NULL);
-    return a->ops->sub(a, b);
+    return lv_number_binary(a, b, 1);
 }
 
 lvNumber *lv_number_mul(const lvNumber *a, const lvNumber *b) {
-    lv_CHECK_NULL(a, NULL);
-    lv_CHECK_NULL(b, NULL);
-    return a->ops->mul(a, b);
+    return lv_number_binary(a, b, 2);
 }
 
 lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b) {
-    lv_CHECK_NULL(a, NULL);
-    lv_CHECK_NULL(b, NULL);
-    return a->ops->div(a, b);
+    return lv_number_binary(a, b, 3);
 }
 
 lvNumber *lv_number_neg(const lvNumber *n) {
@@ -547,14 +574,15 @@ lvNumber *lv_number_pow(const lvNumber *base, int exp) {
         return lv_number_from_int(1);
     }
     if (exp < 0) {
-        /* 负指数: 1 / base^|exp| */
+        /* 负指数: 1 / base^|exp|
+         * [修复] 原实现用 lv_number_div(one(int), pos(int)) 走整数除法，
+         * 2^-2 得 1/4 = 0（截断）。改为先求 base^|exp| 再经 double 取倒数，
+         * 避免整数截断；跨类型除法经 double 归一（与类型提升策略一致）。 */
         lvNumber *pos = lv_number_pow(base, -exp);
         if (!pos) return NULL;
-        lvNumber *one = lv_number_from_int(1);
-        if (!one) { lv_number_destroy(pos); return NULL; }
-        lvNumber *result = lv_number_div(one, pos);
-        lv_number_destroy(one);
+        double pos_d = lv_number_to_double(pos);
         lv_number_destroy(pos);
+        lvNumber *result = lv_number_from_double(1.0 / pos_d);
         return result;
     }
 
