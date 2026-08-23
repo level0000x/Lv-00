@@ -251,14 +251,16 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb) {
             return true;
 
         case lv_CB_OPEN: {
-            /* 检查冷却时间是否已过 */
-            if (cb->cooldown_ms > 0 && cb->tripped_at_us > 0) {
-                uint64_t elapsed_ms = (now_us - cb->tripped_at_us) / lv_US_PER_MS;
-                if (elapsed_ms >= cb->cooldown_ms) {
-                    /* 冷却完成，进入半开态 */
-                    cb->state = lv_CB_HALF_OPEN;
-                    return true;
-                }
+            /* 检查冷却时间是否已过（cooldown_ms == 0 表示无冷却，立即恢复）
+             * [修复] 原实现仅在 cooldown_ms > 0 且冷却完成时才转入 HALF_OPEN，
+             * cooldown_ms == 0（无冷却）时 OPEN 状态永不恢复、永远拒绝执行。 */
+            bool cooldown_elapsed = (cb->cooldown_ms <= 0) ||
+                                    (cb->tripped_at_us > 0 &&
+                                     (now_us - cb->tripped_at_us) / lv_US_PER_MS >= cb->cooldown_ms);
+            if (cooldown_elapsed) {
+                /* 冷却完成，进入半开态 */
+                cb->state = lv_CB_HALF_OPEN;
+                return true;
             }
             /* 冷却未完成，拒绝执行 */
             return false;

@@ -5697,3 +5697,60 @@ layer4_reasoning/axiom/axiom_grade.c（lv_XMACRO_ENUM/lv_PROPAGATE 为
   lv_arena.h 8、lv_heap.h 7 等（多为已有测试的目标，余量渐少）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百、批次 C-㊺续28（超大批量）：7 头文件 49 零覆盖契约测试 + 2 处缺陷修复（2026-08-24）
+
+用户「既然小规模并行测试通过可以一次性一大批了 继续推进」——本批并行
+推进 7 个头文件（lv_ringbuf.h 7 + lv_reasoning_stack.h 7 + lv_heap.h 6 +
+lv_event_bus.h 7 + lv_circuit_breaker.h 7 + lv_arena.h 8 +
+data_structure_blocks.h 7 = 49 个零覆盖 API），7 个测试文件。
+
+### ① 新增测试（7 个文件，194 断言）
+
+- **test_lv_ringbuf_ext.c**（29）：init 校验、write/read/get 顺序、溢出
+  覆盖、clear、resize 扩大/缩小保留最新。
+- **test_lv_reasoning_stack_ext.c**（31）：init/clear/push/pop/count/top
+  帧字段、深度限制 RESOURCE_EXHAUSTED、NULL 契约。
+- **test_lv_heap_ext.c**（40）：最小堆 pop 升序、最大堆 pop 降序、top/
+  size/empty、NULL 契约。
+- **test_lv_event_bus_ext.c**（24）：subscribe/unsubscribe、事件类型分发、
+  通配 -1、set/get_stream 指针往返。
+- **test_lv_circuit_breaker_ext.c**（24）：init/check_guarded/do_trip/
+  is_tripped/record_error（连续错误跳闸）/record_success（半开恢复）/
+  state_name_cb。
+- **test_lv_arena_ext.c**（22）：calloc 清零、8 字节对齐、strdup 深拷贝、
+  mark/reset_to_mark、tmp 单例。
+- **test_data_structure_blocks_ext.c**（24）：list/map 块操作类型、
+  record 字段深拷贝/覆盖/越界。
+
+### ② 测试暴露并修复的真实缺陷（2 处，M4）
+
+1. **lv_circuit_breaker 无冷却时永不恢复**：lv_CB_OPEN 状态检查冷却仅当
+   cooldown_ms > 0，cooldown_ms == 0（无冷却配置）时 OPEN 永不转入
+   HALF_OPEN、永远拒绝执行。修复：cooldown_ms <= 0 视为冷却已过立即
+   半开放行。
+2. （登记）lv_event_bus_init 保留先于 init 设置的 stream_ctx 是**有意**
+   设计（runtime_monitor 静态零初始化 bus + engine 创建时先 set_stream），
+   非缺陷；测试须预置零初始化（memset）模拟该前置条件。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **229/229**（build3 94.88s / build_verify 45.71s，
+  新增 7 个测试目标；222 → 229）。
+- 新测试合计 194 断言全过。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 49 个零覆盖 API 接入契约测试 / 7 测试文件
+  194 断言 + 全量 229/229。
+- 缺陷修复 / M4 状态机 / circuit_breaker cooldown=0 永不恢复 / 无冷却
+  立即半开放行。
+- 契约钉住 / ringbuf 溢出/缩放、heap 序、event_bus 分发/通配、arena
+  对齐/mark、record 深拷贝 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_file.h 8、lv_path.h 8、
+  representation_converter.h 8、lv_hashtable.h 3 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
