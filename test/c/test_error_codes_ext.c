@@ -12,6 +12,7 @@
 
 #include "test_unified.h"
 #include "lv/error_codes.h"
+#include "lv/status_codes.h"
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -49,9 +50,36 @@ static void test_error_codes_api(void) {
     printf("  test_error_codes_api: PASSED\n");
 }
 
+static void test_set_error_ctx_api(void) {
+    /* lv_set_error_ctx：设置线程局部错误上下文 */
+    lv_set_error_ctx(lv_ERROR_NOT_FOUND, __FILE__, __LINE__, __func__, "ctx msg %d", 42);
+    TEST_ASSERT_EQ((int) lv_get_last_error_code(), (int) lv_ERROR_NOT_FOUND);
+    const char *msg = lv_get_last_error_message();
+    TEST_ASSERT_NOT_NULL(msg);
+    TEST_ASSERT(strstr(msg, "ctx msg 42") != NULL, "formatted message");
+}
+
+static void test_status_category_api(void) {
+    /* lv_status_category（error_codes.h 声明，status_codes.c 实现） */
+    const char *cat = lv_status_category(0);
+    TEST_ASSERT_NOT_NULL(cat);
+    TEST_ASSERT(strlen(cat) > 0, "category non-empty");
+
+    /* 负码（警告区间） */
+    cat = lv_status_category(-1);
+    TEST_ASSERT_NOT_NULL(cat);
+
+    /* 未知范围 */
+    cat = lv_status_category(999999);
+    TEST_ASSERT_NOT_NULL(cat);
+    TEST_ASSERT(strcmp(cat, "未分类") == 0, "unknown category");
+}
+
 TEST_MAIN_BEGIN("Lv-00 Error Codes Ext Test Suite")
     printf("=== Lv-00 Error Codes Ext Test Suite (batch C-㊺续29) ===\n\n");
     lv_init();
     TEST_MAIN_RUN(test_error_codes_api);
+    TEST_MAIN_RUN(test_set_error_ctx_api);
+    TEST_MAIN_RUN(test_status_category_api);
     lv_cleanup();
 TEST_MAIN_END()

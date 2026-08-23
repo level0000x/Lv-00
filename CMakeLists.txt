@@ -2155,6 +2155,13 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_exact_arithmetic_ext CTEST_NAME exact_arithmetic_ext_test)
     add_lv_test_auto(test_three_layer_arithmetic_ext CTEST_NAME three_layer_arithmetic_ext_test)
     add_lv_test_auto(test_bootstrap_test_ext CTEST_NAME bootstrap_test_ext_test)
+
+    # 批次 C-㊺续37：零覆盖契约测试（error_codes_ext / geo_constraint_solver_ext 已注册，本批追加）
+    add_lv_test_auto(test_rational_ext CTEST_NAME rational_ext_test)
+    add_lv_test_auto(test_lexer_shared_ext CTEST_NAME lexer_shared_ext_test)
+    add_lv_test_auto(test_geo_spec_ext CTEST_NAME geo_spec_ext_test)
+    add_lv_test_auto(test_gmres_shared_ext CTEST_NAME gmres_shared_ext_test)
+    add_lv_test_auto(test_bicgstab_shared_ext CTEST_NAME bicgstab_shared_ext_test)
 endif()
 
 # ============================================================

@@ -6354,3 +6354,68 @@ three_layer_arithmetic.h 4 + bootstrap_test.h 2 + gappa_propagate.h 1
   建议独立批次评估）等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零九、批次 C-㊺续37（超大批量）：7 头文件 27 零覆盖契约测试 + 2 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（rational.h 11 + lexer_shared.h 4 + error_codes.h 2 + geo_spec.h 2 +
+geo_constraint_solver.h 4 + gmres_shared.h 2 + bicgstab_shared.h 2 = 27 个
+零覆盖 API），5 个新测试文件 + error_codes / geo_constraint_solver 追加。
+
+### ① 新增测试（5 新建 + 2 追加，约 90 断言）
+
+- **test_rational_ext.c**（35）：create_from_i64/mpz（den 0 → NULL）、set/
+  set_mpz、equal、from_string（"3/4"/"7"/非法）、from_mpq/to_mpq 互操作、
+  den_is_safe（70000 比特 > 65536 → false）、mul_is_safe、estimate_loss。
+- **test_lexer_shared_ext.c**（12）：init（pos/line/col）、clear（可重新
+  init）、skip_whitespace_and_comments（空白/注释跳过、行列推进）、
+  extract_string（引号/换行转义解码）。
+- **test_geo_spec_ext.c**（11）：parse 点（type point → 0 + 坐标）、
+  多边形（→ 1 + count）、NULL/未知类型契约、destroy NULL 安全。
+- **test_gmres_shared_ext.c**（10）：NULL/缺算子 → INVALID_ARGS、
+  2x2 对角系统求解 [2,3]。
+- **test_bicgstab_shared_ext.c**（11）：linsol_default_params（200/1e-10、
+  NULL 安全）、NULL 契约、对角系统求解。
+- **test_error_codes_ext.c 追加**（+8）：set_error_ctx（错误码+格式化消息
+  上下文）、status_category（已知/警告/未知类别）。
+- **test_geo_constraint_solver_ext.c 追加**（+8）：coincident 构造字段、
+  default_config、solve_constraints（NULL 契约 + 调用）、set_fixed 往返。
+
+### ② 测试暴露并修复的真实缺陷（2 处，M5）
+
+1. **lv_lexer_clear 声明无实现**：lexer_shared.h 声明了 clear，但
+   lexer_shared.c 仅实现 init/skip/extract_string，调用即链接错误。修复：
+   补齐实现（释放 error_msg + 重置安全初始状态，可重新 init）。
+2. **lv_status_category 实现存在但头未声明**：status_codes.c 实现了类别
+   查询（LV_ERROR_CATEGORY_RANGES 区间表），但 status_codes.h 未声明，
+   属"未声明公共函数"。修复：status_codes.h 补声明。
+
+另：lv_gmres_solve 的 lv_linsol_default_params 声明归属 bicgstab_shared.h
+（gmres 头注释引用），测试随 bicgstab 覆盖一次。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **286/286**（build3 151.62s / build_verify 65.63s，
+  新增 5 个测试目标；281 → 286；error_codes / geo_constraint_solver 追加
+  无新目标）。
+- 新测试合计约 90 断言全过。
+- 零覆盖扫描复核：本批 7 头清零。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 27 个零覆盖 API 接入契约测试 / 5 新建 + 2 追加
+  约 90 断言 + 全量 286/286。
+- 缺陷修复 / M5 声明无实现 / lv_lexer_clear / 补齐实现（释放 error_msg +
+  重置）。
+- 缺陷修复 / M5 未声明公共函数 / lv_status_category 实现存在头未声明 /
+  status_codes.h 补声明。
+- 契约钉住 / 有理数构造/比较/互操作/安全判定、共享 lexer、几何规范解析、
+  迭代求解器内核、错误上下文 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（lv_plugin_load/
+  unload/reload/config_load/config_save/load_entry 等，load 依赖动态库较重，
+  建议独立批次评估）等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

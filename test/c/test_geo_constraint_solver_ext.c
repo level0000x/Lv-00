@@ -42,6 +42,57 @@ static lvSolverSystem *create_line_solver(void) {
     return sys;
 }
 
+/* ============================================================
+ * 批次 C-㊺续37：追加零覆盖 API（4 个）
+ *   lv_constraint_coincident / lv_solve_constraints
+ *   lv_solver_default_config / lv_solver_set_fixed
+ * ============================================================ */
+
+static void test_coincident_construct(void) {
+    lvConstraint c = lv_constraint_coincident(5, 1, 2);
+    TEST_ASSERT_CONTINUE(c.id == 5, "id");
+    TEST_ASSERT_CONTINUE(c.type == lv_CONSTRAINT_POINTS_COINCIDENT, "type");
+    TEST_ASSERT_CONTINUE(c.entity_a == 1, "entity_a");
+    TEST_ASSERT_CONTINUE(c.entity_b == 2, "entity_b");
+    TEST_ASSERT_CONTINUE(c.entity_c == -1, "entity_c");
+    TEST_ASSERT_CONTINUE(c.is_active, "active");
+}
+
+static void test_default_config_api(void) {
+    lvSolverConfig cfg = lv_solver_default_config();
+    TEST_ASSERT_CONTINUE(cfg.max_iterations > 0, "max_iterations");
+    TEST_ASSERT_CONTINUE(cfg.convergence_tol > 0.0, "tol");
+}
+
+static void test_solve_constraints_api(void) {
+    /* NULL/空契约 */
+    TEST_ASSERT_CONTINUE(lv_solve_constraints(NULL, 1, NULL, 1) != 0, "NULL constraints");
+    double pts[4] = {0.0, 0.0, 10.0, 10.0};
+
+    /* 两点重合约束：求解不崩溃（返回值随求解器内部收敛状态变化，仅覆盖调用） */
+    lvConstraint c = lv_constraint_coincident(0, 0, 1);
+    lv_solve_constraints(&c, 1, pts, 2);
+}
+
+static void test_set_fixed_api(void) {
+    lvSolverConfig cfg = lv_solver_default_config();
+    lvSolverSystem *sys = lv_geo_solver_create(&cfg);
+    TEST_ASSERT_CONTINUE(sys != NULL, "sys");
+
+    lvEntity e = lv_entity_point_2d(0, 1.0, 2.0);
+    TEST_ASSERT_CONTINUE(lv_solver_add_entity(sys, &e) >= 0, "add entity");
+
+    lv_solver_set_fixed(sys, 0, true);
+    lvEntity *g = lv_solver_get_entity(sys, 0);
+    TEST_ASSERT_CONTINUE(g != NULL && g->is_fixed, "fixed");
+
+    lv_solver_set_fixed(sys, 0, false);
+    g = lv_solver_get_entity(sys, 0);
+    TEST_ASSERT_CONTINUE(g != NULL && !g->is_fixed, "unfixed");
+
+    lv_geo_solver_destroy(sys);
+}
+
 TEST_MAIN_BEGIN("几何约束求解器扩展测试")
 
     /* ---- 组1: DOF 完整性 ---- */
@@ -318,5 +369,12 @@ TEST_MAIN_BEGIN("几何约束求解器扩展测试")
 
         lv_geo_solver_destroy(sys);
     }
+
+    /* ---- 批次 C-㊺续37: zero-coverage ---- */
+    printf("\n[批次 C-㊺续37] zero-coverage\n");
+    test_coincident_construct();
+    test_default_config_api();
+    test_solve_constraints_api();
+    test_set_fixed_api();
 
 TEST_MAIN_END()

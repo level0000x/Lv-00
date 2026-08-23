@@ -45,6 +45,25 @@ void lv_lexer_init(lvLexer *lex, const char *source) {
     lex->error_msg = NULL;
 }
 
+/**
+ * @brief 重置/清除词法分析器状态
+ *
+ * 释放堆分配的 error_msg 并重置为安全初始状态（可重新 init）。
+ * 修复（C-㊺续37 测试暴露）：头文件声明但原实现缺失，调用即链接错误。
+ *
+ * @param lex 词法分析器指针（可为 NULL）
+ */
+void lv_lexer_clear(lvLexer *lex) {
+    if (!lex)
+        return;
+    lv_free((void **) &lex->error_msg);
+    lex->error_msg = NULL;
+    lex->source = NULL;
+    lex->pos = NULL;
+    lex->line = 1;
+    lex->col = 1;
+}
+
 /* ================================================================
  *  跳过空白字符和注释
  * ================================================================ */
