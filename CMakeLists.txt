@@ -90,6 +90,13 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     # MinGW 需要 fms-extensions 以支持 __unaligned 等 Microsoft 扩展
     if(WIN32)
         add_compile_options(-fms-extensions)
+    else()
+        # POSIX 功能测试宏（编译行级，先于任何系统头生效）：
+        # glibc 在严格 C11（-std=c11）下默认不定义 _POSIX_C_SOURCE，
+        # CLOCK_REALTIME/CLOCK_MONOTONIC/strtok_r/strdup 不可见。
+        # 统一在此定义，避免依赖各 .c 的 include 顺序（此前 lv.h/allocator.c
+        # 等先 include 系统头导致 glibc 特性集锁定，Ubuntu/macOS 编译失败）。
+        add_compile_definitions(_POSIX_C_SOURCE=200809L)
     endif()
     add_compile_options(-Wall -Wextra -Wpedantic)
 # Windows Interlocked API 在 GCC 下产生 incompatible-pointer-types 警告，不影响正确性

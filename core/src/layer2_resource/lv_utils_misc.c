@@ -8,6 +8,11 @@
  * @version 3.3.0
  */
 
+/* 平台兼容层最先 include（feature test macro 必须在任何系统头之前；
+ * lv_utils.h 的 <stdint.h> 等会锁定 glibc 特性集 → CLOCK_REALTIME/
+ * CLOCK_MONOTONIC 不可见，Ubuntu/macOS 编译报错） */
+#include "lv/lv_platform.h"
+
 #include "lv/lv_utils.h"
 #include "lv_utils_internal.h"
 
