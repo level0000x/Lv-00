@@ -5988,3 +5988,94 @@ lv_stream_context.h 3 + logic_check.h 3 + equiv_class.h 3 + conflict_detector.h 
   （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零四、批次 C-㊺续32（超大批量）：7 头文件 39 零覆盖契约测试 + 4 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（lv_dot_writer.h 8 + geometry_transform.h 6 + inequality_reasoning.h 7 +
+expr_canon.h 9 + fast_index.h 4 + lv_lexer.h 3 + ode_integrator.h 2 = 39 个
+零覆盖 API），6 个新测试文件 + geometry_transform 追加。
+
+### ① 新增测试（6 新建 + 1 追加，约 222 断言）
+
+- **test_lv_dot_writer_ext.c**（22）：begin/end（全参数/部分 NULL/全 NULL）、
+  node（label+extra 组合 4 种）、edge（3 种）、node_id/edge_id（前缀%d 格式）、
+  append_escaped（引号/反斜杠/换行转义）、write_file（临时文件写读回、NULL 契约）。
+- **test_geometry_transform_ext.c 追加**（+44）：type_name（11 种 + 越界
+  unknown）、scale（(1,1)→(2,3)、isometry 判定）、rotation_double（绕原点 90°
+  (1,0)→(0,1)、绕中心 180° 对称）、rotation_arbitrary（cos/sin 90° 逆时针）、
+  reflection_line（x=0 与 y=x 反射）、group_create_preset（D2/C2/未知/NULL）。
+- **test_inequality_reasoning_ext.c**（45）：copy（浅拷贝共享表达式、label 深
+  拷贝）、add（两边加、类型/状态不变、新表达式）、mul（正乘不变/负乘翻转
+  <=→>=/零符号 NULL）、negate（<=→>=、PROVED→DISPROVED）、序列化
+  （to_string 含类型符号、proof_to_string 状态+步数、proof_to_latex 环境、
+  NULL→空串）。
+- **test_expr_canon_ext.c**（44）：create 空态（term_count 0、is_zero、degree
+  -1）、2x+3x 合并 5x、mul 4x^2/scale 2x^2/neg 双 neg 回归、equal（同构/clone/
+  不同/NULL 三态）、from_string（"2*x + 3*x"→1 项 5*x、"x^2 + 2*x + 1"→3 项）、
+  lv_expr_canon 兼容接口。
+- **test_fast_index_ext.c**（18）：create 容量回退、insert/query（两节点不同
+  区域隔离命中、空区域 0、NULL/负宽高/max_out 契约）。
+- **test_lv_lexer_ext.c**（25）：peek（前瞻序列不消费、越界 ERROR）、get_loc
+  （line/offset 推进）、token_text（标识符/字符串含引号/整数/截断/NULL 契约）。
+- **test_ode_integrator_ext.c**（20）：euler（dy/dt=y 1.1、常数导数精确）、
+  rk4（常数导数精确、dy/dt=y 标准四阶值 1.105170833333、deriv 失败返回错误
+  码、NULL 契约）、ab4 系数表。
+
+### ② 测试暴露并修复的真实缺陷（4 处，M4/M5）
+
+1. **geometry_transform 三个 API 声明无实现**（lv_transform_rotation_double /
+   lv_transform_scale(mpq) / lv_transform_type_name 全库仅头声明，调用即链接
+   错误）——补齐实现，并补 TRANSFORM_SCALE 的 mpq 清理处理器
+   （cleanup_scale，原表用 default 会泄漏 sx/sy）。
+2. **rotation_arbitrary / rotation_double 旋转矩阵方向写反**：原 b=sin, c=-sin
+   为顺时针矩阵，与同族 lv_transform_rotation（特殊角版）的逆时针
+   （b=-sin, c=sin）方向相反（(1,0) 转 90° 落到 (0,-1) 而非 (0,1)）。修复
+   统一为逆时针。
+3. **lv_expr_canonical_from_string 解析器跳过 +/- 后项**：'+'/'-' 分隔符处
+   设置 sign 后 continue，下一轮循环因"非首项未出现 +/-"而 break，导致
+   "2*x + 3*x" 只解析出首项（头注释示例明确支持多项）。修复：删除
+   continue，sign 设置后直接落入系数/变量解析。
+4. **lv_ineq_proof_to_latex 对 steps==NULL 解引用崩溃**：手工构造
+   step_count>0 且 steps==NULL 的证明时解引用空指针。修复：循环加
+   `&& proof->steps` 守卫。
+
+另有注释对齐：lv_ineq_negate 头注释原写"< => >="（逻辑否定），实现为
+方向反转（< => >、<= => >=，与 lv_ineq_mul 负乘共用 ineq_negate_type，
+被内部依赖）——更新头注释为方向反转语义；expr_canon.h 的 from_string/
+lv_expr_canon"桩实现"标注已过时（实现完整），登记说明。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **254/254**（build3 140.26s / build_verify 60.75s，
+  新增 6 个测试目标；248 → 254；geometry_transform 追加无新目标）。
+- 新测试合计约 222 断言全过。
+- 零覆盖扫描复核：本批 7 头清零。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 39 个零覆盖 API 接入契约测试 / 6 新建 + 1 追加
+  约 222 断言 + 全量 254/254。
+- 缺陷修复 / M5 声明无实现 / geometry_transform rotation_double/scale/type_name
+  / 补齐实现 + cleanup_scale。
+- 缺陷修复 / M4 语义不一致 / rotation_arbitrary/double 矩阵方向写反 / 统一
+  逆时针（与特殊角版一致）。
+- 缺陷修复 / M4 解析器 / expr_canon from_string +/- 后项跳过 / 删除 continue
+  直接解析。
+- 缺陷修复 / M5 NULL 契约违约 / proof_to_latex steps==NULL 解引用 / 加守卫。
+- 契约钉住 / DOT 输出样板与转义、旋转/反射/缩放矩阵、不等式变换类型语义、
+  规范多项式运算、网格索引命中、lexer 前瞻、ODE 单步数值 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（load 依赖动态库较重，
+  建议独立批次）、autodiff.h 14（lv_ad_* 直用名）、meta_verify.h 6、lv.h 上层
+  API 17（含 lv_set_log_level/lv_get_log_level/lv_normalize/lv_prove 等）、
+  engine_scheduler.h 5、allocator.h 5、lv_mempool.h 4、geo_aabb_tree.h 4、
+  geo_dynamic.h 7、expr_canonical.h 6、lv_str_utils.h 5、lv_backend_plugin.h 7、
+  gc_language.h 3、ecosystem.h 3、circuit_breaker.h 3、lv_convenience.h 4、
+  lv_render_visitor.h 3、smt_bitvector.h 2、math_input.h 2、geo_topology.h 2、
+  lv_process.h 2、lv_export_common.h 2、lambda_term.h 2、gappa_propagate.h 1
+  （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

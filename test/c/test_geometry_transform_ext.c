@@ -294,6 +294,176 @@ static void test_order_reflect_api(void) {
     printf("  test_order_reflect_api: PASSED\n");
 }
 
+/* ============================================================
+ * 批次 C-㊺续32：追加零覆盖 API（6 个）
+ *   lv_transform_group_create_preset / reflection_line / rotation_arbitrary
+ *   / rotation_double / scale / type_name
+ * ============================================================ */
+
+static void test_type_name_api(void) {
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_IDENTITY), "identity");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_TRANSLATION), "translation");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_ROTATION), "rotation");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_SCALE), "scale");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_SHEAR), "shear");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_REFLECTION), "reflection");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_SCALING), "scaling");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_AFFINE), "affine");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_PROJECTIVE), "projective");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_GLUING), "gluing");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name(TRANSFORM_COMPOSITE), "composite");
+    TEST_ASSERT_STR_EQ(lv_transform_type_name((lvTransformType) 99), "unknown");
+    printf("  test_type_name_api: PASSED\n");
+}
+
+static void test_scale_api(void) {
+    mpq_t sx, sy;
+    mpq_init(sx);
+    mpq_init(sy);
+    mpq_set_si(sx, 2, 1);
+    mpq_set_si(sy, 3, 1);
+
+    lvTransform *t = lv_transform_scale(sx, sy);
+    TEST_ASSERT_NOT_NULL(t);
+    TEST_ASSERT_EQ((int) t->type, (int) TRANSFORM_SCALE);
+    TEST_ASSERT(!t->is_isometry, "scale(2,3) not isometry");
+    TEST_ASSERT(t->is_orientation_preserving, "scale(2,3) preserves orientation");
+
+    double dx = 0.0, dy = 0.0;
+    lv_transform_apply_double(t, 1.0, 1.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, 2.0, 1e-9);
+    TEST_ASSERT_DOUBLE(dy, 3.0, 1e-9);
+    lv_transform_destroy(t);
+
+    /* 单位缩放：isometry */
+    mpq_set_si(sx, 1, 1);
+    mpq_set_si(sy, 1, 1);
+    t = lv_transform_scale(sx, sy);
+    TEST_ASSERT_NOT_NULL(t);
+    TEST_ASSERT(t->is_isometry, "scale(1,1) is isometry");
+    lv_transform_destroy(t);
+
+    mpq_clear(sx);
+    mpq_clear(sy);
+    printf("  test_scale_api: PASSED\n");
+}
+
+static void test_rotation_double_api(void) {
+    /* 绕原点旋转 90°：逆时针 (1,0) -> (0,1)（C-㊺续32 修复方向） */
+    lvTransform *t = lv_transform_rotation_double(0.0, 0.0, 3.14159265358979323846 / 2.0);
+    TEST_ASSERT_NOT_NULL(t);
+    TEST_ASSERT_EQ((int) t->type, (int) TRANSFORM_ROTATION);
+    TEST_ASSERT(t->is_isometry, "rotation is isometry");
+
+    double dx = 0.0, dy = 0.0;
+    lv_transform_apply_double(t, 1.0, 0.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, 0.0, 1e-9);
+    TEST_ASSERT_DOUBLE(dy, 1.0, 1e-9);
+    lv_transform_destroy(t);
+
+    /* 绕中心 (1,0) 旋转 180°：(2,0) 关于中心对称到 (0,0) */
+    t = lv_transform_rotation_double(1.0, 0.0, 3.14159265358979323846);
+    TEST_ASSERT_NOT_NULL(t);
+    lv_transform_apply_double(t, 2.0, 0.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, 0.0, 1e-9);
+    TEST_ASSERT_DOUBLE(dy, 0.0, 1e-9);
+    lv_transform_destroy(t);
+
+    printf("  test_rotation_double_api: PASSED\n");
+}
+
+static void test_rotation_arbitrary_api(void) {
+    mpq_t cx, cy, cos_a, sin_a;
+    mpq_init(cx);
+    mpq_init(cy);
+    mpq_init(cos_a);
+    mpq_init(sin_a);
+    mpq_set_si(cx, 0, 1);
+    mpq_set_si(cy, 0, 1);
+    mpq_set_si(cos_a, 0, 1); /* cos 90° = 0 */
+    mpq_set_si(sin_a, 1, 1); /* sin 90° = 1 */
+
+    lvTransform *t = lv_transform_rotation_arbitrary(cx, cy, cos_a, sin_a);
+    TEST_ASSERT_NOT_NULL(t);
+    TEST_ASSERT_EQ((int) t->type, (int) TRANSFORM_ROTATION);
+
+    /* 90° 逆时针：(1,0) -> (0,1)（C-㊺续32 修复方向，与特殊角版一致） */
+    double dx = 0.0, dy = 0.0;
+    lv_transform_apply_double(t, 1.0, 0.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, 0.0, 1e-12);
+    TEST_ASSERT_DOUBLE(dy, 1.0, 1e-12);
+    lv_transform_destroy(t);
+
+    mpq_clear(cx);
+    mpq_clear(cy);
+    mpq_clear(cos_a);
+    mpq_clear(sin_a);
+    printf("  test_rotation_arbitrary_api: PASSED\n");
+}
+
+static void test_reflection_line_api(void) {
+    mpq_t a, b, c;
+    mpq_init(a);
+    mpq_init(b);
+    mpq_init(c);
+
+    /* 直线 x = 0（a=1, b=0, c=0）：(1,1) -> (-1,1) */
+    mpq_set_si(a, 1, 1);
+    mpq_set_si(b, 0, 1);
+    mpq_set_si(c, 0, 1);
+    lvTransform *t = lv_transform_reflection_line(a, b, c);
+    TEST_ASSERT_NOT_NULL(t);
+    TEST_ASSERT_EQ((int) t->type, (int) TRANSFORM_REFLECTION);
+    TEST_ASSERT(!t->is_orientation_preserving, "reflection flips orientation");
+
+    double dx = 0.0, dy = 0.0;
+    lv_transform_apply_double(t, 1.0, 1.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, -1.0, 1e-12);
+    TEST_ASSERT_DOUBLE(dy, 1.0, 1e-12);
+    lv_transform_destroy(t);
+
+    /* 直线 y = x（a=1, b=-1, c=0）：(1,2) -> (2,1) */
+    mpq_set_si(a, 1, 1);
+    mpq_set_si(b, -1, 1);
+    mpq_set_si(c, 0, 1);
+    t = lv_transform_reflection_line(a, b, c);
+    TEST_ASSERT_NOT_NULL(t);
+    lv_transform_apply_double(t, 1.0, 2.0, &dx, &dy);
+    TEST_ASSERT_DOUBLE(dx, 2.0, 1e-12);
+    TEST_ASSERT_DOUBLE(dy, 1.0, 1e-12);
+    lv_transform_destroy(t);
+
+    mpq_clear(a);
+    mpq_clear(b);
+    mpq_clear(c);
+    printf("  test_reflection_line_api: PASSED\n");
+}
+
+static void test_group_create_preset_api(void) {
+    /* D2（Klein 四元群）：2 个反射生成元 */
+    lvTransformGroup *g = lv_transform_group_create_preset("D2");
+    TEST_ASSERT_NOT_NULL(g);
+    TEST_ASSERT_EQ(g->generator_count, 2);
+    TEST_ASSERT_EQ(g->order, 4);
+    lv_transform_group_destroy(g);
+
+    /* C2：1 个生成元 */
+    g = lv_transform_group_create_preset("C2");
+    TEST_ASSERT_NOT_NULL(g);
+    TEST_ASSERT_EQ(g->generator_count, 1);
+    lv_transform_group_destroy(g);
+
+    /* 未知类型：返回空群（不崩溃） */
+    g = lv_transform_group_create_preset("nope");
+    TEST_ASSERT_NOT_NULL(g);
+    TEST_ASSERT_EQ(g->generator_count, 0);
+    lv_transform_group_destroy(g);
+
+    /* NULL 契约 */
+    TEST_ASSERT_NULL(lv_transform_group_create_preset(NULL));
+    printf("  test_group_create_preset_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Geometry Transform Ext Test Suite")
@@ -305,6 +475,12 @@ TEST_MAIN_BEGIN("Lv-00 Geometry Transform Ext Test Suite")
     TEST_MAIN_RUN(test_matrix_api);
     TEST_MAIN_RUN(test_sequence_group_api);
     TEST_MAIN_RUN(test_order_reflect_api);
+    TEST_MAIN_RUN(test_type_name_api);
+    TEST_MAIN_RUN(test_scale_api);
+    TEST_MAIN_RUN(test_rotation_double_api);
+    TEST_MAIN_RUN(test_rotation_arbitrary_api);
+    TEST_MAIN_RUN(test_reflection_line_api);
+    TEST_MAIN_RUN(test_group_create_preset_api);
 
     lv_cleanup();
 TEST_MAIN_END()

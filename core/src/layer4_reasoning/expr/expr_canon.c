@@ -923,10 +923,13 @@ lvExprCanonical *lv_expr_canonical_from_string(const char *str,
 
         /* --- 处理 +/- 分隔符 --- */
         if (*p == '+' || *p == '-') {
+            /* 修复（C-㊺续32 测试暴露）：原实现设置 sign 后 continue，
+             * 下一轮循环因"非首项未出现 +/-"而 break，导致 "+ 3*x" 这类
+             * 后续项被整体跳过（"2*x + 3*x" 只解析出首项）。改为设置
+             * sign 后直接落入下方系数/变量解析。 */
             if (!first_item) {
                 sign = (*p == '+') ? 1 : -1;
                 p++;
-                continue;
             } else {
                 sign = (*p == '-') ? -1 : 1;
                 p++;

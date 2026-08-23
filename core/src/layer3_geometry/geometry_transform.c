@@ -268,10 +268,12 @@ lvTransform *lv_transform_rotation_arbitrary(const mpq_t cx, const mpq_t cy, con
     mpq_set(t->params.params.rotation.sin_theta, sin_theta);
     t->params.params.rotation.is_special_angle = false;
 
-    /* 设置矩阵 */
+    /* 设置矩阵（逆时针，与 lv_transform_rotation 特殊角版一致）：
+     * a=cos, b=-sin, c=sin, d=cos —— 修复（C-㊺续32 测试暴露）：
+     * 原实现 b=sin, c=-sin 为顺时针矩阵，与同族 rotation 方向相反 */
     mpq_set(t->matrix.a, cos_theta);
-    mpq_set(t->matrix.b, sin_theta);
-    mpq_neg(t->matrix.c, sin_theta);
+    mpq_neg(t->matrix.b, sin_theta);
+    mpq_set(t->matrix.c, sin_theta);
     mpq_set(t->matrix.d, cos_theta);
 
     /* 计算平移分量 */
@@ -530,6 +532,12 @@ static void cleanup_scaling(const lvTransform *t) {
     mpq_clear(t->params.params.scaling.scale);
 }
 
+/** @brief 清理 SCALE（沿坐标轴缩放）变换参数 */
+static void cleanup_scale(const lvTransform *t) {
+    mpq_clear(t->params.params.scale.sx);
+    mpq_clear(t->params.params.scale.sy);
+}
+
 /** @brief 默认清理处理器（空操作） */
 static void cleanup_default(const lvTransform *t) {
     (void)t;
@@ -540,7 +548,7 @@ static const TransformCleanupHandler kTransformCleanupHandlers[] = {
     [TRANSFORM_IDENTITY]    = cleanup_default,
     [TRANSFORM_TRANSLATION] = cleanup_translation,
     [TRANSFORM_ROTATION]    = cleanup_rotation,
-    [TRANSFORM_SCALE]       = cleanup_default,
+    [TRANSFORM_SCALE]       = cleanup_scale,
     [TRANSFORM_SHEAR]       = cleanup_default,
     [TRANSFORM_REFLECTION]  = cleanup_reflection,
     [TRANSFORM_SCALING]     = cleanup_scaling,
@@ -586,6 +594,137 @@ void lv_transform_unref(lvTransform *t) {
         if (t->ref_count <= 0) {
             lv_transform_destroy(t);
         }
+    }
+}
+
+/* ================================================================
+ * 补齐实现：声明无实现 API（C-㊺续32 测试暴露）
+ *
+ * lv_transform_rotation_double / lv_transform_scale / lv_transform_type_name
+ * 此前仅头文件声明、全库无实现（调用即链接错误），本批补齐。
+ * 矩阵/参数布局与同文件既有构造（identity/rotation_arbitrary/scaling）
+ * 保持一致；destroy 清理经 kTransformCleanupHandlers 分派（SCALE 清理
+ * 处理器已随本批补入）。
+ * ================================================================ */
+
+/**
+ * @brief 创建缩放变换（沿坐标轴，无缩放中心）
+ *
+ * 矩阵 [[sx, 0, 0], [0, sy, 0], [0, 0, 1]]；is_isometry 由 sx/sy 是否均为
+ * 1 判定，is_orientation_preserving 由 sx*sy 符号判定。
+ */
+lvTransform *lv_transform_scale(const mpq_t sx, const mpq_t sy) {
+    lvTransform *t = lv_transform_identity();
+    if (!t)
+        return NULL;
+
+    t->type = TRANSFORM_SCALE;
+
+    mpq_init(t->params.params.scale.sx);
+    mpq_init(t->params.params.scale.sy);
+    mpq_set(t->params.params.scale.sx, sx);
+    mpq_set(t->params.params.scale.sy, sy);
+
+    mpq_set(t->matrix.a, sx);
+    mpq_set(t->matrix.d, sy);
+
+    t->is_isometry = (mpq_cmp_ui(sx, 1, 1) == 0 && mpq_cmp_ui(sy, 1, 1) == 0);
+
+    mpq_t prod;
+    mpq_init(prod);
+    mpq_mul(prod, sx, sy);
+    t->is_orientation_preserving = (mpq_sgn(prod) > 0);
+    mpq_clear(prod);
+
+    return t;
+}
+
+/**
+ * @brief 创建旋转变换（浮点角度，绕中心 (cx, cy)）
+ *
+ * 角度经 cos/sin 计算后以 mpq_set_d 存入有理参数与矩阵，
+ * 与 lv_transform_rotation_arbitrary 布局一致。
+ */
+lvTransform *lv_transform_rotation_double(double cx, double cy, double angle_rad) {
+    lvTransform *t = lv_transform_identity();
+    if (!t)
+        return NULL;
+
+    t->type = TRANSFORM_ROTATION;
+
+    mpq_init(t->params.params.rotation.cx);
+    mpq_init(t->params.params.rotation.cy);
+    mpq_init(t->params.params.rotation.cos_theta);
+    mpq_init(t->params.params.rotation.sin_theta);
+
+    mpq_set_d(t->params.params.rotation.cx, cx);
+    mpq_set_d(t->params.params.rotation.cy, cy);
+
+    double cos_a = cos(angle_rad);
+    double sin_a = sin(angle_rad);
+    mpq_set_d(t->params.params.rotation.cos_theta, cos_a);
+    mpq_set_d(t->params.params.rotation.sin_theta, sin_a);
+    t->params.params.rotation.angle = angle_rad;
+    t->params.params.rotation.angle_cos = cos_a;
+    t->params.params.rotation.angle_sin = sin_a;
+    t->params.params.rotation.is_special_angle = false;
+
+    /* 旋转矩阵（绕原点，逆时针）：a=cos, b=-sin, c=sin, d=cos */
+    mpq_set(t->matrix.a, t->params.params.rotation.cos_theta);
+    mpq_neg(t->matrix.b, t->params.params.rotation.sin_theta);
+    mpq_set(t->matrix.c, t->params.params.rotation.sin_theta);
+    mpq_set(t->matrix.d, t->params.params.rotation.cos_theta);
+
+    /* 平移分量：tx = cx - a*cx - b*cy, ty = cy - c*cx - d*cy */
+    mpq_t tmp1, tmp2;
+    mpq_init(tmp1);
+    mpq_init(tmp2);
+    mpq_mul(tmp1, t->matrix.a, t->params.params.rotation.cx);
+    mpq_mul(tmp2, t->matrix.b, t->params.params.rotation.cy);
+    mpq_sub(tmp1, t->params.params.rotation.cx, tmp1);
+    mpq_sub(t->matrix.tx, tmp1, tmp2);
+    mpq_mul(tmp1, t->matrix.c, t->params.params.rotation.cx);
+    mpq_mul(tmp2, t->matrix.d, t->params.params.rotation.cy);
+    mpq_sub(tmp1, t->params.params.rotation.cy, tmp1);
+    mpq_sub(t->matrix.ty, tmp1, tmp2);
+    mpq_clear(tmp1);
+    mpq_clear(tmp2);
+
+    t->is_isometry = true;
+    t->is_orientation_preserving = true;
+
+    return t;
+}
+
+/**
+ * @brief 获取变换类型名称
+ */
+const char *lv_transform_type_name(lvTransformType type) {
+    switch ((int) type) {
+        case TRANSFORM_IDENTITY:
+            return "identity";
+        case TRANSFORM_TRANSLATION:
+            return "translation";
+        case TRANSFORM_ROTATION:
+            return "rotation";
+        case TRANSFORM_SCALE:
+            return "scale";
+        case TRANSFORM_SHEAR:
+            return "shear";
+        case TRANSFORM_REFLECTION:
+            return "reflection";
+        case TRANSFORM_SCALING:
+            return "scaling";
+        case TRANSFORM_AFFINE:
+            return "affine";
+        case TRANSFORM_PROJECTIVE:
+            return "projective";
+        case TRANSFORM_GLUING:
+            return "gluing";
+        case TRANSFORM_COMPOSITE:
+            return "composite";
+        default:
+            return "unknown";
     }
 }
 

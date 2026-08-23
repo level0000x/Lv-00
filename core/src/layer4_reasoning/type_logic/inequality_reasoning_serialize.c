@@ -80,7 +80,8 @@ char *lv_ineq_proof_to_latex(const lvInequalityProof *proof) {
 
     lvStrBuf sb = {0};
     lv_strbuf_printf(&sb, "\\begin{proof}\n");
-    for (int i = 0; i < proof->step_count; i++) {
+    /* steps 可能为 NULL（手工构造的证明或 step_count 虚报）：跳过步骤输出而非解引用崩溃 */
+    for (int i = 0; i < proof->step_count && proof->steps; i++) {
         const char *just = proof->steps[i].justification ? proof->steps[i].justification : "unknown";
         lv_strbuf_printf(&sb, "  Step %d: %s\n", i + 1, just);
     }

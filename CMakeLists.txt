@@ -2112,6 +2112,14 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_logic_check_ext CTEST_NAME logic_check_ext_test)
     add_lv_test_auto(test_equiv_class_ext CTEST_NAME equiv_class_ext_test)
     add_lv_test_auto(test_conflict_detector_ext CTEST_NAME conflict_detector_ext_test)
+
+    # 批次 C-㊺续32：零覆盖契约测试（geometry_transform_ext 已注册于 C-㊺续9，本批追加）
+    add_lv_test_auto(test_lv_dot_writer_ext CTEST_NAME lv_dot_writer_ext_test)
+    add_lv_test_auto(test_inequality_reasoning_ext CTEST_NAME inequality_reasoning_ext_test)
+    add_lv_test_auto(test_expr_canon_ext CTEST_NAME expr_canon_ext_test)
+    add_lv_test_auto(test_fast_index_ext CTEST_NAME fast_index_ext_test)
+    add_lv_test_auto(test_lv_lexer_ext CTEST_NAME lv_lexer_ext_test)
+    add_lv_test_auto(test_ode_integrator_ext CTEST_NAME ode_integrator_ext_test)
 endif()
 
 # ============================================================

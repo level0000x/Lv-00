@@ -318,9 +318,16 @@ lvInequality *lv_ineq_add(lvInequality *ineq, lvExpr *expr);
 lvInequality *lv_ineq_mul(lvInequality *ineq, lvExpr *expr, int expr_sign);
 
 /**
- * @brief 不等式取反
+ * @brief 不等式取反（类型方向反转）
  * @param ineq 不等式
  * @return 新不等式
+ *
+ * @note 实现语义为方向反转（与 lv_ineq_mul 负乘共用 ineq_negate_type）：
+ *   left < right => left > right
+ *   left <= right => left >= right
+ *   left > right => left < right
+ *   left >= right => left <= right
+ *   left != right => left != right
  */
 lvInequality *lv_ineq_negate(lvInequality *ineq);
 
