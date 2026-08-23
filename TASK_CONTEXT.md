@@ -4699,3 +4699,44 @@ lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
 
 - 下一批候选：lv_thread.h 22 / lv_storage.h 13 等；
   大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 八十二、批次 C-㊺续10：线程原语（lv_thread.h）22 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 lv_thread.h（22 个 ctest 零覆盖，全部为
+header-only static inline 平台抽象）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_thread_ext.c`**（CTEST thread_ext_test）：11 断言，
+  4 个测试函数：
+  - test_thread_api：create（入口执行）+ join、thread_id 非零、
+    thread_sleep(5)、create + detach。
+  - test_cond_api：cond_init/destroy/signal/broadcast（无等待者不崩溃）、
+    timedwait 1ms 超时返回非 0（配合 mutex）。
+  - test_once_lazy_api：lv_once 回调仅执行一次（多次调用计数 1）、
+    LV_LAZY_LOCK_DEFINE 声明 + init/lock/unlock/destroy。
+  - test_lock_guard_api：lock_guard_init（持锁）→ destroy（置 NULL 解锁）、
+    scope_cleanup。
+
+### ② 测试暴露的缺陷
+
+- **无实现缺陷暴露**（0 处）：22 个 API 全为 static inline 平台抽象
+  （Win32/POSIX 双实现），契约与头注释一致。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **202/202**（build3 165.22s / build_verify 81.48s，
+  新增 thread_ext_test）。
+- test_thread_ext 11/11。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / lv_thread.h 22 零覆盖 inline API 接入契约测试 /
+  无实现缺陷暴露 / test_thread_ext 11 + 全量 202/202。
+- 契约钉住 / 线程 create/join/detach、cond 超时、once 单次、惰性锁
+  自动初始化、守卫 RAII / 与头注释一致。
+
+### 遗留登记
+
+- 下一批候选：lv_storage.h 13 等；大块头 algebraic_number.h 75 /
+  geo_halfedge_mesh.h 55 列入专项评估。
