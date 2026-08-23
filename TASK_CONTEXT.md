@@ -4787,3 +4787,50 @@ I/O + 序列化文件族 + 后端注册 + 验证族）。
   logic/inequality/lv_number/recursion/lv_numeric/runtime_monitor/axiom_
   rule/geometry_transform/lv_thread/lv_storage 全部收尾）。
 - 大块头：algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 八十四、批次 C-㊺续12：代数数域（algebraic_number.h）有理数族 20 零覆盖契约测试（2026-08-23）
+
+用户「继续推进」。按候选清单选 algebraic_number.h（75 个 ctest 零覆盖，
+本批先做第一层有理数域族 20 个；quadratic 18 / interval 18 / poly 19
+登记后续子批）。实现位于 layer3_geometry/algebraic_number_rational.c
+（容器文件 algebraic_number.c 已拆分）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_algebraic_number_ext.c`**（CTEST algebraic_number_ext_
+  test）：63 断言，5 个测试函数：
+  - test_rational_create_api：create 约分（6/4→3/2、1/-2→-1/2、0/7→0/1）、
+    q=0 → 0/1 + ERR_ZERO_DEN、zero/one/from_int。
+  - test_rational_arith_api：add/sub/mul/div 精确值（1/2±1/3、1/2*1/3、
+    1/2÷1/3=3/2）、div 除零 → ERR_ZERO_DEN、err NULL 安全。
+  - test_rational_ops_api：neg/abs 单目、inv（3/2，零倒数报错）、pow
+    （2/3^2=4/9、^0=1、^-1=3/2 负指数路径）。
+  - test_rational_cmp_api：cmp 三态（-1/0/1）、eq（1/2==2/4）、
+    is_zero/is_positive/is_negative。
+  - test_rational_convert_api：to_double 0.75、to_string 缓冲式
+    （"3/4"、q=1 时 "1"）、to_interval 点区间 + contains_rational。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（rational 族实现与头注释契约一致，一次通过，无 M1–M6 缺陷）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **204/204**（build3 / build_verify 均 204/204，
+  新增 algebraic_number_ext_test；203 → 204）。
+- test_algebraic_number_ext 63/63。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / algebraic_number.h 有理数族 20 零覆盖 API 接入契约
+  测试 / test_algebraic_number_ext 63 + 全量 204/204。
+- 契约钉住 / 约分不变量（den>0、gcd=1）、q=0 错误码、div/inv 除零、
+  pow 负指数、to_string q=1 整数形式 / 与实现一致。
+- 规划 / algebraic_number.h 剩余族 / quadratic 18 + interval 18 + poly 19
+  共 55 个零覆盖登记后续子批（本批只做 rational 20）。
+
+### 遗留登记
+
+- algebraic_number.h 剩余 55 个（quadratic/interval/poly 族）待后续子批。
+- 既有全局内存泄漏 WARN（lv 分配追踪计数含合法滞留，storage_ext 等
+  既有测试同样存在，非本批引入，退出码 0）。
