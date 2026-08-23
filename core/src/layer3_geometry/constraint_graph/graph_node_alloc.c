@@ -87,7 +87,13 @@ GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, boo
         node->vtable->alloc(node, graph);
     }
 
-    /* 复制坐标（graph_add_node_with_id 路径） */
+    /* 复制坐标（graph_add_node_with_id 路径）
+     * [修复] 允许 NULL 坐标元素：graph_add_point_xy(graph, NULL, NULL)
+     * 表示未约束自由度，源图含 NULL 元素时（如 graph_copy 复制此类图）
+     * 原实现对 NULL 调 symbolic_coord_copy(NULL) 返回 NULL 被误判为拷贝
+     * 失败，导致 graph_copy 无法复制含未约束自由度的图。NULL 元素保持
+     * NULL（等价于 graph_add_point_xy 的未约束语义），仅非 NULL 源坐标
+     * 拷贝失败才报错。 */
     if (with_id && coord_count > 0 && coords) {
         node->symbolic_coords = lv_malloc((size_t) coord_count * sizeof(SymbolicCoord *));
         if (!node->symbolic_coords) {
@@ -96,16 +102,22 @@ GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, boo
             return NULL;
         }
         for (int i = 0; i < coord_count; i++) {
-            node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
-            if (!node->symbolic_coords[i]) {
-                /* 坐标拷贝失败：清理已分配的坐标并返回 NULL */
-                for (int j = 0; j < i; j++) {
-                    symbolic_coord_destroy(node->symbolic_coords[j]);
+            if (coords[i]) {
+                node->symbolic_coords[i] = symbolic_coord_copy(coords[i]);
+                if (!node->symbolic_coords[i]) {
+                    /* 坐标拷贝失败：清理已分配的坐标并返回 NULL */
+                    for (int j = 0; j < i; j++) {
+                        if (node->symbolic_coords[j])
+                            symbolic_coord_destroy(node->symbolic_coords[j]);
+                    }
+                    lv_free((void **) &node->symbolic_coords);
+                    lv_pool_free(lv_get_node_pool(), node);
+                    lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: symbolic_coord_copy failed", fn);
+                    return NULL;
                 }
-                lv_free((void **) &node->symbolic_coords);
-                lv_pool_free(lv_get_node_pool(), node);
-                lv_set_error_ctx(lv_ERROR_OUT_OF_MEMORY, __FILE__, __LINE__, fn, "%s: symbolic_coord_copy failed", fn);
-                return NULL;
+            } else {
+                /* 未约束自由度：NULL 坐标合法（与 graph_add_point_xy NULL 语义一致） */
+                node->symbolic_coords[i] = NULL;
             }
         }
         node->coord_count = coord_count;
@@ -116,7 +128,7 @@ GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, boo
      * graph_add_node_with_id 原直接 lv_ensure_capacity（min_growth=0），保持原扩容行为） */
     if (!lv_ensure_capacity((void **) &graph->nodes, graph->node_count, &graph->node_capacity, sizeof(GeomNode *),
                             with_id ? 0 : 1)) {
-        /* 清理已分配的坐标 */
+        /* 清理已分配的坐标（NULL 元素跳过） */
         if (with_id && coord_count > 0 && coords) {
             for (int i = 0; i < coord_count; i++) {
                 if (node->symbolic_coords[i])

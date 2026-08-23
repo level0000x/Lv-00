@@ -5185,3 +5185,82 @@ layer4_reasoning/type_logic/modal_operators.c。
   继续选批（lv_error.h 17、autodiff.h 14、memory_pool.h 13、
   parametric_curves.h 13 等候选）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十、批次 C-㊺续18：modal_operators 重构三合一 + graph_copy 未约束自由度缺陷修复（2026-08-24）
+
+用户问"是否需要进行重构（优化实现逻辑和实现行为）"，给出候选清单后
+选定全部四项（①评估分支合并 ②对偶转换真实实现 ③几何断言行为补全
+④继续治理批次）并追加"顺便再找一下需要重构的"。
+
+### ① 重构：□/◇ 评估分支合并（逻辑收敛，行为不变）
+
+- modal_evaluate_internal 原为两份近乎相同的遍历循环（各 ~30 行，仅
+  聚合语义不同：□ 全真才真/任一假即假，◇ 任一真即真/全假才假）。
+  收敛为单一循环 + is_necessary 分支；并新增 ¬ 否定节点分支。
+
+### ② 重构：对偶转换真实实现（行为优化，替代 UNSUPPORTED）
+
+- 头文件 lvModalOperator 新增 lv_MODALOP_NEGATION（¬）；对偶转换注释
+  从 UNSUPPORTED 更新为真实实现契约。
+- lv_modal_possible_to_necessary_not / necessary_to_not_possible：
+  ◇A → ¬(□(¬A))、□A → ¬(◇(¬A))。新增 modal_formula_clone（sub 树深
+  拷贝，inner_prop 指针共享——formula_destroy 不销毁 inner_prop 无
+  双重释放）。
+- 评估支持 ¬（sub 或 inner_prop 两种形式，三值取反 TRUE↔FALSE、
+  UNKNOWN 保持；witness 透传）。
+- op_to_string 加 "¬" 符号。
+
+### ③ 重构：几何断言行为补全（真实关联 ConstraintGraph）
+
+- assert_point_must_on_line / can_on_line 原仅拼字符串 "onLine(p%d,s%d)"。
+  现：当前世界配置图存在时用 graph_add_incidence 写入真实 INCIDENCE
+  约束（幂等：重复断言约束已存在也关联）；命题 pattern 持有 graph_copy
+  独立快照副本。无效节点（如 999）回退纯符号（不崩溃）。
+- 发现并修复命题 pattern 所有权语义：proposition_destroy 会销毁
+  pattern（destroy_proposition_pattern → graph_destroy），故 pattern
+  必须为独立副本而非共享引用（首版实现共享引用导致 double-free，
+  调试暴露后修正为 graph_copy 快照）。
+
+### ④ 测试更新
+
+- **test_modal_operators.c 重写**（26 断言）：对偶转换结构断言
+  （¬(□(¬P)) 链）+ NULL/非对应算子输入 → NULL + 对偶恒等式真值等价
+  （◇P 与 ¬□¬P 同框架同真值）。
+- **test_modal_operators_ext.c 新增** test_modal_geom_graph_link_api：
+  带配置图的框架（真实坐标点/线段），断言 pattern 为独立快照副本且
+  配置图含 incidence 约束；无效节点回退纯符号。
+
+### ⑤ 附带发现并修复的真实缺陷（1 处，M4，graph_node_alloc.c）
+
+- **graph_copy 无法复制含未约束自由度（NULL 坐标）的图**：
+  node_alloc_internal with_id 路径对 coords[i]==NULL 调
+  symbolic_coord_copy(NULL) 返回 NULL 被误判为拷贝失败整体返回 NULL
+  （graph_add_point_xy(graph, NULL, NULL) 的合法未约束点无法被复制）。
+  修复：NULL 坐标元素保持 NULL（等价 graph_add_point_xy 语义），仅非
+  NULL 源坐标拷贝失败才报错；清理路径跳过 NULL 元素。
+
+### ⑥ 验证
+
+- ninja 全绿 + ctest **212/212**（build3 88.09s / build_verify 全绿；
+  单跑复绿的 stream_extended_test 时序抖动非回归）。
+- test_modal_operators 26/26、test_modal_operators_ext 93/93。
+
+### 决策登记（第 9 章格式）
+
+- 重构 / 逻辑收敛 / modal 评估 □◇ 分支合并 / 单一循环 + is_necessary，
+  行为不变（既有 26+93 断言钉住）。
+- 重构 / 行为优化 / 对偶转换 UNSUPPORTED → 真实 ¬(□¬A)/¬(◇¬A) /
+  lv_MODALOP_NEGATION 否定节点 + clone 深拷贝 + 三值取反评估。
+- 重构 / 行为补全 / 几何断言拼字符串 → graph_add_incidence 真实约束 +
+  pattern 独立快照 / 幂等断言 + 无效节点回退。
+- 缺陷修复 / M4 所有权 / proposition_destroy 销毁 pattern（字段表
+  lv_FIELD_OBJECT(pattern, graph_destroy)）→ pattern 必须独立副本 /
+  调试 double-free 暴露后修正。
+- 缺陷修复 / M4 复制语义 / graph_copy 对 NULL 坐标元素误判失败 /
+  未约束自由度保持 NULL。
+
+### 遗留登记
+
+- 用户追加"顺便再找需要重构的"：本批已发现并修复 graph_copy NULL
+  坐标缺陷；后续候选扫描见下批。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

@@ -279,10 +279,72 @@ static void test_modal_geom_cleanup_api(void) {
     printf("  test_modal_geom_cleanup_api: PASSED\n");
 }
 
+/* ============== 测试：几何断言关联真实约束（重构 C-㊺续18） ============== */
+
+static void test_modal_geom_graph_link_api(void) {
+    /* 构造带配置图的框架：世界 1 携带 ConstraintGraph，含点与线段 */
+    lvModalFrame *frame = lv_modal_frame_create();
+    ConstraintGraph *graph = graph_create();
+    TEST_ASSERT_NOT_NULL(graph);
+
+    /* 点 pt（id 由 graph_get_last_added_node_id 取） */
+    AddNodeResult rp = graph_add_point_xy(graph, NULL, NULL);
+    TEST_ASSERT(rp == ADD_NODE_OK, "添加点成功");
+    int pt_id = graph_get_last_added_node_id(graph);
+
+    /* 线段端点 p1, p2，再连线 */
+    graph_add_point_xy(graph, NULL, NULL);
+    int p1 = graph_get_last_added_node_id(graph);
+    graph_add_point_xy(graph, NULL, NULL);
+    int p2 = graph_get_last_added_node_id(graph);
+    AddNodeResult rl = graph_add_line_segment(graph, p1, p2);
+    TEST_ASSERT(rl == ADD_NODE_OK, "添加线段成功");
+    int line_id = graph_get_last_added_node_id(graph);
+
+    lvModalWorld *w = lv_modal_world_create(1, "几何配置", graph); /* configuration 所有权转移给世界 */
+    lv_modal_frame_add_world(frame, w);
+
+    /* assert_point_must_on_line：□(onLine(pt, line))
+     * 行为补全：真实约束写入配置图；命题 pattern 为独立快照副本
+     * （proposition_destroy 会销毁 pattern，故不可共享引用） */
+    lvModalFormula *must = lv_modal_assert_point_must_on_line(frame, pt_id, line_id);
+    TEST_ASSERT_NOT_NULL(must);
+    TEST_ASSERT_EQ(must->op, lv_MODALOP_NECESSARY);
+    TEST_ASSERT_NOT_NULL(must->inner_prop);
+    TEST_ASSERT_NOT_NULL(must->inner_prop->pattern);
+    TEST_ASSERT(must->inner_prop->pattern != graph, "pattern 为独立副本");
+    TEST_ASSERT(graph_get_constraint_count(graph) >= 1, "配置图含 incidence 约束");
+    TEST_ASSERT(graph_get_constraint_count(must->inner_prop->pattern) >= 1, "快照含约束");
+
+    lvModalFormula *can = lv_modal_assert_point_can_on_line(frame, pt_id, line_id);
+    TEST_ASSERT_NOT_NULL(can);
+    TEST_ASSERT_NOT_NULL(can->inner_prop->pattern);
+    TEST_ASSERT(can->inner_prop->pattern != graph, "◇ 命题同样独立副本");
+
+    /* 无效节点：回退纯符号（pattern 不关联，不崩溃） */
+    lvModalFormula *bad = lv_modal_assert_point_can_on_line(frame, 999, line_id);
+    TEST_ASSERT_NOT_NULL(bad);
+    TEST_ASSERT_NULL(bad->inner_prop->pattern);
+
+    /* 清理：formula_destroy 不销毁 inner_prop；世界不销毁 configuration */
+    Proposition *pm = must->inner_prop;
+    Proposition *pc = can->inner_prop;
+    Proposition *pb = bad->inner_prop;
+    lv_modal_formula_destroy(must);
+    lv_modal_formula_destroy(can);
+    lv_modal_formula_destroy(bad);
+    proposition_destroy(pm);
+    proposition_destroy(pc);
+    proposition_destroy(pb);
+    lv_modal_frame_destroy(frame);
+    graph_destroy(graph);
+    printf("  test_modal_geom_graph_link_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Modal Operators Ext Test Suite")
-    printf("=== Lv-00 Modal Operators Ext Test Suite (batch C-㊺续17) ===\n\n");
+    printf("=== Lv-00 Modal Operators Ext Test Suite (batch C-㊺续18) ===\n\n");
     lv_init();
 
     TEST_MAIN_RUN(test_modal_world_api);
@@ -290,6 +352,7 @@ TEST_MAIN_BEGIN("Lv-00 Modal Operators Ext Test Suite")
     TEST_MAIN_RUN(test_modal_formula_eval_api);
     TEST_MAIN_RUN(test_modal_geom_str_api);
     TEST_MAIN_RUN(test_modal_geom_cleanup_api);
+    TEST_MAIN_RUN(test_modal_geom_graph_link_api);
 
     lv_cleanup();
 TEST_MAIN_END()

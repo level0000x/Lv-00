@@ -60,7 +60,8 @@ typedef struct lvModalEvalResult lvModalEvalResult;
  */
 typedef enum {
     lv_MODALOP_NECESSARY = 0, /**< □ 必然 */
-    lv_MODALOP_POSSIBLE = 1   /**< ◇ 可能 */
+    lv_MODALOP_POSSIBLE = 1,  /**< ◇ 可能 */
+    lv_MODALOP_NEGATION = 2   /**< ¬ 否定（对偶转换内部节点） */
 } lvModalOperator;
 
 /* ============== 模态可达关系 ============== */
@@ -296,13 +297,12 @@ lv_PUBLIC_API lvTruthValue lv_modal_check_validity(const lvModalFrame *frame, co
  * @brief 模态对偶转换：◇A → ¬□¬A
  *
  * 将可能算子转换为必然算子和否定的组合。
- *
- * @note 当前返回 lv_ERROR_UNSUPPORTED（NULL）：lvModalFormula 结构
- *       （op + inner_prop/sub）不含命题取反节点，无法表达对偶等式中
- *       的两处否定。结构扩展支持否定前不提供静默错判的简化实现。
+ * 通过 lv_MODALOP_NEGATION 否定节点表达对偶等式中的两处否定：
+ * 结果公式结构为 ¬(□(¬A))。
  *
  * @param formula 原始模态公式
- * @return 转换后的模态公式（新分配）；当前恒为 NULL（UNSUPPORTED）
+ * @return 转换后的模态公式（新分配，调用者 lv_modal_formula_destroy）；
+ *         非 ◇ 公式或结构无效时返回 NULL
  */
 lv_PUBLIC_API lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFormula *formula);
 
@@ -310,13 +310,12 @@ lv_PUBLIC_API lvModalFormula *lv_modal_possible_to_necessary_not(const lvModalFo
  * @brief 模态对偶转换：□A → ¬◇¬A
  *
  * 将必然算子转换为可能算子和否定的组合。
- *
- * @note 当前返回 lv_ERROR_UNSUPPORTED（NULL）：lvModalFormula 结构
- *       （op + inner_prop/sub）不含命题取反节点，无法表达对偶等式中
- *       的两处否定。结构扩展支持否定前不提供静默错判的简化实现。
+ * 通过 lv_MODALOP_NEGATION 否定节点表达对偶等式中的两处否定：
+ * 结果公式结构为 ¬(◇(¬A))。
  *
  * @param formula 原始模态公式
- * @return 转换后的模态公式（新分配）；当前恒为 NULL（UNSUPPORTED）
+ * @return 转换后的模态公式（新分配，调用者 lv_modal_formula_destroy）；
+ *         非 □ 公式或结构无效时返回 NULL
  */
 lv_PUBLIC_API lvModalFormula *lv_modal_necessary_to_not_possible(const lvModalFormula *formula);
 
