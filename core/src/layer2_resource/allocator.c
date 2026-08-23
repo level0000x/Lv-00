@@ -11,6 +11,11 @@
  * @version 1.0.0
  */
 
+/* 平台兼容层最先 include（feature test macro 必须在任何系统头之前；
+ * allocator.h 的 <stddef.h> 会锁定 glibc 特性集 → CLOCK_REALTIME 不可见，
+ * Ubuntu/macOS 编译报错） */
+#include "lv/lv_platform.h"
+
 #include "lv/allocator.h"
 #include "lv_utils_internal.h" /* AllocHeader, get_header, track_allocation, etc. */
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */

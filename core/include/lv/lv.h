@@ -94,6 +94,13 @@
 extern "C" {
 #endif
 
+/* 平台兼容层必须先于任何系统头 include（feature test macro，如
+ * _POSIX_C_SOURCE 200809L → CLOCK_REALTIME/strtok_r/strdup 在 glibc
+ * 严格 C11 下可见）。此前 lv.h 先 include <stdbool.h> 等系统头导致
+ * glibc 特性集锁定，Ubuntu/macOS 编译报 CLOCK_REALTIME undeclared
+ * （Windows/MinGW 无此依赖故本地构建不暴露）。 */
+#include "lv_platform.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
