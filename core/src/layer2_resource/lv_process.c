@@ -33,11 +33,12 @@
 #ifndef _WIN32
 #include <signal.h>
 /* POSIX 实现（lv_run_posix）所需头：fork/pipe/dup2（unistd 经 lv_platform.h）、
- * waitpid/WIFEXITED（sys/wait.h）、poll/pollfd（sys/poll.h）。Windows 构建
- * 跳过该分支，此前仅 Ubuntu CI 编译，缺头会隐式声明报错（C11 下为错误）。 */
+ * waitpid/WIFEXITED（sys/wait.h）、poll/pollfd（poll.h，POSIX 标准头；
+ * Linux glibc 亦提供，勿用 sys/poll.h——macOS 无此路径）。Windows 构建
+ * 跳过该分支，仅 POSIX CI（Ubuntu/macOS）编译，缺头会隐式声明报错。 */
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/poll.h>
+#include <poll.h>
 #endif
 
 /* ============================================================
