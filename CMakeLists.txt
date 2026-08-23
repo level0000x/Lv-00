@@ -1800,6 +1800,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_control_flow_blocks_ext CTEST_NAME control_flow_blocks_ext_test)
     add_lv_test_auto(test_lv_number_ops_ext CTEST_NAME lv_number_ops_ext_test)
     add_lv_test_auto(test_effect_system_ext CTEST_NAME effect_system_ext_test)
+    add_lv_test_auto(test_axiom_grade_ext CTEST_NAME axiom_grade_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试

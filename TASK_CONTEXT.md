@@ -5590,3 +5590,50 @@ layer6_visual/runtime/effect_tracker.c。
   axiom_grade.h 9 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 九十八、批次 C-㊺续26：公理分级系统（axiom_grade.h）9 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」。按全局复核清单选 axiom_grade.h（9 个 ctest 零覆盖，
+难度过滤 + 元数据 + 风格筛选 + 级进解锁 + 字符串）。实现位于
+layer4_reasoning/axiom/axiom_grade.c（lv_XMACRO_ENUM/lv_PROPAGATE 为
+宏误报已排除）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_axiom_grade_ext.c`**（CTEST axiom_grade_ext_test）：
+  47 断言，4 个测试函数：
+  - test_axiom_difficulty_api：默认过滤器（min=BASIC、max=INTERMEDIATE、
+    启用）、set_difficulty（设 max + min 不超 max）、grade_check（BASIC
+    过/EXPERT 不过/必修恒过/NULL 不过）。
+  - test_axiom_meta_api：create（名称复制、grade/style、默认 prerequisite
+    =0/is_required=false、description 深拷贝、NULL 安全、长名称截断）、
+    destroy（NULL 安全）。
+  - test_axiom_style_unlock_api：filter_by_style（FORWARD 匹配 0,2、
+    INDUCTION 匹配 3、max_out 限制但返回完整数、无效参数 0）、
+    unlock_next_grade（逐级解锁到 EXPERT 后不变、同步 max_grade）。
+  - test_axiom_string_api：grade_to_string（基础级/专家级/越界未知）、
+    proof_style_to_string（正向推理/越界未知）。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致，一次通过）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **220/220**（build3 13.11s / build_verify 12.32s，
+  新增 axiom_grade_ext_test；219 → 220）。
+- test_axiom_grade_ext 47/47。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / axiom_grade.h 9 个零覆盖 API 接入契约测试 /
+  test_axiom_grade_ext 47 + 全量 220/220。
+- 契约钉住 / 默认过滤器、set_difficulty min≤max、必修豁免、解锁到顶
+  不变、filter_by_style 返回完整数 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、lv_api_spec.h 10、lv_ast.h 9、
+  axiom_rule_engine.h 9 等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
