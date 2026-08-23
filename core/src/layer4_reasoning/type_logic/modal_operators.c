@@ -304,10 +304,16 @@ bool lv_modal_frame_is_reachable(const lvModalFrame *frame, int from_world_id, i
     to_idx = modal_find_world_index(frame, to_world_id);
     if (from_idx < 0 || to_idx < 0)
         return false;
+    /* 自可达（from == to）恒成立，不依赖可达矩阵（与评估语义一致：
+     * modal_evaluate_internal 中 from_idx == i 时跳过矩阵检查）。
+     * [修复] 原实现先查 reach_dimension 再判 from==to，导致未调用
+     * set_reachability 时（reach_dimension == 0）自可达误判为 false。 */
+    if (from_idx == to_idx)
+        return true;
     if (from_idx >= frame->reach_dimension || to_idx >= frame->reach_dimension)
         return false;
 
-    return frame->reach_matrix[from_idx][to_idx] != 0 || from_idx == to_idx;
+    return frame->reach_matrix[from_idx][to_idx] != 0;
 }
 
 bool lv_modal_frame_get_reachable_worlds(const lvModalFrame *frame, int world_id, int **out_ids, int *out_count) {

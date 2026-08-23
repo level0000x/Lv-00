@@ -5128,3 +5128,60 @@ simd_geo_matrix.c（矩阵）、simd_batch.c（批量数组）。
 - **simd_ops.h 60 个零覆盖全部收尾**。
 - 剩余候选：无（小头文件零覆盖队列已清空；后续按需全局复核）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 八十九、批次 C-㊺续17：模态逻辑扩展（modal_operators.h）20 零覆盖契约测试 + 1 处自可达缺陷修复（2026-08-24）
+
+用户「继续推进」。全局复核扫描（556 个零覆盖 API 分散在百余头文件）后，
+选最大候选 modal_operators.h（20 个零覆盖）。实现位于
+layer4_reasoning/type_logic/modal_operators.c。
+
+### ① 新增测试
+
+- **新建 `test/c/test_modal_operators_ext.c`**（CTEST modal_operators_ext_
+  test）：78 断言，5 个测试函数：
+  - test_modal_world_api：world_create（名称复制）/world_holds（指针相等
+    判定：未断言 FALSE、断言后 TRUE、不同命题 FALSE）/world_assert/
+    world_destroy（NULL 安全，不销毁 true_props 元素）。
+  - test_modal_frame_api：frame_create/add_world（3 世界）/自可达默认/
+    set_reachability/is_reachable（1→2 可达、反向不可达）/
+    get_reachable_worlds（含无可达/未知世界/NULL 契约）。
+  - test_modal_formula_eval_api：evaluate（◇P 在 W1 真-自世界 P 真、
+    ◇P 在 W2 假、□P 在 W1 假-W2 反例、□P 在 W2 假）/嵌套 □◇P/
+    check_validity 非有效/NULL 契约/eval_result_destroy/formula_destroy
+    （nested 递归销毁 sub，不销毁 inner_prop）。
+  - test_modal_geom_str_api：frame_create_geometric_default（默认自可达）/
+    assert_point_must_on_line（□+onLine 命题名）/assert_point_can_on_line/
+    formula_to_string（□/◇/嵌套格式/NULL）/op_to_string（□◇/越界 ?）/
+    reachability_type_to_string（identity/rigid/custom/越界 unknown）。
+  - test_modal_geom_cleanup_api：几何辅助公式的 inner_prop 所有权清理。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M4）
+
+- **lv_modal_frame_is_reachable 自可达误判**：原实现先检查 reach_dimension
+  再判 from_idx==to_idx，未调用 set_reachability 时（reach_dimension==0）
+  自可达（世界到自身）错误返回 false，与评估语义（modal_evaluate_internal
+  中 from_idx==i 跳过矩阵检查）不一致。修复：from_idx==to_idx 恒返回
+  true（自可达不依赖矩阵）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **212/212**（build3 91.38s / build_verify 40.71s，
+  新增 modal_operators_ext_test；211 → 212）。
+- test_modal_operators_ext 78/78。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / modal_operators.h 20 个零覆盖 API 接入契约测试 /
+  test_modal_operators_ext 78 + 全量 212/212。
+- 缺陷修复 / M4 语义 / is_reachable 自可达依赖矩阵维度误判 / 自可达
+  恒真（与评估语义一致）。
+- 契约钉住 / 世界 holds 指针相等、formula_destroy 不销毁 inner_prop、
+  嵌套公式递归销毁、对偶转换恒 NULL（UNSUPPORTED 已有测试） / 与实现一致。
+
+### 遗留登记
+
+- **modal_operators.h 零覆盖收尾**。
+- 全局复核：556 个零覆盖 API 分散在百余头文件，后续按头文件大小/相关性
+  继续选批（lv_error.h 17、autodiff.h 14、memory_pool.h 13、
+  parametric_curves.h 13 等候选）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
