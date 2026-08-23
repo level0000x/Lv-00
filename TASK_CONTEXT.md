@@ -4599,3 +4599,52 @@ lv_MAX_RECURSION_DEPTH_LIMIT 非 API）。
 - 下一批候选：lv_thread.h 22 / axiom_rule_engine.h 20 /
   geometry_transform.h 17 / lv_storage.h 13 等；
   大块头 algebraic_number.h 75 / geo_halfedge_mesh.h 55 列入专项评估。
+
+## 八十、批次 C-㊺续8：公理规则引擎（axiom_rule_engine.h）20 零覆盖契约测试（2026-08-20）
+
+用户「继续推进」。按候选清单选 axiom_rule_engine.h（20 个 ctest 零覆盖，
+规则引擎纯内存操作）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_axiom_rule_ext.c`**（CTEST axiom_rule_ext_test）：
+  58 断言，4 个测试函数：
+  - test_rule_build_api：set_description（NULL/正常）、add_variable/
+    add_premise/add_conclusion（NULL/正常/字段验证）、add_tag、
+    set_priority/set_status（NULL 安全）、rule_destroy(NULL)。
+  - test_library_api：library_add（NULL 契约 + 所有权移交）、
+    get_by_type（INFERENCE → 2）、get_by_difficulty（level 0-10 全范围）、
+    search_by_tag（alpha → 2/beta → 1/无 → 0）、library_remove（存在
+    true + 规则销毁/不存在 false）、library_destroy(NULL)。
+  - test_match_api：find_matches（空库 0/NULL 契约）、is_applicable
+    （AXIOM 恒适用含 NULL graph、INFERENCE NULL graph false）、
+    apply_match NULL 契约、match_destroy(NULL)。
+  - test_assess_api：assess_difficulty（score/level 范围）、
+    difficulty_assessment_destroy(NULL)、recommendation_destroy(NULL)。
+
+### ② 测试暴露的契约要点（2 处，非缺陷，测试侧适配）
+
+1. get_by_difficulty 按 rule->difficulty_level（新规则默认 0）——
+   全范围查询用 min=0。
+2. is_applicable 对 AXIOM 类型恒返回 true（即使 graph NULL）——
+   实现契约（公理无条件成立）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **200/200**（build3 251.72s / build_verify 168.65s，
+  新增 axiom_rule_ext_test；**ctest 里程碑 200**）。
+- test_axiom_rule_ext 58/58。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / axiom_rule_engine.h 20 零覆盖 API 接入契约测试 /
+  无实现缺陷暴露（2 处测试侧契约适配）/
+  test_axiom_rule_ext 58 + 全量 200/200。
+- 契约钉住 / 规则所有权移交库、AXIOM 恒适用、difficulty_level 默认 0 /
+  与实现一致。
+
+### 遗留登记
+
+- 下一批候选：lv_thread.h 22 / geometry_transform.h 17 /
+  lv_storage.h 13 等；大块头 algebraic_number.h 75 /
+  geo_halfedge_mesh.h 55 列入专项评估。
