@@ -5074,3 +5074,57 @@ lv_utils.h 实际 12 个（lv_LOG_WARNING 为宏非 API）。共 19 个，一次
 - **debug.h 与 lv_utils.h 零覆盖收尾**。
 - 剩余候选：simd_ops.h 63（平台相关，登记评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 八十八、批次 C-㊺续16：SIMD 运算库（simd_ops.h）60 零覆盖契约测试 + 1 处 SSE2 缺陷修复（2026-08-24）
+
+用户「继续推进」。按遗留登记选 simd_ops.h（60 个 ctest 零覆盖，全部 API
+无测试引用）。实现分布在 layer3_geometry/simd_ops.c（能力/统计）、
+simd_v4d.c（Vec4d）、simd_v4f.c（Vec4f）、simd_v8f.c（Vec8f）、
+simd_geo_matrix.c（矩阵）、simd_batch.c（批量数组）。
+
+### ① 新增测试
+
+- **新建 `test/c/test_simd_ops_ext.c`**（CTEST simd_ops_ext_test）：162
+  断言，8 个测试函数：
+  - test_simd_capability_api：detect/has_capability/capability_name/
+    get_stats/reset_stats（含 NULL 契约、reset 后全零）。
+  - test_vec4d_construct_api：zero/one/set1/set/load/loadu/store/storeu。
+  - test_vec4d_arith_api：add/sub/mul/div/neg/sqrt/abs/max/min/fmadd。
+  - test_vec4d_cmp_api：cmpeq/cmplt/cmple/cmpgt/cmpge（-1.0/0.0 掩码）/
+    select。
+  - test_vec4d_reduce_api：hsum/hmax/hmin/dot/norm/normalize（含零向量
+    阈值保护）/cross。
+  - test_vec4f_api：zero/set1/load/store/add/sub/mul/div/sqrt/hsum/dot。
+  - test_vec8f_api：zero/set1/load/store/add/sub/mul/div/hsum。
+  - test_simd_matrix_batch_api：mat4x4_vec4_mul（单位阵/缩放阵）、
+    dot_product_array（含 count=0）、norm_array（每组 4 元素求范数）、
+    scale_array。
+
+### ② 测试暴露并修复的真实缺陷（1 处，M4）
+
+- **lv_vec4d_select SSE2 分支掩码位运算错误**：SSE2 模拟 blendv 时直接
+  _mm_and_pd(mask, a)，但 -1.0（0xBFF0...）并非全 1 位（仅 cmpeq 输出
+  0xFFFF... 才是），按位与会破坏数值（mask=-1.0 选 a 时结果为垃圾）。
+  修复：先 _mm_cmplt_pd(mask, 0) 将负掩码（-1.0 与 -NaN 全 1 位）统一
+  扩展为全 1/全 0 选择位，再 AND/ANDNOT/OR。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **211/211**（build3 84.74s / build_verify 42.24s，
+  新增 simd_ops_ext_test；210 → 211）。
+- test_simd_ops_ext 162/162。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / simd_ops.h 全部 60 个零覆盖 API 接入契约测试 /
+  test_simd_ops_ext 162 + 全量 211/211。
+- 缺陷修复 / M4 位运算语义 / SSE2 select 掩码按位与破坏 -1.0 / 符号位
+  扩展统一掩码语义（与 SSE4.1 blendv 按符号位一致）。
+- 契约钉住 / 比较掩码 -1.0/0.0、select 符号位语义、normalize 阈值保护、
+  norm_array 每组 4 元素、mat4x4 行点积语义 / 与实现一致。
+
+### 遗留登记
+
+- **simd_ops.h 60 个零覆盖全部收尾**。
+- 剩余候选：无（小头文件零覆盖队列已清空；后续按需全局复核）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

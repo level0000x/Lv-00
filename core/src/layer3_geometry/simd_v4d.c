@@ -623,12 +623,20 @@ lvVec4d lv_vec4d_select(lvVec4d mask, lvVec4d a, lvVec4d b) {
     _mm_storeu_pd(r.v, _mm_blendv_pd(b_lo, a_lo, m_lo));
     _mm_storeu_pd(r.v + 2, _mm_blendv_pd(b_hi, a_hi, m_hi));
 #elif defined(__SSE2__)
-    /* 使用 AND/ANDNOT/OR 模拟 blendv */
+    /* 使用 AND/ANDNOT/OR 模拟 blendv。
+     * [修复] 掩码须为符号位语义（blendv 按符号位选择），而非直接位与：
+     * 直接 _mm_and_pd(mask, a) 对 -1.0（0xBFF0...）这类掩码会按位破坏值
+     * （-1.0 并非全 1 位，仅 cmpeq 输出 0xFFFF... 才是）。先经
+     * _mm_cmplt_pd(mask, 0) 将负掩码（含 -1.0 与 -NaN 全 1 位）统一
+     * 扩展为全 1 / 全 0 选择位。 */
     __m128d m_lo = _mm_loadu_pd(mask.v), m_hi = _mm_loadu_pd(mask.v + 2);
     __m128d a_lo = _mm_loadu_pd(a.v), a_hi = _mm_loadu_pd(a.v + 2);
     __m128d b_lo = _mm_loadu_pd(b.v), b_hi = _mm_loadu_pd(b.v + 2);
-    _mm_storeu_pd(r.v, _mm_or_pd(_mm_and_pd(m_lo, a_lo), _mm_andnot_pd(m_lo, b_lo)));
-    _mm_storeu_pd(r.v + 2, _mm_or_pd(_mm_and_pd(m_hi, a_hi), _mm_andnot_pd(m_hi, b_hi)));
+    __m128d zero = _mm_setzero_pd();
+    __m128d sel_lo = _mm_cmplt_pd(m_lo, zero);
+    __m128d sel_hi = _mm_cmplt_pd(m_hi, zero);
+    _mm_storeu_pd(r.v, _mm_or_pd(_mm_and_pd(sel_lo, a_lo), _mm_andnot_pd(sel_lo, b_lo)));
+    _mm_storeu_pd(r.v + 2, _mm_or_pd(_mm_and_pd(sel_hi, a_hi), _mm_andnot_pd(sel_hi, b_hi)));
 #elif defined(__ARM_NEON) || defined(__ARM_NEON__)
     /* NEON: vbslq_f64 selects based on the first argument's bits */
     uint64x2_t m_lo = vld1q_u64((const uint64_t*)mask.v);

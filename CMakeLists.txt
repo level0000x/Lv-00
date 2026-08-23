@@ -1791,6 +1791,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_geo_halfedge_mesh_ext CTEST_NAME geo_halfedge_mesh_ext_test)
     add_lv_test_auto(test_debug_log_ext CTEST_NAME debug_log_ext_test)
     add_lv_test_auto(test_lv_utils_array_ext CTEST_NAME lv_utils_array_ext_test)
+    add_lv_test_auto(test_simd_ops_ext CTEST_NAME simd_ops_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试
