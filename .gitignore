@@ -156,6 +156,11 @@ build_final/
 build_verify/
 build_tmp/
 _archived_builds/
+_tmp_*.txt
+_tmp_*.log
+_scan_*.py
+_dbg_*.c
+_dbg_*.exe
 
 # 一次性迁移/诊断脚本（不属源码）
 _c11_migrate*.ps1
