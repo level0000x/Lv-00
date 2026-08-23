@@ -5754,3 +5754,53 @@ data_structure_blocks.h 7 = 49 个零覆盖 API），7 个测试文件。
   representation_converter.h 8、lv_hashtable.h 3 等。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零一、批次 C-㊺续29（超大批量）：7 头文件 32 零覆盖契约测试（2026-08-24）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（lv_file.h 8 + lv_path.h 8 + lv_hashtable.h 3 + error_codes.h 4 +
+sha256.h 5 + three_valued_logic.h 2 + lv_strbuf.h 2 = 32 个零覆盖 API）。
+
+### ① 新增测试（6 新建 + 1 追加，291 断言）
+
+- **test_lv_file_ext.c**（26）：open/close/read_all/read_all_limited/
+  read_text/write_all/exists/size——临时文件读写往返、大小限制拒绝、
+  out_len NULL 合法、NULL 契约。
+- **test_lv_path_ext.c**（37）：basename（posix/win 分隔符）、dirname、
+  join、strip_ext、mkdirs 逐级建目录、temp_path 唯一、home_dir 非空、
+  dir_foreach 遍历 + remove 递归删除。
+- **test_lv_hashtable_ext.c**（138）：int_hash（2 的幂容量范围/非 2 幂
+  取模）、int/str foreach 遍历全部条目 + 求和验证、NULL 契约。
+- **test_error_codes_ext.c**（12）：error_category、is_unknown（已知/未知
+  名码）、code_from_string 往返、get_error_description。
+- **test_sha256_ext.c**（5）：标准向量 "abc"（string/hex/分块 init-update-
+  final 三路径一致）、空串向量。
+- **test_lv_strbuf_ext.c**（3）：vprintf 格式化追加、reset 清空可复用。
+- **test_three_valued_logic_ext.c 追加**（+8）：tvl_to_string（TRUE/FALSE/
+  UNKNOWN 大写）、to_string_zh（真/伪/未知）、越界 INVALID。
+
+### ② 测试暴露并修复的真实缺陷
+
+- 无（实现与契约一致；初版断言与实现语义不符已修正：lv_file_read_all
+  out_len 可 NULL、lv_tvl_to_string 返回大写 "TRUE"/"FALSE"/"UNKNOWN"
+  及中文 "真"/"伪"/"未知"）。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **235/235**（build3 18.71s / build_verify 12.87s，
+  新增 6 个测试目标；229 → 235）。
+- 新测试合计 291 断言全过。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 32 个零覆盖 API 接入契约测试 / 6 新建 +
+  1 追加共 291 断言 + 全量 235/235。
+- 契约钉住 / 文件读写往返与大小限制、路径分隔符跨平台、hash 幂容量
+  掩码、SHA-256 标准向量、tvl 字符串表 / 与实现一致。
+
+### 遗留登记
+
+- 全局复核剩余候选：plugin_system.h 12、representation_converter.h 8、
+  gappa_propagate.h 7、interval_arith.h 7、lv_circuit_breaker.h 已完等。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。

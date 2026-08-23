@@ -142,16 +142,38 @@ static void test_predicate_api(void) {
     printf("  test_predicate_api: PASSED\n");
 }
 
+/* ============== 测试：字符串转换（C-㊺续29 追加） ============== */
+
+static void test_tvl_string_api(void) {
+    /* 英文 */
+    TEST_ASSERT(strcmp(lv_tvl_to_string(lv_TRUE), "TRUE") == 0, "TRUE");
+    TEST_ASSERT(strcmp(lv_tvl_to_string(lv_FALSE), "FALSE") == 0, "FALSE");
+    TEST_ASSERT(strcmp(lv_tvl_to_string(lv_UNKNOWN), "UNKNOWN") == 0, "UNKNOWN");
+    TEST_ASSERT_NOT_NULL(lv_tvl_to_string((lvTruthValue) 99));
+
+    /* 中文 */
+    const char *zh = lv_tvl_to_string_zh(lv_TRUE);
+    TEST_ASSERT_NOT_NULL(zh);
+    TEST_ASSERT(strcmp(zh, "真") == 0, "真");
+    zh = lv_tvl_to_string_zh(lv_FALSE);
+    TEST_ASSERT(strcmp(zh, "伪") == 0, "伪");
+    zh = lv_tvl_to_string_zh(lv_UNKNOWN);
+    TEST_ASSERT(strcmp(zh, "未知") == 0, "未知");
+
+    printf("  test_tvl_string_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Three-Valued Logic Ext Test Suite")
-    printf("=== Lv-00 Three-Valued Logic Ext Test Suite (batch C-㊺续2) ===\n\n");
+    printf("=== Lv-00 Three-Valued Logic Ext Test Suite (batch C-㊺续2/续29) ===\n\n");
     lv_init();
 
     TEST_MAIN_RUN(test_and_or_not_api);
     TEST_MAIN_RUN(test_implies_equiv_api);
     TEST_MAIN_RUN(test_batch_api);
     TEST_MAIN_RUN(test_predicate_api);
+    TEST_MAIN_RUN(test_tvl_string_api);
 
     lv_cleanup();
 TEST_MAIN_END()
