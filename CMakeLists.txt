@@ -1783,6 +1783,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_axiom_rule_ext CTEST_NAME axiom_rule_ext_test)
     add_lv_test_auto(test_geometry_transform_ext CTEST_NAME geometry_transform_ext_test)
     add_lv_test_auto(test_thread_ext CTEST_NAME thread_ext_test)
+    add_lv_test_auto(test_storage_ext CTEST_NAME storage_ext_test)
     add_lv_test_auto(test_constraint_graph_ops CTEST_NAME constraint_graph_ops_test)
     add_lv_test_auto(test_constraint_graph_ext CTEST_NAME constraint_graph_ext_test)
     # 图哈希模块测试

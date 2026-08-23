@@ -520,6 +520,19 @@ void lv_storage_system_cleanup(void) {
     /* 清空所有后端条目（destroy 回调释放 BackendEntry 与内部 name），
      * 保留数组与互斥锁，后续可继续注册使用（与旧语义一致） */
     lv_registry_clear(&g_backend_registry);
+
+    /* 修复（C-㊺续11 测试暴露）：重置 once 标志——原实现 cleanup 后
+     * lv_once 幂等标志仍置位，后续 lv_storage_system_init 不再重新注册
+     * file/mem 后端，存储系统不可恢复（open 失败）。cleanup 应允许
+     * init 重新初始化。 */
+#ifdef _WIN32
+    InitOnceInitialize(&g_backend_registry_once);
+#else
+    {
+        pthread_once_t fresh = PTHREAD_ONCE_INIT;
+        memcpy(&g_backend_registry_once, &fresh, sizeof(fresh));
+    }
+#endif
 }
 
 bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
