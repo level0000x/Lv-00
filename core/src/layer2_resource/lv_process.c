@@ -583,9 +583,11 @@ bool lv_external_process_available(const char *name) {
     char full[1024];
     const char *start = path;
     while (start && *start) {
-        /* 单次切分：找到 ':' 前缀长度；未找到（最后一个段）长度 = 全串 */
+        /* 单次切分：找到 ':' 前缀长度；未找到（最后一个段）长度 = 全串。
+         * 修复（CI 暴露）：原实现引用未声明的 end 变量（Windows 分支跳过
+         * 该 POSIX 代码故本地从未编译到），改用 lv_str_prefix_len 返回值 */
         size_t len = 0;
-        lv_str_prefix_len(start, ':', &len);
+        bool has_colon = lv_str_prefix_len(start, ':', &len);
         if (len > 0 && len + 2 + strlen(name) < sizeof(full)) {
             memcpy(full, start, len);
             size_t w = len;
@@ -597,10 +599,10 @@ bool lv_external_process_available(const char *name) {
                 return true;
             }
         }
-        if (!end) {
-            break;
+        if (!has_colon) {
+            break; /* 最后一个 PATH 段已检查 */
         }
-        start = end + 1;
+        start += len + 1; /* 跳过 ':' 分隔符 */
     }
     return false;
 #endif
