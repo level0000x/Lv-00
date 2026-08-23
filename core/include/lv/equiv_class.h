@@ -108,6 +108,7 @@ bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
 
 /* Legacy aliases */
 lvEquivClass *lv_equiv_class_create(size_t n_elements);
+void lv_equiv_class_destroy(lvEquivClass *ec);
 int lv_equiv_class_union(lvEquivClass *ec, int a, int b);
 int lv_equiv_class_find(lvEquivClass *ec, int a);
 

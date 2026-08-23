@@ -31,6 +31,8 @@
  * 判据 G 收敛：converter 域三文件（block_to_text/node/geometry）逐字同构的本地
  * static simple_block_graph_guard_cleanup 统一为共享函数。 */
 void lv_simple_block_graph_guard_cleanup(void *p) {
+    if (!p)
+        return;
     SimpleBlockGraph **pp = (SimpleBlockGraph **) p;
     SimpleBlockGraph *sg = *pp;
     if (!sg)

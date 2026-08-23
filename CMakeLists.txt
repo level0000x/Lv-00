@@ -2103,6 +2103,15 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_log_ext CTEST_NAME lv_log_ext_test)
     add_lv_test_auto(test_lv_registry_ext CTEST_NAME lv_registry_ext_test)
     add_lv_test_auto(test_proof_trace_ext CTEST_NAME proof_trace_ext_test)
+
+    # 批次 C-㊺续31：零覆盖契约测试
+    add_lv_test_auto(test_representation_converter_ext CTEST_NAME representation_converter_ext_test)
+    add_lv_test_auto(test_geo_predicate_ext CTEST_NAME geo_predicate_ext_test)
+    add_lv_test_auto(test_status_codes_ext CTEST_NAME status_codes_ext_test)
+    add_lv_test_auto(test_lv_stream_context_ext CTEST_NAME lv_stream_context_ext_test)
+    add_lv_test_auto(test_logic_check_ext CTEST_NAME logic_check_ext_test)
+    add_lv_test_auto(test_equiv_class_ext CTEST_NAME equiv_class_ext_test)
+    add_lv_test_auto(test_conflict_detector_ext CTEST_NAME conflict_detector_ext_test)
 endif()
 
 # ============================================================

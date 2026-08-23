@@ -13,6 +13,7 @@
 
 #include "lv/equiv_class.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -749,4 +750,62 @@ bool equiv_verify_idempotency(EquivClassManager *mgr) {
 
     /* 检查是否有新合并 */
     return (mgr->total_merges == before);
+}
+
+/* ================================================================
+ * Legacy aliases：独立并查集形态（不依赖 ConstraintGraph）
+ *
+ * 修复记录（C-㊺续31）：equiv_class.h 声明的 lv_equiv_class_create/union/find
+ * 此前无任何实现（全库仅头文件声明，调用即链接错误，属"声称与实现脱节"）。
+ * 此处基于共享并查集工具 union_find_util.h（uf_create/uf_union/uf_find/
+ * uf_destroy）补齐，语义为 n_elements 个元素（0..n-1）的经典并查集：
+ *   - find(a)：返回代表元（路径压缩），越界/无效返回 -1。
+ *   - union(a,b)：已同一集合或 a==b 返回 0；合并成功返回 1；无效返回 -1。
+ * 并补配对销毁入口 lv_equiv_class_destroy（create/destroy 配对，项目惯例）。
+ * ================================================================ */
+
+lvEquivClass *lv_equiv_class_create(size_t n_elements) {
+    if (n_elements == 0 || n_elements > (size_t) INT_MAX)
+        return NULL;
+
+    lvEquivClass *ec = (lvEquivClass *) lv_calloc(1, sizeof(lvEquivClass));
+    if (!ec)
+        return NULL;
+
+    ec->uf_capacity = (int) n_elements;
+    ec->uf_parent = uf_create((int) n_elements, &ec->uf_rank);
+    if (!ec->uf_parent) {
+        lv_free((void **) &ec);
+        return NULL;
+    }
+    return ec;
+}
+
+void lv_equiv_class_destroy(lvEquivClass *ec) {
+    if (!ec)
+        return;
+    uf_destroy(ec->uf_parent, ec->uf_rank);
+    ec->uf_parent = NULL;
+    ec->uf_rank = NULL;
+    ec->uf_capacity = 0;
+    lv_free((void **) &ec);
+}
+
+int lv_equiv_class_find(lvEquivClass *ec, int a) {
+    if (!ec || a < 0 || a >= ec->uf_capacity)
+        return -1;
+    return uf_find(ec->uf_parent, a);
+}
+
+int lv_equiv_class_union(lvEquivClass *ec, int a, int b) {
+    if (!ec || a < 0 || a >= ec->uf_capacity || b < 0 || b >= ec->uf_capacity)
+        return -1;
+    if (a == b)
+        return 0;
+    int ra = uf_find(ec->uf_parent, a);
+    int rb = uf_find(ec->uf_parent, b);
+    if (ra == rb)
+        return 0;
+    uf_union(ec->uf_parent, ec->uf_rank, a, b);
+    return 1;
 }

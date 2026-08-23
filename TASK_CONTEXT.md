@@ -5904,3 +5904,87 @@ lv_registry.h 4 + proof_trace.h 4 + runtime_guard.h 4 = 36 个零覆盖 API）�
   lv_ATOMIC_*/lv_MUTEX_*/lv_RWLOCK_*/cross_platform/lv_api_spec 等）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+## 一百零三、批次 C-㊺续31（超大批量）：7 头文件 31 零覆盖契约测试 + 2 处缺陷修复（2026-08-25）
+
+用户「继续推进」——延续大批量并行模式，本批推进 7 个头文件
+（representation_converter.h 8 + geo_predicate.h 8 + status_codes.h 3 +
+lv_stream_context.h 3 + logic_check.h 3 + equiv_class.h 3 + conflict_detector.h 3
+= 31 个零覆盖 API，其中 geo_predicate 含 3 个兼容宏别名）。
+
+### ① 新增测试（7 个文件，134 断言）
+
+- **test_representation_converter_ext.c**（30）：converter create/destroy
+  （graph 保存、conflict_count）、convert_to_geometry/to_node_graph/to_text/
+  from_text（conv NULL / 输入 NULL / 未注册均 success=0 + error_msg；注册
+  回调后成功透传）、verify_roundtrip（NULL→0、未注册→0、TEXT 往返→1、
+  其他视图→-1）、simple_block_graph_guard_cleanup（NULL 安全 + 空结构）。
+- **test_geo_predicate_ext.c**（27）：orientation_3d（LEFT/RIGHT/COPLANAR/
+  DEGENERATE 四分支 EXACT）、segment_side（LEFT/RIGHT/ON/退化线段）、
+  same_side_of_circle（同外/内外异侧/圆上视为同侧/负半径退化）、
+  point_in_convex_polygon（内/边界顶点/外、n<3/NULL 数组、退化多边形）、
+  predicate_get_mode（set/get 往返并恢复）、兼容宏 lv_orient2d/lv_orient3d/
+  lv_incircle（共圆 0.0 / 不共圆 1.0）。
+- **test_status_codes_ext.c**（12）：is_success/is_error（0/正/负码）、
+  message（已知码非未知回退、未知码 "未知状态码"）。
+- **test_lv_stream_context_ext.c**（12）：get_stream（NULL→NULL、惰性创建、
+  同实例）、set_streaming_enabled（启用创建/禁用销毁/重启用）、
+  is_streaming_enabled（初始 false/NULL false）。
+- **test_logic_check_ext.c**（16）：tautology（排中律 1、偶然 0、NULL/空 -1）、
+  contradiction（A&!A 1、偶然 0）、equivalence（蕴含律、双重否定、不等价、
+  NULL -1）。
+- **test_equiv_class_ext.c**（20）：Legacy 并查集 create（n==0/超 INT_MAX 拒
+  绝）、find（自代表/越界 -1/NULL -1）、union（合并 1/已同 0/自身 0/传递
+  合并/越界 -1）、destroy（NULL 安全）。
+- **test_conflict_detector_ext.c**（17）：detect_for_node/for_constraint
+  （graph/report NULL、节点/约束不存在 → 错误码；活跃节点正常 0）、
+  report_print（NULL 安全、输出 tmpfile 验证报告头部）。
+
+### ② 测试暴露并修复的真实缺陷（2 处，M5）
+
+1. **equiv_class.h 三个 Legacy 别名声明无实现（链接错误）**：
+   lv_equiv_class_create/union/find 全库仅头文件声明，无任何 .c 实现——
+   调用即链接失败，"声称与实现脱节"。修复：基于共享并查集工具
+   union_find_util.h（uf_create/uf_union/uf_find/uf_destroy）在 equiv_class.c
+   补齐实现（n 元素经典并查集：find 路径压缩、union 按秩合并），并补配对
+   销毁入口 lv_equiv_class_destroy（头文件同步声明，create/destroy 惯例）。
+2. **lv_simple_block_graph_guard_cleanup NULL 解引用崩溃**：头注释声称
+   "NULL 安全"，但实现直接 `*pp` 解引用，传入 NULL 即崩溃。修复：函数
+   开头加 `if (!p) return;` 守卫。
+
+### ③ 验证
+
+- ninja 全绿 + ctest **248/248**（build3 23.19s / build_verify 22.64s，
+  新增 7 个测试目标；241 → 248）。
+- 新测试合计 134 断言全过。
+- 零覆盖扫描复核：本批 7 头清零（geo_predicate 的 3 个宏经兼容别名调用
+  覆盖到底层谓词）。
+
+### 决策登记（第 9 章格式）
+
+- 测试补全 / 覆盖 / 7 头文件 31 个零覆盖 API 接入契约测试 / 7 测试文件
+  134 断言 + 全量 248/248。
+- 缺陷修复 / M5 声明无实现 / equiv_class Legacy 别名 create/union/find /
+  基于 union_find_util 补齐 + 补 destroy 入口。
+- 缺陷修复 / M5 NULL 契约违约 / simple_block_graph_guard_cleanup NULL 解
+  引用 / 加 NULL 守卫，与头注释一致。
+- 契约钉住 / 3D 方向四分支、线段/圆侧、凸多边形内外、状态码消息委托、
+  流式上下文惰性创建、逻辑真值表、并查集语义、冲突检测错误路径 / 与实现
+  一致。
+
+### 遗留登记
+
+- 全局复核剩余候选（零覆盖扫描）：plugin_system.h 8（lv_plugin_load/
+  unload/reload/config_load/config_save/load_entry 等，load 依赖动态库较重，
+  建议独立批次评估）、autodiff.h 14（lv_ad_* 直用名）、inequality_reasoning.h 7、
+  meta_verify.h 6、expr_canon.h 9、lv.h 上层 API 17（含 lv_set_log_level/
+  lv_get_log_level/lv_normalize/lv_prove 等）、lv_dot_writer.h 8、
+  geometry_transform.h 6、engine_scheduler.h 5、allocator.h 5、fast_index.h 4、
+  lv_mempool.h 4、geo_aabb_tree.h 4、geo_dynamic.h 7、expr_canonical.h 6、
+  lv_str_utils.h 5、lv_backend_plugin.h 7、gc_language.h 3、lv_lexer.h 3、
+  ecosystem.h 3、circuit_breaker.h 3、lv_convenience.h 4、lv_render_visitor.h 3、
+  ode_integrator.h 2、smt_bitvector.h 2、math_input.h 2、geo_topology.h 2、
+  lv_process.h 2、lv_export_common.h 2、lambda_term.h 2、gappa_propagate.h 1
+  （lv_gappa_propagate_backward）等（宏误报已按既有规则过滤）。
+- 重构候选同上（待评估）。
+- 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
