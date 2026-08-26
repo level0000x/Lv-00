@@ -310,7 +310,31 @@ lvFace lv_he_mesh_halfedge_face(const lvHeMesh *mesh, lvHalfedge he) {
  * ======================================================================== */
 
 static lvEdge find_or_create_edge(lvHeMesh *mesh, lvVertex v1, lvVertex v2) {
-    /* 简化：直接遍历所有边 */
+    /* 完整实现：先沿 v1 的出半边环局部查找（O(valence)），
+     * 再回退全边扫描（对边界/破损网格鲁棒，与 lv_he_vertex_iter_begin
+     * 同款扫描兜底语义）。 */
+    lvHalfedge out = mesh->vertex_out_he[v1];
+    if (out >= 0 && out < mesh->halfedge_count) {
+        /* 出半边环：he_twin→he_next 旋转直到回到起点 */
+        lvHalfedge he = out;
+        int guard = 0;
+        while (he >= 0 && he < mesh->halfedge_count && guard++ < mesh->halfedge_count) {
+            lvHalfedge twin = mesh->he_twin[he];
+            if (twin >= 0 && twin < mesh->halfedge_count && mesh->he_vertex[twin] == v2) {
+                /* 找到 (v1→v2) 对应半边；沿环回退定位其边索引 */
+                for (lvEdge e = 0; e < mesh->edge_count; e++) {
+                    if (mesh->edge_he[e] == he || mesh->edge_he[e] == twin)
+                        return e;
+                }
+                return lv_HE_INVALID;
+            }
+            he = mesh->he_next[twin];
+            if (he == out)
+                break;
+        }
+    }
+
+    /* 回退：全边扫描（含顶点出半边未建立/环不完整场景） */
     for (lvEdge e = 0; e < mesh->edge_count; e++) {
         lvHalfedge he = mesh->edge_he[e];
         if (he < 0 || he >= mesh->halfedge_count)
@@ -1072,8 +1096,25 @@ void lv_he_mesh_get_stats(const lvHeMesh *mesh, lvHeMeshStats *out_stats) {
     out_stats->total_area = lv_he_mesh_total_area(mesh);
     out_stats->euler_characteristic = lv_he_mesh_euler_characteristic(mesh);
 
-    /* 简化：跳过顶点度数计算（依赖迭代器） */
-    out_stats->max_vertex_valence = 0;
+    /* 顶点最大度数（valence）：扫描式统计每个顶点的出半边数量（与
+     * lv_he_vertex_iter_begin 同款扫描语义，对边界/破损网格鲁棒） */
+    int max_valence = 0;
+    if (mesh->vertex_count > 0) {
+        int *valence = (int *) lv_calloc((size_t) mesh->vertex_count, sizeof(int));
+        if (valence) {
+            for (lvHalfedge he = 0; he < mesh->halfedge_count; he++) {
+                lvVertex v = mesh->he_vertex[he];
+                if (v >= 0 && v < mesh->vertex_count)
+                    valence[v]++;
+            }
+            for (lvVertex v = 0; v < mesh->vertex_count; v++) {
+                if (valence[v] > max_valence)
+                    max_valence = valence[v];
+            }
+            lv_free((void **) &valence);
+        }
+    }
+    out_stats->max_vertex_valence = max_valence;
 
     /* 平均边长 */
     if (mesh->edge_count > 0) {

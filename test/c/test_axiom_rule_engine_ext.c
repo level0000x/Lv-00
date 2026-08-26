@@ -108,15 +108,30 @@ static void test_rule_copy_json_api(void) {
     TEST_ASSERT(strstr(json, "\"name\":\"modus_ponens\"") != NULL, "含 name");
     TEST_ASSERT(strstr(json, "\"type\":0") != NULL, "含 type");
     TEST_ASSERT(strstr(json, "\"priority\":75") != NULL, "含 priority");
+    /* 完整序列化：变量/前提/结论内容写入 JSON */
+    TEST_ASSERT(strstr(json, "\"variables\":") != NULL, "含 variables 数组");
+    TEST_ASSERT(strstr(json, "\"name\":\"P\",\"type\":\"prop\"") != NULL, "变量内容");
+    TEST_ASSERT(strstr(json, "\"premises\":") != NULL, "含 premises 数组");
+    TEST_ASSERT(strstr(json, "\"pattern\":\"P -> Q\"") != NULL, "前提模式");
+    TEST_ASSERT(strstr(json, "\"conclusions\":") != NULL, "含 conclusions 数组");
+    TEST_ASSERT(strstr(json, "\"pattern\":\"Q\",\"trust\":0") != NULL, "结论内容");
     TEST_ASSERT_NULL(lv_rule_to_json(NULL));
 
-    /* from_json：往返 */
+    /* from_json：往返（含变量/前提/结论内容） */
     lvRule *parsed = lv_rule_from_json(json);
     TEST_ASSERT_NOT_NULL(parsed);
     TEST_ASSERT_EQ(parsed->id, 7);
     TEST_ASSERT(strcmp(parsed->name, "modus_ponens") == 0, "往返名称");
     TEST_ASSERT_EQ((int) parsed->type, (int) RULE_TYPE_INFERENCE);
     TEST_ASSERT_EQ((int) parsed->priority, (int) RULE_PRIORITY_HIGH);
+    TEST_ASSERT_EQ((int) parsed->var_count, 2);
+    TEST_ASSERT(strcmp(parsed->variables[0].name, "P") == 0, "变量名往返");
+    TEST_ASSERT(strcmp(parsed->variables[0].type, "prop") == 0, "变量类型往返");
+    TEST_ASSERT_EQ(parsed->premise_count, 2);
+    TEST_ASSERT(strcmp(parsed->premises[0].pattern, "P -> Q") == 0, "前提模式往返");
+    TEST_ASSERT_EQ(parsed->conclusion_count, 1);
+    TEST_ASSERT(strcmp(parsed->conclusions[0].pattern, "Q") == 0, "结论模式往返");
+    TEST_ASSERT_EQ((int) parsed->conclusions[0].trust_color, (int) TRUST_GREEN);
     TEST_ASSERT_NULL(lv_rule_from_json(NULL));
 
     /* from_json 非法 type 范围保持默认 */

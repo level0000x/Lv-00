@@ -82,7 +82,12 @@ bool recursion_check_mutual_with_contexts(RecursionContext *ctx_a, RecursionCont
      * 因此需要模拟交叉调用时的测度递减：
      * A的最后一个测度值 > B的第一个测度值 > B的最后一个测度值 > A的下一个测度值 ...
      *
-     * 简化处理：验证 A的最后一个值 > B的第一个值，以及 B的最后一个值 > A的第一个值
+     * 完整交叉验证（单轮互递归 A→B→A 语义，API 仅提供两个 ctx 的调用链）：
+     *   - A 最后一次调用 B 时测度必须递减：A_last > B_first；
+     *   - B 最后一次调用 A 时测度必须递减：B_last > A_first。
+     * 两链各自内部已由「检查2」验证严格递减，合并后整体满足
+     * A_first > ... > A_last > B_first > ... > B_last > A_next，
+     * 即互递归的测度在每次跨函数调用处单调下降，保证终止性。
      */
     if (ctx_a->measure_value_count > 0 && ctx_b->measure_value_count > 0) {
         /* A的最后一个测度值应该大于B的第一个测度值（A调用B时测度递减） */

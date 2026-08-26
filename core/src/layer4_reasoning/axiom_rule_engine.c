@@ -785,24 +785,206 @@ void lv_rule_recommendation_destroy(lvRuleRecommendation *rec) {
     lv_free((void **) &rec);
 }
 
-/* ============ 序列化（简化实现） ============ */
+/* ============ 序列化（完整实现：含变量/前提/结论内容，支持往返） ============ */
 
 char *lv_rule_to_json(const lvRule *rule) {
     if (!rule)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_to_json: NULL rule");
     lvJsonBuf buf;
-    if (!lv_json_buf_init(&buf, 256))
+    if (!lv_json_buf_init(&buf, 512))
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_rule_to_json: lv_json_buf_init failed");
-    /* name 经 append_string 自动 JSON 转义，防引号/控制字符注入 */
+
+    /* 基本信息 */
     lv_json_buf_append_raw(&buf, "{\"id\":");
     lv_json_buf_append_fmt(&buf, "%u", rule->id);
     lv_json_buf_append_raw(&buf, ",\"name\":");
     lv_json_buf_append_string(&buf, rule->name);
+    lv_json_buf_append_raw(&buf, ",\"description\":");
+    lv_json_buf_append_string(&buf, rule->description);
     lv_json_buf_append_fmt(&buf, ",\"type\":%d,\"status\":%d,\"priority\":%d,"
-                             "\"premise_count\":%u,\"conclusion_count\":%u,\"difficulty_level\":%u}",
+                             "\"premise_count\":%u,\"conclusion_count\":%u,\"difficulty_level\":%u,"
+                             "\"difficulty_score\":%u,\"var_count\":%u",
                            (int) rule->type, (int) rule->status, (int) rule->priority, rule->premise_count,
-                           rule->conclusion_count, rule->difficulty_level);
+                           rule->conclusion_count, rule->difficulty_level, rule->difficulty_score, rule->var_count);
+
+    /* 变量数组 */
+    lv_json_buf_append_raw(&buf, ",\"variables\":[");
+    for (uint32_t i = 0; i < rule->var_count && i < lv_RULE_MAX_VARIABLES; i++) {
+        if (i > 0)
+            lv_json_buf_append_raw(&buf, ",");
+        lv_json_buf_append_raw(&buf, "{\"name\":");
+        lv_json_buf_append_string(&buf, rule->variables[i].name);
+        lv_json_buf_append_raw(&buf, ",\"type\":");
+        lv_json_buf_append_string(&buf, rule->variables[i].type);
+        lv_json_buf_append_raw(&buf, ",\"is_bound\":");
+        lv_json_buf_append_raw(&buf, rule->variables[i].is_bound ? "true" : "false");
+        lv_json_buf_append_fmt(&buf, ",\"bound_node_id\":%d}", rule->variables[i].bound_node_id);
+    }
+    lv_json_buf_append_raw(&buf, "]");
+
+    /* 前提数组（pattern + optional；conditions 为动态数组，序列化时省略类型细节，
+     * 反序列化重建 pattern/optional 骨架，条件回调不跨 JSON 保留 —— 与
+     * lv_rule_from_json 行为对称） */
+    lv_json_buf_append_raw(&buf, ",\"premises\":[");
+    for (uint32_t i = 0; i < rule->premise_count && i < lv_RULE_MAX_PREMISES; i++) {
+        if (i > 0)
+            lv_json_buf_append_raw(&buf, ",");
+        lv_json_buf_append_raw(&buf, "{\"pattern\":");
+        lv_json_buf_append_string(&buf, rule->premises[i].pattern);
+        lv_json_buf_append_raw(&buf, ",\"optional\":");
+        lv_json_buf_append_raw(&buf, rule->premises[i].is_optional ? "true" : "false");
+        lv_json_buf_append_raw(&buf, "}");
+    }
+    lv_json_buf_append_raw(&buf, "]");
+
+    /* 结论数组（pattern + trust + justification） */
+    lv_json_buf_append_raw(&buf, ",\"conclusions\":[");
+    for (uint32_t i = 0; i < rule->conclusion_count && i < lv_RULE_MAX_CONCLUSIONS; i++) {
+        if (i > 0)
+            lv_json_buf_append_raw(&buf, ",");
+        lv_json_buf_append_raw(&buf, "{\"pattern\":");
+        lv_json_buf_append_string(&buf, rule->conclusions[i].pattern);
+        lv_json_buf_append_fmt(&buf, ",\"trust\":%d", (int) rule->conclusions[i].trust_color);
+        lv_json_buf_append_raw(&buf, ",\"justification\":");
+        lv_json_buf_append_string(&buf, rule->conclusions[i].justification);
+        lv_json_buf_append_raw(&buf, "}");
+    }
+    lv_json_buf_append_raw(&buf, "]}");
+
     return lv_json_buf_finalize(&buf);
+}
+
+/* ── from_json 辅助：解析 "variables"/"premises"/"conclusions" 对象数组 ──
+ * 数组形态：[ {key:value,...}, ... ]，元素字段经嵌套 parse_field 遍历。
+ * 回调返回 false 表示元素字段解析失败（继续跳过剩余字段）。 */
+
+typedef void (*RuleArrayElemParser)(lvRule *rule, const char *key, lvJsonParser *p, bool *ok);
+
+static void rule_parse_variable_elem(lvRule *rule, const char *key, lvJsonParser *p, bool *ok) {
+    if (!rule || !key || !p || !ok)
+        return;
+    if (lv_str_eq(key, "name")) {
+        char *s = lv_json_parse_string(p);
+        if (s && rule->var_count < lv_RULE_MAX_VARIABLES) {
+            lv_strlcpy(rule->variables[rule->var_count].name, s, sizeof(rule->variables[0].name));
+            rule->var_count++;
+            *ok = true;
+        }
+        if (s)
+            lv_free((void **) &s);
+    } else if (lv_str_eq(key, "type") && rule->var_count > 0) {
+        char *s = lv_json_parse_string(p);
+        if (s) {
+            lv_strlcpy(rule->variables[rule->var_count - 1].type, s, sizeof(rule->variables[0].type));
+            lv_free((void **) &s);
+            *ok = true;
+        }
+    } else if (lv_str_eq(key, "is_bound") && rule->var_count > 0) {
+        bool b = false;
+        if (lv_json_parse_bool(p, &b)) {
+            rule->variables[rule->var_count - 1].is_bound = b;
+            *ok = true;
+        }
+    } else if (lv_str_eq(key, "bound_node_id") && rule->var_count > 0) {
+        int v = 0;
+        if (lv_json_parse_int(p, &v)) {
+            rule->variables[rule->var_count - 1].bound_node_id = v;
+            *ok = true;
+        }
+    } else {
+        lv_json_skip_value(p);
+        *ok = true; /* 未知字段跳过不算失败 */
+    }
+}
+
+static void rule_parse_premise_elem(lvRule *rule, const char *key, lvJsonParser *p, bool *ok) {
+    if (!rule || !key || !p || !ok)
+        return;
+    if (lv_str_eq(key, "pattern")) {
+        char *s = lv_json_parse_string(p);
+        if (s && rule->premise_count < lv_RULE_MAX_PREMISES) {
+            lv_strlcpy(rule->premises[rule->premise_count].pattern, s, sizeof(rule->premises[0].pattern));
+            rule->premise_count++;
+            *ok = true;
+        }
+        if (s)
+            lv_free((void **) &s);
+    } else if (lv_str_eq(key, "optional") && rule->premise_count > 0) {
+        bool b = false;
+        if (lv_json_parse_bool(p, &b)) {
+            rule->premises[rule->premise_count - 1].is_optional = b;
+            *ok = true;
+        }
+    } else {
+        lv_json_skip_value(p);
+        *ok = true;
+    }
+}
+
+static void rule_parse_conclusion_elem(lvRule *rule, const char *key, lvJsonParser *p, bool *ok) {
+    if (!rule || !key || !p || !ok)
+        return;
+    if (lv_str_eq(key, "pattern")) {
+        char *s = lv_json_parse_string(p);
+        if (s && rule->conclusion_count < lv_RULE_MAX_CONCLUSIONS) {
+            lv_strlcpy(rule->conclusions[rule->conclusion_count].pattern, s,
+                       sizeof(rule->conclusions[0].pattern));
+            rule->conclusion_count++;
+            *ok = true;
+        }
+        if (s)
+            lv_free((void **) &s);
+    } else if (lv_str_eq(key, "trust") && rule->conclusion_count > 0) {
+        int v = 0;
+        if (lv_json_parse_int(p, &v)) {
+            rule->conclusions[rule->conclusion_count - 1].trust_color = (TrustColor) v;
+            *ok = true;
+        }
+    } else if (lv_str_eq(key, "justification") && rule->conclusion_count > 0) {
+        char *s = lv_json_parse_string(p);
+        if (s) {
+            lv_strlcpy(rule->conclusions[rule->conclusion_count - 1].justification, s,
+                       sizeof(rule->conclusions[0].justification));
+            lv_free((void **) &s);
+            *ok = true;
+        }
+    } else {
+        lv_json_skip_value(p);
+        *ok = true;
+    }
+}
+
+/** @brief 解析一个对象数组（p 指向 '[' 后的首个元素）；元素为对象，逐字段派发到回调 */
+static void rule_parse_obj_array(lvJsonParser *p, lvRule *rule, RuleArrayElemParser elem_parser) {
+    if (!p || !rule || !elem_parser)
+        return;
+    if (lv_json_peek(p) == '[')
+        lv_json_next(p); /* skip '[' */
+    for (;;) {
+        lv_json_skip_ws(p);
+        char c = lv_json_peek(p);
+        if (c == ']' || c == '\0') {
+            lv_json_next(p);
+            break;
+        }
+        if (c == ',') {
+            lv_json_next(p);
+            continue;
+        }
+        if (c != '{') {
+            lv_json_skip_value(p);
+            continue;
+        }
+        lv_json_next(p); /* skip '{' */
+        bool elem_ok = false;
+        char *key = NULL;
+        while (lv_json_parse_field(p, &key)) {
+            elem_parser(rule, key, p, &elem_ok);
+            lv_free((void **) &key);
+        }
+        if (lv_json_peek(p) == '}')
+            lv_json_next(p);
+    }
 }
 
 lvRule *lv_rule_from_json(const char *json) {
@@ -814,54 +996,95 @@ lvRule *lv_rule_from_json(const char *json) {
     lvRulePriority prio = RULE_PRIORITY_NORMAL;
     lvRuleStatus status = RULE_STATUS_ENABLED;
     char name_buf[lv_RULE_NAME_MAX_LEN] = "parsed_rule";
+    char desc_buf[lv_RULE_DESC_MAX_LEN] = "";
     uint32_t id = 0;
-    uint32_t premise_count = 0;
-    uint32_t conclusion_count = 0;
     uint32_t difficulty_level = 0;
+    uint32_t difficulty_score = 0;
 
-    lv_json_get_string(json, "name", name_buf, sizeof(name_buf));
+    lvJsonParser p;
+    lv_json_parser_init(&p, json, strlen(json));
+    if (lv_json_peek(&p) == '{')
+        lv_json_next(&p); /* skip '{' */
 
-    int tv;
-    if (lv_json_get_int(json, "type", &tv)) {
-        /* [修复] 原校验区间 [RULE_TYPE_AXIOM, RULE_TYPE_DEFINITION] 排除
-         * RULE_TYPE_INFERENCE(0)/REWRITE(1) 等合法类型，JSON 往返会丢失
-         * 类型。改为校验全部 8 种规则类型（0..RULE_TYPE_CONSTRUCTOR）。 */
-        if (tv >= RULE_TYPE_INFERENCE && tv <= RULE_TYPE_CONSTRUCTOR)
-            rtype = (lvRuleType)tv;
+    char *key = NULL;
+    while (lv_json_parse_field(&p, &key)) {
+        if (lv_str_eq(key, "name")) {
+            char *s = lv_json_parse_string(&p);
+            if (s) {
+                lv_strlcpy(name_buf, s, sizeof(name_buf));
+                lv_free((void **) &s);
+            }
+        } else if (lv_str_eq(key, "description")) {
+            char *s = lv_json_parse_string(&p);
+            if (s) {
+                lv_strlcpy(desc_buf, s, sizeof(desc_buf));
+                lv_free((void **) &s);
+            }
+        } else {
+            int tv;
+            if (lv_str_eq(key, "type") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= RULE_TYPE_INFERENCE && tv <= RULE_TYPE_CONSTRUCTOR)
+                    rtype = (lvRuleType)tv;
+            } else if (lv_str_eq(key, "priority") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= RULE_PRIORITY_LOWEST && tv <= RULE_PRIORITY_HIGHEST)
+                    prio = (lvRulePriority)tv;
+            } else if (lv_str_eq(key, "status") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= RULE_STATUS_DISABLED && tv <= RULE_STATUS_EXPERIMENTAL)
+                    status = (lvRuleStatus)tv;
+            } else if (lv_str_eq(key, "id") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= 0)
+                    id = (uint32_t)tv;
+            } else if (lv_str_eq(key, "difficulty_level") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= 0)
+                    difficulty_level = (uint32_t)tv;
+            } else if (lv_str_eq(key, "difficulty_score") && lv_json_parse_int(&p, &tv)) {
+                if (tv >= 0)
+                    difficulty_score = (uint32_t)tv;
+            } else if (lv_str_eq(key, "premise_count") || lv_str_eq(key, "conclusion_count") ||
+                       lv_str_eq(key, "var_count")) {
+                /* 计数由数组元素数量推导，忽略显式计数（防不一致） */
+                lv_json_skip_value(&p);
+            } else if (lv_str_eq(key, "variables") || lv_str_eq(key, "premises") ||
+                       lv_str_eq(key, "conclusions")) {
+                /* 数组字段在第二遍（rule 创建后）解析，第一遍跳过 */
+                lv_json_skip_value(&p);
+            } else {
+                lv_json_skip_value(&p);
+            }
+        }
+        lv_free((void **) &key);
     }
-
-    int pv;
-    if (lv_json_get_int(json, "priority", &pv)) {
-        if (pv >= RULE_PRIORITY_LOWEST && pv <= RULE_PRIORITY_HIGHEST)
-            prio = (lvRulePriority)pv;
-    }
-
-    /* status：范围校验，非法值保持默认 RULE_STATUS_ENABLED */
-    int sv;
-    if (lv_json_get_int(json, "status", &sv)) {
-        if (sv >= RULE_STATUS_DISABLED && sv <= RULE_STATUS_EXPERIMENTAL)
-            status = (lvRuleStatus)sv;
-    }
-
-    /* id / premise_count / conclusion_count / difficulty_level：非负安全转换 */
-    int iv;
-    if (lv_json_get_int(json, "id", &iv) && iv >= 0)
-        id = (uint32_t)iv;
-    if (lv_json_get_int(json, "premise_count", &iv) && iv >= 0)
-        premise_count = (uint32_t)iv;
-    if (lv_json_get_int(json, "conclusion_count", &iv) && iv >= 0)
-        conclusion_count = (uint32_t)iv;
-    if (lv_json_get_int(json, "difficulty_level", &iv) && iv >= 0)
-        difficulty_level = (uint32_t)iv;
 
     lvRule *rule = lv_rule_create(name_buf, rtype);
     if (rule) {
         rule->id = id;
         rule->priority = prio;
         rule->status = status;
-        rule->premise_count = premise_count;
-        rule->conclusion_count = conclusion_count;
         rule->difficulty_level = difficulty_level;
+        rule->difficulty_score = difficulty_score;
+        if (desc_buf[0] != '\0')
+            lv_rule_set_description(rule, desc_buf);
+    }
+
+    /* 第二遍：数组字段在 rule 创建后填充（变量/前提/结论需要写入 rule） */
+    if (rule) {
+        lvJsonParser p2;
+        lv_json_parser_init(&p2, json, strlen(json));
+        if (lv_json_peek(&p2) == '{')
+            lv_json_next(&p2);
+        char *key2 = NULL;
+        while (lv_json_parse_field(&p2, &key2)) {
+            if (lv_str_eq(key2, "variables")) {
+                rule_parse_obj_array(&p2, rule, rule_parse_variable_elem);
+            } else if (lv_str_eq(key2, "premises")) {
+                rule_parse_obj_array(&p2, rule, rule_parse_premise_elem);
+            } else if (lv_str_eq(key2, "conclusions")) {
+                rule_parse_obj_array(&p2, rule, rule_parse_conclusion_elem);
+            } else {
+                lv_json_skip_value(&p2);
+            }
+            lv_free((void **) &key2);
+        }
     }
     return rule;
 }

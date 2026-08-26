@@ -155,6 +155,39 @@ static void test_he_face_query_api(void) {
     printf("  test_he_face_query_api: PASSED\n");
 }
 
+/* ============== 测试：统计（max_vertex_valence 完整实现） ============== */
+
+static void test_he_stats_api(void) {
+    lvHeMesh *m = lv_he_mesh_create(NULL);
+    TEST_ASSERT_NOT_NULL(m);
+
+    /* 空网格：val=0 */
+    lvHeMeshStats st;
+    lv_he_mesh_get_stats(m, &st);
+    TEST_ASSERT_EQ(st.max_vertex_valence, 0);
+    TEST_ASSERT_EQ(st.vertex_count, 0);
+
+    /* 正方形对角线三角化：中心顶点 v2 度数 4（出半边 4），其余顶点度数 2 */
+    lvVertex v0 = lv_he_mesh_add_vertex(m, 0, 0, 0);
+    lvVertex v1 = lv_he_mesh_add_vertex(m, 1, 0, 0);
+    lvVertex v2 = lv_he_mesh_add_vertex(m, 0, 1, 0);
+    lvVertex v3 = lv_he_mesh_add_vertex(m, 1, 1, 0);
+    lv_he_mesh_add_face_triangle(m, v0, v1, v2);
+    lv_he_mesh_add_face_triangle(m, v0, v2, v3);
+    lv_he_mesh_add_face_triangle(m, v1, v3, v2);
+
+    lv_he_mesh_get_stats(m, &st);
+    TEST_ASSERT_EQ(st.vertex_count, 4);
+    TEST_ASSERT(st.max_vertex_valence >= 3, "三角剖分网格顶点度数应 >= 3");
+
+    /* NULL 契约 */
+    lv_he_mesh_get_stats(NULL, &st); /* 不崩溃 */
+    lv_he_mesh_get_stats(m, NULL);   /* 不崩溃 */
+
+    lv_he_mesh_destroy(m);
+    printf("  test_he_stats_api: PASSED\n");
+}
+
 /* ============== 测试：顶点查询 ============== */
 
 static void test_he_vertex_query_api(void) {
@@ -352,6 +385,7 @@ TEST_MAIN_BEGIN("Lv-00 Halfedge Mesh Ext Test Suite")
     TEST_MAIN_RUN(test_he_construct_api);
     TEST_MAIN_RUN(test_he_valid_api);
     TEST_MAIN_RUN(test_he_face_query_api);
+    TEST_MAIN_RUN(test_he_stats_api);
     TEST_MAIN_RUN(test_he_vertex_query_api);
     TEST_MAIN_RUN(test_he_iterator_api);
     TEST_MAIN_RUN(test_he_addface_legacy_api);

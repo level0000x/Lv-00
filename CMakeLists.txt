@@ -2100,6 +2100,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_layer5_core CTEST_NAME layer5_core_test)
     add_lv_test_auto(test_output_export CTEST_NAME output_export_test)
     add_lv_test_auto(test_interop_ext CTEST_NAME interop_ext_test)
+    add_lv_test_auto(test_interop_svg_ext CTEST_NAME interop_svg_ext_test)
 
     # === New tests: Layer 6 visual (canvas / scheduler / type / converter) ===
     add_lv_test_auto(test_layer6_visual CTEST_NAME layer6_visual_test)

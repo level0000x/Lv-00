@@ -6574,3 +6574,86 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 - sparse cholesky/lu/qr 为稠密实现；大规模稀疏可后续评估稀疏分解。
 - algebra_select 完整选择器语义（CadQuery 风格）预留后续。
 - plugin_system.h 8、全局内存泄漏 WARN 同前。
+
+## 一百一十二、批次 SVG 完整化 + 简化候选补齐（2026-08-27）
+
+用户「继续补全 完整实现不考虑复杂度」——按 incomplete-implementation
+方法论继续盘点，本轮完整化 interop_export_svg.c 全部 7 项简化标注 +
+6 处其它简化/误导标注，全部加契约测试。
+
+### ① 实现（interop_export_svg.c 七项简化完整化）
+
+1. **GEOM_CIRCLE 渲染（新增，M6 型缺失）**：圆节点此前完全不渲染；
+   新增 `<circle>` 输出（圆心/半径经 center/radius 节点解析，同 geojson
+   语义）+ data-node-id + 冲突脉冲 class。
+2. **区域边界曲线路径（替代 polygon 直线近似）**：区域改 `<path>`，
+   直线段 L、曲线段（coord_count>=6）Bezier C 链（compute_bezier_control_points
+   逐点链），段间补直线保持闭合连续性。
+3. **约束精确交点（扩展线段×圆、圆×圆）**：constraint_intersection_point
+   签名加 graph 参数；线段×圆解二次方程取 t∈[0,1] 首个根，圆×圆标准两圆
+   方程解（+h 分支）；constraint_render_prepare 新增圆→圆心代表坐标解析
+   （interop_export_internal.h，SVG/TikZ/PDF 共用）。
+4. **交互式 JavaScript**：内联 `<script><![CDATA[...]]>` 实现悬停高亮
+   （同 id 元素描边加粗）、指针旁提示工具、点击聚焦；元素带
+   data-node-id/data-node-type、约束带 data-constraint-id/type。
+5. **数学公式渲染**：新增 svg_formula_render 排版器（纯 SVG 原语），
+   分数（分子/分母分行+分数线）、sqrt（√+上横线）、quadratic 前缀
+   （尾部 `*` 剥离转乘号）；替换点坐标纯文本 `<title>`。
+6. **多图层分组**：全部节点/约束元素带 data-* 属性（CSS/JS 可按
+   几何类型/信任级别分组），点公式按 `<g>` 分组。
+7. **CSS 动画**：@keyframes lv-fade-in / lv-pulse（冲突）/ lv-dash-flow
+   （约束虚线流动）+ node-hover 悬停描边。
+
+### ② 其余简化候选补齐
+
+- **lv_loader.c:407**：第二遍线段/直线处理注释过时（实际已完整实现
+  Line/Segment := line(a,b)/segment(a,b)）→ 修正注释（M5）。
+- **geo_halfedge_mesh.c:1076**：get_stats 的 max_vertex_valence 恒 0
+  （M2 静默降级）→ 完整统计（扫描式出半边计数，对边界网格鲁棒）；
+  find_or_create_edge 由 O(E) 全边遍历优化为 vertex_out_he 出半边环
+  局部查找 + 全边扫描兜底。
+- **func_block_preset_advanced.c**：compose 兼容性检查补数量匹配分支
+  （params 为 NULL 时 f 输出 ≥ g 输入，消除"仅依赖数量匹配"的空头承诺）；
+  get_inverse 改为元数据性质驱动（INVOLUTIVE→自身 / REVERSIBLE→同名
+  预设）+ 知识表回退（补 reflection_line/homothety）。
+- **recursion_mutual.c:85**：交叉递减注释澄清（单轮互递归语义下检查
+  2+3 已完整覆盖 A→B→A，非简化）。
+- **solver_feedback.c:103**：过约束标记由"脏变量近似"改为真实识别
+  （collect_overconstrained_ids：约束权重按参与者均分，方程数>2 即
+  过约束候选；无精确结果回退脏变量）。
+- **graph_conflict.c:144**：矩阵填充注释更新（M5，实现本就完整）。
+- **axiom_rule_engine.c**：lv_rule_to_json / from_json 完整化（此前仅
+  基本字段）→ 变量/前提/结论内容数组往返（含 is_bound/trust/justification），
+  修复 append_bool 与 raw 混用导致 `"optional":,false` 畸形 JSON 的
+  M6 缺陷（此前 from_json 必然解析失败/挂起）。
+
+### ③ 清理
+
+- 临时文件（_tmp_json_test 等调试产物）已删除。
+
+### ④ 验证
+
+- 新增 test_interop_svg_ext.c（21 断言：NULL 契约 + 圆/区域 path/约束
+  分组/脚本/动画/公式/图层属性），注册 interop_svg_ext_test。
+- test_axiom_rule_engine_ext.c 增补 JSON 往返内容断言（变量/前提/结论）。
+- test_func_block_preset.c 增补 inverse 元数据驱动断言（reflection_line/
+  harmonic_conjugate/homothety）。
+- test_geo_halfedge_mesh_ext.c 新增 test_he_stats_api（max_vertex_valence）。
+- test_solver_ext.c 增补 solver_feedback_solve 过约束识别断言。
+- build3 + ctest **288/288**（287 → 288）。
+- Python：Windows CRT 不匹配（既有遗留）跳过；改动均 C 侧，未触及
+  绑定签名；build_symcheck 重建成功。
+
+### 决策登记
+
+- 功能补齐 / SVG 导出 / 7 项简化完整化 + 圆渲染 / 实现 + 测试。
+- 功能补齐 / 过约束识别 / 方程权重分布 / 替代脏变量近似。
+- 功能补齐 / 规则 JSON / 变量前提结论往返 / 修复畸形 JSON 缺陷。
+- 注释修正 / M5 / lv_loader 第二遍 / graph_conflict 矩阵填充。
+- 优化 / geo_halfedge_mesh / find_or_create_edge 出半边环查找。
+- 澄清 / recursion_mutual 交叉递减语义（非简化）。
+
+### 遗留登记
+
+- sparse cholesky/lu/qr 稠密实现、algebra_select、plugin_system.h 8
+  、Windows Python CRT、全局内存泄漏 WARN 同前。

@@ -188,8 +188,37 @@ static inline bool constraint_render_dispatch(const ConstraintRenderOps *ops, co
 }
 
 /**
- * @brief 准备约束渲染：解析前两个参与者节点与坐标
- * @return 参与者有效（均已解析出坐标）返回 true；节点缺失/坐标不足返回 false
+ * @brief 解析节点代表坐标（约束渲染用）
+ * @details GEOM_POINT / GEOM_LINE_SEGMENT / GEOM_PORT / GEOM_FUNCTION_BLOCK
+ *          取前两个符号坐标；GEOM_CIRCLE 无自身坐标（coord_count=0），
+ *          经 data.circle.center_node_id 解析圆心作为代表坐标（与
+ *          meta_proof.c / interop_export_geojson.c 的圆解析语义一致）。
+ * @return true 已写出代表坐标；false 节点无效/坐标不足
+ */
+static inline bool constraint_render_node_coords(const ConstraintGraph *graph, const GeomNode *node,
+                                                 double *x, double *y) {
+    if (!node)
+        return false;
+    if (node->type == GEOM_CIRCLE) {
+        const GeomNode *center = graph_get_node(graph, node->data.circle.center_node_id);
+        if (!center || center->coord_count < 2 || !center->symbolic_coords ||
+            !center->symbolic_coords[0] || !center->symbolic_coords[1])
+            return false;
+        *x = symbolic_coord_to_double(center->symbolic_coords[0]);
+        *y = symbolic_coord_to_double(center->symbolic_coords[1]);
+        return true;
+    }
+    if (node->coord_count < 2 || !node->symbolic_coords || !node->symbolic_coords[0] ||
+        !node->symbolic_coords[1])
+        return false;
+    *x = symbolic_coord_to_double(node->symbolic_coords[0]);
+    *y = symbolic_coord_to_double(node->symbolic_coords[1]);
+    return true;
+}
+
+/**
+ * @brief 准备约束渲染：解析前两个参与者节点与代表坐标（圆→圆心）
+ * @return 参与者有效（均已解析出代表坐标）返回 true；节点缺失/坐标不足返回 false
  */
 static inline bool constraint_render_prepare(const ConstraintGraph *graph, const Constraint *c,
                                              const GeomNode **p0, const GeomNode **p1,
@@ -198,29 +227,31 @@ static inline bool constraint_render_prepare(const ConstraintGraph *graph, const
     *p1 = graph_get_node(graph, c->participants[1]);
     if (!*p0 || !*p1)
         return false;
-    if ((*p0)->coord_count < 2 || (*p1)->coord_count < 2)
+    if (!constraint_render_node_coords(graph, *p0, x0, y0))
         return false;
-    *x0 = symbolic_coord_to_double((*p0)->symbolic_coords[0]);
-    *y0 = symbolic_coord_to_double((*p0)->symbolic_coords[1]);
-    *x1 = symbolic_coord_to_double((*p1)->symbolic_coords[0]);
-    *y1 = symbolic_coord_to_double((*p1)->symbolic_coords[1]);
+    if (!constraint_render_node_coords(graph, *p1, x1, y1))
+        return false;
     return true;
 }
 
 /**
- * @brief 计算两参与者线段交点（INTERSECTION 特判渲染共用）
- * @details 仅当两个参与者均为 GEOM_LINE_SEGMENT 且坐标充足时求解精确交点；
- *          否则回退默认点 (dflt_x, dflt_y)。内部调用公共几何函数
- *          segment_intersection，其返回值被忽略（交点无效时保持默认点，
- *          与导出器历史内联实现语义一致）。
+ * @brief 计算两参与者几何对象的交点（INTERSECTION 特判渲染共用）
+ * @details 按参与者类型组合求解精确交点：
+ *          - 两线段：segment_intersection 直线参数方程解；
+ *          - 线段+圆（任一顺序）：线段参数方程代入圆方程解二次方程，取
+ *            t∈[0,1] 的首个有效根；
+ *          - 两圆：标准两圆方程解（相交时取 +h 分支交点）；
+ *          - 其余组合/无有效交点：回退默认点 (dflt_x, dflt_y)。
+ *          圆的圆心/半径经 data.circle.center_node_id / radius_node_id
+ *          解析（graph 参数），与 geojson/meta_proof 圆解析语义一致。
+ * @param graph 约束图（圆节点解析圆心/半径用）
  * @param p0,p1 参与者节点
- * @param dflt_x,dflt_y 非两线段时的回退交点
+ * @param dflt_x,dflt_y 无法求解时的回退交点
  * @param ix,iy [out] 交点坐标
  * @note 实现位于 interop_export_svg.c（当前唯一调用方）。
  */
-void constraint_intersection_point(const GeomNode *p0, const GeomNode *p1,
-                                   double dflt_x, double dflt_y,
-                                   double *ix, double *iy);
+void constraint_intersection_point(const ConstraintGraph *graph, const GeomNode *p0, const GeomNode *p1,
+                                   double dflt_x, double dflt_y, double *ix, double *iy);
 
 #ifdef __cplusplus
 }

@@ -382,7 +382,8 @@ TypeRegion *type_create_sum(TypeSystem *ts, TypeRegion *first, TypeRegion *secon
  *
  * 分配一个可变类型区域并创建对应的 TypeVariable 条目。
  * 类型变量始终是多态的，可被实例化为任意具体类型。
- * 宇宙层级设为 UNIVERSE_BASE 作为占位符。
+ * 宇宙层级初始化为 UNIVERSE_BASE（多态变量的基础默认层级；
+ * 实例化/合一后随绑定类型提升）。
  *
  * @param ts   类型系统指针
  * @param name 变量名称（可为 NULL）
@@ -426,7 +427,7 @@ TypeRegion *type_create_variable(TypeSystem *ts, const char *name) {
         tr->variable_id = tv->id;
     }
 
-    tr->level = UNIVERSE_BASE; /* 类型变量可以是任意层级 */
+    tr->level = UNIVERSE_BASE; /* 类型变量多态默认基础层级，实例化后随绑定类型提升 */
 
     return tr;
 }

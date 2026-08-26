@@ -141,7 +141,10 @@ static int *find_linearly_dependent_constraints(ConstraintGraph *graph, int *out
     for (int i = 0; i < num_linear * (num_vars + 1); i++)
         mpq_init(matrix[i]);
 
-    /* 填充矩阵（简化：将约束方程写入矩阵行） */
+    /* 填充增广矩阵：每条 INCIDENCE 约束 (n1, n2) 生成一行
+     * [x1 系数=1, x2 系数=-1, y1 系数=1, y2 系数=-1, 0]，
+     * 表达点坐标相等的线性关系（x1-x2=0, y1-y2=0 合并为一行）。
+     * 变量索引经 node_id_to_var_idx 映射到列。 */
     for (int li = 0; li < num_linear; li++) {
         Constraint *c = graph->constraints[linear_constraint_indices[li]];
         if (c && c->participant_count >= 2) {

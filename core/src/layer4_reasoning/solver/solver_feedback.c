@@ -20,6 +20,113 @@ GroebnerResult *solver_incremental_solve(ConstraintGraph *graph, const int *dirt
 /* ================================================================== */
 
 /**
+ * @brief 识别真实过约束变量（完整实现，替代旧"标记脏变量"简化）
+ * @details 与 count_degrees_of_freedom 同款方程分布语义：每个点的坐标
+ *          自由度为 2；参与约束的权重（constraint_weight）按参与者均分
+ *          到各点。某点累计方程数 > 2 即判定为过约束候选（被过多方程
+ *          同时约束）。线段端点经 INCIDENCE 约束补记 1 个方程。
+ * @return 过约束变量 ID 数组（lv_malloc，调用者释放），数量经 out_count
+ */
+static int *collect_overconstrained_ids(const ConstraintGraph *graph, int *out_count) {
+    if (!graph || !out_count) {
+        if (out_count)
+            *out_count = 0;
+        return NULL;
+    }
+    *out_count = 0;
+
+    int *pt_ids = NULL;
+    int pt_count = count_point_variables(graph, &pt_ids);
+    if (pt_count <= 0) {
+        if (pt_ids)
+            lv_free((void **) &pt_ids);
+        return NULL;
+    }
+
+    int *eq_per_point = lv_calloc((size_t) pt_count, sizeof(int));
+    if (!eq_per_point) {
+        lv_free((void **) &pt_ids);
+        return NULL;
+    }
+
+    /* 约束权重分布到参与点（与 count_degrees_of_freedom 语义一致） */
+    for (int i = 0; i < graph->constraint_count; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c)
+            continue;
+        int weight = constraint_weight(c);
+        int point_participants = 0;
+        for (int j = 0; j < c->participant_count; j++) {
+            GeomNode *n = graph_get_node(graph, c->participants[j]);
+            if (n && n->type == GEOM_POINT) {
+                for (int k = 0; k < pt_count; k++) {
+                    if (pt_ids[k] == n->id) {
+                        point_participants++;
+                        break;
+                    }
+                }
+            }
+        }
+        if (point_participants > 0) {
+            int per_point = weight / point_participants;
+            int remainder = weight % point_participants;
+            for (int j = 0; j < c->participant_count; j++) {
+                GeomNode *n = graph_get_node(graph, c->participants[j]);
+                if (n && n->type == GEOM_POINT) {
+                    for (int k = 0; k < pt_count; k++) {
+                        if (pt_ids[k] == n->id) {
+                            eq_per_point[k] += per_point;
+                            if (remainder > 0) {
+                                eq_per_point[k]++;
+                                remainder--;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* 线段端点：每个端点经 INCIDENCE 约束补记 1 个方程（与 dof 计算一致） */
+    for (int i = 0; i < graph->node_count; i++) {
+        GeomNode *n = graph->nodes[i];
+        if (!n || n->type != GEOM_LINE_SEGMENT)
+            continue;
+        for (int j = 0; j < graph->constraint_count; j++) {
+            Constraint *c = graph->constraints[j];
+            if (!c || c->type != INCIDENCE)
+                continue;
+            for (int p = 0; p < c->participant_count; p++) {
+                if (c->participants[p] == n->id) {
+                    int other = c->participants[1 - p];
+                    for (int k = 0; k < pt_count; k++) {
+                        if (pt_ids[k] == other)
+                            eq_per_point[k]++;
+                    }
+                }
+            }
+        }
+    }
+
+    /* 收集方程数 > 2（坐标自由度）的点为过约束候选 */
+    int cap = pt_count;
+    int *ids = lv_calloc((size_t) cap, sizeof(int));
+    int count = 0;
+    if (ids) {
+        for (int k = 0; k < pt_count; k++) {
+            if (eq_per_point[k] > 2)
+                ids[count++] = pt_ids[k];
+        }
+    }
+
+    lv_free((void **) &eq_per_point);
+    lv_free((void **) &pt_ids);
+    *out_count = count;
+    return ids;
+}
+
+/**
  * @brief 创建求解器反馈
  */
 SolverFeedback *solver_feedback_create(SolverFeedbackType type, const char *message) {
@@ -100,12 +207,23 @@ SolverFeedback *solver_feedback_solve(ConstraintGraph *graph, const int *dirty_v
         lv_free((void **) &fb->message);
         fb->message = lv_strdup("检测到过约束：某些变量被过多方程约束");
 
-        /* 标记过约束变量（简化处理：标记脏变量为过约束候选） */
-        if (dirty_count > 0 && dirty_vars) {
-            fb->overconstrained_ids = lv_calloc((size_t) dirty_count, sizeof(int));
-            if (fb->overconstrained_ids) {
-                memcpy(fb->overconstrained_ids, dirty_vars, (size_t) dirty_count * sizeof(int));
-                fb->overconstrained_count = dirty_count;
+        /* 识别真实过约束变量（方程数 > 坐标自由度 2 的点），
+         * 替代旧实现"标记脏变量为过约束候选"的近似 */
+        int oc_count = 0;
+        int *oc_ids = collect_overconstrained_ids(graph, &oc_count);
+        if (oc_ids && oc_count > 0) {
+            fb->overconstrained_ids = oc_ids;
+            fb->overconstrained_count = oc_count;
+        } else {
+            if (oc_ids)
+                lv_free((void **) &oc_ids);
+            /* 无精确过约束点识别结果时回退脏变量候选（保持反馈可用） */
+            if (dirty_count > 0 && dirty_vars) {
+                fb->overconstrained_ids = lv_calloc((size_t) dirty_count, sizeof(int));
+                if (fb->overconstrained_ids) {
+                    memcpy(fb->overconstrained_ids, dirty_vars, (size_t) dirty_count * sizeof(int));
+                    fb->overconstrained_count = dirty_count;
+                }
             }
         }
     } else if (dof == 0) {

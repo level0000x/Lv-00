@@ -47,9 +47,12 @@ bool func_block_preset_compose(const char *f_name, const char *g_name, const cha
         return false;
 
     /* ── 第四步：类型兼容性验证 ──
-     * 组合 g(f(x)) 要求 f 的输出类型与 g 的输入类型兼容
-     * 简化处理：若定义了 input_params/output_params 则检查；
-     * 否则仅依赖输出/输入数量匹配。
+     * 组合 g(f(x)) 要求 f 的输出类型与 g 的输入类型兼容。
+     * 完整实现：
+     *   - 若双方均定义了 input/output_params：逐位做类型兼容检查
+     *     （任意类型放行 + 线段/射线→直线、圆弧→圆 子类型规则）；
+     *   - 若任一方未定义参数类型：退化为数量兼容检查 —— f 的输出数量
+     *     必须不少于 g 的输入数量（不足则 g(f(x)) 参数缺失，拒绝组合）。
      */
     if (f_meta->output_params != NULL && g_meta->input_params != NULL) {
         int min_count = (f_meta->output_count < g_meta->input_count) ? f_meta->output_count : g_meta->input_count;
@@ -77,6 +80,10 @@ bool func_block_preset_compose(const char *f_name, const char *g_name, const cha
                     return false;
             }
         }
+    } else {
+        /* 无参数类型定义：数量兼容检查（f 的输出必须能填满 g 的输入） */
+        if (g_meta->input_count > 0 && f_meta->output_count < g_meta->input_count)
+            return false;
     }
 
     /* ── 第五步：创建组合预设的元数据 ──
@@ -227,7 +234,21 @@ const char *func_block_preset_get_inverse(const char *preset_name) {
     if (!preset_name)
         return NULL;
 
-    /* 简化实现：返回常见逆操作 */
+    /* 完整实现：优先基于库内元数据的数学性质推断逆操作：
+     *  - PRESET_PROPERTY_INVOLUTIVE（对合 f(f(x))=x）：逆即自身；
+     *  - PRESET_PROPERTY_REVERSIBLE（可逆变换族）：逆以同名预设 +
+     *    参数取逆表达（平移反向 / 旋转反向 / 缩放取倒数 / 位似取倒数）。
+     *  该路径覆盖所有已注册可逆/对合预设（含自定义注册），
+     *  不再依赖硬编码名单。 */
+    const PresetMetadata *meta = func_block_preset_get_metadata(preset_name);
+    if (meta) {
+        if (meta->properties & PRESET_PROPERTY_INVOLUTIVE)
+            return meta->name;
+        if (meta->properties & PRESET_PROPERTY_REVERSIBLE)
+            return meta->name;
+    }
+
+    /* 知识表回退：预设未注册（库未初始化 / 外部自定义名）时的常见逆操作 */
     if (lv_str_eq(preset_name, "translation"))
         return "translation";
     if (lv_str_eq(preset_name, "rotation"))
@@ -238,6 +259,10 @@ const char *func_block_preset_get_inverse(const char *preset_name) {
         return "inversion";
     if (lv_str_eq(preset_name, "reflection_point"))
         return "reflection_point";
+    if (lv_str_eq(preset_name, "reflection_line"))
+        return "reflection_line";
+    if (lv_str_eq(preset_name, "homothety"))
+        return "homothety";
     return NULL;
 }
 

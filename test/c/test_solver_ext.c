@@ -194,6 +194,47 @@ static void test_feedback_api(void) {
     TEST_ASSERT_NOT_NULL(fb2);
     solver_feedback_destroy(fb2);
 
+    /* solver_feedback_solve：过约束识别（完整实现，替代"脏变量"近似）
+     * 构造单点 + 多个 INCIDENCE 约束指向该点 → 方程数 > 2 → 过约束候选 */
+    {
+        ConstraintGraph *g = graph_create();
+        TEST_ASSERT_NOT_NULL(g);
+        if (g) {
+            int a = add_point(g, 0, 1, 0, 1);
+            int b = add_point(g, 1, 1, 0, 1);
+            int c = add_point(g, 0, 1, 1, 1);
+            int d = add_point(g, 1, 1, 1, 1);
+            /* 点 a 参与 3 个 INCIDENCE 约束（权重 1 各）→ 方程数 3 > 2 */
+            graph_add_constraint_with_id(g, -1, INCIDENCE, (int[]) {a, b}, 2);
+            graph_add_constraint_with_id(g, -1, INCIDENCE, (int[]) {a, c}, 2);
+            graph_add_constraint_with_id(g, -1, INCIDENCE, (int[]) {a, d}, 2);
+            int dirty[1] = {a};
+            SolverFeedback *fb3 = solver_feedback_solve(g, dirty, 1);
+            TEST_ASSERT_NOT_NULL(fb3);
+            if (fb3) {
+                /* 反馈类型必须合法（任一分支），且若为 OVERCONSTRAINED 应带识别结果 */
+                TEST_ASSERT(fb3->type >= SOLVER_FEEDBACK_TYPE_CONSTRAINT_ADDED &&
+                                fb3->type <= SOLVER_FEEDBACK_TYPE_CONFLICT_DETECTED,
+                            "反馈类型合法");
+                if (fb3->type == SOLVER_FEEDBACK_TYPE_OVERCONSTRAINED) {
+                    TEST_ASSERT(fb3->overconstrained_count >= 1, "过约束识别非空");
+                    if (fb3->overconstrained_count > 0 && fb3->overconstrained_ids) {
+                        bool found_a = false;
+                        for (int k = 0; k < fb3->overconstrained_count; k++) {
+                            if (fb3->overconstrained_ids[k] == a) {
+                                found_a = true;
+                                break;
+                            }
+                        }
+                        TEST_ASSERT(found_a, "点 a 被识别为过约束候选");
+                    }
+                }
+                solver_feedback_destroy(fb3);
+            }
+            graph_destroy(g);
+        }
+    }
+
     printf("  test_feedback_api: PASSED\n");
 }
 

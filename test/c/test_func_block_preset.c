@@ -234,6 +234,18 @@ static void test_inverse_operations(void) {
     inv = func_block_preset_get_inverse("reflection_point");
     TEST_ASSERT(inv != NULL, "reflection_point应有逆操作");
 
+    /* 完整实现：元数据性质驱动（INVOLUTIVE 对合 / REVERSIBLE 可逆） */
+    inv = func_block_preset_get_inverse("reflection_line");
+    TEST_ASSERT(inv != NULL, "reflection_line(对合)应有逆操作");
+    TEST_ASSERT(strcmp(inv, "reflection_line") == 0, "对合预设逆为自身");
+
+    inv = func_block_preset_get_inverse("harmonic_conjugate");
+    TEST_ASSERT(inv != NULL, "harmonic_conjugate(对合)应有逆操作");
+
+    inv = func_block_preset_get_inverse("homothety");
+    TEST_ASSERT(inv != NULL, "homothety(可逆)应有逆操作");
+    TEST_ASSERT(strcmp(inv, "homothety") == 0, "可逆变换族逆为同名预设");
+
     /* 测试不存在的预设 */
     inv = func_block_preset_get_inverse("nonexistent");
     TEST_ASSERT(inv == NULL, "不存在的预设应返回NULL");
