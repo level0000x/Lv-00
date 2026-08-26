@@ -78,7 +78,12 @@ jobs:
           done
           # 3) 失败测试的详细输出（ctest --output-on-failure 会在失败测试后打印其输出）
           echo "::error file=ctest.log::=== FAILED TEST OUTPUT ==="
-          awk '/Test #[0-9]+: .*(\*\*\*Failed|\*\*\*Timeout|\*\*\*Exception|\*\*\*SegFault|\*\*\*.*)/{print; n=0; next} n<25 {print; n++}' /tmp/ctest.log | head -60 | while IFS= read -r line; do
+          awk '/\*\*\*(Failed|Timeout|Exception|SegFault)/{print; n=0; next} n<30 {print; n++}' /tmp/ctest.log | head -80 | while IFS= read -r line; do
+            echo "::error file=ctest.log::$line"
+          done
+          # 4) 失败测试断言详情（grep 测试输出中的断言/错误关键字）
+          echo "::error file=ctest.log::=== ASSERTION DETAILS ==="
+          grep -nE "Assertion|assert|FAILED|Error:|error:|failed" /tmp/ctest.log | head -40 | while IFS= read -r line; do
             echo "::error file=ctest.log::$line"
           done
 

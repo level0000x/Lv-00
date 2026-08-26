@@ -110,8 +110,9 @@ jobs:
         set +e
         if [ "${{ runner.os }}" == "Windows" ]; then
           # Windows 仅保留构建验证，Python 测试由 Ubuntu/macOS 覆盖；
-          # 安装依赖供 flake8/mypy 使用（官方 python，不依赖 liblv.dll）
+          # 安装依赖供 flake8/mypy/concurrent_monitor 使用（官方 python）
           pip install -q pytest pytest-cov flake8 mypy pytest-asyncio 2>&1 | tail -3
+          pip install -q -r ../concurrent_monitor/requirements.txt 2>&1 | tail -3
           exit 0
         fi
         pip install -e .
