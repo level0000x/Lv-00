@@ -92,6 +92,9 @@ jobs:
       run: |
         pip install -e .
         pip install pytest pytest-cov flake8 mypy
+        # concurrent_monitor / llm_coding_assistant 测试依赖（rich/flask/fastapi 等）
+        pip install -r ../concurrent_monitor/requirements.txt
+        pip install -r ../llm_coding_assistant/requirements.txt || true
 
     # ── 静态代码检查：flake8 + mypy ──────────────────────────────────
     # 在运行测试之前先进行代码质量检查，尽早发现风格和类型问题
@@ -149,7 +152,20 @@ jobs:
     - name: Run concurrent_monitor tests
       working-directory: module/concurrent_monitor
       run: |
-        python -m pytest tests/ -v
+        set +e
+        python -m pytest tests/ -v > /tmp/concurrent.log 2>&1
+        echo $? > /tmp/concurrent_exit
+        tail -100 /tmp/concurrent.log
+        exit $(cat /tmp/concurrent_exit)
+
+    - name: Report concurrent_monitor failures (on failure)
+      if: failure()
+      shell: bash
+      run: |
+        set -x
+        grep -nE "FAILED|ERROR|error:|assert|AssertionError|ImportError|ModuleNotFoundError|No module|Exception" /tmp/concurrent.log 2>/dev/null | head -40 | while IFS= read -r line; do
+          echo "::error file=concurrent.log::$line"
+        done || true
 
     - name: Run llm_coding_assistant tests
       working-directory: module/llm_coding_assistant
