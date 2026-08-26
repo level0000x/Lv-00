@@ -76,14 +76,20 @@ jobs:
       if: runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        cmake -B build -G "MinGW Makefiles" -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
-        cmake --build build --parallel
+        cmake -B build -G "MinGW Makefiles" -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF > /tmp/wincfg.log 2>&1
+        echo "configure exit: $?" | tee -a /tmp/wincfg.log
+        set +e
+        cmake --build build --parallel > /tmp/winbuild.log 2>&1
+        echo "build exit: $?" | tee -a /tmp/winbuild.log
+        tail -40 /tmp/wincfg.log
+        tail -60 /tmp/winbuild.log
+        exit $(grep -c "error:" /tmp/winbuild.log >/dev/null && echo 1 || echo 0)
 
     - name: Report build errors (Windows, on failure)
       if: failure() && runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        cmake --build build --parallel 2>&1 | grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|Error [0-9]" | head -40 | while IFS= read -r line; do
+        grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|Error [0-9]|error C|mingw32-make.*Error" /tmp/wincfg.log /tmp/winbuild.log 2>/dev/null | head -40 | while IFS= read -r line; do
           echo "::error file=build.log::$line"
         done || true
 
