@@ -33,9 +33,12 @@ static void test_strbuf_vprintf_api(void) {
     append_fmt(&sb, " str=%s", "hi");
     TEST_ASSERT(strcmp(lv_strbuf_cstr(&sb), "val=42 str=hi") == 0, "vprintf 追加内容");
 
-    /* NULL 契约 */
-    lv_strbuf_vprintf(&sb, NULL, (va_list) NULL);
-    lv_strbuf_vprintf(NULL, "x", (va_list) NULL);
+    /* NULL 契约（glibc 中 va_list 是数组类型，不能 cast NULL，
+       改用清零的 va_list 变量以兼容 GCC -Wpedantic 的数组 cast 检查） */
+    va_list va_empty;
+    memset(&va_empty, 0, sizeof(va_empty));
+    lv_strbuf_vprintf(&sb, NULL, va_empty);
+    lv_strbuf_vprintf(NULL, "x", va_empty);
 
     /* reset 清空 */
     lv_strbuf_reset(&sb);
