@@ -140,12 +140,22 @@ class SparseMatrix(_PtrOwner):
         返回:
             SparseMatrix: 稀疏矩阵对象
         """
-        # 尝试获取矩阵维度信息（从已知属性推断）
+        # 通过 C 侧 sparse_matrix_get_dims 回填维度（若符号可用）；
+        # 使 graph_to_constraint_matrix 等返回的矩阵携带正确 rows/cols
         mat = cls.__new__(cls)
         _PtrOwner.__init__(mat, ptr, _lib.sparse_matrix_destroy, owns)
         mat.rows = 0
         mat.cols = 0
         mat.fmt = SparseFormat.CSR
+        if ptr:
+            try:
+                r = ctypes.c_int()
+                c = ctypes.c_int()
+                if _lib.sparse_matrix_get_dims(ptr, ctypes.byref(r), ctypes.byref(c)) == 0:
+                    mat.rows = r.value
+                    mat.cols = c.value
+            except (AttributeError, OSError):
+                pass
         return mat
 
     def clone(self) -> 'SparseMatrix':

@@ -1824,6 +1824,7 @@ _bind_if_present('sparse_matrix_create', [c_int, c_int, c_int], c_void_p)
 _bind_if_present('sparse_matrix_destroy', [c_void_p], None)
 _bind_if_present('sparse_matrix_clone', [c_void_p], c_void_p)
 _bind_if_present('sparse_matrix_print', [c_void_p, c_char_p], None)
+_bind_if_present('sparse_matrix_get_dims', [c_void_p, POINTER(c_int), POINTER(c_int)], c_int)
 
 # 半环
 # semiring_create 按值返回结构体，ctypes 无法直接处理，需要通过包装函数
