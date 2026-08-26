@@ -1451,6 +1451,11 @@ macro(lv_setup_layer target layer_id)
     if(ENABLE_LAYER_VALIDATION)
         target_compile_definitions(${target} PRIVATE lv_ENABLE_LAYER_VALIDATION)
     endif()
+    # 位置无关代码：OBJECT 库可能被聚合进 lv_shared（共享库）。
+    # 若无 -fPIC，TLS 变量（如 lv.c 的 s_lv_state）在 x86-64 下触发
+    # "R_X86_64_TPOFF32 relocation can not be used when making a shared
+    # object" 链接错误（Ubuntu python.yml 实测）。
+    set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endmacro()
 
 # Layer 2: 资源管理层（基础层，不依赖任何上层）
