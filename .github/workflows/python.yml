@@ -169,17 +169,7 @@ jobs:
         export PATH="$(cygpath -u "$RUNNER_TEMP")/msys64/mingw64/bin:$PATH"
         echo "PATH=$PATH"
         ls -la build/liblv.dll 2>&1 | head -3
-        python -c "
-import os, ctypes
-p = os.path.abspath('build/liblv.dll')
-print('loading', p)
-try:
-    lib = ctypes.CDLL(p)
-    print('loaded OK:', lib)
-except Exception as e:
-    print('LOAD FAILED:', type(e).__name__, e)
-    raise
-" 2>&1 | head -20
+        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p); lib=ctypes.CDLL(p); print("loaded OK:", lib)' 2>&1 | head -10
 
     - name: Run Python tests
       working-directory: module/python
