@@ -354,9 +354,11 @@ char *lv_herbie_optimize(const char *expression, double *out_value, double *out_
         result = lv_strdup(opt.best_expr);
     }
 
-    /* 填充输出参数 */
+    /* 填充输出参数
+     * 注意：内置规则路径不做数值求值，out_value 恒为 0（调用方不应依赖；
+     * 完整实现会在调用外部 herbie 后返回优化表达式的求值结果）。 */
     if (out_value)
-        *out_value = 0.0; /* 简化：不实际求值 */
+        *out_value = 0.0;
     if (out_error)
         *out_error = opt.best_error;
 

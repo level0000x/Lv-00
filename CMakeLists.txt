@@ -1979,6 +1979,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_sym_expr)
     # 新增：稀疏线性代数（CSR + Jacobi 求解）与数论多项式模块测试
     add_lv_test_auto(test_sparse_linear_algebra CTEST_NAME sparse_linear_algebra_test)
+    add_lv_test_auto(test_sparse_python_bindings_ext CTEST_NAME sparse_python_bindings_ext_test)
     add_lv_test_auto(test_nt_polynomial CTEST_NAME nt_polynomial_test)
     # v3.4.0 新增：重写引擎测试
     add_lv_test_auto(test_rewrite_strategy)

@@ -568,7 +568,10 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel, int **
     if (!geom || !sel || !out_ids || !out_count)
         return NULL;
 
-    /* 简化选择器实现：返回当前图的节点 ID 列表 */
+    /* 选择器过滤简化实现：当前忽略 sel 的具体过滤条件（BY_DIRECTION/
+     * BY_INDEX/COMPOSITE 等），返回当前图的全部节点 ID 列表。
+     * 完整的选择器语义（CadQuery 风格方向/索引/复合组合）预留后续实现；
+     * 调用方不应依赖过滤效果，仅保证返回全部节点不遗漏。 */
     *out_count = 0;
     *out_ids = NULL;
 

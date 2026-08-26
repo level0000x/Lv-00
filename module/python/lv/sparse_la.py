@@ -351,14 +351,15 @@ def graph_degree_analysis(graph) -> Tuple[int, int, float, int]:
         # 统计每个节点的度数（参与约束的次数）
         degrees = [0] * node_count
 
-        # 使用 graph_detect_conflicts 获取约束参与者信息不可行，
-        # 改用逐节点查询方式
+        # 逐节点查询：graph_find_constraints_involving(graph, node_id, out_indices, max_results)
+        # 返回实际写入的约束数（out_indices 需为足够大的 int 数组；max_results<=0 时 C 侧返回 0）
+        max_idx = max(64, constraint_count)
         for nid in range(node_count):
-            count_ptr = ctypes.c_int()
+            out_arr = (ctypes.c_int * max_idx)()
             try:
-                _lib.graph_find_constraints_involving(
-                    graph._ptr, nid, ctypes.byref(count_ptr), 0)
-                degrees[nid] = count_ptr.value
+                n_found = _lib.graph_find_constraints_involving(
+                    graph._ptr, nid, out_arr, max_idx)
+                degrees[nid] = max(0, n_found)
             except (AttributeError, OSError):
                 degrees[nid] = 0
 

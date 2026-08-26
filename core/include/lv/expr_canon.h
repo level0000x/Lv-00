@@ -1,4 +1,4 @@
-﻿#ifndef lv_EXPR_CANON_H
+#ifndef lv_EXPR_CANON_H
 #define lv_EXPR_CANON_H
 
 #ifdef __cplusplus
@@ -197,7 +197,7 @@ int lv_expr_canonical_term_count(const lvExprCanonical *expr);
 char *lv_expr_canonical_to_string(const lvExprCanonical *expr);
 
 /**
- * @brief 从字符串解析多项式（桩实现）
+ * @brief 从字符串解析多项式（完整实现，支持系数/变量幂次/± 分隔）
  * @param str 输入字符串
  * @param var_names 变量名数组
  * @param var_count 变量个数
@@ -210,9 +210,9 @@ lvExprCanonical *lv_expr_canonical_from_string(const char *str, const char **var
  * ============================================================ */
 
 /**
- * @brief 规范化表达式字符串（旧接口，桩实现）
+ * @brief 规范化表达式字符串（完整实现；内部经 lv_expr_canonical_from_string）
  * @param expr 表达式字符串
- * @return 规范化后的字符串
+ * @return 规范化后的字符串，失败返回 NULL
  */
 char *lv_expr_canon(const char *expr);
 

@@ -14,11 +14,13 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/constraint_graph.h" /* graph_to_constraint_matrix / graph_degree_analysis / semiring */
 
 /* ---- CSR 矩阵内部结构 ---- */
 struct lvSparseMatrix {
@@ -151,14 +153,32 @@ int lv_sparse_set(lvSparseMatrix *m, int row, int col, double val) {
     if (!sparse_grow(m, 1))
         lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "lv_sparse_set: sparse_grow failed");
 
-    int pos = m->nnz;
+    /* 有序插入：保持每行元素按列号升序且连续（CSR 不变量）。
+     * 找到该行内新元素应插入的位置，将后续元素整体后移一位，
+     * 再更新 row_ptr[row+1..rows] 各 +1。
+     * （原实现追加到全局末尾且行指针用 nnz 覆盖，破坏行边界——
+     *  转置/乘法场景实测数据错乱，此处修复。） */
+    int start = m->row_ptr[row];
+    int end = m->row_ptr[row + 1];
+    int pos = end; /* 默认追加到行尾 */
+    for (int j = start; j < end; j++) {
+        if (m->col_idx[j] > col) {
+            pos = j;
+            break;
+        }
+    }
+
+    /* 将 [pos, nnz-1] 的元素后移一位 */
+    for (int k = m->nnz; k > pos; k--) {
+        m->values[k] = m->values[k - 1];
+        m->col_idx[k] = m->col_idx[k - 1];
+    }
     m->values[pos] = val;
     m->col_idx[pos] = col;
     m->nnz++;
 
-    /* 更新行指针：row_ptr[i] 指向第 i 行的第一个元素在 values[] 中的位置 */
     for (int r = row + 1; r <= m->rows; r++) {
-        m->row_ptr[r] = m->nnz;
+        m->row_ptr[r]++;
     }
 
     return 0;
@@ -334,4 +354,543 @@ int lv_sparse_scale(lvSparseMatrix *m, double c) {
     for (int i = 0; i < m->nnz; i++)
         m->values[i] *= c;
     return 0;
+}
+
+/* ============================================================================
+ * Python 绑定兼容层（sparse_matrix_* / semiring / graph 转换）
+ *
+ * module/python/lv/sparse_la.py 引用了以下无 lv_ 前缀的 C 符号（SuiteSparse/
+ * GraphBLAS 风格命名），C 侧此前从未实现（绑定用 _bind_if_present 跳过）。
+ * 此处补齐全部实现，使 Python SparseMatrix 等类真正可用。
+ * 存储格式：内部统一为 CSR（lvSparseMatrix）；fmt 参数接受并记录，
+ * 但当前数值后端仅 CSR 一种物理布局（CSC/COO/DENSE 作为元数据记录）。
+ * ============================================================================ */
+
+/* ---- 存储格式枚举（与 module/python/lv/sparse_la.py SparseFormat 对齐）---- */
+enum {
+    LV_SPARSE_FMT_CSR = 0,
+    LV_SPARSE_FMT_CSC = 1,
+    LV_SPARSE_FMT_COO = 2,
+    LV_SPARSE_FMT_DENSE = 3
+};
+
+/* ---- 半环类型枚举（与 sparse_la.py SemiringType 对齐）---- */
+enum {
+    LV_SEMIRING_PLUS_TIMES = 0,
+    LV_SEMIRING_MIN_PLUS = 1,
+    LV_SEMIRING_MAX_TIMES = 2,
+    LV_SEMIRING_OR_AND = 3,
+    LV_SEMIRING_BOOL = 4,
+    LV_SEMIRING_INTERVAL = 5
+};
+
+/* 度数分析结果结构（ctypes _DegreeAnalysis 布局：
+ * int node_count; int max_degree; int min_degree; double avg_degree; int isolated_count;） */
+typedef struct lvSparseDegreeAnalysis {
+    int node_count;
+    int max_degree;
+    int min_degree;
+    double avg_degree;
+    int isolated_count;
+} lvSparseDegreeAnalysis;
+
+void *sparse_matrix_create(int rows, int cols, int fmt) {
+    (void) fmt; /* 当前统一 CSR 物理布局；fmt 作为元数据 */
+    return (void *) lv_sparse_create(rows, cols);
+}
+
+void sparse_matrix_destroy(void *m) {
+    lv_sparse_destroy((lvSparseMatrix *) m);
+}
+
+void *sparse_matrix_clone(void *m) {
+    lvSparseMatrix *src = (lvSparseMatrix *) m;
+    if (!src)
+        return NULL;
+    lvSparseMatrix *dst = lv_sparse_create(src->rows, src->cols);
+    if (!dst)
+        return NULL;
+    if (lv_sparse_copy(dst, src) != 0) {
+        lv_sparse_destroy(dst);
+        return NULL;
+    }
+    return (void *) dst;
+}
+
+void sparse_matrix_print(void *m, const char *name) {
+    lvSparseMatrix *mat = (lvSparseMatrix *) m;
+    if (!mat)
+        return;
+    if (name && name[0])
+        printf("%s: %dx%d, nnz=%d\n", name, mat->rows, mat->cols, mat->nnz);
+    else
+        printf("%dx%d, nnz=%d\n", mat->rows, mat->cols, mat->nnz);
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = mat->row_ptr[i]; j < mat->row_ptr[i + 1]; j++) {
+            printf("  (%d,%d) = %.6g\n", i, mat->col_idx[j], mat->values[j]);
+        }
+    }
+}
+
+int sparse_matrix_get_dims(void *m, int *rows, int *cols) {
+    lvSparseMatrix *mat = (lvSparseMatrix *) m;
+    if (!mat || !rows || !cols)
+        return -1;
+    *rows = mat->rows;
+    *cols = mat->cols;
+    return 0;
+}
+
+/* ---- CSR 转稠密辅助（供乘法/求解复用）---- */
+static double *sparse_to_dense(const lvSparseMatrix *m) {
+    double *d = (double *) lv_calloc((size_t) m->rows * (size_t) m->cols, sizeof(double));
+    if (!d)
+        return NULL;
+    for (int i = 0; i < m->rows; i++) {
+        for (int j = m->row_ptr[i]; j < m->row_ptr[i + 1]; j++) {
+            d[(size_t) i * (size_t) m->cols + (size_t) m->col_idx[j]] = m->values[j];
+        }
+    }
+    return d;
+}
+
+bool sparse_matrix_multiply(void *a, void *b, void **out) {
+    if (!out)
+        return false;
+    *out = NULL;
+    lvSparseMatrix *A = (lvSparseMatrix *) a;
+    lvSparseMatrix *B = (lvSparseMatrix *) b;
+    if (!A || !B || A->cols != B->rows)
+        return false;
+
+    double *dA = sparse_to_dense(A);
+    double *dB = sparse_to_dense(B);
+    if (!dA || !dB) {
+        lv_free((void **) &dA);
+        lv_free((void **) &dB);
+        return false;
+    }
+
+    lvSparseMatrix *C = lv_sparse_create(A->rows, B->cols);
+    if (!C) {
+        lv_free((void **) &dA);
+        lv_free((void **) &dB);
+        return false;
+    }
+
+    /* 稠密累加 C[i][j] += A[i][k] * B[k][j]，避免 lv_sparse_set 覆盖语义 */
+    double *dC = (double *) lv_calloc((size_t) A->rows * (size_t) B->cols, sizeof(double));
+    if (!dC) {
+        lv_free((void **) &dA);
+        lv_free((void **) &dB);
+        lv_sparse_destroy(C);
+        return false;
+    }
+    for (int i = 0; i < A->rows; i++) {
+        for (int k = 0; k < A->cols; k++) {
+            double aik = dA[(size_t) i * (size_t) A->cols + (size_t) k];
+            if (aik == 0.0)
+                continue;
+            for (int j = 0; j < B->cols; j++) {
+                double bkj = dB[(size_t) k * (size_t) B->cols + (size_t) j];
+                if (bkj != 0.0)
+                    dC[(size_t) i * (size_t) B->cols + (size_t) j] += aik * bkj;
+            }
+        }
+    }
+    for (int i = 0; i < A->rows; i++)
+        for (int j = 0; j < B->cols; j++)
+            if (dC[(size_t) i * (size_t) B->cols + (size_t) j] != 0.0)
+                lv_sparse_set(C, i, j, dC[(size_t) i * (size_t) B->cols + (size_t) j]);
+    lv_free((void **) &dC);
+    lv_free((void **) &dA);
+    lv_free((void **) &dB);
+    *out = (void *) C;
+    return true;
+}
+
+bool sparse_matrix_transpose(void *m, void **out) {
+    if (!out)
+        return false;
+    *out = NULL;
+    lvSparseMatrix *M = (lvSparseMatrix *) m;
+    if (!M)
+        return false;
+
+    lvSparseMatrix *T = lv_sparse_create(M->cols, M->rows);
+    if (!T)
+        return false;
+
+    for (int i = 0; i < M->rows; i++) {
+        for (int j = M->row_ptr[i]; j < M->row_ptr[i + 1]; j++) {
+            lv_sparse_set(T, M->col_idx[j], i, M->values[j]);
+        }
+    }
+    *out = (void *) T;
+    return true;
+}
+
+/* ---- 稠密 LU 分解求解（自包含，避免 L3→L4 依赖 host_linalg）---- */
+static bool dense_lu_solve(const double *A, int n, const double *b, double *x) {
+    double *lu = (double *) lv_malloc((size_t) n * (size_t) n * sizeof(double));
+    if (!lu)
+        return false;
+    memcpy(lu, A, (size_t) n * (size_t) n * sizeof(double));
+
+    /* 部分主元高斯消元（就地 LU） */
+    for (int k = 0; k < n; k++) {
+        int pivot = k;
+        double maxv = fabs(lu[(size_t) k * n + k]);
+        for (int i = k + 1; i < n; i++) {
+            double v = fabs(lu[(size_t) i * n + k]);
+            if (v > maxv) {
+                maxv = v;
+                pivot = i;
+            }
+        }
+        if (maxv < lv_EPSILON_ULTRA) {
+            lv_free((void **) &lu);
+            return false;
+        }
+        if (pivot != k) {
+            for (int j = 0; j < n; j++) {
+                double tmp = lu[(size_t) k * n + j];
+                lu[(size_t) k * n + j] = lu[(size_t) pivot * n + j];
+                lu[(size_t) pivot * n + j] = tmp;
+            }
+        }
+        for (int i = k + 1; i < n; i++) {
+            double f = lu[(size_t) i * n + k] / lu[(size_t) k * n + k];
+            lu[(size_t) i * n + k] = f;
+            for (int j = k + 1; j < n; j++)
+                lu[(size_t) i * n + j] -= f * lu[(size_t) k * n + j];
+        }
+    }
+
+    /* 前代 Ly = b */
+    double *y = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!y) {
+        lv_free((void **) &lu);
+        return false;
+    }
+    memcpy(y, b, (size_t) n * sizeof(double));
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < i; j++)
+            y[i] -= lu[(size_t) i * n + j] * y[j];
+
+    /* 回代 Ux = y */
+    for (int i = n - 1; i >= 0; i--) {
+        double s = y[i];
+        for (int j = i + 1; j < n; j++)
+            s -= lu[(size_t) i * n + j] * x[j];
+        x[i] = s / lu[(size_t) i * n + i];
+    }
+    lv_free((void **) &lu);
+    lv_free((void **) &y);
+    return true;
+}
+
+/* ---- 稠密 Cholesky 分解求解（对称正定）---- */
+static bool dense_cholesky_solve(const double *A, int n, const double *b, double *x) {
+    double *L = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
+    if (!L)
+        return false;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j <= i; j++) {
+            double s = A[(size_t) i * n + j];
+            for (int k = 0; k < j; k++)
+                s -= L[(size_t) i * n + k] * L[(size_t) j * n + k];
+            if (i == j) {
+                if (s <= 0.0) {
+                    lv_free((void **) &L);
+                    return false;
+                }
+                L[(size_t) i * n + j] = sqrt(s);
+            } else {
+                L[(size_t) i * n + j] = s / L[(size_t) j * n + j];
+            }
+        }
+    }
+    /* Ly = b, L^T x = y */
+    double *y = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!y) {
+        lv_free((void **) &L);
+        return false;
+    }
+    for (int i = 0; i < n; i++) {
+        double s = b[i];
+        for (int j = 0; j < i; j++)
+            s -= L[(size_t) i * n + j] * y[j];
+        y[i] = s / L[(size_t) i * n + i];
+    }
+    for (int i = n - 1; i >= 0; i--) {
+        double s = y[i];
+        for (int j = i + 1; j < n; j++)
+            s -= L[(size_t) j * n + i] * x[j];
+        x[i] = s / L[(size_t) i * n + i];
+    }
+    lv_free((void **) &L);
+    lv_free((void **) &y);
+    return true;
+}
+
+/* ---- 稠密 QR（修正 Gram-Schmidt）求解最小二乘/方阵 ---- */
+static bool dense_qr_solve(const double *A, int n, const double *b, double *x) {
+    double *Q = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
+    double *R = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
+    if (!Q || !R) {
+        lv_free((void **) &Q);
+        lv_free((void **) &R);
+        return false;
+    }
+    /* 修正 Gram-Schmidt */
+    for (int j = 0; j < n; j++) {
+        for (int i = 0; i < n; i++)
+            Q[(size_t) i * n + j] = A[(size_t) i * n + j];
+        for (int k = 0; k < j; k++) {
+            double dot = 0.0;
+            for (int i = 0; i < n; i++)
+                dot += Q[(size_t) i * n + k] * A[(size_t) i * n + j];
+            R[(size_t) k * n + j] = dot;
+            for (int i = 0; i < n; i++)
+                Q[(size_t) i * n + j] -= dot * Q[(size_t) i * n + k];
+        }
+        double norm = 0.0;
+        for (int i = 0; i < n; i++)
+            norm += Q[(size_t) i * n + j] * Q[(size_t) i * n + j];
+        norm = sqrt(norm);
+        if (norm < lv_EPSILON_ULTRA) {
+            lv_free((void **) &Q);
+            lv_free((void **) &R);
+            return false;
+        }
+        R[(size_t) j * n + j] = norm;
+        for (int i = 0; i < n; i++)
+            Q[(size_t) i * n + j] /= norm;
+    }
+    /* Q^T b */
+    double *qtb = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!qtb) {
+        lv_free((void **) &Q);
+        lv_free((void **) &R);
+        return false;
+    }
+    for (int i = 0; i < n; i++) {
+        qtb[i] = 0.0;
+        for (int j = 0; j < n; j++)
+            qtb[i] += Q[(size_t) j * n + i] * b[j];
+    }
+    /* 回代 Rx = Q^T b */
+    for (int i = n - 1; i >= 0; i--) {
+        double s = qtb[i];
+        for (int j = i + 1; j < n; j++)
+            s -= R[(size_t) i * n + j] * x[j];
+        x[i] = s / R[(size_t) i * n + i];
+    }
+    lv_free((void **) &Q);
+    lv_free((void **) &R);
+    lv_free((void **) &qtb);
+    return true;
+}
+
+bool sparse_lu_solve(void *m, const double *b, double *x) {
+    lvSparseMatrix *M = (lvSparseMatrix *) m;
+    if (!M || !b || !x || M->rows != M->cols)
+        return false;
+    double *d = sparse_to_dense(M);
+    if (!d)
+        return false;
+    bool ok = dense_lu_solve(d, M->rows, b, x);
+    lv_free((void **) &d);
+    return ok;
+}
+
+bool sparse_cholesky_solve(void *m, const double *b, double *x) {
+    lvSparseMatrix *M = (lvSparseMatrix *) m;
+    if (!M || !b || !x || M->rows != M->cols)
+        return false;
+    double *d = sparse_to_dense(M);
+    if (!d)
+        return false;
+    bool ok = dense_cholesky_solve(d, M->rows, b, x);
+    lv_free((void **) &d);
+    return ok;
+}
+
+bool sparse_qr_solve(void *m, const double *b, double *x) {
+    lvSparseMatrix *M = (lvSparseMatrix *) m;
+    if (!M || !b || !x || M->rows != M->cols)
+        return false;
+    double *d = sparse_to_dense(M);
+    if (!d)
+        return false;
+    bool ok = dense_qr_solve(d, M->rows, b, x);
+    lv_free((void **) &d);
+    return ok;
+}
+
+/* ============================================================================
+ * 图 → 稀疏矩阵 / 度数分析 / 半环传播
+ * ============================================================================ */
+
+/* graph_to_constraint_matrix：node×node 邻接矩阵（两节点共享活跃约束 → 边）
+ * 文档承诺 CSR 格式约束矩阵。 */
+bool graph_to_constraint_matrix(const ConstraintGraph *graph, void **out) {
+    if (!out)
+        return false;
+    *out = NULL;
+    if (!graph || graph->node_count <= 0)
+        return false;
+
+    lvSparseMatrix *m = lv_sparse_create(graph->node_count, graph->node_count);
+    if (!m)
+        return false;
+
+    for (int c = 0; c < graph->constraint_count; c++) {
+        const Constraint *cn = graph->constraints[c];
+        if (!cn || !cn->is_active || cn->participant_count < 2)
+            continue;
+        for (int a = 0; a < cn->participant_count; a++) {
+            for (int bb = 0; bb < cn->participant_count; bb++) {
+                if (a == bb)
+                    continue;
+                int pa = cn->participants[a];
+                int pb = cn->participants[bb];
+                if (pa < 0 || pa >= graph->node_count || pb < 0 || pb >= graph->node_count)
+                    continue;
+                lv_sparse_set(m, pa, pb, 1.0);
+            }
+        }
+    }
+    *out = (void *) m;
+    return true;
+}
+
+bool graph_degree_analysis(const ConstraintGraph *graph, void **out) {
+    if (!out)
+        return false;
+    *out = NULL;
+    if (!graph || graph->node_count <= 0)
+        return false;
+
+    lvSparseDegreeAnalysis *a = (lvSparseDegreeAnalysis *) lv_calloc(1, sizeof(lvSparseDegreeAnalysis));
+    if (!a)
+        return false;
+
+    a->node_count = graph->node_count;
+    a->max_degree = 0;
+    a->min_degree = 0;
+    a->isolated_count = 0;
+
+    /* 度数 = 参与活跃约束的次数（去重：每节点每约束计 1） */
+    int *degree = (int *) lv_calloc((size_t) graph->node_count, sizeof(int));
+    if (!degree) {
+        lv_free((void **) &a);
+        return false;
+    }
+    for (int c = 0; c < graph->constraint_count; c++) {
+        const Constraint *cn = graph->constraints[c];
+        if (!cn || !cn->is_active)
+            continue;
+        for (int p = 0; p < cn->participant_count; p++) {
+            int nid = cn->participants[p];
+            if (nid >= 0 && nid < graph->node_count)
+                degree[nid]++;
+        }
+    }
+    double sum = 0.0;
+    for (int i = 0; i < graph->node_count; i++) {
+        sum += degree[i];
+        if (degree[i] > a->max_degree)
+            a->max_degree = degree[i];
+        if (i == 0 || degree[i] < a->min_degree)
+            a->min_degree = degree[i];
+        if (degree[i] == 0)
+            a->isolated_count++;
+    }
+    a->avg_degree = graph->node_count > 0 ? sum / graph->node_count : 0.0;
+    lv_free((void **) &degree);
+    *out = (void *) a;
+    return true;
+}
+
+void degree_analysis_free(void *p) {
+    lv_free((void **) &p);
+}
+
+/* semiring_propagate_constraints：邻接矩阵半环乘法不动点迭代。
+ * x = A ⊗ x，⊗ 由 semiring 决定；返回迭代次数，-1 未收敛。 */
+int semiring_propagate_constraints(const ConstraintGraph *graph, int semiring, double *x, int max_iter) {
+    if (!graph || !x || graph->node_count <= 0)
+        return -1;
+    int n = graph->node_count;
+    if (max_iter <= 0)
+        max_iter = 1000;
+
+    /* 构建 node×node 邻接（bool 邻接，值 1） */
+    bool *adj = (bool *) lv_calloc((size_t) n * (size_t) n, sizeof(bool));
+    if (!adj)
+        return -1;
+    for (int c = 0; c < graph->constraint_count; c++) {
+        const Constraint *cn = graph->constraints[c];
+        if (!cn || !cn->is_active || cn->participant_count < 2)
+            continue;
+        for (int a = 0; a < cn->participant_count; a++) {
+            for (int bb = 0; bb < cn->participant_count; bb++) {
+                if (a == bb)
+                    continue;
+                int pa = cn->participants[a];
+                int pb = cn->participants[bb];
+                if (pa >= 0 && pa < n && pb >= 0 && pb < n)
+                    adj[(size_t) pa * n + pb] = true;
+            }
+        }
+    }
+
+    double *next = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!next) {
+        lv_free((void **) &adj);
+        return -1;
+    }
+
+    int iter = 0;
+    for (; iter < max_iter; iter++) {
+        bool changed = false;
+        for (int i = 0; i < n; i++) {
+            double acc;
+            if (semiring == LV_SEMIRING_MIN_PLUS) {
+                acc = INFINITY;
+                for (int j = 0; j < n; j++)
+                    if (adj[(size_t) i * n + j] && x[j] + 1.0 < acc)
+                        acc = x[j] + 1.0;
+                if (acc == INFINITY)
+                    acc = x[i];
+            } else if (semiring == LV_SEMIRING_MAX_TIMES) {
+                acc = 0.0;
+                for (int j = 0; j < n; j++)
+                    if (adj[(size_t) i * n + j] && x[j] > acc)
+                        acc = x[j];
+            } else if (semiring == LV_SEMIRING_OR_AND || semiring == LV_SEMIRING_BOOL) {
+                acc = x[i];
+                for (int j = 0; j < n; j++)
+                    if (adj[(size_t) i * n + j] && x[j] != 0.0)
+                        acc = 1.0;
+            } else {
+                /* PLUS_TIMES / INTERVAL（退化为 PLUS_TIMES） */
+                acc = x[i];
+                for (int j = 0; j < n; j++)
+                    if (adj[(size_t) i * n + j])
+                        acc += x[j];
+            }
+            if (fabs(acc - x[i]) > lv_EPSILON_MEDIUM)
+                changed = true;
+            next[i] = acc;
+        }
+        memcpy(x, next, (size_t) n * sizeof(double));
+        if (!changed)
+            break;
+    }
+    lv_free((void **) &adj);
+    lv_free((void **) &next);
+    return iter < max_iter ? iter + 1 : -1;
 }
