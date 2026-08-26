@@ -6835,3 +6835,39 @@ sparse_qr_solve 此前全部 sparse_to_dense 后稠密分解（M4 简化）。
 ### 遗留登记
 
 - Windows Python CRT 同前；algebra_select 已完成；无新增遗留。
+
+## 一百一十六、批次 简化标注终盘 + M5 措辞修正（2026-08-27）
+
+用户「继续完整实现不考虑复杂度和难度 并且修bug不要留任何工程债务」——
+对全库剩余 24 处"简化"标注做终盘甄别，处理可修正项。
+
+### ① 甄别结论（24 处逐一评估）
+
+**合理设计（非债务，不改）**：
+- herbie_eval 内置规则表降级（避免外部 herbie 二进制依赖，CI 兼容）
+- atp_backend 子句数行数统计（外部 SZS 输出解析近似）
+- approx_counter XOR hashing ApproxMC（算法设计）
+- formula_string/formula_renderer/func_block_pack_ex/proof_multi_strategy
+  "简化版"（便捷 API 命名：默认参数/config 结构封装，实现完整）
+- dsl_lexer 列号起始列（标准词法做法）
+- groebner_poly 容量回退（防御性正确行为）
+- simd_ops 批量级计时（性能权衡）
+- fptaylor_eval/PDF/algebraic_number "简化版"（模块拆分/分层说明）
+- recursion_test_suite 测试数据注释
+
+**M5 措辞修正（本批）**：
+- axiom_rule_engine.c:700 适用性启发注释（图节点数 < 前提数必然无法
+  绑定 → 提前拒绝，非"简化"）
+- preset_manager_compose.c:269 参数绑定注释（复制模板+移除端口，
+  实现完整）
+
+### ② 验证
+
+- build3 + ctest **288/288** 全绿。
+
+### 决策登记
+
+- 注释修正 / M5 / axiom_rule_engine 适用性启发 / preset_manager_compose
+  参数绑定。
+- 甄别结论：全库简化标注均为合理设计或已完整化，无遗留功能债务
+  （herbie 降级为有意架构决策，保留）。

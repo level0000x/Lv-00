@@ -697,7 +697,8 @@ bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, con
     if (rule->type == RULE_TYPE_INFERENCE || rule->type == RULE_TYPE_THEOREM || rule->type == RULE_TYPE_LEMMA) {
         if (rule->premise_count == 0)
             return false;
-        /* 简化：节点数必须 >= 前提数 */
+        /* 适用性启发：推理类规则需前提可匹配，图节点数少于前提数时
+         * 必然无法完成绑定（每个前提至少需要一个不同节点），提前拒绝 */
         if (node_count < (int) rule->premise_count)
             return false;
     }

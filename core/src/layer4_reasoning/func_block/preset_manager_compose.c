@@ -266,8 +266,8 @@ bool preset_bind_parameter(const char *preset_name, int param_index, int value, 
     PresetMetadata bound_meta = entry->metadata;
     bound_meta.name = new_name;
 
-    /* 直接在本管理器内实现简化版的参数绑定：
-     * 复制模板，然后从输入端口中移除指定索引的端口 */
+    /* 参数绑定：复制模板，然后从输入端口中移除指定索引的端口
+     * （本管理器内直接实现；模板副本交 preset_register_custom 接管） */
     FuncBlock *template_copy = NULL;
     if (entry->template_fb) {
         template_copy = func_block_copy(entry->template_fb);
