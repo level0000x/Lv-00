@@ -205,23 +205,6 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
             PolyEquation *pe_eq = ((PolyEquation *)lv_darray_get(&system->eqs, eq));
             if (pe_eq->poly.degree == 1) {
                 /* Check if this equation constrains the same variable */
-                if (pe_eq->poly.degree < 0) {
-                /* 跳过未初始化的方程槽位（poly.degree < 0 表示该槽位未被
-                 * 实际约束填充或已无效化）。占位符通常出现在方程系统被清空
-                 * 后重新填充的过程中，不影响求解正确性。 */
-                if (debug_is_debug_mode()) {
-                    static lv_THREAD_LOCAL int placeholder_skip_count = 0;
-                    placeholder_skip_count++;
-                    if (placeholder_skip_count == 1 || placeholder_skip_count % 100 == 0) {
-                        debug_log(LOG_LEVEL_DEBUG, "solver",
-                                  "跳过占位符方程 #%d（poly.degree < 0），"
-                                  "当前累计跳过 %d 个占位符方程",
-                                  eq, placeholder_skip_count);
-                    }
-                }
-                continue;
-            }
-
                 /* Find the branch value for this variable */
                 double branch_val = 0.0;
                 bool found = false;

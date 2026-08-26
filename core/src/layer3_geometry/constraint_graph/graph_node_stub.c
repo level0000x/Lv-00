@@ -1,8 +1,11 @@
 /**
  * @file graph_node_stub.c
- * @brief ConstraintGraph 节点与约束生命周期管理 —— 区域/端口/函数块节点存根实现
+ * @brief ConstraintGraph 节点与约束生命周期管理 —— 区域/端口/函数块节点实现
  *
  * @details 由 graph_node.c 按功能域拆分而来。
+ *          文件名保留历史"stub"命名（原为占位实现），当前全部函数均为
+ *          完整实现：graph_add_region / graph_add_circle / graph_add_port /
+ *          graph_add_function_block / graph_rollback_node / graph_get_last_added_node_id。
  *          共享内部函数声明见 graph_node_internal.h。
  *
  * @author Lv-00 Project
@@ -35,9 +38,10 @@
 #include "graph_node_internal.h"
 
 /* ===========================================================================
- * 存根实现：graph_add_region / graph_add_function_block
+ * 区域/端口/函数块节点添加实现
  *
- * graph_add_port 已完全实现（被 27+ 处调用），此处仅保留声明兼容。
+ * graph_add_port 已被 27+ 处调用，graph_add_region / graph_add_circle /
+ * graph_add_function_block 均为完整实现（非存根）。
  * =========================================================================== */
 
 /**
