@@ -199,8 +199,8 @@ uint64_t lv_get_wallclock_ns(void) {
 }
 
 #else
-#include <sys/time.h>
-
+/* 注：lv_get_time_us 已改用 CLOCK_MONOTONIC（与 lv_get_time_ns 同源），
+ * 不再需要 sys/time.h 的 gettimeofday；<time.h> 已由顶部统一包含。 */
 
 uint64_t lv_get_time_ns(void) {
     struct timespec ts;
@@ -209,9 +209,13 @@ uint64_t lv_get_time_ns(void) {
 }
 
 uint64_t lv_get_time_us(void) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (uint64_t) tv.tv_sec * lv_US_PER_S + (uint64_t) tv.tv_usec;
+    /* 与 lv_get_time_ns 同源（CLOCK_MONOTONIC 单调时钟），保证
+     * ns >= us >= ms 的量级关系与 Windows（QPC 同源）一致。
+     * 此前误用 gettimeofday（墙钟，Unix epoch 起 ~1.7e15 us）导致
+     * Ubuntu CI 断言 ns >= us 失败。 */
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * lv_US_PER_S + (uint64_t)ts.tv_nsec / lv_NS_PER_US;
 }
 
 uint64_t lv_get_wallclock_ns(void) {

@@ -42,7 +42,12 @@ int lv_export_write_file(const char *path, const void *data, size_t len) {
     FILE *fp = fopen(path, "w");
     if (!fp)
         return -1;
-    size_t written = fwrite(data, 1, len, fp);
+    /* 契约：data 可为 NULL，此时写入 0 字节。
+     * fwrite(NULL, 1, n, fp) 是未定义行为（glibc 下直接 SEGFAULT），
+     * 必须先判空（此前违反契约导致 Ubuntu CI SEGFAULT）。 */
+    size_t written = 0;
+    if (data != NULL && len > 0)
+        written = fwrite(data, 1, len, fp);
     fclose(fp);
     return (int) written;
 }

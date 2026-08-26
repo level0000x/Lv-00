@@ -46,8 +46,11 @@ jobs:
 
       - name: Run tests
         run: |
-          set -o pipefail
-          ctest --test-dir build --output-on-failure --parallel $(nproc) 2>&1 | tee /tmp/ctest.log
+          set +e
+          ctest --test-dir build --output-on-failure --parallel $(nproc) > /tmp/ctest.log 2>&1
+          echo $? > /tmp/ctest_exit
+          cat /tmp/ctest.log
+          exit $(cat /tmp/ctest_exit)
 
       - name: Upload ctest log (on failure)
         if: failure()
@@ -62,12 +65,21 @@ jobs:
         shell: bash
         run: |
           set -x
-          grep -nE "The following tests FAILED|Failed test|FAILED|\*\*\*Failed|Error" /tmp/ctest.log | head -40 | while IFS= read -r line; do
+          echo "::error file=ctest.log::CTEST_EXIT_CODE=$(cat /tmp/ctest_exit)"
+          # 1) 失败名单：'The following tests FAILED:' 之后的全部非空行
+          echo "::error file=ctest.log::=== FAILED TEST LIST ==="
+          awk '/The following tests FAILED:/{flag=1; next} flag && NF {print NR": "$0}' /tmp/ctest.log | head -40 | while IFS= read -r line; do
             echo "::error file=ctest.log::$line"
           done
-          # 失败测试名单在 "The following tests FAILED:" 之后以缩进行列出，单独提取
-          awk '/The following tests FAILED:/{flag=1; next} flag && /^[[:space:]]/ {print NR": "$0; n++} n>=30{exit}' /tmp/ctest.log | while IFS= read -r line; do
-            echo "::error file=ctest.log::FAILED-LIST $line"
+          # 2) 失败进度行（含 ***Failed/Timeout/Exception/SegFault 等）
+          echo "::error file=ctest.log::=== FAILED PROGRESS LINES ==="
+          grep -nE "Test #.*\*\*\*" /tmp/ctest.log | head -40 | while IFS= read -r line; do
+            echo "::error file=ctest.log::$line"
+          done
+          # 3) 失败测试的详细输出（ctest --output-on-failure 会在失败测试后打印其输出）
+          echo "::error file=ctest.log::=== FAILED TEST OUTPUT ==="
+          awk '/Test #[0-9]+: .*(\*\*\*Failed|\*\*\*Timeout|\*\*\*Exception|\*\*\*SegFault|\*\*\*.*)/{print; n=0; next} n<25 {print; n++}' /tmp/ctest.log | head -60 | while IFS= read -r line; do
+            echo "::error file=ctest.log::$line"
           done
 
   # ── Windows (MSYS2): GCC 语法检查 + CMake 构建 ────────────
