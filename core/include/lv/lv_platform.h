@@ -241,11 +241,20 @@ extern "C" {
 #else
   /* POSIX: GCC/Clang __atomic_* 内建。
    * 注意：调用点可能传 _Atomic(int) *（如 constraint_graph.h 的
-   * GRAPH_ATOMIC_NODE_ID_INCREMENT），__atomic_* 内建不接受 _Atomic
-   * 限定指针（Clang 报 "address argument to atomic operation must be
-   * a pointer to integer or pointer"）。用 __typeof__(*(ptr)) 去除
-   * _Atomic/volatile/const 限定符后再取指针。 */
-  #define lv_ATOMIC_UNQUAL_PTR(ptr) ((__typeof__(*(ptr)) *)(ptr))
+   * GRAPH_ATOMIC_NODE_ID_INCREMENT、simd_ops_internal.h 的 _Atomic uint64_t
+   * 计数器），__atomic_* 内建不接受 _Atomic 限定指针（Clang 报 "address
+   * argument to atomic operation must be a pointer to integer or pointer"）。
+   * C11 _Generic 控制表达式会剥离限定符（含 _Atomic），据此把指针 cast 回
+   * 无 _Atomic 限定的整数指针；default 分支覆盖未列出的标量类型。 */
+  #define lv_ATOMIC_UNQUAL_PTR(ptr) \
+      _Generic((*(ptr)), \
+          int:             (int *)(ptr), \
+          unsigned int:    (unsigned int *)(ptr), \
+          long:            (long *)(ptr), \
+          unsigned long:   (unsigned long *)(ptr), \
+          long long:       (long long *)(ptr), \
+          unsigned long long: (unsigned long long *)(ptr), \
+          default:         (__typeof__(*(ptr)) *)(ptr))
   #define lv_ATOMIC_INC(ptr)           __atomic_add_fetch(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_SEQ_CST)
   #define lv_ATOMIC_DEC(ptr)           __atomic_sub_fetch(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_SEQ_CST)
   #define lv_ATOMIC_ADD(ptr, val)      __atomic_fetch_add(lv_ATOMIC_UNQUAL_PTR(ptr), (val), __ATOMIC_SEQ_CST)

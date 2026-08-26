@@ -647,3 +647,149 @@ int interactive_geo_get_stats(const lvInteractiveGeo *g, char *buf, int bufsz) {
                      g->script_binding.binding_count, g->script_binding.script_length);
     return (n > 0 && n < bufsz) ? n : -1;
 }
+
+/* ==================== 奇异检测 / 约束维护 / 状态导入导出（Python 绑定缺口） ==================== */
+
+bool interactive_geo_detect_singularity(const lvInteractiveGeo *g, int *classification) {
+    if (!g)
+        return false;
+    if (classification)
+        *classification = (int) g->continuity.current_config;
+    return g->continuity.near_singular || g->continuity.current_config != CONFIG_NORMAL;
+}
+
+int interactive_geo_maintain_constraints(lvInteractiveGeo *g, int moved_id, double new_x, double new_y) {
+    if (!g)
+        return (int) CONSTRAINT_FAILED;
+    /* 记录拖拽位置，复用约束传播逻辑判定受影响链与奇异状态 */
+    lvGeoCanvasState *cs = &g->canvas_state;
+    cs->drag_target_id = moved_id;
+    cs->drag_current_x = new_x;
+    cs->drag_current_y = new_y;
+    return (int) propagate(g, moved_id);
+}
+
+char *interactive_geo_export_state(const lvInteractiveGeo *g) {
+    if (!g)
+        return NULL;
+    const lvGeoCanvasState *cs = &g->canvas_state;
+    char *buf = (char *) lv_malloc((size_t) lv_GEO_STATE_BUFFER_SIZE);
+    if (!buf)
+        return NULL;
+    int n = lv_snprintf(buf, (size_t) lv_GEO_STATE_BUFFER_SIZE,
+                        "{\"mode\":%d,\"drag_target\":%d,\"drag_pos\":[%.17g,%.17g],"
+                        "\"zoom\":%.17g,\"offset\":[%.17g,%.17g],\"selected_count\":%d,"
+                        "\"active_count\":%d,\"singular\":%s,\"modified\":%s}",
+                        (int) cs->current_mode, cs->drag_target_id, cs->drag_current_x, cs->drag_current_y,
+                        cs->zoom_level, cs->viewport_offset_x, cs->viewport_offset_y, cs->selected_count,
+                        cs->active_object_count,
+                        g->continuity.near_singular ? "true" : "false",
+                        cs->modified ? "true" : "false");
+    if (n < 0 || n >= lv_GEO_STATE_BUFFER_SIZE) {
+        lv_free((void **) &buf);
+        return NULL;
+    }
+    return buf;
+}
+
+int interactive_geo_import_state(lvInteractiveGeo *g, const char *json_str) {
+    if (!g || !json_str)
+        return -1;
+    lvGeoCanvasState *cs = &g->canvas_state;
+    int mv = (int) cs->current_mode, di = -1, sc = 0, ac = -1;
+    double dx = 0, dy = 0, zm = 1, ox = 0, oy = 0;
+    bool singular = false, mod = false;
+
+    lvJsonParser jp;
+    lv_json_parser_init(&jp, json_str, strlen(json_str));
+    if (lv_json_peek(&jp) != '{')
+        return -1;
+    jp.pos++; /* 跳过 '{' */
+    char *key = NULL;
+    while (lv_json_parse_field(&jp, &key)) {
+        if (lv_str_eq(key, "mode")) {
+            if (!lv_json_parse_int(&jp, &mv))
+                mv = 0;
+        } else if (lv_str_eq(key, "drag_target")) {
+            if (!lv_json_parse_int(&jp, &di))
+                di = -1;
+        } else if (lv_str_eq(key, "drag_pos")) {
+            double arr[2];
+            size_t cnt = 0;
+            if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
+                dx = 0;
+                dy = 0;
+            } else {
+                dx = arr[0];
+                dy = arr[1];
+            }
+        } else if (lv_str_eq(key, "zoom")) {
+            if (!lv_json_parse_double(&jp, &zm))
+                zm = 1;
+        } else if (lv_str_eq(key, "offset")) {
+            double arr[2];
+            size_t cnt = 0;
+            if (!lv_json_parse_double_array(&jp, arr, 2, &cnt) || cnt < 2) {
+                ox = 0;
+                oy = 0;
+            } else {
+                ox = arr[0];
+                oy = arr[1];
+            }
+        } else if (lv_str_eq(key, "selected_count")) {
+            if (!lv_json_parse_int(&jp, &sc))
+                sc = 0;
+        } else if (lv_str_eq(key, "active_count")) {
+            if (!lv_json_parse_int(&jp, &ac))
+                ac = -1;
+        } else if (lv_str_eq(key, "singular")) {
+            bool b = false;
+            if (!lv_json_parse_bool(&jp, &b))
+                b = false;
+            singular = b;
+        } else if (lv_str_eq(key, "modified")) {
+            bool b = false;
+            if (!lv_json_parse_bool(&jp, &b))
+                b = false;
+            mod = b;
+        } else {
+            lv_json_skip_value(&jp);
+        }
+        lv_free((void **) &key);
+    }
+
+    /* 数据一致性：active_count 必须与当前活跃对象数一致（-1 = 旧版快照无此字段） */
+    if (ac >= 0 && ac != cs->active_object_count)
+        return -2;
+
+    cs->current_mode = (InteractiveGeoMode) mv;
+    cs->drag_target_id = di;
+    cs->drag_current_x = dx;
+    cs->drag_current_y = dy;
+    cs->zoom_level = zm;
+    cs->viewport_offset_x = ox;
+    cs->viewport_offset_y = oy;
+    cs->selected_count = sc;
+    cs->modified = mod;
+    g->continuity.near_singular = singular;
+    if (singular)
+        g->continuity.current_config = CONFIG_SINGULAR;
+    sync_matrix(cs);
+    return 0;
+}
+
+int *interactive_geo_get_all_objects(const lvInteractiveGeo *g, int *count) {
+    if (!g || !count)
+        return NULL;
+    const lvGeoCanvasState *cs = &g->canvas_state;
+    *count = cs->active_object_count;
+    if (*count <= 0 || !cs->active_object_ids)
+        return NULL;
+    int *out = (int *) lv_malloc((size_t) (*count) * sizeof(int));
+    if (!out) {
+        *count = 0;
+        return NULL;
+    }
+    memcpy(out, cs->active_object_ids, (size_t) (*count) * sizeof(int));
+    return out;
+}

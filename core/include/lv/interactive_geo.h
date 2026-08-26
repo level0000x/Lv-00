@@ -494,6 +494,61 @@ void interactive_geo_reset_viewport(lvInteractiveGeo *geo);
  */
 void interactive_geo_set_canvas_size(lvInteractiveGeo *geo, double width, double height);
 
+/**
+ * @brief 检测当前几何配置是否奇异（Cinderella Continuity 机制）
+ *
+ * 依据连续性跟踪器的当前配置分类判定。判定结果写入 classification
+ * （ConfigClassification 枚举值：CONFIG_NORMAL/CONFIG_SINGULAR/CONFIG_DEGENERATE）。
+ *
+ * @param[in]  geo             交互几何上下文
+ * @param[out] classification  输出配置分类（可为 NULL）
+ * @return true 表示当前配置为奇异/退化（或接近奇异）
+ */
+bool interactive_geo_detect_singularity(const lvInteractiveGeo *geo, int *classification);
+
+/**
+ * @brief 约束实时维护（Cinderella 核心功能）
+ *
+ * 拖拽对象时实时计算所有受影响的约束并更新位置。
+ * 内部复用 propagate 约束传播逻辑，返回约束维护状态。
+ *
+ * @param[in,out] geo      交互几何上下文
+ * @param[in]     moved_id 被移动的对象 ID
+ * @param[in]     new_x    新 X 坐标
+ * @param[in]     new_y    新 Y 坐标
+ * @return 约束维护状态（ConstraintMaintainStatus 枚举值）
+ */
+int interactive_geo_maintain_constraints(lvInteractiveGeo *geo, int moved_id, double new_x, double new_y);
+
+/**
+ * @brief 导出当前交互几何状态为 JSON 字符串
+ *
+ * 与快照 JSON 同构（可被 interactive_geo_import_state 恢复），
+ * 额外包含模式/拖拽/选中/视口等完整状态字段。
+ *
+ * @param[in] geo 交互几何上下文
+ * @return 新分配的 JSON 字符串（调用方用 lv_free_ptr 释放），失败返回 NULL
+ */
+char *interactive_geo_export_state(const lvInteractiveGeo *geo);
+
+/**
+ * @brief 从 JSON 字符串导入交互几何状态
+ *
+ * @param[in,out] geo      交互几何上下文
+ * @param[in]     json_str JSON 状态字符串
+ * @return 0 成功，-1 格式错误，-2 数据不一致
+ */
+int interactive_geo_import_state(lvInteractiveGeo *geo, const char *json_str);
+
+/**
+ * @brief 获取所有活跃几何对象 ID 列表
+ *
+ * @param[in]  geo   交互几何上下文
+ * @param[out] count 输出对象数量（可为 NULL）
+ * @return 新分配的 int 数组（调用方用 lv_free_ptr 释放），失败返回 NULL
+ */
+int *interactive_geo_get_all_objects(const lvInteractiveGeo *geo, int *count);
+
 #ifdef __cplusplus
 }
 #endif
