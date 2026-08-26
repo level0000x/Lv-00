@@ -320,7 +320,7 @@ class SymbolicCoord(_PtrOwner):
         """
         s = _lib.symbolic_coord_serialize(self._ptr)
         if s:
-            result = s.decode('utf-8')
+            result = ctypes.string_at(s).decode('utf-8')
             _lib.lv_free_ptr(s)
             return f"SymbolicCoord({result!r})"
         return "SymbolicCoord(<unknown>)"
@@ -334,7 +334,7 @@ class SymbolicCoord(_PtrOwner):
         """
         s = _lib.symbolic_coord_serialize(self._ptr)
         if s:
-            result = s.decode('utf-8')
+            result = ctypes.string_at(s).decode('utf-8')
             _lib.lv_free_ptr(s)
             return result
         return "<unknown>"
@@ -585,7 +585,7 @@ class SymbolicCoord(_PtrOwner):
             # 非有理数：尝试通过字符串构造 sqrt 表达式
             s = _lib.symbolic_coord_serialize(self._ptr)
             if s:
-                raw = s.decode('utf-8')
+                raw = ctypes.string_at(s).decode('utf-8')
                 _lib.lv_free_ptr(s)
                 try:
                     return SymbolicCoord(f"sqrt({raw})")
@@ -643,7 +643,7 @@ class SymbolicCoord(_PtrOwner):
         except (ValueError, lvError):
             s = _lib.symbolic_coord_serialize(self._ptr)
             if s:
-                raw = s.decode('utf-8')
+                raw = ctypes.string_at(s).decode('utf-8')
                 _lib.lv_free_ptr(s)
                 try:
                     return SymbolicCoord(f"root({raw},{n})")
@@ -808,7 +808,7 @@ class SymbolicCoord(_PtrOwner):
         if not s:
             raise lvError("序列化失败")
         try:
-            result = Fraction(s.decode('utf-8'))
+            result = Fraction(ctypes.string_at(s).decode('utf-8'))
         finally:
             _lib.lv_free_ptr(s)
         return result
@@ -1967,7 +1967,7 @@ class Graph(_PtrOwner):
         json_ptr = _lib.graph_serialize_to_json(self._ptr)
         if not json_ptr:
             raise lvError("序列化图为 JSON 失败")
-        result = json_ptr.decode('utf-8')
+        result = ctypes.string_at(json_ptr).decode('utf-8')
         _lib.lv_free_ptr(json_ptr)
         return result
 
@@ -2386,7 +2386,7 @@ def get_counter_report() -> str:
     """
     report = _lib.debug_counters_report()
     if report:
-        result = report.decode('utf-8')
+        result = ctypes.string_at(report).decode('utf-8')
         _lib.lv_free_ptr(report)
         return result
     return ""

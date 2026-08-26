@@ -328,7 +328,7 @@ class InteractiveGeo(_PtrOwner):
         """
         s = _lib.interactive_geo_export_state(self._ptr)
         if s:
-            result = s.decode('utf-8')
+            result = ctypes.string_at(s).decode('utf-8')
             _lib.lv_free_ptr(s)
             return result
         return None

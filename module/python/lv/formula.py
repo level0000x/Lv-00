@@ -250,7 +250,7 @@ class FormulaAST(_PtrOwner):
 
         result = _lib.formula_render(self._ptr, format_code)
         if result:
-            s = result.decode('utf-8')
+            s = ctypes.string_at(result).decode('utf-8')
             _lib.lv_free_ptr(result)
             return s
         return ""
@@ -530,7 +530,7 @@ class FormulaRenderer:
 
         result = _lib.formula_render(ast._ptr, format_code)
         if result:
-            s = result.decode('utf-8')
+            s = ctypes.string_at(result).decode('utf-8')
             _lib.lv_free_ptr(result)
             return s
         return ""

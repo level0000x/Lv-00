@@ -358,7 +358,11 @@ _lib.symbolic_coord_destroy.restype = None
 
 # 序列化为字符串（如 "3/4"），返回的字符串需要调用 free() 释放
 _lib.symbolic_coord_serialize.argtypes = [POINTER(_SymbolicCoord)]
-_lib.symbolic_coord_serialize.restype = c_char_p
+# 返回堆分配字符串（C 侧 lv_malloc），ctypes 不能自动管理：
+# 若 restype=c_char_p，ctypes 会拷贝为 bytes 且 Python 端无法正确释放
+# 原指针（此前对 bytes 调 lv_free_ptr 触发未定义行为/崩溃）。
+# 改为 c_void_p，由 Python 端 string_at 读取 + lv_free_ptr 释放。
+_lib.symbolic_coord_serialize.restype = c_void_p
 
 # 深拷贝符号坐标对象
 _lib.symbolic_coord_copy.argtypes = [POINTER(_SymbolicCoord)]
@@ -517,7 +521,7 @@ _lib.graph_find_constraints_involving.restype = c_int
 
 # 序列化图为 JSON 字符串
 _lib.graph_serialize_to_json.argtypes = [POINTER(_ConstraintGraph)]
-_lib.graph_serialize_to_json.restype = c_char_p
+_lib.graph_serialize_to_json.restype = c_void_p
 
 # 从 JSON 字符串反序列化图
 _lib.graph_deserialize_from_json.argtypes = [c_char_p]
@@ -899,7 +903,7 @@ _lib.debug_get_counters.argtypes = [c_void_p]
 _lib.debug_get_counters.restype = None
 
 _lib.debug_counters_report.argtypes = []
-_lib.debug_counters_report.restype = c_char_p
+_lib.debug_counters_report.restype = c_void_p
 
 _lib.mem_pool_create.argtypes = [ctypes.c_size_t, c_int]
 _lib.mem_pool_create.restype = c_void_p
@@ -991,7 +995,7 @@ _lib.formula_parse.argtypes = [c_char_p, c_char_p]
 _lib.formula_parse.restype = c_void_p
 
 _lib.formula_render.argtypes = [c_void_p, c_int]
-_lib.formula_render.restype = c_char_p
+_lib.formula_render.restype = c_void_p
 
 # [已移除] formula_validate, formula_free_error_list: C 库中不存在这些导出函数
 
@@ -1778,7 +1782,8 @@ _lib.interactive_geo_maintain_constraints.argtypes = [c_void_p, c_int, c_double,
 _lib.interactive_geo_maintain_constraints.restype = c_int
 
 _lib.interactive_geo_export_state.argtypes = [c_void_p]
-_lib.interactive_geo_export_state.restype = c_char_p
+# 返回堆分配字符串（需 lv_free_ptr 释放），同 symbolic_coord_serialize 处理
+_lib.interactive_geo_export_state.restype = c_void_p
 
 _lib.interactive_geo_import_state.argtypes = [c_void_p, c_char_p]
 _lib.interactive_geo_import_state.restype = c_int
