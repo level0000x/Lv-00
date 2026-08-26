@@ -95,6 +95,10 @@ jobs:
         tail -40 /tmp/wincfg.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=wincfg.log::$line"
         done || true
+        echo "::error file=wincfg.log::=== CONFIGURE ERRORS ==="
+        grep -nE "error|Error|fatal|not found|Failed" /tmp/wincfg.log 2>/dev/null | head -30 | while IFS= read -r line; do
+          echo "::error file=wincfg.log::$line"
+        done || true
         echo "::error file=winbuild.log::=== BUILD LOG (tail) ==="
         tail -60 /tmp/winbuild.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=winbuild.log::$line"
@@ -172,12 +176,8 @@ jobs:
       shell: bash
       run: |
         set -x
-        echo "::error file=pytest.log::=== pytest log tail ==="
-        tail -60 /tmp/pytest.log 2>/dev/null | while IFS= read -r line; do
-          echo "::error file=pytest.log::$line"
-        done || true
-        echo "::error file=pytest.log::=== pytest errors ==="
-        grep -nE "ERROR|Error|error|Traceback|assert|Exception" /tmp/pytest.log 2>/dev/null | head -30 | while IFS= read -r line; do
+        echo "::error file=pytest.log::=== pytest log FULL ==="
+        cat /tmp/pytest.log 2>/dev/null | head -120 | while IFS= read -r line; do
           echo "::error file=pytest.log::$line"
         done || true
 
