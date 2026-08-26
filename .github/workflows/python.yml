@@ -171,6 +171,9 @@ jobs:
           export PATH="$MSYS_BIN:$PATH"
           echo "MSYS_BIN=$MSYS_BIN"
         fi
+        # 诊断：直接 import lv（test_graph 收集失败的根因）
+        echo "::error file=import.log::=== import lv diagnostic ==="
+        python -c "import os; print('LIBPATH', os.environ.get('lv_LIBRARY_PATH')); from lv import Graph; print('import OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
         # 先单独收集，暴露收集阶段的 1 error
         python -m pytest tests/ --collect-only -q > /tmp/collect.log 2>&1
         echo "collect rc=$?" | tee -a /tmp/collect.log
