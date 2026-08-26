@@ -117,7 +117,16 @@ jobs:
       run: |
         # 检查 module/concurrent_monitor/ 和 module/llm_coding_assistant/ 目录的代码风格
         flake8 module/concurrent_monitor/ module/llm_coding_assistant/ \
-          --count --select=E9,F63,F7,F82 --show-source --statistics
+          --count --select=E9,F63,F7,F82 --show-source --statistics > /tmp/flake8.log 2>&1
+        rc=$?
+        cat /tmp/flake8.log
+        if [ $rc -ne 0 ]; then
+          echo "::error file=flake8.log::flake8 fatal-check failed (exit $rc)"
+          tail -40 /tmp/flake8.log | while IFS= read -r line; do
+            echo "::error file=flake8.log::$line"
+          done
+          exit $rc
+        fi
         # E9/F63/F7/F82: 仅报告致命语法错误和导入错误
         echo "flake8 致命错误检查通过"
         # 完整风格检查（非阻塞，仅输出警告）
