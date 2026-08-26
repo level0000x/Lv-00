@@ -122,7 +122,19 @@ jobs:
 
       - name: CMake build
         run: |
-          cmake --build build --parallel
+          set +e
+          cmake --build build --parallel > /tmp/winbuild.log 2>&1
+          echo $? > /tmp/winbuild_exit
+          tail -60 /tmp/winbuild.log
+          exit $(cat /tmp/winbuild_exit)
+
+      - name: Report Windows build errors (on failure)
+        if: failure()
+        shell: msys2 {0}
+        run: |
+          grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|No rule to make|Error [0-9]" /tmp/winbuild.log 2>/dev/null | head -40 | while IFS= read -r line; do
+            echo "::error file=winbuild.log::$line"
+          done || true
 
   # ── Lean 4 类型检查 (formal/) ──────────────────────────────
   # 注：leanprover/lean4-action 仓库已不可访问，改用 elan 手动安装
