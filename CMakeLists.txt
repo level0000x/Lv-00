@@ -90,6 +90,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     # MinGW 需要 fms-extensions 以支持 __unaligned 等 Microsoft 扩展
     if(WIN32)
         add_compile_options(-fms-extensions)
+    elseif(APPLE)
+        # macOS (AppleClang): Apple SDK 的 <time.h> 在定义 _POSIX_C_SOURCE 时
+        # 会隐藏 clock_gettime/CLOCK_REALTIME（__DARWIN_C_LEVEL 被降级），
+        # 必须改用 _DARWIN_C_SOURCE（lv_platform.h 顶部已统一处理）。
+        add_compile_definitions(_DARWIN_C_SOURCE=1)
     else()
         # POSIX 功能测试宏（编译行级，先于任何系统头生效）：
         # glibc 在严格 C11（-std=c11）下默认不定义 _POSIX_C_SOURCE，

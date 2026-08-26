@@ -63,7 +63,12 @@ jobs:
       shell: bash
       run: |
         set -x
-        grep -nE "error:|fatal error|undefined reference|undefined symbol|Error [0-9]" /tmp/pybuild.log 2>/dev/null | head -40 | while IFS= read -r line; do
+        grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|ld returned|Error [0-9]" /tmp/pybuild.log 2>/dev/null | head -50 | while IFS= read -r line; do
+          echo "::error file=pybuild.log::$line"
+        done || true
+        # 链接错误上下文：collect2/ld 附近的原始行
+        echo "::error file=pybuild.log::=== LD CONTEXT ==="
+        grep -n -B3 -A8 "collect2\|ld returned" /tmp/pybuild.log 2>/dev/null | head -60 | while IFS= read -r line; do
           echo "::error file=pybuild.log::$line"
         done || true
 
