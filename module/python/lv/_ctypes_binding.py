@@ -46,6 +46,22 @@ def _find_library():
     if 'lv_LIBRARY_PATH' in os.environ:
         lib_path = os.environ['lv_LIBRARY_PATH']
         if os.path.exists(lib_path):
+            if os.path.isdir(lib_path):
+                # 容忍目录：自动追加平台共享库名（Windows: liblv.dll/lv.dll，
+                # macOS: liblv.dylib，Linux: liblv.so），避免用户误设目录导致
+                # ctypes.CDLL(目录) 加载失败（修复：此前目录路径 exists 即返回，
+                # CDLL 报 "Could not find module" 被误判为 CRT 不匹配）
+                for name in (['liblv.dll', 'lv.dll'] if sys.platform == 'win32'
+                             else ['liblv.dylib', 'lv.dylib'] if sys.platform == 'darwin'
+                             else ['liblv.so', 'lv.so']):
+                    full = os.path.join(lib_path, name)
+                    if os.path.exists(full):
+                        return full
+                raise ImportError(
+                    f"lv_LIBRARY_PATH 指向目录但不含共享库（{lib_path}）；"
+                    f"目录内未找到平台库名（Windows: liblv.dll，Linux: liblv.so，"
+                    f"macOS: liblv.dylib）。"
+                )
             if lib_path.lower().endswith(('.a', '.lib')):
                 raise ImportError(
                     f"lv_LIBRARY_PATH 指向的是静态库，ctypes 无法加载静态库（.a/.lib）: {lib_path}\n"

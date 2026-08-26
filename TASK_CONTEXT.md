@@ -6911,5 +6911,44 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 ### 遗留登记
 
-- Windows Python CRT 同前；无新增遗留。
+- 无新增遗留。
+
+## 一百一十八、批次 Windows Python 绑定路径 bug 修复（2026-08-27）
+
+用户「尝试解决 Windows CRT 问题」——调查发现**并不存在 CRT 不匹配**，
+而是 `lv_LIBRARY_PATH` 路径用法的 M6 bug 被长期误判。
+
+### ① 根因
+
+- `_ctypes_binding.py` 的 `_find_library()` 对 `lv_LIBRARY_PATH` 只检查
+  `os.path.exists` 即返回——若用户设**目录**（如 `build_symcheck`），
+  `ctypes.CDLL(目录)` 报 "Could not find module"，被包装成"缺少 MSVC
+  运行时"的误导信息，历史批次误判为 MSYS2-DLL vs 官方-Python CRT 不匹配
+  （实际 MSYS2 与官方 Python 的 CDLL 直接加载均成功）。
+- 修复前：设目录路径 → `import lv` 静默走 fallback（lvError 缺失）。
+- 验证：三个 Python（mingw64/ucrt64/官方 3.14）直接 CDLL 加载 liblv.dll
+  全部成功 → 证明无 CRT 问题。
+
+### ② 修复
+
+- `_find_library()`：`lv_LIBRARY_PATH` 指向目录时自动追加平台共享库名
+  （Windows: liblv.dll/lv.dll，macOS: liblv.dylib，Linux: liblv.so）；
+  目录内无共享库时给出明确错误。文件路径与静态库检测逻辑保持。
+
+### ③ 验证（Windows 本地首次完整跑通 Python）
+
+- 官方 Python 3.14 + mingw64 Python 3.14：**pytest 38/38 全过**
+  （此前 Windows 一律跳过，改由 CI Ubuntu/macOS 覆盖）。
+- `import lv` 完整加载（lvError/core 均正常），目录路径自动补全 DLL。
+- build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 缺陷修复 / M6 / lv_LIBRARY_PATH 目录路径 / 自动补全共享库名。
+- **遗留移除**：Windows Python CRT 不匹配（实为路径误用，无 CRT 问题），
+  从遗留清单永久移除；Windows 本地 Python 测试现可直接运行。
+
+### 遗留登记
+
+- 无新增遗留（Windows Python 测试已可本地运行）。
 
