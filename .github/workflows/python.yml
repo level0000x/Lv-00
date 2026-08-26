@@ -80,17 +80,23 @@ jobs:
         echo "configure exit: $?" | tee -a /tmp/wincfg.log
         set +e
         cmake --build build --parallel > /tmp/winbuild.log 2>&1
-        echo "build exit: $?" | tee -a /tmp/winbuild.log
+        echo $? > /tmp/winbuild_exit
+        cat /tmp/winbuild_exit
         tail -40 /tmp/wincfg.log
         tail -60 /tmp/winbuild.log
-        exit $(grep -c "error:" /tmp/winbuild.log >/dev/null && echo 1 || echo 0)
+        exit $(cat /tmp/winbuild_exit)
 
     - name: Report build errors (Windows, on failure)
       if: failure() && runner.os == 'Windows'
       shell: msys2 {0}
       run: |
-        grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|Error [0-9]|error C|mingw32-make.*Error" /tmp/wincfg.log /tmp/winbuild.log 2>/dev/null | head -40 | while IFS= read -r line; do
-          echo "::error file=build.log::$line"
+        echo "::error file=wincfg.log::=== CONFIGURE LOG (tail) ==="
+        tail -40 /tmp/wincfg.log 2>/dev/null | while IFS= read -r line; do
+          echo "::error file=wincfg.log::$line"
+        done || true
+        echo "::error file=winbuild.log::=== BUILD LOG (tail) ==="
+        tail -60 /tmp/winbuild.log 2>/dev/null | while IFS= read -r line; do
+          echo "::error file=winbuild.log::$line"
         done || true
 
     - name: Install Python package
