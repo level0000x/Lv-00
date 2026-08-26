@@ -16,8 +16,14 @@ jobs:
       # 如需完整兼容性验证，可临时添加 3.9 / 3.11 / 3.12 到矩阵中。
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.10', '3.13']
+        include:
+          # Windows 仅测试 3.13：Windows 的 Python 测试/example 已跳过，
+          # 仅保留共享库构建 + flake8/mypy 验证；单个版本避免 MSYS2
+          # 并行安装的 cache 竞争（两个 Windows job 并发常导致卡死/缺包）
+          - os: windows-latest
+            python-version: '3.13'
 
     steps:
     - uses: actions/checkout@v4
@@ -43,6 +49,7 @@ jobs:
       uses: msys2/setup-msys2@v2
       with:
         update: true
+        cache: false
         install: >-
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-cmake
