@@ -159,11 +159,12 @@ jobs:
 
     - name: Run Python tests
       working-directory: module/python
+      shell: bash
       run: |
         set +e
-        pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
+        python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
-        tail -80 /tmp/pytest.log
+        cat /tmp/pytest.log
         exit $(cat /tmp/pytest_exit)
 
     - name: Report pytest failures (on failure)
@@ -178,6 +179,7 @@ jobs:
 
     - name: Run concurrent_monitor tests
       working-directory: module/concurrent_monitor
+      shell: bash
       run: |
         set +e
         python -m pytest tests/ -v > /tmp/concurrent.log 2>&1
@@ -196,6 +198,7 @@ jobs:
 
     - name: Run llm_coding_assistant tests
       working-directory: module/llm_coding_assistant
+      shell: bash
       run: |
         python -m pytest tests/ -v || echo "No tests yet"
 
@@ -208,6 +211,7 @@ jobs:
 
     - name: Run example
       working-directory: module/python
+      shell: bash
       run: |
         set +e
         python examples/basic_usage.py > /tmp/example.log 2>&1
