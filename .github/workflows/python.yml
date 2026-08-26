@@ -14,6 +14,7 @@ jobs:
       # 覆盖旧版兼容性与最新特性，避免 CI 矩阵膨胀浪费资源。
       # 3.8 已于 2024-10 停止维护（EOL），不再测试。
       # 如需完整兼容性验证，可临时添加 3.9 / 3.11 / 3.12 到矩阵中。
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ['3.10', '3.13']
@@ -51,7 +52,20 @@ jobs:
       if: runner.os != 'Windows'
       run: |
         cmake -B build -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
-        cmake --build build --parallel
+        set +e
+        cmake --build build --parallel > /tmp/pybuild.log 2>&1
+        echo $? > /tmp/pybuild_exit
+        cat /tmp/pybuild.log
+        exit $(cat /tmp/pybuild_exit)
+
+    - name: Report build errors (on failure)
+      if: failure() && runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -x
+        grep -nE "error:|fatal error|undefined reference|undefined symbol|Error [0-9]" /tmp/pybuild.log 2>/dev/null | head -40 | while IFS= read -r line; do
+          echo "::error file=pybuild.log::$line"
+        done || true
 
     - name: Build shared library (Windows)
       if: runner.os == 'Windows'
