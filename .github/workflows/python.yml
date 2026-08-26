@@ -131,7 +131,20 @@ jobs:
     - name: Run Python tests
       working-directory: module/python
       run: |
-        pytest tests/ -v --cov=lv --cov-report=xml
+        set +e
+        pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
+        echo $? > /tmp/pytest_exit
+        tail -80 /tmp/pytest.log
+        exit $(cat /tmp/pytest_exit)
+
+    - name: Report pytest failures (on failure)
+      if: failure()
+      shell: bash
+      run: |
+        set -x
+        grep -nE "FAILED|ERROR|error:|assert|AssertionError|ImportError|ModuleNotFoundError|No module" /tmp/pytest.log 2>/dev/null | head -40 | while IFS= read -r line; do
+          echo "::error file=pytest.log::$line"
+        done || true
 
     - name: Run concurrent_monitor tests
       working-directory: module/concurrent_monitor
