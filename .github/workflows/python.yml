@@ -166,6 +166,7 @@ jobs:
       shell: bash
       run: |
         set +e
+        export PYTHONUNBUFFERED=1
         python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
         cat /tmp/pytest.log
@@ -177,7 +178,7 @@ jobs:
       run: |
         set -x
         echo "::error file=pytest.log::=== pytest log FULL ==="
-        cat /tmp/pytest.log 2>/dev/null | head -120 | while IFS= read -r line; do
+        cat /tmp/pytest.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=pytest.log::$line"
         done || true
 
