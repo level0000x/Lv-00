@@ -180,6 +180,8 @@ jobs:
         python -c "import lv; print(lv.__file__)" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
         echo "::error file=import.log::=== core import ==="
         python -c "import lv.core" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
+        echo "::error file=import.log::=== simulate init try block ==="
+        python -c "exec('import traceback\n\ntry:\n    from lv._ctypes_binding import *\n    from lv.core import SymbolicCoord, Point, LineSegment, Graph, GeomNode, NormalizationResult\n    print(\"init try OK\")\nexcept ImportError as e:\n    print(\"ImportError:\", e)\n    traceback.print_exc()')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
         # 诊断：逐个文件收集，定位崩溃点（长 traceback）
         for f in tests/test_graph.py tests/test_symbolic_coord.py tests/test_constants_consistency.py; do
           echo "::error file=collect.log::=== collect $f (tb=long) ==="
