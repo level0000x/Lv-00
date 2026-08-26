@@ -48,6 +48,8 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-make
           mingw-w64-x86_64-gmp
+          mingw-w64-x86_64-python
+          mingw-w64-x86_64-python-pytest
     - name: Build shared library (Ubuntu/macOS)
       if: runner.os != 'Windows'
       run: |
@@ -169,12 +171,12 @@ jobs:
         echo "::error file=dll.log::PATH=$PATH"
         which python || echo "::error file=dll.log::python NOT FOUND"
         python --version 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
-        ls -la build/liblv.dll 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
-        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p, flush=True); lib=ctypes.CDLL(p); print("loaded OK", flush=True)' > /tmp/dll.log 2>&1
-        rc=$?
-        echo "::error file=dll.log::rc=$rc"
-        cat /tmp/dll.log | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
-        exit $rc
+        # 官方 Python (UCRT) 加载 MSYS2 GCC (MSVCRT) 构建的 DLL 会因 CRT 不匹配崩溃；
+        # MSYS2 python 与 DLL 同 CRT，应能加载。两个都试。
+        echo "::error file=dll.log::=== official python ==="
+        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); lib=ctypes.CDLL(p); print("OK official")' 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
+        echo "::error file=dll.log::=== msys2 python ==="
+        /mingw64/bin/python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); lib=ctypes.CDLL(p); print("OK msys2")' 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
 
     - name: Run Python tests
       working-directory: module/python
