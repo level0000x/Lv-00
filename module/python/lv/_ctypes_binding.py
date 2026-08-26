@@ -1796,46 +1796,37 @@ _lib.interactive_geo_restore.restype = c_int
 # 稀疏线性代数函数签名
 # ============================================================
 # SuiteSparse/GraphBLAS风格的半环矩阵运算与约束传播
+#
+# 注意：以下 sparse_* 系列 API 在 C 库中为"可选扩展"（从未实现/未导出），
+# 通过 _bind_if_present 存在性检查绑定：符号存在才设置签名，缺失时跳过
+# （调用方 sparse_la.py 已有 try/except AttributeError 回退，如
+# graph_degree_analysis 的纯 Python 回退）。若在此无条件访问缺失符号，
+# import lv 包即崩溃，导致所有 Python 测试收集失败。
 
-_lib.sparse_matrix_create.argtypes = [c_int, c_int, c_int]
-_lib.sparse_matrix_create.restype = c_void_p
+def _bind_if_present(name, argtypes, restype):
+    """仅在 C 库导出该符号时绑定其 ctypes 签名；缺失返回 None。"""
+    if hasattr(_lib, name):
+        fn = getattr(_lib, name)
+        fn.argtypes = argtypes
+        fn.restype = restype
+        return fn
+    return None
 
-_lib.sparse_matrix_destroy.argtypes = [c_void_p]
-_lib.sparse_matrix_destroy.restype = None
-
-_lib.sparse_matrix_clone.argtypes = [c_void_p]
-_lib.sparse_matrix_clone.restype = c_void_p
-
-_lib.sparse_matrix_print.argtypes = [c_void_p, c_char_p]
-_lib.sparse_matrix_print.restype = None
+_bind_if_present('sparse_matrix_create', [c_int, c_int, c_int], c_void_p)
+_bind_if_present('sparse_matrix_destroy', [c_void_p], None)
+_bind_if_present('sparse_matrix_clone', [c_void_p], c_void_p)
+_bind_if_present('sparse_matrix_print', [c_void_p, c_char_p], None)
 
 # 半环
 # semiring_create 按值返回结构体，ctypes 无法直接处理，需要通过包装函数
 # 此处声明为返回 void*（需 C 侧提供包装）
 
-_lib.semiring_propagate_constraints.argtypes = [POINTER(_ConstraintGraph), c_int, POINTER(c_double), c_int]
-_lib.semiring_propagate_constraints.restype = c_int
-
-_lib.sparse_cholesky_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
-_lib.sparse_cholesky_solve.restype = c_bool
-
-_lib.sparse_lu_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
-_lib.sparse_lu_solve.restype = c_bool
-
-_lib.sparse_qr_solve.argtypes = [c_void_p, POINTER(c_double), POINTER(c_double)]
-_lib.sparse_qr_solve.restype = c_bool
-
-_lib.graph_to_constraint_matrix.argtypes = [POINTER(_ConstraintGraph), POINTER(c_void_p)]
-_lib.graph_to_constraint_matrix.restype = c_bool
-
-_lib.sparse_matrix_multiply.argtypes = [c_void_p, c_void_p, POINTER(c_void_p)]
-_lib.sparse_matrix_multiply.restype = c_bool
-
-_lib.sparse_matrix_transpose.argtypes = [c_void_p, POINTER(c_void_p)]
-_lib.sparse_matrix_transpose.restype = c_bool
-
-_lib.graph_degree_analysis.argtypes = [POINTER(_ConstraintGraph), POINTER(c_void_p)]
-_lib.graph_degree_analysis.restype = c_bool
-
-_lib.degree_analysis_free.argtypes = [c_void_p]
-_lib.degree_analysis_free.restype = None
+_bind_if_present('semiring_propagate_constraints', [POINTER(_ConstraintGraph), c_int, POINTER(c_double), c_int], c_int)
+_bind_if_present('sparse_cholesky_solve', [c_void_p, POINTER(c_double), POINTER(c_double)], c_bool)
+_bind_if_present('sparse_lu_solve', [c_void_p, POINTER(c_double), POINTER(c_double)], c_bool)
+_bind_if_present('sparse_qr_solve', [c_void_p, POINTER(c_double), POINTER(c_double)], c_bool)
+_bind_if_present('graph_to_constraint_matrix', [POINTER(_ConstraintGraph), POINTER(c_void_p)], c_bool)
+_bind_if_present('sparse_matrix_multiply', [c_void_p, c_void_p, POINTER(c_void_p)], c_bool)
+_bind_if_present('sparse_matrix_transpose', [c_void_p, POINTER(c_void_p)], c_bool)
+_bind_if_present('graph_degree_analysis', [POINTER(_ConstraintGraph), POINTER(c_void_p)], c_bool)
+_bind_if_present('degree_analysis_free', [c_void_p], None)
