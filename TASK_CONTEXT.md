@@ -6709,6 +6709,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   图展开需约束图上下文归实例化层）。
 - representation_converter 往返验证完整化（M4：文本级二次编码一致性，
   消除"成功往返即通过"假阳性；透传回调同指针回显不误判）。
+- algebra_point_on / geo_spec / fast_index 注释修正（M5：标准符号构造
+  模式 / points 数组顺序解析 / 均匀网格全局单元大小语义）。
 
 ### ② 验证
 
@@ -6728,7 +6730,7 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 - 功能补齐 / API / algebra_selector_add_child / 复合选择器组合。
 - 功能补齐 / 往返验证 / 文本级二次编码一致性 / 替代"成功即通过"。
 - 注释修正 / M5 / module_lvz 三处简化措辞 / inequality 反证法 /
-  preset_make_recursive 递归预设语义。
+  preset_make_recursive / algebra_point_on / geo_spec / fast_index。
 
 ### 遗留登记
 
