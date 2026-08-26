@@ -239,24 +239,30 @@ extern "C" {
   #define lv_ATOMIC_FENCE_RELEASE()    MemoryBarrier()
   #define lv_ATOMIC_FENCE_SEQ_CST()    MemoryBarrier()
 #else
-  /* int 原子操作 */
-  #define lv_ATOMIC_INC(ptr)           __atomic_add_fetch((ptr), 1, __ATOMIC_SEQ_CST)
-  #define lv_ATOMIC_DEC(ptr)           __atomic_sub_fetch((ptr), 1, __ATOMIC_SEQ_CST)
-  #define lv_ATOMIC_ADD(ptr, val)      __atomic_fetch_add((ptr), (val), __ATOMIC_SEQ_CST)
-  #define lv_ATOMIC_SUB(ptr, val)      __atomic_fetch_sub((ptr), (val), __ATOMIC_SEQ_CST)
+  /* POSIX: GCC/Clang __atomic_* 内建。
+   * 注意：调用点可能传 _Atomic(int) *（如 constraint_graph.h 的
+   * GRAPH_ATOMIC_NODE_ID_INCREMENT），__atomic_* 内建不接受 _Atomic
+   * 限定指针（Clang 报 "address argument to atomic operation must be
+   * a pointer to integer or pointer"）。用 __typeof__(*(ptr)) 去除
+   * _Atomic/volatile/const 限定符后再取指针。 */
+  #define lv_ATOMIC_UNQUAL_PTR(ptr) ((__typeof__(*(ptr)) *)(ptr))
+  #define lv_ATOMIC_INC(ptr)           __atomic_add_fetch(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_SEQ_CST)
+  #define lv_ATOMIC_DEC(ptr)           __atomic_sub_fetch(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_SEQ_CST)
+  #define lv_ATOMIC_ADD(ptr, val)      __atomic_fetch_add(lv_ATOMIC_UNQUAL_PTR(ptr), (val), __ATOMIC_SEQ_CST)
+  #define lv_ATOMIC_SUB(ptr, val)      __atomic_fetch_sub(lv_ATOMIC_UNQUAL_PTR(ptr), (val), __ATOMIC_SEQ_CST)
   /* 64 位原子操作 */
-  #define lv_ATOMIC_INC64(ptr)         __atomic_fetch_add((ptr), 1, __ATOMIC_RELAXED)
-  #define lv_ATOMIC_DEC64(ptr)         __atomic_fetch_sub((ptr), 1, __ATOMIC_RELAXED)
-  #define lv_ATOMIC_ADD64(ptr, val)    __atomic_fetch_add((ptr), (val), __ATOMIC_RELAXED)
+  #define lv_ATOMIC_INC64(ptr)         __atomic_fetch_add(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_RELAXED)
+  #define lv_ATOMIC_DEC64(ptr)         __atomic_fetch_sub(lv_ATOMIC_UNQUAL_PTR(ptr), 1, __ATOMIC_RELAXED)
+  #define lv_ATOMIC_ADD64(ptr, val)    __atomic_fetch_add(lv_ATOMIC_UNQUAL_PTR(ptr), (val), __ATOMIC_RELAXED)
   /* 通用原子操作 */
-   #define lv_ATOMIC_EXCHANGE(ptr, v)   __atomic_exchange_n((ptr), (v), __ATOMIC_SEQ_CST)
-   #define lv_ATOMIC_STORE(ptr, val)    __atomic_store_n((ptr), (val), __ATOMIC_RELAXED)
-   #define lv_ATOMIC_LOAD(ptr)          __atomic_load_n((ptr), __ATOMIC_RELAXED)
-   #define lv_ATOMIC_CAS(ptr, exp, des) __atomic_compare_exchange_n((ptr), (exp), (des), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+   #define lv_ATOMIC_EXCHANGE(ptr, v)   __atomic_exchange_n(lv_ATOMIC_UNQUAL_PTR(ptr), (v), __ATOMIC_SEQ_CST)
+   #define lv_ATOMIC_STORE(ptr, val)    __atomic_store_n(lv_ATOMIC_UNQUAL_PTR(ptr), (val), __ATOMIC_RELAXED)
+   #define lv_ATOMIC_LOAD(ptr)          __atomic_load_n(lv_ATOMIC_UNQUAL_PTR(ptr), __ATOMIC_RELAXED)
+   #define lv_ATOMIC_CAS(ptr, exp, des) __atomic_compare_exchange_n(lv_ATOMIC_UNQUAL_PTR(ptr), (exp), (des), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
    /* lv_ATOMIC_CAS_BOOL: 比较并交换，返回是否成功
     * (e) 为期望值的左值指针（如 &expected），会被写入实际值
     * (d) 为 desired 新值 */
-   #define lv_ATOMIC_CAS_BOOL(ptr,d,e)  __atomic_compare_exchange_n((ptr), (e), (d), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+   #define lv_ATOMIC_CAS_BOOL(ptr,d,e)  __atomic_compare_exchange_n(lv_ATOMIC_UNQUAL_PTR(ptr), (e), (d), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
   /* 内存屏障 */
   #define lv_ATOMIC_FENCE_ACQUIRE()    __atomic_thread_fence(__ATOMIC_ACQUIRE)
   #define lv_ATOMIC_FENCE_RELEASE()    __atomic_thread_fence(__ATOMIC_RELEASE)
