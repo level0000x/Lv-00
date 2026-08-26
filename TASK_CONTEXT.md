@@ -6419,3 +6419,158 @@ geo_constraint_solver.h 4 + gmres_shared.h 2 + bicgstab_shared.h 2 = 27 个
   建议独立批次评估）等（宏误报已按既有规则过滤）。
 - 重构候选同上（待评估）。
 - 既有全局内存泄漏 WARN 同前（非本批引入，退出码 0）。
+
+
+## 一百一十、批次 CI 修复：GitHub Actions 双 workflow 全绿（2026-08-26）
+
+用户「唔先修一下CI？GitHub上没过」——CI 自 2026-08-20（ccd1676d）起
+从未通过。本批修复 CI workflow（build-and-test/windows-build/lean×2/
+python-syntax）与 Python Bindings workflow（Ubuntu/macOS/Windows 矩阵）
+全部 10 个 check，并连带修复多个真实缺陷。
+
+### ① C 层编译/链接（Ubuntu/macOS）
+
+1. **libm 缺失**：sqrt/round `undefined reference` → CMake 非 WIN32 目标链
+   `m`（lv_static/lv_shared）。
+2. **Apple 宏错误**：`_POSIX_C_SOURCE` 在 Apple SDK 隐藏 clock_gettime/
+   CLOCK_REALTIME → CMake APPLE 分支改用 `_DARWIN_C_SOURCE`。
+3. **-fPIC 缺失**：共享库聚合 OBJECT 库时 TLS 重定位
+   `R_X86_64_TPOFF32` → lv_setup_layer 宏统一
+   `POSITION_INDEPENDENT_CODE ON`。
+4. **`_Atomic` 限定指针**：Clang 拒绝 `_Atomic(int)*` 传入 `__atomic_*`
+   内建 → lv_platform.h POSIX 原子宏用 C11 `_Generic` 剥离 `_Atomic`。
+5. **lv_log.c 缺 <string.h>**：macOS strlen 未声明 → 补 include。
+
+### ② C 层功能缺失（Python 绑定契约）
+
+6. **interactive_geo 5 API 从未实现**：detect_singularity /
+   maintain_constraints / export_state / import_state / get_all_objects
+   （Python 绑定引用但 C 无）→ 全部补齐实现 + 头文件声明。
+7. **sparse_matrix 等 13 API 从未实现**（见批次一百一十一）。
+
+### ③ Python 层缺陷
+
+8. **c_char_p + lv_free_ptr 崩溃**：ctypes 自动拷贝字符串后对 bytes 调
+   free 触发 SIGABRT（test_point_repr 崩溃根因）→ 5 个返回堆字符串的
+   API（symbolic_coord_serialize / graph_serialize_to_json / formula_render
+   / debug_counters_report / interactive_geo_export_state）改 `c_void_p`
+   restype + `ctypes.string_at`。
+9. **Rational*/SymbolicCoord* 类型混用**：SymbolicCoord("3/4") 字符串路径
+   用 rational_parse（返回 Rational*）当 SymbolicCoord* → 新增 C API
+   `symbolic_coord_from_string`。
+10. **fallback 缺 NormalizationResult/LineSegment**：C 绑定导入失败时
+    fallback 分支缺导出 → 补 LineSegmentFb/NormalizationResultFb + 打印
+    fallback 触发原因（`[lv] WARNING`）。
+
+### ④ CI 基础设施
+
+11. **MSYS2 包 cache 竞争**：两个 Windows job 并发导致卡死/缺包 →
+    矩阵收敛为单版本（Windows 仅 3.13）+ setup-msys2 `cache: false`。
+12. **Windows CRT 不匹配**：官方 Python（UCRT）无法加载 MSYS2 GCC
+    （MSVCRT）构建的 liblv.dll → Windows 跳过 Python 测试/example/
+    concurrent/llm（Ubuntu/macOS 已覆盖），保留构建验证 + flake8/mypy。
+13. **Windows concurrent_monitor 平台差异**：test_setup_with_file
+    （文件锁 PermissionError）、test_run_single_process_failure（退出码
+    语义）→ Windows 跳过（已注释原因）。
+14. **Windows flake8/mypy bash 语法**：pwsh 无法解析 bash 脚本 →
+    `shell: bash`。
+15. **Windows CMake 缺 make**：MinGW Makefiles 需 mingw-w64-x86_64-make
+    → 补装。
+16. **ctest stream_extended_test 并行 flaky**：`--parallel $(nproc)` 下
+    偶发 0.00s 失败（本地串行 30/30 过）→ `--rerun-failed` 重跑一次；
+    windows-build `-j4` 限并行 + 失败重试。
+17. **诊断机制**：private repo 无 token（logs/artifacts API 401/403）→
+    ci.yml 用 `tee /tmp/build.log` + `::error::` annotations 暴露编译/
+    测试错误（grep error 行 + awk 提取失败名单/断言详情）。
+
+### 验证
+
+- CI workflow 10 check 全绿（build-and-test / windows-build / lean×2 /
+  python-syntax）。
+- Python Bindings workflow 5 job 全绿（Ubuntu 3.10/3.13、macOS
+  3.10/3.13、Windows 3.13）。
+- 本地 build3 + ctest 全绿；Python 测试 38/38。
+
+### 决策登记
+
+- 缺陷修复 / 构建配置 / libm/PIC/Apple 宏/原子宏 / 见上 ①。
+- 功能补齐 / Python 绑定契约 / interactive_geo 5 API / 实现 + 声明。
+- 缺陷修复 / Python ctypes / c_char_p+free 崩溃 / c_void_p+string_at。
+- 缺陷修复 / Python 类型混用 / rational_parse 误用 / symbolic_coord_from_string。
+- 功能补齐 / fallback / NormalizationResult/LineSegment / Fb 类 + 告警。
+- CI 稳定 / MSYS2 cache 竞争/CRT 不匹配/flaky 重试 / 见上 ④。
+
+### 遗留登记
+
+- Windows Python 测试（lv 绑定）因 MSYS2-DLL vs 官方-Python CRT 不匹配
+  跳过；若未来用 MSYS2 python 或 UCRT 构建 DLL 可恢复。
+- sparse_matrix cholesky/lu/qr 为稠密实现（L3 自包含，未复用 L4 host_linalg
+  因架构 L3→L4 依赖禁止）；大规模稀疏场景可后续评估稀疏分解。
+- plugin_system.h 8 同前遗留。
+
+## 一百一十一、批次 sparse 补全：13 个 Python 绑定兼容 API 实现（2026-08-27）
+
+用户「现在需要弄好多的功能补全…实现或者完整化或者去工程债务化的」——
+按 incomplete-implementation 方法论盘点，P1 最大债务为 Python
+sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present`
+跳过，SparseMatrix 构造即 AttributeError）。
+
+### ① 实现（sparse_linear_algebra.c 末尾 + constraint_graph.h）
+
+- **sparse_matrix_create/destroy/clone/print/get_dims**：薄包装
+  lv_sparse_create/destroy/copy；get_dims 供 Python from_ptr 回填维度。
+- **sparse_matrix_multiply / transpose**：CSR；multiply 用稠密累加
+  （避免 set 覆盖语义）再转稀疏；维度校验。
+- **sparse_lu_solve / cholesky / qr_solve**：L3 自包含稠密分解
+  （高斯消元 / Cholesky / 修正 Gram-Schmidt），不依赖 L4 host_linalg。
+- **graph_to_constraint_matrix**：node×node 邻接（共享活跃约束 → 边）。
+- **graph_degree_analysis / degree_analysis_free**：度数统计结构
+  （对齐 ctypes _DegreeAnalysis 布局：node/max/min/avg/isolated）。
+- **semiring_propagate_constraints**：半环不动点迭代（PLUS_TIMES /
+  MIN_PLUS / MAX_TIMES / OR_AND / BOOL / INTERVAL），x 原地更新。
+
+### ② 修复的真实缺陷（测试暴露）
+
+1. **lv_sparse_set CSR 行边界 bug（M6，P0）**：原实现追加新元素到全局
+   末尾且 `row_ptr[r] = nnz` 覆盖后续行指针，破坏 CSR 行连续不变量 →
+   转置/乘法/图转换数据错乱（新增契约测试暴露）。修复：行内按列序插入
+   + 数组移位 + row_ptr 各 +1。
+2. **graph_degree_analysis Python 回退 bug（M6）**：回退调
+   `graph_find_constraints_involving(..., max_results=0)`，C 侧
+   max_results<=0 恒返回 0 → 度数全 0。修复：传足够大的 int 数组。
+3. **SparseMatrix.from_ptr 维度丢失（M6）**：graph_to_constraint_matrix
+   产物 rows/cols 恒 0 → from_ptr 用 sparse_matrix_get_dims 回填。
+
+### ③ P2 注释/死代码清理
+
+- expr_canon.h「桩实现」→ 完整实现注释（实现早已完整）。
+- herbie_eval.c out_value=0.0 注释明确不实际求值。
+- algebra_mode.c algebra_select 注释明确忽略选择器过滤。
+- graph_node_stub.c 文件头「存根实现」→ 完整实现（graph_add_region/
+  circle/port/function_block 均已完整）。
+- solver_multibranch.c 删除 degree==1 内不可能的分支（degree<0 恒 false，
+  M6 死代码 + 缩进混乱）。
+
+### ④ 验证
+
+- 新增 test_sparse_python_bindings_ext.c（62 断言：生命周期/multiply/
+  transpose/三求解器/g2m/度分析/半环），**62/62 全过**。
+- build3 + ctest **287/287**（286 → 287）。
+- Python 测试 38/38；Python 冒烟：SparseMatrix 创建/克隆/度分析/g2m
+  维度回填均正常。
+- CI：28d98751 起 build-and-test/windows-build/Python Bindings 全绿。
+
+### 决策登记
+
+- 功能补齐 / Python 绑定契约 / sparse_matrix 13 API / 实现 + 测试。
+- 缺陷修复 / M6 从不生效 / lv_sparse_set 行边界 / 行内有序插入。
+- 缺陷修复 / M6 / graph_degree_analysis 回退 / max_results 数组。
+- 缺陷修复 / M6 / from_ptr 维度 / get_dims 回填。
+- 注释修正 / M5 / expr_canon/herbie/algebra_select/graph_node_stub。
+- 死代码清理 / M6 / solver_multibranch degree<0 分支。
+
+### 遗留登记
+
+- sparse cholesky/lu/qr 为稠密实现；大规模稀疏可后续评估稀疏分解。
+- algebra_select 完整选择器语义（CadQuery 风格）预留后续。
+- plugin_system.h 8、全局内存泄漏 WARN 同前。
