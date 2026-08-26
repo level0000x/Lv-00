@@ -167,16 +167,13 @@ jobs:
       run: |
         set -x
         export PATH="$(cygpath -u "$RUNNER_TEMP")/msys64/mingw64/bin:$PATH"
-        echo "PATH=$PATH"
-        ls -la build/liblv.dll 2>&1 | head -3
-        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p); lib=ctypes.CDLL(p); print("loaded OK:", lib)' 2>&1 | tee /tmp/dllverify.log | head -10
-        rc=${PIPESTATUS[0]}
-        echo "dll verify rc=$rc"
-        if [ $rc -ne 0 ]; then
-          echo "::error file=dllverify.log::DLL load failed"
-          cat /tmp/dllverify.log | while IFS= read -r line; do echo "::error file=dllverify.log::$line"; done
-          exit $rc
-        fi
+        echo "::error file=dll.log::PATH=$PATH"
+        ls -la build/liblv.dll 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
+        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p, flush=True); lib=ctypes.CDLL(p); print("loaded OK", flush=True)' > /tmp/dll.log 2>&1
+        rc=$?
+        echo "::error file=dll.log::rc=$rc"
+        cat /tmp/dll.log | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
+        exit $rc
 
     - name: Run Python tests
       working-directory: module/python
