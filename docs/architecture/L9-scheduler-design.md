@@ -1,6 +1,6 @@
 # L9 调度层架构设计草案（可信分片调度）
 
-> 状态：草案 v0.1（2026-08-27）
+> 状态：草案 v0.2（2026-08-27）
 > 来源：《进程相关思考.txt》设计思路提炼 + Lv-00 现有设施盘点
 > 决策原则：**能隔离的绝不共享，能落盘的绝不传输，能重算的绝不恢复。**
 
@@ -83,6 +83,71 @@ L9 调度层**不是从零实现**。盘点确认以下设施已存在且可直�
   - 重算产生的同分片证书仅覆盖旧版本，不产生冲突（版本化）。
 - **消费端解耦**：编译器（L5 proof_compiler + L10 桥）只读文件，不参与分布式状态维护。
 
+### 2.3 证书文件格式（.proof.cert）
+
+证书 = **信封头 + 证明正文**（文本格式，UTF-8，`\n` 行尾，单文件）。
+
+```
+; Lv-00 Proof Certificate
+; format-version: 1
+; shard-id: 3
+; shard-count: 8
+; task-id: 6f2c9a1e
+; version: 2
+; content-hash: sha256:9f7c...（正文的 SHA-256，供编译器快速校验完整性）
+; created: 2026-08-27T03:00:00Z
+; status: PROVED
+; target: shard_3_cert
+---BEGIN PROOF---
+<证明正文，见下>
+---END PROOF---
+```
+
+#### 2.3.1 证明正文（复用 ProofStep 序列，三层可选）
+
+**层级 A —— 规范证明步骤（默认，ProofNavigator 直出）**
+逐行序列化 ProofStep（`proof.h` 的字段），与 `interop_export_canonical` 同风格：
+
+```
+STEP <id> <type> color=<ProofColor> node=<node_id> constraint=<constraint_id> rule=<rule_id> [merged=<a,b,c>] [retained=<id>] deps=<d1,d2,...> [note="..."]
+```
+
+示例：
+```
+STEP 0 add_point color=green node=5 constraint=-1 rule=-1 deps=
+STEP 1 add_segment color=green node=7 constraint=-1 rule=-1 deps=0
+STEP 2 add_incidence color=green node=-1 constraint=3 rule=-1 deps=0,1
+```
+
+**层级 B —— Lean 可编译证明（`---BEGIN PROOF---` 内直接为 Lean 代码）**
+复用 `interop_export_lean` 的输出（`have h_node_5 : True := by ...`），编译器直接调 `lean4_bridge` 编译验证。这是"编译检查"的最强形态。
+
+**层级 C —— Coq/OPML 证明**
+复用 `interop_export_coq` / `opml_codec` 输出，供 Coq/OPML 消费端。
+
+#### 2.3.2 选择规则
+
+| 消费端 | 证明正文层 | 验证方式 |
+|---|---|---|
+| Lean 编译器 | B（Lean 代码） | `lean4_bridge` 编译 |
+| Coq 编译器 | C（Coq 代码） | coq_bridge 编译 |
+| 内部 ProofNavigator | A（规范步骤） | proof_compiler 重放验证 |
+
+> 证书格式与证明正文分层：**信封（元数据）固定，正文（证明）按消费端选择**。
+> 同一分片可产出 A/B/C 三层并存（`---BEGIN PROOF-LEAN---` 等多段），
+> 或按 `target` 字段只产一层。默认 Lean 层（最强编译检查）。
+
+#### 2.3.3 原子写与版本化
+
+```
+shard_3.proof.cert.tmp   ← 计算进程写入（含 content-hash 头）
+shard_3.proof.cert       ← rename（原子替换，编译器只读此名）
+shard_3.proof.cert.v1    ← 历史版本（可选保留，调试用）
+```
+
+- 编译器读取：先校 `content-hash`（与正文 SHA-256 比对）→ 再按层编译验证。
+- 哈希不匹配 → 判定证书损坏 → 触发重调度（不信任该进程执行状态）。
+
 ---
 
 ## 3. 序列化策略
@@ -153,7 +218,7 @@ core/src/layer9_scheduler/
 | scheduler_core（分片调度内核） | 800-1200 | 队列 + 规则分发借鉴 engine_scheduler 思想，任务队列自建 |
 | scheduler_shard（分片划分） | 300-500 | 复用 fast_index 网格 |
 | scheduler_worker（进程管理） | 300-400 | lv_external_process_run 封装 |
-| scheduler_cert（证书原子写/版本化） | 300-500 | **全新** |
+| scheduler_cert（证书原子写/版本化/格式编解码） | 400-600 | **全新**（信封 + 三层证明正文） |
 | scheduler_verify（验证编排） | 200-300 | proof_compiler 封装 |
 | scheduler_proto（进程协议） | 300-500 | interop_server 复用 + 证书旁路 |
 | 公共头文件 + API | 200-300 | 新增 |
