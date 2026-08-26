@@ -6703,6 +6703,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   selector_node_matches_type/contains。
 - module_lvz.c 三处"简化实现"注释修正（M5：有理数坐标/端点 ID/
   数字参数解析均为完整实现，措辞误导）。
+- inequality_reasoning_prove.c 反证法注释澄清（M5：直接矛盾匹配为
+  当前系统语义内的完整检测，传递链归 solver 层）。
 
 ### ② 验证
 
@@ -6718,7 +6720,7 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 - 功能补齐 / 选择器 / 12 类型完整过滤语义 / 替代"返回全部节点"近似。
 - 功能补齐 / API / algebra_selector_add_child / 复合选择器组合。
-- 注释修正 / M5 / module_lvz 三处简化措辞。
+- 注释修正 / M5 / module_lvz 三处简化措辞 / inequality 反证法澄清。
 
 ### 遗留登记
 

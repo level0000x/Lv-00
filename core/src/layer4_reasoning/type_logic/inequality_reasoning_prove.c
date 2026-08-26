@@ -284,7 +284,10 @@ static lvInequalityStatus prove_contradiction_method(lvInequality *ineq, const l
                                                      lvInequalityProof **proof) {
     (void) proof;
     if (sys && sys->inequalities.count > 0) {
-        /* 简化：如果系统非空，尝试否定目标看是否矛盾 */
+        /* 反证法（直接矛盾路径）：否定目标后若与系统中某约束直接冲突
+         * （同一左右项、类型互为否定）则目标得证。
+         * 注：系统级一致性（传递链/区间推断）由 solver 层处理，
+         * 此处覆盖可直接判定的直接矛盾场景。 */
         lvInequalityType neg = ineq_negate_type(ineq->type);
         /* 如果否定后与系统中某个约束直接矛盾 */
         for (int i = 0; i < sys->inequalities.count; i++) {
