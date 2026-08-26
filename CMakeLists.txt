@@ -1665,6 +1665,11 @@ target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
 if(WIN32)
     # interop_server.c 使用 winsock API，静态库需传递 ws2_32 依赖
     target_link_libraries(lv_static ws2_32)
+else()
+    # Linux/macOS: sqrt/round 等数学函数位于 libm（glibc 不随 libc 提供），
+    # 需显式链接 -lm 并传递给消费者（此前 Ubuntu/macOS 链接阶段报
+    # "undefined reference to `sqrt'/'round'"）
+    target_link_libraries(lv_static m)
 endif()
 set_target_properties(lv_static PROPERTIES OUTPUT_NAME lv)
 
@@ -1711,6 +1716,9 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(lv_shared ${GMP_LIBRARIES} Threads::Threads)
     if(WIN32)
         target_link_libraries(lv_shared ws2_32)
+    else()
+        # 与 lv_static 一致：非 Windows 平台显式链接 libm
+        target_link_libraries(lv_shared m)
     endif()
     # v1.1.0: 定义 lv_BUILD_SHARED 以启用 lv.h 中的 dllexport/visibility
     target_compile_definitions(lv_shared PRIVATE lv_BUILD_SHARED)
