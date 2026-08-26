@@ -29,7 +29,9 @@ try:
     from lv.async_stream import (  # noqa: F401
         AsyncStreamIterator, BufferedStreamCollector,
     )
-except ImportError:
+except ImportError as _imp_err:
+    import sys as _sys
+    print(f"[lv] WARNING: C binding import failed, using fallback: {_imp_err}", file=_sys.stderr)
     from lv.fallback import enable_fallback
     enable_fallback()
     # 回退模式下顶层 API 与 C 绑定路径保持一致：
@@ -38,4 +40,6 @@ except ImportError:
         GraphFb as Graph,
         SymbolicCoordFb as SymbolicCoord,
         PointFb as Point,
+        LineSegmentFb as LineSegment,
+        NormalizationResultFb as NormalizationResult,
     )

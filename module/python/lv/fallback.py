@@ -20,6 +20,8 @@ __all__ = [
     "_FakeBinding",
     "SymbolicCoordFb",
     "PointFb",
+    "LineSegmentFb",
+    "NormalizationResultFb",
     "GraphFb",
     "_TriangleFb",
 ]
@@ -428,3 +430,29 @@ class GraphFb:
 
     def __repr__(self) -> str:
         return self.summary()
+
+
+class LineSegmentFb:
+    """Fallback line segment between two PointFb endpoints."""
+
+    __slots__ = ("p1", "p2")
+
+    def __init__(self, p1: PointFb, p2: PointFb) -> None:
+        self.p1 = p1
+        self.p2 = p2
+
+    def length(self) -> float:
+        return self.p1.distance_to(self.p2)
+
+    def __repr__(self) -> str:
+        return f"LineSegmentFb({self.p1!r}, {self.p2!r})"
+
+
+class NormalizationResultFb:
+    """Fallback normalization result placeholder (no C DLL available)."""
+
+    def __init__(self, merged_count: int = 0) -> None:
+        self.merged_count = merged_count
+
+    def __repr__(self) -> str:
+        return f"NormalizationResultFb(merged={self.merged_count})"
