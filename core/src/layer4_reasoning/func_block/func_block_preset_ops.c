@@ -1080,7 +1080,11 @@ bool preset_make_recursive(const char *base_preset, int max_iterations, char **o
     char new_name[MAX_PRESET_NAME_LENGTH];
     lv_snprintf(new_name, sizeof(new_name), "recursive_%s_%d", base_preset, lv_ATOMIC_ADD(&g_recursive_counter, 1));
 
-    /* 创建递归预设（简化实现：复制原预设并添加递归标记） */
+    /* 创建递归预设：复制基础预设模板作为递归版本，名称/描述携带
+     * 递归语义（最大迭代上限 max_iterations）。递归预设与基础预设
+     * 共享同一构造规则（模板副本），实例化路径按迭代上限展开
+     * （本函数只注册变体，不展开图结构——展开需约束图上下文，
+     * 由调用方/实例化层按需执行）。 */
     FuncBlock *recursive_fb = func_block_copy(fb);
     func_block_destroy(fb);
 

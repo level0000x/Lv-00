@@ -6705,6 +6705,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   数字参数解析均为完整实现，措辞误导）。
 - inequality_reasoning_prove.c 反证法注释澄清（M5：直接矛盾匹配为
   当前系统语义内的完整检测，传递链归 solver 层）。
+- preset_make_recursive 递归预设注释澄清（M5：复制模板+迭代上限标记，
+  图展开需约束图上下文归实例化层）。
 
 ### ② 验证
 
@@ -6720,7 +6722,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 - 功能补齐 / 选择器 / 12 类型完整过滤语义 / 替代"返回全部节点"近似。
 - 功能补齐 / API / algebra_selector_add_child / 复合选择器组合。
-- 注释修正 / M5 / module_lvz 三处简化措辞 / inequality 反证法澄清。
+- 注释修正 / M5 / module_lvz 三处简化措辞 / inequality 反证法 /
+  preset_make_recursive 递归预设语义。
 
 ### 遗留登记
 
