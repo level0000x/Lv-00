@@ -79,6 +79,14 @@ jobs:
         cmake -B build -G "MinGW Makefiles" -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
         cmake --build build --parallel
 
+    - name: Report build errors (Windows, on failure)
+      if: failure() && runner.os == 'Windows'
+      shell: msys2 {0}
+      run: |
+        cmake --build build --parallel 2>&1 | grep -nE "error:|fatal error|undefined reference|undefined symbol|multiple definition|duplicate symbol|cannot find|relocation|Error [0-9]" | head -40 | while IFS= read -r line; do
+          echo "::error file=build.log::$line"
+        done || true
+
     - name: Install Python package
       working-directory: module/python
       run: |
