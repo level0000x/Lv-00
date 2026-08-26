@@ -293,6 +293,8 @@ static int test_find_merge_candidates(void) {
 
     printf("  find_merge_candidates: PASSED\n");
     merge_candidates_destroy(candidates, count);
+    /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+    symbolic_coord_destroy(c);
     graph_destroy(graph);
     return 0;
 }
@@ -366,6 +368,8 @@ static void test_rewrite_history_api(void) {
     sc1.data.rational = rational_create(100, 1);
     sc1.trust = TRUST_GREEN;
     TEST_ASSERT_MSG(graph_add_point_xy(graph, &sc1, &sc1) >= 0, "添加点");
+    /* graph_add_point 深拷贝坐标，栈 SymbolicCoord 的 rational 由本侧释放 */
+    rational_destroy(sc1.data.rational);
     TEST_ASSERT_MSG(!rewrite_history_check_cycle(hist, graph), "修改后无循环");
 
     rewrite_history_add(hist, graph);
@@ -400,6 +404,9 @@ static void test_topological_idempotency_api(void) {
     sc2.trust = TRUST_GREEN;
     TEST_ASSERT_MSG(graph_add_point_xy(graph, &sc1, &sc1) >= 0, "添加点1");
     TEST_ASSERT_MSG(graph_add_point_xy(graph, &sc2, &sc2) >= 0, "添加点2");
+    /* graph_add_point 深拷贝坐标，栈 SymbolicCoord 的 rational 由本侧释放 */
+    rational_destroy(sc1.data.rational);
+    rational_destroy(sc2.data.rational);
     graph_topological_sort_stable(graph);
     TEST_ASSERT_EQ(graph->node_count, 2);
     TEST_ASSERT_MSG(normalization_verify_idempotency(graph), "简单图幂等");
@@ -442,6 +449,11 @@ static void test_merge_ops_api(void) {
     AddNodeResult ib = graph_add_point_xy(graph, &sc_b, &sc_a);
     AddNodeResult ic = graph_add_point_xy(graph, &sc_c, &sc_d);
     AddNodeResult id = graph_add_point_xy(graph, &sc_d, &sc_c);
+    /* graph_add_point 深拷贝坐标，栈 SymbolicCoord 的 rational 由本侧释放 */
+    rational_destroy(sc_a.data.rational);
+    rational_destroy(sc_b.data.rational);
+    rational_destroy(sc_c.data.rational);
+    rational_destroy(sc_d.data.rational);
     TEST_ASSERT_MSG(ia >= 0 && ib >= 0 && ic >= 0 && id >= 0, "添加点");
     /* 线段 AB 与 CD（同坐标端点：A==C, B==D） */
     TEST_ASSERT_MSG(graph_add_line_segment(graph, (int) ia, (int) ib) >= 0, "添加线段1");

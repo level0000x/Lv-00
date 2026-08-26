@@ -155,10 +155,18 @@ static bool has_event_with_description(const char *desc) {
 static int add_rational_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn, uint64_t yd) {
     SymbolicCoord *cx = mk_rat(xn, xd);
     SymbolicCoord *cy = mk_rat(yn, yd);
-    if (!cx || !cy)
+    if (!cx || !cy) {
+        if (cx)
+            symbolic_coord_destroy(cx);
+        if (cy)
+            symbolic_coord_destroy(cy);
         return -1;
+    }
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
+    /* graph_add_point 深拷贝坐标，调用方保留所有权：成功/失败均释放 */
+    symbolic_coord_destroy(cx);
+    symbolic_coord_destroy(cy);
     return (res == ADD_NODE_OK) ? (g->next_node_id - 1) : -1;
 }
 
@@ -360,9 +368,11 @@ static void test_engine_solve_stream_integration(void) {
     SymbolicCoord *cy = symbolic_coord_create_quadratic(qa, qb, 3);
     SymbolicCoord *c_coords[] = {cx, cy};
     graph_add_point(g, c_coords, 2);
-    /* NOTE: Do NOT destroy qa/qb here — the quadratic coord cy may
-     * internally reference them, and the graph takes ownership of coords.
-     * Destroying them early would cause use-after-free heap corruption. */
+    /* graph_add_point 深拷贝坐标（quadratic 的 a/b 一并复制），调用方保留
+     * 所有权：cy 拥有 qa/qb，随 symbolic_coord_destroy(cy) 一并释放。
+     * 深拷贝语义下此处释放 cx/cy 安全（与 graph_add_point 契约一致）。 */
+    symbolic_coord_destroy(cx);
+    symbolic_coord_destroy(cy);
     int c = g->next_node_id - 1;
 
     int ab = graph_add_line_segment(g, a, b);

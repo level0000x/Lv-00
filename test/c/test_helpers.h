@@ -108,6 +108,9 @@ static inline int add_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t
 
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult result = graph_add_point(g, coords, 2);
+    /* graph_add_point 深拷贝坐标，调用方保留所有权：成功路径也须释放 */
+    symbolic_coord_destroy(cx);
+    symbolic_coord_destroy(cy);
     if (result != ADD_NODE_OK) {
         fprintf(stderr, "  [ERROR] add_point: graph_add_point failed (result=%d)\n", result);
         return -1;

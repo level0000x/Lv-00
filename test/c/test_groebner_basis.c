@@ -39,6 +39,9 @@ static int add_rat_point(ConstraintGraph *g, int64_t xn, uint64_t xd, int64_t yn
     }
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
+    /* graph_add_point 深拷贝坐标，调用方保留所有权：成功/失败均释放 */
+    symbolic_coord_destroy(cx);
+    symbolic_coord_destroy(cy);
     if (res != ADD_NODE_OK)
         return -1;
     return g->next_node_id - 1;

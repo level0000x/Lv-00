@@ -47,9 +47,10 @@ static ConstraintGraph *create_fully_specified_graph(void) {
 
     SymbolicCoord *coords[] = {cx, cy};
     AddNodeResult res = graph_add_point(g, coords, 2);
+    /* graph_add_point 深拷贝坐标，调用方保留所有权：成功/失败均释放 */
+    symbolic_coord_destroy(cx);
+    symbolic_coord_destroy(cy);
     if (res != ADD_NODE_OK) {
-        symbolic_coord_destroy(cx);
-        symbolic_coord_destroy(cy);
         graph_destroy(g);
         return NULL;
     }

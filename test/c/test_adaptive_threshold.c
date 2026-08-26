@@ -72,8 +72,26 @@ static ConstraintGraph *create_complex_graph(void) {
     /* 第一个连通分量：四边形 + 对角线（4个点） */
     for (int i = 0; i < 4; i++) {
         /* 使用非共线点：避免 incidence 冲突 */
-        SymbolicCoord *coords[2] = {symbolic_coord_create_rational(i, 1), symbolic_coord_create_rational(i % 2, 1)};
-        graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
+        SymbolicCoord *cx = symbolic_coord_create_rational(i, 1);
+        SymbolicCoord *cy = symbolic_coord_create_rational(i % 2, 1);
+        if (!cx || !cy) {
+            if (cx)
+                symbolic_coord_destroy(cx);
+            if (cy)
+                symbolic_coord_destroy(cy);
+            graph_destroy(graph);
+            return NULL;
+        }
+        SymbolicCoord *coords[2] = {cx, cy};
+        if (graph_add_point(graph, (SymbolicCoord *const *) coords, 2) != ADD_NODE_OK) {
+            symbolic_coord_destroy(cx);
+            symbolic_coord_destroy(cy);
+            graph_destroy(graph);
+            return NULL;
+        }
+        /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+        symbolic_coord_destroy(cx);
+        symbolic_coord_destroy(cy);
         ids[i] = graph_get_last_added_node_id(graph);
     }
 
@@ -105,8 +123,26 @@ static ConstraintGraph *create_complex_graph(void) {
 
     /* 第二个连通分量：三角形（3个点） */
     for (int i = 0; i < 3; i++) {
-        SymbolicCoord *coords[2] = {symbolic_coord_create_rational(i + 10, 1), symbolic_coord_create_rational(0, 1)};
-        graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
+        SymbolicCoord *cx = symbolic_coord_create_rational(i + 10, 1);
+        SymbolicCoord *cy = symbolic_coord_create_rational(0, 1);
+        if (!cx || !cy) {
+            if (cx)
+                symbolic_coord_destroy(cx);
+            if (cy)
+                symbolic_coord_destroy(cy);
+            graph_destroy(graph);
+            return NULL;
+        }
+        SymbolicCoord *coords[2] = {cx, cy};
+        if (graph_add_point(graph, (SymbolicCoord *const *) coords, 2) != ADD_NODE_OK) {
+            symbolic_coord_destroy(cx);
+            symbolic_coord_destroy(cy);
+            graph_destroy(graph);
+            return NULL;
+        }
+        /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+        symbolic_coord_destroy(cx);
+        symbolic_coord_destroy(cy);
         ids[4 + i] = graph_get_last_added_node_id(graph);
     }
 

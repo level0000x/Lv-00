@@ -539,12 +539,23 @@ static void test_relation_model_from_graph(void) {
     TEST_ASSERT_NOT_NULL(graph);
 
     /* 添加一些点 */
-    SymbolicCoord *coords[2] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
-    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
+    SymbolicCoord *p0x = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *p0y = symbolic_coord_create_rational(0, 1);
+    SymbolicCoord *coords[2] = {p0x, p0y};
+    if (graph_add_point(graph, (SymbolicCoord *const *) coords, 2) == ADD_NODE_OK) {
+        /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+        symbolic_coord_destroy(p0x);
+        symbolic_coord_destroy(p0y);
+    }
 
-    coords[0] = symbolic_coord_create_rational(100, 1);
-    coords[1] = symbolic_coord_create_rational(100, 1);
-    graph_add_point(graph, (SymbolicCoord *const *) coords, 2);
+    SymbolicCoord *p1x = symbolic_coord_create_rational(100, 1);
+    SymbolicCoord *p1y = symbolic_coord_create_rational(100, 1);
+    coords[0] = p1x;
+    coords[1] = p1y;
+    if (graph_add_point(graph, (SymbolicCoord *const *) coords, 2) == ADD_NODE_OK) {
+        symbolic_coord_destroy(p1x);
+        symbolic_coord_destroy(p1y);
+    }
 
     /* 从图构建关系模型 */
     RelModel *model = relation_model_from_graph(graph);

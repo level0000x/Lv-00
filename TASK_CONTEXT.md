@@ -6834,7 +6834,7 @@ sparse_qr_solve 此前全部 sparse_to_dense 后稠密分解（M4 简化）。
 
 ### 遗留登记
 
-- Windows Python CRT 同前；algebra_select 已完成；无新增遗留。
+- Windows Python CRT 同前；无新增遗留。
 
 ## 一百一十六、批次 简化标注终盘 + M5 措辞修正（2026-08-27）
 
@@ -6871,3 +6871,45 @@ sparse_qr_solve 此前全部 sparse_to_dense 后稠密分解（M4 简化）。
   参数绑定。
 - 甄别结论：全库简化标注均为合理设计或已完整化，无遗留功能债务
   （herbie 降级为有意架构决策，保留）。
+## 一百一十七、批次 测试代码坐标泄漏全面修复（2026-08-27）
+
+用户「继续完整实现不考虑复杂度和难度 并且修bug不要留任何工程债务」——
+模块清理后逐测试扫描发现多个测试文件在 graph_add_point（深拷贝语义）后
+未释放源坐标，累积触发 lv_cleanup 内存泄漏 WARN。
+
+### ① 根因
+
+graph_add_point / graph_add_point_xy 深拷贝坐标（调用方保留所有权），
+但多处测试辅助/内联调用成功路径未释放源 SymbolicCoord（或栈
+SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
+
+### ② 修复（9 处）
+
+- **test_helpers.h add_point**（影响全库）：成功路径补释放 cx/cy。
+- **test_groebner_basis.c add_rat_point**：成功/失败均释放。
+- **test_solver_enhanced.c add_rational_point**：成功/失败均释放；
+  362 行 c_coords（quadratic）补释放 cx/cy（深拷贝语义下 qa/qb 随 cy
+  释放安全，修正"勿销毁"误解注释）。
+- **test_adaptive_threshold.c create_complex_graph**：两处循环（4+3 点）
+  补释放 + 失败路径清理。
+- **test_layer4_misc.c test_relation_model_from_graph**：2 点补释放。
+- **test_smt_backend.c create_graph / create_constrained_graph**：2 处
+  各补释放 4 坐标。
+- **test_normalization.c**：3 处栈 SymbolicCoord 的堆 rational 补释放。
+- **test_meta_verify.c create_point_graph**：成功路径补释放。
+
+### ③ 验证
+
+- 全库 ctest **288/288 零失败、零泄漏 WARN**（此前多测试有 WARN）。
+- 关键测试总分配=总释放完全对称（module_ext 25013=25013）。
+- stream_extended_test 并行 flaky 重跑通过（既有记录，非本批引入）。
+
+### 决策登记
+
+- 缺陷修复 / M6 / 测试坐标泄漏 / graph_add_point 深拷贝语义补释放。
+- 注释修正 / solver_enhanced quadratic 所有权误解。
+
+### 遗留登记
+
+- Windows Python CRT 同前；无新增遗留。
+

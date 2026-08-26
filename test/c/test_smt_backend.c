@@ -65,8 +65,20 @@ static ConstraintGraph *create_simple_graph(void) {
 
     SymbolicCoord *pt0_coords[] = {c0_x, c0_y};
     SymbolicCoord *pt1_coords[] = {c1_x, c1_y};
-    graph_add_point(g, pt0_coords, 2);
-    graph_add_point(g, pt1_coords, 2);
+    if (graph_add_point(g, pt0_coords, 2) != ADD_NODE_OK ||
+        graph_add_point(g, pt1_coords, 2) != ADD_NODE_OK) {
+        symbolic_coord_destroy(c0_x);
+        symbolic_coord_destroy(c0_y);
+        symbolic_coord_destroy(c1_x);
+        symbolic_coord_destroy(c1_y);
+        graph_destroy(g);
+        return NULL;
+    }
+    /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+    symbolic_coord_destroy(c0_x);
+    symbolic_coord_destroy(c0_y);
+    symbolic_coord_destroy(c1_x);
+    symbolic_coord_destroy(c1_y);
     return g;
 }
 
@@ -98,8 +110,20 @@ static ConstraintGraph *create_constrained_graph(void) {
 
     SymbolicCoord *pt0_coords[] = {c0_x, c0_y};
     SymbolicCoord *pt1_coords[] = {c1_x, c1_y};
-    graph_add_point(g, pt0_coords, 2);
-    graph_add_point(g, pt1_coords, 2);
+    if (graph_add_point(g, pt0_coords, 2) != ADD_NODE_OK ||
+        graph_add_point(g, pt1_coords, 2) != ADD_NODE_OK) {
+        symbolic_coord_destroy(c0_x);
+        symbolic_coord_destroy(c0_y);
+        symbolic_coord_destroy(c1_x);
+        symbolic_coord_destroy(c1_y);
+        graph_destroy(g);
+        return NULL;
+    }
+    /* graph_add_point 深拷贝坐标，调用方保留所有权 */
+    symbolic_coord_destroy(c0_x);
+    symbolic_coord_destroy(c0_y);
+    symbolic_coord_destroy(c1_x);
+    symbolic_coord_destroy(c1_y);
 
     int p0 = g->next_node_id - 2;
     int p1 = g->next_node_id - 1;
