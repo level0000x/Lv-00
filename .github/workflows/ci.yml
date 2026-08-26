@@ -45,7 +45,26 @@ jobs:
           grep -c "error:" /tmp/build.log || true
 
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure --parallel $(nproc)
+        run: |
+          set -o pipefail
+          ctest --test-dir build --output-on-failure --parallel $(nproc) 2>&1 | tee /tmp/ctest.log
+
+      - name: Upload ctest log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-ctest-log
+          path: /tmp/ctest.log
+          if-no-files-found: ignore
+
+      - name: Report test failures (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          set -x
+          grep -nE "The following tests FAILED|Failed test|FAILED|\*\*\*Failed|Error" /tmp/ctest.log | head -40 | while IFS= read -r line; do
+            echo "::error file=ctest.log::$line"
+          done
 
   # ── Windows (MSYS2): GCC 语法检查 + CMake 构建 ────────────
   windows-build:
