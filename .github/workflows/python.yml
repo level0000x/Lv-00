@@ -174,10 +174,11 @@ jobs:
         # 诊断：直接 import lv（test_graph 收集失败的根因）
         echo "::error file=import.log::=== import lv diagnostic ==="
         python -c "import os; print('LIBPATH', os.environ.get('lv_LIBRARY_PATH')); from lv import Graph; print('import OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        # 先单独收集，暴露收集阶段的 1 error
-        python -m pytest tests/ --collect-only -q > /tmp/collect.log 2>&1
+        # 先单独收集，暴露收集阶段的 1 error（完整输出，不截断）
+        python -m pytest tests/ --collect-only > /tmp/collect.log 2>&1
         echo "collect rc=$?" | tee -a /tmp/collect.log
-        tail -30 /tmp/collect.log
+        echo "::error file=collect.log::=== collect full ==="
+        cat /tmp/collect.log | while IFS= read -r line; do echo "::error file=collect.log::$line"; done
         python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
         cat /tmp/pytest.log
