@@ -181,8 +181,26 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom) {
     return coord;
 }
 
-SymbolicCoord *symbolic_coord_from_double_scaled(double val, int64_t scale) {
-    double scaled_val = val * (double) scale;
+SymbolicCoord *symbolic_coord_from_string(const char *str) {
+    if (!str)
+        lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "symbolic_coord_from_string: NULL str");
+    Rational *r = rational_parse(str);
+    if (!r)
+        return NULL;
+    SymbolicCoord *coord = lv_calloc(1, sizeof(SymbolicCoord));
+    if (!coord) {
+        rational_destroy(r);
+        lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "symbolic_coord_from_string: lv_calloc failed");
+    }
+    coord->type = RATIONAL;
+    coord->trust = TRUST_GREEN;
+    coord->cache_valid = false;
+    coord->cached_value = 0.0;
+    coord->data.rational = r;
+    return coord;
+}
+
+SymbolicCoord *symbolic_coord_from_double_scaled(double val, int64_t scale) {    double scaled_val = val * (double) scale;
     /* 钳制到 int64 安全范围再转换，避免大值时未定义行为 */
     if (scaled_val > 9223372036854774784.0)
         scaled_val = 9223372036854774784.0;

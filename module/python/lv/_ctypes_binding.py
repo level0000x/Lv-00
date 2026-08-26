@@ -350,6 +350,9 @@ class _RecursionTestResult(ctypes.Structure):
 _lib.symbolic_coord_create_rational.argtypes = [c_int64, c_uint64]
 _lib.symbolic_coord_create_rational.restype = POINTER(_SymbolicCoord)
 
+_lib.symbolic_coord_from_string.argtypes = [c_char_p]
+_lib.symbolic_coord_from_string.restype = POINTER(_SymbolicCoord)
+
 # [已移除] symbolic_coord_create_from_mpz, symbolic_coord_deserialize: C 库中不存在这些导出函数
 
 # 销毁符号坐标对象，释放所有关联的内存资源

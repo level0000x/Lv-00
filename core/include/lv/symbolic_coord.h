@@ -234,6 +234,13 @@ SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom);
 SymbolicCoord *symbolic_coord_create_quadratic(Rational *a, Rational *b, unsigned int n);
 
 /**
+ * @brief 从字符串创建有理数坐标（支持 "3/4"、"-2"、"1.5" 等格式）
+ * @param str 字符串表示
+ * @return 新建的 SymbolicCoord（有理数类型），解析失败返回 NULL
+ */
+SymbolicCoord *symbolic_coord_from_string(const char *str);
+
+/**
  * @brief 从 double 创建有理数坐标，按指定比例缩放
  * @param val   double 值
  * @param scale 缩放比例（分母）

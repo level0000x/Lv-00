@@ -285,12 +285,12 @@ class SymbolicCoord(_PtrOwner):
             self._ptr = _lib.symbolic_coord_create_rational(frac.numerator, frac.denominator)
         elif isinstance(value, str):
             # 字符串类型：解析表达式
-            # 注意：C 库已移除 symbolic_coord_deserialize 导出函数，
-            # 改用 rational_parse 从字符串创建有理数坐标
+            # 使用 C 库 symbolic_coord_from_string（内部经 rational_parse 创建
+            # 有理数 SymbolicCoord，避免 Rational* 与 SymbolicCoord* 类型混用）
             b = value.encode('utf-8')
-            self._ptr = _lib.rational_parse(b)
+            self._ptr = _lib.symbolic_coord_from_string(b)
             if not self._ptr:
-                # rational_parse 仅支持有理数格式（如 "3/4"），
+                # symbolic_coord_from_string 仅支持有理数格式（如 "3/4"），
                 # 对更复杂的表达式，尝试作为整数或浮点数回退处理
                 try:
                     int_val = int(value)

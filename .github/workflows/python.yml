@@ -184,4 +184,17 @@ jobs:
     - name: Run example
       working-directory: module/python
       run: |
-        python examples/basic_usage.py
+        set +e
+        python examples/basic_usage.py > /tmp/example.log 2>&1
+        echo $? > /tmp/example_exit
+        tail -60 /tmp/example.log
+        exit $(cat /tmp/example_exit)
+
+    - name: Report example failures (on failure)
+      if: failure()
+      shell: bash
+      run: |
+        set -x
+        grep -nE "Error|Traceback|assert|Exception|error" /tmp/example.log 2>/dev/null | head -30 | while IFS= read -r line; do
+          echo "::error file=example.log::$line"
+        done || true
