@@ -179,7 +179,7 @@ jobs:
         echo "::error file=import.log::=== lv.__file__ ==="
         python -c "import lv; print(lv.__file__)" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
         echo "::error file=import.log::=== core import ==="
-        python -c "import traceback; from lv.core import NormalizationResult; print('core OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
+        python -c "import lv.core" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
         # 诊断：逐个文件收集，定位崩溃点（长 traceback）
         for f in tests/test_graph.py tests/test_symbolic_coord.py tests/test_constants_consistency.py; do
           echo "::error file=collect.log::=== collect $f (tb=long) ==="
