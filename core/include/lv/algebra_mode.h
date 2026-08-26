@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file algebra_mode.h
  * @brief 代数模式构造引擎 —— 借鉴 build123d 代数模式 + CadQuery Fluent API
  *
@@ -364,6 +364,19 @@ lvSelector *algebra_selector_create(lvSelectorType type, const char *expr);
  * @param sel 选择器（可为 NULL）
  */
 void algebra_selector_destroy(lvSelector *sel);
+/**
+ * @brief 向复合选择器（COMPOSITE）添加子选择器
+ *
+ * 复合选择器按 is_union / is_negated 组合子选择器结果：
+ * - is_union=true  → OR（并集）
+ * - is_union=false → AND（交集）
+ * - is_negated     → NOT（补集，相对于全集）
+ *
+ * @param parent 复合选择器（type 必须为 SELECTOR_COMPOSITE）
+ * @param child  子选择器（所有权转移给 parent，parent 销毁时一并释放）
+ * @return 成功返回 0，失败返回非零（NULL 参数 / parent 非复合 / 扩容失败）
+ */
+int algebra_selector_add_child(lvSelector *parent, lvSelector *child);
 /**
  * @brief 选择满足条件的子实体
  *

@@ -402,7 +402,7 @@ static bool lvz_node_point(LvzParser *p, Module *mod, int node_id) {
         y = p->current.num_value;
         lvz_parser_advance(p);
     }
-    /* 创建点节点 (简化实现 - 使用有理数坐标) */
+    /* 创建点节点：浮点坐标四舍五入为有理数符号坐标（精度 1e-4，系统统一坐标表示） */
     SymbolicCoord *sx = symbolic_coord_from_double_rounded(x, 10000);
     SymbolicCoord *sy = symbolic_coord_from_double_rounded(y, 10000);
     if (sx && sy) {
@@ -425,7 +425,7 @@ static bool lvz_node_line(LvzParser *p, Module *mod, int node_id) {
         p2 = (int) p->current.num_value;
         lvz_parser_advance(p);
     }
-    /* 创建线节点 (简化实现 - 使用端点ID) */
+    /* 创建线节点：经两个端点节点 ID 构造线段（图中已有对应点节点） */
     if (p1 >= 0 && p2 >= 0) {
         graph_add_line_segment(mod->graph, p1, p2);
     }
@@ -901,7 +901,8 @@ static bool lvz_parse_constraints_section(LvzParser *p, Module *mod) {
         const char *constraint_type = constraint_type_buf;
         lvz_parser_advance(p);
 
-        /* 解析约束参数 (简化实现，读取所有数字参数) */
+        /* 解析约束参数：读取行内全部数字参数（LVZ 约束参数即节点 ID/数值，
+         * 上限 8 个；参数数量由原生约束表的 min_params / 模板展开校验） */
         int params[8];
         int param_count = 0;
 

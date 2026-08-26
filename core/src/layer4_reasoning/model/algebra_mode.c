@@ -513,6 +513,486 @@ AlgebraicGeom *algebra_scale(AlgebraicGeom *geom, double sx, double sy, double s
  * 选择器操作
  * ================================================================ */
 
+/** @brief 节点代表坐标（点/线段端点/圆圆心/区域重心近似；失败返回 false） */
+static bool selector_node_coords(const GeomNode *node, double *x, double *y) {
+    if (!node || !node->symbolic_coords || node->coord_count < 2 ||
+        !node->symbolic_coords[0] || !node->symbolic_coords[1])
+        return false;
+    *x = symbolic_coord_to_double(node->symbolic_coords[0]);
+    *y = symbolic_coord_to_double(node->symbolic_coords[1]);
+    return true;
+}
+
+/** @brief 节点几何度量（SELECTOR_LARGEST/SMALLEST 排序用）
+ *  - 线段：长度；圆：半径；区域：包围盒对角线；点：0 */
+static double selector_node_metric(const ConstraintGraph *graph, const GeomNode *node) {
+    if (!node)
+        return 0.0;
+    switch (node->type) {
+        case GEOM_LINE_SEGMENT: {
+            double x1, y1, x2, y2;
+            if (node->coord_count >= 4 && node->symbolic_coords &&
+                symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2))
+                return geo_distance_2d(x1, y1, x2, y2);
+            return 0.0;
+        }
+        case GEOM_CIRCLE: {
+            double cx, cy, r = 0.0;
+            const GeomNode *center = graph ? graph_get_node(graph, node->data.circle.center_node_id) : NULL;
+            const GeomNode *rp = graph ? graph_get_node(graph, node->data.circle.radius_node_id) : NULL;
+            if (center && rp) {
+                double ax, ay, bx, by;
+                if (selector_node_coords(center, &ax, &ay) && selector_node_coords(rp, &bx, &by))
+                    r = geo_distance_2d(ax, ay, bx, by);
+            }
+            return r;
+        }
+        case GEOM_REGION: {
+            /* 区域：用边界线段包围盒对角线近似 */
+            double min_x = 1e308, min_y = 1e308, max_x = -1e308, max_y = -1e308;
+            bool any = false;
+            for (int s = 0; s < node->data.region.segment_count; s++) {
+                GeomNode *seg = node->data.region.boundary_segments[s];
+                if (!seg || seg->coord_count < 2)
+                    continue;
+                for (int c = 0; c < 2 && c < seg->coord_count; c += 2) {
+                    double px = symbolic_coord_to_double(seg->symbolic_coords[c]);
+                    double py = symbolic_coord_to_double(seg->symbolic_coords[c + 1]);
+                    if (px < min_x) min_x = px;
+                    if (py < min_y) min_y = py;
+                    if (px > max_x) max_x = px;
+                    if (py > max_y) max_y = py;
+                    any = true;
+                }
+            }
+            if (!any)
+                return 0.0;
+            return geo_distance_2d(min_x, min_y, max_x, max_y);
+        }
+        default:
+            return 0.0;
+    }
+}
+
+/** @brief 节点方向向量（SELECTOR_BY_DIRECTION / PARALLEL / PERPENDICULAR 用）
+ *  - 线段：方向 (dx, dy)；圆：无法向（返回 false）；点：false */
+static bool selector_node_direction(const GeomNode *node, double *dx, double *dy) {
+    if (!node || node->type != GEOM_LINE_SEGMENT || node->coord_count < 4)
+        return false;
+    double x1, y1, x2, y2;
+    if (!symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2))
+        return false;
+    *dx = x2 - x1;
+    *dy = y2 - y1;
+    return true;
+}
+
+/** @brief 判断方向是否与指定轴平行/垂直（容差 1e-9） */
+static bool selector_dir_axis_parallel(double dx, double dy, char axis) {
+    double len = geo_norm_2d(dx, dy);
+    if (len < 1e-12)
+        return false;
+    if (axis == 'X' || axis == 'x')
+        return fabs(dy) / len < 1e-6;
+    if (axis == 'Y' || axis == 'y')
+        return fabs(dx) / len < 1e-6;
+    /* Z 轴：2D 平面内无 Z 分量，恒平行 */
+    return true;
+}
+
+static bool selector_dir_axis_perpendicular(double dx, double dy, char axis) {
+    double len = geo_norm_2d(dx, dy);
+    if (len < 1e-12)
+        return false;
+    if (axis == 'X' || axis == 'x')
+        return fabs(dx) / len < 1e-6;
+    if (axis == 'Y' || axis == 'y')
+        return fabs(dy) / len < 1e-6;
+    /* Z 轴：2D 平面内无法向分量，恒垂直 */
+    return true;
+}
+
+/** @brief 节点是否为指定几何类型（SELECTOR_BY_TYPE；expr 为小写别名或规范名） */
+static bool selector_node_matches_type(const GeomNode *node, const char *type_expr) {
+    if (!node || !type_expr)
+        return false;
+    const char *canon = lv_geom_type_name(node->type);
+    if (canon && lv_str_icmp(canon, type_expr) == 0)
+        return true;
+    /* 小写别名匹配 */
+    const char *alias = NULL;
+    switch (node->type) {
+        case GEOM_POINT:         alias = "point"; break;
+        case GEOM_LINE_SEGMENT:  alias = "line_segment"; break;
+        case GEOM_REGION:        alias = "region"; break;
+        case GEOM_CIRCLE:        alias = "circle"; break;
+        case GEOM_PORT:          alias = "port"; break;
+        case GEOM_FUNCTION_BLOCK: alias = "function_block"; break;
+        default: break;
+    }
+    if (alias && lv_str_icmp(alias, type_expr) == 0)
+        return true;
+    /* 便捷别名（CadQuery 风格）：segment/line → 线段，face → 区域 */
+    if (lv_str_icmp(type_expr, "segment") == 0 || lv_str_icmp(type_expr, "line") == 0)
+        return node->type == GEOM_LINE_SEGMENT;
+    if (lv_str_icmp(type_expr, "face") == 0)
+        return node->type == GEOM_REGION;
+    if (lv_str_icmp(type_expr, "vertex") == 0)
+        return node->type == GEOM_POINT;
+    return false;
+}
+
+/** @brief 节点是否包含指定位置（SELECTOR_AT_LOCATION）
+ *  - 点：距离 < 1e-6；线段：geo_point_on_segment；区域：射线法；圆：|dist - r| < 1e-6 */
+static bool selector_node_contains(const ConstraintGraph *graph, const GeomNode *node, double px, double py) {
+    if (!node)
+        return false;
+    switch (node->type) {
+        case GEOM_POINT: {
+            double x, y;
+            return selector_node_coords(node, &x, &y) && geo_distance_2d(x, y, px, py) < 1e-6;
+        }
+        case GEOM_LINE_SEGMENT: {
+            double x1, y1, x2, y2;
+            if (!symbolic_coord_get_segment(node->symbolic_coords, node->coord_count, &x1, &y1, &x2, &y2))
+                return false;
+            return geo_point_on_segment(px, py, x1, y1, x2, y2) != 0;
+        }
+        case GEOM_REGION:
+            return geo_point_in_region_segments(px, py, node->data.region.boundary_segments,
+                                                node->data.region.segment_count);
+        case GEOM_CIRCLE: {
+            double cx, cy, r = 0.0;
+            const GeomNode *center = graph ? graph_get_node(graph, node->data.circle.center_node_id) : NULL;
+            const GeomNode *rp = graph ? graph_get_node(graph, node->data.circle.radius_node_id) : NULL;
+            if (!center || !rp)
+                return false;
+            double ax, ay, bx, by;
+            if (!selector_node_coords(center, &ax, &ay) || !selector_node_coords(rp, &bx, &by))
+                return false;
+            r = geo_distance_2d(ax, ay, bx, by);
+            return fabs(geo_distance_2d(ax, ay, px, py) - r) < 1e-6;
+        }
+        default:
+            return false;
+    }
+}
+
+/** @brief 由 expr 解析参考点（"x,y" 或 "x, y"）；成功返回 true */
+static bool selector_parse_point(const char *expr, double *x, double *y) {
+    if (!expr || !*expr)
+        return false;
+    char buf[64];
+    lv_strlcpy(buf, expr, sizeof(buf));
+    char *comma = strchr(buf, ',');
+    if (!comma)
+        return false;
+    *comma = '\0';
+    char *end = NULL;
+    double vx = strtod(buf, &end);
+    if (!end || *end != '\0')
+        return false;
+    end = NULL;
+    double vy = strtod(comma + 1, &end);
+    if (!end || *end != '\0')
+        return false;
+    *x = vx;
+    *y = vy;
+    return true;
+}
+
+/** @brief 递归执行选择器过滤；结果写入 out_ids/out_count（调用者释放 out_ids） */
+static bool selector_apply(const ConstraintGraph *graph, const lvSelector *sel,
+                           int **out_ids, int *out_count) {
+    if (!graph || !sel || !out_ids || !out_count)
+        return false;
+    *out_count = 0;
+    *out_ids = NULL;
+
+    int cap = graph->node_count > 0 ? graph->node_count : 1;
+    int *ids = (int *) lv_calloc((size_t) cap, sizeof(int));
+    if (!ids)
+        return false;
+
+    switch (sel->type) {
+        case SELECTOR_ALL:
+            for (int i = 0; i < graph->node_count; i++) {
+                if (graph->nodes[i] && graph->nodes[i]->is_active)
+                    ids[(*out_count)++] = graph->nodes[i]->id;
+            }
+            break;
+
+        case SELECTOR_BY_TYPE:
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (n && n->is_active && selector_node_matches_type(n, sel->expr))
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+
+        case SELECTOR_BY_TAG:
+            /* 标签选择：匹配节点几何类型的规范名/别名（图节点无独立标签字段，
+             * 以类型名作为标签语义，与 BY_TYPE 兼容） */
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (n && n->is_active && selector_node_matches_type(n, sel->expr))
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+
+        case SELECTOR_BY_DIRECTION: {
+            /* 方向选择：>X 指向 +X 的线段；|X 与 X 轴平行；<Y 指向 -Y。
+             * 点/圆/区域无方向（线段才具方向向量），因此仅匹配线段。 */
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (!n || !n->is_active)
+                    continue;
+                double dx, dy;
+                if (!selector_node_direction(n, &dx, &dy))
+                    continue;
+                bool ok = false;
+                switch (sel->dir_op) {
+                    case SEL_DIR_GREATER:
+                        if (sel->axis == 'X' || sel->axis == 'x')
+                            ok = dx > 1e-9;
+                        else if (sel->axis == 'Y' || sel->axis == 'y')
+                            ok = dy > 1e-9;
+                        break;
+                    case SEL_DIR_LESS:
+                        if (sel->axis == 'X' || sel->axis == 'x')
+                            ok = dx < -1e-9;
+                        else if (sel->axis == 'Y' || sel->axis == 'y')
+                            ok = dy < -1e-9;
+                        break;
+                    case SEL_DIR_PARALLEL:
+                        ok = selector_dir_axis_parallel(dx, dy, sel->axis);
+                        break;
+                }
+                if (ok)
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+        }
+
+        case SELECTOR_PARALLEL_TO:
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (!n || !n->is_active)
+                    continue;
+                double dx, dy;
+                if (selector_node_direction(n, &dx, &dy) && selector_dir_axis_parallel(dx, dy, sel->axis))
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+
+        case SELECTOR_PERPENDICULAR_TO:
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (!n || !n->is_active)
+                    continue;
+                double dx, dy;
+                if (selector_node_direction(n, &dx, &dy) && selector_dir_axis_perpendicular(dx, dy, sel->axis))
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+
+        case SELECTOR_AT_LOCATION: {
+            double px = 0.0, py = 0.0;
+            if (!selector_parse_point(sel->expr, &px, &py))
+                break;
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (n && n->is_active && selector_node_contains(graph, n, px, py))
+                    ids[(*out_count)++] = n->id;
+            }
+            break;
+        }
+
+        case SELECTOR_BY_INDEX: {
+            /* 索引选择：expr 为数字下标（按节点 id 升序的第 N 个，N 从 0 起） */
+            int idx = sel->index;
+            if (sel->expr) {
+                char *end = NULL;
+                long v = strtol(sel->expr, &end, 10);
+                if (end && *end == '\0')
+                    idx = (int) v;
+            }
+            if (idx < 0 || idx >= graph->node_count)
+                break;
+            GeomNode *n = graph->nodes[idx];
+            if (n && n->is_active)
+                ids[(*out_count)++] = n->id;
+            break;
+        }
+
+        case SELECTOR_NEAREST: {
+            /* 最近选择：参考点取自 expr "x,y"；无 expr 用图的第一个点。 */
+            double rx = 0.0, ry = 0.0;
+            bool have_ref = selector_parse_point(sel->expr, &rx, &ry);
+            int best = -1;
+            double best_d = 1e308;
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (!n || !n->is_active)
+                    continue;
+                double x, y;
+                if (!selector_node_coords(n, &x, &y))
+                    continue;
+                if (!have_ref) {
+                    rx = x;
+                    ry = y;
+                    have_ref = true;
+                }
+                double d = geo_distance_2d(x, y, rx, ry);
+                if (d < best_d) {
+                    best_d = d;
+                    best = n->id;
+                }
+            }
+            if (best >= 0)
+                ids[(*out_count)++] = best;
+            break;
+        }
+
+        case SELECTOR_LARGEST:
+        case SELECTOR_SMALLEST: {
+            int best = -1;
+            double best_m = (sel->type == SELECTOR_LARGEST) ? -1e308 : 1e308;
+            for (int i = 0; i < graph->node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (!n || !n->is_active)
+                    continue;
+                double m = selector_node_metric(graph, n);
+                if (sel->type == SELECTOR_LARGEST) {
+                    if (m > best_m) {
+                        best_m = m;
+                        best = n->id;
+                    }
+                } else {
+                    if (m < best_m) {
+                        best_m = m;
+                        best = n->id;
+                    }
+                }
+            }
+            if (best >= 0)
+                ids[(*out_count)++] = best;
+            break;
+        }
+
+        case SELECTOR_COMPOSITE: {
+            /* 复合选择器：递归执行子选择器，按 is_union/is_negated 组合 */
+            if (sel->child_count == 0)
+                break;
+            /* 先取第一个子结果作为种子 */
+            int *base = NULL;
+            int base_count = 0;
+            if (!selector_apply(graph, sel->children[0], &base, &base_count)) {
+                lv_free((void **) &ids);
+                return false;
+            }
+            if (sel->is_union) {
+                /* OR：并集 */
+                for (int c = 1; c < sel->child_count; c++) {
+                    int *sub = NULL;
+                    int sub_count = 0;
+                    if (!selector_apply(graph, sel->children[c], &sub, &sub_count)) {
+                        lv_free((void **) &base);
+                        lv_free((void **) &ids);
+                        return false;
+                    }
+                    for (int s = 0; s < sub_count; s++) {
+                        bool dup = false;
+                        for (int b = 0; b < base_count; b++) {
+                            if (base[b] == sub[s]) {
+                                dup = true;
+                                break;
+                            }
+                        }
+                        if (!dup && base_count < cap)
+                            base[base_count++] = sub[s];
+                    }
+                    lv_free((void **) &sub);
+                }
+            } else {
+                /* AND：交集 */
+                int *inter = (int *) lv_calloc((size_t) cap, sizeof(int));
+                int inter_count = 0;
+                if (!inter) {
+                    lv_free((void **) &base);
+                    lv_free((void **) &ids);
+                    return false;
+                }
+                for (int b = 0; b < base_count; b++) {
+                    bool in_all = true;
+                    for (int c = 1; c < sel->child_count && in_all; c++) {
+                        int *sub = NULL;
+                        int sub_count = 0;
+                        if (!selector_apply(graph, sel->children[c], &sub, &sub_count)) {
+                            in_all = false;
+                            lv_free((void **) &sub);
+                            break;
+                        }
+                        bool found = false;
+                        for (int s = 0; s < sub_count; s++) {
+                            if (sub[s] == base[b]) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        lv_free((void **) &sub);
+                        if (!found)
+                            in_all = false;
+                    }
+                    if (in_all)
+                        inter[inter_count++] = base[b];
+                }
+                lv_free((void **) &base);
+                base = inter;
+                base_count = inter_count;
+            }
+            if (sel->is_negated) {
+                /* NOT：补集（相对全部活跃节点） */
+                int *comp = (int *) lv_calloc((size_t) cap, sizeof(int));
+                int comp_count = 0;
+                if (!comp) {
+                    lv_free((void **) &base);
+                    lv_free((void **) &ids);
+                    return false;
+                }
+                for (int i = 0; i < graph->node_count; i++) {
+                    GeomNode *n = graph->nodes[i];
+                    if (!n || !n->is_active)
+                        continue;
+                    bool in_base = false;
+                    for (int b = 0; b < base_count; b++) {
+                        if (base[b] == n->id) {
+                            in_base = true;
+                            break;
+                        }
+                    }
+                    if (!in_base)
+                        comp[comp_count++] = n->id;
+                }
+                lv_free((void **) &base);
+                base = comp;
+                base_count = comp_count;
+            }
+            *out_ids = base;
+            *out_count = base_count;
+            lv_free((void **) &ids);
+            return true;
+        }
+
+        default:
+            lv_free((void **) &ids);
+            return false;
+    }
+
+    *out_ids = ids;
+    return true;
+}
+
 lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
     if (type < SELECTOR_ALL || type > SELECTOR_COMPOSITE)
         return NULL;
@@ -544,7 +1024,43 @@ lvSelector *algebra_selector_create(lvSelectorType type, const char *expr) {
         sel->axis = expr[1];
     }
 
+    /* PARALLEL_TO / PERPENDICULAR_TO：expr 为轴名（"X"/"Y"/"Z"） */
+    if ((type == SELECTOR_PARALLEL_TO || type == SELECTOR_PERPENDICULAR_TO) && expr && *expr) {
+        sel->axis = expr[0];
+    }
+
+    /* BY_INDEX：expr 为数字下标 */
+    if (type == SELECTOR_BY_INDEX && expr) {
+        char *end = NULL;
+        long v = strtol(expr, &end, 10);
+        if (end && *end == '\0')
+            sel->index = (int) v;
+    }
+
+    /* COMPOSITE：expr 可指定组合语义（"AND"/"OR"/"NOT"） */
+    if (type == SELECTOR_COMPOSITE && expr) {
+        if (lv_str_icmp(expr, "OR") == 0)
+            sel->is_union = true;
+        else if (lv_str_icmp(expr, "NOT") == 0)
+            sel->is_negated = true;
+    }
+
     return sel;
+}
+
+int algebra_selector_add_child(lvSelector *parent, lvSelector *child) {
+    if (!parent || !child || parent->type != SELECTOR_COMPOSITE)
+        return -1;
+    if (parent->child_count >= parent->child_capacity) {
+        int new_cap = parent->child_capacity > 0 ? parent->child_capacity * 2 : 4;
+        lvSelector **grown = (lvSelector **) lv_realloc(parent->children, (size_t) new_cap * sizeof(lvSelector *));
+        if (!grown)
+            return -1;
+        parent->children = grown;
+        parent->child_capacity = new_cap;
+    }
+    parent->children[parent->child_count++] = child;
+    return 0;
 }
 
 void algebra_selector_destroy(lvSelector *sel) {
@@ -568,26 +1084,18 @@ AlgebraicGeom *algebra_select(AlgebraicGeom *geom, const lvSelector *sel, int **
     if (!geom || !sel || !out_ids || !out_count)
         return NULL;
 
-    /* 选择器过滤简化实现：当前忽略 sel 的具体过滤条件（BY_DIRECTION/
-     * BY_INDEX/COMPOSITE 等），返回当前图的全部节点 ID 列表。
-     * 完整的选择器语义（CadQuery 风格方向/索引/复合组合）预留后续实现；
-     * 调用方不应依赖过滤效果，仅保证返回全部节点不遗漏。 */
-    *out_count = 0;
-    *out_ids = NULL;
-
-    if (!geom->graph || geom->graph->node_count == 0)
+    /* 完整实现：按选择器类型递归过滤（方向/类型/标签/索引/最近/最大/最小/
+     * 平行/垂直/位置/复合），替代旧"返回全部节点"的简化实现 */
+    if (!geom->graph || geom->graph->node_count == 0) {
+        *out_count = 0;
+        *out_ids = NULL;
         return geom;
-
-    *out_ids = (int *) lv_calloc((size_t) geom->graph->node_count, sizeof(int));
-    if (!*out_ids)
-        return geom;
-
-    for (int i = 0; i < geom->graph->node_count; i++) {
-        if (geom->graph->nodes[i]) {
-            (*out_ids)[(*out_count)++] = geom->graph->nodes[i]->id;
-        }
     }
 
+    if (!selector_apply(geom->graph, sel, out_ids, out_count))
+        return NULL;
+
+    /* 历史记录：保留 SELECTOR_ALL 类型码（历史仅记录操作类别，不细分选择器） */
     history_push(geom, HISTORY_SELECTOR_ALL);
     return geom;
 }

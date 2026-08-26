@@ -6664,5 +6664,64 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 ### 遗留登记
 
-- sparse cholesky/lu/qr 稠密实现、algebra_select、plugin_system.h 8
-  、Windows Python CRT、全局内存泄漏 WARN 同前。
+- sparse cholesky/lu/qr 稠密实现、Windows Python CRT、全局内存泄漏
+  WARN 同前。
+
+## 一百一十三、批次 algebra_select 完整选择器语义（2026-08-27）
+
+用户「继续推进」——批次 112 已全绿交付后，继续 incomplete-implementation
+盘点。上一批甄别的最大债务为 algebra_select 简化实现（M4：忽略全部
+过滤条件、恒返回全部节点）。本轮完整实现 12 种选择器类型。
+
+### ① 实现（algebra_mode.c + algebra_mode.h）
+
+- **selector_apply 递归过滤核心**：完整实现 12 种选择器类型——
+  1. SELECTOR_ALL：全部活跃节点；
+  2. SELECTOR_BY_TYPE：类型匹配（规范名/小写别名/便捷别名
+     segment/line/face/vertex）；
+  3. SELECTOR_BY_TAG：以节点几何类型名作为标签语义（图节点无独立
+     标签字段，与 BY_TYPE 兼容）；
+  4. SELECTOR_BY_DIRECTION：线段方向过滤（>X/<Y 指向、|X 平行轴；
+     点/圆/区域无方向不匹配）；
+  5. SELECTOR_PARALLEL_TO / PERPENDICULAR_TO：线段方向与轴平行/垂直
+     （容差 1e-6 归一化比较）；
+  6. SELECTOR_AT_LOCATION：点距离 / 线段在线 / 区域射线法 / 圆上
+     （|dist-r|<1e-6）；
+  7. SELECTOR_BY_INDEX：按节点数组下标选择（expr 数字或 index 字段）；
+  8. SELECTOR_NEAREST：参考点（expr "x,y" 或首节点）最近者；
+  9. SELECTOR_LARGEST / SELECTOR_SMALLEST：几何度量排序（线段长度/
+     圆半径/区域包围盒对角线；点=0）；
+  10. SELECTOR_COMPOSITE：递归子选择器，is_union（OR 并集）/
+      非 union（AND 交集）/ is_negated（NOT 补集）。
+- **新增 algebra_selector_add_child**：复合选择器子项注册 API
+  （头文件声明 + 实现，级联销毁语义）。
+- **algebra_selector_create 扩展解析**：PARALLEL/PERPENDICULAR 的
+  axis、BY_INDEX 的 index、COMPOSITE 的 "OR"/"NOT" 表达式。
+- 内部辅助：selector_node_coords（代表坐标）、selector_node_metric
+  （几何度量）、selector_node_direction（线段方向）、
+  selector_dir_axis_parallel/perpendicular、selector_parse_point、
+  selector_node_matches_type/contains。
+- module_lvz.c 三处"简化实现"注释修正（M5：有理数坐标/端点 ID/
+  数字参数解析均为完整实现，措辞误导）。
+
+### ② 验证
+
+- test_layer4_misc.c 的 test_algebra_selector 扩展 20+ 断言：ALL 计数、
+  BY_TYPE（point=2/segment 别名=1）、BY_DIRECTION ">X"、PARALLEL/
+  PERPENDICULAR、BY_INDEX、AT_LOCATION 命中 p0、NEAREST 非空、
+  LARGEST=线段、COMPOSITE OR=3、COMPOSITE NOT=线段、add_child NULL
+  契约、级联销毁。
+- build3 + ctest **288/288**。
+- Python：Windows CRT 既有遗留，改动 C 侧未触绑定。
+
+### 决策登记
+
+- 功能补齐 / 选择器 / 12 类型完整过滤语义 / 替代"返回全部节点"近似。
+- 功能补齐 / API / algebra_selector_add_child / 复合选择器组合。
+- 注释修正 / M5 / module_lvz 三处简化措辞。
+
+### 遗留登记
+
+- sparse cholesky/lu/qr 稠密实现、Windows Python CRT、全局内存泄漏
+  WARN 同前；atp_backend 行数统计 / PDF 最小化 / formula_renderer 默认
+  参数 API / func_block_pack_ex 均为合理设计（非债务）。

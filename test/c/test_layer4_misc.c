@@ -802,9 +802,150 @@ static void test_algebra_selector(void) {
     algebra_selector_destroy(NULL); /* 释放NULL选择器不应崩溃 */
     TEST_ASSERT_NULL(algebra_selector_create((lvSelectorType) -1, NULL));
 
+    /* ---- 完整选择器语义 ---- */
+    AlgebraicGeom *geom = algebra_create(PLANE_XY, "sel_full");
+    TEST_ASSERT_NOT_NULL(geom);
+
+    /* 两个点 */
+    algebra_point(geom, 0, 0, 0);
+    int p0 = algebra_get_current_entity(geom);
+    algebra_point(geom, 100, 0, 0);
+    int p1 = algebra_get_current_entity(geom);
+    /* 一条线段 p0-p1（方向 +X） */
+    algebra_line(geom, p0, p1);
+    int seg = algebra_get_current_entity(geom);
+
+    int *ids = NULL;
+    int cnt = 0;
+
+    /* ALL：3 个节点 */
+    lvSelector *s_all = algebra_selector_create(SELECTOR_ALL, NULL);
+    TEST_ASSERT_NOT_NULL(s_all);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_all, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 3);
+    lv_free((void **) &ids);
+
+    /* BY_TYPE："point" → 2 个 */
+    lvSelector *s_type = algebra_selector_create(SELECTOR_BY_TYPE, "point");
+    TEST_ASSERT_NOT_NULL(s_type);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_type, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 2);
+    lv_free((void **) &ids);
+
+    /* BY_TYPE 别名 "segment" → 1 个 */
+    lvSelector *s_seg = algebra_selector_create(SELECTOR_BY_TYPE, "segment");
+    TEST_ASSERT_NOT_NULL(s_seg);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_seg, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    TEST_ASSERT_EQ(ids[0], seg);
+    lv_free((void **) &ids);
+
+    /* BY_DIRECTION ">X"：指向 +X 的线段 → 线段本身 */
+    lvSelector *s_dir = algebra_selector_create(SELECTOR_BY_DIRECTION, ">X");
+    TEST_ASSERT_NOT_NULL(s_dir);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_dir, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    TEST_ASSERT_EQ(ids[0], seg);
+    lv_free((void **) &ids);
+
+    /* PARALLEL_TO "X"：与 X 轴平行 → 线段 */
+    lvSelector *s_par = algebra_selector_create(SELECTOR_PARALLEL_TO, "X");
+    TEST_ASSERT_NOT_NULL(s_par);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_par, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    TEST_ASSERT_EQ(ids[0], seg);
+    lv_free((void **) &ids);
+
+    /* PERPENDICULAR_TO "X"：与 X 轴垂直 → 无（水平线段） */
+    lvSelector *s_perp = algebra_selector_create(SELECTOR_PERPENDICULAR_TO, "X");
+    TEST_ASSERT_NOT_NULL(s_perp);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_perp, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 0);
+    lv_free((void **) &ids);
+
+    /* BY_INDEX "0"：第一个节点 */
+    lvSelector *s_idx = algebra_selector_create(SELECTOR_BY_INDEX, "0");
+    TEST_ASSERT_NOT_NULL(s_idx);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_idx, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    lv_free((void **) &ids);
+
+    /* AT_LOCATION "0,0"：点 p0 */
+    lvSelector *s_at = algebra_selector_create(SELECTOR_AT_LOCATION, "0,0");
+    TEST_ASSERT_NOT_NULL(s_at);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_at, &ids, &cnt));
+    TEST_ASSERT(cnt >= 1, "位置 0,0 应命中");
+    if (cnt >= 1) {
+        bool has_p0 = false;
+        for (int i = 0; i < cnt; i++) {
+            if (ids[i] == p0) {
+                has_p0 = true;
+                break;
+            }
+        }
+        TEST_ASSERT(has_p0, "命中 p0");
+    }
+    lv_free((void **) &ids);
+
+    /* NEAREST 参考点 "50,0"：最近为线段（中点 (50,0) 或 p1(100,0)？——
+     * 线段代表坐标为起点 (0,0)，p1 距 50，线段起点距 50，p0 距 50；
+     * 选最小距离者，可能为多个并列取首个。仅断言非空且为活跃节点 */
+    lvSelector *s_near = algebra_selector_create(SELECTOR_NEAREST, "50,0");
+    TEST_ASSERT_NOT_NULL(s_near);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_near, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    lv_free((void **) &ids);
+
+    /* LARGEST：线段最长（100）> 点(0) */
+    lvSelector *s_large = algebra_selector_create(SELECTOR_LARGEST, NULL);
+    TEST_ASSERT_NOT_NULL(s_large);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_large, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    TEST_ASSERT_EQ(ids[0], seg);
+    lv_free((void **) &ids);
+
+    /* COMPOSITE OR：BY_TYPE("point") OR BY_TYPE("segment") → 3 */
+    lvSelector *s_comp = algebra_selector_create(SELECTOR_COMPOSITE, "OR");
+    TEST_ASSERT_NOT_NULL(s_comp);
+    lvSelector *c1 = algebra_selector_create(SELECTOR_BY_TYPE, "point");
+    lvSelector *c2 = algebra_selector_create(SELECTOR_BY_TYPE, "segment");
+    TEST_ASSERT_NOT_NULL(c1);
+    TEST_ASSERT_NOT_NULL(c2);
+    TEST_ASSERT_EQ(algebra_selector_add_child(s_comp, c1), 0);
+    TEST_ASSERT_EQ(algebra_selector_add_child(s_comp, c2), 0);
+    TEST_ASSERT_EQ(algebra_selector_add_child(s_comp, NULL), -1); /* NULL child */
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_comp, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 3);
+    lv_free((void **) &ids);
+
+    /* COMPOSITE NOT：NOT(point) → 线段（1 个） */
+    lvSelector *s_not = algebra_selector_create(SELECTOR_COMPOSITE, "NOT");
+    TEST_ASSERT_NOT_NULL(s_not);
+    lvSelector *n1 = algebra_selector_create(SELECTOR_BY_TYPE, "point");
+    TEST_ASSERT_NOT_NULL(n1);
+    TEST_ASSERT_EQ(algebra_selector_add_child(s_not, n1), 0);
+    TEST_ASSERT_NOT_NULL(algebra_select(geom, s_not, &ids, &cnt));
+    TEST_ASSERT_EQ(cnt, 1);
+    TEST_ASSERT_EQ(ids[0], seg);
+    lv_free((void **) &ids);
+
+    algebra_destroy(geom);
+
     algebra_selector_destroy(sel);
     algebra_selector_destroy(sel2);
     algebra_selector_destroy(sel3);
+    algebra_selector_destroy(s_all);
+    algebra_selector_destroy(s_type);
+    algebra_selector_destroy(s_seg);
+    algebra_selector_destroy(s_dir);
+    algebra_selector_destroy(s_par);
+    algebra_selector_destroy(s_perp);
+    algebra_selector_destroy(s_idx);
+    algebra_selector_destroy(s_at);
+    algebra_selector_destroy(s_near);
+    algebra_selector_destroy(s_large);
+    algebra_selector_destroy(s_comp); /* 级联销毁 c1/c2 */
+    algebra_selector_destroy(s_not);  /* 级联销毁 n1 */
 }
 
 /* --- 3.8 约束与证明 --- */
