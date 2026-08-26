@@ -160,6 +160,13 @@ jobs:
       shell: pwsh
       run: |
         echo "lv_LIBRARY_PATH=$pwd/build/liblv.dll" >> $env:GITHUB_ENV
+        # liblv.dll 由 MSYS2 GCC 构建，运行时依赖 libgmp-10.dll 等 MSYS2 DLL；
+        # 官方 Python（MSVC 构建）进程需在 PATH 中能找到这些依赖，否则
+        # ctypes 加载 DLL 时静默崩溃（pytest 在 session starts 后硬崩）。
+        $msys = Join-Path $env:RUNNER_TEMP "msys64\mingw64\bin"
+        if (Test-Path $msys) {
+          echo "PATH=$msys;$env:PATH" >> $env:GITHUB_ENV
+        }
 
     - name: Run Python tests
       working-directory: module/python
@@ -167,6 +174,11 @@ jobs:
       run: |
         set +e
         export PYTHONUNBUFFERED=1
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          # MSYS2 构建的 liblv.dll 依赖 MSYS2 运行库；在 bash 中显式前置
+          # msys64/mingw64/bin 到 PATH，避免官方 Python 加载 DLL 时崩溃
+          export PATH="$RUNNER_TEMP/msys64/mingw64/bin:$PATH"
+        fi
         python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
         cat /tmp/pytest.log
