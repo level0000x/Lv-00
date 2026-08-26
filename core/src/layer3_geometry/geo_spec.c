@@ -63,7 +63,7 @@ static lvGeoSpecPolygon *parse_polygon(const char *json) {
         return NULL;
     }
 
-    /* 解析每个点坐标（简化：从 "points" 数组顺序读取） */
+    /* 解析每个点坐标：按 JSON 中 "points" 数组顺序逐点读取 x/y */
     const char *pos = strstr(json, "points");
     if (pos != NULL) {
         for (int i = 0; i < count; i++) {

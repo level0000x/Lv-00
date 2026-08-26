@@ -157,8 +157,9 @@ AlgebraicGeom *algebra_point_on(AlgebraicGeom *geom, int entity_id) {
     if (!geom || !geom->graph || entity_id < 0)
         return NULL;
 
-    /* 在 entity_id 上创建一个共线点 */
-    /* 简化实现：创建点并与 entity_id 添加 incidence 约束 */
+    /* 在 entity_id 上创建一个共线点：创建默认坐标点（0,0）并添加
+     * INCIDENCE 约束，位置由符号求解器定位到 entity 上（与 midpoint
+     * 等符号构造同款模式，位置经约束求解而非直接指定） */
     SymbolicCoord *coords[2];
     if (!symbolic_coord_pair_create_rational(0, 1, 0, 1, &coords[0], &coords[1]))
         return NULL;
