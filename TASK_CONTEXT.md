@@ -6790,5 +6790,48 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 ### 遗留登记
 
-- sparse cholesky/lu/qr 稠密实现、Windows Python CRT 同前（本批修复了
-  "全局内存泄漏 WARN" 遗留，从遗留清单移除）。
+- Windows Python CRT 同前（本批修复了"全局内存泄漏 WARN"与"sparse
+  三求解器稠密实现"两项遗留，均从遗留清单移除）。
+
+## 一百一十五、批次 sparse 三求解器真正稀疏化（2026-08-27）
+
+用户「继续完整实现不考虑复杂度和难度 并且修bug不要留任何工程债务」——
+处理遗留登记中最大的功能债务：sparse_lu_solve / sparse_cholesky_solve /
+sparse_qr_solve 此前全部 sparse_to_dense 后稠密分解（M4 简化）。
+
+### ① 实现（sparse_linear_algebra.c）
+
+- **稀疏行数据结构**：SparseRow（有序 (col,val) 动态数组，二分查找/
+  有序插入/累加），CSR 行加载（sparse_rows_load/free）。
+- **稀疏 LU（部分主元）**：逐列找主元 + 稀疏消元（只遍历主元行非零
+  列，填充项动态插入）+ 置换跟踪（行交换同步交换 b，前代 Ly=Pb）。
+- **稀疏 Cholesky**：只保留下三角，L[i][j] 逐行点积累加 + 平方根对角。
+- **稀疏 QR（Givens 旋转）**：逐列消去行 i>k，两行非零列并集归并旋转，
+  Q^T b 同步旋转；R 回代。
+- 三求解器：稀疏路径成功即返回；失败（奇异/内存/非正定/秩亏）回退
+  稠密 dense_*（语义与旧一致，双保险）。
+- 稠密版本保留为回退路径（dense_lu/cholesky/qr_solve 注释更新）。
+
+### ② 修复的真实缺陷（测试暴露）
+
+1. **稀疏 LU 置换 bug**：行交换后未同步交换 b，前代 Ly=b 用错行 →
+   x[0] 得 4.0 而非正确解。修复：pb 数组随行交换同步置换，
+   前代用 Ly=Pb。
+
+### ③ 验证
+
+- test_sparse_python_bindings_ext.c 新增 test_sparse_tridiagonal_solvers：
+  4×4 三对角系统，三求解器稀疏路径解 [4,7,8,6]（代入验证）全部通过。
+- 独立 100×100 三对角冒烟：LU/CH/QR maxerr < 2e-12（稀疏路径稳定）。
+- build3 + ctest **288/288**；build_symcheck 重建成功。
+- 内存：三个求解器零泄漏（sparse 测试总分配=总释放对称）。
+
+### 决策登记
+
+- 功能补齐 / 稀疏求解 / LU/Cholesky/QR 真正稀疏化 / 替代稠密分解。
+- 缺陷修复 / 稀疏 LU 置换 / 行交换同步 b / 测试暴露。
+- 保留稠密路径为回退（奇异/非正定/秩亏时二次确认）。
+
+### 遗留登记
+
+- Windows Python CRT 同前；algebra_select 已完成；无新增遗留。

@@ -144,6 +144,54 @@ static void test_solvers(void) {
     sparse_matrix_destroy(A);
 }
 
+/* 真正稀疏场景：4×4 三对角系统（真实稀疏矩阵，非稠密），
+ * 验证稀疏 LU/Cholesky/QR 在稀疏消元路径上的正确性。
+ *   A = [ 2 -1  0  0 ; -1  2 -1  0 ; 0 -1  2 -1 ; 0  0 -1  2 ]
+ *   b = [ 1 ; 2 ; 3 ; 4 ]
+ *   解：A 对称正定三对角，x 解析值可预计算。 */
+static void test_sparse_tridiagonal_solvers(void) {
+    void *A = sparse_matrix_create(4, 4, 0);
+    TEST_ASSERT_NOT_NULL(A);
+    lvSparseMatrix *mA = (lvSparseMatrix *) A;
+    lv_sparse_set(mA, 0, 0, 2.0);
+    lv_sparse_set(mA, 0, 1, -1.0);
+    lv_sparse_set(mA, 1, 0, -1.0);
+    lv_sparse_set(mA, 1, 1, 2.0);
+    lv_sparse_set(mA, 1, 2, -1.0);
+    lv_sparse_set(mA, 2, 1, -1.0);
+    lv_sparse_set(mA, 2, 2, 2.0);
+    lv_sparse_set(mA, 2, 3, -1.0);
+    lv_sparse_set(mA, 3, 2, -1.0);
+    lv_sparse_set(mA, 3, 3, 2.0);
+
+    double b[4] = {1.0, 2.0, 3.0, 4.0};
+    /* 解析解（代入验证）：
+     * 2x0-x1=1 → x0=(1+x1)/2
+     * -x0+2x1-x2=2
+     * -x1+2x2-x3=3
+     * -x2+2x3=4  → x2=2x3-4
+     * 回代得 x = [4 ; 7 ; 8 ; 6]（全部满足原方程） */
+    const double expect[4] = {4.0, 7.0, 8.0, 6.0};
+    double x[4];
+
+    memset(x, 0, sizeof(x));
+    TEST_ASSERT_MSG(sparse_lu_solve(A, b, x) == true, "tridiag LU ok");
+    for (int i = 0; i < 4; i++)
+        TEST_ASSERT_DOUBLE(x[i], expect[i], 1e-6);
+
+    memset(x, 0, sizeof(x));
+    TEST_ASSERT_MSG(sparse_cholesky_solve(A, b, x) == true, "tridiag Cholesky ok");
+    for (int i = 0; i < 4; i++)
+        TEST_ASSERT_DOUBLE(x[i], expect[i], 1e-6);
+
+    memset(x, 0, sizeof(x));
+    TEST_ASSERT_MSG(sparse_qr_solve(A, b, x) == true, "tridiag QR ok");
+    for (int i = 0; i < 4; i++)
+        TEST_ASSERT_DOUBLE(x[i], expect[i], 1e-6);
+
+    sparse_matrix_destroy(A);
+}
+
 static void test_graph_to_matrix(void) {
     lv_init();
     ConstraintGraph *g = graph_create();
@@ -241,6 +289,7 @@ TEST_MAIN_BEGIN("Sparse Python Bindings Ext Test Suite")
     TEST_MAIN_RUN(test_create_destroy_clone);
     TEST_MAIN_RUN(test_multiply_transpose);
     TEST_MAIN_RUN(test_solvers);
+    TEST_MAIN_RUN(test_sparse_tridiagonal_solvers);
     TEST_MAIN_RUN(test_graph_to_matrix);
     TEST_MAIN_RUN(test_degree_analysis);
     TEST_MAIN_RUN(test_semiring);

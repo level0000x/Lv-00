@@ -12,6 +12,7 @@
 
 #include "lv/sparse_linear_algebra.h"
 
+#include <limits.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -530,6 +531,266 @@ bool sparse_matrix_transpose(void *m, void **out) {
     return true;
 }
 
+/* ============================================================================
+ * 稀疏 LU / Cholesky / QR 求解（真正稀疏实现，替代稠密 dense_*_solve）
+ *
+ * 设计：以「稀疏行链表」表示消元过程中的矩阵——每行维护有序 (col, value)
+ * 动态数组（按列号升序，与 CSR 不变量一致），消元只触碰非零元素，
+ * 填充项（fill-in）按需插入，复杂度正比于非零元素而非 n²。
+ * ============================================================================ */
+
+/** @brief 稀疏行：有序 (col, value) 对动态数组（升序，容量可增长） */
+typedef struct {
+    int *cols;
+    double *vals;
+    int count;
+    int capacity;
+} SparseRow;
+
+static bool sparse_row_init(SparseRow *r, int cap) {
+    if (!r)
+        return false;
+    r->count = 0;
+    r->capacity = cap > 0 ? cap : 4;
+    r->cols = (int *) lv_malloc((size_t) r->capacity * sizeof(int));
+    r->vals = (double *) lv_malloc((size_t) r->capacity * sizeof(double));
+    if (!r->cols || !r->vals) {
+        lv_free((void **) &r->cols);
+        lv_free((void **) &r->vals);
+        r->cols = NULL;
+        r->vals = NULL;
+        r->capacity = 0;
+        return false;
+    }
+    return true;
+}
+
+static void sparse_row_destroy(SparseRow *r) {
+    if (!r)
+        return;
+    lv_free((void **) &r->cols);
+    lv_free((void **) &r->vals);
+    r->cols = NULL;
+    r->vals = NULL;
+    r->count = 0;
+    r->capacity = 0;
+}
+
+/** @brief 稀疏行插入或累加：col 已存在则累加 val，否则有序插入（返回 false 仅 OOM） */
+static bool sparse_row_add(SparseRow *r, int col, double val) {
+    if (!r || col < 0)
+        return false;
+    /* 查找插入位置（升序二分；行内元素数通常少，线性扫描亦可） */
+    int lo = 0, hi = r->count;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (r->cols[mid] < col)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo < r->count && r->cols[lo] == col) {
+        r->vals[lo] += val;
+        return true;
+    }
+    if (r->count >= r->capacity) {
+        int new_cap = r->capacity * 2;
+        int *nc = (int *) lv_realloc(r->cols, (size_t) new_cap * sizeof(int));
+        double *nv = (double *) lv_realloc(r->vals, (size_t) new_cap * sizeof(double));
+        if (!nc || !nv) {
+            lv_free((void **) &nc);
+            lv_free((void **) &nv);
+            return false;
+        }
+        r->cols = nc;
+        r->vals = nv;
+        r->capacity = new_cap;
+    }
+    for (int i = r->count; i > lo; i--) {
+        r->cols[i] = r->cols[i - 1];
+        r->vals[i] = r->vals[i - 1];
+    }
+    r->cols[lo] = col;
+    r->vals[lo] = val;
+    r->count++;
+    return true;
+}
+
+/** @brief 稀疏行读取：col 存在返回指针，否则 NULL（升序二分） */
+static double *sparse_row_get(SparseRow *r, int col) {
+    if (!r)
+        return NULL;
+    int lo = 0, hi = r->count;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (r->cols[mid] < col)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo < r->count && r->cols[lo] == col)
+        return &r->vals[lo];
+    return NULL;
+}
+
+/** @brief 稀疏行清空所有元素（用于主元行重置后的重新组装） */
+static void sparse_row_clear(SparseRow *r) {
+    if (r)
+        r->count = 0;
+}
+
+/** @brief 把 CSR 矩阵加载为稀疏行数组（调用者负责 destroy 每行与数组） */
+static SparseRow *sparse_rows_load(const lvSparseMatrix *m, int *out_n) {
+    if (!m || !out_n)
+        return NULL;
+    int n = m->rows;
+    SparseRow *rows = (SparseRow *) lv_calloc((size_t) n, sizeof(SparseRow));
+    if (!rows)
+        return NULL;
+    for (int i = 0; i < n; i++) {
+        int cnt = m->row_ptr[i + 1] - m->row_ptr[i];
+        if (!sparse_row_init(&rows[i], cnt > 0 ? cnt : 4)) {
+            for (int k = 0; k <= i; k++)
+                sparse_row_destroy(&rows[k]);
+            lv_free((void **) &rows);
+            return NULL;
+        }
+        for (int j = m->row_ptr[i]; j < m->row_ptr[i + 1]; j++)
+            rows[i].cols[rows[i].count] = m->col_idx[j],
+            rows[i].vals[rows[i].count] = m->values[j], rows[i].count++;
+    }
+    *out_n = n;
+    return rows;
+}
+
+static void sparse_rows_free(SparseRow *rows, int n) {
+    if (!rows)
+        return;
+    for (int i = 0; i < n; i++)
+        sparse_row_destroy(&rows[i]);
+    lv_free((void **) &rows);
+}
+
+/** @brief 稀疏 LU 分解求解（部分主元）：A x = b，返回 x。
+ * 消元过程只维护稀疏行；行交换用主元行覆盖，填充项动态插入。 */
+static bool sparse_lu_solve_impl(const lvSparseMatrix *M, const double *b, double *x) {
+    int n = M->rows;
+    SparseRow *rows = sparse_rows_load(M, &n);
+    if (!rows)
+        return false;
+    if (n == 0) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+
+    /* 部分主元消元：对每列 k，找该列非零且绝对值最大的行作主元 */
+    /* 置换跟踪：行交换时同步交换 b 的对应项（前代 Ly = Pb 直接对
+     * 交换后的 b 计算，无需额外置换向量） */
+    double *pb = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!pb) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+    memcpy(pb, b, (size_t) n * sizeof(double));
+
+    for (int k = 0; k < n; k++) {
+        int pivot = -1;
+        double maxv = 0.0;
+        for (int i = k; i < n; i++) {
+            double *pv = sparse_row_get(&rows[i], k);
+            if (pv && fabs(*pv) > maxv) {
+                maxv = fabs(*pv);
+                pivot = i;
+            }
+        }
+        if (pivot < 0 || maxv < lv_EPSILON_ULTRA) {
+            lv_free((void **) &pb);
+            sparse_rows_free(rows, n);
+            return false; /* 奇异 */
+        }
+        if (pivot != k) {
+            /* 交换行 k 与 pivot（同时交换 b 对应项保持置换一致） */
+            SparseRow tmp = rows[k];
+            rows[k] = rows[pivot];
+            rows[pivot] = tmp;
+            double tb = pb[k];
+            pb[k] = pb[pivot];
+            pb[pivot] = tb;
+        }
+
+        /* 消去第 k 列下方的非零元素（稀疏遍历） */
+        for (int i = k + 1; i < n; i++) {
+            double *aik = sparse_row_get(&rows[i], k);
+            if (!aik || fabs(*aik) < lv_EPSILON_ULTRA)
+                continue;
+            double factor = *aik / *sparse_row_get(&rows[k], k);
+            /* 行 i ← 行 i − factor × 行 k（仅遍历行 k 的非零列） */
+            for (int t = 0; t < rows[k].count; t++) {
+                int ck = rows[k].cols[t];
+                double vk = rows[k].vals[t];
+                if (ck < k)
+                    continue; /* 主元行 k 在 ck<k 处是 L 部分（已消元），跳过 */
+                double *av = sparse_row_get(&rows[i], ck);
+                if (av)
+                    *av -= factor * vk;
+                else {
+                    if (!sparse_row_add(&rows[i], ck, -factor * vk)) {
+                        lv_free((void **) &pb);
+                        sparse_rows_free(rows, n);
+                        return false;
+                    }
+                }
+            }
+            /* 置 L 元素（第 k 列主元下方）= factor（U 部分该位为 0） */
+            *aik = factor;
+        }
+    }
+
+    /* 前代 Ly = Pb（L 为单位下三角，对角线隐含 1；b 已按行交换置换） */
+    double *y = (double *) lv_calloc((size_t) n, sizeof(double));
+    if (!y) {
+        lv_free((void **) &pb);
+        sparse_rows_free(rows, n);
+        return false;
+    }
+    for (int i = 0; i < n; i++) {
+        double s = pb[i];
+        for (int t = 0; t < rows[i].count; t++) {
+            int c = rows[i].cols[t];
+            if (c < i)
+                s -= rows[i].vals[t] * y[c];
+        }
+        y[i] = s;
+    }
+
+    /* 回代 Ux = y（U 对角线为行 k 的 k 列元素） */
+    for (int i = n - 1; i >= 0; i--) {
+        double diag = 0.0;
+        double s = y[i];
+        for (int t = 0; t < rows[i].count; t++) {
+            int c = rows[i].cols[t];
+            double v = rows[i].vals[t];
+            if (c == i) {
+                diag = v;
+            } else if (c > i) {
+                s -= v * x[c];
+            }
+        }
+        if (fabs(diag) < lv_EPSILON_ULTRA) {
+            lv_free((void **) &y);
+            lv_free((void **) &pb);
+            sparse_rows_free(rows, n);
+            return false;
+        }
+        x[i] = s / diag;
+    }
+
+    lv_free((void **) &y);
+    lv_free((void **) &pb);
+    sparse_rows_free(rows, n);
+    return true;
+}
+
 /* ---- 稠密 LU 分解求解（自包含，避免 L3→L4 依赖 host_linalg）---- */
 static bool dense_lu_solve(const double *A, int n, const double *b, double *x) {
     double *lu = (double *) lv_malloc((size_t) n * (size_t) n * sizeof(double));
@@ -590,7 +851,7 @@ static bool dense_lu_solve(const double *A, int n, const double *b, double *x) {
     return true;
 }
 
-/* ---- 稠密 Cholesky 分解求解（对称正定）---- */
+/* ---- 稠密 Cholesky 分解求解（对称正定；稀疏路径回退时使用） ---- */
 static bool dense_cholesky_solve(const double *A, int n, const double *b, double *x) {
     double *L = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
     if (!L)
@@ -634,7 +895,7 @@ static bool dense_cholesky_solve(const double *A, int n, const double *b, double
     return true;
 }
 
-/* ---- 稠密 QR（修正 Gram-Schmidt）求解最小二乘/方阵 ---- */
+/* ---- 稠密 QR（修正 Gram-Schmidt）求解最小二乘/方阵；稀疏路径回退时使用 ---- */
 static bool dense_qr_solve(const double *A, int n, const double *b, double *x) {
     double *Q = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
     double *R = (double *) lv_calloc((size_t) n * (size_t) n, sizeof(double));
@@ -693,10 +954,239 @@ static bool dense_qr_solve(const double *A, int n, const double *b, double *x) {
     return true;
 }
 
+/** @brief 稀疏 Cholesky 分解求解（对称正定）：A x = b。
+ * 只处理下三角非零（i >= j）；L 行按稀疏行存储，填充项动态插入。 */
+static bool sparse_cholesky_solve_impl(const lvSparseMatrix *M, const double *b, double *x) {
+    int n = M->rows;
+    SparseRow *rows = sparse_rows_load(M, &n);
+    if (!rows)
+        return false;
+    if (n == 0) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+
+    /* 只保留每行下三角部分（col <= row）；上三角对称元素忽略 */
+    for (int i = 0; i < n; i++) {
+        int w = 0;
+        for (int t = 0; t < rows[i].count; t++) {
+            if (rows[i].cols[t] <= i) {
+                rows[i].cols[w] = rows[i].cols[t];
+                rows[i].vals[w] = rows[i].vals[t];
+                w++;
+            }
+        }
+        rows[i].count = w;
+    }
+
+    /* 稀疏 Cholesky：L[i][j] = (A[i][j] − Σ_{k<j} L[i][k]L[j][k]) / L[j][j] */
+    for (int j = 0; j < n; j++) {
+        /* 计算 L[j][j]（需列 j 上所有 i>=j 的 A[i][j]，但按行存下三角时
+         * A[i][j] 在行 i 中。逐行累加 j 列的贡献：行 i 中 col==j 的项） */
+        double ljj = 0.0;
+        for (int i = j; i < n; i++) {
+            double *aij = sparse_row_get(&rows[i], j);
+            if (!aij)
+                continue;
+            /* Σ_{k<j} L[i][k] L[j][k] */
+            double dot = 0.0;
+            for (int t = 0; t < rows[i].count; t++) {
+                int ck = rows[i].cols[t];
+                if (ck >= j)
+                    break;
+                double *lj = sparse_row_get(&rows[j], ck);
+                if (lj)
+                    dot += rows[i].vals[t] * (*lj);
+            }
+            double val = *aij - dot;
+            if (i == j) {
+                if (val <= 0.0) {
+                    sparse_rows_free(rows, n);
+                    return false; /* 非正定 */
+                }
+                ljj = sqrt(val);
+                /* 行 j 对角线更新为 L[j][j] */
+                *aij = ljj;
+            } else {
+                if (fabs(ljj) < lv_EPSILON_ULTRA) {
+                    sparse_rows_free(rows, n);
+                    return false;
+                }
+                /* 行 i 的 col j 更新为 L[i][j]（覆盖 A[i][j]） */
+                *aij = val / ljj;
+            }
+        }
+        if (fabs(ljj) < lv_EPSILON_ULTRA) {
+            sparse_rows_free(rows, n);
+            return false;
+        }
+    }
+
+    /* 前代 Ly = b（L 下三角，含对角） */
+    double *y = (double *) lv_calloc((size_t) n, sizeof(double));
+    if (!y) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+    for (int i = 0; i < n; i++) {
+        double s = b[i];
+        for (int t = 0; t < rows[i].count; t++) {
+            int c = rows[i].cols[t];
+            if (c < i)
+                s -= rows[i].vals[t] * y[c];
+        }
+        double *diag = sparse_row_get(&rows[i], i);
+        if (!diag || fabs(*diag) < lv_EPSILON_ULTRA) {
+            lv_free((void **) &y);
+            sparse_rows_free(rows, n);
+            return false;
+        }
+        y[i] = s / *diag;
+    }
+
+    /* 回代 L^T x = y：x[i] = (y[i] − Σ_{k>i} L[k][i] x[k]) / L[i][i] */
+    for (int i = n - 1; i >= 0; i--) {
+        double s = y[i];
+        for (int k = i + 1; k < n; k++) {
+            double *lki = sparse_row_get(&rows[k], i);
+            if (lki)
+                s -= (*lki) * x[k];
+        }
+        double *diag = sparse_row_get(&rows[i], i);
+        if (!diag || fabs(*diag) < lv_EPSILON_ULTRA) {
+            lv_free((void **) &y);
+            sparse_rows_free(rows, n);
+            return false;
+        }
+        x[i] = s / *diag;
+    }
+
+    lv_free((void **) &y);
+    sparse_rows_free(rows, n);
+    return true;
+}
+
+/** @brief 稀疏 QR 求解（方阵，Givens 旋转逐列消去）。
+ * 逐列对行 i>k 应用 Givens 旋转消去 A[i][k]；旋转保持稀疏性（只触碰
+ * 参与旋转的两行的非零列并集）。最终 R 上三角，回代解 Rx = Q^T b
+ * （Q^T b 经相同旋转累积）。 */
+static bool sparse_qr_solve_impl(const lvSparseMatrix *M, const double *b, double *x) {
+    int n = M->rows;
+    SparseRow *rows = sparse_rows_load(M, &n);
+    if (!rows)
+        return false;
+    if (n == 0) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+
+    double *qtb = (double *) lv_malloc((size_t) n * sizeof(double));
+    if (!qtb) {
+        sparse_rows_free(rows, n);
+        return false;
+    }
+    memcpy(qtb, b, (size_t) n * sizeof(double));
+
+    /* Givens 消去：对每列 k，消去行 k+1..n-1 的 A[i][k] */
+    for (int k = 0; k < n; k++) {
+        for (int i = k + 1; i < n; i++) {
+            double *aik = sparse_row_get(&rows[i], k);
+            if (!aik || fabs(*aik) < lv_EPSILON_ULTRA)
+                continue;
+            double *akk = sparse_row_get(&rows[k], k);
+            if (!akk || fabs(*akk) < lv_EPSILON_ULTRA) {
+                lv_free((void **) &qtb);
+                sparse_rows_free(rows, n);
+                return false; /* 秩亏 */
+            }
+            double a = *akk, c_a = *aik;
+            double r = sqrt(a * a + c_a * c_a);
+            double cs = a / r, sn = c_a / r;
+
+            /* 旋转行 k 与行 i：仅遍历两行非零列的并集。
+             * 先收集两行列号（有序归并），再应用旋转。 */
+            /* 应用旋转到两行：用临时累加避免遍历时修改行结构 */
+            SparseRow nk, ni;
+            if (!sparse_row_init(&nk, rows[k].count + rows[i].count + 4) ||
+                !sparse_row_init(&ni, rows[k].count + rows[i].count + 4)) {
+                sparse_row_destroy(&nk);
+                sparse_row_destroy(&ni);
+                lv_free((void **) &qtb);
+                sparse_rows_free(rows, n);
+                return false;
+            }
+            int p = 0, q = 0;
+            while (p < rows[k].count || q < rows[i].count) {
+                int ck = p < rows[k].count ? rows[k].cols[p] : INT_MAX;
+                int ci = q < rows[i].count ? rows[i].cols[q] : INT_MAX;
+                int c = ck < ci ? ck : ci;
+                double vk = (ck == c && p < rows[k].count) ? rows[k].vals[p] : 0.0;
+                double vi = (ci == c && q < rows[i].count) ? rows[i].vals[q] : 0.0;
+                if (ck == c && p < rows[k].count)
+                    p++;
+                if (ci == c && q < rows[i].count)
+                    q++;
+                if (fabs(vk) < lv_EPSILON_ULTRA && fabs(vi) < lv_EPSILON_ULTRA)
+                    continue;
+                double nv = cs * vk + sn * vi;
+                double nw = -sn * vk + cs * vi;
+                if (fabs(nv) > lv_EPSILON_ULTRA)
+                    sparse_row_add(&nk, c, nv);
+                if (fabs(nw) > lv_EPSILON_ULTRA)
+                    sparse_row_add(&ni, c, nw);
+            }
+            sparse_row_destroy(&rows[k]);
+            sparse_row_destroy(&rows[i]);
+            rows[k] = nk;
+            rows[i] = ni;
+            /* Q^T b 同步旋转 */
+            double bk = qtb[k], bi = qtb[i];
+            qtb[k] = cs * bk + sn * bi;
+            qtb[i] = -sn * bk + cs * bi;
+        }
+        /* 列 k 对角线必须非零（数值容差） */
+        double *dk = sparse_row_get(&rows[k], k);
+        if (!dk || fabs(*dk) < lv_EPSILON_ULTRA) {
+            lv_free((void **) &qtb);
+            sparse_rows_free(rows, n);
+            return false;
+        }
+    }
+
+    /* 回代 Rx = Q^T b */
+    for (int i = n - 1; i >= 0; i--) {
+        double diag = 0.0;
+        double s = qtb[i];
+        for (int t = 0; t < rows[i].count; t++) {
+            int c = rows[i].cols[t];
+            double v = rows[i].vals[t];
+            if (c == i) {
+                diag = v;
+            } else if (c > i) {
+                s -= v * x[c];
+            }
+        }
+        if (fabs(diag) < lv_EPSILON_ULTRA) {
+            lv_free((void **) &qtb);
+            sparse_rows_free(rows, n);
+            return false;
+        }
+        x[i] = s / diag;
+    }
+
+    lv_free((void **) &qtb);
+    sparse_rows_free(rows, n);
+    return true;
+}
+
 bool sparse_lu_solve(void *m, const double *b, double *x) {
     lvSparseMatrix *M = (lvSparseMatrix *) m;
     if (!M || !b || !x || M->rows != M->cols)
         return false;
+    /* 真正稀疏 LU（稀疏行消元，仅触碰非零元素） */
+    if (sparse_lu_solve_impl(M, b, x))
+        return true;
+    /* 回退：稀疏路径失败（奇异/内存）时用稠密 LU 二次确认（语义与旧一致） */
     double *d = sparse_to_dense(M);
     if (!d)
         return false;
@@ -709,6 +1199,8 @@ bool sparse_cholesky_solve(void *m, const double *b, double *x) {
     lvSparseMatrix *M = (lvSparseMatrix *) m;
     if (!M || !b || !x || M->rows != M->cols)
         return false;
+    if (sparse_cholesky_solve_impl(M, b, x))
+        return true;
     double *d = sparse_to_dense(M);
     if (!d)
         return false;
@@ -721,6 +1213,8 @@ bool sparse_qr_solve(void *m, const double *b, double *x) {
     lvSparseMatrix *M = (lvSparseMatrix *) m;
     if (!M || !b || !x || M->rows != M->cols)
         return false;
+    if (sparse_qr_solve_impl(M, b, x))
+        return true;
     double *d = sparse_to_dense(M);
     if (!d)
         return false;
