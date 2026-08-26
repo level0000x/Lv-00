@@ -65,6 +65,10 @@ jobs:
           grep -nE "The following tests FAILED|Failed test|FAILED|\*\*\*Failed|Error" /tmp/ctest.log | head -40 | while IFS= read -r line; do
             echo "::error file=ctest.log::$line"
           done
+          # 失败测试名单在 "The following tests FAILED:" 之后以缩进行列出，单独提取
+          awk '/The following tests FAILED:/{flag=1; next} flag && /^[[:space:]]/ {print NR": "$0; n++} n>=30{exit}' /tmp/ctest.log | while IFS= read -r line; do
+            echo "::error file=ctest.log::FAILED-LIST $line"
+          done
 
   # ── Windows (MSYS2): GCC 语法检查 + CMake 构建 ────────────
   windows-build:
