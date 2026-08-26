@@ -169,7 +169,14 @@ jobs:
         export PATH="$(cygpath -u "$RUNNER_TEMP")/msys64/mingw64/bin:$PATH"
         echo "PATH=$PATH"
         ls -la build/liblv.dll 2>&1 | head -3
-        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p); lib=ctypes.CDLL(p); print("loaded OK:", lib)' 2>&1 | head -10
+        python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p); lib=ctypes.CDLL(p); print("loaded OK:", lib)' 2>&1 | tee /tmp/dllverify.log | head -10
+        rc=${PIPESTATUS[0]}
+        echo "dll verify rc=$rc"
+        if [ $rc -ne 0 ]; then
+          echo "::error file=dllverify.log::DLL load failed"
+          cat /tmp/dllverify.log | while IFS= read -r line; do echo "::error file=dllverify.log::$line"; done
+          exit $rc
+        fi
 
     - name: Run Python tests
       working-directory: module/python
