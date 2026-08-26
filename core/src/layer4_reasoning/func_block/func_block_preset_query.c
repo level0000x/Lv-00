@@ -157,12 +157,20 @@ bool func_block_preset_validate_constraints(const char *preset_name, ConstraintG
     if (!metadata)
         return false;
 
-    /* 简化实现：仅检查节点存在性 */
+    /* 数量校验：input_count > 0 表示预设固定输入数量（0/-1 为可变），
+     * 要求调用方提供恰好 input_count 个节点（与 func_block_preset_internal.c
+     * 实例化校验语义一致） */
+    if (metadata->input_count > 0 && input_count != metadata->input_count) {
+        if (out_violated_constraint)
+            *out_violated_constraint = "输入节点数量与预设定义不符";
+        return false;
+    }
+
+    /* 节点存在性校验 */
     for (int i = 0; i < input_count; i++) {
         if (!graph_get_node(graph, input_node_ids[i])) {
-            if (out_violated_constraint) {
+            if (out_violated_constraint)
                 *out_violated_constraint = "输入节点不存在";
-            }
             return false;
         }
     }

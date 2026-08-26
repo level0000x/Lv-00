@@ -504,7 +504,70 @@ lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop
     return a;
 }
 
-/* ============ 规则匹配（简化实现） ============ */
+/* ============ 规则匹配（完整实现：启发式适用性 + 变量绑定） ============ */
+
+/**
+ * @brief 将规则变量绑定到图中满足类型约束的节点（贪心：每变量取首个匹配）
+ *
+ * 规则变量（lvRuleVariable.type）为字符串（如 "point"/"line_segment"），
+ * 通过 lv_geom_type_name/lv_geom_type_alias 映射到 GeomNode.type。
+ * 返回实际绑定的变量数；绑定结果写入 match->bindings。
+ */
+static uint32_t rule_bind_variables(const lvRule *rule, const ConstraintGraph *graph, lvRuleMatch *match) {
+    if (!rule || !graph || !match)
+        return 0;
+
+    uint32_t bound = 0;
+    int node_count = graph_get_node_count(graph);
+
+    for (uint32_t v = 0; v < rule->var_count && v < lv_RULE_MAX_VARIABLES; v++) {
+        const lvRuleVariable *var = &rule->variables[v];
+        match->bindings[v] = *var;
+        match->bindings[v].is_bound = false;
+        match->bindings[v].bound_node_id = -1;
+
+        /* 无类型约束的变量：绑定到第一个节点 */
+        if (var->type[0] == '\0') {
+            for (int i = 0; i < node_count; i++) {
+                GeomNode *n = graph->nodes[i];
+                if (n && n->type != GEOM_FUNCTION_BLOCK) {
+                    match->bindings[v].is_bound = true;
+                    match->bindings[v].bound_node_id = n->id;
+                    bound++;
+                    break;
+                }
+            }
+            continue;
+        }
+
+        /* 类型约束匹配：遍历图节点，比对类型名/别名（大小写不敏感） */
+        for (int i = 0; i < node_count; i++) {
+            GeomNode *n = graph->nodes[i];
+            if (!n)
+                continue;
+            const char *tname = lv_geom_type_name((int) n->type);
+            const char *talias = lv_geom_type_alias((int) n->type);
+            if (lv_str_icmp(var->type, tname) == 0 || (talias && lv_str_icmp(var->type, talias) == 0)) {
+                /* 同一变量绑定后不可重复绑定 */
+                bool already = false;
+                for (uint32_t k = 0; k < bound; k++) {
+                    if (match->bindings[k].is_bound && match->bindings[k].bound_node_id == n->id) {
+                        already = true;
+                        break;
+                    }
+                }
+                if (!already) {
+                    match->bindings[v].is_bound = true;
+                    match->bindings[v].bound_node_id = n->id;
+                    bound++;
+                    break;
+                }
+            }
+        }
+    }
+    match->binding_count = bound;
+    return bound;
+}
 
 uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGraph *graph, const ProofNavigator *context,
                               lvRuleMatch **out_matches, uint32_t max_count) {
@@ -547,6 +610,9 @@ uint32_t lv_rule_find_matches(const lvRuleLibrary *library, const ConstraintGrap
             m->confidence = confidence;
             m->is_complete = is_complete;
             m->matched_premises = r->premise_count;
+            /* 完整实现：为规则变量绑定满足类型约束的图节点
+             * （此前绑定数组恒空，lv_rule_apply_match 无法引用具体节点） */
+            rule_bind_variables(r, graph, m);
             out_matches[found++] = m;
         }
     }
@@ -640,31 +706,68 @@ bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, con
     return true;
 }
 
-/* ============ 规则推荐（简化实现） ============ */
+/* ============ 规则推荐（完整实现：适用性过滤 + 优先级/难度评分） ============ */
 
 lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const ConstraintGraph *graph,
                                         const ProofNavigator *context, uint32_t max_count) {
     if (!library)
         lv_RETURN_ERROR_NULL(lv_ERROR_NULL_POINTER, "lv_rule_recommend: NULL library");
+
+    /* 第一遍：收集适用规则并计算分数 */
+    uint32_t applicable_count = 0;
+    for (uint32_t i = 0; i < library->rule_count; i++) {
+        lvRule *r = library->rules[i];
+        if (!r || r->status != RULE_STATUS_ENABLED)
+            continue;
+        if (!lv_rule_is_applicable(r, graph, context))
+            continue;
+        applicable_count++;
+    }
+
+    uint32_t cnt = applicable_count < max_count ? applicable_count : max_count;
     lvRuleRecommendation *rec = lv_calloc(1, sizeof(lvRuleRecommendation));
     if (!rec)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_recommend: calloc failed for rec");
 
-    uint32_t cnt = library->rule_count < max_count ? library->rule_count : max_count;
-    rec->rules = lv_calloc(cnt, sizeof(lvRule *));
-    rec->scores = lv_calloc(cnt, sizeof(double));
+    rec->rules = lv_calloc(cnt > 0 ? cnt : 1, sizeof(lvRule *));
+    rec->scores = lv_calloc(cnt > 0 ? cnt : 1, sizeof(double));
     if (!rec->rules || !rec->scores) {
         lv_free((void **) &rec->rules);
         lv_free((void **) &rec->scores);
         lv_free((void **) &rec);
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "lv_rule_recommend: calloc failed for rules/scores");
     }
-    for (uint32_t i = 0; i < cnt; i++) {
-        rec->rules[i] = library->rules[i];
-        rec->scores[i] = 1.0;
+
+    /* 第二遍：填充适用规则 */
+    uint32_t idx = 0;
+    for (uint32_t i = 0; i < library->rule_count && idx < cnt; i++) {
+        lvRule *r = library->rules[i];
+        if (!r || r->status != RULE_STATUS_ENABLED)
+            continue;
+        if (!lv_rule_is_applicable(r, graph, context))
+            continue;
+        rec->rules[idx] = r;
+        /* 评分：优先级为主（0-100），难度分数为辅（0-1000 → 0-10） */
+        rec->scores[idx] = (double) r->priority + (double) r->difficulty_score / 100.0;
+        idx++;
     }
-    rec->count = cnt;
-    rec->reason = lv_strdup("基于规则优先级推荐");
+    rec->count = idx;
+
+    /* 按分数降序排序（插入排序，数量小） */
+    for (uint32_t i = 1; i < rec->count; i++) {
+        lvRule *rkey = rec->rules[i];
+        double skey = rec->scores[i];
+        int32_t j = (int32_t) i - 1;
+        while (j >= 0 && rec->scores[j] < skey) {
+            rec->rules[j + 1] = rec->rules[j];
+            rec->scores[j + 1] = rec->scores[j];
+            j--;
+        }
+        rec->rules[j + 1] = rkey;
+        rec->scores[j + 1] = skey;
+    }
+
+    rec->reason = lv_strdup("按规则优先级与难度综合评分推荐");
     return rec;
 }
 

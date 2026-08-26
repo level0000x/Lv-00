@@ -172,6 +172,70 @@ static void test_rule_difficulty_api(void) {
     printf("  test_rule_difficulty_api: PASSED\n");
 }
 
+
+/* ============== 测试：规则匹配变量绑定 + 推荐评分（完整实现） ============== */
+
+static void test_rule_match_bindings(void) {
+    lvRuleLibraryConfig cfg = {.max_rules = 8, .auto_validate = true, .auto_difficulty = true,
+                               .enable_cache = true, .default_package = "test_pkg"};
+    lvRuleLibrary *lib = lv_rule_library_create(&cfg);
+    TEST_ASSERT_NOT_NULL(lib);
+
+    /* 规则：一个 point 类型变量 */
+    lvRule *r = lv_rule_create("bind_test_rule", RULE_TYPE_INFERENCE);
+    TEST_ASSERT_NOT_NULL(r);
+    TEST_ASSERT_MSG(lv_rule_add_variable(r, "P", "point"), "add variable P:point");
+    TEST_ASSERT_MSG(lv_rule_add_premise(r, "P is point", false), "add premise");
+    TEST_ASSERT_MSG(lv_rule_add_conclusion(r, "P exists", TRUST_GREEN), "add conclusion");
+    TEST_ASSERT_MSG(lv_rule_library_add(lib, r), "library add rule");
+    lv_rule_set_priority(r, RULE_PRIORITY_HIGH); /* void */
+
+    /* 建图：一个点 */
+    lv_init();
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+    TEST_ASSERT_MSG(graph_add_point_xy(g, NULL, NULL) == ADD_NODE_OK, "add point");
+
+    /* 匹配：变量应绑定到节点 */
+    lvRuleMatch *matches[4] = {0};
+    uint32_t n = lv_rule_find_matches(lib, g, NULL, matches, 4);
+    TEST_ASSERT_MSG(n >= 1, "找到至少一个匹配");
+    bool found_binding = false;
+    for (uint32_t i = 0; i < n; i++) {
+        if (matches[i] && matches[i]->binding_count >= 1 && matches[i]->bindings[0].is_bound) {
+            found_binding = true;
+            TEST_ASSERT_MSG(matches[i]->bindings[0].bound_node_id >= 0, "绑定节点 id 有效");
+        }
+    }
+    TEST_ASSERT_MSG(found_binding, "变量绑定到图节点");
+
+    /* 推荐：适用规则被推荐且分数 > 0 */
+    lvRuleRecommendation *rec = lv_rule_recommend(lib, g, NULL, 4);
+    TEST_ASSERT_NOT_NULL(rec);
+    TEST_ASSERT_MSG(rec->count >= 1, "推荐至少一条");
+    bool found_rec = false;
+    for (uint32_t i = 0; i < rec->count; i++) {
+        if (rec->rules[i] == r) {
+            found_rec = true;
+            TEST_ASSERT_MSG(rec->scores[i] > 0.0, "推荐分数 > 0");
+            break;
+        }
+    }
+    TEST_ASSERT_MSG(found_rec, "推荐包含适用规则");
+    lv_rule_recommendation_destroy(rec);
+
+    /* 清理匹配 */
+    for (uint32_t i = 0; i < n; i++) {
+        if (matches[i])
+            lv_rule_match_destroy(matches[i]);
+    }
+
+    graph_destroy(g);
+    lv_rule_library_destroy(lib);
+    lv_cleanup();
+    printf("  test_rule_match_bindings: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Axiom Rule Engine Ext Test Suite")
@@ -181,6 +245,7 @@ TEST_MAIN_BEGIN("Lv-00 Axiom Rule Engine Ext Test Suite")
     TEST_MAIN_RUN(test_rule_library_query_api);
     TEST_MAIN_RUN(test_rule_copy_json_api);
     TEST_MAIN_RUN(test_rule_difficulty_api);
+    TEST_MAIN_RUN(test_rule_match_bindings);
 
     lv_cleanup();
 TEST_MAIN_END()
