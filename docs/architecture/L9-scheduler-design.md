@@ -1,8 +1,9 @@
 # L9 调度层架构设计草案（可信分片调度）
 
-> 状态：草案 v0.2（2026-08-27）
+> 状态：草案 v1.0（2026-08-27）
 > 来源：《进程相关思考.txt》设计思路提炼 + Lv-00 现有设施盘点
 > 决策原则：**能隔离的绝不共享，能落盘的绝不传输，能重算的绝不恢复。**
+> v1.0 新增：调度器状态机 / 分片协议 / 证书验证流程 / 一致性模型 / 安全模型
 
 ---
 
@@ -257,3 +258,162 @@ core/src/layer9_scheduler/
 2. 再实现 `scheduler_core`（分片调度）——队列 + 规则分发借鉴 engine_scheduler，单机验证。
 3. 最后接 `scheduler_worker`（进程隔离）+ 单进程/多进程双模式开关。
 4. 每步加契约测试（调度正确性 / 证书原子性 / 故障注入重调度）。
+
+---
+
+## 10. 调度器状态机（v1.0 深化）
+
+### 10.1 分片任务生命周期
+
+```
+                    ┌──────────────────────────────────────────┐
+                    │            ShardTask 状态机                │
+                    └──────────────────────────────────────────┘
+  SUBMITTED ──→ SCHEDULED ──→ DISPATCHED ──→ RUNNING ──→ VERIFYING ──→ DONE
+      │             │             │             │           │          │
+      │             │             │             │           │          │
+      │             └──失败───────┘             │           │          │
+      │             (调度资源不足)               │           │          │
+      │             └───────────────────────────┼──崩溃──────┘          │
+      │                                         │      (退出码非0/超时)  │
+      │                                         ↓                       │
+      │                                    RESCHEDULING ──→ SCHEDULED    │
+      │                                         │                        │
+      │                                         └──(重试次数超限)──→ FAILED
+      └──────────────────────────────────────────────────────────────┘
+                     (取消)──→ CANCELLED
+```
+
+| 状态 | 含义 | 进入条件 | 出口条件 |
+|---|---|---|---|
+| SUBMITTED | 已提交，未调度 | `lv_sched_submit` | 资源可用 → SCHEDULED |
+| SCHEDULED | 已入队 | 资源确认 | worker 领取 → DISPATCHED |
+| DISPATCHED | 已派发 | worker 进程 spawn 成功 | 进程存活 → RUNNING |
+| RUNNING | 计算中 | 收到 worker 心跳/开始信号 | 证书落盘 → VERIFYING；崩溃/超时 → RESCHEDULING |
+| VERIFYING | 证书编译验证中 | RUNNING 完成 | 验证通过 → DONE；失败 → RESCHEDULING |
+| RESCHEDULING | 重试中 | 崩溃/验证失败 | 重试次数 < max → SCHEDULED；≥ max → FAILED |
+| DONE / FAILED / CANCELLED | 终态 | — | — |
+
+### 10.2 重试策略
+
+- **重试上限**：`max_retries`（默认 2，可配）。
+- **退避**：指数退避 `delay = base * 2^attempt`（base=100ms，封顶 5s），
+  避免故障风暴下同时重试。
+- **只重试该分片**：已验证通过的分片证书不动，仅未通过的重算
+  （与设计哲学一致：能重算的绝不恢复）。
+- **毒丸任务**：连续失败超过 max_retries → FAILED，记录错误，不阻塞其他分片。
+
+---
+
+## 11. 分片进程协议（v1.0 深化）
+
+### 11.1 消息格式（stdio，行分隔 JSON，复用 interop_server stdio）
+
+```
+主控 → worker:   {"type":"shard.task","shard_id":3,"input":"<canonical>","timeout_ms":5000}
+worker → 主控:  {"type":"shard.ack","shard_id":3}
+worker → 主控:  {"type":"shard.progress","shard_id":3,"pct":42}
+worker → 主控:  {"type":"shard.cert","shard_id":3,"cert_path":"shard_3.proof.cert","version":2}
+worker → 主控:  {"type":"shard.error","shard_id":3,"code":"OUT_OF_MEMORY","msg":"..."}
+```
+
+### 11.2 协议不变量
+
+1. **证书不随消息传**：`shard.cert` 只带路径，正文走文件系统（能落盘的绝不传输）。
+2. **ack 后超时判定**：主控发出 task 后启动计时器；ack 前超时 → 视 worker 未启动，
+  直接重调度（无需等崩溃信号）。
+3. **cert 消息是提交点**：主控收到 `shard.cert` 即转 VERIFYING（读文件验证），
+  不依赖 worker 后续存活。
+4. **心跳可选**：长任务可发 progress 防主控误判超时；无心跳任务按
+   `timeout_ms` 硬上限。
+
+### 11.3 幂等重放
+
+- worker 幂等：同一 `shard_id` 的 task 重复投递，worker 只处理一次
+  （证书文件 version 相同则跳过重算——先查 `shard_{id}.proof.cert` 是否
+  已存在且 hash 匹配）。
+- 主控幂等：重调度只递增 version，不改变分片内容（分片输入由
+  `shard_id` 确定性派生）。
+
+---
+
+## 12. 证书验证流程（v1.0 深化）
+
+```
+主控 VERIFYING 状态:
+  1. 读证书 → 校验信封（format-version / shard-id / content-hash）
+  2. content-hash vs 正文 SHA-256 比对 → 不匹配 → 证书损坏 → RESCHEDULING
+  3. 按 target 层分发验证:
+       target=lean  → lean4_bridge 编译证书正文（L10）
+       target=coq   → coq_bridge 编译
+       target=canon → proof_compiler 重放（L5）
+  4. 编译通过 → 证书有效 → 登记 VerifyReport → DONE
+  5. 编译失败 → 记录错误 → RESCHEDULING
+```
+
+- **验证是并行的**：多个分片证书可同时编译验证（各证书独立）。
+- **验证结果落盘**：`VerifyReport`（复用 L8 深化设计的报告格式）
+  → `shard_{id}.verify` 文件，供审计与 L9 应用层汇总。
+- **最终结论**：全部 DONE 分片的 VerifyReport 汇总 → 整体结论
+  （任何 FAILED → 整体失败，但已 DONE 部分可复用）。
+
+---
+
+## 13. 一致性模型（v1.0 深化）
+
+### 13.1 单调性
+
+- **证书版本单调递增**：同一分片新证书 version > 旧证书。
+  编译器/主控只接受 `version >= 当前`。
+- **结论单调**：一旦 DONE 即终态，重算不推翻已 DONE 分片
+  （除非显式全局重验，version 全局 +1）。
+
+### 13.2 最终一致性
+
+- 无分布式锁：证书文件即"提交记录"。主控崩溃重启后，
+  扫描目录恢复各分片状态（存在且验证过的证书 → DONE）。
+- 恢复无需日志：`shard_{id}.proof.cert` 的存在性 + VerifyReport 即状态
+  （能落盘的绝不传输 → 文件系统即状态存储）。
+
+### 13.3 冲突
+
+- 同一分片并发重算（主控崩溃前已派发 + 重启后重派）：
+  两 worker 写同一 `shard_{id}.proof.cert.tmp` → rename 原子覆盖，
+  后写者胜。主控以 VerifyReport 为准（验证通过者胜）。
+
+---
+
+## 14. 安全模型（v1.0 深化）
+
+### 14.1 证书不可伪造
+
+- 证书正文 = 可编译证明（Lean/Coq）——伪造者需构造合法证明，
+  等价于攻破证明系统（超出威胁模型）。
+- `content-hash` 防意外损坏（非防恶意篡改；防篡改需签名，见下）。
+
+### 14.2 可选签名（未来）
+
+- 信封增加 `signature` 字段（Ed25519/HMAC，密钥由主控持有）。
+- 用于跨信任域部署（多租户）：计算进程需签名才被接受。
+- 单机/单信任域：省略签名，依赖"证明本身可编译"的强保证。
+
+### 14.3 资源隔离
+
+- 分片 worker 以 `timeout_ms` 硬限制（lv_external_process_run 已支持）。
+- 内存/文件句柄：worker 进程独立（崩溃即回收），主控只读证书文件。
+- 证书目录权限：worker 只写自己分片（`shard_{id}.tmp`），主控只读正式名。
+
+---
+
+## 15. 深化后的工作量修正（v1.0）
+
+| 模块 | v0.2 预估 | v1.0 修正 | 新增内容 |
+|---|---|---|---|
+| scheduler_core（含状态机） | 800-1200 | 1000-1400 | 状态机 + 重试退避 |
+| scheduler_proto（含协议） | 300-500 | 400-600 | 消息类型 + 幂等重放 |
+| scheduler_verify（含验证流程） | 200-300 | 400-500 | 并行验证 + VerifyReport |
+| scheduler_worker（含恢复） | 300-400 | 400-500 | 崩溃恢复扫描 + 幂等 |
+| **新增小计** | **3400-4700** | **4000-5400** | |
+
+- 结论修正：新增约 **4000-5400 行**（含测试），仍 < 代码库 2%。
+- 复用 8800 行不变，重写 0 行不变。
