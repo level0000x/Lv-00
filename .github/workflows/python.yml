@@ -95,6 +95,8 @@ jobs:
         # concurrent_monitor / llm_coding_assistant 测试依赖（rich/flask/fastapi 等）
         pip install -r ../concurrent_monitor/requirements.txt
         pip install -r ../llm_coding_assistant/requirements.txt || true
+        # concurrent_monitor pytest.ini 使用 asyncio_mode=auto，需要 pytest-asyncio
+        pip install pytest-asyncio
 
     # ── 静态代码检查：flake8 + mypy ──────────────────────────────────
     # 在运行测试之前先进行代码质量检查，尽早发现风格和类型问题
