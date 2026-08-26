@@ -59,3 +59,9 @@ bool lv_serialize_register_graph_adapters(void) {
                                          graph_json_ser_adapter,
                                          graph_json_deser_adapter);
 }
+
+void lv_serialize_cleanup_adapters(void) {
+    /* 完整释放序列化/验证/存储后端注册表（含 once 重置，允许再次 init）：
+     * 修复 lv_cleanup 后 ConstraintGraph 序列化条目泄漏（~1162 字节） */
+    lv_storage_system_cleanup();
+}

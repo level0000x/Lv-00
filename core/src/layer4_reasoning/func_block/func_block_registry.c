@@ -556,12 +556,19 @@ bool func_block_registry_init(void) {
 }
 
 void lv_func_block_registry_cleanup(void) {
-    /* 确保互斥锁就绪（从未 init 时直接清理也安全） */
-    func_block_registry_ensure();
-
-    /* 释放所有条目（destroy 回调 + 注册表 name），保留数组与互斥锁
-       以便再次 init；lv_registry_clear 可安全多次调用（幂等） */
-    lv_registry_clear(&g_func_block_registry);
+    /* 完整释放注册表结构（entries 数组 / name→下标 哈希索引 / 互斥锁），
+     * 并重置 once 守卫允许再次 init。
+     *
+     * 修复：旧实现先 func_block_registry_ensure 再 lv_registry_clear ——
+     * 在从未使用 func_block API 的进程中（lv_cleanup 仍会调用本函数），
+     * ensure 惰性分配 registry 结构（32 项 entries + 哈希索引 + mutex）
+     * 后 clear 保留结构，导致该结构永不被释放，触发 lv_cleanup 的内存
+     * 泄漏 WARN（~1024 字节）。现改为：已分配则完整销毁 + 重置 once；
+     * 未分配（entries==NULL）则空操作，不再触发惰性分配。 */
+    if (g_func_block_registry.entries) {
+        lv_registry_destroy(&g_func_block_registry);
+    }
+    lv_once_reset(&g_func_block_registry_once);
 
     g_initialized = false;
 }

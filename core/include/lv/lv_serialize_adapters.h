@@ -35,6 +35,15 @@ extern "C" {
  */
 bool lv_serialize_register_graph_adapters(void);
 
+/**
+ * @brief 清理内置序列化适配器（模块 cleanup 回调）
+ *
+ * 完整释放序列化/验证/存储后端注册表结构（entries 数组 / 哈希索引 /
+ * 互斥锁）并重置 once 守卫，消除 lv_init 注册的 ConstraintGraph 序列化
+ * 条目在 lv_cleanup 后的内存泄漏（~1162 字节）。幂等，可重复调用。
+ */
+void lv_serialize_cleanup_adapters(void);
+
 #ifdef __cplusplus
 }
 #endif

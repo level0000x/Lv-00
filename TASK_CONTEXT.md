@@ -6734,6 +6734,61 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 ### 遗留登记
 
-- sparse cholesky/lu/qr 稠密实现、Windows Python CRT、全局内存泄漏
-  WARN 同前；atp_backend 行数统计 / PDF 最小化 / formula_renderer 默认
-  参数 API / func_block_pack_ex 均为合理设计（非债务）。
+- sparse cholesky/lu/qr 稠密实现、Windows Python CRT 同前；atp_backend
+  行数统计 / PDF 最小化 / formula_renderer 默认参数 API /
+  func_block_pack_ex 均为合理设计（非债务）。
+
+## 一百一十四、批次 全局内存泄漏修复（2026-08-27）
+
+用户「继续完整实现不考虑复杂度和难度 并且修bug不要留任何工程债务」——
+首要债务为 lv_cleanup 后的全局内存泄漏 WARN（此前 15 块 / 2186 字节，
+已登记遗留多年）。
+
+### ① 定位（memdbg 逐步骤插桩）
+
+- init 后 used=1646；cleanup 各步骤后：engine 1646、func_registry +1024、
+  modules 释放 484、最终残留 1162。
+- 逐模块 init 追踪：**serialize_adapters 模块 init 分配 1162 字节**
+  （ConstraintGraph 序列化/验证注册表条目），且其 cleanup 为 NULL。
+- func_block_registry cleanup 无条件 ensure → 从未使用 func_block API
+  时惰性分配 registry 结构（32 项 entries + 哈希索引 + mutex）后
+  clear 保留 → 泄漏 ~1024 字节。
+- 内存统计在 lv_module_cleanup_all 之前输出 → 清理未完成即报 WARN
+  （时序误报）。
+
+### ② 修复
+
+1. **func_block_registry_cleanup**（M6/泄漏）：已分配则 lv_registry_destroy
+   完整释放 + lv_once_reset 重置 once；未分配（entries==NULL）空操作，
+   不再触发惰性分配。
+2. **lv_storage_system_cleanup 完整化**（M6：定义但从不生效）：补清
+   serialize_registry / verify_registry（此前仅清 backend_registry）；
+   三个注册表均完整释放 + once 重置。serialize/verify 注册表变量改用
+   DECL + 手动 init_once（支持前向声明供 cleanup 使用）。
+3. **serialize_adapters 模块注册 cleanup**（M6）：lv_serialize_cleanup_adapters
+   调用 lv_storage_system_cleanup，替换原 NULL cleanup。
+4. **lv_once_reset 新增**（lv_thread.h）：跨平台重置 once 守卫
+   （Windows INIT_ONCE / POSIX pthread_once 逐字节清零，均为合法初值），
+   统一替代 lv_storage 中原平台分支代码。
+5. **lv_cleanup 统计时序修正**：内存统计移到所有清理完成后输出，
+   消除清理顺序导致的误报。
+
+### ③ 验证
+
+- 最小 init/cleanup：leak_report「无内存泄漏」，总分配=总释放
+  （1667=1667），WARN 消失。
+- **3 轮 init/cleanup 循环（含 func_block_registry_init 真实使用）
+  每轮 used=0**——once 重置正确，注册表可完整复用。
+- build3 + ctest **288/288** 全绿。
+
+### 决策登记
+
+- 缺陷修复 / M6 / 全局内存泄漏 / serialize/verify/backend 注册表完整释放。
+- 缺陷修复 / M6 / func_block_registry cleanup 惰性分配泄漏。
+- 缺陷修复 / 时序 / lv_cleanup 内存统计误报。
+- 功能补齐 / API / lv_once_reset / 跨平台 once 重置。
+
+### 遗留登记
+
+- sparse cholesky/lu/qr 稠密实现、Windows Python CRT 同前（本批修复了
+  "全局内存泄漏 WARN" 遗留，从遗留清单移除）。

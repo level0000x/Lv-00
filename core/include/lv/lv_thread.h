@@ -399,6 +399,18 @@ static inline void lv_once(lv_once_t *once, void (*init_func)(void)) {
     InitOnceExecuteOnce(once, lv_once_callback, (PVOID)init_func, NULL);
 }
 
+/** @brief 重置一次性初始化守卫（cleanup 后允许重新初始化）
+ *  @note 仅应在所有使用该 once 的并发访问已结束后调用（单线程清理路径）。
+ *        INIT_ONCE 重置为静态初值后 InitOnceExecuteOnce 可再次执行
+ *        （INIT_ONCE_STATIC_INIT 为全零初始化，逐字节清零等价）。 */
+static inline void lv_once_reset(lv_once_t *once) {
+    if (once) {
+        unsigned char *p = (unsigned char *) once;
+        for (size_t i = 0; i < sizeof(*once); i++)
+            p[i] = 0;
+    }
+}
+
 #else
 typedef pthread_once_t lv_once_t;
 #define lv_ONCE_INIT PTHREAD_ONCE_INIT
@@ -406,6 +418,19 @@ typedef pthread_once_t lv_once_t;
 /** @brief 线程安全的一次性初始化（POSIX pthread_once） */
 static inline void lv_once(lv_once_t *once, void (*init_func)(void)) {
     pthread_once(once, init_func);
+}
+
+/** @brief 重置一次性初始化守卫（cleanup 后允许重新初始化）
+ *  @note 仅应在所有使用该 once 的并发访问已结束后调用（单线程清理路径）。
+ *        POSIX 下 PTHREAD_ONCE_INIT 是全零，逐字节清零后 pthread_once 可再次
+ *        执行（glibc 的 pthread_once_t 为联合体，全零为合法初值；其他实现
+ *        同样保证 PTHREAD_ONCE_INIT 可重置后复用）。 */
+static inline void lv_once_reset(lv_once_t *once) {
+    if (once) {
+        unsigned char *p = (unsigned char *) once;
+        for (size_t i = 0; i < sizeof(*once); i++)
+            p[i] = 0;
+    }
 }
 #endif
 

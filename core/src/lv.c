@@ -284,8 +284,9 @@ bool lv_init(void) {
     lv_module_register("preset_pools", lv_module_init_preset_pools, lv_module_cleanup_preset_pools,
                        lv_MODULE_PRIO_RESOURCE);
     /* 序列化适配器注册（把 graph JSON 等业务序列化对接入统一序列化注册表；
-     * init 仅写入注册表函数指针，幂等可重复调用） */
-    lv_module_register("serialize_adapters", lv_serialize_register_graph_adapters, NULL,
+     * init 仅写入注册表函数指针，幂等可重复调用；
+     * cleanup 完整释放注册表结构，修复 lv_cleanup 后的序列化条目泄漏） */
+    lv_module_register("serialize_adapters", lv_serialize_register_graph_adapters, lv_serialize_cleanup_adapters,
                        lv_MODULE_PRIO_RESOURCE);
     /* context 资源操作注入（main_graph 的 create/copy/destroy 与
      * last_normalization 的 destroy；L2 context 不依赖 L3/L4，由 L0 注入） */
@@ -350,15 +351,6 @@ void lv_cleanup(void) {
     module_autosave_cleanup();
     lv_ecosystem_shutdown();
 
-    /* 输出内存统计 */
-    MemoryStats stats;
-    lv_get_memory_stats(&stats);
-    if (stats.current_used > 0) {
-        LOG_WARN("lv", "检测到内存泄漏: 当前使用 %zu 字节", stats.current_used);
-    }
-    LOG_INFO("lv", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu", stats.total_allocated, stats.total_freed,
-             stats.peak_used);
-
     /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
     lv_module_cleanup_all();
 
@@ -377,6 +369,15 @@ void lv_cleanup(void) {
 
     /* 释放 Delta 基线表（strdup 的模块名/版本等字符串） */
     module_delta_cleanup();
+
+    /* 输出内存统计（放在所有清理之后，避免清理顺序导致误报泄漏） */
+    MemoryStats stats;
+    lv_get_memory_stats(&stats);
+    if (stats.current_used > 0) {
+        LOG_WARN("lv", "检测到内存泄漏: 当前使用 %zu 字节", stats.current_used);
+    }
+    LOG_INFO("lv", "内存统计 - 总分配: %zu, 总释放: %zu, 峰值: %zu", stats.total_allocated, stats.total_freed,
+             stats.peak_used);
 
     s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);

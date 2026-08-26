@@ -450,6 +450,11 @@ typedef struct {
  *  动态扩容与删除前移紧凑均由 lv_registry 承担。 */
 lv_REGISTRY_STATIC_DECL(backend_registry);
 
+/* 前向声明：serialize/verify 注册表变量与守卫（定义在本文件后部；
+ * lv_storage_system_cleanup 需在清理时完整释放这两个注册表） */
+lv_REGISTRY_STATIC_DECL(serialize_registry);
+lv_REGISTRY_STATIC_DECL(verify_registry);
+
 /** @brief BackendEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
 static void backend_entry_destroy(void *value) {
     lv_free((void **) &value);
@@ -515,24 +520,28 @@ void lv_storage_system_init(void) {
 }
 
 void lv_storage_system_cleanup(void) {
-    backend_registry_ensure();
-
     /* 清空所有后端条目（destroy 回调释放 BackendEntry 与内部 name），
-     * 保留数组与互斥锁，后续可继续注册使用（与旧语义一致） */
-    lv_registry_clear(&g_backend_registry);
-
-    /* 修复（C-㊺续11 测试暴露）：重置 once 标志——原实现 cleanup 后
-     * lv_once 幂等标志仍置位，后续 lv_storage_system_init 不再重新注册
-     * file/mem 后端，存储系统不可恢复（open 失败）。cleanup 应允许
-     * init 重新初始化。 */
-#ifdef _WIN32
-    InitOnceInitialize(&g_backend_registry_once);
-#else
-    {
-        pthread_once_t fresh = PTHREAD_ONCE_INIT;
-        memcpy(&g_backend_registry_once, &fresh, sizeof(fresh));
+     * 并完整释放注册表结构（entries 数组 / 哈希索引 / 互斥锁） */
+    if (g_backend_registry.entries) {
+        lv_registry_destroy(&g_backend_registry);
     }
-#endif
+    /* 序列化注册表与验证注册表同样完整释放（修复：旧实现从未清理这两个
+     * 注册表，lv_init 的 serialize_adapters 模块注册的 ConstraintGraph
+     * 条目（SerializeEntry/VerifyEntry + 注册表 name 拷贝 + 哈希索引）
+     * 在 lv_cleanup 后泄漏 ~1162 字节，触发内存泄漏 WARN） */
+    if (g_serialize_registry.entries) {
+        lv_registry_destroy(&g_serialize_registry);
+    }
+    if (g_verify_registry.entries) {
+        lv_registry_destroy(&g_verify_registry);
+    }
+
+    /* 重置 once 标志（统一走 lv_once_reset，跨平台）：原实现 cleanup 后
+     * lv_once 幂等标志仍置位，后续 init 不再重新注册 file/mem 后端，
+     * 存储系统不可恢复（open 失败）。cleanup 应允许 init 重新初始化。 */
+    lv_once_reset(&g_backend_registry_once);
+    lv_once_reset(&g_serialize_registry_once);
+    lv_once_reset(&g_verify_registry_once);
 }
 
 bool lv_storage_register_backend(const lvStorageBackendInfo *info) {
@@ -751,8 +760,14 @@ typedef struct {
 #define lv_SERIALIZE_MAX_ENTRIES 64
 
 /** @brief 序列化注册表（通用注册表设施：key = type_name，value = SerializeEntry*）。
- *  文件级单例（lv_once 惰性初始化，线程安全）。 */
-lv_REGISTRY_STATIC(serialize_registry, 16);
+ *  文件级单例（lv_once 惰性初始化，线程安全）。
+ *  变量与守卫已在前部声明（lv_storage_system_cleanup 完整释放用）。 */
+static void serialize_registry_init_once(void) {
+    lv_registry_init(&g_serialize_registry, 16);
+}
+static inline void serialize_registry_ensure(void) {
+    lv_once(&g_serialize_registry_once, serialize_registry_init_once);
+}
 
 /** @brief SerializeEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
 static void serialize_entry_destroy(void *value) {
@@ -935,8 +950,14 @@ typedef struct {
 /** @brief 最大验证注册条目数量 */
 #define lv_VERIFY_MAX_ENTRIES 16
 
-/** @brief 验证注册表（key = type_name，value = VerifyEntry*） */
-lv_REGISTRY_STATIC(verify_registry, 8);
+/** @brief 验证注册表（key = type_name，value = VerifyEntry*）
+ *  变量与守卫已在前部声明（lv_storage_system_cleanup 完整释放用）。 */
+static void verify_registry_init_once(void) {
+    lv_registry_init(&g_verify_registry, 8);
+}
+static inline void verify_registry_ensure(void) {
+    lv_once(&g_verify_registry_once, verify_registry_init_once);
+}
 
 /** @brief VerifyEntry 的注册表 destroy 回调适配器（void(*)(void*) 形态） */
 static void verify_entry_destroy(void *value) {
