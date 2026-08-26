@@ -167,12 +167,14 @@ jobs:
         set +e
         export PYTHONUNBUFFERED=1
         if [ "${{ runner.os }}" == "Windows" ]; then
-          # MSYS2 构建的 liblv.dll 依赖 MSYS2 运行库；前置 mingw64/bin 到 PATH
-          # （官方 Python 可正常加载，见 Verify DLL 步骤结论）
           MSYS_BIN="$(cygpath -u "$RUNNER_TEMP")/msys64/mingw64/bin"
           export PATH="$MSYS_BIN:$PATH"
           echo "MSYS_BIN=$MSYS_BIN"
         fi
+        # 先单独收集，暴露收集阶段的 1 error
+        python -m pytest tests/ --collect-only -q > /tmp/collect.log 2>&1
+        echo "collect rc=$?" | tee -a /tmp/collect.log
+        tail -30 /tmp/collect.log
         python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
         cat /tmp/pytest.log
@@ -183,6 +185,10 @@ jobs:
       shell: bash
       run: |
         set -x
+        echo "::error file=collect.log::=== COLLECT LOG ==="
+        cat /tmp/collect.log 2>/dev/null | while IFS= read -r line; do
+          echo "::error file=collect.log::$line"
+        done || true
         echo "::error file=pytest.log::=== pytest log FULL ==="
         cat /tmp/pytest.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=pytest.log::$line"
