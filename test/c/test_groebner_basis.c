@@ -498,8 +498,97 @@ static void test_graph_collinear_end_to_end(void) {
     ring_registry_destroy(reg);
 }
 
+/* ================================================================
+ *  零维求解完整回代测试（M4 简化补齐：仅一维 → 三角分层回代）
+ * ================================================================
+ *  系统：x² + y² - 1 = 0, x - y = 0（单位圆与直线 y=x 相交）
+ *  理想生成元：f1 = x² + y² - 1（3 项），f2 = x - y（2 项）
+ *  Groebner 基（lex）呈三角形式 → 回代应产出 2 个解 (±√2/2, ±√2/2)。
+ */
+
+static void test_zero_dim_backsubstitution(void) {
+    printf("  Running: test_zero_dim_backsubstitution ...\n");
+
+    lvRingRegistry *reg = ring_registry_create(4);
+    TEST_ASSERT_NOT_NULL(reg);
+
+    const char *vars[] = {"x", "y"};
+    int rid = ring_create(reg, vars, 2, RING_FIELD_REAL, MONOMIAL_GREVLEX, "circle_line");
+    TEST_ASSERT(rid >= 0, "ring_create");
+
+    int iid = ideal_create(reg, rid, "circle_line_ideal");
+    TEST_ASSERT(iid >= 0, "ideal_create");
+
+    /* f1 = x² + y² - 1：构造 3 项多项式 */
+    int f1 = poly_create(reg, rid, 4, "f1");
+    TEST_ASSERT(f1 >= 0, "poly f1");
+    lvPolynomial *p1 = (lvPolynomial *) poly_get(reg, f1);
+    TEST_ASSERT_NOT_NULL(p1);
+    if (p1) {
+        for (int v = 0; v < 2; v++) {
+            p1->powers[0 * 2 + v] = 0;
+            p1->powers[1 * 2 + v] = 0;
+            p1->powers[2 * 2 + v] = 0;
+        }
+        p1->powers[0 * 2 + 0] = 2; /* x² */
+        p1->powers[1 * 2 + 1] = 2; /* y² */
+        ((double *) p1->coeffs)[0] = 1.0;
+        ((double *) p1->coeffs)[1] = 1.0;
+        ((double *) p1->coeffs)[2] = -1.0;
+        p1->term_count = 3;
+        p1->total_degree = 2;
+    }
+
+    /* f2 = x - y */
+    int f2 = poly_create(reg, rid, 2, "f2");
+    TEST_ASSERT(f2 >= 0, "poly f2");
+    lvPolynomial *p2 = (lvPolynomial *) poly_get(reg, f2);
+    TEST_ASSERT_NOT_NULL(p2);
+    if (p2) {
+        p2->powers[0 * 2 + 0] = 1; /* x */
+        p2->powers[1 * 2 + 1] = 1; /* y */
+        ((double *) p2->coeffs)[0] = 1.0;
+        ((double *) p2->coeffs)[1] = -1.0;
+        p2->term_count = 2;
+        p2->total_degree = 1;
+    }
+
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, f1), 0);
+    TEST_ASSERT_EQ(ideal_add_generator(reg, iid, f2), 0);
+
+    /* 计算 Groebner 基 */
+    TEST_ASSERT_EQ(groebner_compute(reg, iid, GROEBNER_BUCHBERGER), 0);
+
+    /* 计算代数簇（零维：圆与线交于 2 点） */
+    int vid = variety_compute(reg, iid, "circle_line_variety");
+    TEST_ASSERT(vid >= 0, "variety_compute");
+    TEST_ASSERT(variety_is_zero_dimensional(reg, vid), "圆线交点应为零维");
+
+    /* 解点坐标校验：应为 (±√2/2, ±√2/2) 两个解 */
+    double coords[2];
+    int sol_count = 0;
+    bool found_pos = false, found_neg = false;
+    double half_sqrt2 = sqrt(2.0) / 2.0;
+    for (int i = 0; i < 16; i++) {
+        if (!variety_get_solution_point(reg, vid, i, coords, 2))
+            break;
+        sol_count++;
+        if (fabs(coords[0] - half_sqrt2) < 1e-4 && fabs(coords[1] - half_sqrt2) < 1e-4)
+            found_pos = true;
+        if (fabs(coords[0] + half_sqrt2) < 1e-4 && fabs(coords[1] + half_sqrt2) < 1e-4)
+            found_neg = true;
+    }
+    TEST_ASSERT(sol_count >= 2, "应有至少 2 个解点");
+    TEST_ASSERT(found_pos, "应找到 (√2/2, √2/2)");
+    TEST_ASSERT(found_neg, "应找到 (-√2/2, -√2/2)");
+
+    ideal_destroy(reg, iid);
+    poly_destroy(reg, f1);
+    poly_destroy(reg, f2);
+    ring_registry_destroy(reg);
+}
+
 static void test_finite_field_ring(void) {
-    printf("  Running: test_finite_field_ring ...\n");
 
     lvRingRegistry *reg = ring_registry_create(4);
     TEST_ASSERT_NOT_NULL(reg);
@@ -898,6 +987,7 @@ TEST_MAIN_BEGIN("Groebner Basis")
     TEST_MAIN_RUN(test_ideal_intersection_absorb);
     TEST_MAIN_RUN(test_ideal_quotient_single);
     TEST_MAIN_RUN(test_ideal_quotient_properties);
+    TEST_MAIN_RUN(test_zero_dim_backsubstitution);
 
     printf("\n=== Results: %d passed, %d failed, %d total ===\n", g_pass_count, g_fail_count,
            g_pass_count + g_fail_count);

@@ -90,6 +90,42 @@ static double groebner_newton_refine(double (*eval)(double, void *), double (*de
     return x;
 }
 
+/** @brief 解点池容量（回代笛卡尔积上限；超出部分丢弃并记录） */
+#define MAX_SOL_POOL 64
+
+/**
+ * @brief 单变量多项式求根：区间扫描（符号变化/近零）+ 牛顿细化
+ * @return 找到的根数量（<= max_roots）
+ */
+static int univar_find_roots(UnivariatePolyCtx *ctx, double *out_roots, int max_roots) {
+    if (!ctx || !out_roots || max_roots <= 0 || ctx->degree <= 0)
+        return 0;
+
+    int root_count = 0;
+    double a = -10.0, b = 10.0;
+    int segments = lv_config_get_int(LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS, GROEBNER_ROOT_SEARCH_SEGMENTS);
+    double step = (b - a) / (double) segments;
+    double prev_val = univar_eval(a, ctx);
+
+    for (int seg = 1; seg <= segments && root_count < max_roots; seg++) {
+        double x = a + step * seg;
+        double curr_val = univar_eval(x, ctx);
+
+        if (prev_val * curr_val < 0.0) {
+            /* 符号变化：根存在于此区间 */
+            double mid = (x + (x - step)) / 2.0;
+            double root = groebner_newton_refine(univar_eval, univar_deriv, ctx, mid);
+            if (fabs(univar_eval(root, ctx)) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
+                out_roots[root_count++] = root;
+            }
+        } else if (fabs(curr_val) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
+            out_roots[root_count++] = x;
+        }
+        prev_val = curr_val;
+    }
+    return root_count;
+}
+
 /**
  * @brief 线性系统快速求解：基中所有非零多项式总次数 <= 1 时，
  *        用高斯消元（部分主元）直接求解，支持任意变量数。
@@ -288,7 +324,13 @@ static lvPolynomial **groebner_solve_linear_basis(const lvGroebnerBasis *basis, 
  * 对于零维理想，Groebner 基（在 lex 序下）具有三角形形式：
  * g_n(x_n) = 0, g_{n-1}(x_{n-1}, x_n) = 0, ...
  *
- * 采用回代法：先解单变量方程，再逐次回代。
+ * 完整实现采用回代法：
+ * 1. 分层：按"最高出现变量"把基元分组（仅含 {k..vc-1} 的基元进入第 k 层）；
+ * 2. 逐层求根：从最高变量 x_{vc-1} 开始，解该层单变量方程；
+ * 3. 回代：把已求得的 (x_{k+1}..x_{vc-1}) 代入第 k 层基元（poly_internal_substitute
+ *    替换常量），得到 x_k 的单变量方程再求根；
+ * 4. 笛卡尔积：逐层组合所有根的取值生成解点。
+ * 任一层无单变量方程（缺三角分层）则回退线性/单变量近似路径。
  *
  * @return 解点坐标数组（调用者负责释放），*solution_count 输出解的数量
  */
@@ -322,141 +364,343 @@ lvPolynomial **groebner_solve_zero_dim(const lvGroebnerBasis *basis, const lvPol
         }
     }
 
-    /* 仅支持变量数 <= 3 的简单零维求解 */
+    /* 仅支持变量数 <= 3 的零维求解 */
     if (vc > 3) {
         return NULL;
     }
 
-    /* 尝试从基中提取单变量多项式 */
-    /* 寻找仅含最后一个变量的基元 */
-    lvPolynomial *univar = NULL;
-    for (int i = 0; i < basis->bases_count; i++) {
-        lvPolynomial *p = basis->basis_polys[i];
-        if (poly_internal_is_zero(p))
-            continue;
-        bool single_var = true;
-        for (int ti = 0; ti < p->term_count; ti++) {
-            for (int v = 0; v < vc - 1; v++) {
-                if (p->powers[ti * vc + v] != 0) {
-                    single_var = false;
+    /* ── 完整回代：三角分层 + 逐变量求根 ──
+     * 对每层 k（0..vc-1）收集"最高变量为 k"的基元：即出现在变量集合
+     * {k..vc-1} 中且不出现 {0..k-1} 的基元。第 vc-1 层必须是单变量。 */
+    lvPolynomial **layers[3] = {NULL, NULL, NULL};
+    int layer_counts[3] = {0, 0, 0};
+    int layer_caps[3] = {0, 0, 0};
+
+    bool layers_ok = true;
+    for (int k = 0; k < vc && layers_ok; k++) {
+        int cap = basis->bases_count;
+        layers[k] = (lvPolynomial **) lv_calloc((size_t) cap, sizeof(lvPolynomial *));
+        if (!layers[k]) {
+            layers_ok = false;
+            break;
+        }
+        layer_caps[k] = cap;
+        for (int i = 0; i < basis->bases_count; i++) {
+            lvPolynomial *p = basis->basis_polys[i];
+            if (!p || poly_internal_is_zero(p))
+                continue;
+            /* 出现在变量 k 上 */
+            bool has_k = false;
+            for (int ti = 0; ti < p->term_count; ti++) {
+                if (p->powers[ti * vc + k] != 0) {
+                    has_k = true;
                     break;
                 }
             }
-            if (!single_var)
+            if (!has_k)
+                continue;
+            /* 不出现 {0..k-1}（保证分层严格） */
+            bool has_lower = false;
+            for (int v = 0; v < k; v++) {
+                for (int ti = 0; ti < p->term_count; ti++) {
+                    if (p->powers[ti * vc + v] != 0) {
+                        has_lower = true;
+                        break;
+                    }
+                }
+                if (has_lower)
+                    break;
+            }
+            if (has_lower)
+                continue;
+            layers[k][layer_counts[k]++] = p;
+        }
+        /* 最高层（vc-1）必须含至少一个单变量基元 */
+        if (k == vc - 1 && layer_counts[k] == 0)
+            layers_ok = false;
+    }
+    if (!layers_ok) {
+        for (int k = 0; k < vc; k++) {
+            if (layers[k])
+                lv_free((void **) &layers[k]);
+        }
+        return NULL;
+    }
+
+    /* 解点存储：容量上限（每个变量最多 GROEBNER_ROOT_MAX_SOLUTIONS 个根） */
+    enum { GROEBNER_ROOT_MAX_SOLUTIONS = 16 };
+    double *solutions[MAX_SOL_POOL];
+    int sol_count = 0;
+
+    /* 当前已回代的部分解：var_values[v] = 变量 v 的当前候选值（未确定层未写） */
+    double var_values[MAX_SOL_POOL];
+
+    /* 显式栈：state[k] = 第 k 层当前候选根下标 */
+    int state[MAX_SOL_POOL];
+    for (int k = 0; k < vc; k++)
+        state[k] = 0;
+
+    /* 各层根列表：stored_roots[k][j]，root_counts[k] */
+    double stored_roots[3][GROEBNER_ROOT_MAX_SOLUTIONS];
+    int root_counts[3] = {0, 0, 0};
+
+    int k = vc - 1;
+    bool done = false;
+    while (!done) {
+        if (k == vc - 1) {
+            /* 最高层：直接解单变量方程（从该层基元提取系数） */
+            if (root_counts[k] == 0) {
+                lvPolynomial *univar = layers[k][0];
+                int max_deg = 0;
+                double *u_coeffs = (double *) univar->coeffs;
+                for (int ti = 0; ti < univar->term_count; ti++) {
+                    int deg = univar->powers[ti * vc + k];
+                    if (deg > max_deg)
+                        max_deg = deg;
+                }
+                if (max_deg <= 0) {
+                    done = true;
+                    break;
+                }
+                double *deg_coeffs = (double *) lv_calloc((size_t) (max_deg + 1), sizeof(double));
+                if (!deg_coeffs) {
+                    done = true;
+                    break;
+                }
+                for (int ti = 0; ti < univar->term_count; ti++) {
+                    int deg = univar->powers[ti * vc + k];
+                    deg_coeffs[deg] = u_coeffs[ti];
+                }
+                UnivariatePolyCtx ctx;
+                ctx.coeffs = deg_coeffs;
+                ctx.degree = max_deg;
+                int rc = univar_find_roots(&ctx, stored_roots[k], GROEBNER_ROOT_MAX_SOLUTIONS);
+                root_counts[k] = rc;
+                lv_free((void **) &deg_coeffs);
+                if (rc == 0) {
+                    done = true;
+                    break;
+                }
+            }
+            if (state[k] >= root_counts[k]) {
+                /* 本层穷举完：回退到更高层 */
+                k++;
+                while (k < vc && state[k] >= root_counts[k] - 1)
+                    k++;
+                if (k >= vc) {
+                    done = true;
+                    break;
+                }
+                state[k]++;
+                continue;
+            }
+            var_values[k] = stored_roots[k][state[k]];
+            if (k - 1 >= 0) {
+                k--;
+                state[k] = 0;
+                root_counts[k] = 0;
+                continue;
+            }
+            /* 全部变量确定（vc==1 时直接到这里），记录解点 */
+            {
+                double *pt = (double *) lv_calloc((size_t) vc, sizeof(double));
+                if (pt) {
+                    for (int v = 0; v < vc; v++)
+                        pt[v] = var_values[v];
+                    if (sol_count < (int) lv_ARRAY_SIZE(solutions))
+                        solutions[sol_count++] = pt;
+                    else
+                        lv_free((void **) &pt);
+                }
+            }
+            /* 回溯：本层取下一个根，或回退更高层 */
+            k++;
+            while (k < vc && state[k] >= root_counts[k] - 1)
+                k++;
+            if (k >= vc) {
+                done = true;
                 break;
-        }
-        if (single_var) {
-            univar = p;
-            break;
-        }
-    }
-
-    if (!univar) {
-        return NULL;
-    }
-
-    /* 提取最高次数用于构造单变量多项式上下文 */
-    int max_deg = 0;
-    double *deg_coeffs = NULL;
-    double *u_coeffs = (double *) univar->coeffs;
-    for (int ti = 0; ti < univar->term_count; ti++) {
-        int deg = univar->powers[ti * vc + vc - 1];
-        if (deg > max_deg) {
-            max_deg = deg;
-        }
-    }
-
-    deg_coeffs = (double *) lv_calloc((size_t) (max_deg + 1), sizeof(double));
-    if (!deg_coeffs) {
-        return NULL;
-    }
-    for (int ti = 0; ti < univar->term_count; ti++) {
-        int deg = univar->powers[ti * vc + vc - 1];
-        deg_coeffs[deg] = u_coeffs[ti];
-    }
-
-    UnivariatePolyCtx ctx;
-    ctx.coeffs = deg_coeffs;
-    ctx.degree = max_deg;
-
-    /* 简单的根搜索：在区间 [-10, 10] 上分段查找符号变化 */
-    int max_solutions = 16;
-    double *roots = (double *) lv_malloc((size_t) max_solutions * sizeof(double));
-    int root_count = 0;
-    if (!roots) {
-        lv_free((void **) &deg_coeffs);
-        return NULL;
-    }
-
-    double a = -10.0, b = 10.0;
-    double step = (b - a) / (double) lv_config_get_int(LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS, GROEBNER_ROOT_SEARCH_SEGMENTS);
-    double prev_val = univar_eval(a, &ctx);
-
-    for (int seg = 1; seg <= lv_config_get_int(LV_CFG_GROEBNER_ROOT_SEARCH_SEGMENTS, GROEBNER_ROOT_SEARCH_SEGMENTS) && root_count < max_solutions; seg++) {
-        double x = a + step * seg;
-        double curr_val = univar_eval(x, &ctx);
-
-        if (prev_val * curr_val < 0.0) {
-            /* 符号变化：根存在于此区间 */
-            double mid = (x + (x - step)) / 2.0;
-            double root = groebner_newton_refine(univar_eval, univar_deriv, &ctx, mid);
-            if (fabs(univar_eval(root, &ctx)) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
-                roots[root_count++] = root;
             }
-        } else if (fabs(curr_val) < lv_config_get_double(LV_CFG_GROEBNER_ZERO_THRESHOLD, GROEBNER_ZERO_THRESHOLD)) {
-            roots[root_count++] = x;
+            state[k]++;
+            continue;
+        } else {
+            /* 中间层 k：把已确定的 (x_{k+1}..x_{vc-1}) 代入该层基元 → x_k 单变量方程 */
+            if (root_counts[k] == 0) {
+                bool found = false;
+                for (int li = 0; li < layer_counts[k] && !found; li++) {
+                    lvPolynomial *base = layers[k][li];
+                    lvPolynomial *cur = poly_internal_copy(base, ring);
+                    if (!cur)
+                        break;
+                    /* 代入已确定变量 vv = k+1..vc-1 */
+                    for (int vv = k + 1; vv < vc && cur; vv++) {
+                        double val = var_values[vv];
+                        lvPolynomial *cst = poly_internal_create(ring, 1, NULL);
+                        if (!cst) {
+                            poly_internal_destroy(cur);
+                            cur = NULL;
+                            break;
+                        }
+                        cst->term_count = 1;
+                        for (int v = 0; v < vc; v++)
+                            cst->powers[v] = 0;
+                        ((double *) cst->coeffs)[0] = val;
+                        lvPolynomial *sub = poly_internal_substitute(cur, vv, cst, ring);
+                        poly_internal_destroy(cur);
+                        poly_internal_destroy(cst);
+                        cur = sub;
+                    }
+                    if (!cur)
+                        continue;
+                    /* 代入后必须是仅含变量 k 的单变量 */
+                    bool single_var = true;
+                    for (int ti = 0; ti < cur->term_count; ti++) {
+                        for (int v = 0; v < vc; v++) {
+                            if (v != k && cur->powers[ti * vc + v] != 0) {
+                                single_var = false;
+                                break;
+                            }
+                        }
+                        if (!single_var)
+                            break;
+                    }
+                    if (!single_var || cur->term_count == 0) {
+                        poly_internal_destroy(cur);
+                        continue;
+                    }
+                    int md = 0;
+                    double *uc = (double *) cur->coeffs;
+                    for (int ti = 0; ti < cur->term_count; ti++) {
+                        int deg = cur->powers[ti * vc + k];
+                        if (deg > md)
+                            md = deg;
+                    }
+                    if (md <= 0) {
+                        /* 代入后常数：矛盾（无解）或恒等（任意值） */
+                        if (fabs(uc[0]) > 1e-9) {
+                            poly_internal_destroy(cur);
+                            continue;
+                        }
+                        poly_internal_destroy(cur);
+                        found = true;
+                        root_counts[k] = 0; /* 恒等：任意值，取 0 代表 */
+                        break;
+                    }
+                    double *dc = (double *) lv_calloc((size_t) (md + 1), sizeof(double));
+                    if (!dc) {
+                        poly_internal_destroy(cur);
+                        break;
+                    }
+                    for (int ti = 0; ti < cur->term_count; ti++) {
+                        int deg = cur->powers[ti * vc + k];
+                        dc[deg] = uc[ti];
+                    }
+                    poly_internal_destroy(cur);
+                    UnivariatePolyCtx ctx;
+                    ctx.coeffs = dc;
+                    ctx.degree = md;
+                    int rc = univar_find_roots(&ctx, stored_roots[k], GROEBNER_ROOT_MAX_SOLUTIONS);
+                    lv_free((void **) &dc);
+                    root_counts[k] = rc;
+                    found = true;
+                }
+                if (!found) {
+                    /* 该分支无有效单变量方程：本层无解，回退更高层 */
+                    k++;
+                    while (k < vc && state[k] >= root_counts[k] - 1)
+                        k++;
+                    if (k >= vc) {
+                        done = true;
+                        break;
+                    }
+                    state[k]++;
+                    continue;
+                }
+                if (root_counts[k] == 0) {
+                    /* 恒等分支：任意值满足，取 0 作为代表解 */
+                    stored_roots[k][0] = 0.0;
+                    root_counts[k] = 1;
+                }
+            }
+            if (state[k] >= root_counts[k]) {
+                k++;
+                while (k < vc && state[k] >= root_counts[k] - 1)
+                    k++;
+                if (k >= vc) {
+                    done = true;
+                    break;
+                }
+                state[k]++;
+                continue;
+            }
+            var_values[k] = stored_roots[k][state[k]];
+            if (k - 1 >= 0) {
+                k--;
+                state[k] = 0;
+                root_counts[k] = 0;
+                continue;
+            }
+            /* 全部变量确定，记录解点 */
+            {
+                double *pt = (double *) lv_calloc((size_t) vc, sizeof(double));
+                if (pt) {
+                    for (int v = 0; v < vc; v++)
+                        pt[v] = var_values[v];
+                    if (sol_count < (int) lv_ARRAY_SIZE(solutions))
+                        solutions[sol_count++] = pt;
+                    else
+                        lv_free((void **) &pt);
+                }
+            }
+            k++;
+            while (k < vc && state[k] >= root_counts[k] - 1)
+                k++;
+            if (k >= vc) {
+                done = true;
+                break;
+            }
+            state[k]++;
+            continue;
         }
-        prev_val = curr_val;
     }
 
-    lv_free((void **) &deg_coeffs);
+    for (int k = 0; k < vc; k++) {
+        if (layers[k])
+            lv_free((void **) &layers[k]);
+    }
 
-    if (root_count == 0) {
-        lv_free((void **) &roots);
+    if (sol_count == 0) {
         return NULL;
     }
 
-    /* 为每个根构造解点坐标（此处简化：仅一维） */
-    lvPolynomial **solutions = (lvPolynomial **) lv_malloc((size_t) root_count * sizeof(lvPolynomial *));
-    if (!solutions) {
-        lv_free((void **) &roots);
+    /* 构造解点多项式数组：每个解一个常量多项式，coeffs[0..vc-1] 为坐标 */
+    lvPolynomial **solutions_out = (lvPolynomial **) lv_malloc((size_t) sol_count * sizeof(lvPolynomial *));
+    if (!solutions_out) {
+        for (int i = 0; i < sol_count; i++)
+            lv_free((void **) &solutions[i]);
         return NULL;
     }
-
-    for (int ri = 0; ri < root_count; ri++) {
-        lvPolynomial *sol = poly_internal_create(ring, 1, NULL);
+    for (int ri = 0; ri < sol_count; ri++) {
+        lvPolynomial *sol = poly_internal_create(ring, vc, NULL);
         if (!sol) {
-            for (int j = 0; j < ri; j++) {
-                poly_internal_destroy(solutions[j]);
-            }
-            lv_free((void **) &solutions);
-            lv_free((void **) &roots);
+            for (int j = 0; j < ri; j++)
+                poly_internal_destroy(solutions_out[j]);
+            for (int j = ri; j < sol_count; j++)
+                lv_free((void **) &solutions[j]);
+            lv_free((void **) &solutions_out);
             return NULL;
         }
-        sol->term_count = 1;
-        sol->term_capacity = 1;
-        lv_free((void **) &sol->powers);
-        lv_free((void **) &sol->coeffs);
-        sol->powers = (int *) lv_calloc((size_t) vc, sizeof(int));
-        sol->coeffs = (double *) lv_calloc(1, sizeof(double));
-        if (!sol->powers || !sol->coeffs) {
-            poly_internal_destroy(sol);
-            for (int j = 0; j < ri; j++) {
-                poly_internal_destroy(solutions[j]);
-            }
-            lv_free((void **) &solutions);
-            lv_free((void **) &roots);
-            return NULL;
+        sol->term_count = vc;
+        for (int v = 0; v < vc; v++) {
+            sol->powers[v] = 0;
+            ((double *) sol->coeffs)[v] = solutions[ri][v];
         }
-        sol->term_capacity = 1;
-        /* 常量多项式表示点坐标 */
-        ((double *) sol->coeffs)[0] = roots[ri];
-        solutions[ri] = sol;
+        sol->total_degree = 0;
+        solutions_out[ri] = sol;
+        lv_free((void **) &solutions[ri]);
     }
-
-    *solution_count = root_count;
-    lv_free((void **) &roots);
-    return solutions;
+    *solution_count = sol_count;
+    return solutions_out;
 }
 
 

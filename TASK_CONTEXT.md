@@ -6573,7 +6573,11 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 - sparse cholesky/lu/qr 为稠密实现；大规模稀疏可后续评估稀疏分解。
 - algebra_select 完整选择器语义（CadQuery 风格）预留后续。
-- plugin_system.h 8、全局内存泄漏 WARN 同前。
+- plugin_system.h 8 零覆盖 API 遗留**已核实过时**：46 个库 API 全部有
+  实现（7 个 missing 为插件自身实现的 on_* 钩子，非库 API），4 个测试
+  文件覆盖生命周期/搜索路径/事件/接口；lv_plugin_load/unload 正路径
+  需真实 .so/.dll 文件，仅 NULL 契约覆盖（合理边界）。
+- 全局内存泄漏 WARN 同前。
 
 ## 一百一十二、批次 SVG 完整化 + 简化候选补齐（2026-08-27）
 
@@ -6640,6 +6644,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   harmonic_conjugate/homothety）。
 - test_geo_halfedge_mesh_ext.c 新增 test_he_stats_api（max_vertex_valence）。
 - test_solver_ext.c 增补 solver_feedback_solve 过约束识别断言。
+- test_groebner_basis.c 新增 test_zero_dim_backsubstitution（圆×线
+  x²+y²-1=0 与 x-y=0 回代 → ±√2/2 两个解点）。
 - build3 + ctest **288/288**（287 → 288）。
 - Python：Windows CRT 不匹配（既有遗留）跳过；改动均 C 侧，未触及
   绑定签名；build_symcheck 重建成功。
@@ -6649,6 +6655,9 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 - 功能补齐 / SVG 导出 / 7 项简化完整化 + 圆渲染 / 实现 + 测试。
 - 功能补齐 / 过约束识别 / 方程权重分布 / 替代脏变量近似。
 - 功能补齐 / 规则 JSON / 变量前提结论往返 / 修复畸形 JSON 缺陷。
+- 功能补齐 / 零维代数簇 / 三角分层完整回代 / 替代"仅一维"近似
+  （groebner_solve_zero_dim：分层收集 + 显式栈逐变量求根 + 常量代入
+  回代 + 笛卡尔积组合；vc<=3 上限保持）。
 - 注释修正 / M5 / lv_loader 第二遍 / graph_conflict 矩阵填充。
 - 优化 / geo_halfedge_mesh / find_or_create_edge 出半边环查找。
 - 澄清 / recursion_mutual 交叉递减语义（非简化）。
