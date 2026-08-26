@@ -48,6 +48,8 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-make
           mingw-w64-x86_64-gmp
+          mingw-w64-x86_64-python
+          mingw-w64-x86_64-python-pip
     - name: Build shared library (Ubuntu/macOS)
       if: runner.os != 'Windows'
       run: |
@@ -105,14 +107,23 @@ jobs:
 
     - name: Install Python package
       working-directory: module/python
+      shell: bash
       run: |
-        pip install -e .
-        pip install pytest pytest-cov flake8 mypy
+        set +e
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          # Windows 用 MSYS2 python（与 MSYS2 构建的 liblv.dll 同 CRT）
+          MSYS_BIN="$(cygpath -u "$RUNNER_TEMP" 2>/dev/null)/msys64/mingw64/bin"
+          export PATH="$MSYS_BIN:$PATH"
+          PY_CMD="$MSYS_BIN/python.exe"
+        else
+          PY_CMD="python"
+        fi
+        "$PY_CMD" -m pip install -q -e . 2>&1 | tail -3
+        "$PY_CMD" -m pip install -q pytest pytest-cov flake8 mypy pytest-asyncio 2>&1 | tail -3
         # concurrent_monitor / llm_coding_assistant 测试依赖（rich/flask/fastapi 等）
-        pip install -r ../concurrent_monitor/requirements.txt
-        pip install -r ../llm_coding_assistant/requirements.txt || true
-        # concurrent_monitor pytest.ini 使用 asyncio_mode=auto，需要 pytest-asyncio
-        pip install pytest-asyncio
+        "$PY_CMD" -m pip install -q -r ../concurrent_monitor/requirements.txt 2>&1 | tail -3
+        "$PY_CMD" -m pip install -q -r ../llm_coding_assistant/requirements.txt 2>&1 | tail -3 || true
+        echo "pip install done rc=$?"
 
     # ── 静态代码检查：flake8 + mypy ──────────────────────────────────
     # 在运行测试之前先进行代码质量检查，尽早发现风格和类型问题
@@ -167,34 +178,22 @@ jobs:
         set +e
         export PYTHONUNBUFFERED=1
         if [ "${{ runner.os }}" == "Windows" ]; then
+          # 官方 Python（UCRT）无法加载 MSYS2 GCC（MSVCRT）构建的 liblv.dll；
+          # 用 MSYS2 的 python（同 CRT）运行测试。
           MSYS_BIN="$(cygpath -u "$RUNNER_TEMP" 2>/dev/null)/msys64/mingw64/bin"
-          echo "::error file=import.log::MSYS_BIN=[$MSYS_BIN] RUNNER_TEMP=[$RUNNER_TEMP]"
           export PATH="$MSYS_BIN:$PATH"
+          PY_CMD="$MSYS_BIN/python.exe"
+          echo "::error file=import.log::Using MSYS2 python: $PY_CMD"
+          ls -la "$PY_CMD" 2>&1 | head -2
+        else
+          PY_CMD="python"
         fi
         # 诊断：直接 import lv（test_graph 收集失败的根因）
         echo "::error file=import.log::=== import lv diagnostic ==="
-        python -c "import os; print('LIBPATH', os.environ.get('lv_LIBRARY_PATH')); from lv import Graph; print('import OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        echo "::error file=import.log::=== import all names ==="
-        python -c "from lv import Graph, NormalizationResult, Point, LineSegment, lvError; print('all names OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        echo "::error file=import.log::=== lv.__file__ ==="
-        python -c "import lv; print(lv.__file__)" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        echo "::error file=import.log::=== core import ==="
-        python -c "import lv.core" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        echo "::error file=import.log::=== binding star import ==="
-        python -c "from lv._ctypes_binding import *; print('binding OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        echo "::error file=import.log::=== core direct ==="
-        python -c "from lv.core import NormalizationResult; print('core direct OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
-        # 诊断：逐个文件收集，定位崩溃点（长 traceback）
-        for f in tests/test_graph.py tests/test_symbolic_coord.py tests/test_constants_consistency.py; do
-          echo "::error file=collect.log::=== collect $f (tb=long) ==="
-          python -m pytest "$f" --collect-only -q --tb=long 2>&1 | while IFS= read -r line; do echo "::error file=collect.log::$line"; done
-        done
-        # 先单独收集，暴露收集阶段的 1 error（完整输出，不截断）
-        python -m pytest tests/ --collect-only > /tmp/collect.log 2>&1
-        echo "collect rc=$?" | tee -a /tmp/collect.log
-        echo "::error file=collect.log::=== collect full ==="
-        cat /tmp/collect.log | while IFS= read -r line; do echo "::error file=collect.log::$line"; done
-        python -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
+        "$PY_CMD" -c "import os; print('LIBPATH', os.environ.get('lv_LIBRARY_PATH')); from lv import Graph; print('import OK')" 2>&1 | while IFS= read -r line; do echo "::error file=import.log::$line"; done
+        # 运行测试
+        "$PY_CMD" -m pip install -q pytest pytest-cov pytest-asyncio 2>&1 | tail -2
+        "$PY_CMD" -X faulthandler -m pytest tests/ -v --cov=lv --cov-report=xml > /tmp/pytest.log 2>&1
         echo $? > /tmp/pytest_exit
         cat /tmp/pytest.log
         exit $(cat /tmp/pytest_exit)
