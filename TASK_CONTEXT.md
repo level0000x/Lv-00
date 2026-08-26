@@ -6707,6 +6707,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   当前系统语义内的完整检测，传递链归 solver 层）。
 - preset_make_recursive 递归预设注释澄清（M5：复制模板+迭代上限标记，
   图展开需约束图上下文归实例化层）。
+- representation_converter 往返验证完整化（M4：文本级二次编码一致性，
+  消除"成功往返即通过"假阳性；透传回调同指针回显不误判）。
 
 ### ② 验证
 
@@ -6715,6 +6717,8 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
   PERPENDICULAR、BY_INDEX、AT_LOCATION 命中 p0、NEAREST 非空、
   LARGEST=线段、COMPOSITE OR=3、COMPOSITE NOT=线段、add_child NULL
   契约、级联销毁。
+- test_representation_converter_ext.c 新增 test_roundtrip_text_consistency
+  （真实内置文本转换器往返 + 二次编码一致性）。
 - build3 + ctest **288/288**。
 - Python：Windows CRT 既有遗留，改动 C 侧未触绑定。
 
@@ -6722,6 +6726,7 @@ sparse_la.py 引用但 C 从未实现的 13 个符号（此前 `_bind_if_present
 
 - 功能补齐 / 选择器 / 12 类型完整过滤语义 / 替代"返回全部节点"近似。
 - 功能补齐 / API / algebra_selector_add_child / 复合选择器组合。
+- 功能补齐 / 往返验证 / 文本级二次编码一致性 / 替代"成功即通过"。
 - 注释修正 / M5 / module_lvz 三处简化措辞 / inequality 反证法 /
   preset_make_recursive 递归预设语义。
 

@@ -178,6 +178,47 @@ static void test_guard_cleanup(void) {
     lv_simple_block_graph_guard_cleanup(&sg);
 }
 
+/* ============== 测试：真实文本往返二次编码一致性 ============== */
+
+static void test_roundtrip_text_consistency(void) {
+    lvRepresentationConverter *conv = lv_converter_create(NULL);
+    TEST_ASSERT_NOT_NULL(conv);
+
+    /* 注册内置文本转换器（block → text / text → block） */
+    install_converter(&conv->forward.to_text, lv_convert_block_to_text);
+    install_converter(&conv->reverse.from_text, lv_convert_text_to_block);
+
+    /* 构造真实块图（2 个块） */
+    SimpleBlockGraph *bg = (SimpleBlockGraph *) lv_calloc(1, sizeof(SimpleBlockGraph));
+    TEST_ASSERT_NOT_NULL(bg);
+    bg->blocks = (FuncBlock **) lv_calloc(2, sizeof(FuncBlock *));
+    TEST_ASSERT_NOT_NULL(bg->blocks);
+    bg->count = 2;
+    for (int i = 0; i < 2; i++) {
+        bg->blocks[i] = func_block_create(i + 1);
+        TEST_ASSERT_NOT_NULL(bg->blocks[i]);
+        if (bg->blocks[i]) {
+            char name[32];
+            snprintf(name, sizeof(name), "rb_%d", i);
+            func_block_set_name(bg->blocks[i], name);
+        }
+    }
+
+    /* 往返验证：内置路径应通过（文本二次编码一致） */
+    TEST_ASSERT_EQ(lv_converter_verify_roundtrip(conv, bg, lv_VIEW_TEXT_CODE), 1);
+
+    /* 清理：verify 内部 from_text 产出的 SimpleBlockGraph 由调用方负责 ——
+     * 这里不再取用（契约仅返回 1），释放原块图 */
+    for (int i = 0; i < bg->count; i++) {
+        if (bg->blocks[i])
+            func_block_destroy(bg->blocks[i]);
+    }
+    lv_free((void **) &bg->blocks);
+    lv_free((void **) &bg);
+
+    lv_converter_destroy(conv);
+}
+
 /* ============== Main ============== */
 
 TEST_MAIN_BEGIN("RepresentationConverterExt")
@@ -187,6 +228,7 @@ TEST_MAIN_BEGIN("RepresentationConverterExt")
     TEST_MAIN_RUN(test_unregistered_paths);
     TEST_MAIN_RUN(test_registered_paths);
     TEST_MAIN_RUN(test_roundtrip);
+    TEST_MAIN_RUN(test_roundtrip_text_consistency);
     TEST_MAIN_RUN(test_guard_cleanup);
 
 TEST_MAIN_END()

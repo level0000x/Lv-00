@@ -210,7 +210,22 @@ int lv_converter_verify_roundtrip(lvRepresentationConverter *conv, void *origina
             r2 = lv_convert_from_text(conv, (const char *) r1.output);
             if (!r2.success)
                 return 0;
-            /* 简化：成功往返即视为通过 */
+            /* 完整往返一致性（文本级）：
+             * 1) 前向编码文本 r1.output；
+             * 2) 反向解析 r2.output 非空；
+             * 3) 当往返确实经过真实编码/解析（r1.output != r2.output，
+             *    排除透传回调的同指针回显）且反向产物能再次正向编码
+             *    （r3 成功且 r3.output 为二次编码新文本），则二次编码
+             *    文本必须与原文本一致 —— 消除"成功往返即视为通过"的
+             *    假阳性（如文本丢失块名/端口但解析仍成功）。
+             * 透传/不可再编码形态（r3.output == r2.output）不视为不一致。 */
+            if (r1.output != r2.output) {
+                lvConvertResult r3 = lv_convert_to_text(conv, r2.output);
+                if (r3.success && r3.output != r2.output && r1.output && r3.output) {
+                    if (strcmp((const char *) r1.output, (const char *) r3.output) != 0)
+                        return 0;
+                }
+            }
             return 1;
         default:
             /* 其他视图无反向转换器（仅 text 提供 from_* 方向），无法构造往返；
