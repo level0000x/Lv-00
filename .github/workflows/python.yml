@@ -48,7 +48,6 @@ jobs:
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-make
           mingw-w64-x86_64-gmp
-
     - name: Build shared library (Ubuntu/macOS)
       if: runner.os != 'Windows'
       run: |
@@ -168,6 +167,8 @@ jobs:
         set -x
         export PATH="$(cygpath -u "$RUNNER_TEMP")/msys64/mingw64/bin:$PATH"
         echo "::error file=dll.log::PATH=$PATH"
+        which python || echo "::error file=dll.log::python NOT FOUND"
+        python --version 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
         ls -la build/liblv.dll 2>&1 | while IFS= read -r line; do echo "::error file=dll.log::$line"; done
         python -c 'import os, ctypes; p=os.path.abspath("build/liblv.dll"); print("loading", p, flush=True); lib=ctypes.CDLL(p); print("loaded OK", flush=True)' > /tmp/dll.log 2>&1
         rc=$?
