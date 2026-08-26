@@ -176,6 +176,10 @@ jobs:
         tail -60 /tmp/pytest.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=pytest.log::$line"
         done || true
+        echo "::error file=pytest.log::=== pytest errors ==="
+        grep -nE "ERROR|Error|error|Traceback|assert|Exception" /tmp/pytest.log 2>/dev/null | head -30 | while IFS= read -r line; do
+          echo "::error file=pytest.log::$line"
+        done || true
 
     - name: Run concurrent_monitor tests
       working-directory: module/concurrent_monitor
