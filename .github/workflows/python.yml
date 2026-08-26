@@ -114,6 +114,7 @@ jobs:
     # ── 静态代码检查：flake8 + mypy ──────────────────────────────────
     # 在运行测试之前先进行代码质量检查，尽早发现风格和类型问题
     - name: Run flake8 linting
+      shell: bash
       run: |
         # 检查 module/concurrent_monitor/ 和 module/llm_coding_assistant/ 目录的代码风格
         flake8 module/concurrent_monitor/ module/llm_coding_assistant/ \
@@ -135,6 +136,7 @@ jobs:
           || echo "flake8 风格警告已输出（非阻塞）"
 
     - name: Run mypy type checking
+      shell: bash
       run: |
         # 对 module/concurrent_monitor/ 和 module/llm_coding_assistant/ 进行类型检查
         mypy module/concurrent_monitor/ --ignore-missing-imports --no-error-summary || true
