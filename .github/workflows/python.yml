@@ -171,7 +171,8 @@ jobs:
       shell: bash
       run: |
         set -x
-        grep -nE "FAILED|ERROR|error:|assert|AssertionError|ImportError|ModuleNotFoundError|No module" /tmp/pytest.log 2>/dev/null | head -40 | while IFS= read -r line; do
+        echo "::error file=pytest.log::=== pytest log tail ==="
+        tail -60 /tmp/pytest.log 2>/dev/null | while IFS= read -r line; do
           echo "::error file=pytest.log::$line"
         done || true
 
