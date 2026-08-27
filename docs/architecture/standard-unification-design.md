@@ -1,28 +1,30 @@
-# 项目内部标准统一化设计（v1.7）
+# 项目内部标准统一化设计（v1.8）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**七轮共三十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**八轮共四十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
 > 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
 > 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部；
 > 第五轮：安全限制/缓存/图算法/事件回调/配置全局；
 > 第六轮：插件系统/快照回滚/数值线性代数/形式化对齐/Python测试结构；
-> 第七轮：进程网络/性能监控/数据结构/IO序列化/层间依赖）
+> 第七轮：进程网络/性能监控/数据结构/IO序列化/层间依赖；
+> 第八轮：init清理生命周期/线程并发/构建产物CI/Python包结构/全局符号命名）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
 > **v1.1**：第二轮 15 组（总 30）。**v1.2**：第三轮 13 组（总 43）。
 > **v1.3**：前端**刻意留白**（等内核定型），L9 移出执行清单。
 > **v1.4**：第四轮 10 组（总 53）。**v1.5**：第五轮 5 组（总 58）。
 > **v1.6**：第六轮 5 组（总 63）。
-> **v1.7（2026-08-27）**：第七轮五路新增 5 组（总 **68 组**），
-> 本版并入 §1.31-1.35 与 §3.31-3.35。
+> **v1.7**：第七轮 5 组（总 68）。
+> **v1.8（2026-08-27）**：第八轮五路新增 5 组（总 **73 组**），
+> 本版并入 §1.36-1.40 与 §3.36-3.40。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-七轮共三十五路审计发现 **68 组"一个需求多种格式"重复点**：
+八轮共四十路审计发现 **73 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -227,6 +229,36 @@
 | # | 需求 | 现状格式 | 审计结论 |
 |---|---|---|---|
 | I5 | 层验证/归属 | **ENABLE_LAYER_VALIDATION 形同虚设**：CMake 正确定义 lv_CURRENT_LAYER + 宏，但 `lv_ALLOW_LAYER`/`lv_REQUIRE_STRICTLY_ABOVE` **全库零调用**、layer_validation.h **全库零 include**（头注释自认参考实现）——"0 违规"是空转结果；**2 处 P0 真实逆向依赖**：L2 context.c → L3 lv_reasoning_stack（推理栈提取破坏 L2 隔离）、L1 lv_loader.c → L3 constraint_graph + L4 engine（伞形头 lv.h + CMake 补链双重违规）；**功能归属混乱 ~8 处**：解析面 5 个解析器偏离 L1（dsl/gc_language/module_lvz/formula，均为"解析+装载被拖入高层"模式）、lvProofObject 类型-实现分居 L4/L5、proof 导出双轨 L4/L5、L4 module_export 越权做 SVG/TikZ/PDF、lv_registry vs ecosystem vs module 三撞车 | **层验证机制空转是 P0 顶层问题**；先修机制（依赖表接入+缺省只允许本层+CI include 矩阵）再清零；"引用方向检查"与"归属层检查"分开治理；健康面：L3→L4/L4→L5/L5→L6/L6→L8/L10 直接 include 全干净、lv_dot_writer 方向正确 |
+
+### 1.36 init/清理生命周期面（第八轮，J1）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| J1 | 进程级初始化/清理 | **4 套生命周期表达**：模块注册表（lv_module_register，qsort 优先级+逆序清理）+ lv_cleanup 硬编码手动序列（engine/func_block/perf/health/...TLS/threadpool/delta 10+ 行）+ 模块自管 once_reset + 手写 initialized 豁免模式；**8 处 M6 未接线清理**：LV_REGISTER_MODULE 宏 0 调用点、lv_log_shutdown（runtime_monitor）从不被 lv_cleanup 调、lv_event_trace init/shutdown 仅测试、lv_ecosystem_init 仅测试（生产生态注册静默全失败）、lv_config_reset 仅测试、模块注册表 cleanup 不重置 count（二次 init 重复注册被吞）、lv_global_thread_pool_destroy 不重置 once（**破坏 init/cleanup 循环**）、lv_application_shutdown 空实现；失败路径无回滚（ERROR 态不可重入）；两套日志系统并存（debug_trace_session 接注册表 vs runtime_monitor lv_log_* 未接） | **"清理可重入"承诺与实现脱节**；进程级清理 3 套并列约定（注册表/硬编码/模块自管），新子系统无规则可循；thread_pool once 不重置直接威胁 90+ init/cleanup 循环测试 |
+
+### 1.37 线程/并发面（第八轮，J2）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| J2 | 锁/原子/线程池 | **锁抽象 3 层叠加**：lv_mutex_t（活跃 20+ 模块，唯一实现）vs runtime_guard.h 自有 lvMutex typedef+lvRwLock（SRWLock/pthread_rwlock 平台分支，**从未启用**，与 lv_ATOMIC 同名潜在重定义冲突）vs context.h void* 锁字段（**死代码**）；**手写惰性锁 9 处**（groebner_engine/high_dim_view/module_delta/proof_navigator_breakpoint/preset_manager/debug_state/memory_pool/lv_registry/test_framework 各自 once+mutex+ensure，lv_lazy_lock 已有 13 模块在用）；原子 **3 套**（lv_ATOMIC_* 缺 64 位 LOAD/STORE/CAS / 裸 C11 stdatomic 无豁免标注 / 互斥模拟 debug_refcount）；并行骨架 2 套未复用 thread_pool（proof_version_task lvTaskGroup / groebner_parallel WorkerArg 顺序驱动，有缺陷回退背景） | **平台分支已收敛**（pthread/CRITICAL_SECTION 仅存在于 lv_thread.h/lv_platform.h/cross_platform.h 三权威点）；锁抽象 3 层 + 惰性锁 9 处手写 + 原子 3 套是主要重复；线程池唯一实现 ✅ |
+
+### 1.38 构建产物/CI 面（第八轮，J3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| J3 | 生成产物/CI 报告 | **bootstrap/output 15 文件全部 git 跟踪、零消费者、无再生成驱动**（2026-06-21 恢复性提交一次性带入，纯展示快照，内部 Lean×3 含 P4 命名错位/TikZ×2/同构 JSON×6）；**CI 失败报告 8 处内联 grep+awk**（ci.yml 3 + python.yml 5，正则重叠）；**docx 汇报 4 个生成器**（tool/report_generators/ 3 JS + tool/scripts/gen_report.py，ui 仅链 1 个）；git 策略不一致（build*/ 忽略但 output/ 提交、triangle_output.tex 提交而 test_output.tex 忽略、报告 .md 跟踪/未跟踪混杂）；2 处死配置（TestLake 嵌套 workflow 不执行 / web-deploy if:false） | **生成产物无再生成驱动 = 纯快照**；CI 报告/docx 生成"一需求多实现"；git 跟踪策略需按"生成物/golden/测试中间物/日志"四类归一 |
+
+### 1.39 Python 包结构面（第八轮，J4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| J4 | Python 导出/镜像数据 | 顶层常量**双通道**（`from lv._ctypes_binding import *` 星号暴露 ~60 原始常量 + core 白名单 re-export）；**中点实现 ≥8 处**（core.Point.mid_point 权威 + LineSegment/Wrapper/G/AlgebraMode/P/preset×2/fallback，preset_basic 与 preset_blocks/geometry 是**同一函数体两代逐字复制**）；**预设注册表 3 套**（v3.3.0 dict / v4.0.0 PresetRegistry 单例 / math_presets 自持）；**预设元数据全链 ≥5 份镜像**（孤儿 C 56 文件不编译 → convert_presets.py → .lvz 149 个中文乱码=生成漂移实证 → preset_registry.yaml 3095 行无消费方 → Python 两代镜像 + C 侧 g_builtin_presets 75 条编译表第二源）；lv.utils 346 行孤儿死代码；**build/lib/ 38 文件过期镜像**（缺 LineSegmentFb 等导出）；fallback 部分回退缺口（20+ 子模块 from _ctypes_binding import _lib 无守卫） | **数据单一事实源缺失**（预设全链 ≥5 份漂移）；顶层导出面双通道；build/lib 过期镜像 + lv.utils 孤儿应删；绑定层/核心层/域模块分层健康 |
+
+### 1.40 全局符号/命名面（第八轮，J5）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| J5 | 全局符号/命名空间 | **"统一 lv_ 前缀"宣称与事实不符**：lv_PUBLIC_API 导出 1500 函数中 lv_ 仅 44.9%，模块裸前缀 55%（proof_/func_/graph_/stream_ 等 ~70 个）；typedef 裸名 51%；枚举常量 lv_ 仅 22.8%；**LV00_ 前缀全域 0 命中**（该约定不存在）；**10 个裸 extern 全局泄漏**（interop_stream_ctx/graph_stream_ctx/g_coeff_pool/g_fail_count/_stream_ctx 前导下划线等）；**同名冲突**：lvPlugin（interop.h 别名 vs plugin_system.h typedef，潜伏硬冲突）、RelFormulaType/REL_FORMULA_*（sat_encoding vs relation_model **同名同常量值不同** OR=6 vs 9）、func_block_registry/preset 守卫式重复枚举 54 常量×2、expr_canon.h vs expr_canonical.h 文件名与内容错位；**同义不同名**：create 314 vs make/new 3、destroy 277 vs free 36/cleanup 30/delete 1（同对象双动词并存 lv_proof_trace_destroy+free）、解析四风格（parse/scan/read/from_string，lv_parse_int 与 lv_str_read_int 并存）、ConstraintGraph vs lvConstraintGraph 双名 | **命名规范未锚定**（前缀双轨 45%/55%、动词三轨、同名异义潜伏冲突）；10 裸 extern 泄漏；命名 lint 缺失（clang-tidy readability-identifier-naming 可强制） |
 
 ---
 
@@ -531,22 +563,70 @@
 - **权威层锚定登记**：解析=L1、序列化=类型层+JSON 唯一 L2、导出/格式化=L5、证明对象=L4（类型+实现）、L1/L2 不得引用 L3+ 头或符号（含经 lv.h 传递）。
 - **健康面确认**：L3→L4/L4→L5/L5→L6/L6→L8/L10 直接 include 干净、lv_dot_writer 方向正确——不需要动作。
 
+### 3.36 init/清理生命周期面（第八轮，J1）
+
+**决策**：
+- **单一生命周期注册表**：lv_cleanup 硬编码手动序列（10+ 行）全部转模块注册表条目（用"阶段"概念 SHUTDOWN 前/中/后）；lv_cleanup 收敛为状态机 + cleanup_all + 内存统计；新子系统一律注册表，禁止往 lv_cleanup 加硬编码行（黑名单）。
+- **注册表补复位语义**：新增 `lv_module_registry_reset()`（cleanup_all 后清 count/entries）；lv_init 检查 lv_module_register 返回值（或幂等 upsert）；修复"cleanup 后 count 恒 9 / 重复注册被吞"。
+- **once_reset 统一契约**：thread_pool g_pool_once、module registry once、config、ecosystem 未重置点逐个处理；"cleanup 必须重置自身 once 守卫否则不得声明可重入"写入 lv_thread.h/注册表头契约。
+- **8 处 M6 清理修复**：LV_REGISTER_MODULE 删除或接线；runtime_monitor log/event_trace 二选一（接注册表或正式标注测试专用）；lv_ecosystem_init 接入 lv_init（或删 cleanup 调用）；lv_config_reset 接入 lv_cleanup；lv_application_shutdown 删除或实现。
+- **失败路径回滚**：init_all 失败逆序回滚已 init 条目 + 状态机允许 ERROR 重入。
+- **双日志收敛**：以生产生效的 debug 管道为唯一语义，runtime_monitor lv_log_* 降级或删除（承接 L8 日志级别决策）。
+
+### 3.37 线程/并发面（第八轮，J2）
+
+**决策**：
+- **锁抽象单一化（P0）**：lv_thread.h 为唯一锁基座；删 runtime_guard.h 自有 lvMutex typedef + lvRwLock（从未启用休眠层；若有读写锁需求移植为 lv_thread.h 统一抽象）；清 context.h void* 死锁字段。
+- **lvMutex 旧别名退役**：6 处使用点（lv_arena/lv_registry/lv_backend_plugin/preset_manager/proof_navigator/runtime_guard）迁移 lv_mutex_t；旧别名黑名单。
+- **惰性锁收敛（P1）**：9 处手写 once+mutex+ensure 迁移 lv_lazy_lock（黑名单 grep：`_once = lv_ONCE_INIT` + 同文件 `_mutex` + init_once 手写回调）；手写 _initialized 标志随迁移删除。
+- **原子统一（P1）**：lv_ATOMIC_* 补 64 位 LOAD/STORE/CAS/EXCHANGE（当前缺口是 simd_ops/geo_predicate 退回裸 stdatomic 的直接原因）；迁移无豁免标注裸 stdatomic；统一 lv_ATOMIC_CAS_BOOL 跨平台语义（Windows 不更新期望值 vs POSIX 更新，graph_node_alloc 手动规避）；debug_refcount 互斥模拟迁移。
+- **并行骨架评估（P2）**：groebner_parallel/proof_version_task 复用 lv_parallel_for/lvWaitGroup 或显式登记豁免（有缺陷回退背景，先保证共享状态同步设计）。
+- **平台分支收敛**：只允许 lv_thread.h/lv_platform.h/cross_platform.h 三权威点（已收敛 ✅）；黑名单 core/src 内 pthread_*/CRITICAL_SECTION/Interlocked*/SRWLock 直接调用（lv_process 进程等待豁免）。
+
+### 3.38 构建产物/CI 面（第八轮，J3）
+
+**决策**：
+- **产物四类分策**：可再生成 → 移出 git（bootstrap/output 15 文件，补再生成脚本指向 lv_impl_upper_app EXPORT/VISUALIZE）；golden → tests/fixtures；测试中间物 → 忽略（test_output.tex 等）；日志 → 忽略。
+- **CI 报告收敛**：8 处内联 grep+awk 抽 1 脚本/composite action（ci.yml + python.yml 共享）。
+- **docx 生成收敛**：4 个生成器（3 JS + 1 py）收敛到 1 个（建议保留 ui 已链的 generate_report.js 或 gen_report.py 二选一）。
+- **死配置清理**：TestLake 嵌套 workflow 删除或上移（GitHub 不执行）；web-deploy.yml if:false 删除或启用。
+- **P4 命名修正**：bootstrap/output/coq_proof.lean 改名（承接）；Lean 导出×3/TikZ×2/JSON×6 产物级重复随移出 git 一并消解。
+
+### 3.39 Python 包结构面（第八轮，J4）
+
+**决策**：
+- **顶层导出单一化**：删 `from lv._ctypes_binding import *` 星号导入；__init__.py 定义显式 __all__；fallback 别名与 C 路径合并为单一 if/else 选择点。
+- **预设单一事实源**：锚定 .lvz（先修 convert_presets.py 编码乱码再重生成）→ Python 仅保留 preset_blocks（v4.0.0）单一注册表；v3.3.0 系降 compat re-export（合并进 preset_func_blocks_compat）；math_presets 标注第三方 spec 或迁移；删 preset_registry.yaml；C 侧 g_builtin_* 与 .lvz 二选一或明确"无 module/ 目录回退"。
+- **几何操作入口收敛**：core.Point.mid_point 为唯一数学实现；preset create_* 两代复制体改为委托 core（删公式复制）。
+- **删除项**：lv.utils（346 行孤儿）、build/lib/（38 文件过期镜像）、setup.py 或 pyproject.toml 二选一（承接 C1）。
+- **fallback 边界**：补"仅核心子集"文档；20+ 子模块 `from ._ctypes_binding import _lib` 统一守卫逐模块降级或文档明确仅顶层可用。
+- **健康确认**：绑定层/核心层/域模块/兼容 re-export 分层合理；test_constants_consistency 探针守护合理。
+
+### 3.40 全局符号/命名面（第八轮，J5）
+
+**决策**：
+- **命名规范锚定**：函数 `lv_<模块>_<动词>_<对象>`（统一前缀二选一，禁模块裸前缀直出）；类型 `lv<Module><Name>`（消灭 435 裸 typedef）；生命周期锚定 create/destroy 一对（free 仅留 libc malloc 配套、delete/release 全收敛）；解析锚定 parse（整串）/scan（前缀扫描）两语义；枚举常量统一 `LV_<域>_<名>`。
+- **冲突修复（P0/P1）**：lvPlugin 二选一改名删别名（建议 interop.h 删 typedef，全量迁移）；REL_FORMULA/RelFormulaType 语义分裂分别改名（sat_encoding 侧 RelExprType 或 relation_model 侧）；守卫式重复枚举单源化（func_block_registry.h 为唯一权威）；expr_canon.h/expr_canonical.h 文件名与内容对齐。
+- **裸 extern 清理（P2）**：10 个裸全局加 lv_ 前缀（_stream_ctx 同时去前导下划线）。
+- **命名 lint 强制**：clang-tidy readability-identifier-naming 或脚本扫 core/include：导出函数 ^lv_、typedef ^lv[A-Z]、枚举常量 ^LV_、extern ^lv_、禁止 ^_[a-z]；接入 CI/pre-commit。
+- **风险**：前缀补齐属 API 破坏性改动（lv_ 仅覆盖 45% 导出函数），分级推进——P0/P1 编译级冲突 → P2 前缀补齐（版本化迁移）→ P3 上 lint。
+
 ---
 
-## 4. 优先级与工作量（v1.7 更新：68 组）
+## 4. 优先级与工作量（v1.8 更新：73 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正 | ~4500-6500 行删除/改名/接线 | 低-中（多为无调用方或纯删除；I5 两处方向修正需回归） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨） | ~6000-9000 行改动 | 中（需回归测试） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正、J1 8 处 M6 清理接线+once_reset 补齐、J2 锁抽象单一化+9 处惰性锁迁移、J3 产物移出 git+死配置清理、J4 删 lv.utils+build/lib 镜像+顶层导出单一化、J5 lvPlugin/REL_FORMULA/守卫枚举冲突修复 | ~6500-9000 行删除/改名/接线 | 低-中（多为无调用方或纯删除；J2 锁迁移+J5 冲突修复需回归） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨）、J1 单一生命周期注册表、J2 原子 64 位补齐+统一、J3 CI 报告收敛+docx 生成收敛、J4 预设单一事实源+几何操作入口收敛、J5 命名规范锚定+前缀补齐（版本化） | ~8500-12000 行改动 | 中（需回归测试；J5 前缀补齐破坏性） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
-| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化、I3 FIFO 队列族收敛（L9 前端接内核已移出） | ~4000-6000 行 | 中高（引擎/证明） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化、I3 FIFO 队列族收敛、J2 并行骨架评估（L9 前端接内核已移出） | ~4000-6000 行 | 中高（引擎/证明） |
 | **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并、H4 公理单一事实源+formal 去重+CI 对齐 | 视工具链 | 高（外部工具链/形式化） |
 
-> v1.7 工作量上调主因：第七轮新增 I1-I5 涉及层验证机制修复（P0 顶层问题）、
-> 计时/统计基座单一化、增长逻辑单一路由、round-trip 基座收敛、归属修正
-> （8 处解析/证明/导出/注册归属）等广面改动；I2-I4 另确认日志管道/JSON 序列化/
-> 哈希表/堆/回调列表已收敛为健康基线。
+> v1.8 工作量上调主因：第八轮新增 J1-J5 涉及生命周期注册表统一（8 处 M6）、
+> 锁抽象单一化（3 层→1 + 9 处惰性锁 + 原子 64 位补齐）、命名规范锚定（前缀
+> 双轨 45%/55% + 10 裸 extern + 同名冲突），以及预设数据单一事实源（全链 ≥5 份）
+> 等广面改动；J2/J4 另确认平台分支已收敛、绑定层/核心层分层健康。
 
 ---
 
@@ -578,6 +658,10 @@
 | I2 计时基座收敛影响性能行为 | 6 套起止计时收敛前对拍（begin/end 语义等价），回归性能测试 |
 | I3 增长逻辑单一路由影响容器 | lv_ensure_capacity size_t 形态先加测试（等价/边界），再逐容器切换 |
 | I5 层验证开闸可能暴露新违规 | 先修 2 处 P0 + 归属修正后再开闸；CI 依赖矩阵先于编译断言启用 |
+| J1 生命周期统一影响 init/cleanup 循环 | thread_pool once 重置先做（直接威胁 90+ 循环测试）；注册表复位语义先加测试再迁移手动序列 |
+| J2 锁抽象单一化影响并发行为 | lvMutex→lv_mutex_t 纯改名低风险；runtime_guard 从未启用可直接删；原子 64 位补齐先加测试再迁移 |
+| J4 预设单一事实源影响 Python 用户 | 保留 preset_func_blocks_compat 兼容层 + DeprecationWarning；.lvz 编码修复后重生成并跑 Python 测试 |
+| J5 命名前缀补齐属 API 破坏 | 分级推进：P0/P1 编译级冲突（lvPlugin/REL_FORMULA）先行；前缀补齐版本化迁移（旧别名 compat 期）；lint 最后上 |
 
 ---
 
@@ -610,8 +694,12 @@
 - **F25**（第七轮）：I5 两处 P0 方向修正（context.c 推理栈归位 L2 / lv_loader 只产 AST 由 L0 装载）是否确认？
 - **F26**（第七轮）：I2 计时/统计基座单一化（6 套起止计时→1 + Welford 二合一 + 求解统计收敛 SchedulerStats）是否立项？
 - **F27**（第七轮）：I3 增长逻辑单一路由（lv_ensure_capacity 增 size_t 形态 + 12 处宏机械替换 + IntArray 废弃）是否优先做（P0，纯机械低风险）？
+- **F28**（第八轮）：J1 生命周期统一（单一注册表 + 8 处 M6 接线 + thread_pool once 重置修复 init/cleanup 循环）是否作为独立 P0 立项？
+- **F29**（第八轮）：J2 锁抽象单一化（lvMutex 旧别名退役 + 9 处惰性锁迁移 + 原子 64 位补齐）是否确认？
+- **F30**（第八轮）：J4 预设单一事实源（锚定 .lvz 先修编码 + Python 只留 v4.0.0 + 删 lv.utils/build/lib）是否确认？
+- **F31**（第八轮）：J5 命名规范锚定（P0/P1 冲突修复先行 + 前缀补齐版本化 + lint 强制）是否立项？
 
 ---
 
-*附：本设计基于七轮三十五路子代理审计（每轮 5 路 ×7 = 68 组重复点），
+*附：本设计基于八轮四十路子代理审计（每轮 5 路 ×8 = 73 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*

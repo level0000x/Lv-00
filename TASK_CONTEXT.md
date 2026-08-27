@@ -7470,3 +7470,58 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第七轮审计为设计留档，未执行）。
 
+## 一百三十、批次 标准统一化第八轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第八轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 73 组）。
+
+### ① 第八轮审计结果（J1-J5）
+
+- **init/清理生命周期面 J1**：**4 套生命周期表达**（模块注册表 qsort+逆序 / lv_cleanup
+  硬编码手动序列 10+ 行 / 模块自管 once_reset / 手写 initialized 豁免）；
+  **8 处 M6 未接线清理**（LV_REGISTER_MODULE 宏 0 调用 / runtime_monitor 双日志
+  lv_log_shutdown 从不被调 / lv_event_trace 仅测试 / lv_ecosystem_init 仅测试生产
+  生态注册静默失败 / lv_config_reset 仅测试 / 注册表 cleanup 不重置 count /
+  **lv_global_thread_pool_destroy 不重置 once 破坏 init/cleanup 循环** /
+  lv_application_shutdown 空实现）；失败路径无回滚（ERROR 态不可重入）。
+- **线程/并发面 J2**：锁抽象 **3 层叠加**（lv_mutex_t 活跃 / runtime_guard 自有
+  lvMutex+lvRwLock 从未启用且同名潜在冲突 / context.h void* 死锁字段）；
+  手写惰性锁 **9 处**（lv_lazy_lock 已有 13 模块在用）；原子 **3 套**
+  （lv_ATOMIC_* 缺 64 位 / 裸 stdatomic 无豁免标注 / 互斥模拟）；
+  **健康确认**：平台分支已收敛三权威点、线程池唯一实现。
+- **构建产物/CI 面 J3**：bootstrap/output **15 文件全 git 跟踪零消费者无再生成
+  驱动**（纯快照，内部 Lean×3/TikZ×2/JSON×6 重复）；CI 失败报告 **8 处内联
+  grep+awk**；docx 汇报 **4 个生成器**；git 跟踪策略不一致；2 处死配置
+  （TestLake 嵌套 workflow / web-deploy if:false）。
+- **Python 包结构面 J4**：顶层常量**双通道**（星号导入 + core 白名单）；
+  中点实现 **≥8 处**（preset_basic 与 preset_blocks/geometry 两代逐字复制）；
+  预设注册表 **3 套**；**预设元数据全链 ≥5 份镜像**（孤儿 C→convert→.lvz 中文
+  乱码→yaml 无消费方→Python 两代 + C g_builtin_* 编译表第二源）；lv.utils 孤儿
+  死代码；**build/lib/ 38 文件过期镜像**；fallback 部分回退缺口。
+- **全局符号/命名面 J5**：**"统一 lv_ 前缀"宣称与事实不符**（导出函数 lv_ 仅
+  44.9%、typedef 裸名 51%、枚举常量 lv_ 仅 22.8%、**LV00_ 全域 0 命中**）；
+  **10 个裸 extern 全局泄漏**；同名冲突（lvPlugin 潜伏硬冲突 / REL_FORMULA
+  同名同常量值不同 / 守卫式重复枚举 54×2 / expr_canon 文件错位）；
+  同义不同名（create 314 vs make 3、destroy vs free/cleanup/delete、解析四风格）。
+
+### ② 设计更新（standard-unification-design.md v1.8）
+
+- 新增 §1.36-1.40 现状清单（J1-J5）+ §3.36-3.40 分面方案；
+- P0-P4 并入第八轮项（P0 含 8 处 M6 接线+锁抽象单一化+产物移出 git+命名冲突
+  修复；P1 含单一生命周期注册表+原子 64 位+预设单一事实源+命名前缀补齐）；
+- 新增决策点 F28-F31（生命周期统一/锁单一化/预设单一源/命名规范）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第八轮审计 5 组 / 总 73 组 / J1-J5 方案 / F28-F31 待确认 /
+  **"统一 lv_ 前缀"宣称证伪（实际双轨 45%/55%）**、**thread_pool once 不重置
+  威胁 init/cleanup 循环**、**预设数据全链 ≥5 份漂移（含 .lvz 中文乱码）**。
+
+### 遗留登记
+
+- 无新增遗留（第八轮审计为设计留档，未执行）。
+
