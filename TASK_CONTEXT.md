@@ -7122,3 +7122,51 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（三格式图景为设计修正，未执行）。
 
+## 一百二十三、批次 项目内部标准统一化设计（2026-08-27）
+
+用户「发现了一个巨大的问题项目内部标准需要统一化」——标准尽量少，
+一个需求不要多种格式。五路子代理并行审计后产出统一化设计。
+
+### ① 审计结果（5 面 15 组一需求多格式）
+
+- **DSL 面 D1-D2**：.lv/.lvz/dsl_compiler 三套能力高度重叠；dsl_compiler
+  独有派生中心族/fix-free/concyclic/check_sat 待反向移植到 .lv。
+- **序列化面 S1-S4**：Module 三载体（LVZ/MSGPACK/JSON）图字段处理不一致；
+  **LVZ 内嵌图序列化器只写不可读（语法不匹配）、MSGPACK 不含图导致自动
+  保存/恢复静默丢图（真实缺陷）**；ModuleFormat 死枚举零引用；图 JSON
+  薄封装冗余。
+- **导出面 E1-E4**：SVG 两套（26 行瘦版 vs 956 行全功能）、TikZ 三套、
+  Coq/Lean 导出各 3-5 实现（多数仅测试）；**canonical 同名不同义**
+  （ExportGraph=json 别名 vs L9 独立文本）。
+- **证书证明面 P1-P4**：证明内存表示 ≥3 套（ProofStep/lvProofObject/
+  opml lvProofStep）；证明 JSON 两份 schema；**.proof.cert 层 A 引用
+  interop_export_canonical 但该函数序列化 ConstraintGraph 非 ProofStep
+  （文档承诺未实现）**；coq_proof.lean 命名错位（实为 Lean 代码）。
+- **存储配置面 C1-C4**：Python 打包 pyproject+setup.py 双格式漂移；
+  预设数据 4 表示并存（.c 死 → .lvz 活 → .yaml 无消费 → .py 镜像）；
+  两个同名 lvFormal Lean 项目漂移；公理包注册表双层 JSON。
+
+### ② 设计输出（standard-unification-design.md v1.0）
+
+- 统一化原则：标准尽量少、一需求一格式、权威格式锚定、向后兼容、不推翻十层。
+- 分面方案：ConstraintGraph/Module→JSON 权威；SVG/TikZ 去重；
+  Coq/Lean 收敛命令路径；lvProofObject 为唯一证明 IR；证明 JSON→OPML；
+  .lv 为唯一用户语言（吸收 dsl_compiler 能力）；.lvz 收敛为模块封装；
+  预设 .lvz 单一数据源；Lean 项目合并。
+- 优先级 P0-P4：P0 死代码清理（~600-900 行删）→ P1 权威格式收敛 →
+  P2 语言统一 → P3 证明 IR 统一 → P4 Lean 项目合并。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 标准统一化 / 15 组重复点 / 5 面方案 / P0-P4 优先级。
+- **待用户确认**：F1 P0 死代码清理是否优先独立执行；F2 Module 收敛 JSON；
+  F3 canonical 改名；F4 语言统一推进；F5 Lean 合并是否纳入。
+
+### 遗留登记
+
+- 无新增遗留（统一化设计留档，未执行）。
+
