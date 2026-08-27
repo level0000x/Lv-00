@@ -7853,3 +7853,105 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十三轮审计为设计留档，未执行）。
 
+## 一百三十六、批次 标准统一化第十四轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十四轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 103 组）。
+
+### ① 第十四轮审计结果（K26-K30）
+
+- **错误注入容错面 K26**：**注入机制"齐全但零使用"**——lv_allocator_set vtable
+  切换可注入但**从未用于失败注入**（仅测切换契约）；lv_set_memory_limit 唯一验证
+  断言被注释禁用；全库 grep oom_inject/fail_alloc/fail_point/fault_inject
+  **零命中**（docs 唯一提及未实施）；**平行实现**：debug_alloc（含 memory_limit
+  检查）vs lv_malloc_tracked（绕过 vtable 直 malloc，旁路注入）；**注入盲区**：
+  memory_pool 块分配原生 malloc、GMP 不可注入；**分配失败/OOM 路径测试为 0**
+  （无任何测试让分配真实失败断言错误码；NULL 参数覆盖数百处 ✅）；fuzz 纯内存
+  安全无注入；OOM 文案中英冲突；熔断模拟靠 API 直调。
+- **UB 整数安全面 K27**：**权威已建**：lv_arith_safe.h（lv_safe_{mul,add,sub}_i64
+  唯一权威 + lv_gcd 收敛 K2 ✅）、lv_ensure_capacity（250+ 调用点全库扩容唯一
+  入口）✅；**"一需求多防护"残留**：lv_SAFE_ADD 宏（int+饱和）vs lv_safe_add_i64
+  双语义；10+ 处手写「INT_MAX/2 预检+×2」循环 vs lv_ensure_capacity；
+  array_grow_to_fit（size_t 版）vs lv_ensure_capacity（int 版）双口径（I3 残留）；
+  func_block_utils.c:96/nt_polynomial.c:180 手写加法溢出检查；formula_dsl_lex vs
+  axiom_pkg_parser 两套字面量解析预检；**防护缺失（高危）**：主 .lv 解析链
+  （lv_load_file→lexer→parser）无输入长度/递归深度/节点数闸门（parser_max_*
+  字段零消费）；parser_safety.c 的 lv_check_ast_depth/node_count/token_length/
+  input_sanitize **全死代码**（连头声明都没有）；**graph_conflict.c:612-629
+  `max_node_id+1` 唯一具体有符号溢出 UB**；**sanitizer**：常规 ctest/CI 完全无
+  sanitizer，fuzz 只跑 ASan 从不跑 UBSan（K17 复核一致）；窄化 (int) 1539 处
+  0 安全辅助，GCC 关 -Wconversion 而 Clang 保留但无 -Werror（两编译器不一致）；
+  __int128 守卫不一致（algebraic_number_io.c:48 无守卫，MSVC 无法编译）。
+- **递归栈深度面 K28**：**30+ 深度机制，其中 6 套核心机制全部是"死机制"**
+  （生产零调用）：parser AST 深度 256（lv_check_ast_depth 定义后从未被调用）、
+  circuit_breaker 100、reasoning_stack 1000（push/pop 仅测试）、context
+  recursion_depth 10000（生产从不递增）、全局 128（lv_recursion_enter 仅测试/
+  示例）、recursion_context 测度验证（+recursion_test_suite.c 死文件）；**常量
+  重复**："递归 128" 4 处；推理深度 100/1000/10000 三套并存互不知晓；
+  lv_DEFAULT_MAX_DEPTH 同名不同值（64 vs 100）；销毁深度文档 10000 vs 代码 200
+  差 50 倍；**无防护递归函数族**：DSL 递归下降（lv_parser 14 层/lv_sema）、
+  formula 三解析器（current_depth 死字段，node_count 拦不住纯括号嵌套→**可构造
+  无限深递归**）、formula_node_destroy/copy、lv_ast_destroy、lv_tree_release_
+  recursive（3 处共用）、lv_trace_node_destroy、lambda_unify 5 族子递归、
+  sym_expr 7 族、dsl_compiler_ir compile_node；**栈风险**：渲染器每层 1-2KB 缓冲
+  × 无防护递归（深度 100 ≈ 100-400KB）、lv_impl_upper_app 16KB 帧；**显式栈
+  样板已成熟**（graph_dfs/tree、proof DFS/MCTS、graph_conflict DfsFrame、prop_
+  verifier destroy、module path）。
+- **死锁锁顺序面 K29**：**锁抽象双族**：lv_thread.h（lv_mutex_t 唯一实现 +
+  lvLockGuard/LV_SCOPE_LOCK/lv_lazy_lock）vs runtime_guard.h（lvRwLock + 重复
+  lvMutex typedef + lv_RUNTIME_LOCK，**默认编译为 no-op**，deadlock_warnings
+  字段无代码递增）；**编译器分裂**：LV_SCOPE_LOCK/lv_DEFER 在 MSVC 下退化为
+  手动配对/no-op（GCC 自动解锁、MSVC 不解锁）；**非递归锁平台分裂**：Windows
+  CRITICAL_SECTION 可重入、POSIX 自锁（同一代码 Windows 不死锁、POSIX 死锁），
+  无 trylock/timedlock；**日志 3 锁 2 管道**；**组同步 2 套**（lvWaitGroup vs
+  lvTaskGroup）；**后端注册表锁 4 份复制**；lvRegistry 加锁/无锁双约定（find
+  无锁 vs get/put 加锁）；groebner g_data_mutex 3 种加锁惯用法；**跨模块双锁链
+  无总序**（test/atp→registry、singular→g_data、g_data→log/config）；**持锁回调
+  倒锁**：lv_registry_remove 持锁调 destroy 回调、stream_async 消费者回调重入
+  stream_flush/context_destroy → **自等待/自 join 死锁**；**潜伏自锁链**：
+  memory_pool stats_mutex 持锁 lv_strdup（lv_mem_record_alloc 无生产调用方，
+  一旦 lv_malloc 接上即自锁，头注释过期）；**健康面**：thread_pool 顺序获取
+  不嵌套 ✅、high_dim _locked 分层 ✅、preset_manager 解锁后回调 ✅。
+- **宏约定类型转换面 K30**：宏风格分布（core/ 3592 个 #define：LV_ 大写对象式
+  53.6% / lv_ 前缀大写 25.7% / 函数式 16.5% / compat 3.6%）；**多命名点**：
+  lv_ARRAY_SIZE（271 用）vs lv_ARRAY_COUNT（2 用残留）；X 列表两族 `*_X`（41）
+  vs `*_ENTRY`（13）；守卫宏三变体（K16 复核仍在）；lv_PUBLIC_API 仍 ~30 处
+  （K18 未收敛）；日志宏两族 LOG_* vs lv_LOG_*；**强转**：≈4700 强转点
+  （(int)1539/(size_t)1523），**0 个 safe-cast 辅助**，防御是直转/转后比较/转前
+  比较三种零散写法，_Static_assert 表对齐守卫仅 5 处；**X-macro 三档并存**：
+  A 档完全派生（LV_TOKEN_TYPE_X 范本）/ B 档枚举手写+X 列表+_Static_assert
+  （但 graph_serialize.c:320 硬编码 6、lv_sema.c:104 硬编码 12）/ C 档手写表与
+  X 列表重复（algebra_mode.c 别名 switch 与 LV_GEOM_TYPE_ENTRY ALIAS 列逐字
+  重复）；**solver_order.c 手写 Kahn**（头注释声称已消除——承诺未兑现）；
+  装箱拆箱手写 35 处无 helper；lv_str_ltrim const 剥离 12 处；**危险宏三类均
+  0 真阳性**（无括号参数/多语句无 do-while/副作用宏）——宏参数安全总体健康 ✅；
+  健康面：lv_MIN/lv_MAX/lv_CLAMP/lv_SWAP 唯一权威、42 个 void* 回调 typedef
+  统一、lv_topo_run 8+ 消费方 ✅。
+
+### ② 设计更新（standard-unification-design.md v1.14）
+
+- 新增 §1.66-1.70 现状清单（K26-K30）+ §3.66-3.70 分面方案；
+- P0-P4 并入第十四轮项（P0 含 K27 parser_safety 接线+安全算术单一入口+增长
+  逻辑单一路由+graph_conflict +1 修复、K28 A1-A6 死机制接线或删除+无防护点
+  补限、K29 锁顺序总序文档+平台分裂修复+倒锁防护；P1 含 K26 失败分配器+OOM
+  错误路径测试+注入盲区修复、K27 sanitizer 覆盖 ctest+窄化强制、K28
+  depth_limits.h 单一权威深度表+栈帧治理、K29 锁抽象收敛+潜伏自锁链+TSAN、
+  K30 宏规范锚定+强转检查+X-macro 补全+类型擦除收尾）；
+- 新增决策点 F52-F56（错误注入/整数安全/递归深度/锁顺序/宏约定）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十四轮审计 5 组 / 总 103 组 / K26-K30 方案 / F52-F56
+  待确认 / **OOM 注入机制齐备但零使用**、**主解析链无输入/深度闸门（parser_safety
+  死代码）**、**graph_conflict +1 唯一有符号溢出 UB**、**A1-A6 六套递归防护
+  全死机制（文档宣称防护、生产裸奔）**、**stream 消费者自死锁 + registry 回调
+  倒锁**、**solver_order 手写 Kahn 承诺未兑现**。
+
+### 遗留登记
+
+- 无新增遗留（第十四轮审计为设计留档，未执行）。
+
