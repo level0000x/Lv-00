@@ -7599,3 +7599,63 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第九轮审计 + K5 定稿为设计留档，未执行）。
 
+## 一百三十二、批次 标准统一化第十轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 83 组）。
+
+### ① 第十轮审计结果（K6-K10）
+
+- **废弃API/兼容层面 K6**：**lv_DEPRECATED 宏定义齐全但全库 0 使用**（C 侧废弃
+  全靠注释无编译期信号）；Python DeprecationWarning 仅 2 处，唯一有期限项
+  （preset_func_blocks_compat→v5.0.0）**无人 import（dead）**；4 个多形态退役
+  案例（lvMutex 3 套机制+双定义 / preset 双 compat 信号矛盾 / 名称表三层命名 /
+  lvPlugin 同名异义）；同名新旧并存 ~20 组（3 组高危含 NODE_TYPE_CIRCLE
+  映射 (GeomType)-1 语义漂移）；健康反例 constraint_graph.c"彻底移除"。
+- **降级/回退路径面 K7**：降级路径 **40+ 处 5 大场景**；"主路径失败→降级"
+  至少 6 种独立实现互不调用（scheduler fallback_chain / SMT 表驱动 / engine_solve
+  主路径 / SAT→Groebner / 模块级 fallback / 逐函数 try/except）；**静默降级 9 项**
+  （_FakeBinding noop 吞调用 / sparse→dense 无日志 / (void) reason 丢弃 /
+  except: pass / PNG 全白图 / enable_cache 伪配置 / 索引→线性扫描 ~10 处 /
+  数值回退 7 处 / engine_solve 静默）；**无统一降级登记**（4 套计数器互不打通）；
+  失败后 5 种表达（false/UNKNOWN/None/异常/静默吞）。
+- **基准测试面 K8**：函数级微基准 **3 份实现**（lvBenchmark dead API /
+  lv_perf_benchmark_run 唯一活性 / 手写 QPC 绕道）；**Welford 2 份逐行同构**
+  （I2 决策未落地）；**性能阈值 3 处硬编码**（<1us/>1x/<1ms 已 flaky）；
+  **CI 无性能回归门**（规划未落地）。
+- **特性开关面 K9**：**死开关 8 项**（lv_ENABLE_RUNTIME_GUARDS 连编译都过不了 /
+  lv_CONTEXT_THREAD_SAFE / lv_LOG_GUARD / LV_USE_ZLIB / lv_WASM_BUILD+lv_NO_GMP /
+  lv_HAS_OPENMP / 4 幽灵宏）；**一需求多开关 7 组**（运行时守卫 5 种承载 /
+  线程锁 3 套 / 后端加速命名三分裂 / 层验证名不同步 / lv_PUBLIC_API 双定义 /
+  zlib 双方案 / 平台检测 4 套含 _WIN32 直判 81 处）；默认值不一致
+  （ENABLE_LAYER_VALIDATION CMake=OFF 文档记 ON）。
+- **内存所有权约定面 K10**：**三态契约承诺未落地**（memory-ownership.md 不存在 /
+  [copy]/[take]/[borrow] 标注全库 0 处 / 无静态检查）；12 项核心 API 抽查
+  **2 项脱节**（func_block_register 声称 take 实际 copy 照注释会泄漏 /
+  module_compute_content_hash free vs lv_free=UB）+ API_QUICKSTART
+  normalization_result_free 不存在；**11 项实际语义健全**（含 Python _PtrOwner
+  与 C 侧逐一对齐）。
+
+### ② 设计更新（standard-unification-design.md v1.10）
+
+- 新增 §1.46-1.50 现状清单（K6-K10）+ §3.46-3.50 分面方案；
+- P0-P4 并入第十轮项（P0 含 lv_DEPRECATED 全覆盖+静默降级修复+删 lvBenchmark+
+  死开关清理+所有权 3 处错误注释修复；P1 含退役登记表+统一降级登记+性能回归门+
+  feature_gates 单一表+三态标注全覆盖）；
+- 新增决策点 F36-F39（退役机制/降级登记/基准框架/所有权契约）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十轮审计 5 组 / 总 83 组 / K6-K10 方案 / F36-F39 待确认 /
+  **lv_DEPRECATED 0 使用确认**、**静默降级 9 项**（含 enable_cache 伪配置）、
+  **死开关 8 项**（RUNTIME_GUARDS 连编译都过不了）、**所有权 2 项脱节**
+  （func_block_register 泄漏风险 + module_compute_content_hash UB）。
+
+### 遗留登记
+
+- 无新增遗留（第十轮审计为设计留档，未执行）。
+
