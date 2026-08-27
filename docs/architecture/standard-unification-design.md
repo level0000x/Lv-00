@@ -1,26 +1,27 @@
-# 项目内部标准统一化设计（v1.4）
+# 项目内部标准统一化设计（v1.5）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**四轮共二十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**五轮共二十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
 > 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
-> 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部）
+> 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部；
+> 第五轮：安全限制/缓存/图算法/事件回调/配置全局）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
 > **v1.1（2026-08-27）**：第二轮五路新增 15 组（总 30 组）。
-> **v1.2（2026-08-27）**：第三轮五路新增 13 组（总 **43 组**），
-> 本版并入 §1.11-1.15 与 §3.11-3.15。
-> **v1.3（2026-08-27）**：用户确认前端为**刻意留白**（等内核定型后再写，
-> 非债务），L9 从统一化执行清单移出（§3.15），保留契约待内核定型后对接。
-> **v1.4（2026-08-27）**：第四轮五路新增 10 组（总 **53 组**），
-> 本版并入 §1.16-1.20 与 §3.16-3.20。
+> **v1.2（2026-08-27）**：第三轮五路新增 13 组（总 **43 组**）。
+> **v1.3（2026-08-27）**：用户确认前端**刻意留白**（等内核定型后再写），
+> L9 移出执行清单，保留契约待内核定型后对接。
+> **v1.4（2026-08-27）**：第四轮五路新增 10 组（总 **53 组**）。
+> **v1.5（2026-08-27）**：第五轮五路新增 5 组（总 **58 组**），
+> 本版并入 §1.21-1.25 与 §3.21-3.25。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-四轮共二十路审计发现 **53 组"一个需求多种格式"重复点**：
+五轮共二十五路审计发现 **58 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -135,6 +136,36 @@
 | F8 | 证明/命题验证入口 | `prop_verifier_verify`（VerifyResult）/ `lv_verify_proof`（lvVerifyResult）/ `proof_minimal_verify`（LvProofVerifyResult）/ `mini_kernel_verify_all`（MiniVerifyResult）/ `lv_proof_object_verify`（bool）/ `simple_proof_check`（bool） | **≥6 个独立验证入口**，各自独立枚举/结构/语义；proof.h 与 prop_verifier.h 曾共用守卫导致 include 顺序漂移，官方注释承认重复 |
 | F9 | 证明策略调度 | `ProofMultiStrategy`（JGEX 12 + legacy 桥接策略）vs 经典 `lvProofEngine` 10 策略（proof_strategy.c） | **两套策略引擎**：多策略引擎（ProofNavigator 调度面）vs 经典引擎（System A） |
 | F10 | 证明引擎栈 | 4 套并存：ProofNavigator 工作流（Stack 1）+ 多策略引擎（JGEX）+ 经典 lvProofEngine（Stack 2）+ 逻辑内核（mini_kernel/prop_verifier） | **同一证明需求 4 套引擎栈互相桥接**；kernel/ 目录混入 ecosystem.c/gc_language.c 与逻辑内核无关 |
+
+### 1.21 安全/限制面（第五轮，G1）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| G1 | 防失控（深度/步数/超时/熔断） | 熔断器**一套数据三套写入口**（lv_circuit_breaker.c 独立 API + circuit_breaker.c context 转发层 + context.c 内联直接改字段）；递归/推理深度 **6+ 套限制互不知晓**（parser 256 / circuit_breaker 100 / reasoning_stack 1000 / context 10000 / recursion 128 / lambda_unify 1024）；"递归 128"常量 3 处（recursion.h/config.h/runtime_guard.h）；超时 30000 常量 3 处；解析安全 4 函数（输入长度/净化/AST 深度/节点数/token 长度）**4 个未接线 + 2 个被 formula_dsl_lex 内联重复**；`lv_ERROR_PARSER_POOL_EXHAUSTED` **死错误码**（无代码产生） | **"防失控"6+ 套独立互不知晓机制**；解析安全函数声明了但未接线，内联重复版本反而生效 |
+
+### 1.22 缓存面（第五轮，G2）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| G2 | 缓存重复计算结果 | 推理/子问题去重缓存 5 套：`prop_verifier_memo`（真实，lvHashtable_i64）/ `smt_trigger_engine.instance_cache`（真实，参照前者）/ `axiom_pkg.expansion_cache`（真实，**lvDArray 线性扫 O(n)**）/ `lvReasoningCache`（**仅规格**，源码不存在）/ `proof_engine.enable_cache`（**仅旗标**，结构无缓存字段）；对象惰性派生值缓存 4+ 处（symbolic_coord cached_value / quantifier cached_truth / groebner cached_basis / render_cache）各自手写失效 | **"缓存"5 套不同实现**，底层容器/失效/容量全不一致；lvHashtable 是容器无缓存语义（无 LRU/TTL/驱逐）；文档引用多个源码不存在的缓存（reasoning_cache.h/cache_manager.c/lvLRUCache 等） |
+
+### 1.23 图算法面（第五轮，G3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| G3 | 约束图 BFS/Kahn 拓扑 | `lv_bfs_run`/`lv_topo_run`（graph_traversal_bfs.c 回调驱动，权威）vs `bfs_traverse_from`/`lv_graph_topological_sort`（graph_traversal_dfs.c/util.c 约束图内部实现） | **约束图域两套 BFS + 两套 Kahn**（骨架同构可参数化吸收）；其余图域（模块依赖/类型/BDD/证明树）多为已评估豁免或已收敛——**治理基线健康**；`graph_topological_sort_stable` 名字误导（实为确定性排序非拓扑序） |
+
+### 1.24 事件回调面（第五轮，G4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| G4 | 回调注册+多订阅者分发 | `lv_callback_list`（权威基座）已收敛 StreamContext / lvEventBus / setter 注册表（均内嵌该基座）；**插件系统 `lv_plugin_broadcast_event` 仍手写 for 循环广播**（lv_event_bus.h:61-64 自认未迁移）；Python `_event_handlers` 手写订阅表 | **回调基座已统一**，仅插件广播一处未收敛 + Python 跨语言边界应显式豁免 |
+
+### 1.25 配置/全局面（第五轮，G5）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| G5 | 配置/全局状态 | 两套运行时注册表：`lvConfig`（config.h/lv_config.c，JSON 持久化，A）vs `ConfigManager`（lv_utils_config.c，INI 持久化，B，LV_CFG_* 键与 A 大量同名同义，B 被影子化）；模块级配置自成一套且**默认值矛盾**：lvSessionConfig 默认 timeout 5000/depth 8 **硬编码且覆盖**全局配置默认 30000/100；`global_state.c` 第三套 key-value **闭环死代码**（initialized 恒 false） | **同一参数（超时/深度）多份默认值互不知晓且会话覆盖全局**；配置来源 JSON(A)/INI(B) 两套持久化格式；一个死单例 |
 
 ---
 
@@ -313,21 +344,58 @@
 - **F9 策略调度归一**：多策略引擎（ProofMultiStrategy，JGEX 12+10）与经典引擎（lvProofEngine，10 策略）收敛为**单一策略注册表**（策略注册 + 调度表），两栈保留策略实现但共用调度面。
 - **F10 引擎栈明确分层**：4 套栈按职责定界——ProofNavigator 工作流（用户交互）+ 策略引擎（推理调度）+ 逻辑内核（TCB 验证）+ 导出（已在前几轮收敛）；`kernel/` 目录清理（ecosystem.c/gc_language.c 移出，与逻辑内核无关）。
 
+### 3.21 安全/限制面（第五轮，G1）
+
+**决策**：
+- **熔断器单一写入口**：context.c 内联改字段的 `lv_context_record_step/record_error/check_timeout` 收敛为唯一 API（lv_circuit_breaker.c），删除第三套写入口；context 转发层保留为薄适配。
+- **深度限制单一词汇表**：6+ 套深度常量收敛为**单一"限制栈"**（解析期/推理期/递归期各一层，参数化默认值单一来源）；"递归 128"3 处合一；超时 30000 3 处合一。
+- **解析安全接线**：parser_safety.c 的 4 个未接线函数（输入长度/净化/AST 深度/节点数/token 长度）接到真实解析入口；formula_dsl_lex 内联重复版改调权威函数；删 `lv_ERROR_PARSER_POOL_EXHAUSTED` 死错误码或接线。
+- **步数/迭代上限收敛**：10+ 处逐模块硬编码步数上限（solver_max_iterations/buchberger_max_steps 等）收敛到 config.h 单一字段 + 统一查询。
+
+### 3.22 缓存面（第五轮，G2）
+
+**决策**：
+- **通用缓存层**：建立单一缓存抽象（create(key_fn, value_fn, capacity, evict)），底层用 lvHashtable + 容量驱逐/LRU；5 套推理缓存（prop_verifier_memo/smt_trigger_engine/axiom_pkg_expand/规格 lvReasoningCache/旗标 proof_engine）收敛到该层。
+- **键类型各异保留**：goal^hash / quantifier 对 / (name,param_hash) 是不同对象键，缓存层参数化吸收。
+- **规格-实现对齐**：文档引用的 reasoning_cache.h/cache_manager.c/lvLRUCache（源码不存在）删除或实现；proof_engine.enable_cache 旗标要么接线要么移除（现为"声称开启但不缓存"的 M5）。
+- **对象惰性缓存**：4+ 处对象派生值缓存（symbolic_coord/quantifier/groebner/render）统一失效约定（cache_valid 旗标模式），不强行合并容器（对象不同，容量 1）。
+
+### 3.23 图算法面（第五轮，G3）
+
+**决策**：
+- **约束图 BFS/Kahn 收敛**：`bfs_traverse_from` 成为 `lv_bfs_run` 的薄适配（约束邻居回调）；`lv_graph_topological_sort` 重建于 `lv_topo_run`（successors 回调）；环检测已由 lv_graph_has_cycle 外包保持。
+- **治理基线健康确认**：其余图域（模块依赖/类型/BDD/证明树）多为已评估豁免或已收敛——**不需要动作**，记录为健康基线。
+- **命名澄清**：`graph_topological_sort_stable` 改名或文档澄清（实为确定性排序非拓扑序），消除命名混淆。
+
+### 3.24 事件回调面（第五轮，G4）
+
+**决策**：
+- **插件广播收敛**：`lv_plugin_broadcast_event` 改委托 `lvCallbackList`（或插件订阅 lvEventBus），删除手写 for 循环广播（lv_event_bus.h:61-64 自认未迁移）。
+- **Python 显式豁免**：`_event_handlers` 跨语言边界（Python 函数无法存 C 基座），显式豁免 + 登记。
+- **基座确认**：lv_callback_list 为唯一多订阅者回调基座（StreamContext/lvEventBus/setter 已内嵌）——记录为健康基线。
+
+### 3.25 配置/全局面（第五轮，G5）
+
+**决策**：
+- **配置单一注册表**：lvConfig（A，JSON）为唯一权威；ConfigManager（B，INI）删除或彻底降级（LV_CFG_* 键并入 A）；JSON/INI 两套持久化格式合一。
+- **默认值单一来源**：lvSessionConfig 默认（timeout 5000/depth 8）改为**读全局配置**（30000/100），消除"会话覆盖全局"的矛盾；所有 timeout_ms/depth 默认值从单一事实源派生。
+- **global_state.c 死代码删除**：lv_global_state_* 闭环死代码（initialized 恒 false）删除或接线。
+- **分层保留**：编译期尺寸宏（lv_CONFIG_*/lv_EPSILON_*）vs 运行时 vs 会话级是合理分层，不强行合并。
+
 ---
 
-## 4. 优先级与工作量（v1.4 更新：53 组）
+## 4. 优先级与工作量（v1.5 更新：58 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形删除/桥接、F3 字符串化并入、F6 atoi 替换 | ~2000-3200 行删除/改名 | 低-中（多为无调用方或纯删除） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型收敛、L4 事件契约单一化、L6 内存统计二选一、L8 日志级别归一、F4 导入共享层、F5 几何枚举四合一、F7 预设容器三合一 | ~2600-4000 行改动 | 中（需回归测试） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口收敛+解析安全接线+死错误码、G2 规格-实现对齐（删不存在缓存引用）、G3 命名澄清、G4 插件广播收敛、G5 删 global_state 死代码 | ~3000-4500 行删除/改名/接线 | 低-中（多为无调用方或纯删除） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 深度/超时常量合一、G2 通用缓存层、G3 约束图 BFS/Kahn 收敛、G5 配置单一注册表+默认值单一来源 | ~3800-5500 行改动 | 中（需回归测试） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
-| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码收敛、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口收敛、F9 策略调度归一、F10 引擎栈分层（L9 前端接内核已移出，待内核定型后单独立项） | ~3200-5000 行 | 中高（引擎/证明） |
-| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设注册表 v3→v4、L10 文档合并 | 视工具链 | 高（外部工具链） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层（L9 前端接内核已移出） | ~3200-5000 行 | 中高（引擎/证明） |
+| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并 | 视工具链 | 高（外部工具链） |
 
-> v1.4 工作量上调主因：第四轮新增 F1-F10 涉及表达式树二选一、
-> 导入共享层（坐标/图构建/属性三合一）、几何枚举四合一、证明验证入口
-> ≥6→1、策略调度归一、引擎栈分层等广面改动。
+> v1.5 工作量上调主因：第五轮新增 G1-G5 涉及熔断写入口收敛、通用缓存层、
+> 配置单一注册表、深度/超时常量合一等广面改动；另确认图算法/回调面治理基线健康。
 
 ---
 
@@ -349,6 +417,9 @@
 | F2 规范形二选一影响代数等价判定 | 先决策（兑现桥接 vs 删除孤儿），不得半吊子；测试 test_expr_canon 作回归锚 |
 | F8 验证入口 ≥6→1 波及证明引擎 | 以 lvProofObject + meta_verify 为锚，各入口降级适配器并跑全证明测试 |
 | F9 策略调度归一波及两栈策略 | 共用调度面先加注册表（策略注册+调度表），策略实现不动，回归 proof_multi_strategy 测试 |
+| G1 熔断写入口收敛影响防护行为 | 收敛前对拍三套入口触发语义（context 内联 vs 独立 API），回归熔断测试 |
+| G2 通用缓存层影响缓存命中语义 | 各缓存收敛后跑 prop_verifier/smt/axiom 缓存测试，容量驱逐新语义需验证 |
+| G5 配置默认值收敛改变运行行为 | 会话默认改为读全局后，观察 smoke/CI 测试超时/深度表现，必要时调整全局默认 |
 
 ---
 
@@ -369,8 +440,12 @@
 - **F13**（第四轮）：F2 规范形二选一（兑现 FormulaNode→lvExpr→lvExprCanonical 桥接 vs 删除孤儿 lvExprCanonical）？
 - **F14**（第四轮）：F8 验证入口收敛（6 入口→1，以 lvProofObject + meta_verify 为锚）是否立项？
 - **F15**（第四轮）：F9 策略调度归一（两栈共用策略注册表）是否立项？
+- **F16**（第五轮）：G1 解析安全函数接线（parser_safety 4 未接线函数 + 删死错误码）是否优先做（P0，安全面低风险）？
+- **F17**（第五轮）：G2 通用缓存层（5 套推理缓存收敛）是否立项（P1，需设计容量/驱逐语义）？
+- **F18**（第五轮）：G5 配置默认值收敛（lvSessionConfig 改读全局配置，消除会话覆盖全局矛盾）是否确认？
+- **F19**（第五轮）：G5 删除 ConfigManager（B，INI）与 global_state 死代码是否确认？
 
 ---
 
-*附：本设计基于四轮二十路子代理审计（每轮 5 路 ×4 = 53 组重复点），
+*附：本设计基于五轮二十五路子代理审计（每轮 5 路 ×5 = 58 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*

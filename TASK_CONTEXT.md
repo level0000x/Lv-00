@@ -7322,3 +7322,48 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第四轮审计为设计留档，未执行）。
 
+## 一百二十七、批次 标准统一化第五轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第五轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 58 组）。
+
+### ① 第五轮审计结果（G1-G5）
+
+- **安全/限制面 G1**：熔断器**一套数据三套写入口**（独立 API / context 转发层 /
+  context.c 内联改字段）；递归/推理深度 **6+ 套限制互不知晓**（256/100/1000/
+  10000/128/1024）；"递归 128"常量 3 处、超时 30000 常量 3 处；解析安全
+  4 函数未接线 + formula_dsl_lex 内联重复版反而生效；`PARSER_POOL_EXHAUSTED`
+  死错误码。
+- **缓存面 G2**：推理/子问题去重缓存 **5 套**（prop_verifier_memo / smt_trigger
+  / axiom_pkg_expand 线性扫 / lvReasoningCache 仅规格源码不存在 / proof_engine
+  enable_cache 仅旗标 M5）；lvHashtable 是容器无缓存语义；文档引用多个不存在的
+  缓存（cache_manager.c/lvLRUCache）。
+- **图算法面 G3**：约束图域两套 BFS + 两套 Kahn（骨架同构）；**治理基线健康**
+  （其余图域多为已评估豁免/已收敛）；graph_topological_sort_stable 名字误导。
+- **事件回调面 G4**：lv_callback_list 基座已统一（StreamContext/lvEventBus/
+  setter 均内嵌）；**仅插件 broadcast_event 手写 for 循环未迁移** + Python
+  跨语言边界应显式豁免。
+- **配置/全局面 G5**：两套运行时注册表（lvConfig JSON vs ConfigManager INI，
+  LV_CFG_* 键同名同义）；**lvSessionConfig 默认 timeout 5000/depth 8 硬编码
+  覆盖全局 30000/100**（同一参数多份默认值互不知晓）；global_state.c 闭环
+  死代码（initialized 恒 false）。
+
+### ② 设计更新（standard-unification-design.md v1.5）
+
+- 新增 §1.21-1.25 现状清单（G1-G5）+ §3.21-3.25 分面方案；
+- P0-P4 并入第五轮项（P0 含熔断写入口收敛+解析安全接线+删死代码+插件广播；
+  P1 含深度/超时常量合一+通用缓存层+配置单一注册表+约束图 BFS/Kahn 收敛）；
+- 新增决策点 F16-F19（解析安全接线/通用缓存层/配置默认值收敛/删 ConfigManager）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第五轮审计 5 组 / 总 58 组 / G1-G5 方案 / F16-F19 待确认。
+
+### 遗留登记
+
+- 无新增遗留（第五轮审计为设计留档，未执行）。
+
