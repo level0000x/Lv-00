@@ -1,8 +1,8 @@
-# 项目内部标准统一化设计（v1.11）
+# 项目内部标准统一化设计（v1.12）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**十一轮共五十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**十二轮共六十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
 > 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
 > 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部；
@@ -12,7 +12,8 @@
 > 第八轮：init清理生命周期/线程并发/构建产物CI/Python包结构/全局符号命名；
 > 第九轮：错误消息文案/基础算法重复/文档代码一致性/版本兼容/示例教学代码；
 > 第十轮：废弃API兼容层/降级回退路径/基准测试/特性开关/内存所有权约定；
-> 第十一轮：测试替身/数学常量/错误处理模式/适配器桥接/全局状态线程安全）
+> 第十一轮：测试替身/数学常量/错误处理模式/适配器桥接/全局状态线程安全；
+> 第十二轮：头文件包含卫生/fuzz测试配置/打包发布/数值稳定性/声明实现一致性）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
 > **v1.1**：第二轮 15 组（总 30）。**v1.2**：第三轮 13 组（总 43）。
@@ -28,8 +29,9 @@
 > **保留+转正**、根 examples 假示例**删除**、API_QUICKSTART 转正引用式、
 > TUTORIAL/USE_CASES **归档**、加 CI 同步护栏。
 > **v1.10**：第十轮 5 组（总 83）。
-> **v1.11（2026-08-27）**：第十一轮五路新增 5 组（总 **88 组**），
-> 本版并入 §1.51-1.55 与 §3.51-3.55。
+> **v1.11**：第十一轮 5 组（总 88）。
+> **v1.12（2026-08-27）**：第十二轮五路新增 5 组（总 **93 组**），
+> 本版并入 §1.56-1.60 与 §3.56-3.60。
 
 ---
 
@@ -360,6 +362,36 @@
 | # | 需求 | 现状格式 | 审计结论 |
 |---|---|---|---|
 | K15 | 全局状态/单例/线程安全 | **一需求多容器 6 组**：配置 5 容器（A lvConfig 进程级 / B ConfigManager TLS 同逻辑键跨线程读不同值 / 死 KV g_state / geometry_config 独立 / SMT 默认配置）、内存统计双容器（TLS vs 进程级）、预设库同型双容器（g_library 仅 init 有锁 vs g_preset_library 完全无锁）、日志状态 4 容器（s_debug_state/s_runtime_state.log/lv_log.c g_log_state*/日志级别双权威）、后端注册表样板 ×5、stream_ctx ×14（宏已存在未收敛）；**线程安全缺口 8 个**：G1 lv_config 读写锁不一致（撕裂读）、G2 s_upper_state 零锁可写、G3 g_preset_library 零锁、G4 g_library 读路径无锁、G5 g_coeff_pool check-then-create TOCTOU 双建、G6 TLS 平台回退静默变进程全局、G7 系统状态机 TLS 守卫进程级事实（跨线程 lv_init 双重 init）、G8 lv_log_shutdown 检查-动作无锁；**初始化顺序**：模块注册表有序 ✅ 但惰性单例（lv_once 38 + lv_lazy_lock 43）无显式依赖图；裸 extern 可写全局 ~12 个（s_upper_state/s_debug_state/g_library/g_coeff_pool 等） | **全局状态管理未统一**（6 组重复容器 + 8 个线程安全缺口含 3 个真实竞态：lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init）；健康范本：memory_pool/runtime_monitor/geometry_config（进程权威+TLS 快照）/lv_error（TLS getter）✅ |
+
+### 1.56 头文件包含卫生面（第十二轮，K16）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| K16 | 头文件包含/依赖管理 | **三策略混用**：伞形（12 公共头 include lv.h，lv.h 扇出 41 头）+ 精确（33 头引 lv_utils.h 等基础头）+ 前向声明（20 类型 ≥2 处共 ~73 行重复 typedef：ConstraintGraph×15/lvEngine×8/StreamContext×4 等，**lv_fwd.h 不存在**）；**7 处传递依赖**（需要但未包含，靠"恰好被别的头带回"编译通过：lv_internal.h:209 宏体引 StreamContext 未包含、plugin_system.h 字段 lvContext 靠伞形、module.h/func_block_preset.h/proof_engine_enhanced.h/coeff_pool.h/solver_core.h 等）；**1 处内部头泄漏公共面**（proof_session.h → proof_session_internal.h → proof_rule_engine_internal.h）；**26 目标多拼写**（引号/带前缀/尖括号三态）；6 个内部头放公共目录；守卫命名 3 变体（lv_XXX_H/LV_XXX_H/lv_lv_XXX_H） | **包含规范未锚定**（三策略混用 + 7 传递依赖脆弱契约 + 前向声明 73 行重复）；健康面：守卫 305/305 全覆盖零 pragma once 零冲突、公共头图零真实环、lv_internal.h 公共头 0 引用（内部边界语义成立仅物理错位）✅ |
+
+### 1.57 fuzz/测试工具面（第十二轮，K17）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| K17 | fuzz/sanitizer 配置 | **2 个 fuzz target**（fuzz_constraint_graph/fuzz_symbolic_coord，模块边界清晰），每周日 cron 的 fuzz.yml 独立驱动，**完全游离于 ctest 与常规 CI**；**sanitizer 三处来源不一致**：全局 ENABLE_SANITIZERS=address,undefined vs fuzz target 硬编码 fuzzer,address（**fuzz 从不跑 UBSan**）vs fuzz.yml 显式 OFF 掩盖分叉；编译器选择写两遍、运行参数/corpus 目录 3 处硬编码仅 workflow、两 target 旗标逐条复制无生成函数；**缺口**：corpus 无 seed/无回灌（每周空目录起跑）、fuzz 回归不进 push/PR CI、crash 无回归归档、test_verification_report.md "3 个 fuzz 测试"陈旧 | **sanitizer 分叉（fuzz 缺 UBSan）+ fuzz 配置硬编码/复制 + 回归缺口**；分层合理：fuzz vs ctest vs integration 三层互补不算重复 ✅ |
+
+### 1.58 打包/发布面（第十二轮，K18）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| K18 | 打包/安装/导出 | **find_package 必坏**：install(EXPORT) DESTINATION 含 "build/build"（笔误）+ 与 lv-config.cmake 不同目录 + 导出目标 lv::lv_static vs 检查/文档 lv::lv 永不命中 + 导出文件烘焙 GMP 绝对路径；**lv.pc 路径错误**（prefix=C:/Program Files (x86)/lv、libdir=lib 相对未拼 prefix、lv_PC_LIBDIR 死代码）；**导出机制三处宏互相覆盖**：config.h:643 无条件空 #define lv_PUBLIC_API 覆盖 lv.h dllexport + 数十头 #ifndef 兜底 + lv_USE_SHARED 全仓零定义（dllimport 死代码）+ 非 Windows 无 -fvisibility=hidden，**实际唯一生效 WINDOWS_EXPORT_ALL_SYMBOLS（内部符号裸奔导出）**；**CPack 配置完整但从未生成**（无 release workflow、无 package 步骤）；**WASM 打包三处描述零实现**（CMake 标志+CI cp+文档声称，web/ 目录空且 gitignore）；版本号 ≥6 处硬编码无单源（preset_blocks 4.0.0 偏离） | **C 库消费接口三套两套坏 + 导出机制冲突 + 发布物从未生成**；健康面：安装规则集中在 CMakeLists 2239-2334、CPack 命名 lv-1.1.0.* 一致（纸面） |
+
+### 1.59 数值稳定性面（第十二轮，K19）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| K19 | 数值容差/精度/稳定性 | **权威基线已建**：config.h lv_EPSILON_* 分级 + lvGeometryConfig 运行时表 + 16_geometry_layer.md 第 5 条"容差单一来源" + lv_rel_tol_scale 相对容差共享设施 ✅；但**"一需求多容差"高发**：共线判定 7 值并存（1e-9 权威/1e-10 EUCLID+meta_proof+interop/1e-6 algebra_mode/1e-12/1e-15）、垂直/平行 5 值、角度 3 值、距离 3 值；**致命断链：lvGeometryConfig 的 perpendicular/parallel/angle_epsilon 三字段全库零消费者（只写不读）**，实际判定散落 solver(1e-6)/meta_proof(1e-6)/conflict_detector(1e-6)/interop(1e-10)/algebra_mode(1e-6)；1e-12 双源（lv_EPSILON_DOUBLE vs lv_EPSILON_ULTRA）；测试断言 287 处 tol 全裸字面量（1e-9×91/1e-12×66/1e-6×34，bicgstab 1e-6 vs sparse 1e-4 不一致）；跨语言 Python/Lean FFI 第四层定义；geo_utils.c:204 注释陈旧 | **容差单一来源已建但未执行**（7 值共线/3 字段断链/287 裸字面量）；数值稳定性有相消规则 6 条+hypot/缩放惯例但无集中规范文档+无裸魔法数黑名单；分层保留：精确 GMP/近似 double/区间三语义 + 谓词 EXACT/APPROX/ADAPTIVE 两层阈值 |
+
+### 1.60 声明实现一致性面（第十二轮，K20）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| K20 | 头声明 vs 实现 | **5 核心头 242 个 lv_PUBLIC_API 声明↔实现 100% 对齐**（0 真幻影，2 个名义缺项 proof_set_stream_context/module_set_stream_context 由 LV_STREAM_CTX_DEFINE 宏生成非缺陷）✅；**全库 527 个非 static 全局函数 0 符号泄漏、0 漏 static** ✅；**1 例实现无声明**：_symbolic_coord_degrade_check_algebraic（本地 extern 前向声明绕过头）；**死宏**：lv_LAYER_VALIDATION_FLAG_* 0 使用、PROOF_STRATEGY_* 数字常量仅 VECTOR 在用、MAX_MODULE_DEPTH 双头重复定义（config.h:655=module.h:48）；**跨头重复声明 56 组 34 组签名一致**（合理多声明，仅维护重复）；**幻影 API 汇总**：lv_get_version_info（结构体有 getter 无，替代 lv_get_system_info）、lv_get_memory_stats_ex/limit_ex（仅 README）、lv_get_version（从未存在）、normalization_result_free（真实 destroy）、lv_check_version_compat 恒真自比较（M6） | **声明-实现一致性健康**（5 头 100% 对齐 + 0 符号泄漏 ✅）；风险集中在文档层幻影（4 + check_version_compat 恒真）+ 死宏/死子系统（层验证）；1 例实现无声明待补 |
 
 ---
 
@@ -874,17 +906,72 @@ OpenSSL/CPython/GStreamer/Rust 生态）：
 - **分层保留**：进程级权威（配置/分配器/注册表/线程池/日志 sink）+ TLS 快照（geometry_config 范本）+ 线程级上下文（error/stream/scratch）+ 模块 static const 表；目标模式：memory_pool/runtime_monitor/geometry_config/lv_error。
 - **健康确认**：lv_allocator_get 锁外读（对齐指针原子性声明）、static const 表、g_simd_stats 原子——不需要动作。
 
+### 3.56 头文件包含卫生面（第十二轮，K16）
+
+**决策**：
+- **引用即包含（IWYU）锚定**：公共头自包含（用到的类型在本头 include 或 lv_fwd.h 可解析）；消除 7 处传递依赖（lv_internal.h 宏体引 StreamContext 补 include、plugin_system.h 字段 lvContext 补 context.h、module.h/func_block_preset.h/proof_engine_enhanced.h/coeff_pool.h/solver_core.h 等补精确 include）；拼写统一 "lv/<file>.h" 消灭 26 多拼写 + <lv.h> 尖括号。
+- **前向声明集中（P1）**：新建 lv_fwd.h，收敛 20 类型 ~73 行重复 typedef（ConstraintGraph/lvEngine/StreamContext/lvContext/TypeRegion/lvHashtable/ProofNavigator 高发）；各头只保留 include lv_fwd.h 或定义头（J5 落地）。
+- **伞形治理（P2）**：lv.h 保留唯一对外伞（应用/test 合法入口）；12 公共头改精确包含（status_codes.h 只需 error_codes.h）；func_block_internal.h 移除 lv.h；lv_loader.c/lv_utils_misc.c 移除 lv.h 解除 L1/L2 越层（I5 落地）。
+- **内部头物理归位（P3）**：6 个内部头移出公共目录或明确标记不随公共头安装；proof_session.h 内部链解除（公共头禁 include *_internal.h）；拼写/守卫命名统一（LV_XXX_H×8/lv_lv_XXX_H×3 → lv_XXX_H）。
+- **验证机制**：公共头自包含编译检查（每头独立 TU）或 IWYU 进 CI；依赖方向守卫在清零后启用。
+- **健康确认**：守卫全覆盖/零环/内部边界语义成立——不需要动作。
+
+### 3.57 fuzz/测试工具面（第十二轮，K17）
+
+**决策**：
+- **sanitizer 单一权威矩阵**：fuzz target 补 UBSan（与 ENABLE_SANITIZERS=address,undefined 对齐）；fuzz.yml 不再 OFF 掩盖分叉；考虑 TSan/MSan/优化级矩阵。
+- **fuzz target 生成统一**：CMake 函数/循环生成（消灭两 target 旗标逐条复制）；workflow 运行参数/corpus 目录变量化（消灭 3 处硬编码）；编译器选择单点。
+- **回归缺口补齐**：corpus 进仓库 seed + CI 回灌 + crash 归档为回归用例；fuzz 回归纳入 push/PR CI（缩短一周暴露窗口）。
+- **文档修正**：test_verification_report.md "3 个 fuzz 测试"改 2 + 更新 add_lv_test_and_register 引用。
+- **分层保留**：fuzz vs ctest 单测 vs integration 三层互补——不算重复。
+
+### 3.58 打包/发布面（第十二轮，K18）
+
+**决策**：
+- **find_package 修复（P0）**：install(EXPORT) DESTINATION 去 "build/build"（笔误）+ 与 lv-config.cmake 同目录；导出目标 lv::lv_static 与检查/文档 lv::lv 对齐（加 lv::lv 别名或改检查名）；导出文件 GMP 绝对路径改 find_dependency(GMP)；lv-config.cmake.in 注释残留 3.5.0 清理。
+- **lv.pc 修复（P1）**：模板用 lv_PC_LIBDIR/lv_PC_INCLUDEDIR（现死代码）或 ${pcfiledir} 相对化；prefix 可重定位。
+- **导出机制统一（P0）**：删 config.h:643 无条件空 #define lv_PUBLIC_API + 各头 #ifndef 兜底（三处定义收敛一处）；lv_BUILD_SHARED 改 INTERFACE 传播 + 接线 lv_USE_SHARED（消费端 dllimport）；非 Windows 设 CMAKE_C_VISIBILITY_PRESET=hidden；Windows 显式宏 vs WINDOWS_EXPORT_ALL_SYMBOLS 二选一（保留显式宏则去掉全量导出，杜绝内部符号裸奔）。
+- **版本单源（P1）**：VERSION 文件或单一 CMake 变量派生 project()/CPack/lv.pc/Python（pyproject+setup.py 合并）；preset_blocks 4.0.0 偏离对齐。
+- **发布物真正产出（P2）**：CI 加 package 步骤（CPack + wheel 构建核对命名 lv-1.1.0.*）；WASM 补真实 CMake target（lv_web）或删三处声称/CI 引用（web/ 目录空且 gitignore）。
+- **分层保留**：C 库（liblv.a/.so/.dll + 头 + 包配置）/ Python 包（ctypes wheel）/ WASM（前端部署）三个不同发布物并行，同一版本单源取号。
+
+### 3.59 数值稳定性面（第十二轮，K19）
+
+**决策**：
+- **容差单一表执行（P0）**：补 lv_GEO_PERPENDICULAR/PARALLEL_EPSILON 编译期常量；消 1e-12 双源（lv_EPSILON_DOUBLE vs lv_EPSILON_ULTRA 二选一）；**激活 3 个零消费者 cfg 字段**（perpendicular/parallel/angle_epsilon）并让 solver_geom_templates/meta_proof/conflict_detector/interop/algebra_mode 改引用（共线 7 值/垂直 5 值/角度 3 值收敛）。
+- **测试断言容差表（P1）**：287 处裸字面量 tol → 命名容差表（1e-9×91/1e-12×66/1e-6×34 收敛）；bicgstab/gmres 1e-6 vs sparse 1e-4 不一致修复；approx_eq 1e-10 入表。
+- **1e-15 判零相对化（P1）**：大坐标下绝对判零点改相对缩放（结合 lv_rel_tol_scale）。
+- **跨语言桥接收敛（P2）**：Python dsl 1e-9/1e-12/1e-15 与 Lean FFI.lean:74 EPSILON=1e-9 第四层定义 → 引用单一表。
+- **数值稳定性规范文档 + 黑名单**：集中规范（相消规则 6 条 + hypot/缩放惯例）+ 裸魔法数黑名单；geo_utils.c:204 陈旧注释修正。
+- **分层保留**：精确 GMP/近似 double/区间三语义（E8-E10）+ 谓词 EXACT/APPROX/ADAPTIVE 两层阈值 + 哨兵族 + 豁免点（geom_evol 1e-30/float 1e-6f）。
+
+### 3.60 声明实现一致性面（第十二轮，K20）
+
+**决策**：
+- **一致性检查机器守门（P1）**：构建期启用 -Wmissing-prototypes -Wmissing-declarations（GCC/Clang，抓声明无实现/实现无声明/漏 static 三类）；脚本化对拍（头原型集 vs .c 定义集，宏生成白名单 LV_STREAM_CTX_DEFINE/LV_DESTROY_SHIM/伞头重导出）。
+- **1 例实现无声明修复（P0）**：_symbolic_coord_degrade_check_algebraic 补头声明（symbolic_coord.h 或 internal）或改 static + 文件内转发（4 处调用）。
+- **幻影 API 处置（P0，承接 K3/K4）**：lv_get_version_info 补实现（结构体已在 lv.h，从 lv_get_system_info 抽取字段）或删文档引用；lv_get_memory_stats_ex 家族删 README 清单（真实 API lv_get_memory_stats + MemoryStats）；normalization_result_free 文档改 destroy（随 K5 归档消解）；lv_check_version_compat 改真实校验（比对外部 DLL/绑定版本）或删除（M6）。
+- **死宏清理（P1）**：删 lv_LAYER_VALIDATION_FLAG_* 与 PROOF_STRATEGY_* 数字宏（仅 VECTOR 在用）；MAX_MODULE_DEPTH 单源化（config.h ↔ module.h 二选一）；layer_validation 子系统"接线或删"二选一（承接 I5）。
+- **重复声明收敛（P2）**：sat_encoding.h↔relation_model.h（13 函数）、proof_session_internal↔proof_rule_engine_internal（7 函数）收敛单一权威头；伞头 lv.h 重导出保留但加注释锚定权威头。
+- **健康确认**：5 头 242 声明 100% 对齐、527 全局 0 泄漏 0 漏 static——记录为健康基线。
+
 ---
 
-## 4. 优先级与工作量（v1.11 更新：88 组）
+## 4. 优先级与工作量（v1.12 更新：93 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正、J1 8 处 M6 清理接线+once_reset 补齐、J2 锁抽象单一化+9 处惰性锁迁移、J3 产物移出 git+死配置清理、J4 删 lv.utils+build/lib 镜像+顶层导出单一化、J5 lvPlugin/REL_FORMULA/守卫枚举冲突修复、K2 快速幂×3+平方因子×3 统一、K3 4 头 M5 注释修正+README 幻影 API、K5 示例教学代码处置（归档+转正+删除按 v1.9.3）、K6 lv_DEPRECATED 全覆盖+preset 双 compat 合一+黑名单、K7 静默降级 9 项修复+enable_cache 伪配置、K8 删 lvBenchmark dead API+时钟绕道改基座、K9 死开关 8 项清理+lv_PUBLIC_API 双定义修复、K10 3 处所有权注释错误修复+memory-ownership.md、**K11 测试设施移出生产库+测试辅助收敛**、**K12 补 lv_SQRT2 系列权威宏+e 单一权威**、**K13 solver_symbolic factorize guard-detach（P0）+空标签展平**、**K14 tactic 映射单源化+删孤儿 Lean 注释+lvProofStep 改名**、**K15 3 个真实竞态修复（lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init）** | ~12500-17000 行删除/改名/接线 | 低-中（多为无调用方或纯删除；K13/K15 需回归） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨）、J1 单一生命周期注册表、J2 原子 64 位补齐+统一、J3 CI 报告收敛+docx 生成收敛、J4 预设单一事实源+几何操作入口收敛、J5 命名规范锚定+前缀补齐（版本化）、K1 场景文案规范表+状态名表收敛+语言策略、K2 FNV 双家族+排序残留收敛、K3 @impl-* 声称标记+桩约定+对拍机制、K4 版本分层+单一事实源+读端校验+ABI 治理、K5 USE_CASES 收敛+示例同步机制、K6 退役登记表+黑名单 grep CI、K7 统一降级登记+降级语义统一+4 套求解降级收敛、K8 Welford 收敛 L0+阈值基线表+CI 串行性能 job、K9 feature_gates.h 单一表+_WIN32 迁移 lv_PLATFORM_*、K10 [copy]/[take]/[borrow] 头注释全覆盖+静态检查脚本、**K11 mock 机制统一+预言机收敛**、**K12 字面量收敛（M_PI 30+ 处延伸+角度宏接活）+黄金比去重**、**K13 锁守卫统一 lv_DEFER+标签规范+清理重复收敛**、**K14 证明导出锚定 L5+SVG/TikZ 收敛+序列化注册表接入+层归属锚定**、**K15 全局 getter 化+TLS 容器化+锁补全（G2-G4/G7）+容器收敛（配置/内存/预设/日志/stream_ctx）** | ~16500-23000 行改动 | 中（需回归测试；J5 前缀补齐+K4 版本校验+K9 开关迁移+K15 锁补全破坏性） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正、J1 8 处 M6 清理接线+once_reset 补齐、J2 锁抽象单一化+9 处惰性锁迁移、J3 产物移出 git+死配置清理、J4 删 lv.utils+build/lib 镜像+顶层导出单一化、J5 lvPlugin/REL_FORMULA/守卫枚举冲突修复、K2 快速幂×3+平方因子×3 统一、K3 4 头 M5 注释修正+README 幻影 API、K5 示例教学代码处置（归档+转正+删除按 v1.9.3）、K6 lv_DEPRECATED 全覆盖+preset 双 compat 合一+黑名单、K7 静默降级 9 项修复+enable_cache 伪配置、K8 删 lvBenchmark dead API+时钟绕道改基座、K9 死开关 8 项清理+lv_PUBLIC_API 双定义修复、K10 3 处所有权注释错误修复+memory-ownership.md、K11 测试设施移出生产库+测试辅助收敛、K12 补 lv_SQRT2 系列权威宏+e 单一权威、K13 solver_symbolic factorize guard-detach+空标签展平、K14 tactic 映射单源化+删孤儿 Lean 注释+lvProofStep 改名、K15 3 个真实竞态修复（lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init）、**K18 find_package 修复+导出机制统一（config.h:643 删/接线 lv_USE_SHARED/visibility hidden）**、**K19 容差单一表执行+激活 3 个零消费者 cfg 字段**、**K20 1 例实现无声明修复+幻影 API 处置+死宏清理** | ~14500-19500 行删除/改名/接线 | 低-中（多为无调用方或纯删除；K13/K15/K18/K19 需回归） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨）、J1 单一生命周期注册表、J2 原子 64 位补齐+统一、J3 CI 报告收敛+docx 生成收敛、J4 预设单一事实源+几何操作入口收敛、J5 命名规范锚定+前缀补齐（版本化）、K1 场景文案规范表+状态名表收敛+语言策略、K2 FNV 双家族+排序残留收敛、K3 @impl-* 声称标记+桩约定+对拍机制、K4 版本分层+单一事实源+读端校验+ABI 治理、K5 USE_CASES 收敛+示例同步机制、K6 退役登记表+黑名单 grep CI、K7 统一降级登记+降级语义统一+4 套求解降级收敛、K8 Welford 收敛 L0+阈值基线表+CI 串行性能 job、K9 feature_gates.h 单一表+_WIN32 迁移 lv_PLATFORM_*、K10 [copy]/[take]/[borrow] 头注释全覆盖+静态检查脚本、K11 mock 机制统一+预言机收敛、K12 字面量收敛（M_PI 30+ 处延伸+角度宏接活）+黄金比去重、K13 锁守卫统一 lv_DEFER+标签规范+清理重复收敛、K14 证明导出锚定 L5+SVG/TikZ 收敛+序列化注册表接入+层归属锚定、K15 全局 getter 化+TLS 容器化+锁补全（G2-G4/G7）+容器收敛、**K16 前向声明集中 lv_fwd.h+引用即包含（消 7 传递依赖）+拼写统一**、**K17 sanitizer 矩阵统一（fuzz 补 UBSan）+corpus 管理+回归进 CI**、**K18 lv.pc 修复+版本单源+发布物真正产出（CI package 步骤）**、**K19 测试断言容差表+1e-15 相对化+跨语言收敛**、**K20 -Wmissing-prototypes 启用+一致性检查脚本+死宏清理** | ~19500-27000 行改动 | 中（需回归测试；J5 前缀补齐+K4 版本校验+K9 开关迁移+K15 锁补全+K18 导出统一破坏性） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
 | **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化、I3 FIFO 队列族收敛、J2 并行骨架评估（L9 前端接内核已移出） | ~4000-6000 行 | 中高（引擎/证明） |
 | **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并、H4 公理单一事实源+formal 去重+CI 对齐 | 视工具链 | 高（外部工具链/形式化） |
+
+> v1.12 工作量上调主因：第十二轮新增 K16-K20 涉及引用即包含（7 传递依赖 +
+> 前向声明 73 行收敛）、fuzz sanitizer 矩阵 + corpus 管理、find_package/lv.pc
+> 修复 + 导出机制统一（三处宏覆盖收敛）、容差单一表执行（7 值共线 + 3 字段
+> 断链激活）、声明一致性检查（-Wmissing-prototypes + 幻影处置）等广面改动；
+> K16/K20 另确认守卫全覆盖/零环/5 头 100% 对齐/0 符号泄漏为健康基线。
 
 > v1.11 工作量上调主因：第十一轮新增 K11-K15 涉及测试设施移出生产库、
 > 数学常量权威宏补齐（修复 MCTS_C 精度）、清理机制统一（goto 164 处收敛
@@ -938,6 +1025,10 @@ OpenSSL/CPython/GStreamer/Rust 生态）：
 | K13 goto 迁移 lv_DEFER 影响清理语义 | solver_symbolic factorize 迁移前对拍（U5 设施现成）；groebner 锁守卫 3 文件分批；test_lifecycle 钉住多出口/LIFO |
 | K14 tactic 映射单源化影响外部契约 | 以 LV_PROOF_STEP_TYPE_X 为源派生各表；coq 本地枚举保留 exempt；导出分支删除前跑证明导出测试 |
 | K15 锁补全影响并发行为 | 3 真实竞态（lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init）先修；全局 getter 化纯改名低风险；容器收敛分批 |
+| K16 引用即包含波及 305 头 | 先建 lv_fwd.h + 消 7 传递依赖（脆弱契约优先）；12 公共头去伞分批；每头自包含 TU 检查先行 |
+| K18 导出机制统一可能破坏 DLL | 删 config.h:643 前先验证 lv_BUILD_SHARED 传播；visibility hidden 需跑共享库测试（build_symcheck）；WINDOWS_EXPORT_ALL_SYMBOLS 二选一需回归 Python 绑定 |
+| K19 容差收敛影响数值判定 | 激活 3 字段前对拍（solver 1e-6 vs cfg 1e-8 语义差异需确认）；测试断言容差表分批替换；1e-15 相对化先加测试 |
+| K20 -Wmissing-prototypes 启用可能大量告警 | 先修 1 例实现无声明 + 宏生成白名单；按头分批启用；幻影处置（文档引用删除）先行 |
 
 ---
 
@@ -986,8 +1077,12 @@ OpenSSL/CPython/GStreamer/Rust 生态）：
 - **F41**（第十一轮）：K13 清理机制统一（lv_DEFER 唯一推荐 + solver_symbolic factorize guard-detach + groebner 锁守卫迁移 + 标签规范）是否立项？
 - **F42**（第十一轮）：K14 证明导出锚定 L5 + tactic 映射单源化（LV_PROOF_STEP_TYPE_X 为源）+ SVG/TikZ 收敛 + 序列化注册表接入是否立项？
 - **F43**（第十一轮）：K15 全局状态线程安全（3 真实竞态修复：lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init + 全局 getter 化 + 容器收敛）是否优先做（P0，真实竞态）？
+- **F44**（第十二轮）：K16 头文件包含卫生（lv_fwd.h 前向声明集中 + 引用即包含消 7 传递依赖 + 12 公共头去伞）是否立项？
+- **F45**（第十二轮）：K18 打包/导出修复（find_package + lv.pc + 导出机制统一：删 config.h:643 + 接线 lv_USE_SHARED + visibility hidden + 版本单源）是否优先做（P0，find_package 必坏）？
+- **F46**（第十二轮）：K19 容差单一表执行（补 perpendicular/parallel 编译期常量 + 激活 3 个零消费者 cfg 字段 + 测试断言容差表 + 1e-15 相对化）是否立项？
+- **F47**（第十二轮）：K20 声明一致性检查（-Wmissing-prototypes + 1 例实现无声明修复 + 幻影 API 处置 + 死宏清理）是否立项？
 
 ---
 
-*附：本设计基于十一轮五十五路子代理审计（每轮 5 路 ×11 = 88 组重复点），
+*附：本设计基于十二轮六十路子代理审计（每轮 5 路 ×12 = 93 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*

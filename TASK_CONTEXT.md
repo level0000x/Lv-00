@@ -7721,3 +7721,69 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十一轮审计为设计留档，未执行）。
 
+## 一百三十四、批次 标准统一化第十二轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十二轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 93 组）。
+
+### ① 第十二轮审计结果（K16-K20）
+
+- **头文件包含卫生面 K16**：**三策略混用**（伞形 12 公共头 include lv.h 扇出
+  41 / 精确 33 头 / 前向声明 20 类型 ~73 行重复 typedef，lv_fwd.h 不存在）；
+  **7 处传递依赖**（需要但未包含，靠"恰好被别的头带回"编译通过：lv_internal.h
+  宏体引 StreamContext、plugin_system.h 字段 lvContext 等）；1 处内部头泄漏
+  公共面（proof_session.h→internal×2）；26 目标多拼写；6 内部头放公共目录；
+  **健康面**：守卫 305/305 全覆盖零冲突、公共头图零环、lv_internal.h 公共头
+  0 引用 ✅。
+- **fuzz/测试工具面 K17**：**2 个 fuzz target** 每周 cron 独立驱动游离于 ctest；
+  **sanitizer 三处不一致**（全局 address,undefined vs fuzz 硬编码 fuzzer,address
+  缺 UBSan vs fuzz.yml OFF 掩盖）；编译器/参数/corpus 硬编码复制；
+  **缺口**：corpus 无 seed 无回灌、fuzz 回归不进 push/PR CI、crash 无归档、
+  文档"3 个 fuzz"陈旧；分层合理 fuzz/ctest/integration 互补。
+- **打包/发布面 K18**：**find_package 必坏**（install(EXPORT) DESTINATION 含
+  "build/build"笔误 + 与 lv-config 不同目录 + lv::lv_static vs lv::lv 永不命中 +
+  导出烘焙 GMP 绝对路径）；**lv.pc 路径错误**（prefix 硬编码 Program Files、
+  libdir 相对未拼 prefix、lv_PC_LIBDIR 死代码）；**导出机制三处宏互相覆盖**
+  （config.h:643 空定义覆盖 lv.h dllexport + 各头 #ifndef 兜底 + lv_USE_SHARED
+  零定义 dllimport 死代码 + 无 -fvisibility=hidden，**实际唯一生效
+  WINDOWS_EXPORT_ALL_SYMBOLS 内部符号裸奔**）；**CPack 从未生成**（无 release
+  workflow）；**WASM 三处描述零实现**（web/ 目录空且 gitignore）；版本 ≥6 处
+  硬编码无单源。
+- **数值稳定性面 K19**：**权威基线已建但未执行**（config.h lv_EPSILON_* +
+  lvGeometryConfig + 16_geometry_layer.md 第 5 条 + lv_rel_tol_scale ✅）；
+  **"一需求多容差"高发**：共线 7 值/垂直 5 值/角度 3 值/距离 3 值；
+  **致命断链：lvGeometryConfig 的 perpendicular/parallel/angle_epsilon 三字段
+  全库零消费者（只写不读）**；1e-12 双源；**测试断言 287 处 tol 全裸字面量**
+  （bicgstab 1e-6 vs sparse 1e-4 不一致）；跨语言 Python/Lean 第四层；
+  数值稳定性有相消规则 6 条但无集中规范+无黑名单。
+- **声明实现一致性面 K20**：**5 核心头 242 个 lv_PUBLIC_API 声明↔实现 100%
+  对齐、全库 527 全局 0 符号泄漏 0 漏 static** ✅（重要健康面）；**1 例实现无
+  声明**（_symbolic_coord_degrade_check_algebraic 本地 extern 绕过头）；
+  死宏（lv_LAYER_VALIDATION_FLAG_*/PROOF_STRATEGY_* 仅 VECTOR 在用/
+  MAX_MODULE_DEPTH 双头）；跨头重复声明 56 组 34 组签名一致（合理多声明）；
+  幻影 API 汇总（lv_get_version_info/lv_get_memory_stats_ex/lv_get_version/
+  normalization_result_free/lv_check_version_compat 恒真 M6）。
+
+### ② 设计更新（standard-unification-design.md v1.12）
+
+- 新增 §1.56-1.60 现状清单（K16-K20）+ §3.56-3.60 分面方案；
+- P0-P4 并入第十二轮项（P0 含 find_package 修复+导出统一+容差表执行+1 例无
+  声明修复；P1 含 lv_fwd.h+引用即包含+sanitizer 矩阵+lv.pc 修复+-Wmissing-
+  prototypes）；
+- 新增决策点 F44-F47（包含卫生/打包导出/容差表/声明一致性）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十二轮审计 5 组 / 总 93 组 / K16-K20 方案 / F44-F47 待确认 /
+  **find_package 必坏实证**、**导出机制三处宏互相覆盖（config.h:643）**、
+  **lvGeometryConfig 3 字段零消费者断链**、**5 头声明 100% 对齐 + 0 符号泄漏
+  （健康基线）**。
+
+### 遗留登记
+
+- 无新增遗留（第十二轮审计为设计留档，未执行）。
+
