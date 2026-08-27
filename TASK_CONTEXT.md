@@ -8182,3 +8182,107 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十六轮审计为设计留档，未执行）。
 
+## 一百三十九、批次 标准统一化第十七轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十七轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 118 组）。
+
+### ① 第十七轮审计结果（K41-K45）
+
+- **几何判定/谓词实现面 K41**：**权威已建**：geo_predicate.c EXACT/APPROX/ADAPTIVE
+  三层谓词（lv_orientation_2d/3d、lv_segment_side、lv_side_of_circle、
+  lv_segments_intersect、lv_point_in_polygon，K19 健康分层 ✅）+ geo_utils 已
+  收敛委托链 6 条 + 符号层 symbolic_coord_are_collinear + 编码层三态 ✅；
+  **"一需求多实现"**：三点共线浮点域 4 套（权威 1e-9 / meta_proof.c:127 1e-10 /
+  meta_proof.c:188 1e-9 / ga_interface.c:334 1e-6）；点在线上 5 套（权威 /
+  meta_proof ×2 / recursion_selector 符号+硬编码 1e-10 / conflict_detector
+  **eps×1000=1e-6 阈值**）；点在圆上 3 套（权威 1e-8 / meta_proof 1e-9 /
+  algebra_mode 硬编码 1e-6）；线段相交 3 套（权威方向谓词 / interop 参数方程
+  1e-10 / svg 二次方程）；**垂直/平行浮点域无权威 ≥5 套散落** +
+  **lvGeometryConfig.perpendicular_epsilon/parallel_epsilon 全库零消费者**
+  （K19 复核一致权威表建成但无谓词函数接线）；点在区域内 2 算法 3 实现（射线法
+  收敛 + 卷绕数独立）；距离计算 3 套；方位角死 API + 3 内联（K37 延续）；
+  **P0 正确性 3 项**：**垂直约束被实现为 graph_add_betweenness**
+  （formula_converter_constraint.c:59——垂直=点在两点之间语义完全错误，
+  graph_add_perpendicular 全库不存在）、**interop 平行映射 CONTAINMENT**
+  （interop_command.c:592-593）、**meta_proof.c:361 [PARALLEL]=eval_default
+  恒 false（平行/垂直约束 L1 直接矛盾证明不验证）**；**graph_conflict.c:567
+  segments_can_intersect 空壳恒 true**（"for now assume they can intersect"，
+  Type 5 相交冲突永不触发）。
+- **网络/套接字 IO 模式面 K42**：C 侧 socket 触点仅 3 文件；**network_block.c
+  整套客户端 socket 栈零接线（P0）**——connect/send/receive/set_url 无头声明
+  全库零调用，完整但完全不可达的第二套 socket 栈（R1-R5 收敛前置）；**C 侧
+  socket 全部阻塞无读写超时**（SO_RCVTIMEO/SO_SNDTIMEO 零使用）；TCP 监听
+  服务器生命周期平台双分支整段手写 ×2（Winsock 缺 SO_REUSEADDR vs POSIX 有）；
+  socket 句柄表示 3 套并存（WsSock/lvNetSocket/裸 SOCKET）；平台分支判定 9 处
+  3 风格；**WS 发送不处理 EINTR vs network_block 处理（语义漂移，POSIX 信号
+  打断整帧失败）**；WSAStartup 管理 2 套；select 超时常量双定义+死定义；
+  socket 错误码映射 3 处；socket 路径测试 0 覆盖。
+- **对象池/资源池/缓冲复用面 K43**：**P0 真实缺陷候选：coeff_pool 尺寸失配 →
+  池块越界写**——coeff_pool_alloc(count) 池路径忽略 count 恒返回 8 元素池块，
+  回退路径按 count 分配；symbolic_coord_transform.c:1001 请求 ≥9 元素（deg≥4）
+  随后 mpz_init/mpz_clear **越界读写池内相邻块**（触发概率取决于输入多项式
+  次数需复现验证）；**两套通用池互不委托（I3 复核一致未收敛）**（lvMemPool
+  索引栈无锁无扩容 vs lvObjectPool 链表可锁可扩容，分配底 lv_calloc vs 原生
+  malloc 绕过注入 K26 复核一致）；预设池 4 建 2 用（SymbolicCoord/ProofStep
+  零生产消费）；"MemPool" 三壳 API（含 lv_impl_native typedef lvArena MemPool
+  死包装）；TLS 临时缓冲 3 形态；槽位池 3 份；**id_map 重映射表 7 处独立实现**
+  （calloc+置-1+扩容全同构）；池级统计 3 套零消费；**g_coeff_pool 永不销毁**
+  （lv_mempool_static_destroy 零调用）；lvMemPool 无锁 TOCTOU（K15 复核一致）。
+- **配置项定义/默认值/校验模式面 K44**：**lvConfig 同一字段三套读取路径 +
+  107 个类型安全 getter 死表面（P0）**——lv_config_get_<key>() 生产零调用 /
+  直接字段访问 18 处 / 字符串键分发，**lv_init 不加载 JSON 不应用 A（107 键表
+  生产仅读 ~13 字段，"A 权威"大半键从未被消费）**；**同一语义默认值 6+ 源**
+  （rewrite 步数上限 1000 在 A 表/compat 宏/B 种子/engine 字段/geo 回退/
+  Python/文档各一份）；compat 段 50 对成对重复（改表不更宏结构性漂移风险）；
+  模块回退宏重复 A 表默认（实际死代码 A 恒命中）；**lvSolverConfig 同名不同
+  类型双定义**（geo 约束 vs CDCL SAT 潜伏编译地雷）；GROEBNER_ZERO_THRESHOLD
+  同文件双读路径（配置覆盖只影响一半）；LV_CFG 5 死键；**文档全面脱节**
+  （API_REFERENCE 常用配置项 5 键中 4 幻影、宏名表整份漂移、键名格式三分裂）；
+  同一键读写入口分裂（solver 迭代上限 3 拼写）；**lv.h:695 声称 setter 校验
+  "值超出范围返回 false"但实现无任何范围校验（M5）**；Python EngineConfig
+  死配置。
+- **API 参数校验/契约模式面 K45**：**空指针校验 4 套实现并存**（error_codes.h
+  宏族 A ~363 处可定制返回值 / lv_check.h 宏族 B 91 处硬编码 -1 仅 37 文件 /
+  手写 if+return 占多数 / geometric_primitives 文件私有第三族——同文件混用
+  tikz_export/node_graph、bdd_encoding include 错配）；**graph 域同参数 4+ 种
+  失败约定（最强证据）**：graph_index.c 相邻 4 getter 4 种（静默 0/错误+英文
+  消息+NULL/静默 NULL/错误码无消息），**graph_add_point NULL 图静默映射
+  ADD_NODE_CONFLICT（与几何冲突不可区分误导性诊断链）**；**头契约 vs 行为/
+  测试契约矛盾（M5 类）**：context.h/constraint_graph.h/circuit_breaker.h 声称
+  "非 NULL"但实现容忍 NULL 静默降级且**被测试钉死**（get_name(NULL)=="null"
+  魔法串 test_context.c:102）；**契约断言设施零接线（P0）**：
+  lv_ASSERT_RUNTIME/lv_verify_data_integrity 全库 0 调用且真实实现受
+  lv_ENABLE_RUNTIME_GUARDS 全仓无定义保护**永不编译生效恒 true 桩**（198 行
+  实现永不运行）；生产 assert() 仅 3 处 GMP 自检；契约测试仅 16/288 文件断言
+  错误码，test_edge_cases.c 对 graph_add_point(NULL) "任意非 OK 即 PASS"钉住
+  误导性 CONFLICT；graph_add_angle 无范围校验、lean4_bridge 半界校验。
+
+### ② 设计更新（standard-unification-design.md v1.17）
+
+- 新增 §1.81-1.85 现状清单（K41-K45）+ §3.81-3.85 分面方案；
+- P0-P4 并入第十七轮项（P0 含 K41 垂直/平行约束接线修复+新增谓词+meta_proof
+  验证、K43 coeff_pool 越界修复+两套池互委托、K45 校验宏族收敛+graph 域失败
+  语义统一+头契约对齐；P1 含 K41 谓词委托收敛、K42 socket 抽象层+send_all、
+  K43 生命周期+预设池按需化、K44 默认值单一事实源+读路径二选一+改名消歧+
+  文档对拍、K45 失败约定契约表+契约断言+测试补强）；
+- 新增决策点 F67-F71（几何判定/网络套接字/对象池/配置/API 校验）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十七轮审计 5 组 / 总 118 组 / K41-K45 方案 / F67-F71
+  待确认 / **垂直约束=betweenness 占位 + interop 平行=CONTAINMENT（2 语义
+  错误占位）**、**meta_proof 平行/垂直不验证（eval_default 恒 false）**、
+  **coeff_pool 尺寸失配越界（真实缺陷候选需复现）**、**segments_can_intersect
+  空壳恒 true**、**lv.h:695 setter 校验声称脱节（M5）**、**network_block 第二套
+  socket 栈死代码**、**107 个类型安全 getter 生产零调用**、**契约断言 198 行
+  实现永不编译**。
+
+### 遗留登记
+
+- 无新增遗留（第十七轮审计为设计留档，未执行）。
+
