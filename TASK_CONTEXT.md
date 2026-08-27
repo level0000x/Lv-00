@@ -7787,3 +7787,69 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十二轮审计为设计留档，未执行）。
 
+## 一百三十五、批次 标准统一化第十三轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十三轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 98 组）。
+
+### ① 第十三轮审计结果（K21-K25）
+
+- **代码风格格式面 K21**：唯一 .clang-format（根目录）；**接入几乎为零**（CMake
+  无 format target、4 workflow 无格式化检查、无 pre-commit，唯一 ui/package.json
+  手动脚本非强制）；**42.6% 文件（557/1306）违规**；**9e6366f1"全项目格式化"
+  从未触碰 test/**（test 302 文件几乎全违规）；**版本漂移**（旧版本格式化文件
+  22.1.7 复查 40% 重新违规）；同文件 K&R/Allman 混用（formula_renderer 4 拆分
+  子模块）；>120 行 2922 行；include 乱序；**0 处 clang-format off 豁免**；
+  test/core 注释规范脱节（core Doxygen 13438 vs test 纯 /* 9563）。
+- **魔法字符串面 K22**：**导出格式名 5 个独立分发点**（"coq" 5 处 "lean"/"lean4"
+  拼写并存）；**lvExportFormat 同类型名 3 处定义数值互斥**（EXPORT_HTML=0 6 值
+  vs lv_EXPORT_COQ=0 12 值）；**变换预设名 7 个 × 5 文件 ≈30 字面量**（不在
+  preset_name_defs.h 单源）；**TransformType switch vs 平行表含 "protective"
+  拼写错误 + GLUING 分歧**；**InteropCommandType 21 值 vs 名表 19 项**
+  （GET_NODE/GET_CONSTRAINT 死值）；命令/步骤名 6 套词汇表（Rewrite 6 处 5 拼写）；
+  序列化键散落（axiom_rule_engine ~40 键、interactive_geo 读写双份）；
+  **健康面**：生产 strcmp 链=0、~50 张 name 表、LV_CFG_* 单源标杆 ✅。
+- **序列化互转矩阵面 K23**：**LVZ 内嵌图只写不可读**；**msgpack 缺图**（autosave
+  恢复优先二进制静默丢图生产缺陷）；JSON↔LVZ 无转换器；**LVZD 有损子集**
+  （只留坐标+POINT）；**OPML 导出→导入不对称**（步骤类型双表仅 5 项重叠 4 处
+  错位、description/name 键错位、id/dependencies 丢失、导入产物非
+  ProofNavigator）；ConstraintGraph→JSON 3 路径；证明→JSON 3 schema；
+  图等价比较 4 套 + round-trip 3 套（**权威弱守护不比坐标——坐标全丢也通过**）；
+  **跨格式等价验证为零**；注册表只注册 1 格式。
+- **测试数据生成面 K24**：唯一 C 随机源 lv_random_* ✅；**进程全局 RNG 状态被
+  4 个消费方互相抢占**（lv_init/approx_counter 每轮重播种/interactive_geo/
+  bootstrap 生成器）；**默认 seed 三处不一致**（12345 vs 42 vs time(NULL)）；
+  add_point 副本泄漏（recursion_demo.c，K11 R1 未闭环）；圆构造双路径
+  （builder containment vs example graph_add_circle，注释还声称一致）；
+  死生成器 bootstrap_test_random.c 零调用方；断言骨架 100% 收敛 ✅ 但数据构造
+  复用不足（add_point 33/288），内联硬编码 >80%。
+- **硬编码路径面 K25**：**共享库加载 Python 3 份独立实现目录池互斥**
+  （build3+build4+build+Release / build / build_mingw）；**公理包测试路径
+  117 处字面量**（62 文件，INDEX.json 一份无消费方）；**预设 .lvz 目录双来源**
+  （CMake 绝对路径不可重定位 vs CWD fallback）+ 56 文件名第二事实源 + 手写
+  memcpy；测试输出 build_verify/ vs test_outputs/ 脱节；bootstrap .lv 4 变体
+  探测（含 "Lv-00/" 前缀）；**健康面**：lv_path_join ~31 处统一、lv_PATH_SEPARATOR
+  平台分隔符统一、lv_temp_path 收敛 ✅。
+
+### ② 设计更新（standard-unification-design.md v1.13）
+
+- 新增 §1.61-1.65 现状清单（K21-K25）+ §3.61-3.65 分面方案；
+- P0-P4 并入第十三轮项（P0 含全量格式化+导出格式单源+注册表单入口+per-instance
+  RNG+路径常量单源；P1 含豁免登记+Doxygen 对齐+跨格式 round-trip+确定性 seed+
+  预设单源）；
+- 新增决策点 F48-F51（格式统一/字符串单源/注册表单入口/路径单源）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十三轮审计 5 组 / 总 98 组 / K21-K25 方案 / F48-F51 待确认 /
+  **9e6366f1 从未格式化 test/**、**lvExportFormat 三定义数值互斥**、
+  **msgpack 丢图生产缺陷实证**、**RNG 全局状态 4 抢占**、**共享库加载目录池互斥**。
+
+### 遗留登记
+
+- 无新增遗留（第十三轮审计为设计留档，未执行）。
+
