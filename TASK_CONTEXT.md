@@ -8568,3 +8568,129 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（本批为治理原则登记）。
 
+## 一百四十四、批次 标准统一化第二十轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第二十轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 133 组）。
+
+### ① 第二十轮审计结果（K56-K60）
+
+- **排序/搜索算法实现面 K56**：**权威已建**：lv_insertion_sort（7 调用点 K50
+  复核一致）+ lv_cmp_int/lv_cmp_uint64（三态防溢出 ✅）+ lv_cmp_int_asc（inline
+  被 5 处 priority 比较器委托）+ lv_int_multiset_equal（判据 A 权威 type_check/
+  normalization 已收敛）+ lv_int_append_unique（判据 B）+ lv_shift_left/right +
+  error_codes 二分（K53 权威）+ qsort 10 处生产（各语义独立）；**"一需求多实现"**：
+  **D-1 priority 升序比较器 ×5 逐字重复（P1）**——lv_registry/backend_plugin/
+  engine_scheduler/rewrite_strategy/type_system 全部逐字
+  `lv_cmp_int_asc(x->priority, y->priority)` 仅元素类型不同，命名 5 种 + qsort
+  两参/lv_insertion_sort 三参签名分裂；**D-5 bootstrap_test_iso 手写冒泡双排序
+  （P1）**——= lv_int_multiset_equal 判据 A 的第 3 处实现（前两处已收敛此处漏网，
+  治理登记与实际执行脱节实例）；**D-3 proof_search_algo 手写选择排序（P2）**——
+  可迁移 lv_insertion_sort 且**排序后主循环仍线性扫描找 best（排序数组未被利用，
+  排序是冗余工作）**；**D-4 groebner_parallel 手写插入（P2）**——"多项式项排序"
+  三实现之一；D-2 候选降序排序 ×5（rewrite_apply 显式稳定化 vs match_quality_cmp
+  未稳定化，同 priority 同分输出顺序不可预测）；D-6 已排序集合维护时机分裂三路线
+  （smt_theory_combiner 排序数组从未用于查找加速）；D-8 降序比较器减法溢出理论
+  风险；D-7 有序插入找位复杂度分裂（规模分层可保留）。
+- **同步原语使用模式面 K57**：**权威已建**：条件变量唯一设施 lv_cond_t（3 消费
+  模块）+ **while 等待循环惯用法全库一致且正确**（3 处消费全部 while(条件) wait
+  虚假唤醒处理规范 ✅）+ 锁内检查/锁外回调约定 + thread_pool 与 stream_async 分层
+  + stream_async 双条件变量 + 取消/停止惯用法 + lv_process I/O 等待（K29 豁免）+
+  once 后访问模式 + groebner C11 atomic 已标注豁免；**"一需求多实现"**：**S1 组
+  同步 cond 死活分裂（P1）**——lvWaitGroup 活 vs lvTaskGroup 死（初始化+广播但
+  永无 wait 消费 :124 broadcast 空操作），两套生产均 0 消费；**S2 工作等待两形态
+  （P1）**——阻塞 condvar vs 无 backoff 自旋（groebner_parallel 若启用真线程烧满
+  CPU + basis 数组无锁 use-after-free 风险）；**S3 超时等待语义（P1 原语级）**——
+  唯一超时原语 lv_cond_timedwait **POSIX 用 CLOCK_REALTIME 墙钟基座** + 每次循环
+  重装满额 timeout（虚假唤醒可致总等待远超 timeout_ms 无绝对截止）；**S4 等待组
+  超时泄漏无回收 API（P1）**——timedwait 超时后 group 保留但无 lvWaitGroup destroy
+  公开 API；**S6 多等待者 signal 单唤醒（P2）**——stream_async flushed 丢唤醒
+  （"等到排空"变"等到下一次排空"）；**S7 销毁未初始化/双重销毁条件变量（P2）**——
+  stream_context memset 零对象无条件销毁（POSIX 形式 UB）；**缺口**：信号量/屏障/
+  事件标志设施全库缺失 + **整套条件变量机制生产零接线**（仅测试消费——新模块接线
+  即风险入生产）。
+- **缓冲管理/流缓冲面 K58**：**权威已建**：lvRingBuf 泛型权威 + lvLogRingBuffer
+  日志薄封装（K36 ✅）+ 环形缓冲语义分层 + WS recv_buf 固定 vs msg_buf 动态 + 
+  read_all 16 调用点收敛 + 解析器输入统一借用 + lvStrBuf 缓冲单次写 vs fprintf
+  流式双惯用法 + 容器内部增长豁免；**"一需求多实现"**：**stream 子系统内 3 套手写
+  环形事件队列（P1）**——stream_buffer（已走 lv_ensure_capacity）/stream_async
+  （固定容量）/stream_lazy（手写倍增）共享 (head+count)%cap 骨架均未复用 lvRingBuf
+  权威（I3 登记的 4 套环形仅含 stream_lazy，**stream_buffer/stream_async 为第 5/6
+  套**）；**stream_lazy 手写倍增绕过权威（P1）**——先乘后比无溢出预检 + calloc+
+  memcpy+free 非 realloc；**stream_set_async_mode 扩容路径静默丢事件（P1 风险）**——
+  realloc 分支内清零 buffer_count 丢弃 BUFFERED 残留；**预设文档生成同需求双实现
+  （P1）**——func_block_preset_doc（英文）vs func_block_preset_generate_doc（中文）
+  格式字段各自维护；**snprintf 累进写定长缓冲惯用法 ×4（P2）**——截断语义分叉
+  （净空 64/128 vs buf_size-1 vs buffer_size+1 vs w+4）；残留增长点（graph_traversal
+  _bfs 手写倍增/text_code 4KB 对齐/lv_storage int64 倍增）；lv_file_read_text 静默
+  截断 ×3。
+- **模块接口/导出符号面 K59**：**权威已建**：src 侧 40+ 内部头按模块归位跨模块
+  引用收敛（内部边界比公共面健康 ✅）+ engine_access.h 跨域访问器（I5 好模式 ✅）
+  + 插件 extern 回调契约 + static inline 裸声明 + lv.h 伞头 + K20 5 头对齐 + 
+  module_internal.h 实现头语义；**"一需求多实现"**：**M1 导出宏三拼写+装饰双轨
+  （P1，K18 范围证据）**——lv_PUBLIC_API 1596 次仅 67/305 头 + lv_API 别名仅
+  lv_protocol.h 22 处 + **~80 头含 ≥6 函数声明零装饰**（lv_upper_api.h 75/
+  simd_ops.h 59/plugin_system.h 35/interop.h 31 等）——**K18 删 config.h:643 +
+  visibility hidden 后约 80 头零装饰函数将整体静默失导出**；**M2 命名规范四轨
+  （P1）**——lv_api_spec.h 规则（lv_l{layer}_）**全库 0 处真实采用**（K3 型声称
+  脱节新实例且被 lv.h:173 纳入伞头）+ lv_ 前缀 + 模块裸前缀（interop.h 一个头内
+  4 前缀族）+ lv_upper_api.h 裸名句柄 API；**M4 config getter 双声明+门面旁路
+  （P1）**——config.h:630-633 裸声明注释明言"脱离 lv.h 门面直连"；**M5 内部符号
+  泄漏公共头（P2，J5 清单外新增 3 例）**——kConstraintAddOps（非 const 全局可被
+  外部改写 ABI 面）/formula_* 关键字表/g_command_type_names；**M6 无头声明实现
+  +4（P0）**——lv_graph_meta_verify_* ×3 + lv_herbie_optimize 全库 0 头声明（声明
+  仅存上层聚合内部头+重复 extern+测试本地 extern 3 站点），**K20 计数需 +4（叠加
+  EC9 共 +6）**，测试成为接口契约源；**M7 双 meta_verify 双模块双实现（P0）**——
+  L4 图级（无本模块头）vs L8 会话级（有头），CMake 注释自认"两个独立模块"，
+  design doc 未登记双模块结构重复；M3 死可见性词汇（lv_INTERNAL 0 次应用）；
+  M9 API 族动词跨模块分裂（J5 三轨模块级表现）。
+- **线程安全数据结构包装面 K60**：**权威已建**：lv_registry 权威设施（8+ 子系统
+  复用 ✅，func_block_registry 正确复用锁内置为范本）+ lv_callback_list 无锁+
+  调用方决定 + lv_ringbuf 明确声明"线程不安全"（**声明格式为全库范本**）+
+  lvObjectPool/lvArena thread_safe 可选锁 + involving_index 文档化无锁缓存 +
+  单线程域容器裸用 + TLS 容器 + thread_pool 队列/组锁隔离；**"一需求多实现"**：
+  **lv_hashtable 容器级线程安全契约缺失 → 加锁/裸用分裂（P0 文档）**——加锁保护
+  （preset_manager/preset_blocks/global_state/lv_registry）vs 裸用无锁（lv_sema/
+  mini_kernel/dsl_compiler_ir/axiom_rule_engine/performance_profiler/smt_trigger
+  _engine/graph_index）——**lv_hashtable.h 全文无任何线程安全声明**（对比 lv_ringbuf
+  .h:6 有明确声明），文档缺口致消费方各自猜测；**原子宏族内部内存序分裂（P0 语义
+  风险）**——POSIX 32 位 SEQ_CST vs 64 位 RELAXED（lv_platform.h:258-265 同宏族
+  不一致）+ Windows 全屏障跨平台不一致 + **constraint_graph.h 头注释漂移**（声称
+  relaxed 实际 SEQ_CST，同一头内两处注释自相矛盾）+ **同容器两字段原子处理不一致**
+  （next_node_id CAS 循环 vs next_constraint_id 直接赋值无 CAS 并发丢更新）；
+  **fence 用于非原子变量（P1 无效同步伪装）**——preset_manager fence 包普通 bool
+  （C11 下不构成 happens-before + 非原子并发读写本身是 UB，声称线程安全实为无效
+  同步）；线程安全注册表包装 4 实现（lv_registry 权威/backend_plugin 线性查找/
+  preset_blocks/global_state 骨架同构）；func_block 域预设注册表三套容器三套锁策略
+  （复用权威自带锁/独立加锁/零锁）；**s_instance_index 全局静态哈希无锁（P1 潜在
+  竞态）**——TOCTOU 双建（K15 G5 同类第二实例无豁免声明）；容器级线程安全文档覆盖
+  不均（无声明容器 10+）；lvDArray 遍历中修改无防护声明（push 扩容 realloc 旧指针
+  悬垂）。
+
+### ② 设计更新（standard-unification-design.md v1.20）
+
+- 新增 §1.96-1.100 现状清单（K56-K60）+ §3.96-3.100 分面方案；
+- P0-P4 并入第二十轮项（P0 含 K59 双 meta_verify 裁决+无头声明补头、K60 原子
+  内存序统一+hashtable 契约声明；P1 含 K56 priority 比较器+判据 A 收敛、K57
+  timedwait 单调+wait_group destroy+自旋防护、K58 stream 环形收敛+async 丢事件
+  修复+预设文档收敛、K59 导出装饰补全+命名对齐+getter 单一化、K60 fence 修复+
+  s_instance_index+func_block 域注册表+文档清单化）；
+- 新增决策点 F82-F86（排序搜索/同步原语/缓冲管理/模块接口/线程安全包装）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第二十轮审计 5 组 / 总 133 组 / K56-K60 方案 / F82-F86
+  待确认 / **lv_hashtable 线程安全契约缺失致加锁裸用分裂**、**lv_ATOMIC 32/64 位
+  内存序分裂+头注释漂移+同容器两字段不一致**、**fence 包非原子变量无效同步（UB）**、
+  **双 meta_verify 双模块双实现（L4 无契约头）**、**~80 头零装饰 K18 落地即失导出**、
+  **stream_set_async_mode 静默丢事件**、**K20 计数需 +4 叠加 EC9 共 +6**、
+  **bootstrap_test_iso 判据 A 第 3 处实现（收敛执行脱节）**。
+
+### 遗留登记
+
+- 无新增遗留（第二十轮审计为设计留档，未执行）。
+
