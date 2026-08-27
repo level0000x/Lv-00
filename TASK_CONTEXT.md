@@ -7580,7 +7580,22 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
   **README 4 幻影 API 确认**、**lv_check_version_compat 自比较恒真**、
   **USE_CASES 15 份预设全失效**、**solver.h SuiteSparse 声称证伪**。
 
+### ⑤ K5 示例教学代码决策定稿（用户确认 + 调研）
+
+- 用户初判"示例教学代码全删维护意义不大"→ 进一步确认"文档走归档不删、
+  代码教学先调研再转正"→ 子代理调研 14 项目（SQLite/Redis/libgit2/curl/jq/
+  zlib/ncurses/Lua/musl/OpenSSL/CPython/GStreamer/Rust）后定稿（v1.9.3）：
+  - **test/examples/ 8 个 C 示例 → 保留+转正**（已接 CMake 编译=业界底线；
+    补 CI 运行冒烟 + README 主题索引 + doc 引用式）；
+  - **根 examples/ Python 假示例 → 删除**（违反"示例必须可运行"底线，
+    先例 next.js/pomerium；唯一例外=重写对准真实绑定纳入 pytest）；
+  - **API_QUICKSTART → 转正为引用式**（代码全改引用 test/examples/*.c）；
+  - **TUTORIAL → 归档**（无维护者）；**USE_CASES → 归档**（README 对照表替代）；
+  - **新增 CI 同步护栏**（doc 内联 C 代码块抽取编译/API 符号交叉检查）。
+- 业界共识：**"示例必须被构建（最好运行）校验"**，文档漂移靠引用式文档
+  + CI 校验解决而非纪律。
+
 ### 遗留登记
 
-- 无新增遗留（第九轮审计为设计留档，未执行）。
+- 无新增遗留（第九轮审计 + K5 定稿为设计留档，未执行）。
 

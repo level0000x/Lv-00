@@ -1,4 +1,4 @@
-# 项目内部标准统一化设计（v1.9）
+# 项目内部标准统一化设计（v1.9.3）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
@@ -19,8 +19,13 @@
 > **v1.6**：第六轮 5 组（总 63）。
 > **v1.7**：第七轮 5 组（总 68）。
 > **v1.8**：第八轮 5 组（总 73）。
-> **v1.9（2026-08-27）**：第九轮五路新增 5 组（总 **78 组**），
-> 本版并入 §1.41-1.45 与 §3.41-3.45。
+> **v1.9**：第九轮 5 组（总 78）。
+> **v1.9.1**：K5 决策改"示例教学代码全删"（用户初判）。
+> **v1.9.2**：用户确认——**文档类走归档不删除**、**代码教学类先调研再转正**。
+> **v1.9.3（2026-08-27）**：调研完成（SQLite/Redis/libgit2/curl/zlib/Lua/
+> OpenSSL/CPython/Rust 等 13 项目）——K5 定稿：test/examples 8 个 C 示例
+> **保留+转正**（引用式文档+CI 冒烟）、根 examples 假示例**删除**、
+> API_QUICKSTART 转正引用式、TUTORIAL/USE_CASES **归档**、加 CI 同步护栏。
 
 ---
 
@@ -681,12 +686,33 @@
 
 ### 3.45 示例教学代码面（第九轮，K5）
 
-**决策**：
-- **C 入门权威**：根 README 快速开始 + lv.h 头注释为唯一权威（已用 lv_init/lv_engine_create 模型 ✅）；API_QUICKSTART §2-§6 整段错误示例删除或重写为 lvEngine 模型（修 6 个不存在函数 + 双 destroy + 字段错）。
-- **预设/证明权威**：API_REFERENCE 单一示例 + 强制使用注册表真实预设（midpoint 等）；USE_CASES 15 份失效骨架删除/收敛（21 份同骨架 D1/D4）；同步决策 lv_prove/lv_preset_* 三选一（根 README 声明废弃 vs 头文件仍声明 vs 文档仍教，三者不能并存）。
-- **Python 收敛**：module/python/examples/ 为唯一 Python 示例目录（删 examples/demo.py 假示例 + 修 streaming_example.py solve(graph)）；根 examples/、test/examples/、module/python/examples/ 三目录合并。
-- **add_point 辅助收敛**：4 份独立实现 → test_helpers.h 或 lv_add_point 公共 API。
-- **同步机制**：API 清单从 lv.h 自动生成（禁手写清单）；md 代码块进 CI 编译校验（挂 BUILD_EXAMPLES）；文档符号存在性/死链检查脚本（6 不存在函数可一键检出）；版本号统一（示例头 3.2.0/3.3.0 → 1.1.0）。
+**决策（v1.9.3 定稿：用户"文档走归档、代码先调研再转正" + 调研结论）**：
+
+**调研依据**（子代理调研 SQLite/Redis/libgit2/curl/jq/zlib/ncurses/Lua/musl/
+OpenSSL/CPython/GStreamer/Rust 生态）：
+- 独立 examples/ 是主流非普适；**共同底线 = "示例必须能被构建校验"**
+  （curl make check / libgit2 CI / cargo test / OpenSSL enable-demos）；
+- "示例即测试"（Lua testes / ncurses test / zlib test/ / GStreamer
+  tests/examples）是 C 生态另一主流，腐化成本最低；
+- 教学文档与 API 脱节是普遍现象；对策 = doctest / CI 编译 / 引用式文档
+  （代码零复制）/ 分仓纪律；删除先例充分（next.js/pomerium/live_vue）；
+- 纯 C 无标准 doctest；Lv-00 可用 Python 文档示例进 pytest（CPython 先例）。
+
+**分项处置（定稿）**：
+1. **test/examples/ 8 个 C 示例 → 保留+转正**：已接 CMake 编译 = 已具备业界
+   底线；补 3 点——CI 运行冒烟（退出码 0）、README 主题索引、doc 全部引用
+   这 8 个文件替代内联代码（引用式文档，代码零复制防脱节）。
+2. **根 examples/ Python 假示例（demo.py 等）→ 删除**：违反"示例必须可运行"
+   底线（导入不存在模块 = 纯负资产，先例 next.js/pomerium）；
+   **唯一例外**：若 38 个 Python 测试背后有可复用 ctypes/cffi 绑定，
+   则重写示例对准真实 API 并纳入 pytest——二选一，不许保留现状。
+3. **API_QUICKSTART → 转正（重写为引用式）**：代码全改为引用
+   test/examples/*.c，删除内联漂移片段，保留为唯一教学入口。
+4. **TUTORIAL → 归档**（无维护者；或按 OpenSSL"教程→demos"模式重写）。
+5. **USE_CASES → 归档**（19 处脱节 + 与示例重复度高；README 对照表替代）。
+6. **归档位置**：doc/docs/archived/（不删除，保留历史）。
+7. **最小同步护栏**：CI 脚本对 doc 内联 C 代码块做抽取编译或 API 符号
+   交叉检查，防止再次脱节（承接 K3 @impl-* 机制）。
 
 ---
 
@@ -694,7 +720,7 @@
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正、J1 8 处 M6 清理接线+once_reset 补齐、J2 锁抽象单一化+9 处惰性锁迁移、J3 产物移出 git+死配置清理、J4 删 lv.utils+build/lib 镜像+顶层导出单一化、J5 lvPlugin/REL_FORMULA/守卫枚举冲突修复、K2 快速幂×3+平方因子×3 统一、K3 4 头 M5 注释修正+README 幻影 API、K5 根 README+API_QUICKSTART 示例修正 | ~7500-10500 行删除/改名/接线 | 低-中（多为无调用方或纯删除；K2/K5 需回归） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正、J1 8 处 M6 清理接线+once_reset 补齐、J2 锁抽象单一化+9 处惰性锁迁移、J3 产物移出 git+死配置清理、J4 删 lv.utils+build/lib 镜像+顶层导出单一化、J5 lvPlugin/REL_FORMULA/守卫枚举冲突修复、K2 快速幂×3+平方因子×3 统一、K3 4 头 M5 注释修正+README 幻影 API、**K5 示例教学代码全删（根 examples + doc 教学文档 + test/examples + add_lv_example 移除，basic_usage.py 覆盖转 pytest 后删）** | ~8500-12000 行删除/改名/接线 | 低-中（多为无调用方或纯删除；K2/K5 需回归，K5 删前先处理 CI 依赖） |
 | **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨）、J1 单一生命周期注册表、J2 原子 64 位补齐+统一、J3 CI 报告收敛+docx 生成收敛、J4 预设单一事实源+几何操作入口收敛、J5 命名规范锚定+前缀补齐（版本化）、K1 场景文案规范表+状态名表收敛+语言策略、K2 FNV 双家族+排序残留收敛、K3 @impl-* 声称标记+桩约定+对拍机制、K4 版本分层+单一事实源+读端校验+ABI 治理、K5 USE_CASES 收敛+示例同步机制 | ~10500-15000 行改动 | 中（需回归测试；J5 前缀补齐+K4 版本校验破坏性） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
 | **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化、I3 FIFO 队列族收敛、J2 并行骨架评估（L9 前端接内核已移出） | ~4000-6000 行 | 中高（引擎/证明） |
