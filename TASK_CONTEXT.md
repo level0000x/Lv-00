@@ -8286,3 +8286,104 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十七轮审计为设计留档，未执行）。
 
+## 一百四十、批次 标准统一化第十八轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十八轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 123 组）。
+
+### ① 第十八轮审计结果（K46-K50）
+
+- **哈希表/查找设施实现面 K46**：**权威已建**：lv_hashtable 三形态（int/i64
+  开放寻址+墓碑宏模板 ~90 处接线 / str 分离链式，I3 复核一致 ✅）+ lv_registry
+  哈希副索引+线性回退 + lv_str_to_enum/lv_enum_to_str 共享设施（~100 处调用）
+  + symbolic_coord_hash 唯一权威 + lv_hash 内容哈希抽象 + 三处完备豁免 ✅；
+  **"一需求多实现"**：**R10 预设枚举名三份表 + 手写二分绕过共享设施（P1 最高
+  价值）**——lv_impl_upper_preset.c:113-181 upper_name_lookup 手写二分与
+  lv_enum_to_str 逐行同构，三张手写表（4/12/6 项英文）违反 preset_category.h:10
+  明文禁令且项数少于宏单源（25/16/7）→ **UI 查询高级类别得 "UNKNOWN" 行为
+  缺口**；**R1 约束图哈希指纹三实现+一死代码**（graph_hash.c 字符串 64 位 /
+  compute_quick_graph_hash 零调用死代码 / rewrite_hash.c 二进制 32 位，互不
+  兼容）；**R2 节点坐标哈希聚合三实现**（unify_helpers/normalization/module_
+  delta 同文件复制 ×2，混入策略互不兼容——graph_node_hash.c:313 记录了历史上
+  Knuth 乘数假阴性事故）；**R3 "哈希+线性回退"样板 ×7**；**R4 同文件双删除
+  算法**（graph_node_hash 重插法 vs 移位法）；**R5 黄金比裸字面量两处**（K12
+  延伸漏网，同文件宏/裸混用）；R6 取模 vs 位掩码；R8 查找失败三表达（NULL/-1/
+  哨兵）；R9 手写 next_pow2 ×3。
+- **树形结构/遍历模式面 K47**：**权威已建**：lv_tree_release_recursive 3 消费方
+  共享（树销毁正确样板 ✅）+ FormulaNode 宏 VTable 单源 + TypeRegion 字段清单
+  驱动 + PropFormula 显式栈 destroy + AABB 2D/3D 宏泛型 + Huffman 已收敛 +
+  全库无四叉树 ✅；**"一需求多实现"**：**T1 通用树遍历 lv_tree_traverse 生产
+  零调用（P0 M6）**——graph_traversal_tree.c:28-176 完整实现但头注释宣称"统一
+  遍历抽象消除各模块重复"实际全库唯一消费是测试，各树仍手写遍历；**T2 树销毁
+  1 共享设施 + ≥4 手写变体**（lv_trace_node_destroy/proof_dependency_destroy/
+  csg_node_destroy/csg_bsp_node_destroy 同一后序骨架逐行重写）；**T3 证明域树族
+  ≥6 套其中 2 套生产零调用**（lvProofTree/ProofSearchTree 仅测试消费 +
+  **proof_widget_get_search_tree/get_dependency_graph 返回硬编码 JSON 桩**）；
+  T4 证明树导出 walker 三形态（递归/平铺/文本）；T5 ProofColor 合成格双实现
+  （叠加规则逐段同构）；**T10 FormulaNode 节点类型分发表 9+ 套手工维护**
+  （eval 表 24 项 vs 36 枚举漏项静默返回 0.0——M5 静默降级候选 K7 关联）。
+- **符号表/名称绑定/作用域面 K48**：**权威已建**：lv_registry/lv_hashtable_str
+  权威容器 + 公理包复合 key 包级隔离（命名空间健康范本 ✅）+ namespace_depth
+  图编译作用域（20+ 文件一致 ✅）+ λ De Bruijn + 模式匹配绑定 + 5 种 DSL 各自
+  关键字表合理保留 ✅；**"一需求多实现"**：**D1 name→ID 绑定表多实现（P0）**
+  ——"平行数组+哈希索引+线性回退"模式 ×4（mini_kernel/dsl_compiler_ir/
+  preset_blocks/func_block_preset_internal 含"值存 index+1"技巧逐字同构）+
+  纯哈希 ×2，权威 lv_registry 存在未复用；**D4 量词绑定泄漏（P0 风险）**——
+  check_expr_quantifier add_symbol 后从不解绑，无作用域栈/遮蔽/解绑原语，
+  forall x 之后顶层 Point x 将误报 duplicate declaration；**D2 .lv 关键字/
+  类型名 4-5 处手工维护**（12 个实体名散落 5 处，LV_ENTITY_TYPE_X 已是单源但
+  其余未派生）；**D3 重名处理语义分裂 4+ 种**（报错/保首/重绑/追加双条/警告，
+  Metamath 重绑 vs .lv 报错语义相反）；**D5 .lv 名称绑定链路双轨**（sema+
+  loader 文本链路全库生产零调用仅 test_lv_bootstrap 12 处 vs 生产 .lvz 链路）；
+  D6 派生预设名生成双系统；R4 module/import 无作用域隔离（解析了但绑定语义为零）。
+- **依赖获取/服务定位模式面 K49**：**权威已建**：分配器单事实源 + 全局线程池
+  唯一 + lv_error TLS getter + geometry_config 进程权威+TLS 快照 + lv_registry
+  统一设施 8+ 子系统复用 + context 资源操作回调注入 ✅；**"一需求多实现"**：
+  **N1 interop 模块内 StreamContext 获取双轨并存（P1 高价值）**——导出子模块
+  走 TLS 全局 interop_stream_ctx vs 命令子模块走 engine_get_stream_context，
+  历史分化非分层必然；**N2 StreamContext 三形态并存**（模块 TLS 变量 14+ /
+  引擎 getter / 上下文懒创建）；**N3 流上下文三件套宏双份/三份定义（P0）**——
+  stream.h vs stream_context_util.h 逐字重复 + 第三套 lv_DECLARE_STREAM_CTX +
+  5+ 处手写；**N4 进程级单例 getter 命名风格 4 种**；**N5 engine_bind_context()
+  幻影注释（P0 M5）**——engine_lifecycle.c:45 声称的 API 全库不存在，实际走
+  orchestrator 字段直写 + 借图两条路；**N6 引擎实例获取 4 种模式**（工厂/server
+  缓存/临时创建/**TLS 隐式指针 g_tls_engine legacy**）；N7 注册表"获取"承载 4 种；
+  N8 依赖获取失败处理约定不一致；N9 测试双入口混用。
+- **算法复杂度/性能标注面 K50**：**健康基线**：哈希 O(1)+回退线性诚实标注已成
+  惯例（✅）+ CDCL 线性 BCP/mv_polynomial 插入排序/csg_hull 暴力（顶点<200）
+  均自述小规模可辩护；**"一需求多实现"**：**graph_memory.c 声称 O(n log n)/
+  qsort 实际纯 O(n²)（P1 M5）**——lv_insertion_sort 纯 O(n²) 无 qsort 分支
+  （7 调用点）；**复杂度词汇表三套并存**（PresetComplexity 枚举/双名称表格式
+  不同 + JSON 数字 vs 字符串双格式）；**InternalPresetEntry.complexity 只写
+  不读（M6）**——preset_blocks.h 30+ 处宏注释"复杂度：O(1)/O(n)"无任何可执行
+  对应；dsl_lexer 二分声称 vs 线性实现（注释自相矛盾）；bdd_encoding 注释过期；
+  PERFORMANCE_OPTIMIZATION.md 幻影结构复杂度表（lvBloomFilter/lvSkipList/
+  lvRTree 全库不存在）。
+
+### ② 设计更新（standard-unification-design.md v1.18）
+
+- 新增 §1.86-1.90 现状清单（K46-K50）+ §3.86-3.90 分面方案；
+- P0-P4 并入第十八轮项（P0 含 K47 树遍历接线或删除+证明树去重、K48 量词解绑+
+  name→ID 统一设施、K49 幻影 bind API 修正+流上下文宏收敛；P1 含 K46 预设枚举
+  名单源化+图哈希收敛+坐标哈希统一、K47 树销毁接入共享+导出骨架、K48 关键字
+  单源化+重定义统一、K49 StreamContext 获取规范+getter 命名族+注册表获取层、
+  K50 复杂度词汇表统一+graph_memory M5 修正+死字段处置）；
+- 新增决策点 F72-F76（哈希查找/树形结构/符号表/依赖获取/复杂度标注）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十八轮审计 5 组 / 总 123 组 / K46-K50 方案 / F72-F76
+  待确认 / **预设枚举名三份表致 UNKNOWN 行为缺口**、**lv_tree_traverse 生产
+  零调用（M6 声称统一遍历实际 0 接线）**、**量词绑定泄漏（forall x 后误报
+  duplicate）**、**engine_bind_context 幻影注释（声称 API 不存在）**、
+  **graph_memory 声称 O(n log n) 实际 O(n²)**、**proof_widget 两桩硬编码 JSON
+  恒空**、**eval 表 24/36 漏项静默 0.0**。
+
+### 遗留登记
+
+- 无新增遗留（第十八轮审计为设计留档，未执行）。
+
