@@ -1,26 +1,28 @@
-# 项目内部标准统一化设计（v1.6）
+# 项目内部标准统一化设计（v1.7）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**六轮共三十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**七轮共三十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
 > 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
 > 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部；
 > 第五轮：安全限制/缓存/图算法/事件回调/配置全局；
-> 第六轮：插件系统/快照回滚/数值线性代数/形式化对齐/Python测试结构）
+> 第六轮：插件系统/快照回滚/数值线性代数/形式化对齐/Python测试结构；
+> 第七轮：进程网络/性能监控/数据结构/IO序列化/层间依赖）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
 > **v1.1**：第二轮 15 组（总 30）。**v1.2**：第三轮 13 组（总 43）。
 > **v1.3**：前端**刻意留白**（等内核定型），L9 移出执行清单。
 > **v1.4**：第四轮 10 组（总 53）。**v1.5**：第五轮 5 组（总 58）。
-> **v1.6（2026-08-27）**：第六轮五路新增 5 组（总 **63 组**），
-> 本版并入 §1.26-1.30 与 §3.26-3.30。
+> **v1.6**：第六轮 5 组（总 63）。
+> **v1.7（2026-08-27）**：第七轮五路新增 5 组（总 **68 组**），
+> 本版并入 §1.31-1.35 与 §3.31-3.35。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-六轮共三十路审计发现 **63 组"一个需求多种格式"重复点**：
+七轮共三十五路审计发现 **68 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -195,6 +197,36 @@
 | # | 需求 | 现状格式 | 审计结论 |
 |---|---|---|---|
 | H5 | Python 测试基座/常量对拍 | **3 套测试基座**：pytest（3 文件）+ unittest（test_streaming_e2e.py，IsolatedAsyncioTestCase）/ 自写 subprocess runner（test_runner.py，**pytest 收集 0 用例，仅 CHANGELOG 提及**）；**无 conftest/无 fixture**；枚举常量**三重硬编码**（C 头文件 → _ctypes_binding.py → test_constants_consistency.py 基准表，测试注释自认"改 C 头需手工同步"）；流式事件类型**二重硬编码无对拍**（test_streaming_e2e.py 魔术数字 0/1/3/4/5/12/15/16）；tests/ 被打进构建产物（build/lib/tests/ 副本） | **测试基座一需求三实现**；常量对拍靠人肉；**流事件对拍缺口**（C 宏插入事件 Python 静默错位）；test_graph.py 后端未钉死（有库测 C 无库测 fallback 不确定） |
+
+### 1.31 进程/网络面（第七轮，I1）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| I1 | 外部程序调用 | `lv_external_process_run`（lv_process.c 统一底座：spawn/管道/超时/退出码）已服务 ATP/SMT；**graph_dot_export.c:292 唯一裸 `system()`**（graphviz dot→SVG，无超时无 stdout 捕获，完全绕过底座）；atp_run_subprocess 与 smt_external_solver_check 的"argv→超时→执行→降级"骨架同构（lv_process.h 头注释自认待收敛）；Python concurrent_monitor 的 terminate→wait→kill 跨语言独立实现 | **底座已就位**，仅 graph_dot 绕底座 + atp/smt 骨架同构待收敛；Coq/Lean bridge 纯文本互操作天然豁免；lv_dlopen+_ctypes_binding 是 FFI 跨语言孪生非重复 |
+
+### 1.32 性能监控面（第七轮，I2）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| I2 | 计时/统计/监控 | 起止计时 **6 套**（lvTimer/lvPerfSession/lv_event_trace/SchedulerStats 内联/proof_engine 内联/TraceSession，4 套无生产调用）+ 2 个时钟基座（CLOCK_MONOTONIC vs clock()）；Welford 在线统计 **2 份拷贝**（runtime_monitor vs performance_profiler 逐行同构）；求解统计 **4 路**（SchedulerStats 活 / PerformanceCounters 记录侧死 / lvDiagnostics 字段恒置 0 / solver_stats 命名误导实为 DOF）；内存统计 3 套；事件追踪 2 套（lv_event_trace vs trace_session）；时间戳格式化 2 套；日志文件管理 2 套（debug 管道 vs runtime_monitor 残留状态机） | **计时/统计/事件追踪/日志文件管理"一需求多实现"**；日志管道与 JSON 序列化已统一（v3.3-3.5 收敛痕迹）；debug 状态族是健康横向拆分非重复 |
+
+### 1.33 数据结构面（第七轮，I3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| I3 | 容器/增长逻辑 | 增长逻辑 **5 套 + 3 处漏网**：lv_ensure_capacity（权威 int 容量）/ lv_ENSURE_ARRAY_CAP 宏（12 处独立实现）/ array_grow_to_fit（size_t）/ lv_dstr_grow（size_t）/ lv_strbuf_grow（size_t+**lv_malloc 非 realloc**）+ interop_theorem/lambda_to_graph/lv_utils_config 手写倍增；FIFO 队列 **8+ 套模块自建**（BFSQueue/propagation/type_equiv/WorkQueue/BfsQueue 链表/定长/thread_pool 链表/worklist）；环形缓冲 4 套（lv_ringbuf 权威/HashHistory/stream_lazy/propagation）；内存池 2 套（lvMemPool vs lvObjectPool 互不委托）；IntArray vs lvDArray 同语义 | **增长逻辑单一路由 + 队列族收敛是最高价值动作**；哈希表/堆/回调列表/遍历/注册表已收敛成形（健康基线）；lv_heap/lvHashtable 三形态/lvArena/thread_pool/lvReasoningStack 是不同语义保留 |
+
+### 1.34 IO/序列化面（第七轮，I4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| I4 | 文件 IO/round-trip 验证 | round-trip 验证 **3 套**：`lv_roundtrip_verify`（权威，mem:// 完整往返+注册表分派）/ `meta_repr_verify_roundtrip`（无调用方，memcmp 兜底可疑）/ `test_oracle_verify_serialize_roundtrip`（无调用方，第三套图同构比较器）；图等价比较多实现（meta_repr_graph_equivalent / graph_isomorphism_* / 测试自写 compare）；文件原语两套（lv_file 权威 vs **lv_storage file:// 后端内嵌 fopen/fread/fwrite/fseek/fclose 全套**）；裸 fopen **18 处**（10 文件，2 处显式豁免 + 6 处无标注）；lv_bytes/lv_json 已收敛（健康基线） | **round-trip 基座已存在但 2 套冗余无调用方**；文件原语两套；裸文件 IO 收编 + 豁免登记；LVZD/PNG/msgpack 长度字段属格式契约不抽象其编解码 |
+
+### 1.35 层间依赖面（第七轮，I5）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| I5 | 层验证/归属 | **ENABLE_LAYER_VALIDATION 形同虚设**：CMake 正确定义 lv_CURRENT_LAYER + 宏，但 `lv_ALLOW_LAYER`/`lv_REQUIRE_STRICTLY_ABOVE` **全库零调用**、layer_validation.h **全库零 include**（头注释自认参考实现）——"0 违规"是空转结果；**2 处 P0 真实逆向依赖**：L2 context.c → L3 lv_reasoning_stack（推理栈提取破坏 L2 隔离）、L1 lv_loader.c → L3 constraint_graph + L4 engine（伞形头 lv.h + CMake 补链双重违规）；**功能归属混乱 ~8 处**：解析面 5 个解析器偏离 L1（dsl/gc_language/module_lvz/formula，均为"解析+装载被拖入高层"模式）、lvProofObject 类型-实现分居 L4/L5、proof 导出双轨 L4/L5、L4 module_export 越权做 SVG/TikZ/PDF、lv_registry vs ecosystem vs module 三撞车 | **层验证机制空转是 P0 顶层问题**；先修机制（依赖表接入+缺省只允许本层+CI include 矩阵）再清零；"引用方向检查"与"归属层检查"分开治理；健康面：L3→L4/L4→L5/L5→L6/L6→L8/L10 直接 include 全干净、lv_dot_writer 方向正确 |
 
 ---
 
@@ -454,21 +486,67 @@
 - **钉死后端**：C 绑定测试显式断言加载到 C 绑定否则 skip（与 test_constants_consistency 一致）；fallback 测试显式 import lv.fallback——消除"有库测 C 无库测 fallback"的不确定性。
 - **消除构建产物冗余**：setup.py 用 find_packages(exclude=['tests*']) 排除测试打包。
 
+### 3.31 进程/网络面（第七轮，I1）
+
+**决策**：
+- **graph_dot 收编底座**：`graph_dot_export.c:292` 裸 `system()` 改走 `lv_external_process_run`（加超时 + stdout 捕获），消除唯一绕底座点。
+- **atp/smt 执行骨架共享**：只共享"argv 构造→超时→执行→退出码→降级"骨架（lvExternalRunner 或共享辅助），外部协议解析/降级留各适配器。
+- **Python 跨语言豁免登记**：concurrent_monitor 的 terminate→wait→kill 跨语言独立实现显式豁免登记。
+- **健康确认**：Coq/Lean bridge 纯文本互操作、lv_dlopen+_ctypes_binding FFI 孪生非重复；WS 双栈与事件序列化 3 套已在 L4 登记（承接）。
+
+### 3.32 性能监控面（第七轮，I2）
+
+**决策**：
+- **计时基座单一化**：`lv_get_time_ns/us` 为唯一单调计时源；`lv_clock_elapsed_*`（clock()）保留为 CPU 时间专用并显式标注；6 套起止计时收敛为 1 个计时原语（begin/end + 自动累积）；4 个薄包装改宏或直接调用；测试代码改用基座。
+- **统计采集分层**：L0 唯一在线聚合器 lvPerfStats（移除 benchmark 第二份 Welford）；L1 领域对象统计（×12）从 L0 原语构建；L2 统一上报（JSON 走 lvJsonBuf、文本走 lvStrBuf），lv_diagnostics_generate 作为汇总入口填充恒 0 字段。
+- **求解统计收敛**：以 SchedulerStats 为唯一求解计时统计；删/修 PerformanceCounters 死代码；solver_stats.c 更名或补注释（实为 DOF 计算）。
+- **事件追踪收敛**：保留 lv_event_trace（Chrome trace 导出），合并/移除 debug_trace 的 trace_session。
+- **日志收敛**：runtime_monitor 日志子系统仅留级别映射，删独立 log_file/rotation/callback 状态机，全量委托 debug 管道。
+
+### 3.33 数据结构面（第七轮，I3）
+
+**决策**：
+- **增长逻辑单一路由（最高价值）**：① lv_ENSURE_ARRAY_CAP 宏改委托 lv_ensure_capacity（12 处机械替换）；② lv_ensure_capacity 增 size_t 形态（或 size_t 包装），让 lv_dstr_grow/lv_strbuf_grow/array_grow_to_fit 路由过去；③ lv_strbuf_grow 改用 lv_realloc 语义（消灭"新分配+拷贝"第三条路径）；④ 3 处漏网（interop_theorem/lambda_to_graph/lv_utils_config）迁移补齐。
+- **IntArray 废弃/包装**：生产调用点 ≈0 → 废弃或改为 lvDArray 上的 int 便捷包装，消灭 array_grow_to_fit 整套增长。
+- **FIFO 队列族收敛**：建立权威可扩容 FIFO（lv_ringbuf 语义 + lv_ensure_capacity），优先收敛纯数组形态（BFSQueue/propagation/type_equiv/stream_lazy）；链表形态（thread_pool/proof_rule_engine）与 work-stealing（groebner_parallel）逐点判定（线程/上限语义）。
+- **HashHistory 评估**：改建在 lv_ringbuf 之上（uint64 特化+预筛为参数差异）或文档标注特化容器。
+- **内存池二选一**：lvObjectPool vs lvMemPool 二选一或互相委托；lvArena 保留为分配器家族分层。
+- **保留**：lvHeap/lvHashtable 三形态/lvCallbackList/lvArena/thread_pool/lvReasoningStack（不同语义）；栈族不新建泛型 Stack（与遍历算法强耦合，维持"仅统一扩容"基线）。
+
+### 3.34 IO/序列化面（第七轮，I4）
+
+**决策**：
+- **round-trip 基座单一化**：`lv_roundtrip_verify`（mem:// 完整往返 + 注册表分派）为唯一权威；`meta_repr_verify_roundtrip` 无调用方 → 删除或降为内部静态（顺带修复 memcmp(…,sizeof(void*)) 兜底）；`test_oracle_verify_serialize_roundtrip` 无调用方 → 删除或改薄包装委托权威；图等价比较收敛到注册表分派（graph_isomorphism_* 仅保留为独立算法）。
+- **文件 IO 收敛**：lv_storage file:// 后端 open/close 改走 lv_file_open/lv_file_close（模式转换保留）；read/write/seek 可保留 fread/fwrite/fseek 但错误处理收敛或给 lv_file 补流式接口；file_size 复用 lv_file_size；无豁免标注的裸 fopen（proof_navigator_export/proof_version_nl/sat_encoding）切 lv_file；8 处裸 fclose → lv_file_close；豁免登记 lv_export_common（文本模式/字节数语义）+ 日志调试类补显式 exempt 标注。
+- **建立黑名单 grep**：裸 fopen(/fclose(（非 lv_file_close）/memcpy 写整数进文件缓冲。
+- **格式契约不抽象**：LVZD/PNG/msgpack 长度字段属外部格式契约，只收敛 IO 骨架与验证基座；lv_bytes/lv_json 已是收敛态勿再动。
+
+### 3.35 层间依赖面（第七轮，I5）
+
+**决策（先修机制再清零）**：
+- **层验证机制修复（P0）**：lv_LAYER_CAN_DEPEND 依赖表接入 engine.h 宏实现（替换 current>=min 简单模型）；强制"每源文件显式声明允许层，缺省只允许本层"（0 声明 = 编译错误）；layer_validation.h 自动检查在启用时强制 include；TASK_CONTEXT"0 违规"结论修正为"宏启用+断言实际展开"条件。
+- **CI 自动依赖矩阵**：按"头→层归属表"扫描每层 .c 的 include 与符号引用，阻断 L1/L2 对高层引用；伞形头 lv.h 排除清单化（L1 编译单元含 lv.h 须经白名单放行）。
+- **2 处 P0 修正**：① 推理栈归位 L2（本就从 context.c 提取）或 context.c 经回调/不透明指针解耦；② lv_loader 只产 AST，"装载入图"改由 L0 编排层调 L3/L4，解除 lv_layer1_parser 的 L3/L4 补链。
+- **归属修正（P1）**：dsl 词法/语法阶段归 L1（IR→图装载留 L4 或经回调注入，先"解析"与"装载"分层）；module_lvz 词法/语法归 L1；gc_language 迁 L1 或删除（孤儿）；ecosystem 收敛 L2 lv_registry 或删除；module_export 迁 L5 或删除（无消费者）；lvProofObject 实现随类型归位 L4 proof 域；proof 导出双轨收敛（通用导出核心锚定 L5）；lv_serialize_adapters 归属写入层归属表。
+- **权威层锚定登记**：解析=L1、序列化=类型层+JSON 唯一 L2、导出/格式化=L5、证明对象=L4（类型+实现）、L1/L2 不得引用 L3+ 头或符号（含经 lv.h 传递）。
+- **健康面确认**：L3→L4/L4→L5/L5→L6/L6→L8/L10 直接 include 干净、lv_dot_writer 方向正确——不需要动作。
+
 ---
 
-## 4. 优先级与工作量（v1.6 更新：63 组）
+## 4. 优先级与工作量（v1.7 更新：68 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试 | ~3500-5200 行删除/改名/接线 | 低-中（多为无调用方或纯删除） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen | ~4800-7000 行改动 | 中（需回归测试） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试、I2 删第二份 Welford+死计数器、I4 删 2 套无调用方 round-trip+裸 fopen 收编、I5 层验证宏接线+2 处 P0 方向修正 | ~4500-6500 行删除/改名/接线 | 低-中（多为无调用方或纯删除；I5 两处方向修正需回归） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen、I1 graph_dot 收编+atp/smt 骨架共享、I2 计时基座单一化+统计分层、I3 增长逻辑单一路由+IntArray 废弃、I4 round-trip 基座单一化+文件 IO 收敛、I5 归属修正（dsl/module_lvz/gc_language/ecosystem/module_export/lvProofObject/proof 双轨） | ~6000-9000 行改动 | 中（需回归测试） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
-| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化（L9 前端接内核已移出） | ~3200-5000 行 | 中高（引擎/证明） |
-| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并、H4 公理单一事实源+formal/lv 与 lv-formal 去重+CI 对齐 | 视工具链 | 高（外部工具链/形式化） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化、I3 FIFO 队列族收敛（L9 前端接内核已移出） | ~4000-6000 行 | 中高（引擎/证明） |
+| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并、H4 公理单一事实源+formal 去重+CI 对齐 | 视工具链 | 高（外部工具链/形式化） |
 
-> v1.6 工作量上调主因：第六轮新增 H1-H5 涉及后端注册单一化（承接 L3）、
-> 稠密 LU 三合一与生产路径打通、公理单一事实源、Python 常量对拍 codegen 等广面改动；
-> H2/H3 另确认快照分层与 BiCGSTAB/GMRES 收敛为健康基线。
+> v1.7 工作量上调主因：第七轮新增 I1-I5 涉及层验证机制修复（P0 顶层问题）、
+> 计时/统计基座单一化、增长逻辑单一路由、round-trip 基座收敛、归属修正
+> （8 处解析/证明/导出/注册归属）等广面改动；I2-I4 另确认日志管道/JSON 序列化/
+> 哈希表/堆/回调列表已收敛为健康基线。
 
 ---
 
@@ -497,6 +575,9 @@
 | H3 生产路径切 numerical_backend | gauss_eliminate→host_lu 先做数值对拍（n≤20 案例逐例比对），再切分发 |
 | H4 公理去重可能影响形式化验证 | formal/lv 与 lv-formal 二选一后 CI 重跑 lake build 两处，验证等价后再删 |
 | H5 常量对拍 codegen 改动面 | 先补流事件对拍（最小缺口），codegen 作为二期；setup.py 排除测试低风险 |
+| I2 计时基座收敛影响性能行为 | 6 套起止计时收敛前对拍（begin/end 语义等价），回归性能测试 |
+| I3 增长逻辑单一路由影响容器 | lv_ensure_capacity size_t 形态先加测试（等价/边界），再逐容器切换 |
+| I5 层验证开闸可能暴露新违规 | 先修 2 处 P0 + 归属修正后再开闸；CI 依赖矩阵先于编译断言启用 |
 
 ---
 
@@ -525,8 +606,12 @@
 - **F21**（第六轮）：H3 生产路径切 numerical_backend（gauss_eliminate→host_lu + 注册表分发）是否立项（需数值对拍）？
 - **F22**（第六轮）：H4 公理单一事实源（.lvz 为权威，formal/lv 与 lv-formal 去重 + CI 对齐）是否立项？
 - **F23**（第六轮）：H5 Python 测试基座单一化（unittest→pytest + 删 test_runner + 补流事件对拍）是否优先做（P0，测试面低风险）？
+- **F24**（第七轮）：I5 层验证机制修复（依赖表接入 + 缺省只允许本层 + CI include 矩阵）是否作为独立 P0 立项（先修空转机制再清零）？
+- **F25**（第七轮）：I5 两处 P0 方向修正（context.c 推理栈归位 L2 / lv_loader 只产 AST 由 L0 装载）是否确认？
+- **F26**（第七轮）：I2 计时/统计基座单一化（6 套起止计时→1 + Welford 二合一 + 求解统计收敛 SchedulerStats）是否立项？
+- **F27**（第七轮）：I3 增长逻辑单一路由（lv_ensure_capacity 增 size_t 形态 + 12 处宏机械替换 + IntArray 废弃）是否优先做（P0，纯机械低风险）？
 
 ---
 
-*附：本设计基于六轮三十路子代理审计（每轮 5 路 ×6 = 63 组重复点），
+*附：本设计基于七轮三十五路子代理审计（每轮 5 路 ×7 = 68 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*
