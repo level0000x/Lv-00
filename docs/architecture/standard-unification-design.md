@@ -1,21 +1,26 @@
-# 项目内部标准统一化设计（v1.2）
+# 项目内部标准统一化设计（v1.4）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**三轮共十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**四轮共二十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
-> 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档）
+> 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
+> 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
 > **v1.1（2026-08-27）**：第二轮五路新增 15 组（总 30 组）。
 > **v1.2（2026-08-27）**：第三轮五路新增 13 组（总 **43 组**），
 > 本版并入 §1.11-1.15 与 §3.11-3.15。
+> **v1.3（2026-08-27）**：用户确认前端为**刻意留白**（等内核定型后再写，
+> 非债务），L9 从统一化执行清单移出（§3.15），保留契约待内核定型后对接。
+> **v1.4（2026-08-27）**：第四轮五路新增 10 组（总 **53 组**），
+> 本版并入 §1.16-1.20 与 §3.16-3.20。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-三轮共十五路审计发现 **43 组"一个需求多种格式"重复点**：
+四轮共二十路审计发现 **53 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -95,6 +100,41 @@
 | L9 | 前端数据通道 | 前端 `protocol/index.ts` KernelBridge 接口 + createMockBridge（**无任何组件消费**）；`hooks/useExport.ts` 定义未引用；M1-Canvas 读 geometryStore 硬编码 mock | **前端 100% mock 数据，与 C 内核零连接**——proof_widget.c 的 C API 数据契约（为前端声明）成为未使用孤岛 |
 | L10 | 证明/求解器/几何文档 | 证明系统 5 篇（09/22/34/38/42，同一模块被多篇覆盖）、求解器 5 篇（04/14/17/19/25）、几何 6 篇（15/16/21/26+）、数值 7 篇 | 同主题多文档泛滥；`stable_release_gap_analysis.md` 自述与 GAP_ANALYSIS.md 重复；INDEX.md 死链接；版本号互相打架（v1.1.0 vs v3.5.0 vs v5.0.0） |
 | L11 | 语言语法定义 | `doc/docs/lv_LANGUAGE_SPEC.md` vs 根 `docs/architecture/` DSL 三篇 vs `bootstrap/` .lv 语义规格 | **同一语言语法定义 ≥3 处**；导出格式枚举双套（InteropExportFormat 10 种 vs lvExportFormat 6 种）互不引用 |
+
+### 1.16 公式/表达式面（第四轮，F1-F3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| F1 | double 表达式树 + 求导 | `lvSymExpr`（sym_expr.h，符号求导，生产零调用）vs `lvADExpr`（autodiff.h，数值自动微分，生产零调用） | **两套 double 表达式树 + 一阶导能力**（节点种类高度重叠），均不在规范文档内，均仅测试消费 |
+| F2 | 精确代数规范表示 | `lvExprCanonical`（expr_canon.h 稀疏多项式，文档指定"唯一规范形"）vs `lvExpr`（expr_canonical.h 树） | **双轨规范表示但规范形零生产调用**（仅测试）；命名冲突 expr_canon vs expr_canonical；文档声称的 FormulaNode→lvExpr→lvExprCanonical 流水线无生产桥接 |
+| F3 | FormulaNode 字符串化 | `node_to_string`（formula_string.c，拆分遗留独立 walker）vs `formula_renderer`（6 后端表驱动共享骨架） | **两套 AST 字符串遍历器**，node_to_string 未入共享骨架 |
+
+### 1.17 导入解析面（第四轮，F4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| F4 | double→SymbolicCoord | `ggb_double_to_rational`（1e6 精度，ggb+svg 共享）vs GeoJSON 内联（1e9 精度，json.c:178-181）vs 命令面内联（interop_command.c:281-282） | **同一算法 3 份**，精度语义分裂（1e6 vs 1e9）固化；点序列→折线图构建 3 份（ggb_import_point_sequence / svg_import_samples 几乎逐行复制 / json 内联循环）；XML 属性提取 2 份（拷贝版 vs 切片版） |
+
+### 1.18 类型系统面（第四轮，F5）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| F5 | 几何概念类型枚举 | `GeomType`（constraint_graph.h，运行时节点权威）vs `TypeKind`（type_system.h 类型理论）vs `LvSemanticType`+`LvEntityType`（lv_sema.h/lv_ast.h，.lv 表面，互为镜像）vs `NODE_GEOM_*`（formula_parser.h 重述） | **同一几何概念 4 种枚举编码**（Point/Line(Segment)/Region/Circle 命名取值不一致）；`LvEntityType` 与 `LvSemanticType` 几乎一一对应（后者=前者+UNKNOWN/ERROR）；Port 内联 type_region vs 外部 NodeTypeMapping 双通道（文档承诺失步） |
+
+### 1.19 基础工具面（第四轮，F6-F7）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| F6 | 字符串→数字解析 | `lv_parse_*`/`lv_str_scan_number`（权威）vs 25 处/14 文件语义等价残留 + 1 处 atoi（test_serialize_registry.c:43 高危） | **半收敛**：25 处可机械收敛到权威解析；1 处 atoi 首选替换 |
+| F7 | 命名预设库容器 | `preset_blocks.c` / `preset_manager.c` / `func_block_preset_internal.c` 各维护并行容器（各带 lv_hashtable 索引） | **同一"命名预设库"概念 3 容器并存**，未统一到 lv_registry |
+
+### 1.20 证明内部面（第四轮，F8-F10）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| F8 | 证明/命题验证入口 | `prop_verifier_verify`（VerifyResult）/ `lv_verify_proof`（lvVerifyResult）/ `proof_minimal_verify`（LvProofVerifyResult）/ `mini_kernel_verify_all`（MiniVerifyResult）/ `lv_proof_object_verify`（bool）/ `simple_proof_check`（bool） | **≥6 个独立验证入口**，各自独立枚举/结构/语义；proof.h 与 prop_verifier.h 曾共用守卫导致 include 顺序漂移，官方注释承认重复 |
+| F9 | 证明策略调度 | `ProofMultiStrategy`（JGEX 12 + legacy 桥接策略）vs 经典 `lvProofEngine` 10 策略（proof_strategy.c） | **两套策略引擎**：多策略引擎（ProofNavigator 调度面）vs 经典引擎（System A） |
+| F10 | 证明引擎栈 | 4 套并存：ProofNavigator 工作流（Stack 1）+ 多策略引擎（JGEX）+ 经典 lvProofEngine（Stack 2）+ 逻辑内核（mini_kernel/prop_verifier） | **同一证明需求 4 套引擎栈互相桥接**；kernel/ 目录混入 ecosystem.c/gc_language.c 与逻辑内核无关 |
 
 ---
 
@@ -224,25 +264,70 @@
 ### 3.15 前端/文档面（第三轮，L9-L11）
 
 **决策**：
-- **L9 前端接真实内核**：前端 `protocol/index.ts` KernelBridge 从 mock 切换到 `proof_widget.c` 的 C API 数据契约（已是设计好的孤岛），经 interop JSON 接入；`createMockBridge` 保留为开发模式；`useExport` 接线到 interop 导出。
+- **L9 前端刻意留白（用户确认，非债务）**：前端占位符/mock（geometryStore
+  demo 场景、createMockBridge 硬编码数据、M2/M6 空桩）是**有意为之**——
+  用户明确"等后端内核彻底定型后再写前端"。因此：
+  - 前端接真实内核**不作为清理批次**，不列入 P0-P4；
+  - `proof_widget.c` 的 C API 数据契约（孤岛）保留为**未来前端的对接契约**，
+    内核定型时按此契约实现；
+  - `protocol/index.ts` KernelBridge 接口保留（已是设计好的协议面），
+    createMockBridge 保留为开发模式；
+  - 记录为"L9 状态：刻意占位，待内核定型后实施"，移出统一化执行清单。
 - **L10 文档收敛**：同主题多文档合并（证明 5 篇→1 权威 + 指向、求解器 5 篇→1、几何 6 篇→1、数值 7 篇→1）；删 `stable_release_gap_analysis.md`（自述重复）；修 INDEX.md 死链接；统一"当前版本"事实源（v1.1.0 十层为权威，其他版本号引用纠正）。
 - **L11 语言语法单一事实源**：`lv_LANGUAGE_SPEC.md` 为唯一权威语言规范；根 `docs/architecture/` DSL 三篇改为"设计文档"（引用而非定义语法）；`bootstrap/` .lv 语义规格与规范对齐；导出格式枚举双套（InteropExportFormat vs lvExportFormat）合并为单一枚举。
 
+### 3.16 公式/表达式面（第四轮，F1-F3）
+
+**决策**：
+- **F1 double 表达式树二合一**：以能力更全的 `lvSymExpr` 为基底，`lvADExpr` 的前向/反向数值求导作为其上一对算子（ad_forward/ad_reverse）；或保留其一删除另一（两者均零生产调用，收敛成本低）。推荐前者（符号求导 + 数值求导互补）。
+- **F2 规范形二选一（禁止半吊子）**：① 兑现文档——补 FormulaNode→lvExpr 与 lvExpr→lvExprCanonical 生产桥接，让 lvExprCanonical 真正成为代数等价判定基；或 ② 删除孤儿——短期无消费则移除或明确标"待接入"。**现状两者都不是（文档声称流水线无代码）**，需先决策。
+- **F3 字符串化收敛**：`node_to_string` 并入 `formula_renderer` 共享骨架（作为第 7 后端或单行后端），删除独立 walker。
+
+### 3.17 导入解析面（第四轮，F4）
+
+**决策**：
+- **共享坐标转换**：`import_coord_from_double(value, denom)` 单一函数（round(value×denom)+create_rational），两个精度宏降为调用参数（`INTEROP_COORD_DENOM_PRECISION` vs `_GEOJSON`）；ggb_double_to_rational 变薄包装或删除；json 内联与命令面内联统一改调。
+- **共享图构建**：`import_add_point_node(g,x,y,denom)` + `import_add_polyline(g,pts,n,close,dx,dy,denom)` 收敛"单点节点"与"点序折线"三份实现（svg_import_samples 与 ggb_import_point_sequence 几乎逐行复制）。
+- **共享属性提取**：XML 开标签属性提取拷贝版/切片版合一（保留切片版免拷贝）。
+- **格式解析器保留**：GGB XML / GeoJSON / SVG path 语法各不同，各自解析器保留，只输出点序列/元素语义，不承担图构建。
+
+### 3.18 类型系统面（第四轮，F5）
+
+**决策**：
+- **几何概念枚举四合一**：以 `GeomType`（运行时节点权威）为唯一来源，`TypeKind`/`LvSemanticType`/`LvEntityType`/`NODE_GEOM_*` 收敛为映射/别名（经 X-macro 派生，禁独立枚举）。
+- **LvEntityType 与 LvSemanticType 合并**：同一概念表两份枚举（后者=前者+UNKNOWN/ERROR）→ 单一枚举 + 错误态。
+- **类型附加双通道收敛**：Port 内联 type_region vs 外部 NodeTypeMapping 二选一（文档承诺外部映射表，则移除 Port 内联字段或同步文档）。
+- **分层保留**：.lv 语言类型检查（L1 sema，表面语法）≠ 运行时类型论（L4 TypeSystem，Martin-Löf 依赖类型）——不同需求各自保留；Python type_system.py 是 #1 的 API 门面（非独立实现）；lvNumberType（数值域）独立。
+
+### 3.19 基础工具面（第四轮，F6-F7）
+
+**决策**：
+- **F6 数字解析收敛**：25 处/14 文件语义等价残留收敛到 `lv_parse_*`/`lv_str_scan_number`（多数需 end 指针推进游标，用 lv_str_scan_number + lv_parse_* 组合）；1 处 atoi（test_serialize_registry.c:43）**首选替换**为 lv_parse_int。
+- **F7 预设库容器三合一**：preset_blocks/preset_manager/func_block_preset_internal 的并行"命名预设库"容器统一到 `lv_registry` 单一容器。
+- **已收敛面确认**：字符串（0 裸 strcpy/sprintf）、动态数组（仅 1 处 snprintf 残留 + 13 处特殊豁免）、哈希表（仅 BDD interner 合法豁免）——**不需要动作**，记录为健康基线。
+
+### 3.20 证明内部面（第四轮，F8-F10）
+
+**决策**：
+- **F8 验证入口收敛**：6 个验证入口统一到单一验证 API（建议以 `lvProofObject` 为唯一证明 IR + 单一 verify 入口，各入口降级为适配器）；结果枚举合并（VerifyResult/lvVerifyResult/LvProofVerifyResult/MiniVerifyResult → 单一）。
+- **F9 策略调度归一**：多策略引擎（ProofMultiStrategy，JGEX 12+10）与经典引擎（lvProofEngine，10 策略）收敛为**单一策略注册表**（策略注册 + 调度表），两栈保留策略实现但共用调度面。
+- **F10 引擎栈明确分层**：4 套栈按职责定界——ProofNavigator 工作流（用户交互）+ 策略引擎（推理调度）+ 逻辑内核（TCB 验证）+ 导出（已在前几轮收敛）；`kernel/` 目录清理（ecosystem.c/gc_language.c 移出，与逻辑内核无关）。
+
 ---
 
-## 4. 优先级与工作量（v1.2 更新：43 组）
+## 4. 优先级与工作量（v1.4 更新：53 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档 | ~1500-2500 行删除/改名 | 低-中（多为无调用方或纯删除） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型收敛、L4 事件契约单一化、L6 内存统计二选一、L8 日志级别归一 | ~2000-3200 行改动 | 中（需回归测试） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形删除/桥接、F3 字符串化并入、F6 atoi 替换 | ~2000-3200 行删除/改名 | 低-中（多为无调用方或纯删除） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型收敛、L4 事件契约单一化、L6 内存统计二选一、L8 日志级别归一、F4 导入共享层、F5 几何枚举四合一、F7 预设容器三合一 | ~2600-4000 行改动 | 中（需回归测试） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
-| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码收敛、E7 API 入口、E12 测试入口、L3 推理注册表、L9 前端接内核 | ~2500-4000 行 | 中高（引擎/证明） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码收敛、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口收敛、F9 策略调度归一、F10 引擎栈分层（L9 前端接内核已移出，待内核定型后单独立项） | ~3200-5000 行 | 中高（引擎/证明） |
 | **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设注册表 v3→v4、L10 文档合并 | 视工具链 | 高（外部工具链） |
 
-> v1.2 工作量上调主因：第三轮新增 L1-L11 涉及状态机合并（context/engine）、
-> 推理注册表统一（5 套注册机制收敛）、流事件契约单一化、前端接真实内核等
-> 广面改动。
+> v1.4 工作量上调主因：第四轮新增 F1-F10 涉及表达式树二选一、
+> 导入共享层（坐标/图构建/属性三合一）、几何枚举四合一、证明验证入口
+> ≥6→1、策略调度归一、引擎栈分层等广面改动。
 
 ---
 
@@ -260,7 +345,10 @@
 | Python DSL 三套归一可能破坏用户脚本 | P1 保留 dsl.py 兼容 re-export，删除前跑 Python 测试套件 |
 | EngineState 零生产调用但被文档引用 | L1 合并前 grep 确认无外部依赖；删除后同步文档 |
 | 推理注册表统一可能影响求解路径 | L3 以 GROEBNER 单实例验证等价后再切调度器分发 |
-| 前端接内核是功能开发非纯去重 | L9 单独立项（前端 mock→真实通道），不作为清理批次 |
+| 前端接内核是功能开发非纯去重 | L9 已确认**刻意留白**（等内核定型），不列入清理批次；契约保留待内核定型后对接 |
+| F2 规范形二选一影响代数等价判定 | 先决策（兑现桥接 vs 删除孤儿），不得半吊子；测试 test_expr_canon 作回归锚 |
+| F8 验证入口 ≥6→1 波及证明引擎 | 以 lvProofObject + meta_verify 为锚，各入口降级适配器并跑全证明测试 |
+| F9 策略调度归一波及两栈策略 | 共用调度面先加注册表（策略注册+调度表），策略实现不动，回归 proof_multi_strategy 测试 |
 
 ---
 
@@ -277,9 +365,12 @@
 - **F9**（第三轮）：lvContextState 与 EngineState 合并（L1）+ EngineState 若零调用则删除（L2）是否确认？
 - **F10**（第三轮）：推理后端统一注册表（L3，lvBackendPluginRegistry 为唯一事实源）是否立项？
 - **F11**（第三轮）：流事件 JSON 契约单一化（L4，删除 Python 漂移副本）是否确认？
-- **F12**（第三轮）：前端接真实内核（L9）是否单独立项（功能开发，非清理）？
+- **F12**（第三轮）：前端接真实内核（L9）已确认**刻意留白**（等内核定型），不立项；契约保留待内核定型后对接。
+- **F13**（第四轮）：F2 规范形二选一（兑现 FormulaNode→lvExpr→lvExprCanonical 桥接 vs 删除孤儿 lvExprCanonical）？
+- **F14**（第四轮）：F8 验证入口收敛（6 入口→1，以 lvProofObject + meta_verify 为锚）是否立项？
+- **F15**（第四轮）：F9 策略调度归一（两栈共用策略注册表）是否立项？
 
 ---
 
-*附：本设计基于三轮十五路子代理审计（每轮 5 路 ×3 = 43 组重复点），
+*附：本设计基于四轮二十路子代理审计（每轮 5 路 ×4 = 53 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*

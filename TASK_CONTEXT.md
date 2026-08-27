@@ -7270,3 +7270,55 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第三轮审计为设计留档，未执行）。
 
+## 一百二十六、批次 标准统一化第四轮审计 + 前端留白决策（2026-08-27）
+
+用户「再开子代理找其他方面的」+「前端我是等后端内核彻底定型后再写」——
+第四轮五路并行审计补充 10 组重复点（总 53 组），前端留白确认为刻意决策。
+
+### ① 第四轮审计结果（F1-F10）
+
+- **公式/表达式面 F1-F3**：lvSymExpr vs lvADExpr 两套 double 表达式树+求导
+  （均生产零调用）；lvExprCanonical（文档指定"唯一规范形"）vs lvExpr 树
+  **双轨但规范形零生产调用**（命名冲突 expr_canon/expr_canonical，文档声称
+  的 FormulaNode→lvExpr→lvExprCanonical 流水线无生产桥接）；node_to_string
+  独立 walker 未入 formula_renderer 共享骨架。
+- **导入解析面 F4**：double→SymbolicCoord 同一算法 3 份（ggb 1e6/json 内联
+  1e9/命令面 1e6，精度语义分裂固化）；点序列→折线图构建 3 份（svg 与 ggb
+  几乎逐行复制）；XML 属性提取 2 份（拷贝版/切片版）。
+- **类型系统面 F5**：同一几何概念 4 种枚举编码（GeomType/TypeKind/
+  LvSemanticType+LvEntityType/NODE_GEOM_*）；LvEntityType 与 LvSemanticType
+  互为镜像；Port 内联 type_region vs 外部 NodeTypeMapping 双通道（文档失步）。
+- **基础工具面 F6-F7**：数字解析 25 处/14 文件残留 + 1 处 atoi 高危；
+  命名预设库 3 容器并存（preset_blocks/preset_manager/func_block_preset_internal）；
+  **健康面确认**：字符串 0 裸 strcpy/sprintf、哈希表仅 BDD interner 合法豁免。
+- **证明内部面 F8-F10**：**验证入口 ≥6 个**（prop_verifier/lv_verify_proof/
+  proof_minimal_verify/mini_kernel/lv_proof_object_verify/simple_proof_check，
+  proof.h 与 prop_verifier.h 官方注释承认重复）；策略调度两套（JGEX 12+10 vs
+  经典 10 策略）；**证明引擎 4 套栈并存**（ProofNavigator/多策略/经典/内核）。
+
+### ② 前端留白决策（用户确认）
+
+- 前端占位符/mock 是**刻意留白**（等后端内核彻底定型后再写），非债务；
+- L9 从统一化执行清单移出，不列入 P0-P4；proof_widget.c C API 契约保留
+  为未来前端对接契约；protocol KernelBridge 接口保留（开发模式 mock 保留）。
+
+### ③ 设计更新（standard-unification-design.md v1.4）
+
+- 新增 §1.16-1.20 现状清单（F1-F10）+ §3.16-3.20 分面方案；
+- P0-P4 并入第四轮项（P0 含表达式树二选一+规范形+atoi；P1 含导入共享层+
+  几何枚举四合一+预设容器三合一；P3 含验证入口收敛+策略调度归一+引擎栈分层）；
+- 新增决策点 F13-F15（规范形二选一/验证入口收敛/策略调度归一）。
+
+### ④ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第四轮审计 10 组 / 总 53 组 / 前端刻意留白确认 /
+  F13-F15 待确认。
+
+### 遗留登记
+
+- 无新增遗留（第四轮审计为设计留档，未执行）。
+
