@@ -7525,3 +7525,62 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第八轮审计为设计留档，未执行）。
 
+## 一百三十一、批次 标准统一化第九轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第九轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 78 组）。
+
+### ① 第九轮审计结果（K1-K5）
+
+- **错误消息文案面 K1**：码→文本表已单一事实源（LV_ERROR_CODES_X，✅ 健康）；
+  但表外 3 大类手写文本源 ~2000+ 处（lv_RETURN_ERROR 1757 字面量 85% 英文/
+  15% 中文同文件混用）；**同场景多文案**（状态转移非法 4 措辞、INVALID_PARAM
+  ≥6、OOM 中英冲突、NULL/越界/超时各家族多措辞）；跨模块逐字复制
+  （coq/lean4/opml 桥、Python"三点共线"×9）；状态名显示表 ≥6 处各自维护；
+  完整描述渲染两套；无 i18n（C 中文/Python 中文/UI 英文跨层不一致）。
+- **基础算法重复面 K2**：**gcd/数学原语已收敛 ✅**（lv_arith_safe/lv_utils 唯一
+  权威无手写残留）；**真同构残留**：整数快速幂 ×3（lv_safe_pow/lv_alg_rational_pow/
+  lv_number_pow 同平方求幂骨架）、平方因子提取 ×3（symbolic_coord vs quadratic/
+  algebraic static 复制）、lv_utils_misc FNV 双家族零调用、normalization 手写
+  插入排序×2；不同变体保留（并行数组排序/djb2 指纹/粗粒度 FNV）。
+- **文档代码一致性面 K3**：14 核心头声称与实现真实对齐 ✅；**4 个脱节**
+  （solver.h SuiteSparse/GraphBLAS 从未实现 / dsl_compiler.h ".lv 流水线"+
+  "多目标代码生成"空壳，**真实 .lv 加载在 lv_loader.c** / ecosystem 文档
+  527 行声称 vs 20 行实际 / proof_engine enable_cache 声称开启不缓存）；
+  **README 4 个幻影 API**；layer_validation 全库零 include（诚实空转）；
+  头 TODO/stub 字面标记 0；13 处"简化版"无桩约定；11+ 活文档标 v5.0.0。
+- **版本兼容面 K4**："项目当前版本" **12 处冲突**（1.1.0 vs 3.3.0/3.5.0/5.0.0/
+  1.9.0-dev/双 CHANGELOG 条目/README 已完成+计划中）；LVZ 版本 3 事实源
+  （写端硬编码不引用宏）；PRESET_SYSTEM_VERSION 双处；Python 包版本三处无 C
+  绑定；同名 lvFormal 双 Lean 项目工具链不兼容；**运行时校验缺失**
+  （lv_check_version_compat 自比较恒真 / lv_get_version_info 幻影 / 绑定无版本
+  关联）；**序列化读端校验薄弱**（msgpack/JSON 无格式版本、OPML 仅 strstr、
+  .proof.cert 未实现）；**ABI 无保护**（lv_PUBLIC_API 被 config.h:643 空定义
+  覆盖失效、Python 13 ctypes 结构体无 sizeof 校验）。
+- **示例教学代码面 K5**：**19 处示例与 API 脱节**（API_QUICKSTART 整篇错误模型
+  + 6 个不存在函数 / USE_CASES 15 份预设名全不在注册表 / README 4 幻影 /
+  demo.py 导入 4 个不存在模块 / streaming_example solve(graph) 签名冲突 /
+  lv.h:590 注释引用不存在枚举）；**21 份同骨架重复**（lv_context+prove+preset）
+  + 3-4-5 三角形骨架 10+ 份 + add_point 辅助 4 份 + 3 个 examples 目录并存。
+
+### ② 设计更新（standard-unification-design.md v1.9）
+
+- 新增 §1.41-1.45 现状清单（K1-K5）+ §3.41-3.45 分面方案；
+- P0-P4 并入第九轮项（P0 含快速幂/平方因子单设施+4 头 M5 修正+README/QUICKSTART
+  示例修正；P1 含场景文案规范+@impl-* 机制+版本分层+USE_CASES 收敛）；
+- 新增决策点 F32-F35（场景文案/算法单设施/版本 ABI/示例修正）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第九轮审计 5 组 / 总 78 组 / K1-K5 方案 / F32-F35 待确认 /
+  **README 4 幻影 API 确认**、**lv_check_version_compat 自比较恒真**、
+  **USE_CASES 15 份预设全失效**、**solver.h SuiteSparse 声称证伪**。
+
+### 遗留登记
+
+- 无新增遗留（第九轮审计为设计留档，未执行）。
+
