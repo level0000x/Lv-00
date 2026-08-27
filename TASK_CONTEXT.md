@@ -8387,3 +8387,117 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十八轮审计为设计留档，未执行）。
 
+## 一百四十一、批次 标准统一化第十九轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十九轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 128 组）。
+
+### ① 第十九轮审计结果（K51-K55）
+
+- **迭代器/遍历回调模式面 K51**：**权威已建**：图数组直接下标遍历（155 处单
+  惯用法）+ 745 处 for(i<count) 基线 + 39 处反向 for + 3 处链表指针推进 +
+  lv_callback_list 基座（遍历中注册/注销安全已文档化 ✅）+ lv_registry_
+  remove_prefix 已收敛 + LV_FOR_EACH_ARG 局部宏 + G3/K47 visitor 权威设施 ✅；
+  **"一需求多实现"**：**X1 哈希表 foreach 三形态"遍历中删除"约定漂移（P0）**
+  ——int/i64 头注释允许删除当前 vs str 禁止（但 str 实现先存 next 实际安全，
+  头注释过度保守），文档内部三处口径不一致，调用方已按两种约定分裂；**X2 遍历
+  中插入 = 扩容悬垂 UAF 未文档化（P0）**——slots/buckets 指针遍历开始捕获，
+  回调内插入触发 grow 释放旧存储即悬垂（当前 12 调用点均未插入属潜伏风险）；
+  X3 回调参数序不统一（lv_dir_entry_fn ctx 在前 vs 其余数据在前）；X4 early-
+  stop 四形态（bool/STOP/void/无中止）；**X5 容器族遍历 API 形态分裂（P1）**
+  ——lv_hashtable 回调 foreach vs lv_registry 无 foreach 10 处索引（N 次加解锁）
+  vs lvDArray 无 foreach 250+ 处裸索引（lv_registry_foreach/lv_darray_foreach
+  实际不存在）；**X6 半边缘网格迭代器叠床架屋+生产零消费（P1 M6）**——同一
+  需求 3 种公开写法三层包装 + 迭代器方法形状 3 套 + mesh 级零消费但内部 10+
+  处手写下标循环；**X7 lvDArray 无删除/插入 API（P1）**——"遍历中删除"三惯用
+  法分裂（前移紧凑/swap-pop 乱序/反向遍历）无保序/乱序契约文档。
+- **对象初始化/复位/克隆模式面 K52**：**权威已建**：graph_copy 唯一公共深拷贝
+  入口已收敛 ✅ + lv_error cleanup→reinit 范本 + pool_reset→lv_arena_reset 委托
+  + lv_reasoning_stack_clear=init 态范本 + 工厂 create 族内部一致 + clone 返回
+  新对象族内部一致；**"一需求多实现"**：**D1 熔断器复位实现×2+公共 API 生产
+  零调用（P1 M6）**——lv_circuit_breaker_reset 仅测试调用，context.c:879-892
+  内联复制复位逻辑，**语义已分叉**（reset 版重置 11 项硬编码默认 vs context 版
+  仅 8 项状态字段不碰配置）；D2 熔断器 init 与 reset 默认字段同文件重复；
+  D3 lvStrBuf 局部惯用法双轨（~53 处显式 init vs ~100+ 处 {0} 免 init 绕过 SSO）；
+  **D4 容器复位语义三轨未文档化（P1）**——回 init 态/清内容保容量/保留统计字段，
+  visual_editor_reset 不动 active_view、scene_clear 保相机未文档化；D5 copy 动词
+  三轨（copy/clone/deep_copy + 返回新对象 vs 写入 dst 两种语义）；D6 对象级
+  initialized 标志三族（真状态/恒真防御 atp-smt/查询 API）；**风险**：
+  **lv_solver_clone 声称"深拷贝"实际 graph 共享借用（M5）**、lv_darray_clear
+  不执行 elem_destroy（潜伏陷阱）。
+- **错误码数值/类别管理面 K53**：**权威已建（健康面）**：LV_ERROR_CODES_X
+  X-macro 单一事实源 68 码 + 枚举↔字符串表 68/68 100% 对齐 + 13 类别键三侧单源
+  派生 + 数值显式赋值历史稳定 ✅；**"一需求多实现"**：**EC5 未定义码引用（P0
+  潜在编译错误）**——runtime_guard.h:413 引用不存在的 lv_ERROR_ASSERTION_FAILED
+  （仅 lv_ENABLE_RUNTIME_GUARDS=ON 时编译，打开开关即编译失败）；**EC10 6 个
+  完全死错误码（P0）**——CIRCUIT_OPEN/PARSER_POOL_EXHAUSTED（G1 已登记）/
+  PARSER_TOO_MANY_TOKENS/PRESET×2/VALUE_OUT_OF_RANGE；**EC3 反向查找歧义哨兵
+  （P0）**——未找到返回 lv_ERROR_UNKNOWN(=1) 与"找到未知码"歧义，测试钉死该
+  契约；EC2 警告区间 3 种定义不一致（-99 vs INT_MIN，警告码被判错误）；
+  EC1 同一头文件 3 处分层说明矛盾（"100-199 内存"覆盖解析器 130-139）；EC4 表外
+  隐藏别名 ×2（#ifndef 局部宏遮蔽枚举）；EC6 文档内嵌第二份错误码表 ×2；EC9
+  status_codes 2 个无声明函数（**K20 计数需复核 +2**）；EC11 同语义规范码生产
+  空洞 ~19 码（E5 配套）；缺口：lv_ERROR_COUNT 哨兵值 904 自称"总数"实际 68、
+  二分排序不变量零强制（validate 恒 true 桩）、Python 绑定输出原始整数错误码。
+- **引用计数/所有权转移机制面 K54**：**权威已建（健康面）**：BDD 原子 refcount
+  （K47 ✅）+ lvFieldDesc/lv_obj_destroy_fields 字段清单权威（30+ 消费方 ✅）+
+  lv_DEFER 作用域清理（K13 ✅）+ lv_callback_list 观察者设施 ✅ + lvTransform
+  refcount 使用模式 + context 快照链保活 + 非所有权计数器族 + lv_process SSO
+  移交修复范本；**"一需求多实现"**：**R1 通用 refcount 设施零接线 vs 4+ 手写
+  实现（P0 M6）**——RefCounted/ref_count_inc/dec/get 生产 0 调用仅测试，而
+  FormulaNode/Proposition/lvTransform/context 快照链 4 处手写 int refcount 活跃
+  ——"对象级引用计数+归零自动销毁"= 1 死设施 + 4 活手写；**R2 func_block_
+  registry 文档化 ref_count 协议与实现脱节（P0 M5）**——func_block_registry.h:
+  201-222 声称 init=1/lookup++/cleanup 仅==1 释放但实现零读写（lookup 实为深拷贝
+  :607、cleanup 走 lv_registry 回调）——虚构协议；R3 共享子对象销毁语义三种实现
+  （FormulaNode refcount / BDD 原子 / **autodiff 析构手动去重 O(n²) 仅保护同父内
+  重复子，跨父共享仍双释放**）；R4 对象级销毁回调双死设施（RefCounted.destructor
+  + lv_resource_tracker 生产 0 调用）；**R5 refcount 递减守卫风格分裂（P1）**——
+  formula_node_destroy 无守卫（归零后再 destroy 下溢 -1 双释放）/proposition >0/
+  transform <=0/bdd ==0/通用 <=0 四风格；R7 [take] 置 NULL 措辞 ~15 处多样；
+  lv_transform destroy/unref 语义重叠（"destroy" 在共享时仅减一）。
+- **版本号/ABI/兼容垫片面 K55**：**权威已建（健康面）**：lvVersion 单一 semver
+  实现（module/plugin/preset 三消费方复用 ✅——本面最健康收敛点）+ 库版本编译期
+  对拍（lv.h:784 #error ✅）+ CMake 派生链 + Python get_version 单一来源 +
+  外部工具版本串/环境版本检测分层；**"一需求多实现"**：**N1 lv_VERSION_STRING
+  三实现（P1）**——lv.h 权威 stringize vs debug.h 硬编码 vs lv_internal.h 硬编码
+  字面量靠手工同步；**N2 func_block 版本字段 3.4.2 硬编码死字段（P1）**——既≠库
+  版本 1.1.0 也≠preset 4.0.0 全库零读取；**N4 版本兼容策略分歧（P1）**——
+  version_compatible 要求 major 相同 vs lv_plugin_check_version 仅 >= 无 major 门；
+  **N5 模块依赖版本约束零生产接线（P1）**——module_parse_version_constraint 富
+  语法 ^~- 区间仅测试消费，三条加载路径均不校验依赖版本；**N9 读端版本门 7+ 种
+  约定（P1）**——报错/静默 false/回退旧格式/尽力兼容/strstr 假校验/拒绝/默认
+  回退 5 种行为无统一约定；N8 LVZC 有 magic 无版本 + 兼容垫片静默回退零日志；
+  N3 版本三元组 4 结构；N6 缺省版本 5 组值；N7 版本格式化 4+ 实现；**新 doc 侧
+  漂移**——LVZD 文档声称版本字段 2B×2 代码实际写 4B×2；**复核一致未收敛**：LVZ
+  版本 3 事实源仍在、PRESET_SYSTEM_VERSION 双处、msgpack/JSON 无 format_version、
+  OPML strstr 假校验、lv_check_version_compat 恒真、lv_get_version_info 幻影、
+  preset_blocks __version__="4.0.0" 偏离、doc v5.0.0 残留 ~20 处。
+
+### ② 设计更新（standard-unification-design.md v1.19）
+
+- 新增 §1.91-1.95 现状清单（K51-K55）+ §3.91-3.95 分面方案；
+- P0-P4 并入第十九轮项（P0 含 K51 哈希 foreach 约定统一+UAF 文档化、K53 未定义
+  码+死码+歧义修复、K54 refcount 裁决+虚构协议修复、K55 版本未收敛项承接；
+  P1 含 K51 回调契约+registry foreach+网格迭代器、K52 复位收敛+语义文档+copy
+  动词、K53 分层说明+警告区间+别名+无声明函数、K54 守卫统一+autodiff+双死设施、
+  K55 版本宏单头+func_block 字段+兼容策略+依赖约束接线+版本门统一）；
+- 新增决策点 F77-F81（迭代器遍历/初始化复位/错误码/引用计数/版本ABI）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十九轮审计 5 组 / 总 128 组 / K51-K55 方案 / F77-F81
+  待确认 / **哈希 foreach 遍历中插入 UAF 未文档化**、**lv_ERROR_ASSERTION_FAILED
+  未定义码引用（打开开关即编译失败）**、**反向查找歧义哨兵被测试钉死**、
+  **通用 refcount 设施零接线 M6（1 死设施+4 活手写）**、**func_block_registry
+  虚构 ref_count 协议 M5**、**lv_solver_clone 声称深拷贝实际共享借用 M5**、
+  **熔断器复位公共 API 零接线+语义分叉**、**K4/K18/K39 版本面问题基本未收敛**。
+
+### 遗留登记
+
+- 无新增遗留（第十九轮审计为设计留档，未执行）。
+
