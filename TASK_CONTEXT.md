@@ -7955,3 +7955,103 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十四轮审计为设计留档，未执行）。
 
+## 一百三十七、批次 标准统一化第十五轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十五轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 108 组）。
+
+### ① 第十五轮审计结果（K31-K35）
+
+- **字符串处理设施面 K31**：**权威已建**：lvStrBuf（76 文件接线唯一权威）+
+  lv_str_utils/lv_parse_utils 双权威族 + lv_str_prefix_len 收敛 + strtok 单路由
+  + 0 裸 sprintf/strcpy + 生产 strcmp 链=0 ✅；**新发现 4 个未登记重复点**：
+  通配符匹配 ×3（plugin_system_interface.c:187-218 迭代 *? vs preset_manager_
+  query.c:40-68 递归 *? 语义等价双 static + test_framework.c:618-627 弱前缀
+  匹配）；标识符扫描惯用法 ×8（lv_lexer/dsl_lexer/axiom_pkg_parser/module_lvz/
+  gappa_dsl/gc_language/preset_common/lean4_bridge，字符集差异可参数化）；空串
+  惯用法残留 ×6（直写 strlen==0 绕过 lv_str_is_empty）；JSON 反转义解码双实现
+  （lv_json.c 表+两遍 vs lv_str_utils.c:824）；**lv_dstr 僵尸设施**（生产 0 调用，
+  append_fmt 转发但 grow/append 独立自写倍增，头注释自称"已收敛薄封装"与实现
+  矛盾=M5，双头各自宣称"统一"）。
+- **状态机实现模式面 K32**：全库 16 个显式状态机，转换分发 3 类（表驱动
+  handler：CDCL 10 态/WS 帧 5 态/L7 编排；转移表查表：context 位掩码/engine
+  二维矩阵；if-chain/直写 7 处）；**新增 5 项**：**证明进度状态双枚举**
+  （ProofState proof.h:325 死字段——只写不读+COMPLETED 从未赋值，完成语义由
+  平行 bool is_complete 承载 vs lvSessionStatus 真实使用）；**确定性状态概念
+  双枚举**（DeterminismState X-macro 单源 vs lvDeterminismState，
+  NON_DETERMINISTIC vs NONDETERMINISTIC 拼写漂移，无桥接）；**阶段完备性
+  不变量重复**（orchestrator ×2 vs meta_verify.c ≥7 个手写循环重推同一不变量，
+  meta_verify 用 strstr 文本探测"尝试"/矛盾标记表 :168/:233，测试同样 strstr
+  "proved"）；**状态守卫 5+ 种手写形态**；**状态强制覆写 4 处绕过转移表**
+  （context.c:841 未文档化且丢 previous_state 审计链）；**复核一致**：L1
+  context/engine 同义 5 态 + test_engine_ops.c:491-510 奇偶测试逐格钉死两侧
+  矩阵一致（L1 合并连带件）、L2 进度模型 A/B/C、K1 状态名表、K15 G7 TLS、
+  K22 假 engine_state。
+- **文件 IO 资源管理模式面 K33**：**权威基座已建**：lv_file.c 8 API + read-all
+  16 调用点全走封装（手写 fopen+fseek+ftell+malloc+fread 在 core/src **归零**）+
+  目录遍历唯一 lv_dir_foreach + 路径族收敛 ✅；**I4 遗留未闭环**：裸 fopen 18 处
+  （I4 指名的 proof_version_nl.c:79/proof_navigator_export.c:191,223/
+  sat_encoding.c:314 至今未切）；裸 fclose 24 处（**高于 I4 登记 8 处需扩项**，
+  含 5 处混合配对：lv_file_open 开+裸 fclose 关）；lv_storage file:// 后端未走
+  封装（file_size 与 lv_file_size 逐行同构）；打开失败错误处理 5 种约定（含
+  2 处静默失败零诊断）；文件大小获取 4 生产 + 5 测试；临时文件命名 3 形态
+  （lv_impl_upper_interop.c:71 内联绕过 lv_temp_path）；裸 remove/rename 14 处；
+  **黑名单 grep 机制未落地**（I4 要求裸 fopen(/fclose( 进黑名单未执行）导致
+  混合配对新漏网持续产生；FILE* 配对检查未发现泄漏 ✅。
+- **命令/参数解析模式面 K34**：**命令分发表实现形态 5 种并存**（VTable 函数
+  指针数组 interop / 名→fn 描述符表 scheduler / switch 枚举 upper / if-else
+  字符串链 geo_query+报告格式+SMT / 纯字符串表+空壳 lv_builtin_commands 27 项）；
+  **Python JSON-RPC if-elif 链 ×2**（stream_bridge.py:1000-1042 6 方法 vs
+  ws_server.py:214-230 5 方法，同响应骨架+同 -32601 分支）；**参数个数校验+
+  Usage 文案样板 ×10**（interop_command.c:331 等）；流桥接 CLI 双入口（--port
+  3456 vs 5801）；**2 个疑似真实缺陷**：① interop_command.c:381 AddNode Circle
+  实际调 graph_add_line_segment（graph_add_circle 完整存在未被调用）；②
+  interop_command.c:593/604/615 Parallel/Perpendicular/EqualLength 全部映射
+  CONTAINMENT（ConstraintType 有 PARALLEL 枚举却无法经命令层产生）；空壳：
+  Solve/Rewrite/Unify 返回罐头 JSON 不调引擎、lv_proto_terminal_exec 全库零
+  调用、lv_test_main 忽略 argc/argv；参数解析失败静默回落（_default(,0)）；
+  健康面：interop 命令层内部已收敛、lv_str_to_enum/lv_parse_* 底座唯一、
+  lv_ini_parse 单一、TEST_MAIN 单一、Python 全统一 argparse ✅。
+- **编码/字符处理面 K35**：**权威已建**：转义四族（JSON/HTML/XML/LaTeX 各有
+  唯一查找表）+ lv_str_json_escape ~18 消费 + lv_dot_writer 7 消费 + lvJsonParser
+  读端唯一 + lvJsonBuf 写端 7+ 消费 + ctype (unsigned char) 惯用法 ✅；**新登记
+  9 项**：**XML 转义重复**（module_export.c:70-83 手写 switch 版 ≡ lv_str_escape_
+  xml 实体集逐字相同）；**module_export.c:133 SVG <text> 自转义双写真实缺陷**
+  （lv_strbuf_printf 追加语义误用→输出 "CIRCLE #3CIRCLE #3" 首份未转义，
+  test_module_ext.c:244 只断言返回 bool 测不出）；**JSON 反转义两遍法 + 简单
+  转义解码表三张**（lv_json.c/lv_str_utils.c/lexer_shared.c）；**字符串字面量
+  语义分裂**（.lv 只剥引号不解码 vs .lvz/.pkg 解码）；标识符字符类判定 ≥8 处
+  手写；module_lvz/axiom_pkg 词法器骨架近逐段同构；high_dim_view 手写 JSON
+  写出 vs lvJsonBuf；**Python 解码不对称**（编码 _str_enc 收敛，解码无 helper
+  ~25 处内联 + 2 处直连 encode 绕过）；**证明→LaTeX 转义三缺一**（proof_export_
+  enhanced 全面转义 vs proof_export.c:309/proof_compiler.c:437/proof_navigator_
+  export.c:206 原样写入）；运行时 BOM 处理缺失（U+FEFF 表在死代码 lv_input_
+  sanitize 里，C-㉖ 静态清库复核一致）。
+
+### ② 设计更新（standard-unification-design.md v1.15）
+
+- 新增 §1.71-1.75 现状清单（K31-K35）+ §3.71-3.75 分面方案；
+- P0-P4 并入第十五轮项（P0 含 K33 I4 遗留闭环+黑名单落地、K34 命令注册设施
+  +arity 校验+G1/G2/G3 语义修复、K35 XML 转义收编+SVG 自转义修复+LaTeX 转义
+  补齐；P1 含 K31 通配符/lv_dstr/标识符扫描、K32 阶段完备性单源化+ProofState
+  二合一+L1 连带件、K33 exempt 标注+文件大小收编+临时文件迁移、K34 命令表收敛
+  +Python JSON-RPC+空壳处置+测试 CLI、K35 JSON 反转义+词法器骨架+_str_dec）；
+- 新增决策点 F57-F61（字符串/状态机/文件IO/命令参数/编码字符）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十五轮审计 5 组 / 总 108 组 / K31-K35 方案 / F57-F61
+  待确认 / **lv_dstr 声称/实现脱节（M5）**、**ProofState 死字段只写不读**、
+  **meta_verify strstr 文本探测状态语义**、**I4 裸 fopen/fclose 未闭环且黑名单
+  未落地**、**命令层 Circle 建线段 + 约束坍缩 CONTAINMENT（2 疑似真实缺陷）**、
+  **module_export SVG <text> 自转义双写 + 证明→LaTeX 转义三缺一（2 真实输出
+  缺陷）**。
+
+### 遗留登记
+
+- 无新增遗留（第十五轮审计为设计留档，未执行）。
+
