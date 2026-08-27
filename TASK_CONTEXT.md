@@ -7170,3 +7170,52 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（统一化设计留档，未执行）。
 
+## 一百二十四、批次 标准统一化第二轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第二轮五路并行审计补充 15 组
+"一需求多标准"重复点（总 30 组）。
+
+### ① 第二轮审计结果（E5-E15）
+
+- **错误码/API 面**：`lvErrorCode`（68 码 13 类，X-macro 单一事实源）被
+  **≥35 个模块级 *Result/*Status 枚举**平行架空（EngineStatus/GeoStatus/
+  SolverStatus/ModuleLoadStatus/PackResult/ATPResult/VerifyResult…），
+  绝大多数无 →lvErrorCode 桥接映射；返回码约定 7 种并存（int 负哨兵 614 处 /
+  lv_RETURN_ERROR 2243 处 / 枚举 / lvResult / bool / int64）；导出/求解/证明
+  各有便捷/上层/命令/底层 4 级入口，导出格式枚举重复定义 2+ 套。
+- **坐标/代数面**：有理数 4 种表示（Rational≡lvRational 字面同构 +
+  AlgRational + 表达式叶子）；两套完整精确代数数实现（GMP 栈活跃 vs int64
+  栈未接入，无桥接）；区间 3 套语义基准（float_error vs IEEE1788 vs 精确隔离）。
+- **测试框架面**：断言两家族**同名参数序相反**（TEST_ASSERT_EQ(actual,expected)
+  vs lv_ASSERT_EQ(expected,actual)，最高危）；入口三套并存（TEST_MAIN 287 文件 /
+  lv_TEST 1 文件 / 数据驱动 54 文件）；计数两套（g_pass/g_fail vs lvTestReport）。
+- **Python 绑定面**：绑定基座单一（_ctypes_binding 唯一 CDLL，健康✅）；
+  但链式 DSL **三套语义重复**（dsl_context.G 790 行 + py_euclid_style 1216 +
+  dsl_algebra 751）；预设注册表三套（v3.3.0/v4.0.0/第三方 spec）；midpoint
+  等操作 Python 侧 5-8 个入口；dsl_wrappers↔dsl_context 循环 import；
+  无运行时版本校验（docstring 宣称与实现不符）。
+- **工具链脚本面**：tool/ 与 tools/ 同级撞名；fix_build.py ≡ fix_cmake.ps1
+  双实现；预设生成链三工具各自维护 PRESET_TYPE_MAP；check_preset_sync.py
+  未纳入 CI（缺口）；docx 汇报 JS/Python 双栈；9 个并行 build 目录无
+  CMakePresets.json；**项目自身 0 个 .sh**（21 个全在第三方依赖），
+  ps1⇄sh 平台孪生不成立。
+
+### ② 设计更新（standard-unification-design.md v1.1）
+
+- 新增 §1.6-1.10 现状清单（E5-E15）+ §3.6-3.10 分面方案；
+- P0-P4 优先级并入第二轮项（P0 含断言参数序修正 + 目录归一；
+  P1 含错误码桥接 + DSL 三套归一 + CMakePresets；P3 含返回码收敛 + API 入口）；
+- 新增决策点 F6-F8（错误码桥接 / 断言修正优先 / Python DSL 归一）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第二轮审计 15 组 / 总 30 组 / E5-E15 方案 / F6-F8 待确认。
+
+### 遗留登记
+
+- 无新增遗留（第二轮审计为设计留档，未执行）。
+
