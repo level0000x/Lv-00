@@ -200,3 +200,51 @@ Python 领域层（lv.dsl 包）：
 - **十层坍缩**：用户已定。
 - **增量求解替代 L9**：两者互补（增量是单分片内优化，调度是跨分片），
   非替代。
+
+---
+
+## 8. 执行模型定位与双模式（新增，2026-08-27 追加）
+
+### 8.1 现状定位（已核实）
+
+Lv-00 执行模型是**混合型、主体解释**：
+
+```
+DSL 源码 → Tokenizer → AST → [dsl_compile: AST→IR] → [dsl_ir_to_constraint_graph: IR→图]
+                                     ↑ 真正的编译        ↑ 解释执行（VTable 分发 30 操作码）
+→ 约束求解 → 证明 → [interop_export_lean/coq: 证明→源码]
+                    ↑ 源码级编译（到外部证明助手的源语言）
+```
+
+- `dsl_compile` 是真实编译（AST→IR，30 操作码 + 符号表 + 源码映射）；
+- `dsl_ir_to_constraint_graph` 是**逐条 VTable 分发解释**（非字节码/机器码）；
+- `lv_loader.c`（另一套 .lv 路径）AST 遍历直接驱动引擎，更纯解释；
+- 证明导出（lean/coq）是**源码级编译**（到外部证明助手），
+  是系统最接近"真正编译"的部分。
+
+### 8.2 可优化点（记录，详见 dual-mode-execution-design.md）
+
+1. **IR 落盘/缓存**：现在每次 `dsl_compile_and_load` 都重新
+   tokenize→parse→compile。IR 可序列化则编译结果可缓存（对照 .class）。
+2. **IR 静态验证**：`validate_ir` 配置已存在，可扩展为编译期检查。
+3. **证明导出 = 编译后端**：lean/coq 是 IR 的编译后端，可加更多
+   （SMT-LIB / Python sympy / C 代码生成）。
+4. **双模式执行**（用户提议）：默认解释 + 可选编译为机器码，
+   复用 ga_codegen（6 目标）、lv_dlopen、lv_external_process_run。
+   详见 `dual-mode-execution-design.md`。
+
+### 8.3 双模式设计摘要（完整版见 dual-mode-execution-design.md）
+
+- **模式 A 解释**（默认）：现状 VTable 分发，交互/调试/小规模。
+- **模式 B 编译**（可选）：IR→C 生成 → 编译 .so/.dll → lv_dlopen 加载；
+  收益在**部署/复用**（消除重复解析、分片 worker 预编译），
+  非图构造微秒级分发（文档明确边界，避免过度承诺）。
+- **AUTO 模式**：缓存命中则编译，否则解释（类比 Java JIT 预热）。
+- 工作量：1750-2650 行（含等价性测试），增量 0.5%-0.8%。
+
+### 8.4 与 L9 的关系
+
+- 分片 worker 用模式 B 预编译（免运行时解析）；
+- IR→C（图构造机器码）与 Lean/Coq（证明可验证源码）是**两条互补编译路径**：
+  - IR→C：怎么构造图 → 性能/部署；
+  - Lean/Coq：为什么正确 → 可信。
