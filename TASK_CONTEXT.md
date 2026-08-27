@@ -6952,3 +6952,46 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（Windows Python 测试已可本地运行）。
 
+## 一百一十九、批次 DSL 语法糖四路研究汇总设计（2026-08-27）
+
+用户「开子代理研究吧而且不局限于几何方向所有编程语言的语法糖都在参考范围内」——
+4 路子代理研究完成（命令式/函数式/领域 DSL/证明语言与宏），汇总为可落地设计。
+
+### ① 研究输入（4 路，全部完成）
+
+- **命令式/脚本**（Python/JS/Ruby/Go/Kotlin/Swift）：关键字参数、解构、
+  列表推导、spread、命名元组、`?:`/`?.`、默认参数、guard、with、管道。
+- **函数式/声明式**（Elixir/F#/Haskell/Clojure/Prolog/CLP/SQL）：`|>` 管道、
+  let 链式、数据解构、字段访问、case/match、CLP 约束、中缀、结论:-前提。
+- **领域 DSL**（GeoGebra/TikZ/Solvespace/Manim/CadQuery/OpenSCAD/Lean）：
+  坐标字面量、自动命名、路径 `A--B--C`、Sequence、中缀 notation、具名约束原语。
+- **证明语言与宏**（Lean/Coq/Isabelle/Rust macro_rules）：声明式模板宏、
+  宏展开时机、have/show、calc、证明项导出、命名空间、Unicode 中缀。
+
+### ② 设计输出（dsl-syntax-sugar-design.md v1.0）
+
+- 24 项候选池去重（S1-S24），分三批：表达式级（S1-S8，0 新 IR op）/
+  约束证明级（S9-S15，1 新 IR op）/ 系统级（S16-S24，需架构决策）。
+- **desugar 优先原则**：≤1 个新 IR 操作码，纯语法重写优先；
+  三扩展点（token/AST/IR）各自最小化；现有 22 关键字零回归。
+- 明确不做清单：空格并置应用、全量惰性、完整所有权、Go 零值、defer、
+  Promise 链、unless、海象、Prolog 完整回溯。
+- 两套 DSL 处置三选项（A 推荐：糖加 DSL-A + 从 DSL-B 反移植量词/度量；
+  B 双轨映射；C 立即合并——不做）。
+- 工作量：第一批 900-1100 行 / 第二批 1200-1600 / 第三批 2500-4000，
+  合计 4600-6700 行（DSL-A 全量落地后约翻倍至 1 万行，仍可控）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；基线 dsl-syntax-baseline.md（已提交 1b1e1b73）作对照。
+- build3 + ctest 288/288 不受影响（无源码变更）。
+
+### 决策登记
+
+- 设计深化 / 不执行 / DSL 语法糖四路研究汇总 / desugar 到现有 IR 原则。
+- **待用户确认**：三批落地顺序、两套 DSL 处置选项 A/B/C、第三批 S16-S24 立项。
+
+### 遗留登记
+
+- 无新增遗留（语法糖全部为设计留档，未执行）。
+
