@@ -7367,3 +7367,54 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第五轮审计为设计留档，未执行）。
 
+## 一百二十八、批次 标准统一化第六轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第六轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 63 组）。
+
+### ① 第六轮审计结果（H1-H5）
+
+- **插件系统面 H1**：**7 套插件/扩展/注册表互不知晓**（lvPluginSystem 动态库
+  插件未接入运行时/ lvBackendPluginRegistry / SMT+ATP 注册表 / EngineScheduler
+  静态 VTable 真实分发 / 证明互操作插件 / ecosystem 元数据）；同一后端
+  （GROEBNER）硬编码进 4 套注册表；**高危命名冲突** interop.h 与 plugin_system.h
+  的 lvPlugin typedef 同名；ecosystem 文档声称 527 行实际 20 行（失同步）。
+- **快照/回滚面 H2**：图级保存+恢复 **3 套**（graph_copy 已收敛但
+  rewrite_snapshot 自建深拷未调它 = 收敛后残存重复 + bit_burning JSON 第三套）；
+  撤销/重做 5 处语义不同（不强并）；**protocol undo/redo 是 M5 空壳**
+  （命令名暴露但 undo_depth 硬编码 0 无 handler）。
+- **数值线性代数面 H3**：稠密 LU/高斯消元 **3 份**（host_linalg / sparse 兜底
+  刻意复制避免跨层依赖 / gauss_eliminate 生产唯一路径 n≤20）；numerical_backend
+  注册表**无生产消费方**（生产走硬编码 gauss_eliminate）；稀疏直接法
+  （LU/Cholesky/QR）**未声明进头文件**游离于标准接口；BiCGSTAB/GMRES 已收敛
+  为共享内核（正面范例）。
+- **形式化对齐面 H4**：**欧氏几何公理 ≥6 处独立维护互不一致**（formal/lv 与
+  lv-formal/Classical/Hilbert **逐字相同**误导性复制 + euclidean.lvz Hilbert
+  风格 vs manifest.json **Tarski 风格** + README + Lean 实例 + C 测试）；C1
+  编号三处不同语义；Continuity.lean 空公理占位与 .lvz 真实签名不一致；
+  **CI 三个 job 完全独立无交叉验证**。
+- **Python 测试结构面 H5**：**3 套测试基座**（pytest / unittest 的
+  IsolatedAsyncioTestCase / test_runner.py 自写 runner 收 0 用例）；无
+  conftest；枚举常量**三重硬编码**靠人肉对拍；**流事件类型二重硬编码无对拍**
+  （C 宏插入事件 Python 魔术值静默错位）；tests/ 被打进 build/lib。
+
+### ② 设计更新（standard-unification-design.md v1.6）
+
+- 新增 §1.26-1.30 现状清单（H1-H5）+ §3.26-3.30 分面方案；
+- P0-P4 并入第六轮项（P0 含插件命名冲突+protocol 空壳+删 test_runner；
+  P1 含后端注册单一化+稠密 LU 三合一+常量对拍 codegen；
+  P4 含公理单一事实源+formal 去重+CI 对齐）；
+- 新增决策点 F20-F23（后端注册单一化/生产路径切注册表/公理单一源/测试基座）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第六轮审计 5 组 / 总 63 组 / H1-H5 方案 / F20-F23 待确认。
+
+### 遗留登记
+
+- 无新增遗留（第六轮审计为设计留档，未执行）。
+

@@ -1,27 +1,26 @@
-# 项目内部标准统一化设计（v1.5）
+# 项目内部标准统一化设计（v1.6）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**五轮共二十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 输入：**六轮共三十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
 > 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
 > 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档；
 > 第四轮：公式表达式/导入解析/类型系统/基础工具/证明内部；
-> 第五轮：安全限制/缓存/图算法/事件回调/配置全局）
+> 第五轮：安全限制/缓存/图算法/事件回调/配置全局；
+> 第六轮：插件系统/快照回滚/数值线性代数/形式化对齐/Python测试结构）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
-> **v1.1（2026-08-27）**：第二轮五路新增 15 组（总 30 组）。
-> **v1.2（2026-08-27）**：第三轮五路新增 13 组（总 **43 组**）。
-> **v1.3（2026-08-27）**：用户确认前端**刻意留白**（等内核定型后再写），
-> L9 移出执行清单，保留契约待内核定型后对接。
-> **v1.4（2026-08-27）**：第四轮五路新增 10 组（总 **53 组**）。
-> **v1.5（2026-08-27）**：第五轮五路新增 5 组（总 **58 组**），
-> 本版并入 §1.21-1.25 与 §3.21-3.25。
+> **v1.1**：第二轮 15 组（总 30）。**v1.2**：第三轮 13 组（总 43）。
+> **v1.3**：前端**刻意留白**（等内核定型），L9 移出执行清单。
+> **v1.4**：第四轮 10 组（总 53）。**v1.5**：第五轮 5 组（总 58）。
+> **v1.6（2026-08-27）**：第六轮五路新增 5 组（总 **63 组**），
+> 本版并入 §1.26-1.30 与 §3.26-3.30。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-五轮共二十五路审计发现 **58 组"一个需求多种格式"重复点**：
+六轮共三十路审计发现 **63 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -166,6 +165,36 @@
 | # | 需求 | 现状格式 | 审计结论 |
 |---|---|---|---|
 | G5 | 配置/全局状态 | 两套运行时注册表：`lvConfig`（config.h/lv_config.c，JSON 持久化，A）vs `ConfigManager`（lv_utils_config.c，INI 持久化，B，LV_CFG_* 键与 A 大量同名同义，B 被影子化）；模块级配置自成一套且**默认值矛盾**：lvSessionConfig 默认 timeout 5000/depth 8 **硬编码且覆盖**全局配置默认 30000/100；`global_state.c` 第三套 key-value **闭环死代码**（initialized 恒 false） | **同一参数（超时/深度）多份默认值互不知晓且会话覆盖全局**；配置来源 JSON(A)/INI(B) 两套持久化格式；一个死单例 |
+
+### 1.26 插件系统面（第六轮，H1）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| H1 | 插件/扩展/后端注册 | **7 套互不知晓**：`lvPluginSystem`（动态库 C 插件，10+ 文件含状态机/依赖/接口/事件，**未接入运行时生命周期**，仅测试实例化）/ `lvBackendPluginRegistry`（"统一"后端描述符，真实分发不查它）/ `SMTBackendRegistry` / `ATPBackendRegistry`（按域，与前者重复登记）/ `EngineScheduler.backends[]`+静态 VTable（**引擎真实分发**，硬编码 GROEBNER）/ `lvInteropPlugin`（证明互操作，lv.c 注册 coq/lean4/opml）/ `lv_ecosystem_*`（元数据注册表，lv.c 接线） | **"插件"概念 4 种语义**（动态库 C 插件/静态后端描述符/证明互操作/生态模块）互不共用；**同一后端（GROEBNER）硬编码进 4 套注册表**；高危命名冲突 `interop.h:228 typedef lvInteropPlugin lvPlugin` vs `plugin_system.h:37 typedef struct lvPlugin lvPlugin`；ecosystem 文档声称 527 行/16 API 实际 20 行/5 函数（文档失同步） |
+
+### 1.27 快照/回滚面（第六轮，H2）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| H2 | 保存图状态+恢复 | **图级保存+恢复 3 套**：`graph_copy`（graph_node_copy.c，唯一公共深拷入口，context/engine_frozen/algebra/modal 已收敛）/ `graph_snapshot_create`（rewrite_snapshot.c，**自建深拷不调 graph_copy**，rewrite 事务回滚）/ `bit_burning`（JSON 序列化-反序列化，熔断回滚）；撤销/重做 5 处（algebra 成对 undo+redo / path_explorer 单向 / lambda 局部 / cdcl trail / **protocol 空壳**——命令名暴露但 undo_depth 硬编码 0 无 handler） | **graph_snapshot 是收敛后的残存重复**（graph_copy 注释宣称已收敛 engine_frozen/critical_pair 但漏了它）；protocol undo/redo 是 M5 空壳 |
+
+### 1.28 数值线性代数面（第六轮，H3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| H3 | 解线性方程组 | 稠密 LU/高斯消元 **3 份**：`host_lu_factor/solve`（host_linalg.c，后端复用）/ `dense_lu_solve`（sparse_linear_algebra.c，**注释明言"自包含避免 L3→L4 依赖"刻意复制**）/ `gauss_eliminate`（geo_constraint_solver_linear.c，**生产唯一路径**，n≤20）；后端分发两套并存（numerical_backend 注册表 vs 几何约束硬编码 gauss_eliminate，**注册表无生产消费方**）；稀疏直接法（LU/Cholesky/QR）**未声明进头文件**游离于标准接口之外 | **同一算法 3 份**因"避免跨层依赖"刻意复制；SUNDIALS 式注册表搭好了但生产不用；BiCGSTAB/GMRES 已收敛为共享内核（正面范例） |
+
+### 1.29 形式化对齐面（第六轮，H4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| H4 | 欧氏几何公理描述 | **同一概念 ≥6 处独立维护互不一致**：formal/lv/*.lean（Hilbert 型类）+ lv-formal/Classical/Hilbert/*.lean（**与前者逐字相同**，仅注释编码不同，误导性复制）+ euclidean_plane.lvz（Hilbert 风格 22 模板）+ euclidean/manifest.json（**Tarski 风格 12 公理**）+ euclidean/README.md（Tarski）+ lv-formal/Theory/Axioms/Instances_Geometry.lean（照抄 22 模板）+ test_axiom_euclidean_plane.c（硬编码 22 模板） | **风格漂移**（同一包 Hilbert vs Tarski 两套公理化）+ **编号漂移**（C1 在 formal/lv=线段自反、.lvz=线段搬运、manifest=线段构造）+ **层间无对齐机制**（CI 三个 job 完全独立，无 .lean↔.lv↔.lvz↔C 交叉验证）；Continuity.lean 空公理占位（∃ n, True）与 .lvz 真实签名不一致 |
+
+### 1.30 Python 测试结构面（第六轮，H5）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| H5 | Python 测试基座/常量对拍 | **3 套测试基座**：pytest（3 文件）+ unittest（test_streaming_e2e.py，IsolatedAsyncioTestCase）/ 自写 subprocess runner（test_runner.py，**pytest 收集 0 用例，仅 CHANGELOG 提及**）；**无 conftest/无 fixture**；枚举常量**三重硬编码**（C 头文件 → _ctypes_binding.py → test_constants_consistency.py 基准表，测试注释自认"改 C 头需手工同步"）；流式事件类型**二重硬编码无对拍**（test_streaming_e2e.py 魔术数字 0/1/3/4/5/12/15/16）；tests/ 被打进构建产物（build/lib/tests/ 副本） | **测试基座一需求三实现**；常量对拍靠人肉；**流事件对拍缺口**（C 宏插入事件 Python 静默错位）；test_graph.py 后端未钉死（有库测 C 无库测 fallback 不确定） |
 
 ---
 
@@ -382,20 +411,64 @@
 - **global_state.c 死代码删除**：lv_global_state_* 闭环死代码（initialized 恒 false）删除或接线。
 - **分层保留**：编译期尺寸宏（lv_CONFIG_*/lv_EPSILON_*）vs 运行时 vs 会话级是合理分层，不强行合并。
 
+### 3.26 插件系统面（第六轮，H1）
+
+**决策**：
+- **求解后端注册单一化**：以 `lvBackendPluginRegistry` 为唯一后端注册表（补 ops vtable 绑定），删 `SMTBackendRegistry`/`ATPBackendRegistry` 手工枚举与 `kSchedulerBackendVTables` 静态表；`EngineScheduler` 分发改查注册表（承接 L3 推理注册表决策）；GROEBNER 单实例派生。
+- **插件概念命名收敛**：解决 `interop.h` 与 `plugin_system.h` 的 `lvPlugin` 高危同名冲突（互操作插件改名 `lvInteropPlugin`，删除 typedef 别名）。
+- **lvPluginSystem 接线决策**：通用 C 插件系统（10+ 文件）未接入运行时——若未来需要动态库插件则接线，否则标记"预留，未启用"（不得半吊子）；ecosystem 文档失同步修正（527 行声称 vs 20 行实际）。
+- **分层保留**：动态库 C 插件 / 后端描述符 / 证明互操作插件 / 生态模块是 4 种不同对象模型，可共用注册设施但语义不合并。
+
+### 3.27 快照/回滚面（第六轮，H2）
+
+**决策**：
+- **graph_snapshot 收敛到 graph_copy**：`rewrite_snapshot.c` 的 `graph_snapshot_create` 改调 `graph_copy`（消除残存重复，graph_copy 注释已宣称收敛但漏了它）；bit_burning JSON 快照保留为跨场景后备（序列化格式不同需求）。
+- **快照分层模型**：上下文级（lv_context_snapshot）/ 推理帧级 / 求解器级（坐标子集）/ 图级事务 / 内存级（arena mark）粒度不同，**保留分层**并文档化。
+- **protocol undo/redo 空壳修复**：M5——命令名暴露但 undo_depth 硬编码 0 无 handler → 接线或撤掉命令名。
+- **撤销栈不强并**：algebra 成对 undo+redo / path_explorer / lambda / cdcl trail 语义不同（几何步骤/类型区域/局部连接/SAT trail），硬统一为通用 undo 框架触发负面清单，**不建议合并**。
+
+### 3.28 数值线性代数面（第六轮，H3）
+
+**决策**：
+- **稠密 LU 三合一**：`gauss_eliminate`（生产）与 `dense_lu_solve`（sparse 兜底）指向 `host_linalg.h` 的 `host_lu_factor/solve`；`host_linalg.c` 下沉或做成公共头（消除"为避免跨层依赖而复制"的动机）。
+- **稀疏直接法入标准接口**：`sparse_lu/cholesky/qr_solve` 声明进 `sparse_linear_algebra.h`，与 `lv_sparse_solve`（Jacobi 迭代）统一返回码契约；numerical_backend CSR 分支按 `lv_LINSOL_DIRECT_SPARSE`/`lv_LINSOL_ITERATIVE_*` 分发。
+- **后端分发打通**：生产几何约束求解从 gauss_eliminate 切换到 `lv_linsol_create()`/`lv_matrix_create()`（numerical_backend 注册表成为唯一分发点）——本轮最核心打通动作。
+- **补齐或声明不支持**：CSC/BANDED 格式、CUDA/HIP 的 CG、`lv_BACKEND_SINGULAR` 数值操作表——实现或显式返回 `lv_BACKEND_UNSUPPORTED`。
+- **保留分层**：直接法（LU/Cholesky/QR）vs 迭代法（GMRES/BiCGSTAB/CG）是不同数值策略，保留在 `lvLinearSolverMethod` 枚举下分层。
+
+### 3.29 形式化对齐面（第六轮，H4）
+
+**决策**：
+- **公理单一事实源**：以 `module/axiom_packages/euclidean_plane.lvz`（运行期真实数据源）为唯一公理定义；formal/.lean 与 lv-formal/.lean 改为**引用/生成**而非独立维护（先消 formal/lv 与 lv-formal/Classical/Hilbert 的逐字相同重复——两目录选一为权威）。
+- **风格统一决策**：euclidean 包 Hilbert vs Tarski 两套公理化——选一为标准（建议 Hilbert，.lvz 已是）并统一 manifest.json/README。
+- **对齐机制**：CI 增加"规格↔实现"交叉验证（formal 类型检查结果与 C 测试结果对拍；至少加 .lvz 模板名 ↔ Lean 实例映射一致性检查）。
+- **占位公理修正**：Continuity.lean 空公理（∃ n, True）与 .lvz 真实签名对齐（实现或显式标"待证明"）。
+- **命名错位修正**：bootstrap/output/coq_proof.lean 改名或删除（承接 P4 决策）。
+
+### 3.30 Python 测试结构面（第六轮，H5）
+
+**决策**：
+- **测试基座单一化**：test_streaming_e2e.py 从 unittest 迁到 pytest（pytest-asyncio/pytest-mock，CI 已装）；删 test_runner.py（pytest 收集 0 用例的冗余基座）；Python 侧单一测试基座 = pytest。
+- **常量对拍单一来源**：首选构建期从 C 头生成 Python 常量 + 基准表（解析 typedef enum/LV_STREAM_EVENT_X 宏）；暂不做 codegen 则收敛为单一共享数据文件（lv/_c_enum_snapshot.json）共同 import。
+- **补流事件对拍**：把 stream 事件枚举纳入对拍（现缺口，C 宏插入事件 Python 魔术值静默错位）。
+- **钉死后端**：C 绑定测试显式断言加载到 C 绑定否则 skip（与 test_constants_consistency 一致）；fallback 测试显式 import lv.fallback——消除"有库测 C 无库测 fallback"的不确定性。
+- **消除构建产物冗余**：setup.py 用 find_packages(exclude=['tests*']) 排除测试打包。
+
 ---
 
-## 4. 优先级与工作量（v1.5 更新：58 组）
+## 4. 优先级与工作量（v1.6 更新：63 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口收敛+解析安全接线+死错误码、G2 规格-实现对齐（删不存在缓存引用）、G3 命名澄清、G4 插件广播收敛、G5 删 global_state 死代码 | ~3000-4500 行删除/改名/接线 | 低-中（多为无调用方或纯删除） |
-| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 深度/超时常量合一、G2 通用缓存层、G3 约束图 BFS/Kahn 收敛、G5 配置单一注册表+默认值单一来源 | ~3800-5500 行改动 | 中（需回归测试） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档、F1 表达式树二选一、F2 规范形、F3 字符串化、F6 atoi、G1 熔断写入口+解析安全+死错误码、G2 规格对齐、G3 命名澄清、G4 插件广播、G5 删 global_state、H1 插件命名冲突+ecosystem 文档、H2 protocol undo 空壳、H5 删 test_runner+setup.py 排除测试 | ~3500-5200 行删除/改名/接线 | 低-中（多为无调用方或纯删除） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数、E13 DSL 归一、E15 CMakePresets、L2 进度模型、L4 事件契约、L6 内存统计、L8 日志级别、F4 导入共享层、F5 几何枚举四合一、F7 预设容器、G1 常量合一、G2 通用缓存层、G3 BFS/Kahn 收敛、G5 配置单一注册表、H1 后端注册单一化（承接 L3）、H3 稠密 LU 三合一+稀疏直接法入接口、H5 常量对拍 codegen | ~4800-7000 行改动 | 中（需回归测试） |
 | **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
-| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层（L9 前端接内核已移出） | ~3200-5000 行 | 中高（引擎/证明） |
-| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并 | 视工具链 | 高（外部工具链） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码、E7 API 入口、E12 测试入口、L3 推理注册表、F8 验证入口、F9 策略调度、F10 引擎栈分层、H2 快照分层文档化（L9 前端接内核已移出） | ~3200-5000 行 | 中高（引擎/证明） |
+| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设 v3→v4、L10 文档合并、H4 公理单一事实源+formal/lv 与 lv-formal 去重+CI 对齐 | 视工具链 | 高（外部工具链/形式化） |
 
-> v1.5 工作量上调主因：第五轮新增 G1-G5 涉及熔断写入口收敛、通用缓存层、
-> 配置单一注册表、深度/超时常量合一等广面改动；另确认图算法/回调面治理基线健康。
+> v1.6 工作量上调主因：第六轮新增 H1-H5 涉及后端注册单一化（承接 L3）、
+> 稠密 LU 三合一与生产路径打通、公理单一事实源、Python 常量对拍 codegen 等广面改动；
+> H2/H3 另确认快照分层与 BiCGSTAB/GMRES 收敛为健康基线。
 
 ---
 
@@ -420,6 +493,10 @@
 | G1 熔断写入口收敛影响防护行为 | 收敛前对拍三套入口触发语义（context 内联 vs 独立 API），回归熔断测试 |
 | G2 通用缓存层影响缓存命中语义 | 各缓存收敛后跑 prop_verifier/smt/axiom 缓存测试，容量驱逐新语义需验证 |
 | G5 配置默认值收敛改变运行行为 | 会话默认改为读全局后，观察 smoke/CI 测试超时/深度表现，必要时调整全局默认 |
+| H1 后端注册单一化影响求解分发 | 承接 L3：以 GROEBNER 单实例验证等价后再切；lvPlugin 命名冲突先修（纯改名） |
+| H3 生产路径切 numerical_backend | gauss_eliminate→host_lu 先做数值对拍（n≤20 案例逐例比对），再切分发 |
+| H4 公理去重可能影响形式化验证 | formal/lv 与 lv-formal 二选一后 CI 重跑 lake build 两处，验证等价后再删 |
+| H5 常量对拍 codegen 改动面 | 先补流事件对拍（最小缺口），codegen 作为二期；setup.py 排除测试低风险 |
 
 ---
 
@@ -444,8 +521,12 @@
 - **F17**（第五轮）：G2 通用缓存层（5 套推理缓存收敛）是否立项（P1，需设计容量/驱逐语义）？
 - **F18**（第五轮）：G5 配置默认值收敛（lvSessionConfig 改读全局配置，消除会话覆盖全局矛盾）是否确认？
 - **F19**（第五轮）：G5 删除 ConfigManager（B，INI）与 global_state 死代码是否确认？
+- **F20**（第六轮）：H1 后端注册单一化（lvBackendPluginRegistry 唯一 + 删 SMT/ATP/静态 VTable，承接 L3）是否确认？
+- **F21**（第六轮）：H3 生产路径切 numerical_backend（gauss_eliminate→host_lu + 注册表分发）是否立项（需数值对拍）？
+- **F22**（第六轮）：H4 公理单一事实源（.lvz 为权威，formal/lv 与 lv-formal 去重 + CI 对齐）是否立项？
+- **F23**（第六轮）：H5 Python 测试基座单一化（unittest→pytest + 删 test_runner + 补流事件对拍）是否优先做（P0，测试面低风险）？
 
 ---
 
-*附：本设计基于五轮二十五路子代理审计（每轮 5 路 ×5 = 58 组重复点），
+*附：本设计基于六轮三十路子代理审计（每轮 5 路 ×6 = 63 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*
