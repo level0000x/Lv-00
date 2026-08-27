@@ -8055,3 +8055,130 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十五轮审计为设计留档，未执行）。
 
+## 一百三十八、批次 标准统一化第十六轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十六轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 113 组）。
+
+### ① 第十六轮审计结果（K36-K40）
+
+- **调试/诊断/追踪设施面 K36**：**权威已建**：debug_log 主管道（LOG_* 141 处）+
+  lv_log_message 委托层（lv_LOG_* 100 处）+ debug_* 族 11 文件水平拆分 +
+  SchedulerStats 活 + debug_invariants 端口/归一化不变量活 + proof_navigator
+  断点活 ✅；**"一需求多实现"**：**日志级别状态 6 容器**（g_log_level TLS 活 /
+  g_min_level 半活 / runtime_monitor min_level 死子系统 / g_debug_level
+  lv_impl_native.c:875 int 裸类型死 / s_lv_state.log_level lv.c:802 **断链死
+  字段**）+ **词汇表 4 套**（lvLogLevel/LogLevel/lv_LOG_LEVEL_* 方向相反/
+  LOG_LEVEL_*）；**级别映射表 ×3**（lv_log.c:45-51 / lv_utils_misc.c:359-370 /
+  runtime_monitor.c:227-242，FATAL 均降 ERROR）；**lv_impl_native.c 第三调试
+  输出族**（debug_trace 等全族零调用零头声明）；**前置检查宏双族+同名冲突**
+  （error_codes.h 4 参 vs lv_check.h 3 参，**lv_CHECK_RANGE 同名 3/4 参数
+  #undef 覆盖——include 顺序敏感编译期陷阱**）；**日志行格式 ≥3 套**；verbose
+  死/空开关 ×2；环境变量命名分裂（lv_MONITOR_THREADS vs LV_GROEBNER_PARALLEL）；
+  性能报告文本格式 4 套；**P0 缺口 2 项**：**FATAL→紧急保存双重失效**（全库
+  生产零 FATAL 调用 + 唯一调用点 debug_trace_session.c:268 传 NULL 而
+  debug_emergency.c:42 无默认路径处理——**崩溃保护实际从不触发 M5**）+
+  **g_emergency_handler 从未被任何路径调用**（声称"在信号处理程序中调用"但
+  全库无信号处理器接线）；**lv_set_log_level 断链**（存入 s_lv_state.log_level
+  从不驱动实际过滤，config "debug.*" 三键只写不读）；双 TraceSession 记账；
+  debug_trace.c 断点 3 函数无头声明零调用（K20"0 符号泄漏"口径出入待复核）。
+- **数学函数/数值原语实现面 K37**：**权威已建**：超越函数全走 libm 无自实现 ✅、
+  幂按数域分层、区间三语义、lv_random_* 唯一、ODE/曲线求值收敛、geo_predicate
+  分层、lv_vec3 点积叉积权威 ✅；**"一需求多实现"**：**lvVec3 模长无公共
+  helper**（geo_halfedge_mesh.c 6+ 处内联 sqrt(dot(v,v))）；**3D 归一化三实现**
+  （lv_normalize_3d / lv_vec3_normalize / geometry_transform_apply.c:323-327
+  内联 1e-15 裸魔法数绕过权威）；**3D 叉积手写 ×2 绕过 lv_vec3_cross**
+  （parametric_curves.c，文件已 include lv_vec3.h）；**geo_angle 死 API**
+  （geo_utils.c:253 全库 0 生产调用）+ 同语义内联 residual.c:188；**夹角
+  acos+clamp 骨架 ×3**（geo_halfedge_mesh.c 同文件两份近逐行复制 +
+  meta_proof.c:174-179 内联 *180.0/lv_PI 绕过 lv_rad_to_deg）；**lv_number_
+  is_integer (int64_t) 截断对 |d|≥2^63 为 UB + 有理数 to_double 近似判定**
+  （正确性隐患 P1）；近似相等双函数（lv_is_equal vs geo_approx_equal 死）；
+  区间幽灵头（interval_arithmetic.h 生产零 include 重复 typedef）；
+  loader op_pow 整数幂第 4 变体；lv_simd_dot vs serial_bicgstab_dot（H3 延伸）；
+  梯形积分两实例；死 API 三件（lv_sign/lv_sign_int/geo_angle/geo_approx_equal）。
+- **时间/日期/时钟处理面 K38**：**权威已建**：三基座分层本身正确——单调
+  lv_get_time_*（50+ 调用点唯一权威）+ 墙钟 lv_get_wallclock_*（仅 6 处欠
+  接线）+ CPU lv_clock_elapsed_* + 时间单位常量族一致 + lv_LOCALTIME 单源 +
+  stream_timestamp_ms 单源（30+ 事件发射点统一）+ lvTimer 唯一计时器 ✅；
+  **"一需求多实现"**：**超时判断 3 时钟基座混用（P0）**：prop_verifier 用墙钟
+  time(NULL)（可被 NTP 跳变）、proof_version_sledge.c:121 用 CPU 时间 clock()
+  （**I/O 等待下不推进 → 超时形同虚设**）、其余用单调；**死超时 4 处（P0）**：
+  solver cdcl.time_ms（solver_core.h:161 声明无赋值，solver_core.c:1208 读取
+  判超时 → **求解超时门恒不触发静默失效**）、meta_proof timeout_ms 无消费点、
+  lv_protocol last_solve_time_ms 恒 0.0、conflict_detector max_check_time_ms
+  无读；**timestamp_ms 同名字段 3 语义（跨语言漂移）**：C stream 单调 ms vs
+  command log 墙钟 ms vs Python 模拟事件墙钟 ms（同 schema 基座不同数值差
+  1e9 量级）；追踪事件时间戳 3 样（proof_trace 墙钟秒 vs proof_trace_tree
+  单调 ns vs debug_trace.c:96 **CPU 时间冒充**）；墙钟秒 3 形态 8+ 处 +
+  PROP_TIME_MS_PER_SEC 1000 双处定义；休眠 3 形态 4 处绕过 lv_thread_sleep；
+  lvTimestamp 死 API 语义歧义（单调冒充 Unix 时间戳）；adaptive_threshold
+  timespec 绕道；薄包装族 6+ 个（simd 计时宏双处定义）；Python 超时原语双实现
+  （async_stream 自建 vs wait_for 直用）；K8 test_adaptive_threshold 手写绕道
+  复核未闭环。
+- **协议编解码/消息帧/校验面 K39**：**权威已建**：字节序唯一权威
+  lv_store_/lv_load_{be,le}{16,32,64}（WS 解码/ggb ZIP/LVZD/LVZC/huffman 全
+  收敛其上 ✅）+ lvByteWriter/Reader 打包层（msgpack 全量构建其上）+ lvJsonBuf
+  命令响应主体统一 + sha256 唯一 ✅；**"一需求多实现"**：**LVZD 容器头部布局
+  缺陷（P0）**：写端在 uint8_t header[16]（LVZD_HEADER_SIZE=16）中写
+  magic(4)+ver(4)+ver(4)+lv_store_le64(header+12,size) 8 字节+lv_store_le64
+  (header+20,size) 8 字节——**栈缓冲越界写 12 字节**；读端从仅 16 字节缓冲
+  越界读 8 字节；声称 Checksum 实际缺失（28 布局 vs 16 缓冲自相矛盾）；生产
+  零调用仅测试且 :1063 断言 `write_ok==true||write_ok==false` **恒真**测不出；
+  **AxiomPackage 内容哈希双实现**（axiom_pkg_serialize.c 权威含 name/version
+  vs axiom_pkg_depref.c:218 compute_lemma_block_hash 含 lemma_block_id，
+  :67 注释自认"人工同步"——字段集漂移则校验失配）；字节序写入 3 处手写
+  （png_write_be32 ≡ lv_store_be32 / WS 帧头编码手写大端但解码走 lv_load 同
+  文件不对称）；PNG CRC-32 手写表（全库唯一 CRC，校验和领域无公共设施）；
+  3 处 snprintf JSON 手拼 vs 同层 30+ 处 lvJsonBuf；hex 解码无权威（module_delta
+  手写 + lv_snprintf("%016llx") 绕过编码权威）；**interop"JSON-RPC 声称"与
+  实现脱节（M5）**（interop_parse_command 仅空格分词，C 侧无 JSON-RPC 请求
+  解析器）；STDIO 帧无半行累积（>4096 被 fgets 切分）；INTEROP_CMD_BUFFER_SIZE
+  双定义；varint/zigzag 与 lv_BSWAP* 零消费者。
+- **构建系统组织面 K40**：**权威已建（健康面）**：单根 CMakeLists.txt 2394 行
+  管理 27 个 OBJECT 库 + lv_static/lv_shared + **288 测试注册全覆盖 0 遗漏** ✅
+  + lv_PROP_VERIFIER_SOURCES 单源化 + L4 子域宏嵌套复用 + lv_L4_LIBS 聚合
+  变量 + 全手写源清单风格统一 + lv ALIAS 链 + CI 平台分 job ✅；**"一需求
+  多实现"**：**聚合目标清单逐字重复两份（P1）**：lv_static 27 行
+  $<TARGET_OBJECTS:...>（1638-1667）与 lv_shared 同 27 行（1689-1718）逐字
+  一致（54 次引用）——新增 OBJECT 库必须改两处；**公共依赖三元组手写三处**
+  （1543/1602/1617 ${lv_L4_LIBS}+layer3+layer2，与 L4 宏传递依赖冗余）；
+  **平台/外部依赖链接散落 15 处**（GMP 7/Threads 3/ws2_32 3/libm 2 未抽象
+  interface 库）；**lv_l4_func_block 手写展开绕过宏**（1511-1515，额外
+  compile_definitions 可在宏调用后追加）；**include 目录集合 3 处声明不一致**
+  （宏 5 路径含 core/src vs 聚合库 3 路径不含——消费者直接 include core/src
+  会失败，当前恰好全走 core/include/lv 属侥幸）；**lv_HEADERS 手写清单与磁盘
+  漂移 83 个 .h**（305 vs 222）+ 64 个 .c 未列；add_lv_test vs add_lv_example
+  脚手架 body 重复；测试注册命名双轨 + docs:1028 文档失同步（引用
+  add_lv_test_and_register 实为 add_lv_test_auto）；**编译器 ID 分支重复 8 处
+  + lv_core 无条件 -O2 覆盖 Debug/coverage 的 -O0**（断点失效/coverage 失真）；
+  CI 与 CMake 双份 include 路径硬编码（compile_commands.json 已开启未消费）；
+  **MSVC 分支无 CI 覆盖**（windows-build 用 MSYS2 MinGW，/W4 /guard:cf /sdl
+  从未验证）。
+
+### ② 设计更新（standard-unification-design.md v1.16）
+
+- 新增 §1.76-1.80 现状清单（K36-K40）+ §3.76-3.80 分面方案；
+- P0-P4 并入第十六轮项（P0 含 K36 FATAL 紧急保存修复+lv_CHECK_RANGE 消歧、
+  K38 超时基座统一+死超时接线、K39 LVZD 修复或删除；P1 含 K36 日志级别收敛+
+  debug 族删除+trace_session 移除、K37 几何向量原语收敛+is_integer UB 修复、
+  K38 墙钟秒收敛+timestamp_ms 契约+休眠收编、K39 哈希单源化+JSON-RPC 声称
+  对齐+测试补齐、K40 聚合清单单源化+依赖 interface 库+include 集变量化）；
+- 新增决策点 F62-F66（调试诊断/数学原语/时间时钟/协议编解码/构建系统）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十六轮审计 5 组 / 总 113 组 / K36-K40 方案 / F62-F66
+  待确认 / **FATAL 紧急保存双重失效（崩溃保护从不触发）**、**sledge 超时形同
+  虚设 + solver 超时门恒不触发**、**LVZD 头部越界写/读 + 恒真断言**、
+  **lv_number_is_integer 截断 UB**、**lv_CHECK_RANGE 同名 3/4 参数 include
+  顺序陷阱**、**聚合清单 27×2 逐字重复 + lv_HEADERS 83 个 .h 漂移**。
+
+### 遗留登记
+
+- 无新增遗留（第十六轮审计为设计留档，未执行）。
+
