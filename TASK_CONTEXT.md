@@ -7659,3 +7659,65 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第十轮审计为设计留档，未执行）。
 
+## 一百三十三、批次 标准统一化第十一轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第十一轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 88 组）。
+
+### ① 第十一轮审计结果（K11-K15）
+
+- **测试替身面 K11**：无第三方 mock 框架，唯一机制"struct 函数指针注入+全局计数"
+  每文件手写命名四套（stub_/fake_/dummy_/mock_）；**7 处一需求多实现**
+  （add_point 私有副本 / 图构建内联构造器 ×13 / verify_single≡verify_prove_src /
+  插件替身 3 处 / 断言双轨+3 处 #undef override / 预言机 3 处 / **测试设施反向
+  耦合进生产库**——test_framework.c+bootstrap_test*.c ×8 无条件编入 lv_static，
+  bootstrap_test_internal.h:29 生产头重定义 CONSTRAINT_DISTANCE）。
+- **数学常量面 K12**：**4 处真重复**（π 家族多源 / e 双头 lv_E 零调用架空 /
+  GEOEVOL_PI_SMOOTH_FACTOR 双定义 / 黄金比哈希本地重定义 Q14 漏网）；
+  **缺 lv_SQRT2 权威宏** → MCTS_C 1.41421356（8 位有效损失 7 位精度）；
+  角度宏绕过（180.0/360.0 手写）+ 死宏（lv_DEG_TO_RAD 零调用）；
+  裸 M_PI/M_PI_2/M_E 30+ 处黑名单未清零。
+- **错误处理模式面 K13**：**goto 164 处 / 31 文件 / 标签词汇 ~28 种** vs
+  **lv_DEFER 家族 ~159 调用点 / 33 文件**（lv_auto_free 已休眠）；
+  一需求多风格：构造器回滚 ≥5 写法、锁守卫同子系统双形式（groebner 宏+goto
+  _gcleanup 36 处 vs lv_DEFER）、FuncBlock 双写法；清理代码重复
+  （solver_symbolic mpz_clear 4 次 / lambda_unify destroy+free 3 次）；
+  同函数混用（geom_evol lv_DEFER(10)+goto(6)）；合理差异保留
+  （事务回滚/MSVC 回退/链表逐节点）。
+- **适配器桥接面 K14**：**证明→Coq/Lean 一需求 ≥4 实现** + **tactic 映射表
+  ≥8 处独立维护**（4 层 8 表 D4 映射重复）；**图→SVG/TikZ 各 3 套**（含 L4
+  module_export 越权）；ConstraintGraph 序列化多路径（lv_storage 注册表只注册
+  1 格式，7+ 模块未接入）；lvProofStep 同名双定义；L0 门面三模式并存 +
+  upper_export_* 三函数同构；健康面：lv_dot_writer 统一 7 消费方、L6 converter
+  已收敛、L10 桥接骨架已收敛。
+- **全局状态线程安全面 K15**：**一需求多容器 6 组**（配置 5 容器 A 进程级 vs B
+  TLS 同键跨线程读不同值 / 内存统计双容器 / 预设库双容器 g_preset_library 完全
+  无锁 / 日志 4 容器 / 后端注册表 ×5 / stream_ctx ×14 未收敛）；
+  **线程安全缺口 8 个含 3 个真实竞态**（lv_config 撕裂读 G1 / g_coeff_pool
+  check-then-create TOCTOU G5 / 跨线程 lv_init 双重 init G7）；
+  裸 extern 可写全局 ~12 个；健康范本：memory_pool/runtime_monitor/
+  geometry_config（进程权威+TLS 快照）/lv_error（TLS getter）。
+
+### ② 设计更新（standard-unification-design.md v1.11）
+
+- 新增 §1.51-1.55 现状清单（K11-K15）+ §3.51-3.55 分面方案；
+- P0-P4 并入第十一轮项（P0 含测试设施移出生产库+lv_SQRT2 权威宏+guard-detach+
+  tactic 单源化+3 真实竞态；P1 含 mock 统一+字面量收敛+锁守卫统一+证明导出锚定
+  +全局 getter 化）；
+- 新增决策点 F40-F43（测试设施/清理机制/证明导出锚定/线程安全）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第十一轮审计 5 组 / 总 88 组 / K11-K15 方案 / F40-F43 待确认 /
+  **3 个真实竞态确认**（lv_config 撕裂读 / g_coeff_pool TOCTOU / 跨线程 lv_init）、
+  **测试设施反向耦合进生产库**、**tactic 映射表 ≥8 处独立维护**、
+  **MCTS_C √2 精度损失**。
+
+### 遗留登记
+
+- 无新增遗留（第十一轮审计为设计留档，未执行）。
+
