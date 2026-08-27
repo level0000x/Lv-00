@@ -1,19 +1,21 @@
-# 项目内部标准统一化设计（v1.1）
+# 项目内部标准统一化设计（v1.2）
 
 > 状态：设计（2026-08-27），**仅设计不执行**
 > 触发：用户发现"项目内部标准需要统一化——标准尽量少，一个需求不要多种格式"
-> 输入：**两轮共十路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
-> 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本）
+> 输入：**三轮共十五路**子代理并行审计（第一轮：DSL/序列化/导出/证书证明/存储配置；
+> 第二轮：错误码API/坐标代数/测试框架/Python绑定/工具链脚本；
+> 第三轮：引擎生命周期/推理后端/流协议/内存日志/前端文档）
 > 原则：**标准尽量少，一个需求一种格式**；不同需求允许不同格式，但不得同需求多格式
 >
-> **v1.1（2026-08-27）**：用户追加"再开子代理找其他方面"——第二轮五路审计新增
-> 15 组重复点（总 **30 组**），本版并入 §1.6-1.10 与 §3.6-3.10。
+> **v1.1（2026-08-27）**：第二轮五路新增 15 组（总 30 组）。
+> **v1.2（2026-08-27）**：第三轮五路新增 13 组（总 **43 组**），
+> 本版并入 §1.11-1.15 与 §3.11-3.15。
 
 ---
 
 ## 1. 现状总览：一需求多格式清单
 
-两轮共十路审计发现 **30 组"一个需求多种格式"重复点**：
+三轮共十五路审计发现 **43 组"一个需求多种格式"重复点**：
 
 ### 1.1 DSL/语言面（2 组）
 
@@ -57,6 +59,42 @@
 | C2 | 预设（preset）数据 | preset_*.c（死代码）→ module/presets/*.lvz（活数据源）→ preset_registry.yaml（无消费方）→ python preset_*.py（镜像） | **4 表示并存**，所有权不清+镜像漂移 |
 | C3 | Lean 项目 | formal/（lakefile.toml 声明式）vs lv-formal/（lakefile.lean 命令式）vs TestLake/ | 两个同名 `lvFormal`，工具链/mathlib/lakefile 语法全漂移 |
 | C4 | 公理包注册表 | INDEX.json + 各包 manifest.json + package_template.json | 双层 JSON 字段重复，仅 2 包有 manifest |
+
+### 1.11 引擎生命周期面（第三轮，L1-L2）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| L1 | 问题生命周期状态机（IDLE→PARSING→REASONING→COMPLETE/ERROR） | `lvContextState`（context.h，5 态）vs `EngineState`（engine.h:196，5 态） | **同一副骨架实现两份**：状态集完全一致、转移图逐位一致、状态名映射几乎逐字重复（连"不合并"豁免注释都是复制粘贴的）；`engine.h:189` 自认"语义对齐" |
+| L2 | 解析→推理→完成/失败进度 | 模型 A `lvContextState`（lv_prove 便捷路径用）+ 模型 B `EngineState`（**除定义文件外全项目零生产调用，几乎死代码**）+ 模型 C `lvStageStatus`+session->success（L7 编排真实主路径） | **同一需求被建模三次，其中两次未接入真实 pipeline**——最典型"一需求多实现" |
+
+### 1.12 推理后端面（第三轮，L3）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| L3 | "判定约束可满足/可解" | ~9 条平行路径：DSL check_sat（仅 DOF 预检）/ engine_rewrite_and_solve / engine_scheduler / solve_algebraic_system（8 步流水线）/ CDCL SAT lvSolver / SAT 编码管线 / SMT 后端（仅 Groebner 分支可用）/ ATP 后端（全桩）/ relation_model 有界判定 / Newton 数值求解 | **真正被使用的求解后端只有 GROEBNER**；注册机制 5+ 套并存（SMTBackendRegistry/ATPBackendRegistry/EngineScheduler.backends[]/lvBackendPluginRegistry/数值注册表），引擎真实分发走 engine_scheduler.c 硬编码静态 VTable **绕开所有注册表**；GROEBNER 在三套注册表+两张静态表各一份 |
+
+### 1.13 流/交互协议面（第三轮，L4）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| L4 | 引擎输出流/事件推送 | C `stream_json.c`（13 字段权威）vs `lv/stream_bridge.py`（14 字段）vs `stream_bridge/stream_bridge.py`（16 字段，**自述与 stream.h 一致但已漂移**）；`stream.event` JSON-RPC 序列化器 **3 套**；事件类型元数据 C x-macro 权威 vs module/stream_bridge `_EVENT_META`（40 项无 PRESET，**已漂移**）；WS 服务器 **2 个栈**（C 自实现 RFC6455 vs Python websockets 库）；进程内 StreamContext 语义 3 份重复 | 同一份引擎事件流被 C interop 直接推、又被 Python 透过另一套 ctypes 绑定拉出再次分发——**C 与 Python 各做一遍事件→JSON-RPC**；interop 命令词汇表（21 命令）与 L9 五命令（Load/Verify/Batch/Export/Visualize）是**两套不同协议** |
+
+### 1.14 内存/日志面（第三轮，L5-L8）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| L5 | 调试分配器 | `allocator.c` debug_alloc（走 AllocatorOps vtable，权威）vs `lv_utils.c` `lv_malloc_tracked/lv_calloc_tracked`（**内联重写同一套**"裸 malloc+魔数+追踪链表+统计"骨架，绕过 vtable，不响应分配器切换；core/src 内零调用点） | **同一调试分配器逻辑两份实现**，一份休眠 |
+| L6 | 内存统计 | `MemoryStats`（lv_utils.h，扁平全局计数器，实际使用）vs `lvMemoryStats`（memory_pool.h，按 type_id 分类型数组，**生产零调用**） | 双写两套统计，第二套已失效；README 引用 `lv_get_memory_stats_ex` **无实现** |
+| L7 | 泄漏检测 | lv_cleanup 实际路径（简单 current_used 检查）vs `lv_memory_leak_report`（精确未释放块遍历，生产零调用）vs 文档声称的 lv_mem_print_stats（未被生产调用） | 泄漏检测三路径，文档描述与运行时实现不一致，最精确工具被弃置 |
+| L8 | 日志级别 | `lvLogLevel`（lv_log.h，值越小越详细）vs `LogLevel`（debug.h，条件编译别名）vs `lv_LOG_LEVEL_*`（lv_internal.h:103，**值越大越详尽，方向相反**）vs runtime_monitor 带 tag 又一套 | **3-4 套日志级别词汇表，语义顺序互相打架**；lv_log.h 自认用魔法数字规避同名冲突 |
+
+### 1.15 前端/文档面（第三轮，L9-L11）
+
+| # | 需求 | 现状格式 | 审计结论 |
+|---|---|---|---|
+| L9 | 前端数据通道 | 前端 `protocol/index.ts` KernelBridge 接口 + createMockBridge（**无任何组件消费**）；`hooks/useExport.ts` 定义未引用；M1-Canvas 读 geometryStore 硬编码 mock | **前端 100% mock 数据，与 C 内核零连接**——proof_widget.c 的 C API 数据契约（为前端声明）成为未使用孤岛 |
+| L10 | 证明/求解器/几何文档 | 证明系统 5 篇（09/22/34/38/42，同一模块被多篇覆盖）、求解器 5 篇（04/14/17/19/25）、几何 6 篇（15/16/21/26+）、数值 7 篇 | 同主题多文档泛滥；`stable_release_gap_analysis.md` 自述与 GAP_ANALYSIS.md 重复；INDEX.md 死链接；版本号互相打架（v1.1.0 vs v3.5.0 vs v5.0.0） |
+| L11 | 语言语法定义 | `doc/docs/lv_LANGUAGE_SPEC.md` vs 根 `docs/architecture/` DSL 三篇 vs `bootstrap/` .lv 语义规格 | **同一语言语法定义 ≥3 处**；导出格式枚举双套（InteropExportFormat 10 种 vs lvExportFormat 6 种）互不引用 |
 
 ---
 
@@ -152,20 +190,59 @@
   - 构建 9 个并行目录无 CMakePresets.json → **新增 CMakePresets.json 归一**（build/build3/build_symcheck 等命名化）；
   - **无真平台孪生脚本**（21 个 .sh 全在第三方依赖，项目自身 0 个）——ps1⇄sh 分化不成立，无此负担。
 
+### 3.11 引擎生命周期面（第三轮，L1-L2）
+
+**决策**：
+- **L1 状态机二合一**：`lvContextState` 与 `EngineState` 合并为**单一问题生命周期状态机**（IDLE→PARSING→REASONING→COMPLETE/ERROR + 转移表 + 名称表 + 合法性判定共享一份实现）；差异化部分（错误枚举返回类型、熔断强转）参数化为配置而非复制骨架。删除复制粘贴的"豁免注释"。
+- **L2 进度模型收敛**：主流程锚定**模型 C**（lvStageStatus + session 编排，真实路径）；模型 B（EngineState）若合并后仍零生产调用则**删除**；模型 A（lvContextState）保留为 context 自身状态（数据容器状态），与编排进度解耦。
+
+### 3.12 推理后端面（第三轮，L3）
+
+**决策**：
+- **统一推理后端注册表**：`lvBackendPluginRegistry` 为唯一事实源（补 ops vtable 绑定），删除 `SMTBackendRegistry`/`ATPBackendRegistry` 手工枚举与 `kSchedulerBackendVTables` 硬编码静态表；GROEBNER 单实例派生（新增后端只改一处）。
+- **求解主链收敛**：`solve_algebraic_system()`（唯一被多模块复用的真实求解器）为权威，调用方统走调度器；3 处壳（engine_solve/engine_scheduler/func_block_determinism）收敛。
+- **桩后端明确标注**：SMT（Z3/cvc5/Singular）、ATP（Vampire/E/iProver）、BDD、approx_counter、probabilistic 标"框架/桩，未接线"，不删但不得声称可用。
+- **保留分层**：rewrite（规范化）/unify（证明检查）/证明策略（12 策略）/模型计数/数值后端/Newton 交互求解是**不同推理策略**，不合并。
+
+### 3.13 流/交互协议面（第三轮，L4）
+
+**决策**：
+- **事件→JSON 契约单一化**：以 C `stream_json.c`（13 字段，x-macro 权威）为唯一事件序列化契约；删除 `module/stream_bridge/stream_bridge.py` 的 16 字段漂移副本与 `_EVENT_META`（40 项漂移）；`lv/stream_bridge.py` 改为运行时调 C `stream_event_type_*`（已同步，保留）。
+- **`stream.event` JSON-RPC 序列化器 3→1**：以 C `stream_event_to_jsonrpc` 为权威，Python ws_server 复用同一格式（不再各自实现）。
+- **WS 双栈收敛**：C 自实现 RFC6455（interop_server_ws）与 Python websockets 二选一为**网络层标准**（建议 Python websockets 服务端 + C 进程内出口），C WS 降级或删除；SSE 保留为可选传输。
+- **协议词汇表分离明确**：interop 21 命令（AddNode/ExportGraph/StreamStart…）为 L5 引擎协议；L9 五命令（Load/Verify/Batch/Export/Visualize）为应用层编排方言——**文档标注两者不同**，不合并但不得混用。
+- **文档同步**：`31_stream_interop.md` 的 StreamEvent 结构更新为与代码一致（现写 proof_step_id/json_payload，代码实为 var_id/detail_json/graph_json/merge_pairs）。
+
+### 3.14 内存/日志面（第三轮，L5-L8）
+
+**决策**：
+- **L5 调试分配器二合一**：删除 `lv_malloc_tracked/lv_calloc_tracked`（内联重写版，零调用点），统一走 `AllocatorOps` vtable（allocator.c debug_alloc 为权威）。
+- **L6 内存统计二选一**：锚定 `MemoryStats`（lv_utils.h 扁平全局，实际使用）；`lvMemoryStats`（memory_pool.h 按类型统计，生产零调用）删除或真正接线；README 引用的 `lv_get_memory_stats_ex` 补齐实现或删引用。
+- **L7 泄漏检测归一**：`lv_cleanup` 接 `lv_memory_leak_report`（精确未释放块遍历，最可靠工具）；文档更新为与实际实现一致。
+- **L8 日志级别单一词汇表**：锚定 `lvLogLevel`（lv_log.h，值越小越详细）；`lv_LOG_LEVEL_*`（lv_internal.h 方向相反）改名或废弃；`LogLevel`（debug.h）收敛为别名；删除魔法数字规避（lv_log.h:87-92 注释自认）；runtime_monitor 带 tag 宏与主入口打通。
+
+### 3.15 前端/文档面（第三轮，L9-L11）
+
+**决策**：
+- **L9 前端接真实内核**：前端 `protocol/index.ts` KernelBridge 从 mock 切换到 `proof_widget.c` 的 C API 数据契约（已是设计好的孤岛），经 interop JSON 接入；`createMockBridge` 保留为开发模式；`useExport` 接线到 interop 导出。
+- **L10 文档收敛**：同主题多文档合并（证明 5 篇→1 权威 + 指向、求解器 5 篇→1、几何 6 篇→1、数值 7 篇→1）；删 `stable_release_gap_analysis.md`（自述重复）；修 INDEX.md 死链接；统一"当前版本"事实源（v1.1.0 十层为权威，其他版本号引用纠正）。
+- **L11 语言语法单一事实源**：`lv_LANGUAGE_SPEC.md` 为唯一权威语言规范；根 `docs/architecture/` DSL 三篇改为"设计文档"（引用而非定义语法）；`bootstrap/` .lv 语义规格与规范对齐；导出格式枚举双套（InteropExportFormat vs lvExportFormat）合并为单一枚举。
+
 ---
 
-## 4. 优先级与工作量（v1.1 更新：30 组）
+## 4. 优先级与工作量（v1.2 更新：43 组）
 
 | 批次 | 内容 | 工作量（估） | 风险 |
 |---|---|---|---|
-| **P0 死代码/冗余清理** | S2 删 LVZ 内嵌图序列化器、S3 删薄封装、S4 删死枚举、E1 删 SVG 瘦版、E2 删 TikZ 两套、P4 改名、C1 删 setup.py、E11 断言参数序修正、E15 目录归一+双脚本去重 | ~900-1300 行删除/改名 | 低（多为无调用方） |
-| **P1 权威格式收敛** | S1 Module→JSON（含修复丢图缺陷）、E4 canonical 改名、C2/C14 预设单一数据源、C4 注册表合并、E5 错误码桥接映射、E8 有理数合并、E13 DSL 三套归一、E15 CMakePresets | ~1200-2000 行改动 | 中（需回归测试） |
-| **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler 独有能力 + .lvz 职责收敛 + 语法糖第一批 | ~1500-2500 行 | 中高（语法面） |
-| **P3 证明/API IR 统一** | P1-P3：lvProofObject 为唯一 IR、证明 JSON→OPML、证书层 A 修正、E6 返回码约定收敛、E7 API 入口收敛、E12 测试入口归一 | ~1500-2500 行 | 中高（证明引擎） |
-| **P4 项目级合并** | C3 Lean 项目合并、E9 代数数桥接、E10 区间语义分工、E14 预设注册表 v3→v4 | 视工具链 | 高（外部工具链） |
+| **P0 死代码/冗余清理** | S2-S4 序列化冗余、E1/E2 导出去重、P4 改名、C1 删 setup.py、E11 断言参数序、E15 目录归一、L1 状态机合并、L5 删 tracked 分配器、L7 泄漏检测归一、L10 删重复文档 | ~1500-2500 行删除/改名 | 低-中（多为无调用方或纯删除） |
+| **P1 权威格式收敛** | S1 Module→JSON、E4 canonical 改名、C2/C14 预设单一源、C4 注册表、E5 错误码桥接、E8 有理数合并、E13 DSL 归一、E15 CMakePresets、L2 进度模型收敛、L4 事件契约单一化、L6 内存统计二选一、L8 日志级别归一 | ~2000-3200 行改动 | 中（需回归测试） |
+| **P2 语言统一** | D1-D2：.lv 吸收 dsl_compiler + .lvz 职责收敛 + 语法糖第一批 + L11 语法单一事实源 | ~1800-3000 行 | 中高（语法面） |
+| **P3 证明/API/推理 IR 统一** | P1-P3 证明 IR、E6 返回码收敛、E7 API 入口、E12 测试入口、L3 推理注册表、L9 前端接内核 | ~2500-4000 行 | 中高（引擎/证明） |
+| **P4 项目级合并** | C3 Lean 合并、E9 代数数桥接、E10 区间语义、E14 预设注册表 v3→v4、L10 文档合并 | 视工具链 | 高（外部工具链） |
 
-> v1.1 工作量上调主因：第二轮新增 E5-E15 涉及错误码桥接（≥35 枚举）、
-> 断言参数序修正（影响 163 测试文件）、Python DSL 三套归一等广面改动。
+> v1.2 工作量上调主因：第三轮新增 L1-L11 涉及状态机合并（context/engine）、
+> 推理注册表统一（5 套注册机制收敛）、流事件契约单一化、前端接真实内核等
+> 广面改动。
 
 ---
 
@@ -181,6 +258,9 @@
 | 断言参数序修正波及 163 测试文件 | P0 先加编译期静态检查（参数序可静态检测的宏包装），再分批改 |
 | 错误码桥接 ≥35 枚举工作量大 | P1 按调用频次分批补映射，先补生产消费点多的（Module/Axiom/Graph） |
 | Python DSL 三套归一可能破坏用户脚本 | P1 保留 dsl.py 兼容 re-export，删除前跑 Python 测试套件 |
+| EngineState 零生产调用但被文档引用 | L1 合并前 grep 确认无外部依赖；删除后同步文档 |
+| 推理注册表统一可能影响求解路径 | L3 以 GROEBNER 单实例验证等价后再切调度器分发 |
+| 前端接内核是功能开发非纯去重 | L9 单独立项（前端 mock→真实通道），不作为清理批次 |
 
 ---
 
@@ -194,9 +274,12 @@
 - **F6**（第二轮）：错误码桥接（E5）+ 返回码约定收敛（E6）是否纳入 P1/P3？
 - **F7**（第二轮）：断言参数序修正（E11）是否优先做（P0，纯测试面安全）？
 - **F8**（第二轮）：Python 链式 DSL 三套归一（E13）保留 dsl.py 为唯一入口是否确认？
+- **F9**（第三轮）：lvContextState 与 EngineState 合并（L1）+ EngineState 若零调用则删除（L2）是否确认？
+- **F10**（第三轮）：推理后端统一注册表（L3，lvBackendPluginRegistry 为唯一事实源）是否立项？
+- **F11**（第三轮）：流事件 JSON 契约单一化（L4，删除 Python 漂移副本）是否确认？
+- **F12**（第三轮）：前端接真实内核（L9）是否单独立项（功能开发，非清理）？
 
 ---
 
-*附：本设计基于两轮十路子代理审计（第一轮 DSL/序列化/导出/证书证明/存储配置 15 组 +
-第二轮 错误码API/坐标代数/测试框架/Python绑定/工具链脚本 15 组 = 30 组重复点），
+*附：本设计基于三轮十五路子代理审计（每轮 5 路 ×3 = 43 组重复点），
 全部为设计深化，不执行。执行顺序待用户确认。*
