@@ -7076,3 +7076,49 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（设计定稿，执行待另行指示）。
 
+## 一百二十二、批次 三格式图景修正（lv 家族 vs dsl_compiler）（2026-08-27）
+
+用户澄清"用户写的是 lvz 和 lv 文件"——代码核查确认基线文档 v1.0 的
+"两套 DSL"图景不准确，实际为**三格式图景**。
+
+### ① 核查结论（代码证据）
+
+- **用户书写的语言 = lv 家族**：
+  - `.lv` 规约文件：layer1_parser/lv_loader（7 文件 4534 行），**140 个**文件
+    （bootstrap/src 等），语法 `Point A := ...` / `forall` / `Prove`；
+  - `.lvz` 公理/预设文件：layer4_reasoning/module/module_lvz.c（1340 行）+
+    axiom_pkg_*（共享 lexer_shared 词法，`/* LvzLexer 是 lvLexer 的别名 */`），
+    **149 个**文件（axiom_packages 93 + presets 56），语法
+    `axiom "x" "1.0.0" { template "t" N }`；
+  - 两者共享 `lexer_shared`（layer2_resource），同属 lv 语言家族。
+- **dsl_compiler 不是用户书写语言**：引擎内部"字符串→约束图"通道
+  （lv_prove / L7 编排器 GEOMETRY 阶段 / L9 EXPORT/VISUALIZE
+  `build_graph_from_file` 读任意文本文件当 dsl 源码），22 小写关键字，
+  自建 dsl_lexer（281 行），**无专属文件扩展名**，全库仅 3 处调用入口。
+- **M5 遗留确认**：dsl_compiler.c 头注释自称"实现 .lv 源文件完整编译流水线"
+  与实现脱节（它从不解析 .lv 语法），已记录待修正。
+
+### ② 文档修正（v1.1 基线 / v1.3 语法糖设计）
+
+- dsl-syntax-baseline.md → **v1.1**：三格式图景表（.lv / .lvz / dsl_compiler）、
+  核心结论（用户写 lv 家族、dsl_compiler 是内部通道）、§5 约束更新
+  （语法糖落点 = lv 家族）；
+- dsl-syntax-sugar-design.md → **v1.3 修正**：语法糖落点从 DSL-A 改为
+  lv 家族（.lv/.lvz）；dsl_compiler 22 关键字简写反向移植到 lv 家族作参考；
+  §6 决策表与 §7 处置建议按新图景重写；工作量注记按 lv 家族（~5900 行）对齐。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计修正 / 三格式图景 / 语法糖落点 = lv 家族 / dsl_compiler 降级为内部通道 /
+  M5 注记（dsl_compiler.c 头注释与实现脱节）。
+- **待执行**：0 批次（R4+R5 诊断码/错误恢复，先做 lv_loader 侧）与
+  第一批语法糖（按 lv 家族语法对齐）的执行待用户指示。
+
+### 遗留登记
+
+- 无新增遗留（三格式图景为设计修正，未执行）。
+
