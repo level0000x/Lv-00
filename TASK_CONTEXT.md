@@ -9431,3 +9431,46 @@ K35 已确认项「证明→LaTeX 转义补齐」——三文件原样写入路�
   Python _str_dec helper（P1）、字符串字面量转义策略二选一（P2）——
   后续批次。
 
+## 一百五十九、批次 F33 K2 平方因子单设施收敛（2026-08-31）
+
+F33（K2 快速幂×3 + 平方因子×3 单设施）——平方因子项完成。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| lv_squarefree_i64 权威 | lv_arith_safe.h 新增 static inline lv_squarefree_i64（符号保留 +
+  防 INT64_MIN 溢出 + 逐平方因子除法）；语义验证 72→2 / -12→-3 / 8→2 /
+  18→2 / INT64_MIN→-2 全正确 |
+| symbolic_coord.c:352 | 本体改委托 lv_squarefree_i64（原 int64 权威，保留函数名兼容） |
+| quadratic.c | int 版 static remove_square_factors 删除；quadratic_create 改调
+  lv_squarefree_i64 |
+| algebraic.c | unsigned 版 static remove_square_factors 删除（**零调用死代码**） |
+| symbolic_coord_ops.c / transform.c | 删除 `int remove_square_factors(int)` extern 声明
+  （**与原 int64_t 定义签名不匹配 UB**）；调用点改 lv_squarefree_i64 |
+
+### ② 快速幂评估
+
+- lv_alg_rational_pow 与 lv_number_pow 两处快速幂骨架**已收敛为同构**
+  （指数二进制展开 + mul 回调）；lv_number_pow 负指数缺陷此前已修复
+  （注释自述经 double 倒数）；lv_safe_pow（int64 语义基线）已收敛——
+  K2"mul 回调参数化设施"登记为已满足（两处操作类型不同，抽模板收益有限）。
+
+### ③ 测试
+
+- test_exact_arithmetic_ext.c 新增 test_squarefree（9 项：72/-12/0/1/-1/8/
+  18/12/INT64_MIN）——21/21 含；
+- 全量 ctest **288/288 通过**。
+
+### 决策登记
+
+- F33 平方因子三处收敛为 lv_squarefree_i64 单一权威 / 跨文件签名不匹配
+  UB 消除 / algebraic 死代码删除 / 快速幂已收敛登记 /
+  批次 158 CI 双绿。
+
+### 遗留登记
+
+- F33 快速幂：已登记收敛（不重复抽设施）。
+- 下一批候选：K41 谓词面（meta_proof + lv_perpendicular/lv_parallel）、
+  F16 解析安全、F24 层验证、F43 跨线程 lv_init（→F28）。
+

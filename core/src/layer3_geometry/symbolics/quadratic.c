@@ -44,6 +44,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/lv_arith_safe.h" /* lv_squarefree_i64（K2/F33 收敛权威） */
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
@@ -58,7 +59,8 @@
 #define COORD_SEVEN_OVER_FIVE_N 32
 
 /* ── 前向声明 ── */
-static int remove_square_factors(int n);
+/* K2/F33：remove_square_factors 统一走 lv_squarefree_i64 权威（lv_arith_safe.h），
+ * 删除本文件 int 版 static 复制 */
 static TranscendentalExpr *transcendental_expr_parse(const char *name);
 static void transcendental_expr_destroy(TranscendentalExpr *expr);
 static void q_transcendental_destroy(Transcendental *t);
@@ -125,7 +127,7 @@ Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n) {
     if (!q)
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "quadratic_create: calloc failed");
 
-    n = remove_square_factors(n);
+    n = (unsigned int) lv_squarefree_i64(n); /* K2/F33：统一走权威 */
     q->a = a;
     q->n = n;
 
@@ -395,21 +397,5 @@ static void q_transcendental_destroy(Transcendental *t) {
     lv_free((void **) &t);
 }
 
-/**
- * 移除平方因子。
- *
- * @param n 输入整数
- * @return 移除平方因子后的结果
- */
-static int remove_square_factors(int n) {
-    if (n == 0)
-        return 0;
-    int result = 1;
-    int temp = (n < 0) ? -n : n;
-    for (int i = 2; i * i <= temp; i++) {
-        while (temp % (i * i) == 0) {
-            temp /= (i * i);
-        }
-    }
-    return (n < 0) ? -temp : temp;
-}
+/* K2/F33：remove_square_factors int 版 static 实现已删除——
+ * 统一走 lv_arith_safe.h lv_squarefree_i64 权威（见 quadratic_create） */

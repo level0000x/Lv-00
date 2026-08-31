@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "lv/exact_arithmetic.h"
+#include "lv/lv_arith_safe.h" /* lv_squarefree_i64（K2/F33 回归） */
 
 #include "test_unified.h"
 
@@ -62,6 +63,20 @@ static void test_safe_pow(void) {
     TEST_ASSERT(!lv_safe_pow(2, 63, &r), "overflow detected");
 }
 
+/* K2/F33：lv_squarefree_i64 单一权威平方因子移除（收敛三处实现） */
+static void test_squarefree(void) {
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(72), 2LL);   /* 72 = 6²×2 */
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(-12), -3LL); /* 符号保留：-(2²)×3 */
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(0), 0LL);
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(1), 1LL);
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(-1), -1LL);
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(8), 2LL);    /* 8 = 2²×2 */
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(18), 2LL);   /* 18 = 3²×2 */
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(12), 3LL);   /* 12 = 2²×3 */
+    /* INT64_MIN 边界（防 -(n+1)+1 溢出路径） */
+    TEST_ASSERT_EQ((long long) lv_squarefree_i64(-9223372036854775807LL - 1), -2LL);
+}
+
 /* ============== Main ============== */
 
 TEST_MAIN_BEGIN("ExactArithmeticExt")
@@ -69,5 +84,6 @@ TEST_MAIN_BEGIN("ExactArithmeticExt")
     printf("\n--- exact_arithmetic (zero-coverage) ---\n");
     TEST_MAIN_RUN(test_timestamp_now);
     TEST_MAIN_RUN(test_safe_pow);
+    TEST_MAIN_RUN(test_squarefree); /* K2/F33 */
 
 TEST_MAIN_END()

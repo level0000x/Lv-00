@@ -218,6 +218,35 @@ static inline bool lv_safe_sub_i64(int64_t a, int64_t b, int64_t *out) {
     return true;
 }
 
+/**
+ * @brief 移除整数中的所有完全平方因子（K2/F33 收敛为单一权威）
+ *
+ * 收敛三处实现：symbolic_coord.c:352（int64 权威）/
+ * quadratic.c:404（int 版，符号保留）/ algebraic.c:1225（unsigned 版）。
+ * 语义 = 去除所有平方因子后保留符号与无平方部分：
+ *   remove_square_factors(72) = 2   （72 = 6²×2）
+ *   remove_square_factors(-12) = -3 （-12 = -(2²)×3）
+ *
+ * @param n 输入整数（可负；0/1 原样返回）
+ * @return 去除完全平方因子后的整数（保留符号）
+ */
+static inline int64_t lv_squarefree_i64(int64_t n) {
+    if (n == 0 || n == 1 || n == -1)
+        return n;
+    int neg = (n < 0) ? -1 : 1;
+    uint64_t m = (n < 0) ? (uint64_t) (-(n + 1)) + 1 : (uint64_t) n; /* 防 INT64_MIN */
+    uint64_t result = 1;
+    /* 逐平方因子除法：d² 整除则除去（与 quadratic/algebraic 一致且
+     * 对 INT64 范围足够——质因数分解在 d 大到 d*d 溢出前终止） */
+    for (uint64_t d = 2; d <= m / d; d++) {
+        while (m % (d * d) == 0) {
+            m /= (d * d);
+        }
+    }
+    result = m; /* 剩余部分本身无平方因子（含残留 >sqrt 的单次因子） */
+    return (int64_t) result * neg;
+}
+
 #ifdef __cplusplus
 }
 #endif

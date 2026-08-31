@@ -61,7 +61,8 @@ bool is_rational_zero(const Rational *r);
 void refine_algebraic_bounds(Algebraic *a, int iterations);
 char *algebraic_serialize(const Algebraic *a);
 char *quadratic_serialize(const Quadratic *q);
-int remove_square_factors(int n);
+/* K2/F33：remove_square_factors 已收敛为 lv_arith_safe.h lv_squarefree_i64
+ * （原 extern int 版声明与实际 int64_t 定义签名不匹配 UB） */
 
 /* 降级检查函数（定义于 symbolic_coord_trust.c） */
 SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result);

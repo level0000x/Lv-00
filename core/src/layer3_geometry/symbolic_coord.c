@@ -23,6 +23,7 @@
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_arith_safe.h" /* lv_squarefree_i64（K2/F33 收敛权威） */
 #include "lv/lv_utils.h" /* 提供 lv_malloc/lv_free/lv_strdup */
 #include "lv/mpz_poly.h"
 
@@ -346,26 +347,12 @@ bool is_rational_zero(const Rational *r) {
  * 使用 int64_t 避免大整数溢出：n 可能来自代数化简中的系数，
  * 在极端情况下可达 10⁹ 量级，int 在 32 位平台上仅有 2×10⁹ 范围。
  *
+ * 【K2/F33 收敛】本函数改为委托 lv_arith_safe.h 的 lv_squarefree_i64
+ * 单一权威（合并 symbolic_coord.c / quadratic.c / algebraic.c 三处实现）。
+ *
  * @param n 要处理的整数
  * @return 移除所有平方因子后的结果（n 的无平方部分）
  */
 int64_t remove_square_factors(int64_t n) {
-    if (n <= 1)
-        return n;
-    int64_t result = 1;
-    for (int64_t d = 2; d * d <= n; d++) {
-        int count = 0;
-        while (n % d == 0) {
-            n /= d;
-            count++;
-        }
-        /* 奇数次幂的质因子保留一次 */
-        if (count % 2 != 0) {
-            result *= d;
-        }
-    }
-    /* 剩余的大于 sqrt(n) 的质因子（必为 1 次） */
-    if (n > 1)
-        result *= n;
-    return result;
+    return lv_squarefree_i64(n);
 }

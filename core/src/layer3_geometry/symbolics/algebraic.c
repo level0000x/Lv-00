@@ -1214,25 +1214,10 @@ char *algebraic_serialize(const Algebraic *a) {
 
 /* ============================================================
  * Quadratic Number Implementation (a + b*sqrt(n))
- * ============================================================ */
+ * ============================================================
 
-/**
- * 移除整数中的平方因子。
- *
- * @param n 正整数
- * @return 去除所有平方因子后的整数
- */
-static unsigned int remove_square_factors(unsigned int n) {
-    /* Remove perfect square factors */
-    for (unsigned int i = 2; i * i <= n;) {
-        if (n % (i * i) == 0) {
-            n /= (i * i);
-        } else {
-            i++;
-        }
-    }
-    return n;
-}
+/* K2/F33：remove_square_factors unsigned 版 static 已删除（零调用死代码）——
+ * 统一走 lv_arith_safe.h lv_squarefree_i64 权威 */
 
 /**
  * 检查有理数是否为零。

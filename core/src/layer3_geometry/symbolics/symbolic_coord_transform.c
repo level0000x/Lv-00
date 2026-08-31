@@ -22,6 +22,7 @@
 #include "lv/bit_burning.h"
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/lv_arith_safe.h" /* lv_squarefree_i64（K2/F33 收敛权威） */
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
@@ -35,7 +36,8 @@
 void refine_algebraic_bounds(Algebraic *a, int iterations);
 bool algebraic_try_rationalize(Algebraic *a);
 bool is_rational_zero(const Rational *r);
-int remove_square_factors(int n);
+/* K2/F33：remove_square_factors 已收敛为 lv_arith_safe.h lv_squarefree_i64
+ * （原 extern int 版声明与实际 int64_t 定义签名不匹配 UB） */
 double algebraic_to_double(const Algebraic *a);
 double transcendental_to_double(const Transcendental *t);
 
@@ -720,7 +722,7 @@ static SymbolicCoord *sqrt_rational(const SymbolicCoord *coord, unsigned int unu
     }
 
     unsigned int n = mpz_get_ui(remaining);
-    n = remove_square_factors(n);
+    n = (unsigned int) lv_squarefree_i64(n); /* K2/F33：统一走权威 */
 
     Rational *a = rational_create(0, 1);
     Rational *b = rational_create_from_mpz(square_part, den);
