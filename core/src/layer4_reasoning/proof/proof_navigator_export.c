@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_str_utils.h" /* lv_str_latex_escape_alloc（K35 LaTeX 转义补齐） */
+
 #include "lv/lv_platform.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
@@ -205,7 +207,10 @@ bool proof_export_latex(ProofNavigator *nav, const char *filepath) {
             continue;
         fprintf(f, "\\item %s", proof_step_type_to_string(step->type));
         if (step->note) {
-            fprintf(f, " (%s)", step->note);
+            /* K35：note 用户可控，LaTeX 转义防 _ % \ 破坏编译 */
+            char *esc_note = lv_str_latex_escape_alloc(step->note);
+            fprintf(f, " (%s)", esc_note ? esc_note : step->note);
+            lv_free((void **) &esc_note);
         }
         fprintf(f, "\n");
     }

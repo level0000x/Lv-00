@@ -393,6 +393,26 @@ static void test_export_formats(void) {
     TEST_ASSERT_MSG(strstr(latex, "documentclass") != NULL || strlen(latex) > 0, "LaTeX 内容");
     lv_free((void **) &latex);
 
+    /* K35：LaTeX 转义回归——lv_str_latex_escape_alloc 对用户可控字符串
+     * 含 `_ % \` 正确转义（lv_proof_to_latex 内部对 label/description/
+     * rule name 使用同一转义，见 proof_export.c PROOF_LATEX_APPEND） */
+    {
+        char *e1 = lv_str_latex_escape_alloc("a_b%c\\d");
+        TEST_ASSERT_MSG(e1 != NULL, "转义分配非空");
+        if (e1) {
+            TEST_ASSERT_MSG(strstr(e1, "a\\_b\\%c") != NULL, "label 特殊字符已转义");
+            TEST_ASSERT_MSG(strstr(e1, "a_b%c") == NULL, "未保留未转义形式");
+            lv_free((void **) &e1);
+        }
+        /* 空串与普通串安全 */
+        char *e2 = lv_str_latex_escape_alloc(NULL);
+        TEST_ASSERT_MSG(e2 != NULL && e2[0] == '\0', "NULL 输入按空串处理");
+        lv_free((void **) &e2);
+        char *e3 = lv_str_latex_escape_alloc("plain");
+        TEST_ASSERT_MSG(e3 != NULL && strcmp(e3, "plain") == 0, "普通串原样");
+        lv_free((void **) &e3);
+    }
+
     char *coq = lv_proof_to_coq(tree);
     TEST_ASSERT_MSG(coq != NULL, "Coq 导出非空");
     lv_free((void **) &coq);

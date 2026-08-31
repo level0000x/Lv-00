@@ -435,10 +435,15 @@ char *lv_proof_compiler_to_latex(const lvProofObject *proof, const char *languag
         }
 
         const char *rule_name = step->rule_name ? step->rule_name : "规则";
-        lv_strbuf_printf(&sb, "由 %s 可得", rule_name);
+        /* K35：rule_name 用户可控，LaTeX 转义防 _ % \ 破坏编译 */
+        char *esc_rule = lv_str_latex_escape_alloc(rule_name);
+        lv_strbuf_printf(&sb, "由 %s 可得", esc_rule ? esc_rule : rule_name);
+        lv_free((void **) &esc_rule);
 
         if (step->conclusion && step->conclusion->label) {
-            lv_strbuf_printf(&sb, " $%s$.\n", step->conclusion->label);
+            char *esc_label = lv_str_latex_escape_alloc(step->conclusion->label);
+            lv_strbuf_printf(&sb, " $%s$.\n", esc_label ? esc_label : step->conclusion->label);
+            lv_free((void **) &esc_label);
         } else {
             lv_strbuf_printf(&sb, "。\n");
         }

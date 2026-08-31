@@ -9393,3 +9393,41 @@ F54 AST/括号深度闸门接线（无硬编码，全部读 lvConfig 配置）�
   参与者为两线段（与 parallel 一致）——若历史 .lv 文件用 3 点形式需迁移，
   登记待查。
 
+## 一百五十八、批次 K35 证明→LaTeX 转义补齐（2026-08-31）
+
+K35 已确认项「证明→LaTeX 转义补齐」——三文件原样写入路径统一补转义。
+
+### ① 实施结果
+
+| 文件 | 修复点 |
+|---|---|
+| proof_export.c | lv_proof_to_latex 新增 PROOF_LATEX_APPEND 辅助（lv_str_latex_escape_alloc 转义 + 释放）；根描述、节点 type_label/label/color、节点描述、rule name 全部走转义（原 5 处 lv_strbuf_printf 原样写入） |
+| proof_compiler.c | to_latex 的 rule_name（"由 %s 可得"）与结论 label（$%s$）补 lv_str_latex_escape_alloc 转义（to_text 纯文本无需转义，已确认） |
+| proof_navigator_export.c | LaTeX 导出的 step->note 补转义（用户可控） |
+
+### ② 测试
+
+- test_proof_engine_enhanced.c 新增转义回归：lv_str_latex_escape_alloc
+  对 "a_b%c\d" → "a\_b\%c\textbackslash{}d"（未转义形式不存在）、
+  NULL 空串、普通串原样——114/114 含。
+- 注：公开构造的证明树 all_nodes 为空（proof_optimize.c:114 注释确认
+  all_nodes 仅引擎内部填充），lv_proof_to_latex 对测试树只输出根描述——
+  故转义验证走函数级单测而非整树断言。
+
+### ③ 验证
+
+- build3 全量 ✅；ctest **288/288 全通过**；
+- 批次 157 CI 首次失败为已知 stream flaky（test_async_mode_basic），
+  rerun 后 success（与批次 157 垂直约束改动无关）。
+
+### 决策登记
+
+- K35 LaTeX 转义补齐完成（3 文件 8 处）/ 转义回归测试钉住 /
+  to_text 纯文本豁免确认。
+
+### 遗留登记
+
+- K35 剩余：JSON 反转义收敛（P1）、词法器骨架共享（P1，随 K27）、
+  Python _str_dec helper（P1）、字符串字面量转义策略二选一（P2）——
+  后续批次。
+

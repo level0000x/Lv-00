@@ -30,6 +30,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/proof.h"
+#include "lv/lv_str_utils.h" /* lv_str_latex_escape_alloc（K35 LaTeX 转义补齐） */
 
 #include "lv/axiom_rule_engine.h"
 #include "lv/error_codes.h"
@@ -301,12 +302,29 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
 
     lvStrBuf buf = {0};
 
+    /* K35：LaTeX 转义辅助——对用户可控字符串（description/label/rule name）
+     * 转义 _ % \ 等特殊字符，防止破坏 LaTeX 编译（原实现原样写入） */
+    #define PROOF_LATEX_APPEND(sb, str)                                     \
+        do {                                                               \
+            if ((str) && (str)[0] != '\0') {                               \
+                char *_esc = lv_str_latex_escape_alloc(str);               \
+                if (_esc) {                                                \
+                    lv_strbuf_append_str((sb), _esc);                      \
+                    lv_free((void **) &_esc);                              \
+                } else {                                                   \
+                    lv_strbuf_append_str((sb), (str));                     \
+                }                                                          \
+            }                                                              \
+        } while (0)
+
     /* LaTeX 文档头 */
     lv_strbuf_printf(&buf, "\\begin{proof}\n");
 
     /* 根节点描述 */
     if (trace->root && trace->root->description[0] != '\0') {
-        lv_strbuf_printf(&buf, "  \\textit{%s}\n\n", trace->root->description);
+        lv_strbuf_printf(&buf, "  \\textit{");
+        PROOF_LATEX_APPEND(&buf, trace->root->description);
+        lv_strbuf_append_str(&buf, "}\n\n");
     }
 
     /* 信任颜色映射到 LaTeX 颜色（LaTeX 格式派生态；TrustColor 权威名称见 trust_color.c trust_color_name()） */
@@ -339,18 +357,29 @@ char *lv_proof_to_latex(const lvProofTraceTree *trace) {
         if (color_idx < 0 || color_idx >= color_map_count)
             color_idx = 0;
 
-        lv_strbuf_printf(&buf, "  \\noindent %s[%s] %s%s}\n", type_label, node->label, color_map[color_idx],
-                             node->label);
+        lv_strbuf_append_str(&buf, "  \\noindent ");
+        PROOF_LATEX_APPEND(&buf, type_label);
+        lv_strbuf_append_str(&buf, "[");
+        PROOF_LATEX_APPEND(&buf, node->label);
+        lv_strbuf_append_str(&buf, "] ");
+        PROOF_LATEX_APPEND(&buf, color_map[color_idx]);
+        lv_strbuf_append_str(&buf, "{");
+        PROOF_LATEX_APPEND(&buf, node->label);
+        lv_strbuf_append_str(&buf, "}\n");
 
         if (node->description[0] != '\0') {
-            lv_strbuf_printf(&buf, "  \\\\ \\quad %s\n", node->description);
+            lv_strbuf_append_str(&buf, "  \\\\ \\quad ");
+            PROOF_LATEX_APPEND(&buf, node->description);
+            lv_strbuf_append_str(&buf, "\n");
         }
 
         if (node->rule && node->rule->name[0] != '\0') {
-            lv_strbuf_printf(&buf, "  \\\\ \\quad \\textit{by} \\texttt{%s}\n", node->rule->name);
+            lv_strbuf_append_str(&buf, "  \\\\ \\quad \\textit{by} \\texttt{");
+            PROOF_LATEX_APPEND(&buf, node->rule->name);
+            lv_strbuf_append_str(&buf, "}\n");
         }
 
-        lv_strbuf_printf(&buf, "\n");
+        lv_strbuf_append_str(&buf, "\n");
     }
 
     /* 结论 */
