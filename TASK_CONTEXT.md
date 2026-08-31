@@ -9661,3 +9661,40 @@ F28-B3（lv_module_registry_reset + 幂等 upsert）完成，**J1 生命周期�
 - 下一批候选：K41 谓词面（lv_perpendicular/lv_parallel + meta_proof）/
   F24 剩余声明补齐 / F16 剩余（sanitize/节点数/token 长度）。
 
+## 一百六十五、批次 K41 谓词面（lv_lines_parallel/perpendicular + meta_proof 接线）（2026-08-31）
+
+K41 谓词面（F67 立项延伸）——平行/垂直浮点权威谓词 + meta_proof 验证接线。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| lv_lines_parallel | geo_predicate.h/c 新增浮点权威谓词：方向叉积 |u×v| <= eps·|u|·|v|，
+  容差读 lvGeometryConfig.parallel_epsilon（**可配置不硬编码**，激活零消费者字段） |
+| lv_lines_perpendicular | 方向点积 |u·v| <= eps·|u|·|v|，容差读
+  perpendicular_epsilon（已配置默认 1e-8，geometry_config.c） |
+| meta_proof [PARALLEL] 接线 | 新增 eval_parallel（INCIDENCE 反查两线段端点 +
+  候选坐标替换 + lv_lines_parallel 判定不平行即矛盾）——替换原 eval_default
+  恒 false（L1 直接矛盾证明不验证平行约束）；con_eval_table 更新 |
+| 测试 | test_geo_predicate_ext.c 新增 test_lines_parallel_perpendicular
+  （7 断言：水平平行/垂直/45° 非平行非垂直/反平行/退化）——34/34 含 |
+
+### ② 验证
+
+- build3 全量 + ctest **288/288 通过**；
+- 批次 164（F28-B3）CI success，Python Bindings 运行中。
+
+### 决策登记
+
+- K41 谓词面完成（两权威谓词 + meta_proof 平行验证接线 + 容差配置驱动）/
+  F67 垂直约束 + K41 谓词面累计完成 K41 主项。
+- K41 剩余：meta_proof 手写叉积收敛委托（check_incidence_contradiction/
+  is_point_between_segment → 权威）、algebra_mode 硬编码 1e-6 委托、
+  方位角收敛（geo_angle 激活）——P1 后续。
+
+### 遗留登记
+
+- K41 剩余 P1：meta_proof 手写叉积委托 / algebra_mode 容差委托 /
+  方位角收敛 / solver_geom_templates 改引用新谓词。
+- 下一批候选：F24 剩余声明补齐 / F16 剩余 / K41 P1 剩余。
+

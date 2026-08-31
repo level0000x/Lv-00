@@ -143,6 +143,23 @@ static void test_compat_macros(void) {
     TEST_ASSERT_DOUBLE(lv_incircle(0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0), 1.0, 1e-15);
 }
 
+/* ============== K41/F67：平行/垂直谓词 ============== */
+
+static void test_lines_parallel_perpendicular(void) {
+    /* 水平线段 A：(0,0)-(2,0)；水平线段 B：(1,1)-(3,1) → 平行 */
+    TEST_ASSERT(lv_lines_parallel(0, 0, 2, 0, 1, 1, 3, 1, lv_PREDICATE_APPROX), "horizontal parallel");
+    /* 竖直线段 C：(0,0)-(0,2)；水平线段 D：(1,1)-(3,1) → 垂直 */
+    TEST_ASSERT(lv_lines_perpendicular(0, 0, 0, 2, 1, 1, 3, 1, lv_PREDICATE_APPROX), "vertical vs horizontal perpendicular");
+    /* 非平行非垂直：45° 与水平 */
+    TEST_ASSERT(!lv_lines_parallel(0, 0, 1, 1, 0, 0, 1, 0, lv_PREDICATE_APPROX), "45deg not parallel to horizontal");
+    TEST_ASSERT(!lv_lines_perpendicular(0, 0, 1, 1, 0, 0, 1, 0, lv_PREDICATE_APPROX), "45deg not perpendicular to horizontal");
+    /* 反平行（同方向反向）：仍平行 */
+    TEST_ASSERT(lv_lines_parallel(0, 0, 2, 0, 3, 1, 1, 1, lv_PREDICATE_APPROX), "antiparallel still parallel");
+    /* 退化线段（零长度）：false */
+    TEST_ASSERT(!lv_lines_parallel(0, 0, 0, 0, 0, 0, 1, 0, lv_PREDICATE_APPROX), "zero-length segment not parallel");
+    TEST_ASSERT(!lv_lines_perpendicular(0, 0, 0, 0, 0, 0, 1, 0, lv_PREDICATE_APPROX), "zero-length segment not perpendicular");
+}
+
 /* ============== Main ============== */
 
 TEST_MAIN_BEGIN("GeoPredicateExt")
@@ -153,6 +170,7 @@ TEST_MAIN_BEGIN("GeoPredicateExt")
     TEST_MAIN_RUN(test_same_side_of_circle);
     TEST_MAIN_RUN(test_point_in_convex_polygon);
     TEST_MAIN_RUN(test_predicate_get_mode);
+    TEST_MAIN_RUN(test_lines_parallel_perpendicular); /* K41/F67 */
     TEST_MAIN_RUN(test_compat_macros);
 
 TEST_MAIN_END()

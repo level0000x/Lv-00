@@ -23,6 +23,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/groebner_engine.h"
 #include "lv/lv_lifecycle.h"
+#include "lv/geo_predicate.h" /* lv_lines_parallel（K41/F67 平行矛盾验证） */
 #include "lv/geo_utils.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -351,6 +352,67 @@ static bool eval_default(const ConstraintGraph *graph, int node_id, double cx, d
     (void)graph; (void)node_id; (void)cx; (void)cy; (void)con_id; (void)con; (void)candidate; return false;
 }
 
+/* K41/F67：平行约束矛盾验证——参与者为两条线段（通过 INCIDENCE 反查端点），
+ * node_id 是被验证的候选线段；用 lv_lines_parallel 权威谓词判定方向不平行
+ * 即矛盾（原 eval_default 恒 false = "不矛盾"，L1 直接矛盾证明不验证平行约束）。
+ * 线段端点提取仿 point_on_line_segment（INCIDENCE 约束反查）。 */
+static bool eval_parallel(const ConstraintGraph *graph, int node_id, double cx, double cy, int con_id, const Constraint *con, const SymbolicCoord *candidate) {
+    (void)con_id; (void)candidate;
+    if (!graph || !con || con->participant_count != 2)
+        return false;
+    if (node_id != con->participants[0] && node_id != con->participants[1])
+        return false;
+    /* 另一条线段 */
+    int other = (node_id == con->participants[0]) ? con->participants[1] : con->participants[0];
+
+    /* 候选线段端点：node_id 线段用候选点补一端 + INCIDENCE 反查另一段 */
+    double ep1[2][2];
+    int n1 = 0;
+    for (int i = 0; i < graph->constraint_count && n1 < 2; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active || c->type != INCIDENCE || c->participant_count != 2) continue;
+        if (c->participants[1] != node_id) continue;
+        double ex, ey;
+        if (!graph_node_coords(graph, c->participants[0], &ex, &ey)) continue;
+        bool dup = false;
+        for (int k = 0; k < n1; k++) {
+            if (fabs(ep1[k][0] - ex) <= META_PROOF_GEOM_EPS && fabs(ep1[k][1] - ey) <= META_PROOF_GEOM_EPS) { dup = true; break; }
+        }
+        if (!dup) { ep1[n1][0] = ex; ep1[n1][1] = ey; n1++; }
+    }
+    if (n1 < 2) return false; /* 端点不足（几何不完整），不判定矛盾 */
+
+    /* 另一条线段端点 */
+    double ep2[2][2];
+    int n2 = 0;
+    for (int i = 0; i < graph->constraint_count && n2 < 2; i++) {
+        Constraint *c = graph->constraints[i];
+        if (!c || !c->is_active || c->type != INCIDENCE || c->participant_count != 2) continue;
+        if (c->participants[1] != other) continue;
+        double ex, ey;
+        if (!graph_node_coords(graph, c->participants[0], &ex, &ey)) continue;
+        bool dup = false;
+        for (int k = 0; k < n2; k++) {
+            if (fabs(ep2[k][0] - ex) <= META_PROOF_GEOM_EPS && fabs(ep2[k][1] - ey) <= META_PROOF_GEOM_EPS) { dup = true; break; }
+        }
+        if (!dup) { ep2[n2][0] = ex; ep2[n2][1] = ey; n2++; }
+    }
+    if (n2 < 2) return false;
+
+    /* 用候选坐标替换 node_id 线段的一端（验证候选是否破坏平行性）：
+     * 若候选点加入后该线段方向与另一条不平行 → 矛盾 */
+    double ax = ep1[0][0], ay = ep1[0][1];
+    double bx = ep1[1][0], by = ep1[1][1];
+    /* 候选坐标是 node_id 线段的候选点：替换最近端点（简化：替换端点 0） */
+    double d0 = (cx - ax) * (cx - ax) + (cy - ay) * (cy - ay);
+    double d1 = (cx - bx) * (cx - bx) + (cy - by) * (cy - by);
+    if (d1 < d0) { ax = bx; ay = by; }
+    bx = cx; by = cy;
+
+    bool parallel = lv_lines_parallel(ax, ay, bx, by, ep2[0][0], ep2[0][1], ep2[1][0], ep2[1][1], lv_PREDICATE_APPROX);
+    return !parallel; /* 候选导致不平行 = 矛盾 */
+}
+
 static const ConEvalHandler con_eval_table[] = {
     [INCIDENCE]    = eval_incidence,
     [BETWEENNESS]  = eval_betweenness,
@@ -358,7 +420,7 @@ static const ConEvalHandler con_eval_table[] = {
     [CONTAINMENT]  = eval_containment,
     [ANGLE]        = eval_angle,
     [CONNECTION]   = eval_default,
-    [PARALLEL]     = eval_default,
+    [PARALLEL]     = eval_parallel, /* K41/F67：平行约束矛盾验证（原 eval_default 恒 false） */
 };
 
 /**

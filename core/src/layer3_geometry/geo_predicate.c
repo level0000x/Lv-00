@@ -951,6 +951,61 @@ lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double
 }
 
 /**
+ * @brief 判定两条线段方向是否平行（K41/F67：浮点域权威谓词）
+ *
+ * 方向向量叉积接近 0：|dx1*dy2 - dy1*dx2| <= eps * |dir1| * |dir2|，
+ * 容差读 lvGeometryConfig.parallel_epsilon（可配置不硬编码）。
+ *
+ * @param ax, ay 线段 A 起点；bx, by 线段 A 终点
+ * @param cx, cy 线段 B 起点；dx, dy 线段 B 终点
+ * @param mode   精度模式（仅 EXACT/APPROX；SYMBOLIC 回退 EXACT）
+ * @return true 两线段方向平行
+ */
+lv_PUBLIC_API bool lv_lines_parallel(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                     double dy, lvPredicateMode mode) {
+    (void)mode; /* 平行判定为标量比较，容差驱动，不区分模式 */
+
+    double ux = bx - ax, uy = by - ay;
+    double vx = dx - cx, vy = dy - cy;
+    double len_u = sqrt(ux * ux + uy * uy);
+    double len_v = sqrt(vx * vx + vy * vy);
+    if (len_u == 0.0 || len_v == 0.0)
+        return false; /* 退化线段（零长度）方向未定义 */
+
+    const lvGeometryConfig *cfg = lv_geometry_get_config();
+    double eps = cfg->parallel_epsilon; /* K41：激活零消费者字段，可配置不硬编码 */
+
+    /* |u×v| <= eps * |u| * |v| */
+    double cross = fabs(ux * vy - uy * vx);
+    return cross <= eps * len_u * len_v;
+}
+
+/**
+ * @brief 判定两条线段方向是否垂直（K41/F67：浮点域权威谓词）
+ *
+ * 方向向量点积接近 0：|dx1*dx2 + dy1*dy2| <= eps * |dir1| * |dir2|，
+ * 容差读 lvGeometryConfig.perpendicular_epsilon（可配置不硬编码）。
+ */
+lv_PUBLIC_API bool lv_lines_perpendicular(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                          double dy, lvPredicateMode mode) {
+    (void)mode;
+
+    double ux = bx - ax, uy = by - ay;
+    double vx = dx - cx, vy = dy - cy;
+    double len_u = sqrt(ux * ux + uy * uy);
+    double len_v = sqrt(vx * vx + vy * vy);
+    if (len_u == 0.0 || len_v == 0.0)
+        return false;
+
+    const lvGeometryConfig *cfg = lv_geometry_get_config();
+    double eps = cfg->perpendicular_epsilon;
+
+    /* |u·v| <= eps * |u| * |v| */
+    double dot = fabs(ux * vx + uy * vy);
+    return dot <= eps * len_u * len_v;
+}
+
+/**
  * @brief 判定点是否在三角形内部（含边界）
  *
  * 使用三个方向谓词判定：

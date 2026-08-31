@@ -159,6 +159,24 @@ lv_PUBLIC_API bool lv_same_side_of_line(double ax, double ay, double bx, double 
 lv_PUBLIC_API bool lv_segments_intersect(double ax, double ay, double bx, double by, double cx, double cy, double dx,
                                          double dy, lvPredicateMode mode);
 
+/**
+ * @brief 判定两条线段方向是否平行（K41/F67：浮点域权威谓词）
+ *
+ * 方向向量叉积接近 0（|dir1×dir2| <= eps·|dir1|·|dir2|），容差读
+ * lvGeometryConfig.parallel_epsilon（可配置不硬编码）。
+ */
+lv_PUBLIC_API bool lv_lines_parallel(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                     double dy, lvPredicateMode mode);
+
+/**
+ * @brief 判定两条线段方向是否垂直（K41/F67：浮点域权威谓词）
+ *
+ * 方向向量点积接近 0（|dir1·dir2| <= eps·|dir1|·|dir2|），容差读
+ * lvGeometryConfig.perpendicular_epsilon（可配置不硬编码）。
+ */
+lv_PUBLIC_API bool lv_lines_perpendicular(double ax, double ay, double bx, double by, double cx, double cy, double dx,
+                                          double dy, lvPredicateMode mode);
+
 /* ========================================================================
  * 圆谓词
  * ======================================================================== */
