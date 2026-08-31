@@ -20,6 +20,7 @@
 #include "lv/lv_lexer.h"
 
 #include "lv/lv_xmacro.h"
+#include "lv/parser_safety.h" /* lv_check_token_length（F16/G1 token 长度闸门） */
 
 #include <ctype.h>
 #include <stdio.h>
@@ -211,6 +212,15 @@ static LvToken make_token_at(LvLexer *lexer, LvTokenType type, size_t start_pos,
     tok.loc.column = start_col;
     tok.start = lexer->source + start_pos;
     tok.length = length;
+
+    /* F16/G1：token 长度闸门——超长 token（标识符/字符串等）转为 ERROR
+     * token，parser 跳过；上限 lvConfig.parser.parser_max_token_length
+     * （默认 4096 可配置不硬编码）。EOF/ERROR 本身不检查。 */
+    if (length > 0 && type != LV_TOKEN_EOF && type != LV_TOKEN_ERROR) {
+        if (lv_check_token_length(length) != lv_OK) {
+            tok.type = LV_TOKEN_ERROR;
+        }
+    }
     return tok;
 }
 

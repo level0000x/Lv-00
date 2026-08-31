@@ -9698,3 +9698,41 @@ K41 谓词面（F67 立项延伸）——平行/垂直浮点权威谓词 + meta_
   方位角收敛 / solver_geom_templates 改引用新谓词。
 - 下一批候选：F24 剩余声明补齐 / F16 剩余 / K41 P1 剩余。
 
+## 一百六十六、批次 F16 G1 解析安全剩余（2026-08-31）
+
+F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F16 全部接线落地**。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| lv_ast_node_count 新增 | lv_ast.c 复用 ast_max_depth_rec 遍历结构改为计数（child/next
+  + union 按类型分发）；lv_ast.h 声明 |
+| lv_load_file 节点数闸门 | 解析后调 lv_check_ast_node_count（上限
+  lvConfig.parser.parser_max_ast_nodes 默认 500000，可配置不硬编码） |
+| lexer token 长度闸门 | make_token_at 对超长 token（> parser_max_token_length
+  默认 4096）返回 LV_TOKEN_ERROR（parser 跳过）；EOF/ERROR 豁免 |
+
+- 至此 F16 解析安全链 6 道闸门全齐：输入长度 → 非法字符 → token 长度 →
+  括号递归深度 → AST 深度 → AST 节点数。
+
+### ② 测试
+
+- test_lv_parser.c 追加 6 项（节点计数 / 节点数超限 / token 超长）——
+  74/74 含；
+- 全量 ctest **288/288 通过**；
+- 批次 165（K41 谓词面）CI + Python Bindings 双 success。
+
+### 决策登记
+
+- F16 全部接线完成（lv_input_validate / lv_check_ast_depth / lv_check_ast_
+  node_count / lv_check_token_length + lv_ast_max_depth + lv_ast_node_count）/
+  6 道解析安全闸门 / 全部可配置不硬编码。
+
+### 遗留登记
+
+- F16 lv_input_sanitize：净化接入决策（lv_load_file 是否净化输入）登记
+  后续（当前输入校验拒绝非法字符，净化非必需——若需要 Unicode 空白
+  归一化再接入）。
+- 下一批候选：F24 剩余声明补齐 / K41 P1 剩余（meta_proof 委托等）。
+

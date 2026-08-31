@@ -1353,6 +1353,50 @@ static void test_input_validation_gate(void) {
             FAIL("bigbuf 分配失败");
         }
     }
+
+    TEST("lv_ast_node_count: 计数正确");
+    {
+        const char *src = "Point A, B, C;\nSegment S := segment(A, B);\n";
+        LvParseResult res = parse_source(src);
+        if (res.ast) {
+            int n = lv_ast_node_count(res.ast);
+            if (n >= 3) /* program + 2 语句节点起 */
+                PASS();
+            else
+                FAIL("AST 节点计数应 >= 3");
+            lv_ast_destroy(res.ast);
+        } else {
+            FAIL("解析失败");
+        }
+    }
+
+    TEST("lv_check_ast_node_count: 超限拒绝（上限可配置）");
+    {
+        const lvConfig *cfg = lv_config_current();
+        int limit = cfg->parser.parser_max_ast_nodes;
+        if (lv_check_ast_node_count(limit + 1) != lv_OK)
+            PASS();
+        else
+            FAIL("节点数超限应拒绝");
+        if (lv_check_ast_node_count(1) == lv_OK)
+            PASS();
+        else
+            FAIL("正常节点数应通过");
+    }
+
+    TEST("lv_check_token_length: 超长拒绝（上限可配置）");
+    {
+        const lvConfig *cfg = lv_config_current();
+        int limit = cfg->parser.parser_max_token_length;
+        if (lv_check_token_length((size_t) limit + 1) != lv_OK)
+            PASS();
+        else
+            FAIL("token 超长应拒绝");
+        if (lv_check_token_length(8) == lv_OK)
+            PASS();
+        else
+            FAIL("正常 token 应通过");
+    }
 }
 
 TEST_MAIN_BEGIN("lv parser test")

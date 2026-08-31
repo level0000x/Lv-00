@@ -426,6 +426,20 @@ LvParseResult lv_load_file(const char *filepath) {
                 result.error_count++;
             }
         }
+        /* F16/G1：AST 节点数闸门（上限 lvConfig.parser.parser_max_ast_nodes，
+         * 默认 500000 可配置不硬编码） */
+        if (result.error_count == 0) {
+            int ast_nodes = lv_ast_node_count(result.ast);
+            if (ast_nodes > 0 && lv_check_ast_node_count(ast_nodes) != lv_OK) {
+                if (result.error_count < 64) {
+                    result.errors[result.error_count].loc.line = 0;
+                    lv_snprintf(result.errors[result.error_count].message,
+                                sizeof(result.errors[result.error_count].message),
+                                "AST 节点数 %d 超过上限（见 lvConfig.parser.parser_max_ast_nodes）", ast_nodes);
+                    result.error_count++;
+                }
+            }
+        }
     }
 
     lv_parser_destroy(parser);

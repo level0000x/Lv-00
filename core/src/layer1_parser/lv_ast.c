@@ -1000,3 +1000,64 @@ static int ast_max_depth_rec(const LvAstNode *node, int depth) {
 int lv_ast_max_depth(const LvAstNode *node) {
     return ast_max_depth_rec(node, 0);
 }
+
+/** @brief AST 节点计数递归（K28/F16：lv_check_ast_node_count 接线辅助） */
+static int ast_node_count_rec(const LvAstNode *node) {
+    if (!node)
+        return 0;
+    int count = 1; /* 本节点 */
+    for (const LvAstNode *sib = node->next; sib; sib = sib->next)
+        count += ast_node_count_rec(sib);
+    for (const LvAstNode *c = node->child; c; c = c->next)
+        count += ast_node_count_rec(c);
+    /* union 内嵌子节点（与深度遍历同分发） */
+    switch (node->type) {
+        case LV_AST_DECLARATION:
+            count += ast_node_count_rec(node->data.decl.value); break;
+        case LV_AST_LET:
+            count += ast_node_count_rec(node->data.let_def.value); break;
+        case LV_AST_LOGIC_FORALL:
+        case LV_AST_LOGIC_EXISTS:
+            count += ast_node_count_rec(node->data.quantifier.body); break;
+        case LV_AST_FUNCTION_CALL:
+            count += ast_node_count_rec(node->data.call.args); break;
+        case LV_AST_BINARY_OP:
+        case LV_AST_LOGIC_AND:
+        case LV_AST_LOGIC_OR:
+        case LV_AST_LOGIC_IMPLIES:
+        case LV_AST_LOGIC_IFF:
+            count += ast_node_count_rec(node->data.binary.left);
+            count += ast_node_count_rec(node->data.binary.right); break;
+        case LV_AST_UNARY_OP:
+        case LV_AST_LOGIC_NOT:
+            count += ast_node_count_rec(node->data.unary.operand); break;
+        case LV_AST_COMPARE:
+            count += ast_node_count_rec(node->data.compare.left);
+            count += ast_node_count_rec(node->data.compare.right); break;
+        case LV_AST_CONSTRAINT_STMT:
+        case LV_AST_ASSUME_STMT:
+        case LV_AST_ASSERT_STMT:
+        case LV_AST_PROVE_STMT:
+        case LV_AST_COMPUTE_STMT:
+            count += ast_node_count_rec(node->data.stmt.expr); break;
+        case LV_AST_STRUCT_FIELD:
+        case LV_AST_NAMED_ARG:
+            count += ast_node_count_rec(node->data.field.value); break;
+        case LV_AST_THEOREM_STMT:
+            count += ast_node_count_rec(node->data.theorem.proposition);
+            count += ast_node_count_rec(node->data.theorem.proof_block); break;
+        default:
+            break;
+    }
+    return count;
+}
+
+/**
+ * @brief 计算 AST 树节点总数（F16/G1：lv_check_ast_node_count 接线辅助）
+ *
+ * @param node 根节点
+ * @return 节点总数（含根与全部子节点）；node 为 NULL 返回 0
+ */
+int lv_ast_node_count(const LvAstNode *node) {
+    return ast_node_count_rec(node);
+}
