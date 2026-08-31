@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_internal.h"
+#include "lv/geo_predicate.h" /* lv_lines_parallel / lv_lines_perpendicular / lv_side_of_circle（K41 权威谓词） */
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
 #include "lv/lv_str_utils.h"
@@ -588,27 +589,21 @@ static bool selector_node_direction(const GeomNode *node, double *dx, double *dy
     return true;
 }
 
-/** @brief 判断方向是否与指定轴平行/垂直（容差 1e-9） */
+/** @brief 判断方向是否与指定轴平行（K41：委托权威谓词 lv_lines_parallel，容差读 lvGeometryConfig） */
 static bool selector_dir_axis_parallel(double dx, double dy, char axis) {
-    double len = geo_norm_2d(dx, dy);
-    if (len < 1e-12)
-        return false;
     if (axis == 'X' || axis == 'x')
-        return fabs(dy) / len < 1e-6;
+        return lv_lines_parallel(0.0, 0.0, dx, dy, 0.0, 0.0, 1.0, 0.0, lv_PREDICATE_ADAPTIVE);
     if (axis == 'Y' || axis == 'y')
-        return fabs(dx) / len < 1e-6;
+        return lv_lines_parallel(0.0, 0.0, dx, dy, 0.0, 0.0, 0.0, 1.0, lv_PREDICATE_ADAPTIVE);
     /* Z 轴：2D 平面内无 Z 分量，恒平行 */
     return true;
 }
 
 static bool selector_dir_axis_perpendicular(double dx, double dy, char axis) {
-    double len = geo_norm_2d(dx, dy);
-    if (len < 1e-12)
-        return false;
     if (axis == 'X' || axis == 'x')
-        return fabs(dx) / len < 1e-6;
+        return lv_lines_perpendicular(0.0, 0.0, dx, dy, 0.0, 0.0, 1.0, 0.0, lv_PREDICATE_ADAPTIVE);
     if (axis == 'Y' || axis == 'y')
-        return fabs(dy) / len < 1e-6;
+        return lv_lines_perpendicular(0.0, 0.0, dx, dy, 0.0, 0.0, 0.0, 1.0, lv_PREDICATE_ADAPTIVE);
     /* Z 轴：2D 平面内无法向分量，恒垂直 */
     return true;
 }
@@ -672,7 +667,8 @@ static bool selector_node_contains(const ConstraintGraph *graph, const GeomNode 
             if (!selector_node_coords(center, &ax, &ay) || !selector_node_coords(rp, &bx, &by))
                 return false;
             r = geo_distance_2d(ax, ay, bx, by);
-            return fabs(geo_distance_2d(ax, ay, px, py) - r) < 1e-6;
+            /* 点与圆位置判定委托权威谓词 lv_side_of_circle（K41：容差读 lvGeometryConfig） */
+            return lv_side_of_circle(px, py, ax, ay, r, lv_PREDICATE_ADAPTIVE) == lv_SIDE_ON;
         }
         default:
             return false;

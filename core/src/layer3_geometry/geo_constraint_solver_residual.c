@@ -185,8 +185,9 @@ static double eval_angle(const lvSolverSystem *sys, const lvConstraint *c, doubl
     double day = ea->params[3] - ea->params[1];
     double dbx = eb->params[2] - eb->params[0];
     double dby = eb->params[3] - eb->params[1];
-    double angle_a = (dax != 0.0 || day != 0.0) ? atan2(day, dax) : 0.0;
-    double angle_b = (dbx != 0.0 || dby != 0.0) ? atan2(dby, dbx) : 0.0;
+    /* 方位角委托权威 geo_angle（K41：退化零向量返回 0.0，语义一致） */
+    double angle_a = geo_angle(0.0, 0.0, dax, day);
+    double angle_b = geo_angle(0.0, 0.0, dbx, dby);
     double diff = angle_a - angle_b;
     diff = lv_angle_diff_pi(diff);
     double err = diff - c->value;

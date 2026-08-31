@@ -116,7 +116,7 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
     if (n1->coord_count < 2 || n2->coord_count < 2)
         return false;
 
-    /* 提取坐标值（转为 double 做叉积检测） */
+    /* 提取坐标值（转为 double 做点线关系判定） */
     double x1 = symbolic_coord_to_double(n1->symbolic_coords[0]);
     double y1 = symbolic_coord_to_double(n1->symbolic_coords[1]);
     double x2 = symbolic_coord_to_double(n2->symbolic_coords[0]);
@@ -124,10 +124,10 @@ static bool check_incidence_contradiction(const ConstraintGraph *graph, int node
     double xp = symbolic_coord_to_double(candidate);
     double yp = (n1->coord_count >= 2) ? symbolic_coord_to_double(candidate + 1) : 0.0;
 
-    /* 叉积 = (x2-x1)*(yp-y1) - (y2-y1)*(xp-x1) */
-    double cross = (x2 - x1) * (yp - y1) - (y2 - y1) * (xp - x1);
-
-    return fabs(cross) > lv_EPSILON_HIGH; /* 叉积非零 → 不在线上 */
+    /* 点线关系委托权威谓词 lv_line_side（K41：不手写叉积；容差读 lvGeometryConfig）：
+     * 点在直线外（LEFT/RIGHT）→ 矛盾；在线上（ON）或退化（DEGENERATE，端点重合）→ 不判定 */
+    lvLineSide side = lv_line_side(xp, yp, x1, y1, x2, y2, lv_PREDICATE_ADAPTIVE);
+    return (side == lv_LINE_SIDE_LEFT || side == lv_LINE_SIDE_RIGHT);
 }
 
 /* ── L1 约束真实求值辅助函数 ── */
@@ -186,9 +186,11 @@ static double compute_angle_degrees(double vx, double vy, double p1x, double p1y
  * @return true 位于线段上，false 不位于或无法判定
  */
 static bool is_point_between_segment(double ax, double ay, double bx, double by, double cx, double cy) {
-    /* 共线检测：叉积近似为零 */
-    double cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
-    if (fabs(cross) > META_PROOF_GEOM_EPS)
+    /* 共线检测委托权威谓词 lv_line_side（K41：不手写叉积；容差读 lvGeometryConfig）。
+     * LEFT/RIGHT → 不共线；ON → 共线；DEGENERATE（端点重合）→ 落入下方投影检查：
+     *   A==B → t=0 → true（B 即端点 A）；A==C → len2 退化 → false（与原语义一致） */
+    lvLineSide side = lv_line_side(bx, by, ax, ay, cx, cy, lv_PREDICATE_ADAPTIVE);
+    if (side == lv_LINE_SIDE_LEFT || side == lv_LINE_SIDE_RIGHT)
         return false;
     /* 投影参数 t = (B-A)·(C-A) / |C-A|² ∈ [0,1] ⇔ B 位于线段 AC 上 */
     double dx = cx - ax, dy = cy - ay;

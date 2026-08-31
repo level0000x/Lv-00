@@ -10,6 +10,7 @@
  */
 
 #include "solver_common.h"
+#include "lv/geo_predicate.h" /* lv_lines_parallel / lv_lines_perpendicular（K41 权威谓词） */
 #include "lv/geo_utils.h"
 
 /* 前向声明 */
@@ -26,6 +27,7 @@ int count_point_variables(const ConstraintGraph *graph, int **out_ids);
 typedef struct {
     int id;
     int p1, p2;
+    double x1, y1, x2, y2; /* 端点坐标（with_direction 时填充，供权威谓词委托） */
     double dx, dy;
 } SegInfo;
 
@@ -40,6 +42,10 @@ static void collect_segment_incidence(const ConstraintGraph *graph, SegInfo *seg
             if (with_direction) {
                 segs[seg_count].dx = 0;
                 segs[seg_count].dy = 0;
+                segs[seg_count].x1 = 0.0;
+                segs[seg_count].y1 = 0.0;
+                segs[seg_count].x2 = 0.0;
+                segs[seg_count].y2 = 0.0;
             }
             seg_count++;
         }
@@ -185,11 +191,8 @@ int template_pythagorean(ConstraintGraph *graph, EquationSystem *sys) {
                 if (!has_coords)
                     continue;
 
-                double cax = xa - xc, cay = ya - yc;
-                double cbx = xb - xc, cby = yb - yc;
-                double dot = cax * cbx + cay * cby;
-
-                if (fabs(dot) < lv_EPSILON_LOW * (geo_norm_2d(cax, cay) * geo_norm_2d(cbx, cby) + 1.0)) {
+                /* CA ⊥ CB 判定委托权威谓词 lv_lines_perpendicular（K41：不手写点积，容差读 lvGeometryConfig） */
+                if (lv_lines_perpendicular(xa, ya, xc, yc, xb, yb, xc, yc, lv_PREDICATE_ADAPTIVE)) {
                     int64_t scale = lv_SOLVER_SCALE_FACTOR;
                     mpz_t ab2_x_mpz, ab2_y_mpz;
                     mpz_init(ab2_x_mpz);
@@ -276,7 +279,6 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
         double len_i = geo_norm_2d(dx_i, dy_i);
         if (len_i < lv_EPSILON_DOUBLE)
             continue;
-        double nx_i = dx_i / len_i, ny_i = dy_i / len_i;
 
         for (int j = i + 1; j < graph->node_count; j++) {
             GeomNode *lj = graph->nodes[j];
@@ -292,10 +294,9 @@ int template_parallel_cut(const ConstraintGraph *graph, EquationSystem *sys) {
             double len_j = geo_norm_2d(dx_j, dy_j);
             if (len_j < lv_EPSILON_DOUBLE)
                 continue;
-            double nx_j = dx_j / len_j, ny_j = dy_j / len_j;
 
-            double cross = nx_i * ny_j - ny_i * nx_j;
-            if (fabs(cross) > lv_EPSILON_LOW)
+            /* 两线段方向平行判定委托权威谓词 lv_lines_parallel（K41：不手写叉积，容差读 lvGeometryConfig） */
+            if (!lv_lines_parallel(x1_i, y1_i, x2_i, y2_i, x1_j, y1_j, x2_j, y2_j, lv_PREDICATE_ADAPTIVE))
                 continue;
 
             for (int ci = 0; ci < graph->constraint_count; ci++) {
@@ -397,6 +398,10 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         if (point_coord_xy(n1, &x1, &y1) && point_coord_xy(n2, &x2, &y2)) {
             segs[s].dx = x2 - x1;
             segs[s].dy = y2 - y1;
+            segs[s].x1 = x1;
+            segs[s].y1 = y1;
+            segs[s].x2 = x2;
+            segs[s].y2 = y2;
         }
     }
 
@@ -406,10 +411,10 @@ static int template_parallel_intercept(ConstraintGraph *graph, EquationSystem *s
         for (int j = i + 1; j < seg_count && added < 10; j++) {
             if (segs[j].p1 < 0 || fabs(segs[j].dx) + fabs(segs[j].dy) < lv_EPSILON_DOUBLE)
                 continue;
-            double cross = segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx;
-            double len_i = geo_norm_2d(segs[i].dx, segs[i].dy);
-            double len_j = geo_norm_2d(segs[j].dx, segs[j].dy);
-            if (fabs(cross) < lv_EPSILON_LOW * (len_i * len_j + 1.0)) {
+            double cross = segs[i].dx * segs[j].dy - segs[i].dy * segs[j].dx; /* 保留：作为消元系数 */
+            /* 平行判定委托权威谓词 lv_lines_parallel（K41：不手写叉积，容差读 lvGeometryConfig） */
+            if (lv_lines_parallel(segs[i].x1, segs[i].y1, segs[i].x2, segs[i].y2, segs[j].x1, segs[j].y1,
+                                  segs[j].x2, segs[j].y2, lv_PREDICATE_ADAPTIVE)) {
                 for (int k = 0; k < seg_count && added < 10; k++) {
                     if (k == i || k == j)
                         continue;
