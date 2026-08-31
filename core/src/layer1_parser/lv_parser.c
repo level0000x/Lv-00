@@ -20,6 +20,8 @@ struct LvParser {
     LvToken current;
     int error_count;
     LvParseError errors[64];
+    int paren_depth; /* K28/F54：括号嵌套递归深度计数（防纯括号嵌套爆栈，
+                      * 上限读 lvConfig.parser.parser_max_ast_depth，不硬编码） */
 };
 
 /* ── 辅助函数 ── */
@@ -1428,11 +1430,26 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
         return node;
     }
 
-    /* 带括号的表达式 */
+    /* 带括号的表达式 —— K28/F54：括号嵌套是解析器唯一不受限的递归源
+     * （AST 深度测不出被展平的括号），此处显式计数并对照配置上限拒绝 */
     if (p->current.type == LV_TOKEN_LPAREN) {
+        const lvConfig *cfg = lv_config_current();
+        p->paren_depth++;
+        if (p->paren_depth > cfg->parser.parser_max_ast_depth) {
+            if (p->error_count < 64) {
+                int idx = p->error_count++;
+                p->errors[idx].loc = p->current.loc;
+                lv_snprintf(p->errors[idx].message, sizeof(p->errors[idx].message),
+                            "括号嵌套深度 %d 超过上限 %d（lvConfig.parser.parser_max_ast_depth）",
+                            p->paren_depth, cfg->parser.parser_max_ast_depth);
+            }
+            p->paren_depth--;
+            return NULL;
+        }
         advance(p); /* ( */
         LvAstNode *expr = parse_logic_expr(p);
         expect(p, LV_TOKEN_RPAREN, "expected ')' after sub-expression");
+        p->paren_depth--;
         return expr;
     }
 

@@ -872,3 +872,131 @@ LvEntityType lv_entity_type_from_token(LvTokenType tok) {
     }
     return LV_ENTITY_COUNT; /* 非法值 */
 }
+
+/* ============================================================
+ * AST 深度遍历（K28/F54：lv_check_ast_depth 接线）
+ *
+ * 深度 = 从根到最深节点的边数。遍历 child/next 链表 +
+ * union 内嵌子节点（按节点类型分发，参照 print VTable）。
+ * 纯只读遍历，不改动 AST。
+ * ============================================================ */
+
+static int ast_max_depth_rec(const LvAstNode *node, int depth) {
+    if (!node)
+        return depth;
+    int max_depth = depth;
+
+    /* 兄弟链（next）深度与当前节点相同 */
+    for (const LvAstNode *sib = node->next; sib; sib = sib->next) {
+        int d = ast_max_depth_rec(sib, depth);
+        if (d > max_depth)
+            max_depth = d;
+    }
+
+    /* child 链：子节点深度 +1 */
+    for (const LvAstNode *c = node->child; c; c = c->next) {
+        int d = ast_max_depth_rec(c, depth + 1);
+        if (d > max_depth)
+            max_depth = d;
+    }
+
+    /* union 内嵌子节点（独立指针，不在 child 链） */
+    switch (node->type) {
+        case LV_AST_DECLARATION:
+            if (node->data.decl.value) {
+                int d = ast_max_depth_rec(node->data.decl.value, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_LET:
+            if (node->data.let_def.value) {
+                int d = ast_max_depth_rec(node->data.let_def.value, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_LOGIC_FORALL:
+        case LV_AST_LOGIC_EXISTS:
+            if (node->data.quantifier.body) {
+                int d = ast_max_depth_rec(node->data.quantifier.body, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_FUNCTION_CALL:
+            if (node->data.call.args) {
+                int d = ast_max_depth_rec(node->data.call.args, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_BINARY_OP:
+        case LV_AST_LOGIC_AND:
+        case LV_AST_LOGIC_OR:
+        case LV_AST_LOGIC_IMPLIES:
+        case LV_AST_LOGIC_IFF:
+            if (node->data.binary.left) {
+                int d = ast_max_depth_rec(node->data.binary.left, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            if (node->data.binary.right) {
+                int d = ast_max_depth_rec(node->data.binary.right, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_UNARY_OP:
+        case LV_AST_LOGIC_NOT:
+            if (node->data.unary.operand) {
+                int d = ast_max_depth_rec(node->data.unary.operand, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_COMPARE:
+            if (node->data.compare.left) {
+                int d = ast_max_depth_rec(node->data.compare.left, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            if (node->data.compare.right) {
+                int d = ast_max_depth_rec(node->data.compare.right, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_CONSTRAINT_STMT:
+        case LV_AST_ASSUME_STMT:
+        case LV_AST_ASSERT_STMT:
+        case LV_AST_PROVE_STMT:
+        case LV_AST_COMPUTE_STMT:
+            if (node->data.stmt.expr) {
+                int d = ast_max_depth_rec(node->data.stmt.expr, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_STRUCT_FIELD:
+        case LV_AST_NAMED_ARG:
+            if (node->data.field.value) {
+                int d = ast_max_depth_rec(node->data.field.value, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        case LV_AST_THEOREM_STMT:
+            if (node->data.theorem.proposition) {
+                int d = ast_max_depth_rec(node->data.theorem.proposition, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            if (node->data.theorem.proof_block) {
+                int d = ast_max_depth_rec(node->data.theorem.proof_block, depth + 1);
+                if (d > max_depth) max_depth = d;
+            }
+            break;
+        default:
+            break; /* 其余类型无 union 内嵌子节点 */
+    }
+    return max_depth;
+}
+
+/**
+ * @brief 计算 AST 树的最大深度（K28/F54 接线辅助）
+ *
+ * @param node 根节点
+ * @return 最大深度（单节点深度为 0，其子节点深度为 1）；node 为 NULL 返回 0
+ */
+int lv_ast_max_depth(const LvAstNode *node) {
+    return ast_max_depth_rec(node, 0);
+}

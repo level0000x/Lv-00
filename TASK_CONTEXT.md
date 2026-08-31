@@ -9235,3 +9235,47 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 - F27 I3：其余手写倍增点（stream_lazy/stream_buffer/lv_hashtable/lv_strbuf 等）
   属 K58/K46 登记域，随对应面推进。
 
+## 一百五十四、批次 治理原则 8 登记 + F54 深度闸门完整接线（2026-08-31）
+
+用户「继续反正我的思路是只要可以配置的都不要硬编码指的是是任何」——
+登记**治理原则 8**（可配置的限制一律走配置，禁止硬编码），并按此原则完成
+F54 AST/括号深度闸门接线（无硬编码，全部读 lvConfig 配置）。
+
+### ① 治理原则 8（用户 2026-08-31 定稿，写入设计文档 §2）
+
+- **可配置的限制一律走配置，禁止硬编码**：深度/上限/超时/阈值/大小等
+  限制类常量，一律读 lvConfig 运行时配置（或 config.h X-macro 编译期可调），
+  禁止 `#define XXX 256` 散落或代码内联字面量；编译期尺寸常量（影响
+  sizeof/数组维度）保留宏但归入 config.h 权威区并注明原因；新增限制先问
+  "是否需要可配"；现有硬编码（256/4096/10000/30000 等）实施时逐步收敛。
+
+### ② F54 深度闸门完整接线
+
+- **lv_ast_max_depth 新增**（lv_ast.c/lv_ast.h）：AST 树最大深度遍历，
+  child/next 链 + union 内嵌子节点按类型分发（decl/let/quantifier/call/
+  binary/unary/compare/stmt/field/theorem）；
+- **lv_loader.c lv_load_file 接线**：解析完成后测 AST 深度，超限报错拒绝
+  （读 lv_config_current()->parser.parser_max_ast_depth，可配置）；
+- **lv_parser.c 括号嵌套计数闸门（关键）**：实测发现 parse_primary_expr
+  对括号 `(expr)` 直接返回内层表达式（括号被展平，AST 深度测不出），
+  真正的爆栈风险是**解析器递归深度**——LvParser 新增 paren_depth 字段，
+  括号递归分支计数并对照 parser_max_ast_depth 拒绝（用户担忧"256 可能
+  超"正由此解决：上限可配置，非硬编码）；
+- **测试**（test_lv_parser.c test_ast_depth_gate）：单节点深度 0 / 二元嵌套
+  深度 3 / 深括号嵌套被拒绝 / 常规源码不受影响——4 项全 PASS。
+
+### ③ 验证
+
+- build3 全量构建 ✅；ctest **288/288 全通过**（test_lv_parser 65/65 含新测试）。
+
+### 决策登记
+
+- 治理原则 8 定稿（可配置不硬编码）/ F54 深度闸门按原则接线（AST 深度 +
+  括号递归双闸门，上限全走配置）/ 新测试 4 项钉住。
+
+### 遗留登记
+
+- F27 I3：其余手写倍增点属 K58/K46 登记域，随对应面推进。
+- 第二批 P0 实施清单待提交（F69 K43 coeff_pool / F65 K39 LVZD / F61 K35 SVG /
+  F60 K34 命令 / F67 K41 平行占位 / F43 K15 竞态）。
+

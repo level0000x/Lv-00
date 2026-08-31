@@ -18,6 +18,8 @@
 #include "lv/lv_loader.h"
 #include "lv/lv_file.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_ast.h"      /* lv_ast_max_depth（K28/F54 AST 深度闸门） */
+#include "lv/parser_safety.h" /* lv_check_ast_depth（读 lvConfig 配置） */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -391,6 +393,23 @@ LvParseResult lv_load_file(const char *filepath) {
     }
 
     result = lv_parser_parse_program(parser);
+
+    /* K28/F54：AST 深度闸门 —— 解析完成后遍历 AST 测深度，
+     * 超限即报错拒绝（上限读 lvConfig.parser.parser_max_ast_depth，
+     * 默认 256 可经 lv.config.json 调整，不硬编码）。
+     * 正常 .lv 文件深度远小于上限；深嵌套/恶意输入在此被拦。 */
+    if (result.error_count == 0 && result.ast) {
+        int ast_depth = lv_ast_max_depth(result.ast);
+        if (ast_depth > 0 && lv_check_ast_depth(ast_depth) != lv_OK) {
+            if (result.error_count < 64) {
+                result.errors[result.error_count].loc.line = 0;
+                lv_snprintf(result.errors[result.error_count].message,
+                            sizeof(result.errors[result.error_count].message),
+                            "AST 深度 %d 超过上限（见 lvConfig.parser.parser_max_ast_depth）", ast_depth);
+                result.error_count++;
+            }
+        }
+    }
 
     lv_parser_destroy(parser);
     lv_lexer_destroy(lexer);

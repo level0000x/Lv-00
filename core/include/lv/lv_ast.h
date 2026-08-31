@@ -253,6 +253,9 @@ void lv_ast_destroy(LvAstNode *node);
 /** 打印 AST 树（调试用） */
 void lv_ast_print(const LvAstNode *node, int indent);
 
+/** 计算 AST 树的最大深度（K28/F54：lv_check_ast_depth 接线辅助） */
+int lv_ast_max_depth(const LvAstNode *node);
+
 /** 获取实体类型名称 */
 const char *lv_entity_type_name(LvEntityType type);
 

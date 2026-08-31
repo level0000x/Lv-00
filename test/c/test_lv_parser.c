@@ -3,6 +3,7 @@
 
 #include "lv/lv_loader.h"
 #include "lv/lv_parser.h"
+#include "lv/parser_safety.h" /* lv_check_ast_depth（K28/F54 AST 深度闸门） */
 
 #define TEST_PASS_STATEMENT g_pass_count++
 #define TEST_FAIL_STATEMENT g_fail_count++
@@ -1226,6 +1227,82 @@ static void test_fold_eval_vtable(void) {
         FAIL("A -> A 应恒真 PASS");
 }
 
+/* K28/F54：AST 深度闸门 —— lv_ast_max_depth 计算正确 +
+ * lv_load_file 接线后深 AST 被拒绝（上限读 lvConfig.parser.parser_max_ast_depth） */
+static void test_ast_depth_gate(void) {
+    printf("[AST 深度闸门]\n");
+
+    TEST("lv_ast_max_depth: 单节点深度 0");
+    {
+        LvSourceLoc loc = {1, 1, 0};
+        LvAstNode *leaf = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
+        if (leaf && lv_ast_max_depth(leaf) == 0)
+            PASS();
+        else
+            FAIL("单节点深度应为 0");
+        lv_ast_destroy(leaf);
+    }
+
+    TEST("lv_ast_max_depth: 二元嵌套深度正确");
+    {
+        LvSourceLoc loc = {1, 1, 0};
+        /* 构造 a + (b + (c + d)) 三层二元嵌套 */
+        LvAstNode *d = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
+        LvAstNode *c = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
+        LvAstNode *b = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
+        LvAstNode *a = lv_ast_create(LV_AST_INTEGER_LITERAL, loc);
+        LvAstNode *cd = lv_ast_create_binary(loc, "+", c, d);
+        LvAstNode *bcd = lv_ast_create_binary(loc, "+", b, cd);
+        LvAstNode *root = lv_ast_create_binary(loc, "+", a, bcd);
+        int depth = root ? lv_ast_max_depth(root) : -1;
+        if (depth == 3)
+            PASS();
+        else
+            FAIL("三层二元嵌套深度应为 3");
+        lv_ast_destroy(root);
+    }
+
+    TEST("lv_load_file 接线: 深括号嵌套被拒绝（上限可配置）");
+    {
+        /* 构造超过默认 256 的括号嵌套：parse_primary_expr 对括号直接返回
+         * 内层表达式（AST 深度测不出），真正的防线是解析器 paren_depth
+         * 计数对照 lvConfig.parser.parser_max_ast_depth（可配置，不硬编码）。 */
+        const lvConfig *cfg = lv_config_current();
+        int limit = cfg->parser.parser_max_ast_depth;
+        char deep_src[8192];
+        int pos = 0;
+        pos += sprintf(deep_src + pos, "Point A, B;\n");
+        pos += sprintf(deep_src + pos, "Let deep = ");
+        for (int i = 0; i < limit + 2 && pos < (int)sizeof(deep_src) - 16; i++)
+            pos += sprintf(deep_src + pos, "(");
+        pos += sprintf(deep_src + pos, "1");
+        for (int i = 0; i < limit + 2 && pos < (int)sizeof(deep_src) - 8; i++)
+            pos += sprintf(deep_src + pos, ")");
+        pos += sprintf(deep_src + pos, ";\n");
+
+        /* 走完整解析链：括号深度超限应产生解析错误（paren_depth 闸门） */
+        LvParseResult res = parse_source(deep_src);
+        if (res.error_count > 0) {
+            PASS();
+        } else {
+            FAIL("深括号嵌套应被解析器拒绝");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    TEST("lv_load_file 接线: 常规源码不受影响");
+    {
+        const char *src = "Point A, B, C;\nSegment S := segment(A, B);\n";
+        LvParseResult res = parse_source(src);
+        int max_d = (res.ast) ? lv_ast_max_depth(res.ast) : -1;
+        if (max_d >= 0 && lv_check_ast_depth(max_d) == lv_OK)
+            PASS();
+        else
+            FAIL("常规源码深度应在上限内");
+        lv_ast_destroy(res.ast);
+    }
+}
+
 TEST_MAIN_BEGIN("lv parser test")
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -1262,4 +1339,6 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_spec_extensions);
     printf("\n");
     TEST_MAIN_RUN(test_full_program);
+    printf("\n");
+    TEST_MAIN_RUN(test_ast_depth_gate);
 TEST_MAIN_END()
