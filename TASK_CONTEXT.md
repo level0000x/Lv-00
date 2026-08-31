@@ -9551,3 +9551,44 @@ F16（G1 解析安全函数接线）——lv_input_validate 接入主解析链�
   （头→层归属扫描）登记后续。
 - 下一批候选：K41 谓词面 / F28（含 F43 跨线程 lv_init）J1 生命周期。
 
+## 一百六十二、批次 F28 J1 生命周期 B1（2026-08-31，用户确认方案 B）
+
+用户「可以」确认 F28 方案 B（J1 完整生命周期）——本批完成 B1（F43 跨线程
+lv_init）+ thread_pool once_reset。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| F28-B1 状态机进程级 | lv.c s_lv_state 从 TLS（每线程独立状态→跨线程 lv_init
+  重复初始化共享资源，F43 竞态）提升为**进程级全局** + lv_lazy_lock 互斥
+  （g_lv_state_lock），lv_init/lv_cleanup 整段持锁；嵌套计数语义保留 |
+| thread_pool once_reset | g_pool_once 从 static 局部提升文件级 +
+  lv_global_thread_pool_destroy 后 lv_once_reset——init/cleanup 循环后
+  全局线程池可重建（原销毁后 once 不重置，二次 init 取 NULL） |
+| 测试 | test_thread_ext.c 定义 lv_THREAD_POOL_IMPL（否则占位版恒 NULL，
+  根因：thread_pool.h L48 static inline 占位）→ 新增循环重建测试
+  （首次创建→cleanup→init→重建非 NULL）——13/13 含 |
+
+### ② 验证
+
+- build3 全量 + ctest **288/288 通过**；
+- 批次 161（F24 层验证）CI + Python Bindings 双 success（含 layer-validation job）。
+
+### 决策登记
+
+- F28-B1 完成（F43 跨线程 lv_init 修复：状态机进程级+锁）/
+  thread_pool once_reset（J1 循环重建）/ 测试钉住。
+- F28-B2（lv_cleanup 硬编码 12 处注册表化）/ B3（lv_module_registry_reset +
+  once_reset 统一契约）登记后续子批次——每个模块注册化独立验证成本高，
+  分批推进。
+
+### 遗留登记
+
+- F28-B2：lv_cleanup 硬编码 12 处（func_block_registry/perf/health/
+  adaptive_threshold/error_context/module_autosave/ecosystem/unify/
+  formula_converter/scratch/thread_pool/module_delta）移入注册表——后续子批次。
+- F28-B3：lv_module_registry_reset + once_reset 统一契约（config/ecosystem
+  等未重置点）——后续。
+- 下一批候选：K41 谓词面 / F28-B2 / F24 剩余声明。
+

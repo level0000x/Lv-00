@@ -36,6 +36,7 @@
 
 #include "lv/func_block_registry.h"
 #include "lv/interop.h"
+#include "lv/lv_thread.h" /* lv_lazy_lock（F28/J1：lv_init/cleanup 跨线程互斥） */
 #include "lv/lv_internal.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_serialize_adapters.h"
@@ -73,8 +74,11 @@ typedef struct LvState {
     bool assertions_enabled;
 } LvState;
 
-/** 模块级唯一状态实例（线程局部） */
-static lv_THREAD_LOCAL LvState s_lv_state = {0};
+/** 模块级唯一状态实例（F28/J1：从 TLS 提升为进程级全局——
+ * 原 TLS 每线程独立状态致跨线程 lv_init 重复初始化共享资源（F43 竞态）；
+ * 现为进程级单实例 + lv_lazy_lock 互斥，lv_init/lv_cleanup 跨线程安全） */
+static LvState s_lv_state = {0};
+lv_LAZY_LOCK_DEFINE(g_lv_state_lock);
 
 /* ============================================================
  * 内部辅助函数
@@ -262,15 +266,21 @@ static void lv_module_cleanup_interop_plugins(void) {
 
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
+    /* F28/J1：进程级锁——跨线程并发 lv_init 互斥（原 TLS 状态各线程独立，
+     * 共享底层资源被重复初始化）；锁保护整个初始化过程 */
+    lv_lazy_lock_lock(&g_lv_state_lock, g_lv_state_lock_init_once);
+
     /* 支持嵌套初始化：当系统已初始化时，递增计数即可 */
     if (s_lv_state.system_state == SYSTEM_STATE_INITIALIZED) {
         s_lv_state.init_count++;
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return true;
     }
 
     /* 检查状态：防止在初始化过程中重复调用 */
     if (s_lv_state.system_state == SYSTEM_STATE_INITIALIZING) {
         lv_set_error(lv_ERROR_INVALID_STATE, "系统正在初始化中");
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return false;
     }
 
@@ -303,6 +313,7 @@ bool lv_init(void) {
     if (!lv_module_init_all()) {
         LOG_ERROR("lv", "模块初始化失败");
         set_system_state(SYSTEM_STATE_ERROR);
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return false;
     }
 
@@ -311,23 +322,30 @@ bool lv_init(void) {
 
     LOG_INFO("lv", "Lv-00 v%s 系统初始化完成", lv_VERSION_STRING);
 
+    lv_lazy_lock_unlock(&g_lv_state_lock);
     return true;
 }
 
 /** @brief 系统清理函数 @details 释放所有全局资源，重置初始化状态。 */
 void lv_cleanup(void) {
+    /* F28/J1：进程级锁——与 lv_init 互斥（跨线程并发 init/cleanup 安全） */
+    lv_lazy_lock_lock(&g_lv_state_lock, g_lv_state_lock_init_once);
+
     /* 检查嵌套计数 */
     if (s_lv_state.init_count > 1) {
         s_lv_state.init_count--;
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return;
     }
 
     if (s_lv_state.init_count == 0) {
         /* 未初始化或已清理 */
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return;
     }
 
     if (s_lv_state.system_state != SYSTEM_STATE_INITIALIZED) {
+        lv_lazy_lock_unlock(&g_lv_state_lock);
         return;
     }
 
@@ -385,6 +403,8 @@ void lv_cleanup(void) {
 
     s_lv_state.init_count = 0;
     set_system_state(SYSTEM_STATE_UNINITIALIZED);
+
+    lv_lazy_lock_unlock(&g_lv_state_lock);
 }
 
 /** @brief 查询系统是否已初始化 @return true 已初始化，false 未初始化 */

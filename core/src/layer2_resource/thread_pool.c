@@ -284,6 +284,9 @@ void lv_thread_pool_wait_group(lvThreadPool *pool, lvWaitGroup *group, int timeo
  * 全局线程池
  * ======================================================================== */
 
+/** @brief 全局线程池 once 守卫（文件级，供 destroy 重置使用；g_global_pool 见 L49） */
+static lv_once_t g_pool_once = lv_ONCE_INIT;
+
 /** @brief 初始化全局单例线程池（仅执行一次，由 lv_once 保证线程安全） */
 static void global_pool_init(void) {
     g_global_pool = lv_thread_pool_create(DEFAULT_THREADS);
@@ -294,11 +297,12 @@ static void global_pool_init(void) {
  *
  * 通过 lv_once 保证线程安全的一次性初始化，消除手动
  * g_pool_lock / g_pool_lock_inited 标志的数据竞争。
+ * 【J1/F28】lv_global_thread_pool_destroy 后 lv_once_reset，
+ * init/cleanup 循环可再次创建（原 static 局部 once 无法重置）。
  *
  * @return 全局线程池指针
  */
 lvThreadPool *lv_get_global_thread_pool(void) {
-    static lv_once_t g_pool_once = lv_ONCE_INIT;
     lv_once(&g_pool_once, global_pool_init);
     return g_global_pool;
 }
@@ -308,11 +312,13 @@ lvThreadPool *lv_get_global_thread_pool(void) {
  *
  * 先将全局指针置空再销毁，保证 NULL 安全与重复销毁安全
  * （从未创建线程池时为空操作，重复调用亦为空操作）。
+ * 【J1/F28】销毁后重置 once 守卫，允许后续 lv_init 循环重建。
  */
 void lv_global_thread_pool_destroy(void) {
     lvThreadPool *pool = g_global_pool;
     g_global_pool = NULL;
     lv_thread_pool_destroy(pool);
+    lv_once_reset(&g_pool_once);
 }
 
 /* ========================================================================

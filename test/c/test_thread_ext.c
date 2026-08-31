@@ -25,6 +25,8 @@
 
 #include "test_unified.h"
 #include "lv/lv_thread.h"
+#define lv_THREAD_POOL_IMPL /* 链接 thread_pool.c 真实现（否则占位版恒 NULL） */
+#include "lv/thread_pool.h" /* lv_get_global_thread_pool（J1/F28 循环重建测试） */
 
 int g_pass_count = 0;
 int g_fail_count = 0;
@@ -141,6 +143,19 @@ TEST_MAIN_BEGIN("Lv-00 Thread Ext Test Suite")
     TEST_MAIN_RUN(test_cond_api);
     TEST_MAIN_RUN(test_once_lazy_api);
     TEST_MAIN_RUN(test_lock_guard_api);
+
+    /* J1/F28：init/cleanup 循环后全局线程池可重建（once_reset）——
+     * 先触发首次创建（惰性），cleanup 销毁并重置 once，再 init 应重建 */
+    {
+        lvThreadPool *p1 = lv_get_global_thread_pool();
+        TEST_ASSERT_CONTINUE(p1 != NULL, "首次全局线程池创建");
+        lv_cleanup(); /* destroy + once_reset */
+        lv_init();
+        lvThreadPool *p2 = lv_get_global_thread_pool();
+        TEST_ASSERT_CONTINUE(p2 != NULL, "循环重建后全局线程池非 NULL");
+        lv_cleanup();
+        printf("  thread_pool init/cleanup 循环重建: PASSED\n");
+    }
 
     lv_cleanup();
 TEST_MAIN_END()
