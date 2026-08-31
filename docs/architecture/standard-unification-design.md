@@ -2376,13 +2376,13 @@ OpenSSL/CPython/GStreamer/Rust 生态）：
 - **F40**（第十一轮）：K11 测试设施移出生产库（test_framework/bootstrap_test 加 BUILD_TESTS 门控 + bootstrap_test_internal 重定义删除 + 测试辅助收敛）是否优先做（P0）？
 - **F41**（第十一轮）：K13 清理机制统一（lv_DEFER 唯一推荐 + solver_symbolic factorize guard-detach + groebner 锁守卫迁移 + 标签规范）是否立项？
 - **F42**（第十一轮）：K14 证明导出锚定 L5 + tactic 映射单源化（LV_PROOF_STEP_TYPE_X 为源）+ SVG/TikZ 收敛 + 序列化注册表接入是否立项？
-- **F43**（第十一轮）：K15 全局状态线程安全（3 真实竞态修复：lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init + 全局 getter 化 + 容器收敛）是否优先做（P0，真实竞态）？
+- **F43**（第十一轮）：K15 全局状态线程安全（3 真实竞态修复：lv_config 撕裂读/g_coeff_pool TOCTOU/跨线程 lv_init + 全局 getter 化 + 容器收敛）是否优先做（P0，真实竞态）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F44**（第十二轮）：K16 头文件包含卫生（lv_fwd.h 前向声明集中 + 引用即包含消 7 传递依赖 + 12 公共头去伞）是否立项？
-- **F45**（第十二轮）：K18 打包/导出修复（find_package + lv.pc + 导出机制统一：删 config.h:643 + 接线 lv_USE_SHARED + visibility hidden + 版本单源）是否优先做（P0，find_package 必坏）？
+- **F45**（第十二轮）：K18 打包/导出修复（find_package + lv.pc + 导出机制统一：删 config.h:643 + 接线 lv_USE_SHARED + visibility hidden + 版本单源）是否优先做（P0，find_package 必坏）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F46**（第十二轮）：K19 容差单一表执行（补 perpendicular/parallel 编译期常量 + 激活 3 个零消费者 cfg 字段 + 测试断言容差表 + 1e-15 相对化）是否立项？
 - **F47**（第十二轮）：K20 声明一致性检查（-Wmissing-prototypes + 1 例实现无声明修复 + 幻影 API 处置 + 死宏清理）是否立项？
 - **F48**（第十三轮）：K21 代码格式统一（锁定 clang-format 版本 + 557 文件全量回填含 test + format check CI + 豁免登记制度）是否立项？
-- **F49**（第十三轮）：K22 魔法字符串单源化（导出格式 INTEROP_EXPORT_FORMAT_X 为源 + lvExportFormat 三合一 + TransformType 单表修 protective + 变换预设入生成源）是否优先做（P0，已产生真实数值/拼写错误）？
+- **F49**（第十三轮）：K22 魔法字符串单源化（导出格式 INTEROP_EXPORT_FORMAT_X 为源 + lvExportFormat 三合一 + TransformType 单表修 protective + 变换预设入生成源）是否优先做（P0，已产生真实数值/拼写错误）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F50**（第十三轮）：K23 序列化注册表单入口（全对象扩展 + 删 ConstraintGraph 冗余路径 + Module 三载体收敛 + 跨格式 round-trip 测试 + OPML 不对称修复）是否立项？
 - **F51**（第十三轮）：K25 路径常量单源（共享库加载收敛 + 公理包 117 处测试路径收敛 + 预设双基准单源 + 资源三级解析）是否立项？
 - **F52**（第十四轮）：K26 错误注入容错（内置失败分配器 lv_allocator_fail + LV_FAULT_INJECT fail-point 宏 + OOM 错误路径测试补全 + 注入盲区修复：tracked 走 vtable/memory_pool 改 lv_malloc）是否立项（P1）？
@@ -2393,22 +2393,22 @@ OpenSSL/CPython/GStreamer/Rust 生态）：
 - **F57**（第十五轮）：K31 字符串处理收敛（通配符 lv_str_glob_match + lv_dstr 删或纯转发 + 标识符扫描 lv_str_scan_ident + 空串惯用法黑名单）是否立项（P1，随 I3 合并）？
 - **F58**（第十五轮）：K32 状态机收敛（阶段完备性 lv_session_stage_all_complete 替代 meta_verify 7 循环 + ProofState 死字段接线或删除 + 强制覆写原语 + 状态机模板单一化）是否立项（P1，随 L1/F8-F10 合并）？
 - **F59**（第十五轮）：K33 文件 IO 闭环（I4 遗留 11 处裸 fopen/fclose 收编 + lv_storage 后端走封装 + 黑名单 grep 落地 + exempt 标注补全）是否优先做（P0，一次提交闭环 I4 遗留）？
-- **F60**（第十五轮）：K34 命令/参数收敛（命令注册设施+arity 校验 + G1/G2 语义缺陷修复：AddNode Circle 改调 graph_add_circle/约束改走 PARALLEL + G3 严格参数解析 + Python JSON-RPC 字典表 + 空壳接线或撤除）是否优先做（P0，含 2 个疑似真实命令语义缺陷）？
-- **F61**（第十五轮）：K35 编码/字符收敛（XML 转义收编+SVG 自转义缺陷修复 + 证明→LaTeX 转义补齐 + JSON 反转义收敛 + 词法器骨架共享 + Python _str_dec）是否优先做（P0，含 2 个真实输出缺陷）？
-- **F62**（第十六轮）：K36 调试诊断收敛（FATAL→紧急保存链路修复 + g_emergency_handler 接线 + lv_CHECK_RANGE 同名消歧 + 日志级别状态 6 容器→1 + lv_impl_native debug 族删除 + lv_set_log_level 接线或删 + trace_session 移除）是否优先做（P0，含崩溃保护失效 M5）？
+- **F60**（第十五轮）：K34 命令/参数收敛（命令注册设施+arity 校验 + G1/G2 语义缺陷修复：AddNode Circle 改调 graph_add_circle/约束改走 PARALLEL + G3 严格参数解析 + Python JSON-RPC 字典表 + 空壳接线或撤除）是否优先做（P0，含 2 个疑似真实命令语义缺陷）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
+- **F61**（第十五轮）：K35 编码/字符收敛（XML 转义收编+SVG 自转义缺陷修复 + 证明→LaTeX 转义补齐 + JSON 反转义收敛 + 词法器骨架共享 + Python _str_dec）是否优先做（P0，含 2 个真实输出缺陷）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
+- **F62**（第十六轮）：K36 调试诊断收敛（FATAL→紧急保存链路修复 + g_emergency_handler 接线 + lv_CHECK_RANGE 同名消歧 + 日志级别状态 6 容器→1 + lv_impl_native debug 族删除 + lv_set_log_level 接线或删 + trace_session 移除）是否优先做（P0，含崩溃保护失效 M5）？ → **✅ 已确认**（2026-08-31 用户，P0 优先；含删除项走评审）
 - **F63**（第十六轮）：K37 数学原语收敛（几何向量原语 N1-N5 合并立项：lv_vec3_length/lv_vec3_angle 收编模长 6+/归一化 3/叉积 2/夹角 3 + lv_number_is_integer UB 修复）是否立项（P1，含 1 个正确性隐患）？
 - **F64**（第十六轮）：K38 时间/时钟收敛（超时判断统一单调基座 + 死超时 4 处接线或删除 + 墙钟秒收敛 8+ 处 + timestamp_ms 契约统一 + 休眠 4 处收编）是否优先做（P0，含 sledge 超时形同虚设+solver 超时门恒不触发）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F65**（第十六轮）：K39 协议编解码收敛（LVZD 容器修复或删除 + AxiomPackage 哈希单源化 + interop JSON-RPC 声称对齐 + 字节序手写收编 + 协议编解码测试补齐）是否优先做（P0，含 LVZD 头部越界写/读真实缺陷）？ → **✅ 已确认**（2026-08-31 用户，P0 优先；LVZD 删除项按红线评审）
 - **F66**（第十六轮）：K40 构建系统收敛（聚合清单单源化 + 依赖三元组变量化 + lv_platform_libs interface 库 + func_block 回归宏 + include 集变量化 + 优化选项按配置限定 + 清单漂移 CI 守卫）是否立项（P1，构建组织重构）？
-- **F67**（第十七轮）：K41 几何判定收敛（新增 lv_perpendicular/lv_parallel 激活 2 零消费者字段 + 垂直约束接线修复：graph_add_perpendicular 新增/formula betweenness 占位/interop CONTAINMENT 占位 + meta_proof 补坐标级验证 + 浮点域共线 4/点线 5/点圆 3/相交 3 委托权威）是否优先做（P0，含 2 个语义错误占位 + 1 个验证缺口）？
+- **F67**（第十七轮）：K41 几何判定收敛（新增 lv_perpendicular/lv_parallel 激活 2 零消费者字段 + 垂直约束接线修复：graph_add_perpendicular 新增/formula betweenness 占位/interop CONTAINMENT 占位 + meta_proof 补坐标级验证 + 浮点域共线 4/点线 5/点圆 3/相交 3 委托权威）是否优先做（P0，含 2 个语义错误占位 + 1 个验证缺口）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F68**（第十七轮）：K42 网络套接字收敛（network_block 死代码裁决删除或接线 + socket 平台抽象层 lv_socket.h + send_all EINTR 语义统一 + SO_REUSEADDR 对齐 + WSAStartup 引用计数单点化 + socket 路径测试补齐）是否立项（P1，含 1 个死代码载体裁决）？
 - **F69**（第十七轮）：K43 对象池收敛（coeff_pool 尺寸失配越界修复 + 两套通用池互委托随 I3 + g_coeff_pool 生命周期接线 + 预设池按需化 + id_map 共享工具）是否优先做（P0，含 1 个真实越界缺陷候选）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
-- **F70**（第十七轮）：K44 配置收敛（默认值单一事实源：compat 50 宏派生/模块回退宏删/B 种子键删 + lvConfig 读路径二选一：107 getter 接线或降级 + lvSolverConfig 改名消歧 + 配置键单源表 + 文档对拍机制 + setter 校验锚定修 lv.h:695）是否优先做（P0，含六级默认值漂移风险）？
-- **F71**（第十七轮）：K45 API 校验收敛（校验宏族调用侧收敛：B 族补返回值定制+迁移 25 文件 + graph 域失败语义统一：NULL 不再映射 CONFLICT + 头契约与行为契约对齐 + 失败约定契约表并入 K1 + 契约断言接线或删除 + 契约测试补强）是否优先做（P0，含误导性诊断链与 198 行永不运行实现）？
+- **F70**（第十七轮）：K44 配置收敛（默认值单一事实源：compat 50 宏派生/模块回退宏删/B 种子键删 + lvConfig 读路径二选一：107 getter 接线或降级 + lvSolverConfig 改名消歧 + 配置键单源表 + 文档对拍机制 + setter 校验锚定修 lv.h:695）是否优先做（P0，含六级默认值漂移风险）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
+- **F71**（第十七轮）：K45 API 校验收敛（校验宏族调用侧收敛：B 族补返回值定制+迁移 25 文件 + graph 域失败语义统一：NULL 不再映射 CONFLICT + 头契约与行为契约对齐 + 失败约定契约表并入 K1 + 契约断言接线或删除 + 契约测试补强）是否优先做（P0，含误导性诊断链与 198 行永不运行实现）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F72**（第十八轮）：K46 哈希/查找收敛（预设枚举名单源化：lv_impl_upper_preset 手写表改宏生成修复 UNKNOWN + 图哈希家族收敛：删 compute_quick_graph_hash 死代码 + 坐标哈希统一入口 + 黄金比收编承接 K12）是否立项（P1，含 1 个真实行为缺口）？
-- **F73**（第十八轮）：K47 树形结构收敛（lv_tree_traverse 接线或删除消除 M6 + 证明树去重：lvProofTree/ProofSearchTree 删或接线 + proof_widget 两桩 + 树销毁 4 手写变体接入共享设施随 K28 + 导出骨架共享随 K14）是否优先做（P0，含 2 个 M6 声称-实现脱节）？
-- **F74**（第十八轮）：K48 符号表收敛（量词绑定解绑修复 + name→ID 统一设施随 F7/K43/I3 + 关键字/类型名从 LV_ENTITY_TYPE_X 派生单源化 + 重定义语义统一 + .lv 文本链路定性承接 K3）是否优先做（P0，含 1 个量词泄漏风险）？
-- **F75**（第十八轮）：K49 依赖获取收敛（engine_bind_context 幻影注释修正 + 流上下文宏双份收敛 + StreamContext 获取规范：模块内 getter/跨模块引擎 getter/interop 双轨消除 + getter 命名族统一 + 注册表获取层规范 + g_tls_engine legacy 黑名单）是否优先做（P0，含 1 个幻影 API 声称）？
+- **F73**（第十八轮）：K47 树形结构收敛（lv_tree_traverse 接线或删除消除 M6 + 证明树去重：lvProofTree/ProofSearchTree 删或接线 + proof_widget 两桩 + 树销毁 4 手写变体接入共享设施随 K28 + 导出骨架共享随 K14）是否优先做（P0，含 2 个 M6 声称-实现脱节）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
+- **F74**（第十八轮）：K48 符号表收敛（量词绑定解绑修复 + name→ID 统一设施随 F7/K43/I3 + 关键字/类型名从 LV_ENTITY_TYPE_X 派生单源化 + 重定义语义统一 + .lv 文本链路定性承接 K3）是否优先做（P0，含 1 个量词泄漏风险）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
+- **F75**（第十八轮）：K49 依赖获取收敛（engine_bind_context 幻影注释修正 + 流上下文宏双份收敛 + StreamContext 获取规范：模块内 getter/跨模块引擎 getter/interop 双轨消除 + getter 命名族统一 + 注册表获取层规范 + g_tls_engine legacy 黑名单）是否优先做（P0，含 1 个幻影 API 声称）？ → **✅ 已确认**（2026-08-31 用户，P0 优先）
 - **F76**（第十八轮）：K50 复杂度标注治理（复杂度词汇表统一：PresetComplexity 单源+JSON 格式二选一 + graph_memory M5 修正：qsort 分支或改注释 + complexity 死字段处置 + 复杂度注释惯例起草）是否立项（P1，纯注释/文档面低风险）？
 - **F77**（第十九轮）：K51 迭代器/遍历收敛（哈希 foreach 三形态删除约定统一+X2 遍历中插入 UAF 文档化 + 回调契约统一：数据在前 ctx 末尾+状态码 early-stop + registry foreach 快照+锁外回调 + 网格迭代器接线 + lv_darray_remove_at）是否优先做（P0，含 1 个潜伏 UAF + 1 个约定漂移）？
 - **F78**（第十九轮）：K52 初始化/复位收敛（熔断器复位参数化+context 改调公共 API + 复位语义三约定文档 + copy 动词规范挂 K10 + lv_solver_clone 头注释修正）是否立项（P1，含 1 个复位语义分叉 M6 + 1 个 clone 声称脱节 M5）？
