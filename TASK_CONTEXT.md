@@ -9279,3 +9279,35 @@ F54 AST/括号深度闸门接线（无硬编码，全部读 lvConfig 配置）�
 - 第二批 P0 实施清单待提交（F69 K43 coeff_pool / F65 K39 LVZD / F61 K35 SVG /
   F60 K34 命令 / F67 K41 平行占位 / F43 K15 竞态）。
 
+## 一百五十五、批次 P0 实施第二批（2026-08-31，用户确认后推进）
+
+用户「继续推进有需要确认点问我」——第二批 6 项实施完成（5 项完整 + 1 项部分）。
+
+### ① 实施结果
+
+| 项 | 决策点 | 改动 | 验证 |
+|---|---|---|---|
+| 1 | F69 K43 coeff_pool 越界 | coeff_pool_alloc 忽略 count 直接取单块（8 个 mpz_t），count>8 越界写——修复：count 超块容量走 lv_calloc（含溢出检查），≤8 用池；coeff_pool_clear 兼容 | lv_core 编译 ✅ |
+| 2 | F43 K15 g_coeff_pool TOCTOU | lv_mempool_static_init 无锁（并发首调双建泄漏）——修复：coeff_pool.h 用 lv_once 守卫创建（恰一次 + happens-before） | 编译 ✅ |
+| 3 | F61 K35 SVG 自转义双写 | module_export.c:133 `module_export_xml_escape(&lbl, lbl.data)` 同缓冲输入输出别名 UB + 双写——修复：转义到独立缓冲 + 删除手写转义改调权威 lv_str_escape_xml（K35 收编）；test_module_ext.c 补 SVG 内容断言 | 73/73 ✅ |
+| 4 | F60 K34 G1/G2 命令语义 | G1：interop_add_node_circle 改调 graph_add_circle（原建线段却声称 circle M5）；G2：AddConstraint Parallel 改走 PARALLEL 枚举（原静默 CONTAINMENT）；perpendicular/equal_length 登记占位（ConstraintType 无对应枚举，随 K41） | 139/139 ✅（新执行级测试：AddNode Circle→GEOM_CIRCLE、Parallel→PARALLEL） |
+| 5 | F65 K39 LVZD 头部越界 | LVZD_HEADER_SIZE 16→28（magic+ver+comp+orig）；修复写 header+20 / 读 header+20 越界 12 字节；加 lv_STATIC_ASSERT 对拍；补 compress_write/read_lvzd 头声明（K20）；激活 #if 0 的 round-trip 测试并强化（28B 头 + 数据一致） | 245/245 ✅ |
+| 6 | F67 K41 平行占位（部分） | 命令层 parallel 已随 G2 修复；interop 导入路径无平行映射（已查）；formula_converter 垂直占位 + graph_add_perpendicular 属较大正确性面，**建议单独立项讨论** | 部分完成 |
+
+### ② 验证
+
+- build3 全量构建 ✅；ctest **288/288 全通过**。
+- 新增/强化测试：test_interop 命令语义（G1/G2）、test_module_ext SVG 内容断言、
+  test_geometry_core LVZD round-trip（激活）。
+
+### 决策登记
+
+- 第二批 5 项完整 + F67 部分 / 288/288 / 待 commit + CI。
+
+### 遗留登记
+
+- F67 K41 剩余：formula_converter_constraint.c:59 垂直=betweenness 占位 +
+  graph_add_perpendicular 新增 + meta_proof PARALLEL 验证——正确性面较大，
+  建议单独实施清单讨论。
+- F43 K15 剩余：lv_config 撕裂读 / 跨线程 lv_init 竞态（本批只做 g_coeff_pool）。
+

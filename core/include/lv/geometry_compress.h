@@ -1,4 +1,4 @@
-﻿#ifndef lv_GEOMETRY_COMPRESS_H
+#ifndef lv_GEOMETRY_COMPRESS_H
 #define lv_GEOMETRY_COMPRESS_H
 
 #ifdef __cplusplus
@@ -15,7 +15,12 @@ extern "C" {
 #define LVZD_MAGIC 0x4C565A44
 #define LVZD_VERSION_MAJOR 1
 #define LVZD_VERSION_MINOR 0
-#define LVZD_HEADER_SIZE 16
+/* K39 修复：头部 28 字节 = magic(4) + major(4) + minor(4) + comp_size(8) + orig_size(8)。
+ * 原值 16 致 geometry_compress_io.c 写 header+20 / 读 header+20 越界 12 字节。 */
+#define LVZD_HEADER_SIZE 28
+
+/* K39 编译期对拍：头部布局与 LVZD_HEADER_SIZE 一致（防再改回越界） */
+lv_STATIC_ASSERT(LVZD_HEADER_SIZE == 4 + 4 + 4 + 8 + 8, "LVZD header size mismatch");
 
 /* ── Prediction mode ── */
 typedef enum {
@@ -63,6 +68,10 @@ bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *confi
 bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph);
 bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
 bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
+
+/* ── LVZD 容器文件 I/O（K20：补头声明，原实现无头声明） ── */
+bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename);
+bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_size);
 
 #ifdef __cplusplus
 }

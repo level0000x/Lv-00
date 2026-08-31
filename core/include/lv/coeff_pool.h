@@ -20,6 +20,7 @@
 #include "lv/mpz_poly.h"
 #include "lv/error_codes.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_thread.h" /* lv_once / lv_once_t（F43/K15 g_coeff_pool TOCTOU 修复） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,18 +33,46 @@ extern lvMemPool *g_coeff_pool;
 #define COEFF_POOL_BLOCK_SIZE (sizeof(mpz_t) * 8)
 #define COEFF_POOL_INITIAL_COUNT 256
 
+/* F43/K15：g_coeff_pool 惰性创建 TOCTOU 修复 —— 一次性初始化守卫
+ * （原 lv_mempool_static_init 的 !*pool 检查 + create 非原子，
+ * 并发首调双建泄漏 + 短暂撕裂；lv_once 保证恰一次 + happens-before） */
+static lv_once_t s_coeff_pool_once = lv_ONCE_INIT;
+
+/** @brief 创建系数池（lv_once 回调，恰执行一次） */
+static inline void coeff_pool_create_once(void) {
+    g_coeff_pool = lv_mempool_create(COEFF_POOL_BLOCK_SIZE, COEFF_POOL_INITIAL_COUNT);
+}
+
 /**
  * @brief 从内存池分配多项式系数数组（含回退）
- * @param count 需要的 mpz_t 元素个数
- * @return mpz_t 数组指针，失败返回 NULL
+ *
+ * 【K43 修复】池块容量为 COEFF_POOL_BLOCK_SIZE（=8 个 mpz_t）；
+ * 原实现忽略 count 直接取单块，count > 8 时越界写。
+ * 现在：count 不超过块容量用池；否则直接 lv_malloc（池不适用）。
+ *
+ * @param count 需要的 mpz_t 元素个数（必须 > 0）
+ * @return mpz_t 数组指针（含 count 个元素容量），失败返回 NULL
  */
 static inline mpz_t *coeff_pool_alloc(int count) {
-    if (!lv_mempool_static_init(&g_coeff_pool, COEFF_POOL_BLOCK_SIZE, COEFF_POOL_INITIAL_COUNT))
+    if (count <= 0)
+        lv_RETURN_ERROR_NULL(lv_ERROR_INVALID_PARAM, "coeff_pool_alloc: invalid count");
+
+    /* F43/K15：线程安全惰性创建（lv_once 消除 TOCTOU） */
+    lv_once(&s_coeff_pool_once, coeff_pool_create_once);
+    if (!g_coeff_pool)
         lv_RETURN_ERROR_NULL(lv_ERROR_NOT_INITIALIZED, "coeff_pool_alloc: coefficient pool not initialized");
+
+    /* 池块容量固定 8 个 mpz_t：超过则绕过池直接 lv_malloc（含溢出检查） */
+    if ((size_t) count > COEFF_POOL_BLOCK_SIZE / sizeof(mpz_t)) {
+        if ((size_t) count > SIZE_MAX / sizeof(mpz_t))
+            lv_RETURN_ERROR_NULL(lv_ERROR_OVERFLOW, "coeff_pool_alloc: allocation size overflow");
+        return (mpz_t *)lv_calloc((size_t) count, sizeof(mpz_t));
+    }
+
     mpz_t *c = (mpz_t *)lv_mempool_alloc(g_coeff_pool);
     if (!c) {
         /* 池满回退到 lv_malloc */
-        c = (mpz_t *)lv_malloc((size_t)count * sizeof(mpz_t));
+        c = (mpz_t *)lv_calloc((size_t) count, sizeof(mpz_t));
     }
     return c;
 }

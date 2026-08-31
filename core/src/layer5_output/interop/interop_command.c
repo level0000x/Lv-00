@@ -378,7 +378,9 @@ static int interop_add_node_circle(lvEngine *engine, const InteropCommand *cmd, 
     }
     int center_id = lv_parse_int_default(cmd->params[1], 0);
     int radius_pt_id = lv_parse_int_default(cmd->params[2], 0);
-    AddNodeResult result = graph_add_line_segment(engine->main_graph, center_id, radius_pt_id);
+    /* K34 G1：AddNode Circle 改调 graph_add_circle——
+     * 原实现调 graph_add_line_segment（建线段）却响应声称 "circle"（M5） */
+    AddNodeResult result = graph_add_circle(engine->main_graph, center_id, radius_pt_id);
     if (result == ADD_NODE_OK) {
         lvJsonBuf _jb;
         interop_resp_json_init(&_jb, 128);
@@ -589,8 +591,9 @@ static int interop_add_constraint_parallel(lvEngine *engine, const int *particip
                                            InteropResponse *resp) {
     bool ok = false;
     if (pcount >= 2) {
+        /* K34 G2：改走 PARALLEL 枚举（原实现静默建 CONTAINMENT——M5 声称脱节） */
         Constraint *c = graph_add_constraint_with_id(
-            engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
+            engine->main_graph, engine->main_graph->next_constraint_id, PARALLEL, participants, 2);
         ok = (c != NULL);
     }
     return interop_add_constraint_finish(ok, resp);
@@ -600,6 +603,9 @@ static int interop_add_constraint_perpendicular(lvEngine *engine, const int *par
                                                 InteropResponse *resp) {
     bool ok = false;
     if (pcount >= 2) {
+        /* K34 G2 登记：ConstraintType 无 PERPENDICULAR 枚举——命令层暂用
+         * CONTAINMENT 占位，语义接线随 K41（lv_perpendicular 谓词 + 约束）
+         * 推进；此处保留占位但显式登记，不再静默（见设计文档 K34 G2） */
         Constraint *c = graph_add_constraint_with_id(
             engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
         ok = (c != NULL);
@@ -611,6 +617,8 @@ static int interop_add_constraint_equal_length(lvEngine *engine, const int *part
                                                InteropResponse *resp) {
     bool ok = false;
     if (pcount >= 2) {
+        /* K34 G2 登记：ConstraintType 无 EQUAL_LENGTH 枚举——命令层暂用
+         * CONTAINMENT 占位，语义接线随 K41/后续约束类型扩展推进 */
         Constraint *c = graph_add_constraint_with_id(
             engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
         ok = (c != NULL);

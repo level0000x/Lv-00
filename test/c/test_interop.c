@@ -337,6 +337,58 @@ void test_interop_import_null_path() {
     printf("  PASSED\n");
 }
 
+/* K34 G1/G2：命令层语义修复执行级测试——
+ * AddNode Circle 必须建 GEOM_CIRCLE 节点（原实现建线段却声称 circle）；
+ * AddConstraint Parallel 必须建 PARALLEL 约束（原实现静默 CONTAINMENT）。 */
+static void test_interop_command_semantics(void) {
+    lvEngine *engine = engine_create();
+    if (!engine) {
+        lv_ASSERT(engine != NULL);
+        return;
+    }
+
+    /* AddNode Point 0 0 / Point 1 1 —— 先建两个点作圆心与半径端点 */
+    {
+        InteropCommand cmd;
+        InteropResponse resp;
+        lv_ASSERT(interop_parse_command("AddNode Point 0 0", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        lv_ASSERT(interop_parse_command("AddNode Point 1 1", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+    }
+
+    /* AddNode Circle <center> <radius_pt> → 节点类型 GEOM_CIRCLE（G1 修复） */
+    {
+        InteropCommand cmd;
+        InteropResponse resp;
+        lv_ASSERT(interop_parse_command("AddNode Circle 0 1", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        ConstraintGraph *g = engine->main_graph;
+        lv_ASSERT(g != NULL);
+        GeomNode *circle = (g->node_count > 0) ? g->nodes[g->node_count - 1] : NULL;
+        lv_ASSERT(circle != NULL);
+        lv_ASSERT(circle->type == GEOM_CIRCLE);
+        printf("  AddNode Circle -> GEOM_CIRCLE: PASSED\n");
+    }
+
+    /* AddConstraint Parallel a b → 约束类型 PARALLEL（G2 修复） */
+    {
+        InteropCommand cmd;
+        InteropResponse resp;
+        lv_ASSERT(interop_parse_command("AddConstraint Parallel 0 1", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        ConstraintGraph *g = engine->main_graph;
+        lv_ASSERT(g != NULL);
+        Constraint *c = (g->constraint_count > 0) ? g->constraints[g->constraint_count - 1] : NULL;
+        lv_ASSERT(c != NULL);
+        lv_ASSERT(c->type == PARALLEL);
+        printf("  AddConstraint Parallel -> PARALLEL: PASSED\n");
+    }
+
+    engine_destroy(engine);
+    printf("  PASSED\n");
+}
+
 TEST_MAIN_BEGIN("Lv-00 Interop Module Test Suite")
     printf("=== Lv-00 Interop Module Test Suite ===\n\n");
     TEST_MAIN_RUN(test_interop_server_management);
@@ -348,5 +400,7 @@ TEST_MAIN_BEGIN("Lv-00 Interop Module Test Suite")
     TEST_MAIN_RUN(test_interop_formats);
     TEST_MAIN_RUN(test_interop_path_validation);
     TEST_MAIN_RUN(test_interop_import_null_path);
+    printf("\n");
+    TEST_MAIN_RUN(test_interop_command_semantics);
     printf("\n=== All interop tests PASSED! ===\n");
 TEST_MAIN_END()

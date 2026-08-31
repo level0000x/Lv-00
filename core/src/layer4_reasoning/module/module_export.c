@@ -66,22 +66,6 @@ static bool module_export_node_xy_by_id(const ConstraintGraph *g, int node_id, d
     return module_export_node_xy(node, out_x, out_y);
 }
 
-/** @brief 转义 XML 特殊字符（SVG label 用） */
-static void module_export_xml_escape(lvStrBuf *sb, const char *s) {
-    if (!s)
-        return;
-    for (const char *p = s; *p; p++) {
-        switch (*p) {
-        case '&': lv_strbuf_append_str(sb, "&amp;"); break;
-        case '<': lv_strbuf_append_str(sb, "&lt;"); break;
-        case '>': lv_strbuf_append_str(sb, "&gt;"); break;
-        case '"': lv_strbuf_append_str(sb, "&quot;"); break;
-        case '\'': lv_strbuf_append_str(sb, "&apos;"); break;
-        default: lv_strbuf_append_raw(sb, p, 1); break;
-        }
-    }
-}
-
 /* ================================================================
  * SVG 导出
  * ================================================================ */
@@ -127,12 +111,17 @@ bool module_export_svg(const Module *mod, const char *filepath) {
             continue;
         fprintf(f, "  <circle cx=\"%.4g\" cy=\"%.4g\" r=\"6\" fill=\"%s\" stroke=\"#333333\" stroke-width=\"1\"/>\n",
                 x, y, module_export_fillcolor(n->type));
-        lvStrBuf lbl;
+        /* K35：转义到独立缓冲（原实现 module_export_xml_escape(&lbl, lbl.data)
+         * 把同一 lvStrBuf 既当输入又当输出——append 覆盖正在读的内容，
+         * 别名 UB + 自转义双写；现改调权威 lv_str_escape_xml（K35 收编） */
+        lvStrBuf lbl, escaped;
         lv_strbuf_init(&lbl);
+        lv_strbuf_init(&escaped);
         lv_strbuf_printf(&lbl, "%s #%d", lv_geom_type_name((int) n->type), n->id);
-        module_export_xml_escape(&lbl, lbl.data);
+        lv_str_escape_xml(&escaped, lbl.data, lbl.len);
         fprintf(f, "  <text x=\"%.4g\" y=\"%.4g\" font-size=\"8\" text-anchor=\"middle\">%s</text>\n",
-                x, y - 9, lbl.data);
+                x, y - 9, escaped.data);
+        lv_strbuf_destroy(&escaped);
         lv_strbuf_destroy(&lbl);
     }
 

@@ -1037,8 +1037,8 @@ void test_geo_utils_facilities(void) {
     PASS();
 }
 
-/** 测试 LVZD 文件 I/O */
-#if 0
+/** 测试 LVZD 文件 I/O（K39：头部越界修复后激活——原 #if 0 禁用） */
+#if 1
 void test_compress_lvzd_io(void) {
     /* 压缩一个简单图 */
     ConstraintGraph *graph = graph_create();
@@ -1060,13 +1060,27 @@ void test_compress_lvzd_io(void) {
     if (ok && data && data_size > 0) {
         /* 写入临时文件 */
         bool write_ok = compress_write_lvzd(data, data_size, "test_temp.lvzd");
-        TEST_ASSERT(write_ok == true || write_ok == false, "write lvzd");
+        TEST_ASSERT(write_ok == true, "write lvzd");
 
-        /* 读取回去 */
+        /* K39：验证头部恰好 28 字节（magic+ver+comp+orig，越界修复） */
+        FILE *hf = fopen("test_temp.lvzd", "rb");
+        if (hf) {
+            fseek(hf, 0, SEEK_END);
+            long fsize = ftell(hf);
+            fclose(hf);
+            TEST_ASSERT(fsize == (long) (LVZD_HEADER_SIZE + (long) data_size), "LVZD 文件 = 28B 头 + 数据");
+        }
+
+        /* 读取回去：round-trip 数据一致 */
         uint8_t *read_data = NULL;
         size_t read_size = 0;
         bool read_ok = compress_read_lvzd("test_temp.lvzd", &read_data, &read_size);
-        if (read_ok) {
+        TEST_ASSERT(read_ok == true, "read lvzd");
+        TEST_ASSERT(read_size == data_size, "round-trip 大小一致");
+        if (read_ok && read_data && read_size == data_size) {
+            TEST_ASSERT(memcmp(read_data, data, data_size) == 0, "round-trip 内容一致");
+        }
+        if (read_data) {
             lv_free((void **) &read_data);
         }
 
@@ -1229,7 +1243,7 @@ TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
     TEST_MAIN_RUN(test_predictive_encode);
     TEST_MAIN_RUN(test_edgebreaker_encode);
     /* TEST_RUN(test_compress_decompress_roundtrip); */
-    /* TEST_RUN(test_compress_lvzd_io); */
+    TEST_MAIN_RUN(test_compress_lvzd_io); /* K39：头部越界修复后激活 */
 
     /* ── 边角情况 ── */
     /* TEST_RUN(test_csg_null_safety); */

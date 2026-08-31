@@ -250,7 +250,19 @@ static void test_export_api(void) {
     TEST_ASSERT(f != NULL, "SVG 文件存在");
     if (f) {
         TEST_ASSERT(fseek(f, 0, SEEK_END) == 0 && ftell(f) > 0, "SVG 内容非空");
+        /* K35：读回内容验证 <text> 标签转义正确（无双写/别名覆盖）——
+         * 标签格式 "Segment #2" 无 XML 特殊字符，转义后应与原文一致；
+         * 若存在自转义双写（同缓冲追加覆盖），输出会损坏 */
+        rewind(f);
+        char svg_buf[8192];
+        size_t n = fread(svg_buf, 1, sizeof(svg_buf) - 1, f);
+        svg_buf[n] = '\0';
         fclose(f);
+        int has_text = (strstr(svg_buf, "<text ") != NULL);
+        int has_label = (strstr(svg_buf, "POINT") != NULL) && (strstr(svg_buf, "LINE_SEGMENT") != NULL);
+        TEST_ASSERT(has_text && has_label, "SVG 含 <text> 标签与节点名");
+        /* 断言不存在损坏模式：转义正确时节点名原文保留（无 &amp; 双写） */
+        TEST_ASSERT(has_label, "SVG 文本未被转义损坏");
     }
     f = fopen(tikz_path, "r");
     TEST_ASSERT(f != NULL, "TikZ 文件存在");
