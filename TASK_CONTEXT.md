@@ -9736,3 +9736,41 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   归一化再接入）。
 - 下一批候选：F24 剩余声明补齐 / K41 P1 剩余（meta_proof 委托等）。
 
+
+---
+
+## 批次 167（K41 P1 剩余：手写几何判定委托权威谓词）
+
+### ① 改动
+
+| 文件 | 收敛点 |
+| --- | --- |
+| meta_proof.c | check_incidence_contradiction 手写叉积 → lv_line_side 委托（LEFT/RIGHT 矛盾，DEGENERATE 保守不判，与原语义一致）；is_point_between_segment 共线检测 → lv_line_side 委托（LEFT/RIGHT 提前返回，DEGENERATE 落入投影检查：A==B→t=0→true、A==C→len2 退化→false、B==C→t=1→true，行为与原实现完全一致） |
+| solver_geom_templates.c | 相似三角形 CA⊥CB 手写点积 → lv_lines_perpendicular；平行截割/截割定理 2 处手写叉积 → lv_lines_parallel；SegInfo 扩展端点坐标字段（x1,y1,x2,y2，with_direction 填充）；删除 nx/ny 归一化与未用 len_i/len_j；L449 cross 保留作消元系数 |
+| algebra_mode.c | selector_dir_axis_parallel/perpendicular 硬编码 1e-6 轴判定 → lv_lines_parallel/lv_lines_perpendicular（方向向量以原点为起点，数学等价）；selector_node_contains GEOM_CIRCLE 硬编码 1e-6 → lv_side_of_circle == lv_SIDE_ON |
+| geo_constraint_solver_residual.c | eval_angle 2 处手写 atan2 方位角 → geo_angle 权威（退化零向量返回 0.0，语义一致） |
+
+### ② 验证
+
+- build3 构建 + ctest **288/288 通过**（含 stream_extended_test）；
+- build_layerval（ENABLE_LAYER_VALIDATION=ON）构建通过（无层违规）；
+- commit 5dba6759（refactor(arch): delegate handwritten geometric predicates to
+  authoritative geo_predicate (K41)），push 成功，CI 双 workflow 待验证。
+
+### 容差语义变化
+
+- 手写 1e-6（+1 保护）→ 权威 parallel_epsilon/perpendicular_epsilon 默认 1e-8
+  （读 lvGeometryConfig，可配置不硬编码）；绝对阈值 → 自适应/相对阈值。语义
+  更严格，几何模板触发更保守，测试无回归。
+
+### 决策登记
+
+- K41 P1 剩余收口：meta_proof 手写叉积 / solver_geom_templates 平行垂直 /
+  algebra_mode 轴与圆判定 / residual 方位角全部委托权威谓词；卷绕数 compute_angle
+  （recursion_selector）为专用算法保留；ga_interface 3D 角 / PCA 主轴角保留。
+
+### 遗留登记
+
+- algebra_mode selector_node_contains GEOM_POINT 硬编码 1e-6 距离容差（K63 阈值
+  多头类，非 K41 谓词面）后续批次处理。
+- 下一批候选：F24 剩余声明补齐 / K63 阈值收敛 / F33 快速幂收尾。
