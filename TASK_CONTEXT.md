@@ -8821,3 +8821,136 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第二十一轮审计为设计留档，未执行）。
 
+## 一百四十六、批次 标准统一化第二十二轮（收口轮）审计（2026-08-27）
+
+用户「把所有余项多开几个子代理统一一轮跑掉」——第二十二轮（收口轮）
+十三路并行审计补充 13 组"一需求多实现"重复点（总 **151 组**），
+本轮为收口轮（用户已确认转 F1-F96 决策确认 + P0 实施讨论）。
+
+### ① 第二十二轮审计结果（K66-K78）
+
+- **结构体布局/对齐/padding 面 K66**：**权威已建**：无 packed/无 pragma pack/
+  无 aligned（不存在打包 vs 自然对齐冲突面 ✅）+ 无原始结构体直接落盘（LVZ 文本
+  逐字段/msgpack 全量 lvByteWriter/PNG/OPML 逐字段 ✅）+ 字节序读端统一 lv_load_*
+  （K39 复核一致）+ offsetof 字段表范式 4 处 + 快照深拷贝 + Python 不透明句柄镜像
+  13 个零布局风险 + _DegreeAnalysis 与 C 一致 + lv.h:784 版本对拍；**"一需求多
+  实现"**：**预设池尺寸 vs sizeof(Struct) 无编译期对拍（P0 防御）**——config.h
+  :32-35 硬编码 128/96/64/128 vs sizeof(GeomNode)=104，全库无 _Static_assert
+  （GeomNode 增字段超 128 即池块越界写，K43 coeff_pool 同族未登记 4 预设池）；
+  **Python StreamEvent 镜像 timestamp_ms 用 c_long（P0 候选）**——_stream_types
+  .py:63 c_long vs C int64_t，Windows 4B vs 8B 回调逐字段错位（测试用 Mock 不经
+  ctypes 内存布局未暴露）；**high_dim.py 24B 缓冲 vs C 40B 结构（P0 潜伏越界）**——
+  C 写端最小写集已超 8 字节，模块未 import 潜伏接线即爆炸；对齐计算双实现（死宏
+  lv_ALIGN_UP/DOWN vs 活 align_up）；"memcpy 整结构+手工修复清单"复制惯用法 ×4
+  （新增指针字段须手工同步否则静默别名）；lv_STATIC_ASSERT 双头定义；哈希输入主机
+  序原始标量（跨端序 OID/哈希不一致）。
+- **Python ctypes 绑定细节面 K67**：**权威已建**：_ptr_owner.py 收敛单点（11
+  文件复用 ✅）+ 三层分层 + C-分配字符串统一约定 + _bind_if_present 可选符号 +
+  engine_instantiate_function 调用/声明一致；**"一需求多实现"**：**high_dim_* 全族
+  25 函数零签名（P0）**——默认 restype=c_int → 64 位指针截断 + char* 截断后
+  .decode AttributeError（Python 测试零覆盖）；**func_block_instantiate 调用点参数
+  错配（P0）**——绑定声明 6 参调用只传 5 参，已实测 ctypes 强制最少参数数 → 每次
+  必抛 TypeError，safe_instantiate 静默吞异常（M5）；stream_* 绑定族双声明且类型
+  不一致（c_int vs c_uint64）；StreamEvent C 结构体双 ctypes 定义；
+  interactive_geo_get_all_objects 泄漏；lv_free_ptr 回退别名=CRT free UB；
+  K35 _str_dec 登记未落地（~15 处三连）。
+- **平台条件分支分布面 K68**：**权威已建**：三权威点结构 + 黑名单零违规（core/src
+  0 处直接 pthread_*）+ 唯一实现点 + SIMD 架构派发；**"一需求多实现"**：**抽象层
+  全族零消费者（P0 结构性风险）**——lv_PLATFORM_*/lv_CC_*/lv_STACK_SIZE_*/lv_ENDIAN_*
+  全库 0 消费者（K9"81 处迁移"纯机械替换无先例可参考）；K9 计划未覆盖 __linux__/
+  __APPLE__ 三态 ~9 处；**4 处死平台 include 分支（P0，应删非迁移）**——K9 迁移量
+  修正 ~71；Windows 判断 5 拼写、编译器判断 3 拼写含语义漂移。
+- **代码生成器/模板模式面 K69**：**权威已建**：formula_renderer 6 后端共享骨架 +
+  opml 收敛 + lv_dot_writer 统一 + render_append 内部收敛 + J3 docx 4 生成器收敛；
+  **"一需求多实现"**：**ga_codegen 六目标生成器骨架同构（P1）**——4 模板生成器
+  逐行同构 + opts->optimize 零读取死配置 + 生成固定初始化桩（M5 声称-实现脱节，
+  K3 只覆盖 dsl_compiler.h 未覆盖本文件）；geo_visual_complete 三后端同构生成骨架；
+  Three.js segment/line 复制；**生成产物零机器化验证（P1）**——interop 导出测试
+  仅断言"输出非空"。
+- **重试/幂等/恢复模式面 K70**：**权威已建**：graph_rollback_node 统一回滚 +
+  EINTR 三域分层 + 快照五层分层 + 计算重试 vs 故障重试域分离；**"一需求多实现"**：
+  幂等性验证器双实现（equiv_class.c:741 死函数）；SYM_COORD_MAX_REFINE 15 五文件
+  重复定义零使用 + 活字面量 5/10/20 散落 8 处；自适应步长骨架×2；证明策略回退双
+  调度。无真实缺陷级新发现。
+- **格式化输入解析面 K71**：**权威已建**：I1 DEDUCT_FMT_* 单一事实源 + Y5 gappa
+  parse_bound_in + F6 lv_parse_utils 权威 + K62 lv_ini_parse 唯一 + K31 strtok
+  单路由 + 外部格式契约；**"一需求多实现"**：**D1 "distance=value" 声明解析 ×4
+  实现/3 文件失败语义互相矛盾（P1 最重）**——graph_conflict 拒绝 vs solver_* 静默
+  0.0（同一畸形输入一处拒绝一处静默生成距离 0 约束）；D6 lv_str_split 生产 0 消费
+  vs 手写 strtok_r ~10 处；D7 ggb 坐标静默 0.0；sscanf 返回值 4 形态。
+- **报告/汇总生成面 K72**：**权威已建**：K5 TEST_SUMMARY 规范化 + report_manual
+  _common 共享基线 + self-check 内建 + 超时报告生成器；**"一需求多实现"**：
+  **测试汇总 ≥7 格式/文件（P0 结构性，K5 挂靠）**——TestSummary 结构体 7 个 +
+  汇总输出 7 类格式 + **6 文件提前 return 使 TEST_SUMMARY 不可达（死代码）**；
+  bootstrap_test_report 死 API；lv_protocol 用 strstr/sscanf 反解析自身报告（7 处，
+  K36 收敛将静默归零）。
+- **布尔标志/开关表示面 K73**：**权威已建**：K26 公共位域零使用 + bool/bool8_t/int
+  三态 lint + 语义化枚举 + flags_t 开关组 + lv_Result 权威；**"一需求多实现"**：
+  **同名字段 int/bool 并存（P1）**——5 组同字段异型 + 21 处 int 当布尔（lint 只检
+  位域不检此）；三态结果表示法三分（int 哨兵 vs 枚举值序漂移 vs bool+err）；开关组
+  表示法三分；is_rational_zero 双实现 NULL 行为相反；stream_set_enabled 副作用漂移。
+- **消息传递/回调/事件分发面 K74**：**权威已建**：stream 事件通道事实权威 + lv_json
+  _rpc 单实现 + 工作队列 + command_log 权威 + 状态机回调 + 回调所有权规则；**"一
+  需求多实现"**：SolverFeedback 结构体通道生产零调用 vs stream 事件双通道（一死一
+  活）；单槽回调族 6 处三形态；func_block 死槽（g_cross_boundary_ctx 零写入 M6）；
+  证明追踪消息结构三套；引擎状态变更无通知通道（被动 poll）；lvEventBus 半接线
+  （有发射无订阅）。
+- **资源配额/上限/限制面 K75**：**权威已建**：config.h X-macro 清单权威 + 参数化
+  上限命名 + 编译期 vs 运行期分层 + 上限边界测试；**"一需求多实现"**：**限制常量
+  同值多头 ≥25 对（P0）**——config.h compat 段镜像模块头；**队列满行为 4 约定
+  （P0）**——丢弃/阻塞/覆盖/返回错误未文档化；预设上限 10000 五定义点 + "10000"
+  魔法数 5 处；内存配额三种响应 + lv_malloc_bounded 死设施；对象超限 7+ 约定；
+  插件双注册表 256 vs 32。
+- **数值类型提升/转换面 K76**：**权威已建**：lv_arith_safe.h 无 UB + 整数解析权威
+  + 显式升精度 + 数学原语 gcd 收敛；**"一需求多实现"**：**坐标→double 4 套并行
+  （P1 最高价值）**——solver coord_to_double 走 serialize→strtod 前缀解析
+  （QUADRATIC 序列化被解析成 1.0 静默错值 ok=true，ALGEBRAIC 静默失败，10+ 消费
+  点，真实缺陷候选挂 K1）；有理数→double 三态（Inf 不写 out → lv_number 未初始化
+  读，真实缺陷候选）；同文件 4 取整实现 + 双 API；formula 内联 7+ 处；double→有理
+  数 4 实现截断/舍入分裂。
+- **文档索引/交叉引用面 K77**：**权威已建**：docs/README 顶层入口 + 编号体系 +
+  TASK_CONTEXT 登记制度 + 设计文档版本历史；**"一需求多实现"**：**索引三实现互不
+  引用（P0）**——INDEX.md/README.md/DOCUMENTATION.md 三份互不链接；交叉引用 6 种
+  结构；命名 6 套；**文件统计三文档五组数字矛盾（P1）**——根 README 同文件自相矛盾
+  615 vs 401 vs 644；目录声称 vs 实际（doc/reports/web/gui/layer7/9 不存在）；
+  **活动文档断链 3 处（P0）**；INDEX 漏录。
+- **渲染结构/视觉表示面 K78**：**权威已建**：lv_render_visitor 统一入口 + 渲染目标
+  分层 + lv_palette 颜色权威 + 视口/坐标分层；**"一需求多实现"**：**场景图系零消费
+  + 4 套分发渲染表重复（P0/M6）**——scene_graph 全库 0 引用 + 4 套同构 dispatch；
+  **TrustColor 三表值不一致（P1）**——#2ca02c/#22c55e/#3fb950 真实漂移；视口/坐标
+  变换 ≥5 套；显示对象映射 ≥6 套；死数据与桩 3 处（viewport_matrix 只写不读/
+  visual_editor 四子视图 NULL/view_sync flush 桩）。
+
+### ② 设计更新（standard-unification-design.md v1.22）
+
+- 新增 §1.106-1.118 现状清单（K66-K78）+ §3.106-3.118 分面方案；
+- P0-P4 并入第二十二轮项（P0 含 K66 预设池对拍+镜像字段对齐+high_dim 缓冲、K67
+  high_dim 签名补齐+func_block 参数修复、K68 死分支删除+K9 计划扩展、K69 ga_codegen
+  收口、K70 死常量清理、K72 短截修正挂 K5、K75 限制常量单源+队列满契约、K77 索引
+  收敛+断链修复、K78 场景图处置需评审；P1 含 K66 对齐单源/复制惯用法/哈希字节序、
+  K67 stream 双声明/泄漏/_str_dec/回退别名、K68 编译器宏/平台名示范、K69 验证基线/
+  三后端统一、K70 幂等收敛/重试单表、K71 distance helper/lv_str_split/ggb 检查、
+  K72 TestSummary 归并/回读、K73 布尔型收敛/三态归一/NULL 语义/setter 契约、
+  K74 回调归一/状态通知/EventBus、K75 预设上限/malloc_bounded/双注册表、
+  K76 coord_to_double 权威/取整单源/有理数三态、K77 交叉引用/统计自动化/目录修正、
+  K78 TrustColor/分发表/死数据桩）；
+- 新增决策点 F92-F96（结构体布局/ctypes 绑定/平台分支/代码生成器/收口各面归属）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第二十二轮（收口轮）审计 13 组 / 总 151 组 / K66-K78 方案 /
+  F92-F96 待确认 / **预设池尺寸失配越界防御缺失**、**StreamEvent c_long ABI 错位**、
+  **high_dim 缓冲越界**、**high_dim 零签名指针截断**、**func_block 必抛 TypeError**、
+  **抽象层全族零消费者+死平台分支**、**ga_codegen 固定桩+零验证**、**distance 静默
+  0.0/ggb 静默 0.0**、**TEST_SUMMARY 不可达死代码**、**coord_to_double QUADRATIC
+  错值+Inf 未初始化读**、**TrustColor 三表漂移+场景图死设施**、**限制常量多头 25 对
+  +队列满 4 约定**、**文档三索引矛盾+断链**。
+
+### 遗留登记
+
+- 无新增遗留（第二十二轮为收口轮，后续转 F1-F96 决策确认 + P0 实施讨论）。
+
