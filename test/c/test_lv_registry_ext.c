@@ -124,9 +124,10 @@ static void test_module_lifecycle_api(void) {
     TEST_ASSERT(lv_module_register("t_out", mod_init_out, mod_cleanup_out, lv_MODULE_PRIO_OUTPUT),
                 "register t_out");
 
-    /* 重复名称被拒绝；NULL 名称被拒绝 */
-    TEST_ASSERT(!lv_module_register("t_core", mod_init_core, mod_cleanup_core, lv_MODULE_PRIO_CORE),
-                "duplicate rejected");
+    /* J1/F28：重复名称改为幂等 upsert（更新条目而非拒绝——
+     * 修复 init/cleanup 循环后"重复注册被吞"）；NULL 名称仍拒绝 */
+    TEST_ASSERT(lv_module_register("t_core", mod_init_core, mod_cleanup_core, lv_MODULE_PRIO_CORE),
+                "duplicate upsert succeeds");
     TEST_ASSERT(!lv_module_register(NULL, mod_init_core, mod_cleanup_core, lv_MODULE_PRIO_CORE),
                 "NULL name rejected");
 
@@ -152,9 +153,16 @@ static void test_module_lifecycle_api(void) {
     /* init_all/cleanup_all 不影响注册计数 */
     TEST_ASSERT_EQ(lv_module_count(), 3);
 
+    /* J1/F28：cleanup_all 后 registry_reset 清空 count，可重新注册 */
+    lv_module_registry_reset();
+    TEST_ASSERT_EQ(lv_module_count(), 0);
+    TEST_ASSERT(lv_module_register("t_after_reset", mod_init_core, mod_cleanup_core, lv_MODULE_PRIO_CORE),
+                "register after reset");
+    TEST_ASSERT_EQ(lv_module_count(), 1);
+
     /* init 失败 -> init_all 返回 false */
     TEST_ASSERT(lv_module_register("t_fail", mod_init_fail, NULL, lv_MODULE_PRIO_LATE), "register t_fail");
-    TEST_ASSERT_EQ(lv_module_count(), 4);
+    TEST_ASSERT_EQ(lv_module_count(), 2);
     TEST_ASSERT(!lv_module_init_all(), "init_all false on failing module");
 }
 

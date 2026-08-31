@@ -393,11 +393,16 @@ bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
         return false;
     }
 
-    /* 检查名称是否已存在 */
+    /* 检查名称是否已存在 —— J1/F28：改为幂等 upsert（更新条目而非拒绝，
+     * 修复"重复注册被吞"：同一模块在 init/cleanup 循环中重复注册时，
+     * 旧实现 return false 丢弃新注册且不更新） */
     for (int i = 0; i < s_module_registry.count; i++) {
         if (lv_str_eq(s_module_registry.entries[i].name, name)) {
+            s_module_registry.entries[i].init = init_fn;
+            s_module_registry.entries[i].cleanup = cleanup_fn;
+            s_module_registry.entries[i].priority = priority;
             module_registry_unlock();
-            return false; /* 不允许重复注册 */
+            return true;
         }
     }
 
@@ -449,6 +454,16 @@ void lv_module_cleanup_all(void) {
     }
 
     module_registry_unlock();
+}
+
+void lv_module_registry_reset(void) {
+    module_registry_lock();
+    /* 清空注册表（entries 为值类型，无需逐条释放；name 为静态字面量） */
+    s_module_registry.count = 0;
+    module_registry_unlock();
+    /* 重置互斥锁 once 守卫：allow init/cleanup 循环后 mutex 可重建
+     * （POSIX/Windows 下清零后 lv_once 可再次执行） */
+    lv_once_reset(&s_module_registry_once);
 }
 
 int lv_module_count(void) {

@@ -390,6 +390,10 @@ void lv_cleanup(void) {
     /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
     lv_module_cleanup_all();
 
+    /* F28/J1：清理后重置模块注册表——init/cleanup 循环后第二次 lv_init
+     * 可重新注册（原 count 不重置，重复注册被吞） */
+    lv_module_registry_reset();
+
     /* 配置快照清理（F43/K15 方案 B：释放延迟回收的旧快照，单线程阶段） */
     lv_config_snapshot_cleanup();
 

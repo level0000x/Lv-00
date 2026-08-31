@@ -9625,3 +9625,39 @@ F28-B2（lv_cleanup 硬编码 12 处注册表化）完成。
   被吞"）+ once_reset 统一契约（config/ecosystem 未重置点）——后续子批次。
 - 下一批候选：K41 谓词面 / F28-B3 / F24 剩余声明。
 
+## 一百六十四、批次 F28 J1 生命周期 B3（2026-08-31）
+
+F28-B3（lv_module_registry_reset + 幂等 upsert）完成，**J1 生命周期三子批
+（B1/B2/B3）全部落地**。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| lv_module_registry_reset 新增 | lv_registry.c 实现（清 count + lv_once_reset
+  mutex 守卫）；lv_registry.h 声明；lv_cleanup 在 cleanup_all 后调用——修复
+  "cleanup 后 count 不重置，第二次 lv_init 重复注册被吞" |
+| lv_module_register 幂等 upsert | 同 name 改为更新条目（init/cleanup/priority）
+  而非 return false——修复"重复注册被吞"（旧实现丢弃新注册且不更新） |
+| 测试更新 | test_lv_registry_ext.c：duplicate rejected → duplicate upsert
+  succeeds + registry_reset 后 count=0 可重注册 + t_fail 计数调整——35/35 含 |
+
+### ② 验证
+
+- build3 全量 + ctest **288/288 通过**（首次 stream_extended flaky，单独重跑过，
+  全量 rerun 全绿——flaky 与 registry 改动无关）；
+- 批次 163（F28-B2）CI + Python Bindings 双 success。
+
+### 决策登记
+
+- **J1 生命周期全部落地**：B1（状态机进程级+锁，F43 跨线程 lv_init）/
+  B2（12 处 cleanup 注册表化）/ B3（registry_reset + 幂等 upsert）。
+- 批次 162/163 CI 双绿。
+
+### 遗留登记
+
+- J1 剩余：once_reset 统一契约覆盖 config/ecosystem 等未重置点（g_geometry_
+  config_once 等）——登记后续（低优先，随各模块 once 清理）。
+- 下一批候选：K41 谓词面（lv_perpendicular/lv_parallel + meta_proof）/
+  F24 剩余声明补齐 / F16 剩余（sanitize/节点数/token 长度）。
+

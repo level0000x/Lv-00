@@ -234,6 +234,12 @@ bool lv_module_init_all(void);
 void lv_module_cleanup_all(void);
 
 /**
+ * @brief 重置模块注册表（J1/F28：cleanup_all 后清空 count，修复
+ * "cleanup 后重复注册被吞"——不重置则第二次 lv_init 的注册被 count 满拒绝）
+ */
+void lv_module_registry_reset(void);
+
+/**
  * @brief 获取已注册的模块数量
  * @return 已注册模块数
  */
