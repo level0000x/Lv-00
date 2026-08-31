@@ -603,12 +603,10 @@ static int interop_add_constraint_perpendicular(lvEngine *engine, const int *par
                                                 InteropResponse *resp) {
     bool ok = false;
     if (pcount >= 2) {
-        /* K34 G2 登记：ConstraintType 无 PERPENDICULAR 枚举——命令层暂用
-         * CONTAINMENT 占位，语义接线随 K41（lv_perpendicular 谓词 + 约束）
-         * 推进；此处保留占位但显式登记，不再静默（见设计文档 K34 G2） */
-        Constraint *c = graph_add_constraint_with_id(
-            engine->main_graph, engine->main_graph->next_constraint_id, CONTAINMENT, participants, 2);
-        ok = (c != NULL);
+        /* K41/F67：改调真实 graph_add_perpendicular（原 CONTAINMENT 占位——
+         * 平行/垂直约束被降级为包含约束，语义丢失；solver/conflict 下游按
+         * 错误类型解释） */
+        ok = (graph_add_perpendicular(engine->main_graph, participants[0], participants[1]) == ADD_CONSTRAINT_OK);
     }
     return interop_add_constraint_finish(ok, resp);
 }

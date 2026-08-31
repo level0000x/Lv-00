@@ -385,6 +385,45 @@ static void test_interop_command_semantics(void) {
         printf("  AddConstraint Parallel -> PARALLEL: PASSED\n");
     }
 
+    /* AddConstraint Perpendicular a b → 约束类型 PERPENDICULAR（K41/F67 修复）
+     * 参与者须为两条线段（垂直=两线段方向正交） */
+    {
+        InteropCommand cmd;
+        InteropResponse resp;
+        ConstraintGraph *g = engine->main_graph;
+        /* 记录当前 node_count，后续新增即为 4 点 + 2 线段 */
+        int base = g->node_count;
+        /* 先建 4 个点 + 2 条线段 */
+        lv_ASSERT(interop_parse_command("AddNode Point 2 2", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        lv_ASSERT(interop_parse_command("AddNode Point 3 3", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        lv_ASSERT(interop_parse_command("AddNode Point 4 4", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        lv_ASSERT(interop_parse_command("AddNode Point 5 5", &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        /* 端点：新建点为 base..base+3，两条线段用它们 */
+        char segcmd[64];
+        sprintf(segcmd, "AddNode LineSegment %d %d", base, base + 1);
+        lv_ASSERT(interop_parse_command(segcmd, &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        sprintf(segcmd, "AddNode LineSegment %d %d", base + 2, base + 3);
+        lv_ASSERT(interop_parse_command(segcmd, &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        /* 线段 ID = base+4（点）与 base+5（下一条线段） */
+        int seg_a = base + 4;
+        int seg_b = base + 5;
+        char cmdline[64];
+        sprintf(cmdline, "AddConstraint Perpendicular %d %d", seg_a, seg_b);
+        lv_ASSERT(interop_parse_command(cmdline, &cmd) == lv_OK);
+        lv_ASSERT(interop_execute_command(engine, &cmd, &resp) == lv_OK);
+        lv_ASSERT(g != NULL);
+        Constraint *c = (g->constraint_count > 0) ? g->constraints[g->constraint_count - 1] : NULL;
+        lv_ASSERT(c != NULL);
+        lv_ASSERT(c->type == PERPENDICULAR);
+        printf("  AddConstraint Perpendicular -> PERPENDICULAR: PASSED\n");
+    }
+
     engine_destroy(engine);
     printf("  PASSED\n");
 }

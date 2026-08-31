@@ -157,7 +157,8 @@ typedef enum {
     CONTAINMENT,  /* 包含约束：一个对象完全包含在另一个对象内 */
     CONNECTION,   /* 连接约束：端口之间的数据流连接 */
     ANGLE,        /* 角度约束：两条线段之间的夹角 */
-    PARALLEL      /* 平行约束：两条线段平行（方向共线） */
+    PARALLEL,     /* 平行约束：两条线段平行（方向共线） */
+    PERPENDICULAR /* 垂直约束：两条线段垂直（方向正交，K41/F67 新增） */
 } ConstraintType;
 
 /**
@@ -172,7 +173,8 @@ typedef enum {
     x(CONTAINMENT, "CONTAINMENT") \
     x(CONNECTION, "CONNECTION") \
     x(ANGLE, "ANGLE") \
-    x(PARALLEL, "PARALLEL")
+    x(PARALLEL, "PARALLEL") \
+    x(PERPENDICULAR, "PERPENDICULAR")
 
 /**
  * @brief ConstraintType 全字段条目宏（单一事实来源，并行于 LV_CONSTRAINT_TYPE_X）
@@ -188,7 +190,8 @@ typedef enum {
     x(CONTAINMENT, "CONTAINMENT", "containment") \
     x(CONNECTION, "CONNECTION", "connection") \
     x(ANGLE, "ANGLE", "angle") \
-    x(PARALLEL, "PARALLEL", "parallel")
+    x(PARALLEL, "PARALLEL", "parallel") \
+    x(PERPENDICULAR, "PERPENDICULAR", "perpendicular")
 
 /**
  * @brief 获取约束类型的规范名称（与 ConstraintType 枚举严格对齐）
@@ -694,6 +697,18 @@ lv_PUBLIC_API AddConstraintResult graph_add_angle(ConstraintGraph *graph, int li
  * @return 操作结果状态码
  */
 lv_PUBLIC_API AddConstraintResult graph_add_parallel(ConstraintGraph *graph, int line1_id, int line2_id);
+
+/**
+ * @brief 添加垂直约束（K41/F67 新增）
+ *
+ * 声明两条线段方向正交（垂直）。
+ *
+ * @param[in] graph     约束图
+ * @param[in] line1_id  第一条线段 ID
+ * @param[in] line2_id  第二条线段 ID
+ * @return 操作结果状态码
+ */
+lv_PUBLIC_API AddConstraintResult graph_add_perpendicular(ConstraintGraph *graph, int line1_id, int line2_id);
 
 /**
  * @brief 约束添加分派 ops 表条目（单一事实来源）

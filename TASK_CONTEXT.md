@@ -9359,3 +9359,37 @@ F54 AST/括号深度闸门接线（无硬编码，全部读 lvConfig 配置）�
 - 方案 B 需补并发测试（多线程读写 lv_config 撕裂读回归钉）——随 F28 或
   单独测试批次。
 
+## 一百五十七、批次 F67 K41 垂直约束修复（2026-08-31，用户确认清单）
+
+用户「可以」确认 F67 K41 垂直约束实施清单 4 项——全部完成。
+
+### ① 实施结果
+
+| # | 修复点 | 改动 | 验证 |
+|---|---|---|---|
+| 1 | PERPENDICULAR 枚举三源 | constraint_graph.h 枚举 + LV_CONSTRAINT_TYPE_X + LV_CONSTRAINT_TYPE_ENTRY 同步加 PERPENDICULAR；meta_repr.c 断言 (PARALLEL+1)→(PERPENDICULAR+1)（编译期对拍抓到表漂移）；test_enum_maps.c 同断言同步 | 编译 ✅ |
+| 2 | graph_add_perpendicular | graph_index.c 仿 graph_add_parallel 新增（校验两线段 + 建 PERPENDICULAR 约束）；constraint_graph.h 声明 | 编译 ✅ |
+| 3 | formula 垂直占位修复 | formula_converter_constraint.c:32 垂直改两线段参与者（原取 3 点 + graph_add_betweenness="垂直=点在两点之间"语义完全错误）→ graph_add_perpendicular | 编译 ✅ |
+| 4 | interop perpendicular 接线 | interop_command.c perpendicular 从 CONTAINMENT 占位 → graph_add_perpendicular（消除平行/垂直被降级为包含约束的语义丢失链） | 156/156 ✅ |
+
+### ② 测试
+
+- test_geometry_core.c 新增 test_graph_add_perpendicular（256/256 含）；
+- test_interop.c 新增 AddConstraint Perpendicular → PERPENDICULAR 执行级断言
+  （156/156 含，构造两线段 + 垂直约束）；
+- 全量 ctest **288/288 通过**。
+
+### 决策登记
+
+- F67 K41 四项完成 / PERPENDICULAR 枚举对齐三源 + 编译期断言 /
+  formula 垂直语义错误链消除 / interop 命令层接线。
+
+### 遗留登记
+
+- K41 剩余：meta_proof.c:361 [PARALLEL] 恒 false（L1 直接矛盾证明不验证）+
+  lv_perpendicular/lv_parallel 浮点谓词（geo_predicate.c + 容差接线）——
+  下一批（谓词面较大，单独立项）。
+- formula_convert_perpendicular 参与者语义变更：确认 DSL 语法层垂直约束
+  参与者为两线段（与 parallel 一致）——若历史 .lv 文件用 3 点形式需迁移，
+  登记待查。
+

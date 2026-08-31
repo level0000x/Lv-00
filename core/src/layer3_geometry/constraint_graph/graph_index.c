@@ -242,6 +242,29 @@ AddConstraintResult graph_add_parallel(ConstraintGraph *graph, int line1_id, int
 }
 
 /**
+ * @brief 添加垂直约束（K41/F67：垂直=方向正交，真实 PERPENDICULAR 语义）
+ *
+ * 仿 graph_add_parallel：校验两节点为线段，创建 PERPENDICULAR 约束。
+ * 取代此前"垂直=betweenness/containment 占位"的语义错误链
+ * （formula_converter / interop_command 已接线至此）。
+ */
+AddConstraintResult graph_add_perpendicular(ConstraintGraph *graph, int line1_id, int line2_id) {
+    GeomNode *l1 = graph_get_node(graph, line1_id);
+    GeomNode *l2 = graph_get_node(graph, line2_id);
+    if (!l1 || !l2)
+        return ADD_CONSTRAINT_CONFLICT;
+    if (l1->type != GEOM_LINE_SEGMENT || l2->type != GEOM_LINE_SEGMENT)
+        return ADD_CONSTRAINT_CONFLICT;
+    int participants[2] = {line1_id, line2_id};
+    Constraint *con = NULL;
+    AddConstraintResult result = graph_add_constraint_typed(graph, PERPENDICULAR, participants, 2, &con);
+    if (result != ADD_CONSTRAINT_OK)
+        return result;
+    graph->dirty = true;
+    return ADD_CONSTRAINT_OK;
+}
+
+/**
  * @brief 添加介于约束（B-A-C 共线有序）
  *
  * 声明点 B 在点 A 和点 C 之间，三点共线且有序。

@@ -924,7 +924,7 @@ static const ConstraintTypeEntry kConstraintTypeEntries[] = {
 /* 编译期校验：条目宏行数与枚举值数量严格对齐（防止枚举与映射表漂移） */
 _Static_assert(lv_ARRAY_SIZE(kGeomTypeEntries) == (GEOM_FUNCTION_BLOCK + 1),
                "LV_GEOM_TYPE_ENTRY row count must match GeomType enum count");
-_Static_assert(lv_ARRAY_SIZE(kConstraintTypeEntries) == (PARALLEL + 1),
+_Static_assert(lv_ARRAY_SIZE(kConstraintTypeEntries) == (PERPENDICULAR + 1),
                "LV_CONSTRAINT_TYPE_ENTRY row count must match ConstraintType enum count");
 
 const char *lv_geom_type_name(int type) {

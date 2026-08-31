@@ -944,6 +944,62 @@ void test_graph_add_parallel(void) {
     PASS();
 }
 
+/** 测试 graph_add_perpendicular 垂直约束（K41/F67：真实 PERPENDICULAR 语义）
+ *
+ * 回归：此前垂直约束被 formula_convert_perpendicular 降级为
+ * graph_add_betweenness（垂直=点在两点之间，语义完全错误），
+ * interop 命令层降级为 CONTAINMENT。新增 PERPENDICULAR 枚举与
+ * graph_add_perpendicular 后应真实入图且类型正确。 */
+void test_graph_add_perpendicular(void) {
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT(g != NULL, "graph_create");
+
+    /* 两条线段（一条水平、一条竖直，互相垂直） */
+    SymbolicCoord *a0[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *a1[] = {symbolic_coord_create_rational(1, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *b0[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *b1[] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(1, 1)};
+    AddNodeResult ra0 = graph_add_point(g, a0, 2);
+    AddNodeResult ra1 = graph_add_point(g, a1, 2);
+    AddNodeResult rb0 = graph_add_point(g, b0, 2);
+    AddNodeResult rb1 = graph_add_point(g, b1, 2);
+    symbolic_coord_destroy(a0[0]); symbolic_coord_destroy(a0[1]);
+    symbolic_coord_destroy(a1[0]); symbolic_coord_destroy(a1[1]);
+    symbolic_coord_destroy(b0[0]); symbolic_coord_destroy(b0[1]);
+    symbolic_coord_destroy(b1[0]); symbolic_coord_destroy(b1[1]);
+    TEST_ASSERT(ra0 == ADD_NODE_OK && ra1 == ADD_NODE_OK && rb0 == ADD_NODE_OK && rb1 == ADD_NODE_OK,
+                "add 4 points");
+
+    AddNodeResult s1 = graph_add_line_segment(g, 0, 1); /* 水平 */
+    AddNodeResult s2 = graph_add_line_segment(g, 2, 3); /* 竖直 */
+    TEST_ASSERT(s1 == ADD_NODE_OK, "add seg1");
+    TEST_ASSERT(s2 == ADD_NODE_OK, "add seg2");
+    int seg2 = graph_get_last_added_node_id(g);
+    int seg1 = seg2 - 1;
+
+    int before = g->constraint_count;
+    AddConstraintResult pc = graph_add_perpendicular(g, seg1, seg2);
+    TEST_ASSERT(pc == ADD_CONSTRAINT_OK, "graph_add_perpendicular should succeed");
+    TEST_ASSERT(g->constraint_count == before + 1, "constraint count +1");
+    Constraint *con = g->constraints[g->constraint_count - 1];
+    TEST_ASSERT(con != NULL && con->type == PERPENDICULAR, "constraint type PERPENDICULAR");
+
+    /* 名称/别名映射（X-macro 单一事实源） */
+    TEST_ASSERT(lv_constraint_type_name(PERPENDICULAR) != NULL &&
+                    strcmp(lv_constraint_type_name(PERPENDICULAR), "PERPENDICULAR") == 0,
+                "lv_constraint_type_name(PERPENDICULAR)");
+    TEST_ASSERT(lv_constraint_type_alias(PERPENDICULAR) != NULL &&
+                    strcmp(lv_constraint_type_alias(PERPENDICULAR), "perpendicular") == 0,
+                "lv_constraint_type_alias(PERPENDICULAR)");
+
+    /* 非线段节点 → 冲突 */
+    AddConstraintResult bad = graph_add_perpendicular(g, 0, 1); /* 两个点 */
+    TEST_ASSERT(bad == ADD_CONSTRAINT_CONFLICT, "perpendicular on two points should conflict");
+
+    graph_destroy(g);
+    PASS();
+}
+
 /** 测试 geo_utils.h 零覆盖设施契约（C-㉘ 补全） */
 void test_geo_utils_facilities(void) {
     /* geo_distance_3d：3-4-5-√2 直角三角形 */
@@ -1253,5 +1309,6 @@ TEST_MAIN_BEGIN("Geometry Core — CSG, Euclidean, Compression")
     /* ── geo_norm 家族（批次 P2） ── */
     TEST_MAIN_RUN(test_geo_norm_family);
     TEST_MAIN_RUN(test_graph_add_parallel);
+    TEST_MAIN_RUN(test_graph_add_perpendicular); /* K41/F67 */
     TEST_MAIN_RUN(test_geo_utils_facilities);
 TEST_MAIN_END()

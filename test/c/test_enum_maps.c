@@ -222,7 +222,7 @@ static void test_entry_macro_uniqueness(void) {
                     "LV_CONSTRAINT_TYPE_ENTRY 规范名重复");
         TEST_ASSERT(!has_duplicate_str(kConAliases, lv_ARRAY_SIZE(kConAliases)),
                     "LV_CONSTRAINT_TYPE_ENTRY 别名重复");
-        TEST_ASSERT_EQ((int) lv_ARRAY_SIZE(kConEnums), (int) PARALLEL + 1);
+        TEST_ASSERT_EQ((int) lv_ARRAY_SIZE(kConEnums), (int) PERPENDICULAR + 1);
     }
 
     /* ── LV_PRESET_CATEGORY_ENTRY ── */

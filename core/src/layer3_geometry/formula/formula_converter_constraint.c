@@ -34,29 +34,28 @@ bool formula_convert_perpendicular(const FormulaNode *constraint_node, Constrain
         return false;
     }
 
-    if (constraint_node->data.constraint.participant_count < 3) {
+    if (constraint_node->data.constraint.participant_count < 2) {
         return false;
     }
 
-    /* 获取三个点 ID */
-    int p1_id = -1, p2_id = -1, p3_id = -1;
+    /* 获取两条线段 ID（K41/F67：垂直=两线段方向正交，参与者为 2 条线段）
+     * 原实现取 3 个点并调 graph_add_betweenness（垂直=点在两点之间，
+     * 语义完全错误）；现改调真实 graph_add_perpendicular。 */
+    int l1_id = -1, l2_id = -1;
 
     if (constraint_node->data.constraint.participants[0]->type == NODE_IDENTIFIER) {
-        p1_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
+        l1_id = formula_get_node_id(constraint_node->data.constraint.participants[0]->data.identifier.name);
     }
     if (constraint_node->data.constraint.participants[1]->type == NODE_IDENTIFIER) {
-        p2_id = formula_get_node_id(constraint_node->data.constraint.participants[1]->data.identifier.name);
-    }
-    if (constraint_node->data.constraint.participants[2]->type == NODE_IDENTIFIER) {
-        p3_id = formula_get_node_id(constraint_node->data.constraint.participants[2]->data.identifier.name);
+        l2_id = formula_get_node_id(constraint_node->data.constraint.participants[1]->data.identifier.name);
     }
 
-    if (p1_id < 0 || p2_id < 0 || p3_id < 0) {
+    if (l1_id < 0 || l2_id < 0) {
         return false;
     }
 
-    /* 添加 betweenness 约束（完整实现） */
-    AddConstraintResult result = graph_add_betweenness(graph, p1_id, p2_id, p3_id);
+    /* 垂直约束：真实垂直语义（两线段方向正交） */
+    AddConstraintResult result = graph_add_perpendicular(graph, l1_id, l2_id);
 
     if (result != ADD_CONSTRAINT_OK) {
         return false;
