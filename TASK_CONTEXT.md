@@ -9592,3 +9592,36 @@ lv_init）+ thread_pool once_reset。
   等未重置点）——后续。
 - 下一批候选：K41 谓词面 / F28-B2 / F24 剩余声明。
 
+## 一百六十三、批次 F28 J1 生命周期 B2（2026-08-31）
+
+F28-B2（lv_cleanup 硬编码 12 处注册表化）完成。
+
+### ① 实施结果
+
+- **12 处硬编码 cleanup 注册表化**（lv_init 注册纯 cleanup 模块，init=NULL）：
+  func_block_registry（REASONING）/ perf（OUTPUT）/ health（OUTPUT）/
+  adaptive_threshold（REASONING）/ error_context（RESOURCE，新包装
+  lv_module_cleanup_error_context 适配无参签名）/ module_autosave（RESOURCE）/
+  ecosystem（RESOURCE）/ unify_storage（RESOURCE）/ formula_converter_util
+  （RESOURCE）/ scratch_buf（RESOURCE）/ **thread_pool（CORE，逆序最后清**——
+  原误设 LATE 会最先清，其他模块可能仍在用线程池）/ module_delta（RESOURCE）；
+- **lv_cleanup 移除全部硬编码调用**（保留注释说明注册表接管）；
+- 清理顺序语义与原有硬编码一致（高优先级先清，核心最后清）。
+
+### ② 验证
+
+- build3 全量 + ctest **288/288 通过**（含 thread_ext_test 循环重建验证，
+  确认清理顺序正确无泄漏/崩溃）；
+- 批次 162 Python Bindings success，CI 运行中。
+
+### 决策登记
+
+- F28-B2 完成（12 处注册表化）/ thread_pool 优先级 CORE（最后清）/
+  error_context 无参包装。
+
+### 遗留登记
+
+- F28-B3：lv_module_registry_reset（cleanup_all 后清 count，修复"重复注册
+  被吞"）+ once_reset 统一契约（config/ecosystem 未重置点）——后续子批次。
+- 下一批候选：K41 谓词面 / F28-B3 / F24 剩余声明。
+

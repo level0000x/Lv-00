@@ -204,6 +204,11 @@ static void lv_module_cleanup_config(void) {
     }
 }
 
+/** @brief 错误上下文清理包装（注册表 cleanup 无参签名适配） */
+static void lv_module_cleanup_error_context(void) {
+    lv_error_context_cleanup(lv_error_context_current());
+}
+
 /** @brief 预设对象池初始化包装
  * 池是性能优化而非必需：初始化失败仅告警，不阻断系统初始化
  * （失败时后续分配回退普通 lv_malloc/lv_calloc）。 */
@@ -307,6 +312,24 @@ bool lv_init(void) {
     lv_module_register("interop_plugins", lv_module_init_interop_plugins, lv_module_cleanup_interop_plugins,
                        lv_MODULE_PRIO_RESOURCE);
 
+    /* F28/J1：原 lv_cleanup 硬编码清理序列注册表化（纯 cleanup 模块，init=NULL）。
+     * 优先级决定逆序清理顺序：高优先级（输出/应用层）先清，低（资源/核心）后清，
+     * 与原有硬编码顺序（func_block→perf→…→delta）语义一致。 */
+    lv_module_register("func_block_registry", NULL, lv_func_block_registry_cleanup, lv_MODULE_PRIO_REASONING);
+    lv_module_register("perf", NULL, lv_perf_shutdown, lv_MODULE_PRIO_OUTPUT);
+    lv_module_register("health", NULL, lv_health_shutdown, lv_MODULE_PRIO_OUTPUT);
+    lv_module_register("adaptive_threshold", NULL, lv_adaptive_threshold_cleanup, lv_MODULE_PRIO_REASONING);
+    lv_module_register("error_context", NULL, lv_module_cleanup_error_context, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("module_autosave", NULL, module_autosave_cleanup, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("ecosystem", NULL, lv_ecosystem_shutdown, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("unify_storage", NULL, lv_unify_equivalence_storage_cleanup, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("formula_converter_util", NULL, formula_converter_util_cleanup, lv_MODULE_PRIO_RESOURCE);
+    lv_module_register("scratch_buf", NULL, lv_scratch_buf_cleanup, lv_MODULE_PRIO_RESOURCE);
+    /* thread_pool 用 CORE 优先级：cleanup_all 逆序时最后清理（其他模块
+     * 可能仍在用全局线程池；原硬编码顺序 thread_pool 在 TLS 清理之后） */
+    lv_module_register("thread_pool", NULL, lv_global_thread_pool_destroy, lv_MODULE_PRIO_CORE);
+    lv_module_register("module_delta", NULL, module_delta_cleanup, lv_MODULE_PRIO_RESOURCE);
+
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);
 
     /* 通过模块注册表一次性初始化所有已注册模块 */
@@ -359,16 +382,10 @@ void lv_cleanup(void) {
         s_lv_state.global_engine = NULL;
     }
 
-    /* 清理函数块注册表 */
-    lv_func_block_registry_cleanup();
-
-    /* 清理运行时子系统：性能监控 / 健康检查 / 自适应阈值 / 错误上下文 / 自动保存 / 插件生态 */
-    lv_perf_shutdown();
-    lv_health_shutdown();
-    lv_adaptive_threshold_cleanup();
-    lv_error_context_cleanup(lv_error_context_current());
-    module_autosave_cleanup();
-    lv_ecosystem_shutdown();
+    /* F28/J1：以下清理已注册表化（lv_init 注册，cleanup_all 逆序执行）：
+     * func_block_registry / perf / health / adaptive_threshold / error_context /
+     * module_autosave / ecosystem / unify_storage / formula_converter_util /
+     * scratch_buf / thread_pool / module_delta——不再硬编码 */
 
     /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
     lv_module_cleanup_all();
@@ -376,21 +393,9 @@ void lv_cleanup(void) {
     /* 配置快照清理（F43/K15 方案 B：释放延迟回收的旧快照，单线程阶段） */
     lv_config_snapshot_cleanup();
 
-    /* TLS 堆表清理（当前线程副本）：
-     * unify 等价表 / formula converter 变量映射 / scratch 缓冲区均为
-     * TLS 指针+计数+容量三件套（lvTlsVector），在此释放当前线程的堆缓冲区，
-     * 回收长期驻留的 TLS 堆表（对应 lv_tls_vector_cleanup）。
-     * 注：池化工作线程退出时无 TLS 析构钩子，其副本随线程生命周期持有，
-     *     属遗留问题（需线程退出钩子方彻底解决），此处回收主线程副本。 */
-    lv_unify_equivalence_storage_cleanup();
-    formula_converter_util_cleanup();
-    lv_scratch_buf_cleanup();
-
-    /* 销毁全局线程池（内部 NULL/重复销毁安全） */
-    lv_global_thread_pool_destroy();
-
-    /* 释放 Delta 基线表（strdup 的模块名/版本等字符串） */
-    module_delta_cleanup();
+    /* F28/J1：unify_storage / formula_converter_util / scratch_buf /
+     * thread_pool / module_delta 清理已注册表化（见 lv_init 注册区），
+     * 由 lv_module_cleanup_all 逆序执行 */
 
     /* 输出内存统计（放在所有清理之后，避免清理顺序导致误报泄漏） */
     MemoryStats stats;
