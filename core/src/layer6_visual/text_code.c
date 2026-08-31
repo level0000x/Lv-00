@@ -133,6 +133,11 @@ int lv_text_code_insert(lvTextCodeView *view, int pos, const char *text) {
         pos = 0;
     if ((size_t) pos > cur_len)
         pos = (int) cur_len;
+    /* [安全] K27：先查后加——cur_len + text_len 相加前先做溢出检查，
+     * 原实现先算 new_len 再判 new_len+1，SIZE_MAX 边界时均可能回绕 */
+    if (text_len > (size_t) -1 - cur_len) {
+        lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "text insert: length overflow");
+    }
     size_t new_len = cur_len + text_len;
     /* [安全] 防止缓冲区扩展时整数溢出 */
     if (new_len + 1 > (size_t) view->buffer_size) {

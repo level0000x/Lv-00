@@ -1132,6 +1132,23 @@ lv_PUBLIC_API double lv_random_double(double min, double max);
  */
 lv_PUBLIC_API bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, int min_growth);
 
+/**
+ * @brief 确保动态数组有足够的容量（size_t 口径，I3/F27 权威）
+ *
+ * 与 lv_ensure_capacity 相同的倍增语义，但 count/capacity/min_growth
+ * 全为 size_t，消除 int 口径的容量上限（INT_MAX）桥接。
+ * 适用于大数组/多元素容器；小容器可继续用 int 版。
+ *
+ * @param arr        当前数组指针（可能被 realloc）
+ * @param count      当前元素数量
+ * @param capacity   当前容量指针（会被更新）
+ * @param elem_size  每个元素的大小
+ * @param min_growth 最小增长量
+ * @return 成功返回 true，失败返回 false
+ */
+lv_PUBLIC_API bool lv_ensure_capacity64(void **arr, size_t count, size_t *capacity, size_t elem_size,
+                                        size_t min_growth);
+
 /* ============================================================
  * lvTlsVector —— TLS 指针 + count + capacity 三件套
  *

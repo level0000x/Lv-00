@@ -478,6 +478,51 @@ bool lv_ensure_capacity(void **arr, int count, int *capacity, size_t elem_size, 
     return true;
 }
 
+/**
+ * @brief 确保动态数组有足够的容量（size_t 口径，I3/F27 权威）
+ *
+ * 倍增语义与 lv_ensure_capacity 完全一致，但全 size_t，
+ * 消除 INT_MAX 容量桥接。溢出检查分三步：
+ *   1. count + min_growth 不回绕（min_required < count 检测）
+ *   2. 倍增值不超 SIZE_MAX（*capacity > SIZE_MAX / FACTOR）
+ *   3. 分配大小不超 SIZE_MAX（new_cap > SIZE_MAX / elem_size）
+ */
+bool lv_ensure_capacity64(void **arr, size_t count, size_t *capacity, size_t elem_size, size_t min_growth) {
+    if (!arr || !capacity || elem_size == 0)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "ensure_capacity64 参数无效");
+
+    /* 无需扩容 */
+    if (count < *capacity)
+        return true;
+
+    /* 计算最小需求容量（先查后加，防回绕） */
+    size_t min_required = count + min_growth;
+    if (min_required < count) /* 溢出检测 */
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity64 min_required 溢出");
+
+    /* 计算新容量 */
+    if (*capacity > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity64 容量溢出");
+    size_t new_cap = (*capacity == 0) ? (size_t) lv_INITIAL_ARRAY_CAPACITY : *capacity * lv_ARRAY_GROWTH_FACTOR;
+    if (new_cap < min_required) {
+        if (min_required > SIZE_MAX / lv_ARRAY_GROWTH_FACTOR)
+            lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity64 min_required 容量溢出");
+        new_cap = min_required * lv_ARRAY_GROWTH_FACTOR;
+    }
+
+    /* 分配前检查 size_t 溢出 */
+    if (new_cap > SIZE_MAX / elem_size)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OVERFLOW, "ensure_capacity64 size_t 溢出");
+
+    void *new_arr = lv_realloc(*arr, new_cap * elem_size);
+    if (!new_arr)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_ALLOCATION_FAILED, "ensure_capacity64 realloc 失败");
+
+    *arr = new_arr;
+    *capacity = new_cap;
+    return true;
+}
+
 /* ============================================================
  * lvTlsVector —— TLS 指针 + count + capacity 三件套
  * ============================================================ */

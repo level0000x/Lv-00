@@ -9204,3 +9204,34 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留。下一步：P0 实施讨论（提交第一批实施清单，按红线逐批讨论）。
 
+## 一百五十三、批次 标准统一化 P0 实施第一批（2026-08-31，用户确认实施清单）
+
+用户「可以的」确认第一批 6 项实施清单——逐项实施完成，本地 288/288 通过。
+
+### ① 实施结果
+
+| 项 | 决策点 | 改动 | 验证 |
+|---|---|---|---|
+| 1 | F53（K27 整数安全） | graph_conflict.c:612 `(size_t)(max_node_id+1)` 先提升再加（INT_MAX UB 修复）；text_code.c:136 先查后加（cur_len+text_len 溢出检查）；lv_SAFE_ADD 宏删除收敛 → lv_safe_add_int 薄包装（lv_arith_safe.h），4 调用点迁移（func_block.c ×3 / func_block_instantiate.c ×1），lv_internal.h 宏移除留注释 | lv_core 编译 ✅ |
+| 2 | F54（K28 递归深度） | 新建 depth_limits.h 单一权威深度限制表（GLOBAL_RECURSION 128 / CONTEXT_MAX 100000 / PARSE_AST 256 / REASONING 1000 / LAMBDA 1024 / DESTROY 200）；128 四处重复收敛（recursion.h/config.h/runtime_guard.h 改引用权威）；parser_safety.h 补齐 4 个缺失声明（lv_input_sanitize/lv_check_ast_depth/lv_check_ast_node_count/lv_check_token_length + lv_char_is_safe_ctrl） | lv_core 编译 ✅；**AST 深度接线为行为变更，待与用户讨论方案后执行** |
+| 3 | F92（K66 结构体布局） | constraint_graph.h GeomNode≤128/Constraint≤96、symbolic_coord.h SymbolicCoord≤64、proof.h ProofStep≤128 四条 lv_STATIC_ASSERT 编译期对拍（增字段超池即编译失败） | lv_core 编译 ✅ |
+| 4 | F93（K67 ctypes 绑定） | func_block.py instantiate 补 6 参（out_new_node_ids 出参指针 + count），按状态码判断（原 5 参必抛 TypeError + safe_instantiate 静默吞），返回/释放逻辑修正 | Python 语法检查待 CI |
+| 5 | F7（E11 断言参数序） | TEST_ASSERT_EQ/TEST_ASSERT_DOUBLE 保留旧签名（actual,expected），内部交换参数转发 lv_ASSERT_EQ/lv_ASSERT_FLOAT_EQ 权威（消除双实现）；TEST_ASSERT_NEAR 带 msg 保留独立 | test_allocator_ext 编译+链接 ✅ |
+| 6 | F27（I3 增长逻辑） | 新增 lv_ensure_capacity64（size_t 口径权威，三步溢出检查）；sparse_linear_algebra.c 手写倍增迁权威（补原缺失溢出检查）；graph_traversal_bfs/lv_reasoning_stack 评估（回调重试/已走权威保留） | 全量 build all ✅ |
+
+### ② 验证
+
+- build3（Ninja + MinGW）：`cmake --build build3 --target all` 1163/1163 ✅；
+  `ctest --test-dir build3 -j4` **288/288 全部通过**（含 stream_extended_test，无 flaky）。
+
+### 决策登记
+
+- 第一批 6 项实施完成 / 本地 288/288 通过 / commit + push + CI 双 workflow 验证 /
+  F54 AST 深度接线（行为变更）与 F27 剩余 11 处倍增迁移待第二批讨论。
+
+### 遗留登记
+
+- F54 K28：lv_check_ast_depth 接入主解析链（AST 深度遍历方案）待讨论后执行。
+- F27 I3：其余手写倍增点（stream_lazy/stream_buffer/lv_hashtable/lv_strbuf 等）
+  属 K58/K46 登记域，随对应面推进。
+

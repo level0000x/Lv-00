@@ -822,22 +822,32 @@ class FuncBlock(_PtrOwner):
             raise FuncBlockInstantiateError("函数块未初始化")
         
         mappings_arr = _int_arr(arg_mappings)
+        out_ids_ptr = POINTER(c_int)()  # int* 出参：新节点 ID 数组（C 侧分配）
         count = c_int()
         
-        result_ptr = _lib.func_block_instantiate(
+        # K67 修复：C 契约 6 参 —— (fb, graph, arg_mappings, arg_count,
+        # int **out_new_node_ids, int *out_new_node_count)，返回 InstantiateResult 状态码。
+        # 原实现只传 5 参（缺 out_new_node_ids 出参指针）导致 ctypes 强制最少参数数
+        # 必抛 TypeError，且把 int 状态码当指针解引用。
+        result_code = _lib.func_block_instantiate(
             self._ptr, graph._ptr,
             mappings_arr, len(arg_mappings),
+            ctypes.byref(out_ids_ptr),
             ctypes.byref(count)
         )
         
-        if not result_ptr:
+        if result_code != INSTANTIATE_OK:
+            raise FuncBlockInstantiateError(
+                f"实例化失败: 状态码 {result_code}"
+            )
+        if not out_ids_ptr:
             raise FuncBlockInstantiateError(
                 f"实例化失败: 无法获取新节点列表"
             )
         
-        new_node_ids = [result_ptr[i] for i in range(count.value)]
-        # lv_free_ptr 接受 void*（FFI 兼容），无需双重指针转换
-        _lib.lv_free_ptr(ctypes.cast(ctypes.pointer(result_ptr), c_void_p))
+        new_node_ids = [out_ids_ptr[i] for i in range(count.value)]
+        # lv_free_ptr 接受 void*（FFI 兼容），释放 C 侧分配的节点 ID 数组
+        _lib.lv_free_ptr(ctypes.cast(out_ids_ptr, c_void_p))
         
         return (INSTANTIATE_OK, new_node_ids)
     

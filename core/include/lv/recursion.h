@@ -33,6 +33,7 @@
 
 #include <stdbool.h>
 
+#include "depth_limits.h"
 #include "constraint_graph.h"
 #include "context.h"
 #include "stream.h"
@@ -54,8 +55,13 @@ extern "C" {
  * 与 lv_MAX_RECURSION_DEPTH_LIMIT (100000, 定义于本文件 recursion.h，见下方) 的关系：
  * - lv_MAX_RECURSION_DEPTH (128): 全局熔断阈值，由 lv_recursion_enter/leave 管理
  * - lv_MAX_RECURSION_DEPTH_LIMIT (100000): 单个 RecursionContext 的硬上限
+ *
+ * 【K28 收敛】值源自 depth_limits.h 单一权威表（lv_DEPTH_LIMIT_GLOBAL_RECURSION），
+ * 本文件不再散落 #define 字面量。
  */
-#define lv_MAX_RECURSION_DEPTH 128
+#ifndef lv_MAX_RECURSION_DEPTH
+#define lv_MAX_RECURSION_DEPTH lv_DEPTH_LIMIT_GLOBAL_RECURSION
+#endif
 
 lv_PUBLIC_API void recursion_set_stream_context(StreamContext *ctx);
 
@@ -260,7 +266,7 @@ typedef enum {
 
 /* 单个 RecursionContext 的最大深度上限 */
 #ifndef lv_MAX_RECURSION_DEPTH_LIMIT
-#define lv_MAX_RECURSION_DEPTH_LIMIT 100000
+#define lv_MAX_RECURSION_DEPTH_LIMIT lv_DEPTH_LIMIT_CONTEXT_MAX
 #endif
 
 /**

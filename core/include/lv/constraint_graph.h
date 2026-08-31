@@ -41,7 +41,8 @@ extern "C" {
 #include <stdint.h>
 
 #include "error_codes.h"
-#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL, lv_STATIC_ASSERT */
+#include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
 #include "lv/lv_hashtable.h" /* 反向索引（node_id -> 约束下标列表） */
 #include "symbolic_coord.h"
 
@@ -367,6 +368,11 @@ struct GeomNode {
     } data;
 };
 
+/* K66 编译期对拍：GeomNode 增字段超过预设池块尺寸 128 即编译失败，
+ * 防止池块越界写（与 K43 coeff_pool 尺寸失配同族防御） */
+lv_STATIC_ASSERT(sizeof(GeomNode) <= lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE,
+                 "GeomNode exceeds preset pool block size 128");
+
 struct Constraint {
     int id;
     ConstraintType type;
@@ -377,6 +383,10 @@ struct Constraint {
     double numeric_value; /**< 约束的数值参数（如距离、角度等），仅部分约束类型使用；ANGLE 类型使用此字段存储角度值（度） */
     double satisfaction;  /**< 约束满意度 (0.0~1.0)，用于概率推理 */
 };
+
+/* K66 编译期对拍：Constraint 增字段超过预设池块尺寸 96 即编译失败 */
+lv_STATIC_ASSERT(sizeof(Constraint) <= lv_CONFIG_POOL_CONSTRAINT_SIZE,
+                 "Constraint exceeds preset pool block size 96");
 
 /**
  * 约束图 —— 理论数学研究系统的核心数据结构。

@@ -20,6 +20,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/* K28：深度限制单一权威表（仅依赖标准头，无环；compat 段引用其宏） */
+#include "depth_limits.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -788,9 +791,9 @@ void lv_config_reset(void);
 #define lv_TRACE_TREE_MAX_DEPTH 50
 #endif
 
-/* recursion.h compat */
+/* recursion.h compat（K28：值收敛到 depth_limits.h 权威表） */
 #ifndef lv_MAX_RECURSION_DEPTH
-#define lv_MAX_RECURSION_DEPTH 128
+#define lv_MAX_RECURSION_DEPTH lv_DEPTH_LIMIT_GLOBAL_RECURSION
 #endif
 
 /* context.h compat */
@@ -813,9 +816,9 @@ void lv_config_reset(void);
 #define lv_CONTEXT_REASONING_STACK_MAX_DEPTH 1000
 #endif
 
-/* runtime_guard.h compat */
+/* runtime_guard.h compat（K28：值收敛到 depth_limits.h 权威表） */
 #ifndef lv_RUNTIME_GUARD_MAX_RECURSE
-#define lv_RUNTIME_GUARD_MAX_RECURSE 128
+#define lv_RUNTIME_GUARD_MAX_RECURSE lv_DEPTH_LIMIT_GLOBAL_RECURSION
 #endif
 
 /* interop.h compat */

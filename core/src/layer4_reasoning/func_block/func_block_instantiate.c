@@ -16,6 +16,7 @@
 
 #include "lv/func_block.h"
 #include "lv/func_block_internal.h"
+#include "lv/lv_arith_safe.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
@@ -154,8 +155,8 @@ static const InstantiateCopyHandler kInstantiateOps[] = {
 static InstantiateResult instantiate_copy_internal_nodes(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings,
                                                          int arg_count, int *id_map, int max_id, int **out_new_node_ids,
                                                          int *out_new_node_count) {
-    /* 使用安全加法宏防止 capacity 计算整数溢出 */
-    int capacity = lv_SAFE_ADD(fb->internal_node_count, fb->output_count, INT_MAX);
+    /* 使用安全加法防止 capacity 计算整数溢出 */
+    int capacity = lv_safe_add_int(fb->internal_node_count, fb->output_count, INT_MAX);
     if (capacity == INT_MAX) {
         return INSTANTIATE_OUT_OF_MEMORY;
     }

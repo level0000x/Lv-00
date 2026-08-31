@@ -32,6 +32,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "depth_limits.h" /* K28：lv_RUNTIME_GUARD_MAX_RECURSE 值收敛到权威表 */
+
 /* 前向声明 —— 避免循环依赖 */
 struct lvContext;
 
@@ -49,8 +51,10 @@ struct lvContext;
  * 第二部分：运行时保护配置常量
  * ============================================================ */
 
-/** @brief 运行时保护默认递归深度上限 */
-#define lv_RUNTIME_GUARD_MAX_RECURSE 128
+/** @brief 运行时保护默认递归深度上限（K28：值源自 depth_limits.h 权威表） */
+#ifndef lv_RUNTIME_GUARD_MAX_RECURSE
+#define lv_RUNTIME_GUARD_MAX_RECURSE lv_DEPTH_LIMIT_GLOBAL_RECURSION
+#endif
 
 /** @brief 自旋锁最大尝试次数（用于 trylock 回退） */
 #define lv_RUNTIME_GUARD_SPIN_ATTEMPTS 1024

@@ -28,6 +28,7 @@
 #include "lv/stream.h"
 
 #include "lv/func_block_internal.h"
+#include "lv/lv_arith_safe.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_lifecycle.h"
 #include "lv/lv_utils.h"
@@ -536,7 +537,7 @@ static int handle_cross_boundary_constraints(ConstraintGraph *graph, const int *
         return lv_OK;
 
     /* 合并内部节点和端口 ID 用于跨边界检测 */
-    int partial = lv_SAFE_ADD(internal_count, port_count > 0 ? port_count : 0, INT_MAX);
+    int partial = lv_safe_add_int(internal_count, port_count > 0 ? port_count : 0, INT_MAX);
     if (partial == INT_MAX)
         return lv_ERROR_OVERFLOW;
     int total_bound = partial;
@@ -771,14 +772,14 @@ PackResult func_block_pack(ConstraintGraph *graph, const int *internal_node_ids,
     int conflict_count = 0;
 
     /* 合并内部节点和端口用于跨边界检测 */
-    /* 使用安全加法宏防止 total_bound 计算整数溢出。
-     * 注意：嵌套调用 lv_SAFE_ADD 时，若第一次加法溢出返回 INT_MAX，
+    /* 使用安全加法防止 total_bound 计算整数溢出。
+     * 注意：嵌套调用 lv_safe_add_int 时，若第一次加法溢出返回 INT_MAX，
      * 第二次再加第三个值会再次溢出仍返回 INT_MAX，因此必须逐级检查。
      * 修复：拆分为两次独立的安全加法，每次都检查溢出结果。 */
-    int partial = lv_SAFE_ADD(internal_count, input_count, INT_MAX);
+    int partial = lv_safe_add_int(internal_count, input_count, INT_MAX);
     if (partial == INT_MAX)
         return PACK_RESULT_OUT_OF_MEMORY;
-    int total_bound = lv_SAFE_ADD(partial, output_count, INT_MAX);
+    int total_bound = lv_safe_add_int(partial, output_count, INT_MAX);
     if (total_bound == INT_MAX)
         return PACK_RESULT_OUT_OF_MEMORY;
 

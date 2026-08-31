@@ -594,17 +594,18 @@ static bool sparse_row_add(SparseRow *r, int col, double val) {
         return true;
     }
     if (r->count >= r->capacity) {
-        int new_cap = r->capacity * 2;
-        int *nc = (int *) lv_realloc(r->cols, (size_t) new_cap * sizeof(int));
-        double *nv = (double *) lv_realloc(r->vals, (size_t) new_cap * sizeof(double));
-        if (!nc || !nv) {
-            lv_free((void **) &nc);
-            lv_free((void **) &nv);
+        /* F27/I3：手写倍增迁 lv_ensure_capacity64 权威（size_t 口径，
+         * 补原实现缺失的溢出检查：capacity*2 与分配大小） */
+        size_t cap64 = (size_t) r->capacity;
+        if (!lv_ensure_capacity64((void **) &r->cols, (size_t) r->count + 1, &cap64, sizeof(int), 1)) {
+            lv_RETURN_ERROR(lv_ERROR_OVERFLOW, "sparse row grow: cols overflow");
+        }
+        double *nv = (double *) lv_realloc(r->vals, cap64 * sizeof(double));
+        if (!nv) {
             return false;
         }
-        r->cols = nc;
         r->vals = nv;
-        r->capacity = new_cap;
+        r->capacity = (int) cap64;
     }
     for (int i = r->count; i > lo; i--) {
         r->cols[i] = r->cols[i - 1];

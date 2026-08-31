@@ -609,7 +609,9 @@ int **graph_detect_conflicts(const ConstraintGraph *graph, int *out_conflict_cou
     }
 
     /* adj: node_id -> 约束索引的扁平数组 */
-    size_t adj_total = (size_t) (max_node_id + 1) * lv_ADJ_MAX_PER_NODE;
+    /* K27：先提升 size_t 再 +1——原 (size_t)(max_node_id + 1) 在 int 域先加，
+     * max_node_id == INT_MAX 时为有符号溢出 UB */
+    size_t adj_total = ((size_t) max_node_id + 1) * (size_t) lv_ADJ_MAX_PER_NODE;
     if (adj_total > (size_t) INT_MAX) {
         lv_free((void **) &conflicts);
         lv_free((void **) out_conflict_sizes);

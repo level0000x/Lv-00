@@ -10,6 +10,8 @@ extern "C" {
 #include <stdint.h>
 #include <gmp.h>
 
+#include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
+#include "lv/cross_platform.h" /* lv_STATIC_ASSERT */
 #include "lv/lv_xmacro.h"
 #include "mpz_poly.h" /* mpz_poly_t, AlgebraicOp */
 
@@ -163,6 +165,10 @@ struct SymbolicCoord {
         Transcendental *transcendental;
     } data;
 };
+
+/* K66 编译期对拍：SymbolicCoord 增字段超过预设池块尺寸 64 即编译失败 */
+lv_STATIC_ASSERT(sizeof(SymbolicCoord) <= lv_CONFIG_POOL_SYMBOLIC_COORD_SIZE,
+                 "SymbolicCoord exceeds preset pool block size 64");
 
 /* ── Overflow context ── */
 struct OverflowContext {

@@ -38,7 +38,8 @@
 
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for proof timing/thresholds */
 #include "unify.h"
-#include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
+#include "lv/cross_platform.h" /* lv_THREAD_LOCAL, lv_STATIC_ASSERT */
+#include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
 #include "lv/lv_utils.h"
 #include "lv/trust_color_x.h" /* ProofColor 枚举单源列表 */
 
@@ -275,6 +276,10 @@ struct ProofStep {
     /* 时间戳 */
     int64_t timestamp; /* 步骤时间戳 */
 };
+
+/* K66 编译期对拍：ProofStep 增字段超过预设池块尺寸 128 即编译失败 */
+lv_STATIC_ASSERT(sizeof(ProofStep) <= lv_CONFIG_POOL_PROOF_STEP_SIZE,
+                 "ProofStep exceeds preset pool block size 128");
 
 /* ============== 证明依赖链 ============== */
 struct ProofDependency {

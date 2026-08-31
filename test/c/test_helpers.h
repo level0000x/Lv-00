@@ -185,24 +185,15 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
 /**
  * @brief 相等断言宏 - 比较两个值是否相等
  *
- * 支持整数类型和指针类型的比较。
- * 使用 == 运算符直接比较，失败时以整数形式打印实际值和期望值。
+ * 【E11 收敛】旧签名 (actual, expected) 与权威 lv_ASSERT_EQ(expected, actual)
+ * 参数序相反——此处保留旧调用签名（163 文件既有调用点不改），内部交换
+ * 参数转发到权威 lv_ASSERT_EQ，两套断言体系共享同一实现与计数符号。
+ * 后续统一迁移调用点参数序后，可直接改为直转。
  *
  * @param actual    实际值
  * @param expected  期望值
  */
-#define TEST_ASSERT_EQ(actual, expected)                                                                         \
-    do {                                                                                                         \
-        intptr_t _th_actual = (intptr_t) (actual);                                                               \
-        intptr_t _th_expected = (intptr_t) (expected);                                                           \
-        if (_th_actual != _th_expected) {                                                                        \
-            fprintf(stderr, "  FAIL [%s:%d] %s != %s (actual=%ld, expected=%ld)\n", __FILE__, __LINE__, #actual, \
-                    #expected, (long) _th_actual, (long) _th_expected);                                          \
-            g_fail_count++;                                                                                      \
-            return;                                                                                              \
-        }                                                                                                        \
-        g_pass_count++;                                                                                          \
-    } while (0)
+#define TEST_ASSERT_EQ(actual, expected) lv_ASSERT_EQ(expected, actual)
 
 /**
  * @brief 不等断言宏 - 比较两个值是否不相等
@@ -238,25 +229,15 @@ static inline int approx_eq_eps(double a, double b, double eps) { return fabs(a 
  * 与 TEST_ASSERT_NEAR 功能相同，但省略消息参数，用于收敛测试中
  * 大量手写的 fabs(a - b) < 1e-N 判断。失败时打印实际值、期望值和差值。
  *
+ * 【E11 收敛】旧签名 (actual, expected, tol) 与权威 lv_ASSERT_FLOAT_EQ
+ * (expected, actual, tol) 参数序相反——此处保留旧调用签名，内部交换
+ * 参数转发到权威 lv_ASSERT_FLOAT_EQ。
+ *
  * @param actual    实际值
  * @param expected  期望值
  * @param tol       容差
  */
-#define TEST_ASSERT_DOUBLE(actual, expected, tol)                                                               \
-    do {                                                                                                        \
-        double _td_actual = (double) (actual);                                                                  \
-        double _td_expected = (double) (expected);                                                              \
-        double _td_diff = _td_actual - _td_expected;                                                            \
-        if (_td_diff < 0.0)                                                                                     \
-            _td_diff = -_td_diff;                                                                               \
-        if (_td_diff > (tol)) {                                                                                 \
-            fprintf(stderr, "  FAIL [%s:%d] (actual=%.12f, expected=%.12f, diff=%.12e)\n", __FILE__, __LINE__,  \
-                    _td_actual, _td_expected, _td_diff);                                                        \
-            g_fail_count++;                                                                                     \
-            return;                                                                                             \
-        }                                                                                                       \
-        g_pass_count++;                                                                                         \
-    } while (0)
+#define TEST_ASSERT_DOUBLE(actual, expected, tol) lv_ASSERT_FLOAT_EQ(expected, actual, tol)
 
 /**
  * @brief 失败不返回的断言宏（失败后继续执行）

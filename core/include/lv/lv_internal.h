@@ -217,22 +217,13 @@ extern void lv_log_message(int level, const char *file, int line, const char *fm
  * ================================================================ */
 
 /* ================================================================
- * 安全整数加法宏
+ * 安全整数加法（K27 收敛）
+ *
+ * lv_SAFE_ADD 宏已于 K27（2026-08-31）收敛删除：统一走
+ * lv_arith_safe.h 的 lv_safe_add_i64 / lv_safe_add_int 权威实现，
+ * 消除本头重复的溢出判定逻辑。调用方迁移：
+ *   lv_SAFE_ADD(a, b, INT_MAX)  →  lv_safe_add_int(a, b, INT_MAX)
  * ================================================================ */
-
-/**
- * @brief 带溢出检测的整数加法
- *
- * 执行有符号 int 加法，若发生溢出则返回 overflow_val。
- *
- * @param a             第一个操作数
- * @param b             第二个操作数
- * @param overflow_val  溢出时的返回值
- */
-#define lv_SAFE_ADD(a, b, overflow_val)                             \
-    (((a) >= 0 && (b) > 0 && (a) > INT_MAX - (b))  ? (overflow_val) \
-     : ((a) < 0 && (b) < 0 && (a) < INT_MIN - (b)) ? (overflow_val) \
-                                                   : (int) ((a) + (b)))
 
 /* ================================================================
  * 内存对齐工具

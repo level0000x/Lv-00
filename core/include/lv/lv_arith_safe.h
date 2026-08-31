@@ -177,6 +177,27 @@ static inline bool lv_safe_add_i64(int64_t a, int64_t b, int64_t *out) {
 }
 
 /**
+ * @brief 安全 int 加法（饱和语义，K27 收敛 lv_SAFE_ADD 宏）
+ *
+ * 统一走 lv_safe_add_i64 权威实现，消除 lv_internal.h 中
+ * 重复的溢出判定宏。溢出时返回 overflow_val（调用方通常传 INT_MAX
+ * 或 INT_MIN 作为哨兵，随后自行检查）。
+ *
+ * @param a            加数
+ * @param b            加数
+ * @param overflow_val 溢出时的返回值
+ * @return 无溢出返回 a+b；溢出返回 overflow_val
+ */
+static inline int lv_safe_add_int(int a, int b, int overflow_val) {
+    int64_t out64 = 0;
+    if (!lv_safe_add_i64(a, b, &out64))
+        return overflow_val;
+    if (out64 > INT_MAX || out64 < INT_MIN)
+        return overflow_val;
+    return (int) out64;
+}
+
+/**
  * @brief 安全减法：a - b，检测溢出
  *
  * @param a   被减数
