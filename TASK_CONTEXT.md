@@ -8694,3 +8694,130 @@ SymbolicCoord 的堆 rational），导致每个点泄漏 ~144 字节。
 
 - 无新增遗留（第二十轮审计为设计留档，未执行）。
 
+## 一百四十五、批次 标准统一化第二十一轮审计（2026-08-27）
+
+用户「再开子代理找其他方面的」——第二十一轮五路并行审计补充 5 组
+"一需求多实现"重复点（总 138 组）。
+
+### ① 第二十一轮审计结果（K61-K65）
+
+- **错误上下文传播/聚合面 K61**：**权威已建**：lv_error.c 设施本体（K15 健康
+  范本 ✅）+ interop 协议层错误通道（分层复核一致 ✅）+ lvContext 对象级错误
+  （分层意图合理）+ lvParseResult 结构化多错误通道（K45 ✅）+ lv_RESULT_FAIL/
+  lv_ERROR_SLOT 收敛设施 + context 快照回滚还原错误状态（可推广范本 ✅）；
+  **"一需求多实现"**：**新式错误帧栈写端桥接已接、读端零消费（P0）**——
+  lv_error_push 每次 lv_set_error 推帧（error_codes.c:244/:270 生产唯一写端）但
+  lv_error_set/lv_error_format_chain 等 core/src 0 调用（仅测试）——"8 帧回溯/
+  cause 链/根因优先"能力悬空（与 K54-R1 RefCounted 死设施同构）；**错误 API 被
+  用作日志/状态通道（P0）**——lv_set_error(lv_OK,…) 25 处覆盖真实错误状态 +
+  桥接对 lv_OK 跳过帧 → 两套状态分歧（graph_set_error/orchestrator error_msg
+  同类双用途）；**错误传播断链（P0）**——dsl_compile_and_load 静默 false 不设
+  通道 + orchestrator 6 阶段静态通用文本覆盖底层错误从不读 last_error +
+  formula_parse 覆盖详细消息 + engine 双写不对称；**错误消息存储通道 ≥7 种并存
+  （P1）**——TLS 512/lvContext error_message 写多读 0/graph error_buffer 写多
+  读 0/模块实例 last_error（尺寸无规则）/结果定长数组/堆分配 lv_strdup/5 个 TLS
+  委托 getter 别名同一通道 + lv_convenience 直写字段绕过 setter；**错误聚合 ≥5
+  种（P1）**——lv_sema 矩阵聚合了但永不报告（lv_sema_error_msg 生产 0 调用）/
+  TLS last-wins/首错保留单槽；解析错误上报 ≥6 形态；**preset_manager set_error
+  70+ 调用点全部硬编码 lv_ERROR_INVALID_PARAM（P1）**（OOM/NOT_FOUND 语义码
+  丢失 + axiom 死宏）；find_error_info 查询路径副作用（纯查询函数设置新错误 P2）；
+  错误清理时机 ≥4 种；位置信息两套保存策略。
+- **配置持久化/加载面 K62**：**权威已建**：lv_ini_parse 行解析唯一权威（复核
+  一致 ✅）+ lv_env_get_* 唯一 env 设施带 clamp（K16 ✅）+ lvGeometryConfig
+  独立子系统+TLS 快照（K15 ✅）+ A 优先/B 回落分发 + lvPluginConfig per-instance
+  存储语义 + per-module 配置对象族 + LV_CFG 键名单源；**"一需求多实现"**：
+  **配置"文件加载+保存"端口三套并存且全部生产零接线（P1）**——A JSON/B INI/
+  插件 INI-扁平 三种格式三套 API 三套键名语义互不委托全部仅测试消费；
+  **INI 保存端两种方言（P1）**——B 节头+类型化 vs 插件扁平无类型（行解析已统一
+  值语义层仍两套）；**保存时机四态分裂（P1）**——A 永不落盘/B auto_save 恒
+  false 不可达/插件手动零调用/模块名义定时实际手动（interval_seconds 死字段）；
+  **模块自动保存族整体生产零调用（P1）**——module_autosave/recover/delta 零调用
+  + AutoSaveConfig 硬编码默认 + module.h 文档声称"自动保存"零接线；配置类型系统
+  三套不一致+死 type 字段；加载校验三语义分裂；配置写前备份/原子写 = 0 实现；
+  **P0 缺口**：**配置不落盘**（三套端口全零调用 lv.config.json 约定无实现）+
+  **LV_CFG 键配置覆盖假象**（33 键仅 5 命中 A 表，~28 个含 GROEBNER_ZERO_
+  THRESHOLD/CDCL/ATP 等消费密集键既不在 A 也不匹配 B——调用方恒得回退默认值
+  "可配置性"是假象，与 K44"5 死键"互补）；C 侧无配置热重载 + 无默认配置文件
+  生成路径。
+- **位操作/位域/位掩码面 K63**：**权威已建**：STREAM_EVENT_MASK 唯一事件掩码
+  （X-macro 单事实源 uint64 ✅——本面最健康收敛点）+ 字节序唯一权威（K39 ✅）+
+  lv_dirty_set 已收敛 + smt_bitvector 位向量独立域 + 协议位解包分层 + CPUID
+  平台分支 + **C 位域零使用（健康基线 ✅）** + K27 移位安全复核一致；**"一需求
+  多实现"**：**位数熔断阈值常量双名三定义+消费端缩放分裂（P0）**——BIT_CUTOFF_
+  THRESHOLD vs lv_BIT_CUTOFF_THRESHOLD 双名同值 1000000 改值需同步三处 +
+  消费端原值/÷2/÷FACTOR 三种缩放系数无登记 + symbolic_coord.c:30 过期注释
+  （声称定义在 lv_internal.h 实际不在 M5）；**GMP 位数计算/熔断检查 5 处实现
+  （P1，E8 位域延伸）**——rational/lv_rational（含 lv_rational_mul_is_safe 生产
+  零调用 M6 + 默认 65536 ≠ 权威 1000000 + RATIONAL_INPLACE_BIT_LIMIT 128 第三
+  常量）/symbolic_coord_ops/symbolic_coord/symbolic_coord_trust——GMP API 两
+  拼写+阈值语义三种+熔断动作三种；**位掩码助手 lv_mask_* 近零采纳（P1）**——
+  权威仅 meta_verify 5 处使用，裸 |= / &=~ / & (1u<<n) 20+ 处（含 int 1 与
+  unsigned 1u 混用），助手仅 32 位无 64 位变体；**visited/去重集合 3 形态并存
+  （P1）**——relation_model 手写 uint8 位图**全库唯一真位图无通用 lv_bitset 容器**
+  + solver_core int 数组 + logic_check int seen；**lv_PLUGIN_CAP_* 只写不读
+  （P1 M6）**——7 处写入 0 处读取"死协议"；2^n 组合枚举按位取位 ×3（P2）；
+  位级 I/O 两实现（MSB vs LSB DEFLATE 外部契约，P2）。
+- **测试夹具/环境/隔离面 K64**：**权威已建**：CTest 进程级隔离（288 独立可执行
+  ✅）+ 三层测试分层（K24 ✅）+ AxiomTestCase 数据驱动成功案例（54 文件共享 ✅）
+  + 共享图构造器 lv_test_geom_graph_builder.h + 域级超时契约测试（合法分层）+ 
+  TEST_LEAK 专用场景 + 刻意不 init 豁免（文档化）；**"一需求多实现"**：**测试
+  运行入口一需求两实现+一个混用形态（P1）**——宏骨架 TEST_MAIN_BEGIN 287 文件
+  vs 注册框架 lv_test_register 近死（fixture/tag/超时/并行/benchmark/XML/HTML
+  ~12 个能力 0 外部调用）——54 axiom 文件同一二进制内两个运行器先后执行（混用
+  形态 C）；**lv_init 环境搭建 5 形态（P1）**——裸调/守卫/每测试函数配对 15 对
+  （依赖 once_reset 未落地第二对起 no-op 隔离名存实亡推测）/有 init 无 cleanup
+  4 文件/刻意不 init 豁免；**测试超时三实现并存（P1）**——框架 timeout_ms 只写
+  不读（M5 声称 30 秒超时实际 run_single_test 无检查）+ test_solve_debug 信号
+  hack 失效（注册 SIGABRT 无 alarm 调用）+ 域级契约测试合法——**ctest TIMEOUT
+  属性未配置 288 测试均靠默认 infinity 超时保护真空**；setvbuf 20 处手写（P2）；
+  条件跳过 3 形态+skip 无统计（P2）；**夹具工厂 12 文件 15 函数（P1，K11 R2
+  复核+新证据）**——create_triangle_graph 与共享 lv_test_triangle_graph 逐行
+  同构未收敛（豁免注释模板仅 1 文件使用）；TEST_ASSERT≡TEST_ASSERT_MSG 同体重复
+  + 浮点三宏并存（P2）；axiom 夹具 R1/R2 清理不一致；套件命名 4 约定；残留产物
+  5 文件在仓库根（P1 佐证）；框架死能力随 lv_static 编入（K11 R7 复核一致）。
+- **日志输出/目标/轮转面 K65**：**权威已建**：debug_log 主管道（stdout/stderr
+  分流+文件+环形+10MB/5 份轮转 ✅ 活唯一权威）+ stream_emit 事件流（不同层）+ 
+  lvEventBus 事件追踪（不同语义）+ 紧急保存文件 vs 运行日志文件生命周期分层 +
+  日志目录唯一计算点 + stdout/stderr 级别分流单一实现；**"一需求多实现"**：
+  **runtime_monitor 死 sink 位掩码面（P0）**——声明 5 目标位掩码+set_targets/
+  set_file/set_callback+轮转配置但 lv_log_write 只读 min_level 委托（targets/
+  callback/log_file 从不消费）——整个 sink 选择/组合/切换 API 面"有配置无消费"
+  死表面生产零调用；**legacy 写路径 sink 组合不一致+轮转/环形旁路（P0）**——
+  debug_log_legacy_impl（rewrite 域"内存分配失败"2 调用点）同一条日志两种格式 +
+  **不写环形 + 不调 check_rotation 不增 current_log_size（10MB 轮转阈值失效可
+  无限增长）** + 恒 DEBUG 恒 stdout 不分流；**lv_log sink 切换不可逆+FILE 泄漏
+  （P0/P1）**——set_output 一旦置 true 永不复位（主管道文件/环形/轮转不可恢复）+
+  替换 FILE 从不 fclose + g_min_level 无 setter；**位置信息 3 种承载+结构化字段
+  死（P1）**——环形写入恒传 NULL,NULL,0 结构化字段永远空 + 三种位置文本格式 +
+  崩溃导出丢定位；消息缓冲上限 3 档不一致（4096/512）；级别过滤 4 处手写+编译期
+  通道 lv_LOG_GUARD 零定义（命名分裂）；回调注册 API 双死未验证（test 只断言
+  不崩溃）；每行 fflush ×3+测试 setvbuf ×23（P2）；时间戳双计算（一条条目双时钟
+  双时间戳）；N 文件轮转骨架跨域同构（debug vs module_delta）。
+
+### ② 设计更新（standard-unification-design.md v1.21）
+
+- 新增 §1.101-1.105 现状清单（K61-K65）+ §3.101-3.105 分面方案；
+- P0-P4 并入第二十一轮项（P0 含 K61 帧栈接线/lv_OK 迁移/保根因、K62 配置单一化+
+  LV_CFG 对拍+自动保存族、K63 阈值单源、K65 死 sink 面删除+legacy 删除；P1 含
+  K61 存储通道/聚合/硬编码码、K62 INI 收敛/写原子性/校验/保存时机、K63 位数检查
+  /bitset/mask 推广、K64 运行入口/init 钩子/超时/夹具工厂、K65 set_output 修复/
+  位置字段/消息上限）；
+- 新增决策点 F87-F91（错误通道/配置持久化/位操作/测试设施/日志输出）。
+
+### ③ 验证
+
+- 纯设计文档，无代码改动；build3 + ctest 288/288 不受影响。
+
+### 决策登记
+
+- 设计深化 / 不执行 / 第二十一轮审计 5 组 / 总 138 组 / K61-K65 方案 / F87-F91
+  待确认 / **错误帧栈读端零消费死链**、**lv_set_error(lv_OK) 25 处覆盖真实错误**、
+  **orchestrator 通用文本覆盖根因**、**配置不落盘 + LV_CFG 28/33 覆盖假象**、
+  **阈值双名三定义+缩放分裂**、**runtime_monitor 死 sink 面**、**legacy 写路径
+  轮转/环形旁路（可无限增长）**、**lv_log sink 切换不可逆+FILE 泄漏**、
+  **ctest TIMEOUT 真空 + 框架超时 M5**。
+
+### 遗留登记
+
+- 无新增遗留（第二十一轮审计为设计留档，未执行）。
+
