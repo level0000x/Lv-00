@@ -33,9 +33,6 @@
 #include "lv/geometry_config.h"
 
 
-static lvConfig g_active_config;
-static _Atomic int g_config_applied = 0;
-
 static lvConfig def;
 static lv_once_t g_default_config_once = lv_ONCE_INIT;
 
@@ -43,6 +40,75 @@ static lv_once_t g_default_config_once = lv_ONCE_INIT;
  * lv_config_apply / lv_config_reset writes to avoid check-then-set
  * data races. 首次加锁时自动初始化（lv_lazy_lock，线程安全）。 */
 lv_LAZY_LOCK_DEFINE(g_config_lock);
+
+/* ============================================================
+ * F43/K15 方案 B：不可变快照 + 原子发布
+ *
+ * 撕裂读根因：旧实现读者无锁读静态 g_active_config，写者持锁整体
+ * 覆写（多字段结构体赋值非原子）→ 读写并发时读到半新半旧字段组合。
+ *
+ * 最优解（原则 9，用户 2026-08-31 定稿）：
+ *   - 当前配置为「堆分配不可变快照」，经 _Atomic 指针发布；
+ *   - 读者无锁原子 load 快照指针，快照发布后内容永不改变 → 无撕裂；
+ *   - 写者持锁构造新快照副本、修改、原子发布，旧快照推入延迟回收链表；
+ *   - 旧快照不立即释放（读者可能在 load 后瞬时持有指针），延迟到
+ *     lv_cleanup 单线程阶段统一回收（lv_config_snapshot_cleanup）；
+ *   - 配置写频率极低（26 处 setter 调用 + apply/reset），内存代价可忽略。
+ * ============================================================ */
+
+/* 快照节点：cfg 必须位于偏移 0（读者 load 得到 lvConfig*，cast 回节点释放） */
+typedef struct lvConfigSnapshotNode {
+    lvConfig cfg;
+    struct lvConfigSnapshotNode *next; /* 延迟回收链表 */
+} lvConfigSnapshotNode;
+
+static _Atomic(lvConfig *) g_active_snapshot; /* NULL = 尚未初始化 */
+
+/* 延迟回收链表（写路径持 g_config_lock 访问；cleanup 单线程释放） */
+static lvConfigSnapshotNode *s_retired_snapshots;
+
+/** @brief 分配并复制一个新快照节点 */
+static lvConfigSnapshotNode *snapshot_clone(const lvConfig *src) {
+    lvConfigSnapshotNode *node = (lvConfigSnapshotNode *) lv_malloc(sizeof(lvConfigSnapshotNode));
+    if (node) {
+        node->cfg = (src ? *src : *lv_config_default());
+        node->next = NULL;
+    }
+    return node;
+}
+
+/** @brief 把旧快照推入延迟回收链表（持锁调用） */
+static void snapshot_retire(lvConfig *old_ptr) {
+    if (!old_ptr)
+        return;
+    lvConfigSnapshotNode *node = (lvConfigSnapshotNode *) old_ptr; /* cfg 偏移 0，cast 安全 */
+    node->next = s_retired_snapshots;
+    s_retired_snapshots = node;
+}
+
+/** @brief 释放全部延迟回收快照（lv_cleanup 单线程阶段调用） */
+static void snapshot_free_retired(void) {
+    lvConfigSnapshotNode *n = s_retired_snapshots;
+    s_retired_snapshots = NULL;
+    while (n) {
+        lvConfigSnapshotNode *next = n->next;
+        lv_free((void **) &n);
+        n = next;
+    }
+}
+
+/** @brief 初始化当前快照（首次调用，持锁 + 双检） */
+static void snapshot_ensure_initialized(void) {
+    lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
+    if (!g_active_snapshot) {
+        lvConfigSnapshotNode *node = snapshot_clone(NULL);
+        if (node)
+            atomic_store_explicit(&g_active_snapshot, &node->cfg, memory_order_release);
+    }
+    lv_lazy_lock_unlock(&g_config_lock);
+}
+
+/* Lazy-init guard lock 已在文件顶部 lv_LAZY_LOCK_DEFINE 定义 */
 
 /** @brief 初始化默认配置（仅执行一次，由 lv_once 保证线程安全） */
 static void lv_config_default_init(void) {
@@ -71,31 +137,27 @@ const lvConfig *lv_config_default(void) {
 }
 
 /**
- * @brief 获取当前生效的配置
+ * @brief 获取当前生效的配置（F43/K15 方案 B：无锁原子读快照）
  *
- * 首次调用时从默认配置初始化全局配置。
+ * 首次调用时初始化当前快照。返回的快照不可变，读者可安全无锁读；
+ * 写者发布新快照后旧快照延迟回收，本指针在调用点生命周期内始终有效。
  *
- * @return 指向当前配置的常量指针
+ * @return 指向当前配置快照的常量指针
  */
 const lvConfig *lv_config_current(void) {
-    /* Fast path: atomic flag read avoids locking in the common case. */
-    if (!g_config_applied) {
-        /* Slow path: lock + double-check so concurrent first calls
-         * cannot both run the lazy initialization. */
-        lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
-        if (!g_config_applied) {
-            g_active_config = *lv_config_default();
-            g_config_applied = 1;
-        }
-        lv_lazy_lock_unlock(&g_config_lock);
+    /* Fast path: 原子读当前快照指针（发布后不可变，无锁无撕裂） */
+    lvConfig *snap = atomic_load_explicit(&g_active_snapshot, memory_order_acquire);
+    if (!snap) {
+        snapshot_ensure_initialized();
+        snap = atomic_load_explicit(&g_active_snapshot, memory_order_acquire);
     }
-    return &g_active_config;
+    return snap;
 }
 
 /**
- * @brief 应用新的配置
+ * @brief 应用新的配置（F43/K15 方案 B：复制快照 + 原子发布）
  *
- * 用传入配置覆盖全局配置，立即生效。
+ * 用传入配置构造新快照副本并原子发布，立即生效。
  *
  * @param cfg 新配置指针，不能为 NULL
  * @return 0 成功，-1 失败（cfg 为 NULL）
@@ -104,8 +166,13 @@ int lv_config_apply(const lvConfig *cfg) {
     if (!cfg)
         lv_RETURN_ERROR(lv_ERROR_NULL_POINTER, "cfg is NULL");
     lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
-    g_active_config = *cfg;
-    g_config_applied = 1;
+    lvConfigSnapshotNode *node = snapshot_clone(cfg);
+    if (!node) {
+        lv_lazy_lock_unlock(&g_config_lock);
+        lv_RETURN_ERROR(lv_ERROR_ALLOCATION_FAILED, "config snapshot alloc failed");
+    }
+    lvConfig *old = atomic_exchange_explicit(&g_active_snapshot, &node->cfg, memory_order_acq_rel);
+    snapshot_retire(old); /* 旧快照延迟回收（cleanup 释放） */
     lv_lazy_lock_unlock(&g_config_lock);
     /* 配置应用后显式同步几何配置（lv_geometry_sync_config 读取
      * 当前 lvConfig 的几何键并写入全局几何配置；lv_config_load_json
@@ -116,22 +183,28 @@ int lv_config_apply(const lvConfig *cfg) {
 
 /* ---- 类型安全 getter / setter（由四元组 X-macro 生成定义） ---- */
 
-/** @brief 获取可变的全局配置指针（内部辅助） */
-static lvConfig *cfg_mut(void) {
-    lv_config_current(); /* ensure initialized */
-    return &g_active_config;
-}
+/* ---- 类型安全 getter / setter（由四元组 X-macro 生成定义） ---- */
 
-/** @brief 类型安全 getter：读取当前生效配置 */
+/** @brief 类型安全 getter：读取当前生效配置（无锁原子快照读） */
 #define GETTER(key, type, field, dflt) \
     type lv_config_get_##key(void) { return lv_config_current()->field; }
 LV_CONFIG_INT_KEYS(GETTER)
 LV_CONFIG_DOUBLE_KEYS(GETTER)
 #undef GETTER
 
-/** @brief 类型安全 setter：直接修改全局配置，立即生效 */
+/** @brief 类型安全 setter：直接修改全局配置，立即生效（快照复制 + 原子发布） */
 #define SETTER(key, type, field, dflt) \
-    void lv_config_set_##key(type val) { cfg_mut()->field = val; }
+    void lv_config_set_##key(type val) { \
+        lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once); \
+        lvConfig *cur = atomic_load_explicit(&g_active_snapshot, memory_order_acquire); \
+        lvConfigSnapshotNode *node = snapshot_clone(cur ? cur : NULL); \
+        if (node) { \
+            node->cfg.field = val; \
+            lvConfig *old = atomic_exchange_explicit(&g_active_snapshot, &node->cfg, memory_order_acq_rel); \
+            snapshot_retire(old); \
+        } \
+        lv_lazy_lock_unlock(&g_config_lock); \
+    }
 LV_CONFIG_INT_KEYS(SETTER)
 LV_CONFIG_DOUBLE_KEYS(SETTER)
 #undef SETTER
@@ -151,16 +224,34 @@ LV_CONFIG_DOUBLE_KEYS(SETTER)
 bool lv_config_set_int(const char *key, int val) {
     if (!key)
         return false;
-    lvConfig *c = cfg_mut();
+    bool matched = false;
+    lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
+    /* 快照已由持锁者保证初始化（首调 snapshot_ensure_initialized 在锁内），
+     * 此处直接读——lv_config_current 的原子 load 返回非 NULL */
+    lvConfig *cur = atomic_load_explicit(&g_active_snapshot, memory_order_acquire);
+    lvConfigSnapshotNode *node = snapshot_clone(cur ? cur : NULL);
+    if (!node) {
+        lv_lazy_lock_unlock(&g_config_lock);
+        return false;
+    }
 
 #define SET_IF(k, t, f, d)     \
     if (lv_str_eq(key, #k)) { \
-        c->f = val;            \
-        return true;           \
+        node->cfg.f = val;    \
+        matched = true;       \
     }
     LV_CONFIG_INT_KEYS(SET_IF)
 #undef SET_IF
-    return false;
+
+    if (matched) {
+        lvConfig *old = atomic_exchange_explicit(&g_active_snapshot, &node->cfg, memory_order_acq_rel);
+        snapshot_retire(old);
+    } else {
+        /* 键未匹配：副本未发布，直接释放 */
+        lv_free((void **) &node);
+    }
+    lv_lazy_lock_unlock(&g_config_lock);
+    return matched;
 }
 
 /**
@@ -173,27 +264,64 @@ bool lv_config_set_int(const char *key, int val) {
 bool lv_config_set_double(const char *key, double val) {
     if (!key)
         return false;
-    lvConfig *c = cfg_mut();
+    bool matched = false;
+    lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
+    /* 快照已由持锁者保证初始化（首调 snapshot_ensure_initialized 在锁内） */
+    lvConfig *cur = atomic_load_explicit(&g_active_snapshot, memory_order_acquire);
+    lvConfigSnapshotNode *node = snapshot_clone(cur ? cur : NULL);
+    if (!node) {
+        lv_lazy_lock_unlock(&g_config_lock);
+        return false;
+    }
 
 #define SET_IF(k, t, f, d)     \
     if (lv_str_eq(key, #k)) { \
-        c->f = val;            \
-        return true;           \
+        node->cfg.f = val;    \
+        matched = true;       \
     }
     LV_CONFIG_DOUBLE_KEYS(SET_IF)
 #undef SET_IF
-    return false;
+
+    if (matched) {
+        lvConfig *old = atomic_exchange_explicit(&g_active_snapshot, &node->cfg, memory_order_acq_rel);
+        snapshot_retire(old);
+    } else {
+        lv_free((void **) &node);
+    }
+    lv_lazy_lock_unlock(&g_config_lock);
+    return matched;
 }
 
 /* ---- 重置 ---- */
 
 /**
- * @brief 重置配置为默认值
+ * @brief 重置配置为默认值（F43/K15 方案 B：快照复制 + 原子发布）
  */
 void lv_config_reset(void) {
     lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
-    g_active_config = *lv_config_default();
-    g_config_applied = 1;
+    lvConfigSnapshotNode *node = snapshot_clone(NULL); /* 默认值 */
+    if (node) {
+        lvConfig *old = atomic_exchange_explicit(&g_active_snapshot, &node->cfg, memory_order_acq_rel);
+        snapshot_retire(old);
+    }
+    lv_lazy_lock_unlock(&g_config_lock);
+}
+
+/**
+ * @brief 释放全部延迟回收的配置快照（lv_cleanup 单线程阶段调用）
+ *
+ * F43/K15 方案 B：旧快照延迟到此统一释放（此时无并发读者）。
+ * 释放后当前快照置空，下次 lv_init 重新初始化。
+ */
+void lv_config_snapshot_cleanup(void) {
+    lv_lazy_lock_lock(&g_config_lock, g_config_lock_init_once);
+    snapshot_free_retired();
+    lvConfig *cur = atomic_load_explicit(&g_active_snapshot, memory_order_acquire);
+    if (cur) {
+        snapshot_retire(cur); /* 当前快照也入回收链表一并释放 */
+        snapshot_free_retired();
+        atomic_store_explicit(&g_active_snapshot, NULL, memory_order_release);
+    }
     lv_lazy_lock_unlock(&g_config_lock);
 }
 

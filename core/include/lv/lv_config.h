@@ -17,7 +17,10 @@
 /* 前向声明 */
 typedef struct lvConfig lvConfig;
 
-/* 获取当前运行时配置 */
+/* 获取当前运行时配置（F43/K15 方案 B：不可变快照，无锁原子读） */
 const lvConfig *lv_config_current(void);
+
+/* 释放全部延迟回收的配置快照（lv_cleanup 单线程阶段调用，F43/K15 方案 B） */
+void lv_config_snapshot_cleanup(void);
 
 #endif

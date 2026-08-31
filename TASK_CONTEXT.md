@@ -9311,3 +9311,51 @@ F54 AST/括号深度闸门接线（无硬编码，全部读 lvConfig 配置）�
   建议单独实施清单讨论。
 - F43 K15 剩余：lv_config 撕裂读 / 跨线程 lv_init 竞态（本批只做 g_coeff_pool）。
 
+## 一百五十六、批次 治理原则 9 + F43 lv_config 方案 B 原子快照（2026-08-31）
+
+用户「先加一个原则吧最优优先不考虑复杂度和难度以及需要重写的范围」→
+「b 个人是觉得最优优先不考虑复杂度和难度」→「立项允许」——
+登记**治理原则 9**，并按方案 B（原子快照指针）实施 F43 lv_config 撕裂读修复。
+
+### ① 治理原则 9（用户 2026-08-31 定稿，写入设计文档 §2）
+
+- **最优优先，不考虑复杂度/难度/重写范围**：方案选型与实施以"最优解"为
+  唯一标准，不因实现复杂、难度大、需重写范围广而退而求其次；选正确性/
+  架构最优者（如并发修复选原子快照而非加锁折中）；既有代码与最优方案
+  冲突时照重写；每阶段都朝最优解推进，不得停在次优态。
+
+### ② F43 lv_config 撕裂读修复（方案 B：不可变快照 + 原子发布）
+
+- **根因**：旧实现读者无锁读静态 g_active_config，写者持锁整体覆写
+  （多字段结构体赋值非原子）→ 读写并发时撕裂读（半新半旧字段组合）。
+- **最优解（原则 9）**：
+  - 当前配置 = 堆分配不可变快照，经 `_Atomic(lvConfig *)` 指针发布；
+  - 读者无锁原子 load（memory_order_acquire）→ 无撕裂无锁开销；
+  - 写者（apply/reset/set*/set_int/set_double）持锁构造新快照副本、
+    修改、原子发布（acq_rel exchange），旧快照推入延迟回收链表；
+  - 旧快照延迟到 `lv_config_snapshot_cleanup()`（lv_cleanup 单线程阶段）
+    统一回收——读者瞬时持有旧指针安全，无 UAF 无泄漏；
+  - 配置写频率极低（26 setter + apply/reset），内存代价可忽略；
+  - cfg_mut 死代码删除（快照不可变，单字段 setter 走持锁宏路径）。
+- **文件**：core/src/layer2_resource/lv_config.c（重构）、lv_config.h
+  （声明 cleanup）、core/src/lv.c（lv_cleanup 挂接）。
+
+### ③ 验证
+
+- build3 全量构建 ✅；ctest **288/288 全通过**（含 config 相关测试）。
+- 批次 155 CI + Python Bindings 双 success ✅。
+
+### 决策登记
+
+- 治理原则 9 定稿（最优优先）/ F43 lv_config 方案 B 原子快照落地 /
+  g_coeff_pool TOCTOU（批次 155）+ lv_config 撕裂读（本批）完成 /
+  跨线程 lv_init 并入 F28（J1 生命周期）批次。
+
+### 遗留登记
+
+- F43 剩余：跨线程 lv_init 竞态 → 并入 F28（J1 生命周期统一）批次整体处理。
+- F67 K41 垂直约束（formula 占位 + graph_add_perpendicular + meta_proof）
+  单独立项讨论。
+- 方案 B 需补并发测试（多线程读写 lv_config 撕裂读回归钉）——随 F28 或
+  单独测试批次。
+

@@ -24,6 +24,7 @@
 #include "lv/bit_burning.h"
 #include "lv/ecosystem.h"
 #include "lv/formula_converter.h"
+#include "lv/lv_config.h" /* lv_config_snapshot_cleanup（F43/K15 方案 B） */
 #include "lv/lv_error.h"
 #include "lv/lv_registry.h"
 #include "lv/memory_pool.h"
@@ -353,6 +354,9 @@ void lv_cleanup(void) {
 
     /* 模块化清理：按反向优先级顺序清理所有已注册模块 */
     lv_module_cleanup_all();
+
+    /* 配置快照清理（F43/K15 方案 B：释放延迟回收的旧快照，单线程阶段） */
+    lv_config_snapshot_cleanup();
 
     /* TLS 堆表清理（当前线程副本）：
      * unify 等价表 / formula converter 变量映射 / scratch 缓冲区均为
