@@ -1303,6 +1303,58 @@ static void test_ast_depth_gate(void) {
     }
 }
 
+/* F16/G1：输入校验闸门 —— lv_load_file 解析链对超长输入/非法字符拒绝 */
+static void test_input_validation_gate(void) {
+    printf("[输入校验闸门]\n");
+
+    TEST("lv_input_validate: 正常输入通过");
+    {
+        const char *s = "Point A;\n";
+        if (lv_input_validate(s, strlen(s)) == lv_OK)
+            PASS();
+        else
+            FAIL("正常输入应通过");
+    }
+
+    TEST("lv_input_validate: NULL 拒绝");
+    {
+        if (lv_input_validate(NULL, 10) != lv_OK)
+            PASS();
+        else
+            FAIL("NULL 应拒绝");
+    }
+
+    TEST("lv_input_validate: 非法控制字符拒绝");
+    {
+        const char s[] = {'P', 'o', 'i', 'n', 't', ' ', 0x01, '\n'};
+        if (lv_input_validate(s, sizeof(s)) != lv_OK)
+            PASS();
+        else
+            FAIL("非法控制字符应拒绝");
+    }
+
+    TEST("lv_input_validate: 超长输入拒绝（上限可配置）");
+    {
+        /* 直接构造超过 parser_max_input_length 的缓冲（不走文件）——
+         * 验证 lv_input_validate 对超限长度返回错误 */
+        const lvConfig *cfg = lv_config_current();
+        int limit = cfg->parser.parser_max_input_length;
+        size_t big = (size_t) limit + 1024;
+        char *bigbuf = (char *) lv_malloc(big);
+        if (bigbuf) {
+            memset(bigbuf, 'A', big - 1);
+            bigbuf[big - 1] = '\0';
+            if (lv_input_validate(bigbuf, big - 1) != lv_OK)
+                PASS();
+            else
+                FAIL("超长输入应拒绝");
+            lv_free((void **) &bigbuf);
+        } else {
+            FAIL("bigbuf 分配失败");
+        }
+    }
+}
+
 TEST_MAIN_BEGIN("lv parser test")
     setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -1341,4 +1393,6 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_full_program);
     printf("\n");
     TEST_MAIN_RUN(test_ast_depth_gate);
+    printf("\n");
+    TEST_MAIN_RUN(test_input_validation_gate); /* F16/G1 */
 TEST_MAIN_END()

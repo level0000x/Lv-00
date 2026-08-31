@@ -374,6 +374,18 @@ LvParseResult lv_load_file(const char *filepath) {
         return result;
     }
 
+    /* F16/G1：解析安全闸门 —— 输入长度/非法字符校验（上限读
+     * lvConfig.parser.parser_max_input_length，默认 1MB 可配置不硬编码）；
+     * 校验失败直接拒绝，不进入 Lex/Parse。 */
+    lvErrorCode vrc = lv_input_validate(source, len);
+    if (vrc != lv_OK) {
+        result.error_count = 1;
+        const char *emsg = lv_get_last_error_message();
+        lv_strlcpy(result.errors[0].message, emsg ? emsg : "input validation failed", sizeof(result.errors[0].message));
+        lv_free((void **) &source);
+        return result;
+    }
+
     /* Lex → Parse */
     LvLexer *lexer = lv_lexer_create(source, len);
     if (!lexer) {

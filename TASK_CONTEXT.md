@@ -9474,3 +9474,38 @@ F33（K2 快速幂×3 + 平方因子×3 单设施）——平方因子项完成�
 - 下一批候选：K41 谓词面（meta_proof + lv_perpendicular/lv_parallel）、
   F16 解析安全、F24 层验证、F43 跨线程 lv_init（→F28）。
 
+## 一百六十、批次 F16 G1 解析安全接线（2026-08-31）
+
+F16（G1 解析安全函数接线）——lv_input_validate 接入主解析链完成。
+
+### ① 实施结果
+
+- **lv_load_file 输入校验闸门**：读取文件后、Lex/Parse 前接入
+  `lv_input_validate`（输入长度上限 lvConfig.parser.parser_max_input_length
+  默认 1MB + 非法控制字符检查；可配置不硬编码）；失败拒绝并回传
+  lv_get_last_error_message。
+- 与 F54（批次 154）的 AST 深度 + 括号递归闸门共同构成完整解析安全链：
+  输入长度 → 非法字符 → 括号递归深度 → AST 深度。
+- parser_safety 其余函数：lv_input_sanitize（净化，未接线——需决策接入点）、
+  lv_check_ast_node_count / lv_check_token_length（节点数/token 长度，
+  解析器无对应计数器，登记待评估）——G1 方案"4 函数接线"完成 1/4，
+  其余 3 个接入点需与解析器结构对齐（后续）。
+
+### ② 测试
+
+- test_lv_parser.c 新增 test_input_validation_gate（4 项：正常通过 /
+  NULL 拒绝 / 非法控制字符拒绝 / 超长拒绝）——69/69 含；
+- 全量 ctest **288/288 通过**。
+
+### 决策登记
+
+- F16 部分完成（lv_input_validate 接线）/ 解析安全链 4 道闸门 /
+  sanitize/节点数/token 长度接入点待评估（与解析器结构相关）。
+
+### 遗留登记
+
+- F16 剩余：lv_input_sanitize 净化接入点（决定 lv_load_file 是否净化输入）、
+  lv_check_ast_node_count / lv_check_token_length 接线（需解析器计数）——
+  登记后续批次。
+- 下一批候选：K41 谓词面 / F24 层验证 / F43 跨线程 lv_init（→F28）。
+
