@@ -9509,3 +9509,45 @@ F16（G1 解析安全函数接线）——lv_input_validate 接入主解析链�
   登记后续批次。
 - 下一批候选：K41 谓词面 / F24 层验证 / F43 跨线程 lv_init（→F28）。
 
+## 一百六十一、批次 F24 I5 层验证机制修复（2026-08-31，用户确认方案 B）
+
+用户「可以」确认 F24 方案 B（依赖表 + 强制声明 + CI 矩阵）+ F43 并入 F28。
+
+### ① 实施结果
+
+| 项 | 改动 |
+|---|---|
+| 依赖表接入 | engine.h 的 lv_ALLOW_LAYER/lv_REQUIRE_STRICTLY_ABOVE 改走
+  layer_validation.h 的 lv_LAYER_CAN_DEPEND 依赖表（替换 current>=min
+  简单模型——L8 允许 L2/L3/L4 但不允许 L5/L6，简单大小比较漏判）；
+  layer_validation.h 无条件 include（层常量始终可用） |
+| 空操作兼容 | ENABLE=OFF 时宏展开为空（`lv_ALLOW_LAYER(...)`→`;` 空语句，
+  文件作用域合法——`((void) 0)` 与 do-while 在部分 GCC/MinGW -fms-extensions
+  下被当声明解析，实测排除） |
+| 核心文件声明 | interop_command.c（L5→L3）、graph_index.c（L3→L2）、
+  solver_core.c（L4→L3）、lv_loader.c（L1→L2）、text_code.c（L6→L5）
+  补 lv_ALLOW_LAYER 声明 + 显式 include engine.h（引用即包含） |
+| 违规拦截验证 | 临时改 lv_ALLOW_LAYER(lv_LAYER_VISUAL)（L5 声称依赖 L6）
+  → _Static_assert "layer 5 may not depend on layer 6" 编译失败；
+  恢复后通过 |
+| CI 验证门 | ci.yml 新增 layer-validation job（ENABLE_LAYER_VALIDATION=ON
+  构建 lv_static，失败上报违规） |
+
+### ② 验证
+
+- build3（OFF）全量构建 + ctest **288/288 通过**（空操作宏不干扰）；
+- build_layerval（ON）lv_static 编译通过（已声明文件判定正确）。
+
+### 决策登记
+
+- F24 方案 B 落地：依赖表判定 + 空操作兼容 + 5 核心文件声明 + 违规拦截 +
+  CI 门 / F43 跨线程 lv_init 并入 F28（J1 生命周期）登记 /
+  批次 160 CI 首次失败为已知 stream flaky（rerun 后绿）。
+
+### 遗留登记
+
+- F24 剩余：其余 ~630 源文件补 lv_ALLOW_LAYER 声明（每文件真实依赖逐一确认，
+  随 I5 归属修正推进——错误声明=编译失败，需谨慎）；CI 依赖矩阵脚本
+  （头→层归属扫描）登记后续。
+- 下一批候选：K41 谓词面 / F28（含 F43 跨线程 lv_init）J1 生命周期。
+

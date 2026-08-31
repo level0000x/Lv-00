@@ -96,6 +96,36 @@ jobs:
             echo "::error file=ctest.log::$line"
           done
 
+  # ── F24/I5: 层验证编译门（ENABLE_LAYER_VALIDATION=ON 时依赖表生效）────
+  # 机制：engine.h 的 lv_ALLOW_LAYER 走 layer_validation.h 依赖表判定；
+  # 已声明文件编译期校验违规（_Static_assert），未声明文件宏为空操作。
+  # 本 job 确保 ENABLE=ON 构建保持绿色（依赖表/声明不破坏主构建）。
+  layer-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libgmp-dev
+
+      - name: Configure with layer validation
+        run: cmake -B build-layerval -DCMAKE_BUILD_TYPE=Debug -DENABLE_LAYER_VALIDATION=ON
+
+      - name: Build with layer validation
+        run: |
+          set -o pipefail
+          cmake --build build-layerval --target lv_static --parallel $(nproc) 2>&1 | tee /tmp/layerval.log
+
+      - name: Report layer violations (on failure)
+        if: failure()
+        shell: bash
+        run: |
+          grep -nE "layer boundary violation|static assertion" /tmp/layerval.log | head -40 | while IFS= read -r line; do
+            echo "::error file=layerval.log::$line"
+          done
+
   # ── Windows (MSYS2): GCC 语法检查 + CMake 构建 ────────────
   windows-build:
     runs-on: windows-latest

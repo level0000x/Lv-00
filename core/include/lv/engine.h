@@ -71,6 +71,12 @@ typedef struct EngineScheduler EngineScheduler;
  * 启用后，lv_ENABLE_LAYER_VALIDATION 和 lv_CURRENT_LAYER
  * 会被自动定义在每个层的编译单元中。
  */
+/* F24/I5：层定义与依赖表（layer_validation.h 权威）——无条件包含使
+ * lv_LAYER_* 常量与 lv_LAYER_CAN_DEPEND 始终可用（ENABLE=OFF 时空操作）；
+ * 依赖表判定替换原 current>=min 简单模型（L8 允许 L2/L3/L4 但不允许
+ * L5/L6，简单大小比较会漏判）。 */
+#include "lv/layer_validation.h"
+
 #ifdef lv_ENABLE_LAYER_VALIDATION
 
 /* 确保 lv_CURRENT_LAYER 已被 CMake 定义 */
@@ -84,15 +90,9 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
  * @brief 编译时层级边界断言
  *
  * 在源文件头部使用此宏声明当前编译单元允许调用的最低层级。
- * 例如，Layer 4 的代码可以使用 lv_ALLOW_LAYER(2) 来声明
- * 它可以调用 Layer 2 及以上的代码。
+ * 判定走 layer_validation.h 的 lv_LAYER_CAN_DEPEND 依赖表（非简单大小比较）。
  *
- * @param min_layer 允许的最低层级编号（1-5，数字越小层级越低）
- *
- * 使用示例：
- *   // 在 Layer 4 (reasoning) 的源文件中：
- *   lv_ALLOW_LAYER(lv_LAYER_RESOURCE);  // 允许调用 Layer 2+
- *   lv_ALLOW_LAYER(lv_LAYER_GEOMETRY);  // 允许调用 Layer 3+
+ * @param min_layer 允许的最低层级编号（1-10）
  *
  * @note 此宏在编译时通过 _Static_assert 检查，不产生运行时代码。
  * @note 当 lv_ENABLE_LAYER_VALIDATION 未定义时，此宏为空操作。
@@ -102,27 +102,25 @@ Check that the source file belongs to a CMake layer target (lv_layerN_*)."
 #define lv_STRINGIFY(x) lv_STRINGIFY_IMPL(x)
 
 #define lv_ALLOW_LAYER(min_layer)                                                                           \
-    _Static_assert(lv_CURRENT_LAYER >= (min_layer), "lv layer boundary violation: layer " lv_STRINGIFY(lv_CURRENT_LAYER) \
-                                                    " may not call functions from layer " lv_STRINGIFY(min_layer) \
-                                                    " (only upper layers may call lower layers)."           \
-                                                    " See docs/ARCHITECTURE_v3.3.md")
+    _Static_assert(lv_LAYER_CAN_DEPEND(lv_CURRENT_LAYER, (min_layer)), "lv layer boundary violation: layer " \
+                    lv_STRINGIFY(lv_CURRENT_LAYER) " may not depend on layer " lv_STRINGIFY(min_layer)      \
+                    " per dependency table (see layer_validation.h).")
 
 /**
  * @brief 编译时断言：当前层可以直接调用目标层
  *
- * 更严格的检查：要求当前层必须高于目标层至少 1 级
- * （即禁止同层调用，允许跨层向下调用）。
- *
- * @param target_layer 目标层级编号
+ * 更严格的检查：要求依赖表判定当前层可依赖目标层且层级严格更高。
  */
 #define lv_REQUIRE_STRICTLY_ABOVE(target_layer)                                                               \
-    _Static_assert(lv_CURRENT_LAYER > (target_layer), "lv layer boundary violation: layer " lv_STRINGIFY(lv_CURRENT_LAYER) \
-                                                      " must be strictly above layer " lv_STRINGIFY(target_layer))
+    _Static_assert(lv_LAYER_CAN_DEPEND(lv_CURRENT_LAYER, (target_layer)) && lv_CURRENT_LAYER > (target_layer), \
+                   "lv layer boundary violation: layer " lv_STRINGIFY(lv_CURRENT_LAYER) \
+                   " must be strictly above layer " lv_STRINGIFY(target_layer))
 
 #else
-/* 未启用层级验证时，所有检查宏均为空操作 */
-#define lv_ALLOW_LAYER(min_layer) ((void) 0)
-#define lv_REQUIRE_STRICTLY_ABOVE(target_layer) ((void) 0)
+/* 未启用层级验证时，所有检查宏为空操作——展开为空（调用处成空语句，
+ * 文件作用域/函数内均合法） */
+#define lv_ALLOW_LAYER(min_layer)
+#define lv_REQUIRE_STRICTLY_ABOVE(target_layer)
 #endif /* lv_ENABLE_LAYER_VALIDATION */
 
 /**

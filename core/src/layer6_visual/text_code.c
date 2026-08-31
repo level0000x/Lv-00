@@ -16,6 +16,11 @@
 #include "lv/visual_editor.h"
 #include "lv/lv_internal.h"
 
+/* F24/I5：层依赖声明——Layer 6（可视化）依赖 Layer 5（输出）及以下
+ * （visual_editor 链经 L4/L3/L2） */
+#include "lv/engine.h" /* lv_ALLOW_LAYER（宏定义处，引用即包含） */
+lv_ALLOW_LAYER(lv_LAYER_OUTPUT);
+
 /* 文本缓冲区 4KB 对齐单位（初始大小与扩容步长共用） */
 #define lv_TEXT_CODE_BUFFER_ALIGN 4096
 

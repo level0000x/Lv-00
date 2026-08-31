@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_command.c
  * @brief 命令解析与执行
  *
@@ -31,6 +31,11 @@
 #include "lv/lv_utils.h"
 #include "lv/stream.h" /* LV_STREAM_CTX_DEFINE */
 #include "interop_command_internal.h"
+
+/* F24/I5：层依赖声明（依赖表判定）——本编译单元（Layer 5 输出层）
+ * 依赖 Layer 3（constraint_graph）及以下；开启 lv_ENABLE_LAYER_VALIDATION
+ * 时编译期校验，缺省（未声明）只允许依赖本层。 */
+lv_ALLOW_LAYER(lv_LAYER_GEOMETRY);
 
 /** @brief interop 模块全局流式上下文定义（供所有 interop 子模块通过 interop.h 的 extern 引用） */
 LV_STREAM_CTX_DEFINE(interop);

@@ -17,6 +17,10 @@
 #include "lv/groebner_parallel.h"
 #include "lv/lv_xmacro.h"
 
+/* F24/I5：层依赖声明——Layer 4（推理）依赖 Layer 3（几何）及以下 */
+#include "lv/engine.h" /* lv_ALLOW_LAYER（宏定义处，引用即包含） */
+lv_ALLOW_LAYER(lv_LAYER_GEOMETRY);
+
 /* ========================================================================
  * 内部常量
  * ======================================================================== */

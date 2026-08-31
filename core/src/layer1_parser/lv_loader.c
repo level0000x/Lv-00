@@ -35,6 +35,11 @@
 #include "lv/lv_registry.h"
 #include "lv/lv_thread.h"
 
+/* F24/I5：层依赖声明——Layer 1（解析）依赖 Layer 2（资源）及以下；
+ * lv.h 伞头归 L0 便利层（协调各层），经此放行 */
+#include "lv/engine.h" /* lv_ALLOW_LAYER（宏定义处，引用即包含） */
+lv_ALLOW_LAYER(lv_LAYER_RESOURCE);
+
 
 /* ── 名称映射表：跟踪 AST 名称到引擎节点 ID 的映射 ── */
 
