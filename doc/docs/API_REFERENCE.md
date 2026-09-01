@@ -1058,6 +1058,7 @@ bool lv_type_check(const GeometryEntity *entity, lvType expected);
 ---
 
 ### 8.2 类型转换
+> **K5 标注（2026-09-01）**：本章 lv_type_check / lv_type_cast_* 等 API **不存在**（虚构），真实类型 API 见 type_system.h / symbolic_coord.h。
 
 #### lv_type_cast_point
 
@@ -1080,6 +1081,7 @@ Line *lv_type_cast_line(GeometryEntity *entity);
 ---
 
 ## 9. 流式输出系统
+> **K5 标注（2026-09-01）**：本章 lv_stream_* API **不存在**（虚构），真实流式系统见 stream.h（StreamContext / stream_* API）。
 
 ### 9.1 流创建
 

@@ -1,4 +1,4 @@
-﻿# Lv-00 API 快速入门指南
+# Lv-00 API 快速入门指南
 
 > **版本**: 1.1.0
 > **最后更新**: 2026-06-27
@@ -351,7 +351,8 @@ int main(void) {
     /* 加载预定义公理包 */
     /* 注意: 具体 API 请参考 axiom_pkg.h 和 module.h */
 
-    /* --- 假设的公理包加载流程（概念示例） --- */
+    /* --- 假设的公理包加载流程（概念示例，K5 标注：以下 API 未实现，
+     * 真实公理包 API 为 axiom_package_create / axiom_package_load，见 axiom_pkg.h） --- */
     /*
     AxiomPackage *pkg = lv_axiom_pkg_load("euclidean_plane");
     if (!pkg) {

@@ -318,7 +318,7 @@ bool test_oracle_verify_proof_valid(TestOracle *oracle,
 void bootstrap_test_register_suite(void);
 
 /* 测试套件定义 */
-lv_TEST_SUITE(BootstrapCore)
+lv_TEST_SUITE /* K5: 宏不存在，真实为 lv_TEST（test_framework.h） */(BootstrapCore)
 {
     /* 原语差分测试 */
     lv_TEST(BootstrapCore, geo_create_node_diff);
@@ -350,19 +350,19 @@ lv_TEST_SUITE(BootstrapCore)
 ### 8.2 随机测试套件
 
 ```c
-lv_TEST_SUITE(BootstrapRandom)
+lv_TEST_SUITE /* K5: 宏不存在，真实为 lv_TEST（test_framework.h） */(BootstrapRandom)
 {
     /* 随机生成测试 */
     lv_TEST(BootstrapRandom, random_graph_generation);
     lv_TEST(BootstrapRandom, random_dsl_generation);
     
     /* 大规模差分测试 */
-    lv_TEST_PARAMETERIZED(BootstrapRandom, large_scale_diff, 
+    lv_TEST_PARAMETERIZED /* K5: 宏不存在 */(BootstrapRandom, large_scale_diff, 
                             random_graph_generator, 100);
     
     /* 压力测试 */
-    lv_BENCHMARK(BootstrapRandom, solve_100_nodes, 1000);
-    lv_BENCHMARK(BootstrapRandom, normalize_1000_constraints, 100);
+    lv_BENCHMARK /* K5: 宏不存在 */(BootstrapRandom, solve_100_nodes, 1000);
+    lv_BENCHMARK /* K5: 宏不存在 */(BootstrapRandom, normalize_1000_constraints, 100);
 }
 ```
 

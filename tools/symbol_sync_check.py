@@ -10,6 +10,7 @@ core/include/lv 头文件中声明——阻断示例/文档引用幻影 API（K5
 - 提取 `lv_[a-z0-9_]+`（C 代码）与 `lv\.[a-z_]+`（Python 代码）符号；
 - 白名单常见非函数符号（宏/类型/枚举如 lv_OK、lvContext、lv_LAYER_*）；
 - 未在头文件声明的符号报告（函数名需 `name(` 或 `name;` 形态）。
+- 跳过 C 注释块（`/* ... */`）与规划/蓝图文档、已标注虚构文档。
 
 用法: python tools/symbol_sync_check.py
 退出码: 0 无违规；1 存在违规（CI 门禁）。
@@ -28,6 +29,9 @@ INC = ROOT / "core" / "include" / "lv"
 # 规划/蓝图类文档豁免：其代码块多为未来设计蓝图（虚构 API 属预期实现），
 # 非教学示例幻影（K5 判定针对 README/API_QUICKSTART/USE_CASES 等教学面）
 PLAN_DOC_KEYWORDS = ("PLAN", "ROADMAP", "DESIGN", "PROPOSAL", "DECISION", "OPTIMIZATION")
+
+# 已整体/分章标注虚构的文档：脚本豁免（标注已防误用，避免 CI 噪音）
+ANNOTATED_FICTIONAL_DOCS = {"API_REFERENCE.md", "34_meta_proof_cache.md"}
 
 # 头文件声明的全部符号名（函数 + 宏 + 类型）
 declared = set()
@@ -57,12 +61,21 @@ PY_SYM = re.compile(r"\b(lv\.[a-zA-Z_][a-zA-Z0-9_]*)\s*\(")
 def check_file(path):
     violations = []
     in_code = False
+    in_c_comment = False
     for i, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         stripped = line.strip()
         if stripped.startswith("```"):
             in_code = not in_code
+            in_c_comment = False
             continue
         if not in_code:
+            continue
+        # 跳过 C 注释块（/* ... */）内的内容——注释示例不构成可运行引用
+        if "/*" in line:
+            in_c_comment = True
+        if in_c_comment:
+            if "*/" in line:
+                in_c_comment = False
             continue
         for m in C_SYM.finditer(line):
             sym = m.group(1)
@@ -83,6 +96,8 @@ def main():
     for md in sorted(DOCS.glob("*.md")):
         if any(kw in md.name.upper() for kw in PLAN_DOC_KEYWORDS):
             continue  # 规划/蓝图文档豁免
+        if md.name in ANNOTATED_FICTIONAL_DOCS:
+            continue  # 已标注虚构文档豁免
         for i, sym in check_file(md):
             rel = str(md.relative_to(ROOT)).replace("\\", "/")
             print(f"  {rel}:{i}  未声明符号: {sym}")
