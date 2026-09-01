@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Lv-00 流式桥接服务器 (Stream Bridge Server) - 兼容性重新导出层
@@ -137,10 +137,12 @@ class EngineBridge:
         self.lib.stream_context_destroy.restype = None
         self.lib.stream_context_destroy.argtypes = [c_void_p]
 
-        # stream_register_callback_ex
+        # stream_register_callback_ex（K66/F96：filter_mask 为 C 侧 uint64_t——
+        # 原 c_int 在 32 位 ABI 截断过滤器，x86-64 靠符号扩展碰巧工作；
+        # 与 module/stream_bridge 的 c_uint64 声明对齐）
         self.lib.stream_register_callback_ex.restype = c_int
         self.lib.stream_register_callback_ex.argtypes = [
-            c_void_p, STREAM_CALLBACK, c_void_p, c_int  # 使用 uint64_t 但 Python 中简化为 int
+            c_void_p, STREAM_CALLBACK, c_void_p, c_uint64
         ]
 
         # stream_unregister_callback_by_id
