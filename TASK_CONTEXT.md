@@ -9988,3 +9988,39 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F89 剩余：lv_mask_* 推广补 64 位（20+ 文件裸位运算，量大）、lv_PLUGIN_CAP_*
   死协议处置（删除需评审）。
 - 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST（大重构需讨论）。
+
+---
+
+## 批次 174（K63/F89：lv_mask_* 补 64 位 + 裸位运算收编）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| lv_utils.h（权威） | 新增 64 位变体：lv_bit_mask64 / lv_mask_all64（nbits>=64 饱和全 1）/ lv_mask_set64 / lv_mask_clear64 / lv_mask_test64 |
+| rewrite_common.h | REWRITE_ALL_GEOM_TYPES_MASK 改调 lv_mask_all（含 lv_utils.h include） |
+| rewrite_vf2.c | 3 处裸位测试 → lv_mask_test |
+| solver_multibranch.c | 2 处分支掩码测试 → lv_mask_test（补 include） |
+| euclidean_geometry_axiom.c | set/clear → lv_mask_set/clear |
+| euclidean_geometry_helpers.c | 3 处公理使能测试 → lv_mask_test |
+| lv_utils_misc.c | 低 11 位掩码 (1u<<N)-1 → lv_mask_all |
+| simd_ops.c / context.c | 豁免登记注释（CPUID 平台能力协议 / 编译期常量初始化器不能调 inline 函数；ga_multivector/rewrite_match_search 静态表同豁免） |
+| test_lv_utils_ext.c | 新增 test_mask_family（32/64 位 set/test/clear/饱和/边界断言） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；依赖矩阵 0 违规；
+- commit b20f5c45（refactor(arch): extend mask family to 64-bit and collect
+  bare bit ops (K63/F89)），push 成功，CI 待验证。
+
+### 决策登记
+
+- F89 lv_mask_* 推广完成：64 位变体补齐（STREAM_EVENT_MASK 等 uint64 场景可用）；
+  7 文件运行期裸位运算收编；豁免登记 3 类（CPUID 协议 / 编译期常量初始化器
+  / 数值运算非掩码语义 approx_counter、expr_canon）。
+
+### 遗留登记
+
+- F89 剩余：lv_PLUGIN_CAP_* 死协议处置（7 处写入 0 处读取，删除需评审红线①）。
+- 下一批候选：lv_PLUGIN_CAP_* 处置（需评审）/ F24 P0-② lv_loader 只产 AST
+  （大重构需讨论）。
