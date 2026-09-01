@@ -26,6 +26,7 @@
 #include <stdint.h>
 
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for approximate backend */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -93,30 +94,30 @@ struct lvVectorOps {
      * @brief 销毁向量并释放所有关联资源
      * @param[in,out] v  要销毁的向量
      */
-    void (*destroy)(lvVector *v);
+lv_PUBLIC_API     void (*destroy)(lvVector *v);
     /**
      * @brief 将所有元素设为 0
      * @param[in,out] v  向量
      */
-    void (*zero)(lvVector *v);
+lv_PUBLIC_API     void (*zero)(lvVector *v);
     /**
      * @brief 将所有元素设为常量 c
      * @param[in,out] v  向量
      * @param[in]     c  常量值
      */
-    void (*const_set)(lvVector *v, double c);
+lv_PUBLIC_API     void (*const_set)(lvVector *v, double c);
     /**
      * @brief 深拷贝：dst = src
      * @param[out] dst  目标向量
      * @param[in]  src  源向量
      */
-    void (*copy)(lvVector *dst, const lvVector *src);
+lv_PUBLIC_API     void (*copy)(lvVector *dst, const lvVector *src);
     /**
      * @brief 标量乘法：v = c * v
      * @param[in,out] v  向量
      * @param[in]     c  标量因子
      */
-    void (*scale)(lvVector *v, double c);
+lv_PUBLIC_API     void (*scale)(lvVector *v, double c);
     /**
      * @brief 线性组合：z = a*x + b*y
      * @param[in]  a  x 的系数
@@ -125,62 +126,62 @@ struct lvVectorOps {
      * @param[in]  y  向量 y
      * @param[out] z  结果向量
      */
-    void (*linear_sum)(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
+lv_PUBLIC_API     void (*linear_sum)(double a, const lvVector *x, double b, const lvVector *y, lvVector *z);
     /**
      * @brief 点积（内积）：返回 dot(x, y)
      * @param[in] x  向量 x
      * @param[in] y  向量 y
      * @return x 和 y 的点积
      */
-    double (*dot)(const lvVector *x, const lvVector *y);
+lv_PUBLIC_API     double (*dot)(const lvVector *x, const lvVector *y);
     /**
      * @brief L2 范数
      * @param[in] v  向量
      * @return ||v||_2
      */
-    double (*norm)(const lvVector *v);
+lv_PUBLIC_API     double (*norm)(const lvVector *v);
     /**
      * @brief 逐元素最大值范数（L-infinity）
      * @param[in] v  向量
      * @return ||v||_inf
      */
-    double (*max_norm)(const lvVector *v);
+lv_PUBLIC_API     double (*max_norm)(const lvVector *v);
     /**
      * @brief 逐元素加权均方根范数，常用于 SUNDIALS/CVODE 误差控制
      * @param[in] v       向量
      * @param[in] weights 权重向量
      * @return 加权 RMS 范数
      */
-    double (*wrms_norm)(const lvVector *v, const lvVector *weights);
+lv_PUBLIC_API     double (*wrms_norm)(const lvVector *v, const lvVector *weights);
     /**
      * @brief 逐元素绝对值：v_i = |v_i|
      * @param[in,out] v  向量
      */
-    void (*abs)(lvVector *v);
+lv_PUBLIC_API     void (*abs)(lvVector *v);
     /**
      * @brief 逐元素除法：v_i = v_i / d_i
      * @param[in,out] v  被除数向量
      * @param[in]     d  除数向量
      */
-    void (*inv)(lvVector *v, const lvVector *d);
+lv_PUBLIC_API     void (*inv)(lvVector *v, const lvVector *d);
     /**
      * @brief 逐元素最大值：v_i = max(v_i, c)
      * @param[in,out] v  向量
      * @param[in]     c  比较值
      */
-    void (*compare)(lvVector *v, double c);
+lv_PUBLIC_API     void (*compare)(lvVector *v, double c);
     /**
      * @brief 获取向量长度（元素个数）
      * @param[in] v  向量
      * @return 元素个数
      */
-    int64_t (*length)(const lvVector *v);
+lv_PUBLIC_API     int64_t (*length)(const lvVector *v);
     /**
      * @brief 获取底层原始数据指针（可能为 NULL，取决于后端）
      * @param[in] v  向量
      * @return 数据指针，无直接访问时返回 NULL
      */
-    double *(*data_ptr)(lvVector *v);
+lv_PUBLIC_API     double *(*data_ptr)(lvVector *v);
 };
 /**
  * @brief lvVector 结构体 —— 借鉴 SUNDIALS N_Vector 内容结构
@@ -234,18 +235,18 @@ struct lvMatrixOps {
      * @brief 销毁矩阵并释放所有关联资源
      * @param[in,out] A  要销毁的矩阵
      */
-    void (*destroy)(lvMatrix *A);
+lv_PUBLIC_API     void (*destroy)(lvMatrix *A);
     /**
      * @brief 将所有元素设为 0
      * @param[in,out] A  矩阵
      */
-    void (*zero)(lvMatrix *A);
+lv_PUBLIC_API     void (*zero)(lvMatrix *A);
     /**
      * @brief 深拷贝：dst = src
      * @param[out] dst  目标矩阵
      * @param[in]  src  源矩阵
      */
-    void (*copy)(lvMatrix *dst, const lvMatrix *src);
+lv_PUBLIC_API     void (*copy)(lvMatrix *dst, const lvMatrix *src);
     /**
      * @brief 矩阵-向量乘法：y = A * x
      * @param[in]  A  矩阵
@@ -253,13 +254,13 @@ struct lvMatrixOps {
      * @param[out] y  结果向量
      * @return 成功返回 lv_BACKEND_OK
      */
-    int (*matvec)(const lvMatrix *A, const lvVector *x, lvVector *y);
+lv_PUBLIC_API     int (*matvec)(const lvMatrix *A, const lvVector *x, lvVector *y);
     /**
      * @brief 矩阵-标量乘法：A = c * A
      * @param[in,out] A  矩阵
      * @param[in]     c  标量
      */
-    void (*scale)(lvMatrix *A, double c);
+lv_PUBLIC_API     void (*scale)(lvMatrix *A, double c);
     /**
      * @brief 设置单个元素值
      * @param[in,out] A    矩阵
@@ -267,7 +268,7 @@ struct lvMatrixOps {
      * @param[in]     col  列索引
      * @param[in]     val  新值
      */
-    void (*set_element)(lvMatrix *A, int64_t row, int64_t col, double val);
+lv_PUBLIC_API     void (*set_element)(lvMatrix *A, int64_t row, int64_t col, double val);
     /**
      * @brief 获取单个元素值
      * @param[in] A    矩阵
@@ -275,13 +276,13 @@ struct lvMatrixOps {
      * @param[in] col  列索引
      * @return 元素值
      */
-    double (*get_element)(const lvMatrix *A, int64_t row, int64_t col);
+lv_PUBLIC_API     double (*get_element)(const lvMatrix *A, int64_t row, int64_t col);
     /**
      * @brief LU 分解（若适用）
      * @param[in,out] A  矩阵（输入时未分解，输出时已分解）
      * @return 成功返回 lv_BACKEND_OK
      */
-    int (*factor)(lvMatrix *A);
+lv_PUBLIC_API     int (*factor)(lvMatrix *A);
     /**
      * @brief 使用已分解矩阵求解 A * x = b
      * @param[in]  A  已分解矩阵（通过 factor() 预处理）
@@ -289,7 +290,7 @@ struct lvMatrixOps {
      * @param[out] x  解向量
      * @return 成功返回 lv_BACKEND_OK
      */
-    int (*solve)(const lvMatrix *A, const lvVector *b, lvVector *x);
+lv_PUBLIC_API     int (*solve)(const lvMatrix *A, const lvVector *b, lvVector *x);
 };
 /**
  * @brief lvMatrix 结构体 —— 借鉴 SUNDIALS SUNMatrix 内容结构
@@ -337,7 +338,7 @@ struct lvLinearSolverOps {
      * @param[in]     A   矩阵（用作求解模板）
      * @return 成功返回 lv_BACKEND_OK
      */
-    int (*setup)(lvLinearSolver *LS, const lvMatrix *A);
+lv_PUBLIC_API     int (*setup)(lvLinearSolver *LS, const lvMatrix *A);
     /**
      * @brief 求解线性系统 A * x = b
      * @param[in]  LS  线性求解器（已通过 setup() 初始化）
@@ -346,12 +347,12 @@ struct lvLinearSolverOps {
      * @param[out] x   解向量
      * @return 成功返回 lv_BACKEND_OK
      */
-    int (*solve)(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
+lv_PUBLIC_API     int (*solve)(lvLinearSolver *LS, const lvMatrix *A, const lvVector *b, lvVector *x);
     /**
      * @brief 销毁线性求解器并释放所有关联资源
      * @param[in,out] LS  要销毁的求解器
      */
-    void (*destroy)(lvLinearSolver *LS);
+lv_PUBLIC_API     void (*destroy)(lvLinearSolver *LS);
 };
 /**
  * @brief lvLinearSolver 结构体 —— 借鉴 SUNDIALS SUNLinearSolver 内容结构

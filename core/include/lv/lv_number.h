@@ -10,6 +10,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -35,14 +36,14 @@ typedef struct lvNumberOps {
     lvNumber *(*mul)(const lvNumber *a, const lvNumber *b);
     lvNumber *(*div)(const lvNumber *a, const lvNumber *b);
     int (*compare)(const lvNumber *a, const lvNumber *b);   // -1/0/1
-    double (*to_double)(const lvNumber *n);
-    uint64_t (*hash)(const lvNumber *n);
+lv_PUBLIC_API     double (*to_double)(const lvNumber *n);
+lv_PUBLIC_API     uint64_t (*hash)(const lvNumber *n);
     char *(*to_string)(const lvNumber *n);                  // 调用者 free
-    bool (*is_zero)(const lvNumber *n);
-    bool (*is_one)(const lvNumber *n);
-    bool (*is_negative)(const lvNumber *n);
+lv_PUBLIC_API     bool (*is_zero)(const lvNumber *n);
+lv_PUBLIC_API     bool (*is_one)(const lvNumber *n);
+lv_PUBLIC_API     bool (*is_negative)(const lvNumber *n);
     lvNumber *(*clone)(const lvNumber *n);
-    void (*destroy)(lvNumber *n);
+lv_PUBLIC_API     void (*destroy)(lvNumber *n);
     lvNumberType (*type)(const lvNumber *n);
 } lvNumberOps;
 
@@ -68,31 +69,31 @@ lvNumber *lv_number_abs(const lvNumber *n);
 lvNumber *lv_number_pow(const lvNumber *base, int exp);
 
 // ---- 比较 ----
-int lv_number_compare(const lvNumber *a, const lvNumber *b);
-bool lv_number_eq(const lvNumber *a, const lvNumber *b);
-bool lv_number_lt(const lvNumber *a, const lvNumber *b);
-bool lv_number_gt(const lvNumber *a, const lvNumber *b);
-bool lv_number_lte(const lvNumber *a, const lvNumber *b);
-bool lv_number_gte(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API int lv_number_compare(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API bool lv_number_eq(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API bool lv_number_lt(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API bool lv_number_gt(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API bool lv_number_lte(const lvNumber *a, const lvNumber *b);
+lv_PUBLIC_API bool lv_number_gte(const lvNumber *a, const lvNumber *b);
 
 // ---- 转换 ----
-double lv_number_to_double(const lvNumber *n);
-int64_t lv_number_to_int(const lvNumber *n);
-char *lv_number_to_string(const lvNumber *n);
+lv_PUBLIC_API double lv_number_to_double(const lvNumber *n);
+lv_PUBLIC_API int64_t lv_number_to_int(const lvNumber *n);
+lv_PUBLIC_API char *lv_number_to_string(const lvNumber *n);
 
 // ---- 查询 ----
-bool lv_number_is_zero(const lvNumber *n);
-bool lv_number_is_one(const lvNumber *n);
-bool lv_number_is_negative(const lvNumber *n);
-bool lv_number_is_positive(const lvNumber *n);
-bool lv_number_is_integer(const lvNumber *n);
+lv_PUBLIC_API bool lv_number_is_zero(const lvNumber *n);
+lv_PUBLIC_API bool lv_number_is_one(const lvNumber *n);
+lv_PUBLIC_API bool lv_number_is_negative(const lvNumber *n);
+lv_PUBLIC_API bool lv_number_is_positive(const lvNumber *n);
+lv_PUBLIC_API bool lv_number_is_integer(const lvNumber *n);
 lvNumberType lv_number_type(const lvNumber *n);
-uint64_t lv_number_hash(const lvNumber *n);
+lv_PUBLIC_API uint64_t lv_number_hash(const lvNumber *n);
 lvNumber *lv_number_clone(const lvNumber *n);
-void lv_number_destroy(lvNumber *n);
+lv_PUBLIC_API void lv_number_destroy(lvNumber *n);
 
 // ---- 类型信息 ----
-const char *lv_number_type_name(lvNumberType type);
+lv_PUBLIC_API const char *lv_number_type_name(lvNumberType type);
 
 #ifdef __cplusplus
 }

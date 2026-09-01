@@ -58,6 +58,7 @@ struct StreamContext;
  *  TRACE=-1 为本模块独有扩展），供映射表与便捷宏使用。
  */
 #include "lv/lv_log.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* LOG_LEVEL_* 数值别名（供本模块映射表与便捷宏使用；与 lv_log.h 枚举数值一致，
  * TRACE=-1 为本模块独有扩展；LOG_LEVEL_OFF=5 对应 lv_LOG_NONE=5；
@@ -91,14 +92,14 @@ typedef struct {
  * @param config 配置（NULL 使用默认配置）
  * @return 是否成功
  */
-bool lv_log_init(const lvLogConfig *config);
+lv_PUBLIC_API bool lv_log_init(const lvLogConfig *config);
 
 
 /**
  * @brief 设置日志级别
  * @param level 最小日志级别
  */
-void lv_log_set_level(lvLogLevel level);
+lv_PUBLIC_API void lv_log_set_level(lvLogLevel level);
 
 /**
  * @brief 记录日志（内部使用）
@@ -170,12 +171,12 @@ typedef struct {
  * @brief 初始化性能监控
  * @return 是否成功
  */
-bool lv_perf_init(void);
+lv_PUBLIC_API bool lv_perf_init(void);
 
 /**
  * @brief 关闭性能监控
  */
-void lv_perf_shutdown(void);
+lv_PUBLIC_API void lv_perf_shutdown(void);
 
 /**
  * @brief 创建计时器
@@ -188,52 +189,52 @@ lvTimer *lv_timer_create(const char *name);
  * @brief 销毁计时器
  * @param timer 计时器指针
  */
-void lv_timer_destroy(lvTimer *timer);
+lv_PUBLIC_API void lv_timer_destroy(lvTimer *timer);
 
 /**
  * @brief 启动计时器
  * @param timer 计时器
  */
-void lv_timer_start(lvTimer *timer);
+lv_PUBLIC_API void lv_timer_start(lvTimer *timer);
 
 /**
  * @brief 停止计时器
  * @param timer 计时器
  * @return 经过的毫秒数
  */
-int64_t lv_timer_stop(lvTimer *timer);
+lv_PUBLIC_API int64_t lv_timer_stop(lvTimer *timer);
 
 /**
  * @brief 暂停计时器
  * @param timer 计时器
  */
-void lv_timer_pause(lvTimer *timer);
+lv_PUBLIC_API void lv_timer_pause(lvTimer *timer);
 
 /**
  * @brief 恢复计时器
  * @param timer 计时器
  */
-void lv_timer_resume(lvTimer *timer);
+lv_PUBLIC_API void lv_timer_resume(lvTimer *timer);
 
 /**
  * @brief 重置计时器
  * @param timer 计时器
  */
-void lv_timer_reset(lvTimer *timer);
+lv_PUBLIC_API void lv_timer_reset(lvTimer *timer);
 
 /**
  * @brief 获取计时器经过时间
  * @param timer 计时器
  * @return 经过的毫秒数
  */
-int64_t lv_timer_elapsed_ms(const lvTimer *timer);
+lv_PUBLIC_API int64_t lv_timer_elapsed_ms(const lvTimer *timer);
 
 /**
  * @brief 获取计时器经过时间（纳秒）
  * @param timer 计时器
  * @return 经过的纳秒数
  */
-int64_t lv_timer_elapsed_ns(const lvTimer *timer);
+lv_PUBLIC_API int64_t lv_timer_elapsed_ns(const lvTimer *timer);
 
 /**
  * @brief 作用域计时器（自动开始/停止）
@@ -263,20 +264,20 @@ lvPerfStats *lv_perf_stats_create(const char *name);
  * @brief 销毁性能统计
  * @param stats 统计指针
  */
-void lv_perf_stats_destroy(lvPerfStats *stats);
+lv_PUBLIC_API void lv_perf_stats_destroy(lvPerfStats *stats);
 
 /**
  * @brief 记录性能样本
  * @param stats 统计
  * @param value 样本值
  */
-void lv_perf_stats_record(lvPerfStats *stats, double value);
+lv_PUBLIC_API void lv_perf_stats_record(lvPerfStats *stats, double value);
 
 /**
  * @brief 重置性能统计
  * @param stats 统计
  */
-void lv_perf_stats_reset(lvPerfStats *stats);
+lv_PUBLIC_API void lv_perf_stats_reset(lvPerfStats *stats);
 
 /**
  * @brief 获取所有计时器统计
@@ -284,7 +285,7 @@ void lv_perf_stats_reset(lvPerfStats *stats);
  * @param max_count 最大数量
  * @return 实际数量
  */
-uint32_t lv_perf_get_all_timer_stats(lvPerfStats **out_stats, uint32_t max_count);
+lv_PUBLIC_API uint32_t lv_perf_get_all_timer_stats(lvPerfStats **out_stats, uint32_t max_count);
 
 /* ============== 健康检查 ============== */
 
@@ -324,12 +325,12 @@ typedef struct {
  * @brief 初始化健康检查
  * @return 是否成功
  */
-bool lv_health_init(void);
+lv_PUBLIC_API bool lv_health_init(void);
 
 /**
  * @brief 关闭健康检查
  */
-void lv_health_shutdown(void);
+lv_PUBLIC_API void lv_health_shutdown(void);
 
 /**
  * @brief 执行健康检查
@@ -341,21 +342,21 @@ lvHealthReport *lv_runtime_health_check(void);
  * @brief 销毁健康报告
  * @param report 报告指针
  */
-void lv_health_report_destroy(lvHealthReport *report);
+lv_PUBLIC_API void lv_health_report_destroy(lvHealthReport *report);
 
 /**
  * @brief 设置内存使用阈值
  * @param warning_mb 警告阈值（MB）
  * @param critical_mb 严重阈值（MB）
  */
-void lv_health_set_memory_thresholds(double warning_mb, double critical_mb);
+lv_PUBLIC_API void lv_health_set_memory_thresholds(double warning_mb, double critical_mb);
 
 /**
  * @brief 设置 CPU 使用阈值
  * @param warning_percent 警告阈值（百分比）
  * @param critical_percent 严重阈值（百分比）
  */
-void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent);
+lv_PUBLIC_API void lv_health_set_cpu_thresholds(double warning_percent, double critical_percent);
 
 /* ============== 诊断报告 ============== */
 
@@ -405,7 +406,7 @@ lvDiagnostics *lv_diagnostics_generate(void);
  * @brief 销毁诊断报告
  * @param diag 报告指针
  */
-void lv_diagnostics_destroy(lvDiagnostics *diag);
+lv_PUBLIC_API void lv_diagnostics_destroy(lvDiagnostics *diag);
 
 /**
  * @brief 将诊断报告写入文件
@@ -413,14 +414,14 @@ void lv_diagnostics_destroy(lvDiagnostics *diag);
  * @param path 文件路径
  * @return 是否成功
  */
-bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path);
+lv_PUBLIC_API bool lv_diagnostics_write_file(const lvDiagnostics *diag, const char *path);
 
 /**
  * @brief 将诊断报告转换为 JSON
  * @param diag 诊断报告
  * @return JSON 字符串（调用者负责释放）
  */
-char *lv_diagnostics_to_json(const lvDiagnostics *diag);
+lv_PUBLIC_API char *lv_diagnostics_to_json(const lvDiagnostics *diag);
 
 /* ============== 事件追踪 ============== */
 
@@ -458,12 +459,12 @@ typedef struct {
  * @param max_events 最大事件数
  * @return 是否成功
  */
-bool lv_event_trace_init(uint32_t max_events);
+lv_PUBLIC_API bool lv_event_trace_init(uint32_t max_events);
 
 /**
  * @brief 关闭事件追踪
  */
-void lv_event_trace_shutdown(void);
+lv_PUBLIC_API void lv_event_trace_shutdown(void);
 
 /**
  * @brief 将事件总线桥接到引擎流式上下文（Stream 可观测接入点）
@@ -478,7 +479,7 @@ void lv_event_trace_shutdown(void);
  * 可先于事件总线惰性初始化（lv_event_bus_init 会保留先于 init 设置的
  * stream_ctx），也可由 stream_context_clear_all 以 NULL 清理。
  */
-void lv_event_trace_set_stream_context(struct StreamContext *ctx);
+lv_PUBLIC_API void lv_event_trace_set_stream_context(struct StreamContext *ctx);
 
 /**
  * @brief 记录事件
@@ -486,7 +487,7 @@ void lv_event_trace_set_stream_context(struct StreamContext *ctx);
  * @param name 事件名称
  * @param data 事件数据
  */
-void lv_event_trace_record(RM_EventType type, const char *name, const char *data);
+lv_PUBLIC_API void lv_event_trace_record(RM_EventType type, const char *name, const char *data);
 
 /**
  * @brief 开始事件（用于计时）
@@ -494,14 +495,14 @@ void lv_event_trace_record(RM_EventType type, const char *name, const char *data
  * @param name 事件名称
  * @return 事件 ID
  */
-int lv_event_trace_begin(RM_EventType type, const char *name);
+lv_PUBLIC_API int lv_event_trace_begin(RM_EventType type, const char *name);
 
 /**
  * @brief 结束事件
  * @param event_id 事件 ID
  * @param data 事件数据
  */
-void lv_event_trace_end(int event_id, const char *data);
+lv_PUBLIC_API void lv_event_trace_end(int event_id, const char *data);
 
 /**
  * @brief 获取所有事件记录
@@ -509,19 +510,19 @@ void lv_event_trace_end(int event_id, const char *data);
  * @param max_count 最大数量
  * @return 实际数量
  */
-uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count);
+lv_PUBLIC_API uint32_t lv_event_trace_get_all(lvEventRecord **out_events, uint32_t max_count);
 
 /**
  * @brief 清空事件记录
  */
-void lv_event_trace_clear(void);
+lv_PUBLIC_API void lv_event_trace_clear(void);
 
 /**
  * @brief 导出事件追踪为 Chrome Tracing 格式
  * @param path 输出文件路径
  * @return 是否成功
  */
-bool lv_event_trace_export_chrome(const char *path);
+lv_PUBLIC_API bool lv_event_trace_export_chrome(const char *path);
 
 #ifdef __cplusplus
 }

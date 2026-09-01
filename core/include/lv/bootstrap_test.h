@@ -21,6 +21,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 /* ============== 前向声明 ============== */
 typedef struct BootstrapDiffTest BootstrapDiffTest;
 typedef struct BootstrapDiffTestResult BootstrapDiffTestResult;
@@ -110,16 +111,16 @@ struct PrimitiveTestResult {
  * @brief 初始化自举测试框架
  * @return 是否成功
  */
-bool bootstrap_test_framework_init(void);
+lv_PUBLIC_API bool bootstrap_test_framework_init(void);
 /**
  * @brief 清理自举测试框架
  */
-void lv_bootstrap_test_framework_cleanup(void);
+lv_PUBLIC_API void lv_bootstrap_test_framework_cleanup(void);
 /**
  * @brief 检查框架是否已初始化
  * @return 是否已初始化
  */
-bool bootstrap_test_framework_is_initialized(void);
+lv_PUBLIC_API bool bootstrap_test_framework_is_initialized(void);
 /* ============== 差分测试 API ============== */
 /**
  * @brief 创建差分测试
@@ -132,7 +133,7 @@ BootstrapDiffTest *bootstrap_diff_test_create(const char *test_name, const char 
  * @brief 销毁差分测试
  * @param test 差分测试对象
  */
-void bootstrap_diff_test_destroy(BootstrapDiffTest *test);
+lv_PUBLIC_API void bootstrap_diff_test_destroy(BootstrapDiffTest *test);
 /**
  * @brief 执行差分测试
  * @param test 差分测试对象
@@ -143,7 +144,7 @@ BootstrapDiffTestResult *bootstrap_diff_test_run(BootstrapDiffTest *test);
  * @brief 销毁差分测试结果
  * @param result 测试结果
  */
-void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result);
+lv_PUBLIC_API void bootstrap_diff_test_result_destroy(BootstrapDiffTestResult *result);
 /**
  * @brief 执行批量差分测试
  * @param tests 测试数组
@@ -164,7 +165,7 @@ RandomGenerator *random_generator_create(const RandomGeneratorConfig *config);
  * @brief 销毁随机生成器
  * @param gen 生成器对象
  */
-void random_generator_destroy(RandomGenerator *gen);
+lv_PUBLIC_API void random_generator_destroy(RandomGenerator *gen);
 /**
  * @brief 获取默认配置
  * @return 默认配置结构
@@ -175,13 +176,13 @@ RandomGeneratorConfig random_generator_default_config(void);
  * @param gen 生成器对象
  * @return 约束图（需由调用者销毁）
  */
-void *random_generator_generate_graph(RandomGenerator *gen);
+lv_PUBLIC_API void *random_generator_generate_graph(RandomGenerator *gen);
 /**
  * @brief 生成随机 DSL 源码
  * @param gen 生成器对象
  * @return DSL 源码字符串（需由调用者释放）
  */
-char *random_generator_generate_dsl(RandomGenerator *gen);
+lv_PUBLIC_API char *random_generator_generate_dsl(RandomGenerator *gen);
 /**
  * @brief 批量生成约束图
  * @param gen 生成器对象
@@ -189,13 +190,13 @@ char *random_generator_generate_dsl(RandomGenerator *gen);
  * @param count 生成数量
  * @return 实际生成数量
  */
-uint32_t random_generator_generate_batch(RandomGenerator *gen, void **out_graphs, uint32_t count);
+lv_PUBLIC_API uint32_t random_generator_generate_batch(RandomGenerator *gen, void **out_graphs, uint32_t count);
 /**
  * @brief 重置生成器种子
  * @param gen 生成器对象
  * @param seed 新种子
  */
-void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed);
+lv_PUBLIC_API void random_generator_reset_seed(RandomGenerator *gen, uint64_t seed);
 /* ============== 图同构比较器 API ============== */
 /**
  * @brief 创建图同构比较器
@@ -206,7 +207,7 @@ GraphIsomorphismComparator *graph_isomorphism_create(void);
  * @brief 销毁图同构比较器
  * @param comp 比较器对象
  */
-void graph_isomorphism_destroy(GraphIsomorphismComparator *comp);
+lv_PUBLIC_API void graph_isomorphism_destroy(GraphIsomorphismComparator *comp);
 /**
  * @brief 配置比较器
  * @param comp 比较器对象
@@ -223,13 +224,13 @@ void graph_isomorphism_configure(GraphIsomorphismComparator *comp, bool ignore_i
  * @param graph_b 图 B
  * @return 是否同构
  */
-bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b);
+lv_PUBLIC_API bool graph_isomorphism_compare(GraphIsomorphismComparator *comp, const void *graph_a, const void *graph_b);
 /**
  * @brief 计算图哈希
  * @param graph 图对象
  * @return 哈希值
  */
-uint64_t graph_isomorphism_hash(const void *graph);
+lv_PUBLIC_API uint64_t graph_isomorphism_hash(const void *graph);
 /**
  * @brief 查找同构映射
  * @param comp 比较器对象
@@ -246,11 +247,11 @@ bool graph_isomorphism_find_mapping(GraphIsomorphismComparator *comp, const void
  * @brief 初始化原语包装器
  * @return 是否成功
  */
-bool primitive_wrapper_init(void);
+lv_PUBLIC_API bool primitive_wrapper_init(void);
 /**
  * @brief 清理原语包装器
  */
-void lv_primitive_wrapper_cleanup(void);
+lv_PUBLIC_API void lv_primitive_wrapper_cleanup(void);
 /**
  * @brief 注册原语
  * @param name 原语名称
@@ -273,14 +274,14 @@ PrimitiveTestResult *primitive_wrapper_test(const char *name, void **params);
  * @brief 销毁原语测试结果
  * @param result 测试结果
  */
-void primitive_test_result_destroy(PrimitiveTestResult *result);
+lv_PUBLIC_API void primitive_test_result_destroy(PrimitiveTestResult *result);
 /**
  * @brief 执行所有原语的差分测试
  * @param out_results 输出结果数组
  * @param max_count 最大数量
  * @return 实际测试数量
  */
-uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t max_count);
+lv_PUBLIC_API uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t max_count);
 /**
  * @brief 获取原语统计信息
  * @param name 原语名称
@@ -288,7 +289,7 @@ uint32_t primitive_wrapper_test_all(PrimitiveTestResult **out_results, uint32_t 
  * @param out_passed 输出通过数
  * @param out_failed 输出失败数
  */
-void primitive_wrapper_get_stats(const char *name, uint32_t *out_total, uint32_t *out_passed, uint32_t *out_failed);
+lv_PUBLIC_API void primitive_wrapper_get_stats(const char *name, uint32_t *out_total, uint32_t *out_passed, uint32_t *out_failed);
 /* ============== 测试预言机 API ============== */
 /**
  * @brief 创建测试预言机
@@ -299,14 +300,14 @@ TestOracle *test_oracle_create(void);
  * @brief 销毁测试预言机
  * @param oracle 预言机对象
  */
-void test_oracle_destroy(TestOracle *oracle);
+lv_PUBLIC_API void test_oracle_destroy(TestOracle *oracle);
 /**
  * @brief 验证归一化幂等性
  * @param oracle 预言机对象
  * @param graph 约束图
  * @return 是否幂等
  */
-bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph);
+lv_PUBLIC_API bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph);
 /**
  * @brief 验证求解正确性
  * @param oracle 预言机对象
@@ -314,14 +315,14 @@ bool test_oracle_verify_normalization_idempotent(TestOracle *oracle, void *graph
  * @param solution 求解结果
  * @return 是否正确
  */
-bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, const void *solution);
+lv_PUBLIC_API bool test_oracle_verify_solution_correct(TestOracle *oracle, const void *graph, const void *solution);
 /**
  * @brief 验证证明有效性
  * @param oracle 预言机对象
  * @param trace 证明追踪
  * @return 是否有效
  */
-bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace);
+lv_PUBLIC_API bool test_oracle_verify_proof_valid(TestOracle *oracle, const void *trace);
 /**
  * @brief 验证序列化往返正确性
  * @param oracle 预言机对象
@@ -340,7 +341,7 @@ bool test_oracle_verify_serialize_roundtrip(TestOracle *oracle, const void *grap
  * @param format 格式（"json", "html", "text"）
  * @return 报告字符串
  */
-char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format);
+lv_PUBLIC_API char *bootstrap_test_generate_report(BootstrapDiffTestResult **results, uint32_t count, const char *format);
 /**
  * @brief 将报告写入文件
  * @param results 结果数组

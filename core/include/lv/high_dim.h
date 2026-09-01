@@ -13,6 +13,7 @@ extern "C" {
 #include "lv/lv_utils.h"
 
 #include "constraint_graph.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ── 编译期常量（影响 sizeof / 结构体布局，必须保留为宏） ── */
 #define HIGH_DIM_MAX_DIMENSIONS 32
@@ -27,7 +28,7 @@ extern "C" {
 #endif
 
 /* 获取保真度默认警告阈值（从运行时配置读取） */
-double lv_high_dim_default_fidelity_threshold(void);
+lv_PUBLIC_API double lv_high_dim_default_fidelity_threshold(void);
 
 /* ── Forward decls ── */
 struct SymbolicCoord;
@@ -154,20 +155,20 @@ typedef struct HighDimManager {
 
 /* ── Manager API ── */
 HighDimManager *high_dim_manager_create(void);
-void high_dim_manager_destroy(HighDimManager *manager);
-int high_dim_manager_init(HighDimManager *manager);
+lv_PUBLIC_API void high_dim_manager_destroy(HighDimManager *manager);
+lv_PUBLIC_API int high_dim_manager_init(HighDimManager *manager);
 
 /* ── Block API ── */
-int high_dim_register_block(HighDimManager *manager, int block_id, int dimension_count);
-int high_dim_unregister_block(HighDimManager *manager, int block_id);
+lv_PUBLIC_API int high_dim_register_block(HighDimManager *manager, int block_id, int dimension_count);
+lv_PUBLIC_API int high_dim_unregister_block(HighDimManager *manager, int block_id);
 HighDimAbstractBlock *high_dim_get_block(HighDimManager *manager, int block_id);
 
 /* ── Preset API ── */
-int high_dim_add_projection_preset(HighDimManager *manager, int block_id, const HighDimProjectionPreset *preset);
-int high_dim_remove_projection_preset(HighDimManager *manager, int block_id, int preset_index);
-int high_dim_set_current_preset(HighDimManager *manager, int block_id, int preset_index);
-const HighDimProjectionPreset *high_dim_get_current_preset(const HighDimManager *manager, int block_id);
-int high_dim_create_default_preset(int dimension_count, HighDimProjectionPreset *preset);
+lv_PUBLIC_API int high_dim_add_projection_preset(HighDimManager *manager, int block_id, const HighDimProjectionPreset *preset);
+lv_PUBLIC_API int high_dim_remove_projection_preset(HighDimManager *manager, int block_id, int preset_index);
+lv_PUBLIC_API int high_dim_set_current_preset(HighDimManager *manager, int block_id, int preset_index);
+lv_PUBLIC_API const HighDimProjectionPreset *high_dim_get_current_preset(const HighDimManager *manager, int block_id);
+lv_PUBLIC_API int high_dim_create_default_preset(int dimension_count, HighDimProjectionPreset *preset);
 
 /* ── Projection API ── */
 int high_dim_project_coordinates(HighDimManager *manager, int block_id, const SymbolicCoord **high_dim_coords,
@@ -176,38 +177,38 @@ int high_dim_project_coordinates(HighDimManager *manager, int block_id, const Sy
 /* ── Transform API ── */
 int high_dim_apply_transform(const HighDimProjectedCoord *coord, const HighDimTransform2D *transform,
                              HighDimProjectedCoord *result);
-int high_dim_create_rotation_transform(double angle_rad, HighDimTransform2D *transform);
-int high_dim_create_scale_transform(double scale_x, double scale_y, HighDimTransform2D *transform);
+lv_PUBLIC_API int high_dim_create_rotation_transform(double angle_rad, HighDimTransform2D *transform);
+lv_PUBLIC_API int high_dim_create_scale_transform(double scale_x, double scale_y, HighDimTransform2D *transform);
 
 /* ── Fidelity API ── */
 int high_dim_calculate_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
                                 HighDimVisibilityStats *stats);
-int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int block_id, double threshold);
-int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, char *buffer, size_t buffer_size);
+lv_PUBLIC_API int high_dim_is_fidelity_below_threshold(const HighDimManager *manager, int block_id, double threshold);
+lv_PUBLIC_API int high_dim_get_fidelity_warning(const HighDimManager *manager, int block_id, char *buffer, size_t buffer_size);
 int high_dim_compute_fidelity(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
                               HighDimVisibilityStats *stats);
 int high_dim_compute_fidelity_detailed(HighDimManager *manager, int block_id, const ConstraintGraph *graph,
                                        HighDimVisibilityStats *stats, HighDimFidelityDetail *detail);
 
 /* ── Perspective API ── */
-int high_dim_enter_block_perspective(HighDimManager *manager, int block_id);
-int high_dim_exit_block_perspective(HighDimManager *manager);
-int high_dim_get_current_depth(const HighDimManager *manager);
+lv_PUBLIC_API int high_dim_enter_block_perspective(HighDimManager *manager, int block_id);
+lv_PUBLIC_API int high_dim_exit_block_perspective(HighDimManager *manager);
+lv_PUBLIC_API int high_dim_get_current_depth(const HighDimManager *manager);
 
 /* ── Multi-view API ── */
 int high_dim_create_multi_projection_view(HighDimManager *manager, int block_id, const int *preset_indices,
                                           int preset_count, int *out_view_ids);
-int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id);
-int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int view_count, int element_id);
-int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count);
-int high_dim_export_views_json(HighDimManager *manager, char *buffer, size_t buffer_size);
+lv_PUBLIC_API int high_dim_destroy_multi_projection_view(HighDimManager *manager, int view_id);
+lv_PUBLIC_API int high_dim_link_highlight(HighDimManager *manager, const int *view_ids, int view_count, int element_id);
+lv_PUBLIC_API int high_dim_manage_multi_views(HighDimManager *manager, int operation, int *view_ids, int *count);
+lv_PUBLIC_API int high_dim_export_views_json(HighDimManager *manager, char *buffer, size_t buffer_size);
 
 /* ── Serialize API ── */
-int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
-int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *preset);
+lv_PUBLIC_API int high_dim_preset_serialize_json(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
+lv_PUBLIC_API int high_dim_preset_deserialize_json(const char *json, HighDimProjectionPreset *preset);
 
 /* ── Folded Dimensions ── */
-int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
+lv_PUBLIC_API int high_dim_get_folded_dimensions_info(const HighDimProjectionPreset *preset, char *buffer, size_t buffer_size);
 
 /* ── 3D Projection ── */
 int high_dim_project_to_3d(const double *coord_4d, int dim_count, double camera_distance, int projection_mode,
@@ -217,10 +218,10 @@ int high_dim_project_to_3d_full(const double *coord_nd, int dim_count, double ca
                                 double *coord_3d, double *depth_out, double *proj_matrix, int *clip_result);
 
 /* ── Internals ── */
-int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *mappings, int mapping_count);
-const char *high_dim_mapping_type_to_string(HighDimMappingType type);
+lv_PUBLIC_API int high_dim_validate_mapping(int dimension_count, const HighDimAxisMapping *mappings, int mapping_count);
+lv_PUBLIC_API const char *high_dim_mapping_type_to_string(HighDimMappingType type);
 HighDimMappingType high_dim_mapping_type_from_string(const char *str);
-double symbolic_coord_to_double(const SymbolicCoord *coord);
+lv_PUBLIC_API double symbolic_coord_to_double(const SymbolicCoord *coord);
 
 #ifdef __cplusplus
 }

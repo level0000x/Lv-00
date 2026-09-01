@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,31 +58,31 @@ typedef void (*lvHashtableStrVisitor)(const char *key, void *value, void *ctx);
 lvHashtable *lv_hashtable_int_create(int initial_capacity);
 
 /** @brief 销毁 int 键哈希表并释放内部存储（不释放 value） */
-void lv_hashtable_int_destroy(lvHashtable *ht);
+lv_PUBLIC_API void lv_hashtable_int_destroy(lvHashtable *ht);
 
 /** @brief 插入键值对；键已存在时返回 false 不覆盖 */
-bool lv_hashtable_int_insert(lvHashtable *ht, int key, void *value);
+lv_PUBLIC_API bool lv_hashtable_int_insert(lvHashtable *ht, int key, void *value);
 
 /** @brief 按键查找；未找到返回 NULL */
-void *lv_hashtable_int_get(const lvHashtable *ht, int key);
+lv_PUBLIC_API void *lv_hashtable_int_get(const lvHashtable *ht, int key);
 
 /** @brief 键是否存在 */
-bool lv_hashtable_int_contains(const lvHashtable *ht, int key);
+lv_PUBLIC_API bool lv_hashtable_int_contains(const lvHashtable *ht, int key);
 
 /** @brief 删除键值对；键不存在返回 false */
-bool lv_hashtable_int_remove(lvHashtable *ht, int key);
+lv_PUBLIC_API bool lv_hashtable_int_remove(lvHashtable *ht, int key);
 
 /** @brief 当前条目数 */
-int lv_hashtable_int_count(const lvHashtable *ht);
+lv_PUBLIC_API int lv_hashtable_int_count(const lvHashtable *ht);
 
 /** @brief 遍历所有条目（顺序不定）；回调中删除当前条目安全 */
-void lv_hashtable_int_foreach(lvHashtable *ht, lvHashtableIntVisitor visitor, void *ctx);
+lv_PUBLIC_API void lv_hashtable_int_foreach(lvHashtable *ht, lvHashtableIntVisitor visitor, void *ctx);
 
 /** @brief int 键哈希（FNV-1a 单步：key * lv_FNV_HASH_MULTIPLIER；
  *  容量为 2 的幂时走位掩码，否则取模）。
  *  供依赖固定数组布局、无法持有句柄的调用方（如 ConstraintGraph 内嵌
  *  索引数组）与 lv_hashtable 共享完全一致的哈希。 */
-unsigned lv_hashtable_int_hash(int key, int capacity);
+lv_PUBLIC_API unsigned lv_hashtable_int_hash(int key, int capacity);
 
 /* ========================================================================
  * int64（i64）键形态
@@ -100,31 +101,31 @@ unsigned lv_hashtable_int_hash(int key, int capacity);
 lvHashtable *lv_hashtable_i64_create(int initial_capacity);
 
 /** @brief 销毁 int64 键哈希表并释放内部存储（不释放 value） */
-void lv_hashtable_i64_destroy(lvHashtable *ht);
+lv_PUBLIC_API void lv_hashtable_i64_destroy(lvHashtable *ht);
 
 /** @brief 插入键值对；键已存在时返回 false 不覆盖 */
-bool lv_hashtable_i64_insert(lvHashtable *ht, int64_t key, void *value);
+lv_PUBLIC_API bool lv_hashtable_i64_insert(lvHashtable *ht, int64_t key, void *value);
 
 /** @brief 按键查找；未找到返回 NULL */
-void *lv_hashtable_i64_get(const lvHashtable *ht, int64_t key);
+lv_PUBLIC_API void *lv_hashtable_i64_get(const lvHashtable *ht, int64_t key);
 
 /** @brief 键是否存在 */
-bool lv_hashtable_i64_contains(const lvHashtable *ht, int64_t key);
+lv_PUBLIC_API bool lv_hashtable_i64_contains(const lvHashtable *ht, int64_t key);
 
 /** @brief 删除键值对；键不存在返回 false */
-bool lv_hashtable_i64_remove(lvHashtable *ht, int64_t key);
+lv_PUBLIC_API bool lv_hashtable_i64_remove(lvHashtable *ht, int64_t key);
 
 /** @brief 当前条目数 */
-int lv_hashtable_i64_count(const lvHashtable *ht);
+lv_PUBLIC_API int lv_hashtable_i64_count(const lvHashtable *ht);
 
 /** @brief 遍历所有条目（顺序不定）；回调中删除当前条目安全 */
-void lv_hashtable_i64_foreach(lvHashtable *ht, lvHashtableI64Visitor visitor, void *ctx);
+lv_PUBLIC_API void lv_hashtable_i64_foreach(lvHashtable *ht, lvHashtableI64Visitor visitor, void *ctx);
 
 /** @brief int64 键哈希（FNV-1a 64 位：以 lv_FNV64_OFFSET_BASIS 为初值混入
  *  键的 8 字节；容量为 2 的幂时走位掩码，否则取模）。
  *  供依赖固定数组布局、无法持有句柄的调用方与 lv_hashtable 共享
  *  完全一致的哈希。 */
-unsigned lv_hashtable_i64_hash(int64_t key, int capacity);
+lv_PUBLIC_API unsigned lv_hashtable_i64_hash(int64_t key, int capacity);
 
 /* ========================================================================
  * string 键形态
@@ -141,26 +142,26 @@ unsigned lv_hashtable_i64_hash(int64_t key, int capacity);
 lvHashtable *lv_hashtable_str_create(int initial_bucket_count);
 
 /** @brief 销毁 string 键哈希表：释放键副本与内部节点，不释放 value */
-void lv_hashtable_str_destroy(lvHashtable *ht);
+lv_PUBLIC_API void lv_hashtable_str_destroy(lvHashtable *ht);
 
 /** @brief 插入键值对（内部复制 key）；键已存在时返回 false 不覆盖 */
-bool lv_hashtable_str_insert(lvHashtable *ht, const char *key, void *value);
+lv_PUBLIC_API bool lv_hashtable_str_insert(lvHashtable *ht, const char *key, void *value);
 
 /** @brief 按键查找；未找到返回 NULL */
-void *lv_hashtable_str_get(const lvHashtable *ht, const char *key);
+lv_PUBLIC_API void *lv_hashtable_str_get(const lvHashtable *ht, const char *key);
 
 /** @brief 键是否存在 */
-bool lv_hashtable_str_contains(const lvHashtable *ht, const char *key);
+lv_PUBLIC_API bool lv_hashtable_str_contains(const lvHashtable *ht, const char *key);
 
 /** @brief 删除键值对（释放键副本）；键不存在返回 false */
-bool lv_hashtable_str_remove(lvHashtable *ht, const char *key);
+lv_PUBLIC_API bool lv_hashtable_str_remove(lvHashtable *ht, const char *key);
 
 /** @brief 当前条目数 */
-int lv_hashtable_str_count(const lvHashtable *ht);
+lv_PUBLIC_API int lv_hashtable_str_count(const lvHashtable *ht);
 
 /** @brief 遍历所有条目（顺序不定）；
  *  注意：回调中不得删除当前节点（如需删除，先收集后统一处理） */
-void lv_hashtable_str_foreach(lvHashtable *ht, lvHashtableStrVisitor visitor, void *ctx);
+lv_PUBLIC_API void lv_hashtable_str_foreach(lvHashtable *ht, lvHashtableStrVisitor visitor, void *ctx);
 
 #ifdef __cplusplus
 }

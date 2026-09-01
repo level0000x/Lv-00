@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,19 +24,19 @@ extern "C" {
 /* ===== 字符串检查 ===== */
 
 /** @brief 检查字符串是否以 prefix 开头 */
-bool lv_str_startswith(const char *str, const char *prefix);
+lv_PUBLIC_API bool lv_str_startswith(const char *str, const char *prefix);
 
 /** @brief 检查字符串是否以 suffix 结尾 */
-bool lv_str_endswith(const char *str, const char *suffix);
+lv_PUBLIC_API bool lv_str_endswith(const char *str, const char *suffix);
 
 /** @brief 检查字符串是否包含 substr */
-bool lv_str_contains(const char *str, const char *substr);
+lv_PUBLIC_API bool lv_str_contains(const char *str, const char *substr);
 
 /** @brief 字符串是否为空（NULL 或空串均视为空） */
-bool lv_str_is_empty(const char *s);
+lv_PUBLIC_API bool lv_str_is_empty(const char *s);
 
 /** @brief 字符串是否非空 */
-bool lv_str_nonempty(const char *s);
+lv_PUBLIC_API bool lv_str_nonempty(const char *s);
 
 /**
  * @brief 大小写不敏感比较两个字符串（NULL 安全）
@@ -46,7 +47,7 @@ bool lv_str_nonempty(const char *s);
  * @note 内部按平台映射到 _stricmp（Windows）/ strcasecmp（POSIX），
  *       调用方无需再关心平台差异
  */
-int lv_str_icmp(const char *a, const char *b);
+lv_PUBLIC_API int lv_str_icmp(const char *a, const char *b);
 
 /**
  * @brief 大小写不敏感 + 长度限制的 ASCII 比较（lv_str_icmp 的定长变体）
@@ -71,7 +72,7 @@ int lv_str_icmp(const char *a, const char *b);
  * @param n 最多比较的字节数
  * @return 与 strncmp 同符号的比较结果
  */
-int lv_str_icmp_n(const char *a, const char *b, size_t n);
+lv_PUBLIC_API int lv_str_icmp_n(const char *a, const char *b, size_t n);
 
 /**
  * @brief 大小写敏感比较两个字符串是否相等（NULL 安全）
@@ -81,10 +82,10 @@ int lv_str_icmp_n(const char *a, const char *b, size_t n);
  * @note 收敛对象（判据 B）：全库 strcmp(a,b)==0 / strcmp(a,b)!=0 的相等判定形态；
  *       NULL 语义与 lv_str_icmp 一致（两者均 NULL 视为相等）
  */
-bool lv_str_eq(const char *a, const char *b);
+lv_PUBLIC_API bool lv_str_eq(const char *a, const char *b);
 
 /** @brief lv_str_eq 的取反（NULL 安全，两者均 NULL 视为相等） */
-bool lv_str_ne(const char *a, const char *b);
+lv_PUBLIC_API bool lv_str_ne(const char *a, const char *b);
 
 /**
  * @brief 在关键字表中查找第一个 strstr 命中的索引
@@ -92,7 +93,7 @@ bool lv_str_ne(const char *a, const char *b);
  * @param keywords NULL 结尾的关键字数组
  * @return 命中的索引；未命中返回 -1
  */
-int lv_str_match_any(const char *input, const char *const *keywords);
+lv_PUBLIC_API int lv_str_match_any(const char *input, const char *const *keywords);
 
 /**
  * @brief 带边界校验的关键字匹配（命中后必须为分隔符结尾）
@@ -100,7 +101,7 @@ int lv_str_match_any(const char *input, const char *const *keywords);
  * @param keywords NULL 结尾的关键字数组
  * @return 命中的索引；未命中返回 -1
  */
-int lv_str_match_delimited(const char *input, const char *const *keywords);
+lv_PUBLIC_API int lv_str_match_delimited(const char *input, const char *const *keywords);
 
 /* ===== 字符串裁剪 ===== */
 
@@ -108,19 +109,19 @@ int lv_str_match_delimited(const char *input, const char *const *keywords);
  * @brief 去除字符串两端的空白字符
  * @return 指向 str 中第一个非空白字符的指针（修改原字符串，在末尾写 '\0'）
  */
-char *lv_str_trim(char *str);
+lv_PUBLIC_API char *lv_str_trim(char *str);
 
 /**
  * @brief 去除字符串左端空白
  * @return 指向 str 中第一个非空白字符的指针
  */
-char *lv_str_ltrim(char *str);
+lv_PUBLIC_API char *lv_str_ltrim(char *str);
 
 /**
  * @brief 去除字符串右端空白
  * @return str 本身
  */
-char *lv_str_rtrim(char *str);
+lv_PUBLIC_API char *lv_str_rtrim(char *str);
 
 /**
  * @brief 去除字符串末尾的换行/回车（'\n' 与 '\r'）
@@ -131,7 +132,7 @@ char *lv_str_rtrim(char *str);
  * @param str 输入字符串（就地修改）
  * @return str 本身
  */
-char *lv_str_chomp(char *str);
+lv_PUBLIC_API char *lv_str_chomp(char *str);
 
 /* ===== 字符串分割 ===== */
 
@@ -150,7 +151,7 @@ typedef struct {
 lvStrSplitResult lv_str_split(const char *str, const char *delim);
 
 /** @brief 释放分割结果 */
-void lv_str_split_free(lvStrSplitResult *result);
+lv_PUBLIC_API void lv_str_split_free(lvStrSplitResult *result);
 
 /**
  * @brief 单次切分：查找 str 中首个分隔符，输出其前的前缀长度
@@ -167,7 +168,7 @@ void lv_str_split_free(lvStrSplitResult *result);
  * 边界行为：不修改 str；分隔符为 '\0' 时等价于未找到（NUL 非有效分隔符）。
  * 扩展点：无（单分隔符单次切分；多分隔符/全量分割用 lv_str_split）。
  */
-bool lv_str_prefix_len(const char *str, char delim, size_t *out_len);
+lv_PUBLIC_API bool lv_str_prefix_len(const char *str, char delim, size_t *out_len);
 
 /**
  * @brief strtok_r 的可移植封装（MSVC 下回退到 strtok_s）
@@ -176,7 +177,7 @@ bool lv_str_prefix_len(const char *str, char delim, size_t *out_len);
  * @param saveptr 保存分割位置的指针
  * @return 下一个 token，无更多 token 时返回 NULL
  */
-char *lv_strtok_r(char *str, const char *delim, char **saveptr);
+lv_PUBLIC_API char *lv_strtok_r(char *str, const char *delim, char **saveptr);
 
 /* ===== 定界符扫描 ===== */
 
@@ -187,15 +188,15 @@ char *lv_strtok_r(char *str, const char *delim, char **saveptr);
  * @param close   右定界符字符
  * @return 匹配的右定界符之后的位置；不平衡则返回 NULL
  */
-const char *lv_str_skip_balanced(const char *p, char open, char close);
+lv_PUBLIC_API const char *lv_str_skip_balanced(const char *p, char open, char close);
 
 /**
  * @brief 校验字符串中 open/close 是否平衡
  */
-bool lv_str_check_balanced(const char *p, char open, char close);
+lv_PUBLIC_API bool lv_str_check_balanced(const char *p, char open, char close);
 
 /* ===== 流式文本解析原语 ===== */
-const char *lv_str_skip_ws(const char *p);
+lv_PUBLIC_API const char *lv_str_skip_ws(const char *p);
 
 /**
  * @brief 跳过空白字符的有界变体（NUL 结尾场景之外用于 `(p, end)` 有界解析器）
@@ -212,7 +213,7 @@ const char *lv_str_skip_ws(const char *p);
  *       有界空白跳过循环。isspace 额外匹配的 `\v`/`\f` 在定理/证明/公式解析
  *       上下文中不出现，故收敛到项目规范 4 字符空白集后行为在实际输入上等价。
  */
-const char *lv_str_skip_ws_n(const char *p, const char *end);
+lv_PUBLIC_API const char *lv_str_skip_ws_n(const char *p, const char *end);
 
 /**
  * @brief 从 p 向前推进，直到命中 any_of 中任一字符或 NUL（停在定界符处，不越过）
@@ -227,11 +228,11 @@ const char *lv_str_skip_ws_n(const char *p, const char *end);
  * @note 收敛对象（判据 A）：全库「while (*p && *p != X) p++」扫描到定界符的手写
  *       循环（单字符与多字符定界符两类），等价于 p + strcspn(p, any_of)。
  */
-const char *lv_str_skip_until(const char *p, const char *any_of);
+lv_PUBLIC_API const char *lv_str_skip_until(const char *p, const char *any_of);
 
-bool lv_str_read_int(const char **pp, int64_t *out);
-bool lv_str_read_quoted(const char **pp, char **out);
-const char *lv_str_read_token(const char **pp, char **out, const char *delims);
+lv_PUBLIC_API bool lv_str_read_int(const char **pp, int64_t *out);
+lv_PUBLIC_API bool lv_str_read_quoted(const char **pp, char **out);
+lv_PUBLIC_API const char *lv_str_read_token(const char **pp, char **out, const char *delims);
 
 /* ===== 字符串替换 ===== */
 
@@ -242,7 +243,7 @@ const char *lv_str_read_token(const char **pp, char **out, const char *delims);
  * @param new_str 替换为的新子串
  * @return 堆分配的新字符串，调用者需用 lv_free 释放
  */
-char *lv_str_replace(const char *str, const char *old_str, const char *new_str);
+lv_PUBLIC_API char *lv_str_replace(const char *str, const char *old_str, const char *new_str);
 
 /* ===== 字符串拼接 ===== */
 
@@ -253,7 +254,7 @@ char *lv_str_replace(const char *str, const char *old_str, const char *new_str);
  * @param separator 分隔符
  * @return 堆分配的新字符串，调用者需用 lv_free 释放
  */
-char *lv_str_join(const char **items, size_t count, const char *separator);
+lv_PUBLIC_API char *lv_str_join(const char **items, size_t count, const char *separator);
 
 /**
  * @brief 向已有 lvStrBuf 追加式连接字符串数组（首项自动省略分隔符）
@@ -267,7 +268,7 @@ char *lv_str_join(const char **items, size_t count, const char *separator);
  * @param separator 分隔符
  * @return 是否成功（sb 为空返回 false；count==0 视为空 join 返回 true）
  */
-bool lv_strbuf_join(lvStrBuf *sb, const char *const *items, size_t count, const char *separator);
+lv_PUBLIC_API bool lv_strbuf_join(lvStrBuf *sb, const char *const *items, size_t count, const char *separator);
 
 /* ===== 游标式缓冲追加 ===== */
 
@@ -280,7 +281,7 @@ bool lv_strbuf_join(lvStrBuf *sb, const char *const *items, size_t count, const 
  * @param item 要追加的项
  * @return 是否成功（空间不足返回 false）
  */
-bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, const char *item);
+lv_PUBLIC_API bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, const char *item);
 
 /* ===== 十六进制编码 ===== */
 
@@ -293,7 +294,7 @@ bool lv_str_append_sep(char *dst, size_t size, size_t *pos, const char *sep, con
  * @param n     字节数
  * @param out   输出缓冲区（调用方保证容量 >= 2*n + 1）
  */
-void lv_str_hex_encode(const unsigned char *bytes, size_t n, char *out);
+lv_PUBLIC_API void lv_str_hex_encode(const unsigned char *bytes, size_t n, char *out);
 
 /* ===== 字符串转义 ===== */
 
@@ -303,7 +304,7 @@ void lv_str_hex_encode(const unsigned char *bytes, size_t n, char *out);
  * @param str 要转义的源字符串
  * @param len 源字符串长度
  */
-void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
+lv_PUBLIC_API void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
 
 /* ===== JSON/HTML 转义（统一公共 API，snprintf 语义） ===== */
 
@@ -319,7 +320,7 @@ void lv_str_escape_xml(lvStrBuf *sb, const char *str, size_t len);
  * @return 转义后所需长度（不含终止符 NUL）；若 dst 非空且 dst_cap>0，
  *         则最多写入 dst_cap-1 字节并以 NUL 结尾（截断安全）
  */
-size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+lv_PUBLIC_API size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
  * @brief 对字符串执行 JSON 转义并分配新缓冲区（两遍法封装）
@@ -333,7 +334,7 @@ size_t lv_str_json_escape(const char *src, size_t src_len, char *dst, size_t dst
  * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
  *         分配失败返回 NULL
  */
-char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len);
+lv_PUBLIC_API char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len);
 
 /**
  * @brief 对字符串执行 JSON 反转义（snprintf 语义）
@@ -347,7 +348,7 @@ char *lv_str_json_escape_alloc(const char *src, size_t src_len, size_t *out_len)
  * @param dst_cap 目标缓冲区容量（字节）
  * @return 解码后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
  */
-size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+lv_PUBLIC_API size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
  * @brief 解析 JSON \uXXXX 转义为一个完整 Unicode 码点（含 UTF-16 代理对合并）
@@ -361,7 +362,7 @@ size_t lv_str_json_unescape(const char *src, size_t src_len, char *dst, size_t d
  *                非法/不足 4 位时输出已解析位数 0-3）
  * @return 完整码点；孤立代理或非法十六进制返回 0xFFFFFFFF（调用方应写 U+FFFD）
  */
-unsigned int lv_str_json_read_codepoint(const char *src, size_t src_len, size_t *out_adv);
+lv_PUBLIC_API unsigned int lv_str_json_read_codepoint(const char *src, size_t src_len, size_t *out_adv);
 
 /**
  * @brief 将 Unicode 码点编码为 UTF-8
@@ -371,7 +372,7 @@ unsigned int lv_str_json_read_codepoint(const char *src, size_t src_len, size_t 
  * @param cap 目标容量（字节）
  * @return 写入字节数；cp 无效或容量不足返回 0
  */
-size_t lv_str_codepoint_to_utf8(unsigned int cp, char *dst, size_t cap);
+lv_PUBLIC_API size_t lv_str_codepoint_to_utf8(unsigned int cp, char *dst, size_t cap);
 
 /**
  * @brief 对字符串执行 HTML 实体转义（snprintf 语义）
@@ -384,7 +385,7 @@ size_t lv_str_codepoint_to_utf8(unsigned int cp, char *dst, size_t cap);
  * @param dst_cap 目标缓冲区容量（字节）
  * @return 转义后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
  */
-size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+lv_PUBLIC_API size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
  * @brief 对字符串执行 HTML 实体转义并分配新缓冲区（两遍法封装）
@@ -396,7 +397,7 @@ size_t lv_str_html_escape(const char *src, size_t src_len, char *dst, size_t dst
  * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
  *         分配失败返回 NULL
  */
-char *lv_str_html_escape_alloc(const char *src);
+lv_PUBLIC_API char *lv_str_html_escape_alloc(const char *src);
 
 /**
  * @brief 对字符串执行 LaTeX 特殊字符转义（snprintf 语义）
@@ -411,7 +412,7 @@ char *lv_str_html_escape_alloc(const char *src);
  * @param dst_cap 目标缓冲区容量（字节）
  * @return 转义后所需长度（不含终止符 NUL）；截断语义同 lv_str_json_escape
  */
-size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
+lv_PUBLIC_API size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t dst_cap);
 
 /**
  * @brief 对字符串执行 LaTeX 特殊字符转义并分配新缓冲区（两遍法封装）
@@ -423,7 +424,7 @@ size_t lv_str_latex_escape(const char *src, size_t src_len, char *dst, size_t ds
  * @return 堆分配的转义后字符串（含 NUL），调用者需用 lv_free 释放；
  *         分配失败返回 NULL
  */
-char *lv_str_latex_escape_alloc(const char *src);
+lv_PUBLIC_API char *lv_str_latex_escape_alloc(const char *src);
 
 /* ===== 有理数格式化 ===== */
 
@@ -438,7 +439,7 @@ char *lv_str_latex_escape_alloc(const char *src);
  * @param omit_unit_denominator 为 true 时分母为 1 输出整数形式；为 false 时恒定 "num/den"
  * @return 堆分配的十进制字符串（含 NUL），分配失败返回 NULL
  */
-char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator);
+lv_PUBLIC_API char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator);
 
 /* ===== 报告表格辅助 ===== */
 
@@ -448,7 +449,7 @@ char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator);
  * @param ch    分隔线字符（如 '=' 或 '-'）
  * @param count 分隔线字符数量
  */
-void lv_strbuf_append_sep(lvStrBuf *sb, char ch, size_t count);
+lv_PUBLIC_API void lv_strbuf_append_sep(lvStrBuf *sb, char ch, size_t count);
 
 /**
  * @brief 向 lvStrBuf 追加一个按列宽左对齐的单元格
@@ -456,7 +457,7 @@ void lv_strbuf_append_sep(lvStrBuf *sb, char ch, size_t count);
  * @param text  单元格文本（可为 NULL，按空串处理）
  * @param width 列宽（文本不足时以空格补齐；为 0 时不补齐）
  */
-void lv_strbuf_append_cell(lvStrBuf *sb, const char *text, size_t width);
+lv_PUBLIC_API void lv_strbuf_append_cell(lvStrBuf *sb, const char *text, size_t width);
 
 #ifdef __cplusplus
 }
