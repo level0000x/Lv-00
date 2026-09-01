@@ -10448,3 +10448,30 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   stream_register_callback_ex 双声明 c_int vs c_uint64（P1）、
   high_dim.py 剩余 24B 注释核对（已修）。
 - 下一批候选：K66 func_block_instantiate 绑定错配 / K66 死池删除评审 / F39 收尾。
+
+---
+
+## 批次 194（K66：stream 绑定对齐 + func_block_instantiate 确认已修）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 42ce60a6 | stream_register_callback_ex filter_mask 绑定 c_int → c_uint64（对齐 C uint64_t + module/stream_bridge 声明；原 c_int 32 位 ABI 截断过滤器，x86-64 符号扩展碰巧工作） |
+
+### ② 确认（无代码动作）
+
+- func_block_instantiate 绑定错配（设计 L762 P0：声明 6 参调用 5 参必抛
+  TypeError）——**已被历史批次 K67 修复**（func_block.py:828-837 已传 6 参
+  含 out_ids_ptr/count 出参，注释标注），登记确认。
+
+### 决策登记
+
+- K66 Python 绑定缺陷全收口：StreamEvent c_long / high_dim stats 越界+布局 /
+  high_dim 25 签名指针截断 / stream filter_mask 宽度 / func_block_instantiate
+  （历史已修）——5 项。
+
+### 遗留登记
+
+- K66 剩余：死池删除（symbolic/proof 池 0 使用，删除需评审红线①）。
+- 下一批候选：K66 死池删除评审 / F39 收尾（文档对齐）/ K63 剩余。
