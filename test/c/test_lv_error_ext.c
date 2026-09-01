@@ -229,6 +229,37 @@ static void test_error_macro_api(void) {
     printf("  test_error_macro_api: PASSED\n");
 }
 
+/* ============== 测试：K61 旧式读端接线帧栈 ============== */
+
+static void test_legacy_reader_wiring(void) {
+    /* 旧式 lv_set_error → 帧栈读端（lv_get_last_error_message/code）同源返回 */
+    lv_clear_error();
+    TEST_ASSERT_EQ((int) lv_get_last_error_code(), (int) lv_OK);
+
+    lv_set_error(lv_ERROR_OUT_OF_MEMORY, "wired msg %d", 42);
+    TEST_ASSERT_EQ((int) lv_get_last_error_code(), (int) lv_ERROR_OUT_OF_MEMORY);
+    TEST_ASSERT(strcmp(lv_get_last_error_message(), "wired msg 42") == 0, "帧栈读端消息");
+
+    /* 帧栈与 TLS 一致（写端桥接同源推入） */
+    lvErrorContext *tls = lv_error_context_current();
+    TEST_ASSERT(lv_error_has_error(tls), "帧栈有帧");
+    TEST_ASSERT(strcmp(lv_error_message(tls), lv_get_last_error_message()) == 0, "帧栈/TLS 同文");
+
+    /* 清错误 → 帧栈清空 + 读端回退 lv_OK */
+    lv_clear_error();
+    TEST_ASSERT(!lv_error_has_error(tls), "清错误后帧栈空");
+    TEST_ASSERT_EQ((int) lv_get_last_error_code(), (int) lv_OK);
+
+    /* 多层错误：读端取栈顶（最新） */
+    lv_set_error(lv_ERROR_INVALID_PARAM, "first");
+    lv_set_error(lv_ERROR_IO, "second");
+    TEST_ASSERT_EQ((int) lv_get_last_error_code(), (int) lv_ERROR_IO);
+    TEST_ASSERT(strcmp(lv_get_last_error_message(), "second") == 0, "栈顶最新消息");
+    lv_clear_error();
+
+    printf("  test_legacy_reader_wiring: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Error Ext Test Suite")
@@ -239,6 +270,7 @@ TEST_MAIN_BEGIN("Lv-00 Error Ext Test Suite")
     TEST_MAIN_RUN(test_error_set_read_api);
     TEST_MAIN_RUN(test_error_chain_api);
     TEST_MAIN_RUN(test_error_macro_api);
+    TEST_MAIN_RUN(test_legacy_reader_wiring); /* K61 帧栈接线 */
 
     lv_cleanup();
 TEST_MAIN_END()
