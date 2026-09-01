@@ -10550,3 +10550,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K5 主体完成（幻影 API 修正 + 同步机制工具+CI）；USE_CASES 预设名全收口；
 - K10 全覆盖完成（79 标注 + 检查工具 CI）。
+
+---
+
+## 批次 198（K5 教学文档幻影清零 + symbol-sync 0 违规）
+
+### ① 改动（3 提交）
+
+| 提交 | 内容 |
+| --- | --- |
+| de0a96a5 | 34_meta_proof_cache 标注虚构（reasoning_cache 未实现）；31_stream lv_REGISTER_STREAM_CTX→LV_STREAM_CTX_DECLARE；23_core_infrastructure 8 处幻影 debug/module API 标注 |
+| 7e437f5f | API_REFERENCE 8.2/9 章标注虚构（lv_type_*/lv_stream_*）；bootstrap_test_framework 5 处虚构测试宏标注；API_QUICKSTART 概念注释 K5 标注；脚本 C 注释跳过 + 已标注文档豁免 |
+
+### ② 验证
+
+- symbol_sync_check.py **0 违规**（教学文档代码块幻影清零）；规划/蓝图文档豁免
+  （TEN_LAYER_OPTIMIZED_PLAN/PERFORMANCE_OPTIMIZATION 等设计蓝图 API）；
+- 3 提交 push 成功；CI symbol-sync job 生效。
+
+### 决策登记
+
+- K5 教学文档面收口：幻影 API 修正/标注全部完成（README/QUICKSTART/USE_CASES/
+  23/31/32/34/API_REFERENCE/bootstrap）+ 同步机制（symbol_sync 工具 + CI）；
+- 虚构 API 文档标注而非删除（保守：保留设计意图，K5 标注防误用）。
+
+### 剩余确认点（需用户评审）
+
+- examples/demo.py 桩示例处置（删除）；
+- K68 死平台 include 分支删除（4 处）；
+- 规划文档（TEN_LAYER_OPTIMIZED_PLAN 等）蓝图 API 处置（当前豁免，可后续核对）。
+
+### 剩余可推进（不需要确认）
+
+- K59 导出宏装饰（~80 零装饰头 lv_PUBLIC_API，K18 visibility hidden 后失导出风险，
+  超大机械批次）——下一轮候选。
