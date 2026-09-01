@@ -10210,3 +10210,35 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - K75 剩余：队列满行为 4 约定契约登记（纯文档）、插件双注册表 256 vs 32、
   lv_malloc_bounded 死设施（M6）。
 - 下一批候选：K75 队列满契约登记 / F39 所有权 / K71 lv_str_split 接线。
+
+---
+
+## 批次 181（K71 D6：lv_str_split 接线首批 + strtok 豁免登记）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| stream_filter.c | 手写 strtok_r 逗号分词收敛到权威 lv_str_split（堆分配 items，删 buf 复制；中间空段由既有空 token 检查兜底，语义一致）——lv_str_split 首个生产消费点（原生产 0 消费 M6） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过（此前一次并行构建中断误报，重跑成功）；
+- commit 955f7a51（refactor(arch): converge stream_filter comma tokenization to
+  lv_str_split, register strtok exemptions (K71 D6)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K71 D6 语义核对：strtok 跳过空段 vs lv_str_split 保留中间空段——收敛仅对
+  已有空段兜底的消费方安全（stream_filter ✓）；其余 7 文件登记豁免：
+  - lv_sema.c / lv_loader_engine.c 逗号（声明名拆分）：strtok 跳过空 → 空符号
+    注入风险，保留 strtok（更健壮）
+  - gappa_dsl.c / interop_theorem.c 分号/换行：依赖 strtok 跳过空段
+  - proof_version.c 换行：逐行处理依赖 strtok 空行跳过
+  - atp_backend.c / interop_command.c 空格：命令参数 token 化
+  - preset_common.c "|,& "：分隔符集（lv_str_split 不支持，设计 L786 明确豁免）
+
+### 遗留登记
+
+- K71 D6 后续：如需要可对 lv_sema 声明名拆分补空段检查后收敛（低优先级）。
+- 下一批候选：K75 队列满契约登记 / F39 所有权 / K65 死 sink 清理（删除需评审）。
