@@ -10058,3 +10058,31 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   的调用不受影响（声明未变）。
 - 下一批候选：F24 P0-② 剩余核查 / K61 真实缺陷（错误帧栈读端零消费）/
   F39 所有权。
+
+---
+
+## 批次 176（K61/F87 真实缺陷：错误 API 日志滥用 + orchestrator 保根因）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 563b693d | lv_set_error(lv_OK, ...) **25 处迁 LOG_INFO**（high_dim_view 9 / interop_server_ws 10 / interop_server 3 / high_dim_project 3）：错误 API 被用作日志/状态通道 + lv_OK 覆盖真实错误（K61 P0）；迁后 g_last_error_code 不再被信息消息清空，残留 lv_set_error 全为真实错误（lv_ERROR_*/lv_WARNING）保留 |
+| c5318c31 | orchestrator 保根因：新增 set_error_msg_cause（拼接底层错误详情），6 个 stage 9 处失败路径从静态通用文本改为拼接 lv_get_last_error_message() / engine_get_last_error()（推理引擎错误用引擎专属 API，TLS 兜底） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；依赖矩阵 0 违规；
+- 两提交 push 成功，CI 待验证。
+
+### 决策登记
+
+- K61 两项真实缺陷修复：①错误 API 日志滥用 25 处清零；②orchestrator 静态
+  通用文本覆盖底层错误修复（保根因）。
+
+### 遗留登记
+
+- K61 剩余：新式错误帧栈**读端零消费**（lv_error_set/lv_error_format_chain 等
+  core/src 0 调用，仅测试消费）——「接线（生产读帧栈）或去桥接（删写端桥接）」
+  二选一待决策；错误消息存储 ≥7 通道收敛（大面）。
+- 下一批候选：K61 帧栈读端决策 / F39 所有权 / F45 打包导出。
