@@ -308,7 +308,7 @@ void lv_insertion_sort(void *base, size_t n, size_t elem_size,
  * @param index     待删除下标（越界时为空操作）
  * @param count     当前元素个数（不移除尾部残留，调用方负责递减）
  */
-void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count);
+lv_PUBLIC_API void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count);
 
 /**
  * @brief 在数组中右移腾位（数组中间插入的移位移除前辅助）
@@ -324,7 +324,7 @@ void lv_shift_left(void *base, size_t elem_size, size_t index, size_t count);
  * @param index     插入位置（腾位下标，越界时为空操作）
  * @param count     当前元素个数（右移 [index, count)，不移入尾部残留）
  */
-void lv_shift_right(void *base, size_t elem_size, size_t index, size_t count);
+lv_PUBLIC_API void lv_shift_right(void *base, size_t elem_size, size_t index, size_t count);
 
 /**
  * @brief 消费缓冲前缀后将剩余数据前移压缩到头部
@@ -338,7 +338,7 @@ void lv_shift_right(void *base, size_t elem_size, size_t index, size_t count);
  * @param pos       已消费的元素个数（前缀）
  * @param len       指向当前元素个数的指针（原地更新为剩余个数）
  */
-void lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len);
+lv_PUBLIC_API void lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len);
 
 /**
  * @brief 判断两个 int 多集是否相等（排序后逐元素比较）
@@ -353,7 +353,7 @@ void lv_buffer_consume(void *buf, size_t elem_size, size_t pos, size_t *len);
  * @param bn 第二组元素个数
  * @return 1 相等；0 不相等；-1 内存分配失败（调用方按错误处理）
  */
-int lv_int_multiset_equal(const int *a, int an, const int *b, int bn);
+lv_PUBLIC_API int lv_int_multiset_equal(const int *a, int an, const int *b, int bn);
 
 /**
  * @brief 向紧凑 int 数组追加不重复值（unique append）
@@ -368,7 +368,7 @@ int lv_int_multiset_equal(const int *a, int an, const int *b, int bn);
  * @param value 待追加的值
  * @return true 已追加；false 值已存在或参数非法
  */
-bool lv_int_append_unique(int *arr, int *count, int value);
+lv_PUBLIC_API bool lv_int_append_unique(int *arr, int *count, int value);
 
 /* ============================================================
  * 位掩码内联助手（消除手写 1<<n 有符号移位的 UB 隐患）
