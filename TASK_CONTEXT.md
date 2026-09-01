@@ -10360,3 +10360,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   其余 ~30 处 API 三态标注逐批推进、API_QUICKSTART/文档对齐。
 - 下一批候选：K10 [copy] 标注 + 常用 API 三态 / K65 死 sink（删除需评审）/
   K62 INI 统一。
+
+---
+
+## 批次 191（K65：死 sink API 面 + legacy 写路径删除，用户评审确认）
+
+### ① 改动（-186 行）
+
+| 文件 | 内容 |
+| --- | --- |
+| runtime_monitor.c | 删 lv_log_set_targets/set_file/set_callback（生产 0 调用死表面）+ init 文件打开/shutdown 文件关闭 + log_file/current_file_size 字段 + targets/file_path/max_file_size/max_backup_files 默认值——lv_log_write 已委托主管道只读 min_level |
+| runtime_monitor.h | 删 lvLogTarget 枚举 + LOG_TARGET_* 常量 + lvLogRecord 结构 + lvLogCallback 类型 + lvLogConfig 的 6 个 sink 字段 + 3 setter 声明 |
+| debug_trace_session.c | 删 debug_log_legacy_impl + debug_log_rewrite（原恒 DEBUG 恒 stdout 不分流 + 轮转记账失效 + 环形缺失） |
+| debug.h | 删 debug_log_rewrite 声明 |
+| rewrite_match_search.c | 2 处「内存分配失败」debug_log_rewrite → LOG_DEBUG 主管道 |
+| test_runtime_monitor_ext.c | 删 set_targets/set_callback/set_file 死契约断言 + LogCapture/log_cb |
+| test_new_modules.c | lvLogConfig 构造删 .targets 字段 |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；
+- commit be5fa8ad（refactor(arch): delete dead log sink API surface and legacy
+  write path (K65, user-approved)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K65 两项删除经用户评审确认（2026-09-01）：①死 sink API 面整删；
+  ②legacy 写路径迁移主管道 + 删实现——「内存分配失败」消息改走 debug_log
+  正常分流（修复恒 DEBUG 恒 stdout 缺陷）。
+
+### 遗留登记
+
+- K65 相关：lv_log_set_output（L1951 P1：set_output(NULL) 恢复默认语义）后续评估；
+  runtime_monitor 日志双轨（debug 管道 vs lv_log_*）已由委托消除。
+- 下一批候选：F39 收尾（文档对齐）/ K63 剩余 / K66 预设池对拍缺失（P0 防御）。
