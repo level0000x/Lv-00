@@ -95,6 +95,7 @@ typedef enum { PLAN_A_FULL_ALGEBRAIC = 0, PLAN_B_QUADRATIC_ONLY = 1, PLAN_C_RATI
  * （5 列列表：symbol, display_name, serial_name, dot_hex, latex）。
  * 此处仅从主源列表生成枚举，颜色含义详见该头文件。 */
 #include "lv/trust_color_x.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰） */
 
 #define LV_TRUST_ENUM_ITEM(sym, disp, ser, dot, tex) sym,
 typedef enum {
@@ -193,47 +194,47 @@ typedef struct {
 Rational *rational_create(int64_t numerator, uint64_t denominator);
 Rational *rational_create_from_mpz(const mpz_t numerator, const mpz_t denominator);
 Rational *rational_copy(const Rational *src);
-void rational_destroy(Rational *r);
-int rational_compare(const Rational *a, const Rational *b);
+lv_PUBLIC_API void rational_destroy(Rational *r);
+lv_PUBLIC_API int rational_compare(const Rational *a, const Rational *b);
 Rational *rational_add(const Rational *a, const Rational *b);
 Rational *rational_subtract(const Rational *a, const Rational *b);
 Rational *rational_multiply(const Rational *a, const Rational *b);
 Rational *rational_divide(const Rational *a, const Rational *b);
 Rational *rational_negate(const Rational *a);
-char *rational_serialize(const Rational *r);
+lv_PUBLIC_API char *rational_serialize(const Rational *r);
 Rational *rational_parse(const char *str);
-double rational_to_double(const Rational *r);
+lv_PUBLIC_API double rational_to_double(const Rational *r);
 
 /* ── Algebraic functions ── */
 Algebraic *algebraic_create(mpz_poly_t *poly, double left, double right);
-void algebraic_destroy(Algebraic *a);
-int algebraic_compare(const Algebraic *a, const Algebraic *b);
+lv_PUBLIC_API void algebraic_destroy(Algebraic *a);
+lv_PUBLIC_API int algebraic_compare(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_add(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_subtract(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_multiply(const Algebraic *a, const Algebraic *b);
 Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b);
-bool algebraic_try_rationalize(Algebraic *a);
-int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations);
+lv_PUBLIC_API bool algebraic_try_rationalize(Algebraic *a);
+lv_PUBLIC_API int algebraic_refine_for_equality(Algebraic *a, Algebraic *b, int max_iterations);
 Algebraic *algebraic_from_rational(const Rational *r);
 Algebraic *algebraic_from_quadratic(const Quadratic *q);
-double algebraic_to_double(const Algebraic *a);
+lv_PUBLIC_API double algebraic_to_double(const Algebraic *a);
 
 /* ── Quadratic functions ── */
 Quadratic *quadratic_create(Rational *a, Rational *b, unsigned int n);
-void quadratic_destroy(Quadratic *q);
-int quadratic_compare(const Quadratic *a, const Quadratic *b);
+lv_PUBLIC_API void quadratic_destroy(Quadratic *q);
+lv_PUBLIC_API int quadratic_compare(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_add(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_subtract(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_multiply(const Quadratic *a, const Quadratic *b);
 Quadratic *quadratic_divide(const Quadratic *a, const Quadratic *b);
-double quadratic_to_double(const Quadratic *q);
+lv_PUBLIC_API double quadratic_to_double(const Quadratic *q);
 
 /* ── Transcendental functions ── */
 Transcendental *transcendental_create(const char *name);
-void transcendental_destroy(Transcendental *t);
-int transcendental_compare(const Transcendental *a, const Transcendental *b);
-char *transcendental_serialize(const Transcendental *t);
-double transcendental_to_double(const Transcendental *t);
+lv_PUBLIC_API void transcendental_destroy(Transcendental *t);
+lv_PUBLIC_API int transcendental_compare(const Transcendental *a, const Transcendental *b);
+lv_PUBLIC_API char *transcendental_serialize(const Transcendental *t);
+lv_PUBLIC_API double transcendental_to_double(const Transcendental *t);
 
 /* ── SymbolicCoord core ── */
 SymbolicCoord *symbolic_coord_create_rational(int64_t num, uint64_t denom);
@@ -295,7 +296,7 @@ bool symbolic_coord_pair_from_double_scaled(double x, double y, int64_t scale,
 SymbolicCoord *symbolic_coord_create_algebraic(mpz_poly_t *poly, double left, double right);
 SymbolicCoord *symbolic_coord_create_transcendental(const char *name);
 SymbolicCoord *symbolic_coord_copy(const SymbolicCoord *c);
-void symbolic_coord_destroy(SymbolicCoord *c);
+lv_PUBLIC_API void symbolic_coord_destroy(SymbolicCoord *c);
 
 /**
  * @brief 一次销毁一对符号坐标（NULL-safe，等价逐分量 symbolic_coord_destroy）
@@ -308,8 +309,8 @@ void symbolic_coord_destroy(SymbolicCoord *c);
  * @param a 第一个坐标（可为 NULL）
  * @param b 第二个坐标（可为 NULL）
  */
-void symbolic_coord_pair_destroy(SymbolicCoord *a, SymbolicCoord *b);
-void symbolic_coord_invalidate_cache(SymbolicCoord *coord);
+lv_PUBLIC_API void symbolic_coord_pair_destroy(SymbolicCoord *a, SymbolicCoord *b);
+lv_PUBLIC_API void symbolic_coord_invalidate_cache(SymbolicCoord *coord);
 
 /* ── SymbolicCoord arithmetic ── */
 SymbolicCoord *symbolic_coord_add(const SymbolicCoord *a, const SymbolicCoord *b);
@@ -322,7 +323,7 @@ SymbolicCoord *symbolic_coord_pow(const SymbolicCoord *base, unsigned int expone
 SymbolicCoord *symbolic_coord_try_expand_nested_sqrt(const SymbolicCoord *coord);
 
 /* ── SymbolicCoord queries ── */
-int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b);
+lv_PUBLIC_API int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b);
 
 /**
  * @brief 判断两个符号坐标是否相等（NULL-safe）
@@ -336,11 +337,11 @@ int symbolic_coord_compare(const SymbolicCoord *a, const SymbolicCoord *b);
  * @param b 第二个坐标（可为 NULL）
  * @return true 两坐标均存在且符号比较相等
  */
-bool symbolic_coord_equal(const SymbolicCoord *a, const SymbolicCoord *b);
-bool symbolic_coord_is_zero(const SymbolicCoord *c);
-bool symbolic_coord_is_positive(const SymbolicCoord *c);
-bool symbolic_coord_is_negative(const SymbolicCoord *c);
-bool symbolic_coord_is_amber(const SymbolicCoord *c);
+lv_PUBLIC_API bool symbolic_coord_equal(const SymbolicCoord *a, const SymbolicCoord *b);
+lv_PUBLIC_API bool symbolic_coord_is_zero(const SymbolicCoord *c);
+lv_PUBLIC_API bool symbolic_coord_is_positive(const SymbolicCoord *c);
+lv_PUBLIC_API bool symbolic_coord_is_negative(const SymbolicCoord *c);
+lv_PUBLIC_API bool symbolic_coord_is_amber(const SymbolicCoord *c);
 
 /* ── 符号几何判定（公共收敛入口） ── */
 
@@ -357,8 +358,8 @@ bool symbolic_coord_is_amber(const SymbolicCoord *c);
  */
 bool symbolic_coord_are_collinear(const SymbolicCoord *ax, const SymbolicCoord *ay, const SymbolicCoord *bx,
                                   const SymbolicCoord *by, const SymbolicCoord *cx, const SymbolicCoord *cy);
-double symbolic_coord_to_double(const SymbolicCoord *c);
-char *symbolic_coord_serialize(const SymbolicCoord *c);
+lv_PUBLIC_API double symbolic_coord_to_double(const SymbolicCoord *c);
+lv_PUBLIC_API char *symbolic_coord_serialize(const SymbolicCoord *c);
 
 /**
  * @brief 从符号坐标数组提取前两个坐标到 (x, y)（double 近似）
@@ -373,7 +374,7 @@ char *symbolic_coord_serialize(const SymbolicCoord *c);
  * @param y           输出 Y（成功时写入，失败不变）
  * @return 数组有效且前两个坐标非 NULL 时返回 true，否则 false
  */
-bool symbolic_coord_get_xy(const SymbolicCoord *const *coords, int coord_count, double *x, double *y);
+lv_PUBLIC_API bool symbolic_coord_get_xy(const SymbolicCoord *const *coords, int coord_count, double *x, double *y);
 
 /**
  * @brief 从符号坐标数组提取前四个坐标到线段端点 (x1,y1,x2,y2)（double 近似）
@@ -391,43 +392,43 @@ bool symbolic_coord_get_segment(const SymbolicCoord *const *coords, int coord_co
 
 /* ── Trust ── */
 TrustColor symbolic_coord_get_trust(const SymbolicCoord *c);
-void symbolic_coord_set_trust(SymbolicCoord *c, TrustColor t);
+lv_PUBLIC_API void symbolic_coord_set_trust(SymbolicCoord *c, TrustColor t);
 SymbolicCoord *symbolic_coord_downgrade_to_amber(const SymbolicCoord *coord, double factor, const char *reason);
 
 /* ── Color combination ── */
 TrustColor trust_color_combine(TrustColor a, TrustColor b);
 
 /* ── Hashing ── */
-uint64_t symbolic_coord_hash(const SymbolicCoord *c);
+lv_PUBLIC_API uint64_t symbolic_coord_hash(const SymbolicCoord *c);
 
 /* ── Algebraic plan ── */
 AlgebraicPlan algebraic_get_plan(void);
-void algebraic_set_plan(AlgebraicPlan plan);
+lv_PUBLIC_API void algebraic_set_plan(AlgebraicPlan plan);
 
 /* ── Plan Manager (A/B 自动降级系统) ── */
-void symbolic_coord_set_plan(AlgebraicPlan plan);
+lv_PUBLIC_API void symbolic_coord_set_plan(AlgebraicPlan plan);
 AlgebraicPlan symbolic_coord_get_plan(void);
-bool symbolic_coord_auto_degrade(const char *reason);
+lv_PUBLIC_API bool symbolic_coord_auto_degrade(const char *reason);
 SymbolicCoord *symbolic_coord_create_with_plan(long num, long den);
-bool symbolic_coord_is_quadratic_form(const char *expr);
-void symbolic_coord_plan_stats(int *out_total, AlgebraicPlan *out_current);
+lv_PUBLIC_API bool symbolic_coord_is_quadratic_form(const char *expr);
+lv_PUBLIC_API void symbolic_coord_plan_stats(int *out_total, AlgebraicPlan *out_current);
 
 /* ── Stress test ── */
 StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree);
 
 /* ── Circuit system ── */
-void circuit_set_trip_callback(CircuitTripCallback cb, void *user_data);
+lv_PUBLIC_API void circuit_set_trip_callback(CircuitTripCallback cb, void *user_data);
 CircuitResponse circuit_handle_trip_interactive(const SymbolicCoord *coord);
-void circuit_set_context(SymbolicCoord *result, const char *operation, CoordType left_type, CoordType right_type);
+lv_PUBLIC_API void circuit_set_context(SymbolicCoord *result, const char *operation, CoordType left_type, CoordType right_type);
 SymbolicCoord *circuit_get_last_result(void);
-const char *circuit_get_last_operation(void);
-bool circuit_has_frozen_point(void);
-void *circuit_get_frozen_point(void);
+lv_PUBLIC_API const char *circuit_get_last_operation(void);
+lv_PUBLIC_API bool circuit_has_frozen_point(void);
+lv_PUBLIC_API void *circuit_get_frozen_point(void);
 CircuitStatus check_digit_circuit(const SymbolicCoord *coord);
-void circuit_handle_overflow(void);
-void circuit_reset_context(void);
-void circuit_set_frozen_point(void *snapshot);
-int circuit_get_overflow_count(void);
+lv_PUBLIC_API void circuit_handle_overflow(void);
+lv_PUBLIC_API void circuit_reset_context(void);
+lv_PUBLIC_API void circuit_set_frozen_point(void *snapshot);
+lv_PUBLIC_API int circuit_get_overflow_count(void);
 
 #ifdef __cplusplus
 }

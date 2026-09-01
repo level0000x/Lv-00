@@ -31,6 +31,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "lv/config.h" /* lv_GEO_DEFAULT_TOLERANCE 语义别名 = lv_EPSILON_MEDIUM */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰） */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -304,7 +305,7 @@ lvInteractiveGeo *interactive_geo_init(lvEngine *engine_handle);
  *
  * @param[in,out] geo 交互几何上下文（设为 NULL 是安全的）
  */
-void interactive_geo_destroy(lvInteractiveGeo *geo);
+lv_PUBLIC_API void interactive_geo_destroy(lvInteractiveGeo *geo);
 /* ==================== 模式管理 ==================== */
 /**
  * @brief 设置当前交互模式
@@ -315,7 +316,7 @@ void interactive_geo_destroy(lvInteractiveGeo *geo);
  * @param[in,out] geo  交互几何上下文
  * @param[in]     mode 目标交互模式
  */
-void interactive_geo_set_mode(lvInteractiveGeo *geo, InteractiveGeoMode mode);
+lv_PUBLIC_API void interactive_geo_set_mode(lvInteractiveGeo *geo, InteractiveGeoMode mode);
 /**
  * @brief 获取当前交互模式
  *
@@ -334,14 +335,14 @@ InteractiveGeoMode interactive_geo_get_mode(const lvInteractiveGeo *geo);
  * @param[in]     object_id 要选中的对象 ID
  * @return 成功返回 0，无效 ID 返回 -1
  */
-int interactive_geo_select(lvInteractiveGeo *geo, int object_id);
+lv_PUBLIC_API int interactive_geo_select(lvInteractiveGeo *geo, int object_id);
 /**
  * @brief 取消选中几何对象
  *
  * @param[in,out] geo       交互几何上下文
  * @param[in]     object_id 要取消选中的对象 ID（-1 表示取消全部选中）
  */
-void interactive_geo_deselect(lvInteractiveGeo *geo, int object_id);
+lv_PUBLIC_API void interactive_geo_deselect(lvInteractiveGeo *geo, int object_id);
 /* ==================== 拖拽交互 ==================== */
 /**
  * @brief 开始拖拽操作
@@ -355,7 +356,7 @@ void interactive_geo_deselect(lvInteractiveGeo *geo, int object_id);
  * @param[in]     y         拖拽起始 Y 坐标（世界坐标）
  * @return 成功返回 0，对象不存在返回 -1
  */
-int interactive_geo_drag_start(lvInteractiveGeo *geo, int object_id, double x, double y);
+lv_PUBLIC_API int interactive_geo_drag_start(lvInteractiveGeo *geo, int object_id, double x, double y);
 /**
  * @brief 拖拽移动
  *
@@ -461,7 +462,7 @@ int interactive_geo_hit_test(const lvInteractiveGeo *geo, double screen_x, doubl
  * @param[out] world_y   输出 Y 坐标
  * @return 成功返回 0，对象不存在返回 -1
  */
-int interactive_geo_get_object_position(const lvInteractiveGeo *geo, int object_id, double *world_x, double *world_y);
+lv_PUBLIC_API int interactive_geo_get_object_position(const lvInteractiveGeo *geo, int object_id, double *world_x, double *world_y);
 
 /**
  * @brief 更新视口缩放级别
@@ -473,14 +474,14 @@ int interactive_geo_get_object_position(const lvInteractiveGeo *geo, int object_
  * @param[in]     center_x   缩放中心 X（屏幕坐标）
  * @param[in]     center_y   缩放中心 Y（屏幕坐标）
  */
-void interactive_geo_zoom(lvInteractiveGeo *geo, double zoom_delta, double center_x, double center_y);
+lv_PUBLIC_API void interactive_geo_zoom(lvInteractiveGeo *geo, double zoom_delta, double center_x, double center_y);
 
 /**
  * @brief 重置视口到默认状态
  *
  * @param[in,out] geo 交互几何上下文
  */
-void interactive_geo_reset_viewport(lvInteractiveGeo *geo);
+lv_PUBLIC_API void interactive_geo_reset_viewport(lvInteractiveGeo *geo);
 
 /**
  * @brief 设置画布像素尺寸
@@ -492,7 +493,7 @@ void interactive_geo_reset_viewport(lvInteractiveGeo *geo);
  * @param[in]     width  画布宽度（像素）
  * @param[in]     height 画布高度（像素）
  */
-void interactive_geo_set_canvas_size(lvInteractiveGeo *geo, double width, double height);
+lv_PUBLIC_API void interactive_geo_set_canvas_size(lvInteractiveGeo *geo, double width, double height);
 
 /**
  * @brief 检测当前几何配置是否奇异（Cinderella Continuity 机制）
@@ -504,7 +505,7 @@ void interactive_geo_set_canvas_size(lvInteractiveGeo *geo, double width, double
  * @param[out] classification  输出配置分类（可为 NULL）
  * @return true 表示当前配置为奇异/退化（或接近奇异）
  */
-bool interactive_geo_detect_singularity(const lvInteractiveGeo *geo, int *classification);
+lv_PUBLIC_API bool interactive_geo_detect_singularity(const lvInteractiveGeo *geo, int *classification);
 
 /**
  * @brief 约束实时维护（Cinderella 核心功能）
@@ -518,7 +519,7 @@ bool interactive_geo_detect_singularity(const lvInteractiveGeo *geo, int *classi
  * @param[in]     new_y    新 Y 坐标
  * @return 约束维护状态（ConstraintMaintainStatus 枚举值）
  */
-int interactive_geo_maintain_constraints(lvInteractiveGeo *geo, int moved_id, double new_x, double new_y);
+lv_PUBLIC_API int interactive_geo_maintain_constraints(lvInteractiveGeo *geo, int moved_id, double new_x, double new_y);
 
 /**
  * @brief 导出当前交互几何状态为 JSON 字符串
@@ -529,7 +530,7 @@ int interactive_geo_maintain_constraints(lvInteractiveGeo *geo, int moved_id, do
  * @param[in] geo 交互几何上下文
  * @return 新分配的 JSON 字符串（调用方用 lv_free_ptr 释放），失败返回 NULL
  */
-char *interactive_geo_export_state(const lvInteractiveGeo *geo);
+lv_PUBLIC_API char *interactive_geo_export_state(const lvInteractiveGeo *geo);
 
 /**
  * @brief 从 JSON 字符串导入交互几何状态
@@ -538,7 +539,7 @@ char *interactive_geo_export_state(const lvInteractiveGeo *geo);
  * @param[in]     json_str JSON 状态字符串
  * @return 0 成功，-1 格式错误，-2 数据不一致
  */
-int interactive_geo_import_state(lvInteractiveGeo *geo, const char *json_str);
+lv_PUBLIC_API int interactive_geo_import_state(lvInteractiveGeo *geo, const char *json_str);
 
 /**
  * @brief 获取所有活跃几何对象 ID 列表
@@ -547,7 +548,7 @@ int interactive_geo_import_state(lvInteractiveGeo *geo, const char *json_str);
  * @param[out] count 输出对象数量（可为 NULL）
  * @return 新分配的 int 数组（调用方用 lv_free_ptr 释放），失败返回 NULL
  */
-int *interactive_geo_get_all_objects(const lvInteractiveGeo *geo, int *count);
+lv_PUBLIC_API int *interactive_geo_get_all_objects(const lvInteractiveGeo *geo, int *count);
 
 #ifdef __cplusplus
 }

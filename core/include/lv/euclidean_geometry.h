@@ -27,6 +27,7 @@
 #include "constraint_graph.h"
 #include "lv/lv_utils.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰） */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -284,7 +285,7 @@ EuclideanContext *euclidean_init(ConstraintGraph *graph);
  *
  * @param ctx 欧几里得上下文
  */
-void euclidean_destroy(EuclideanContext *ctx);
+lv_PUBLIC_API void euclidean_destroy(EuclideanContext *ctx);
 /**
  * @brief 设置当前活跃的公理体系
  *
@@ -295,7 +296,7 @@ void euclidean_destroy(EuclideanContext *ctx);
  * @param system 目标公理体系
  * @return true 切换成功，false 存在不一致
  */
-bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system);
+lv_PUBLIC_API bool euclidean_set_axiom_system(EuclideanContext *ctx, EuclideanAxiomSystem system);
 /**
  * @brief 获取当前活跃的公理体系
  *
@@ -311,7 +312,7 @@ EuclideanAxiomSystem euclidean_get_axiom_system(const EuclideanContext *ctx);
  * @param ctx   欧几里得上下文
  * @param graph 约束图（可为 NULL 以解除绑定）
  */
-void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph);
+lv_PUBLIC_API void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph);
 /* ========================================================================
  * 第七部分：核心 API —— 几何实体声明
  * ======================================================================== */
@@ -327,7 +328,7 @@ void euclidean_bind_graph(EuclideanContext *ctx, ConstraintGraph *graph);
  * @param name 可选的名称（可为 NULL）
  * @return 新注册的点 ID（>= 0），失败返回 -1
  */
-int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoord *y, const char *name);
+lv_PUBLIC_API int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoord *y, const char *name);
 /**
  * @brief 声明一条直线
  *
@@ -339,7 +340,7 @@ int euclidean_declare_point(EuclideanContext *ctx, SymbolicCoord *x, SymbolicCoo
  * @param p2_id 第二个点的 ID
  * @return 新注册的线 ID（>= 0），失败返回 -1（点不存在或两点相同）
  */
-int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id);
+lv_PUBLIC_API int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id);
 /**
  * @brief 声明一个圆
  *
@@ -350,7 +351,7 @@ int euclidean_declare_line(EuclideanContext *ctx, int p1_id, int p2_id);
  * @param radius   半径（符号坐标）
  * @return 新注册的圆 ID（>= 0），失败返回 -1
  */
-int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord *radius);
+lv_PUBLIC_API int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord *radius);
 /* ========================================================================
  * 第八部分：核心 API —— 几何谓词断言
  * ======================================================================== */
@@ -364,7 +365,7 @@ int euclidean_declare_circle(EuclideanContext *ctx, int center_id, SymbolicCoord
  * @param count     点数量（必须 >= 3）
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count);
+lv_PUBLIC_API bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int count);
 /**
  * @brief 断言点 B 在点 A 和点 C 之间
  *
@@ -376,7 +377,7 @@ bool euclidean_assert_collinear(EuclideanContext *ctx, const int *point_ids, int
  * @param c_id 点 C 的 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id);
+lv_PUBLIC_API bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_id);
 /**
  * @brief 断言两条线段全等
  *
@@ -389,12 +390,12 @@ bool euclidean_assert_between(EuclideanContext *ctx, int a_id, int b_id, int c_i
  * @param b2_id  第二条线段的第二个端点 ID
  * @return true 断言成功且一致，false 冲突
  */
-bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
+lv_PUBLIC_API bool euclidean_assert_congruent(EuclideanContext *ctx, int a1_id, int a2_id, int b1_id, int b2_id);
 
 /* ── forward decls for .c internal functions ── */
 EquivalenceProofChain *euclidean_create_equivalence_chain(EuclideanContext *ctx);
-void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain);
-bool euclidean_check_consistency(EuclideanContext *ctx);
+lv_PUBLIC_API void euclidean_destroy_equivalence_chain(EquivalenceProofChain *chain);
+lv_PUBLIC_API bool euclidean_check_consistency(EuclideanContext *ctx);
 
 #ifdef __cplusplus
 }

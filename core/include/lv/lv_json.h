@@ -20,6 +20,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰） */
 
 /* ===== JSON 解析器 ===== */
 
@@ -36,22 +37,22 @@ typedef struct {
 } lvJsonParser;
 
 /** @brief 初始化解析器 */
-void lv_json_parser_init(lvJsonParser *p, const char *data, size_t size);
+lv_PUBLIC_API void lv_json_parser_init(lvJsonParser *p, const char *data, size_t size);
 
 /** @brief 跳过空白字符 */
-void lv_json_skip_ws(lvJsonParser *p);
+lv_PUBLIC_API void lv_json_skip_ws(lvJsonParser *p);
 
 /**
  * @brief 偷看下一个字符（自动跳过空白，不解码）
  * @return 下一个字符，若已到达末尾返回 '\0'
  */
-char lv_json_peek(lvJsonParser *p);
+lv_PUBLIC_API char lv_json_peek(lvJsonParser *p);
 
 /**
  * @brief 读取下一个字符并前进（自动跳过空白）
  * @return 读取的字符，若已到达末尾返回 '\0'
  */
-char lv_json_next(lvJsonParser *p);
+lv_PUBLIC_API char lv_json_next(lvJsonParser *p);
 
 /**
  * @brief 期望下一个字符为 c，否则返回 false
@@ -59,7 +60,7 @@ char lv_json_next(lvJsonParser *p);
  * @param c 期望的字符
  * @return true 匹配成功，false 不匹配或已到末尾
  */
-bool lv_json_expect(lvJsonParser *p, char c);
+lv_PUBLIC_API bool lv_json_expect(lvJsonParser *p, char c);
 
 /**
  * @brief 解析 JSON 字符串
@@ -69,7 +70,7 @@ bool lv_json_expect(lvJsonParser *p, char c);
  * @param p 解析器指针
  * @return 新分配的内存中的字符串（调用者需 lv_free），失败返回 NULL
  */
-char *lv_json_parse_string(lvJsonParser *p);
+lv_PUBLIC_API char *lv_json_parse_string(lvJsonParser *p);
 
 /**
  * @brief 解析 JSON 整数值（支持负号）
@@ -77,7 +78,7 @@ char *lv_json_parse_string(lvJsonParser *p);
  * @param out 输出解析结果
  * @return true 解析成功，false 解析失败
  */
-bool lv_json_parse_int(lvJsonParser *p, int *out);
+lv_PUBLIC_API bool lv_json_parse_int(lvJsonParser *p, int *out);
 
 /**
  * @brief 解析 JSON 64 位整数值（支持负号）
@@ -89,7 +90,7 @@ bool lv_json_parse_int(lvJsonParser *p, int *out);
  * @param out 输出解析结果
  * @return true 解析成功，false 解析失败（含溢出）
  */
-bool lv_json_parse_int64(lvJsonParser *p, int64_t *out);
+lv_PUBLIC_API bool lv_json_parse_int64(lvJsonParser *p, int64_t *out);
 
 /**
  * @brief 解析 JSON 无符号 64 位整数值
@@ -101,7 +102,7 @@ bool lv_json_parse_int64(lvJsonParser *p, int64_t *out);
  * @param out 输出解析结果
  * @return true 解析成功，false 解析失败（含溢出）
  */
-bool lv_json_parse_uint64(lvJsonParser *p, uint64_t *out);
+lv_PUBLIC_API bool lv_json_parse_uint64(lvJsonParser *p, uint64_t *out);
 
 /**
  * @brief 解析 JSON 浮点数值
@@ -109,7 +110,7 @@ bool lv_json_parse_uint64(lvJsonParser *p, uint64_t *out);
  * @param out 输出解析结果
  * @return true 解析成功，false 解析失败
  */
-bool lv_json_parse_double(lvJsonParser *p, double *out);
+lv_PUBLIC_API bool lv_json_parse_double(lvJsonParser *p, double *out);
 
 /**
  * @brief 解析 JSON 布尔值
@@ -117,7 +118,7 @@ bool lv_json_parse_double(lvJsonParser *p, double *out);
  * @param out 输出解析结果
  * @return true 解析成功（true/false），false 解析失败
  */
-bool lv_json_parse_bool(lvJsonParser *p, bool *out);
+lv_PUBLIC_API bool lv_json_parse_bool(lvJsonParser *p, bool *out);
 
 /**
  * @brief 读取 JSON 对象的下一个字段（key → ':' 组合）
@@ -149,7 +150,7 @@ bool lv_json_parse_bool(lvJsonParser *p, bool *out);
  *            失败时置为 NULL
  * @return true 读取到字段，false 对象已结束或字段结构非法
  */
-bool lv_json_parse_field(lvJsonParser *p, char **key);
+lv_PUBLIC_API bool lv_json_parse_field(lvJsonParser *p, char **key);
 
 /**
  * @brief 在 JSON 对象顶层按名称查找键值
@@ -162,7 +163,7 @@ bool lv_json_parse_field(lvJsonParser *p, char **key);
  * @param key_len 键名长度
  * @return 值的起始位置（跳过冒号和空白），未找到返回 NULL
  */
-const char *lv_json_find_key(const char *json, const char *key, size_t key_len);
+lv_PUBLIC_API const char *lv_json_find_key(const char *json, const char *key, size_t key_len);
 
 /**
  * @brief 跳过当前 JSON 值（对象/数组/字符串/数字/布尔/null）
@@ -172,7 +173,7 @@ const char *lv_json_find_key(const char *json, const char *key, size_t key_len);
  *
  * @param p 解析器指针
  */
-void lv_json_skip_value(lvJsonParser *p);
+lv_PUBLIC_API void lv_json_skip_value(lvJsonParser *p);
 
 /**
  * @brief 解析 JSON 整数数组（形如 [1,2,3]）
@@ -187,7 +188,7 @@ void lv_json_skip_value(lvJsonParser *p);
  * @param out_count 实际解析的元素数量（可为 NULL）
  * @return true 数组结构合法，false 数组未闭合或元素类型不匹配
  */
-bool lv_json_parse_int_array(lvJsonParser *p, int *out, size_t max_count, size_t *out_count);
+lv_PUBLIC_API bool lv_json_parse_int_array(lvJsonParser *p, int *out, size_t max_count, size_t *out_count);
 
 /**
  * @brief 解析 JSON 浮点数组（形如 [1.5,2.5]）
@@ -202,7 +203,7 @@ bool lv_json_parse_int_array(lvJsonParser *p, int *out, size_t max_count, size_t
  * @param out_count 实际解析的元素数量（可为 NULL）
  * @return true 数组结构合法，false 数组未闭合或元素类型不匹配
  */
-bool lv_json_parse_double_array(lvJsonParser *p, double *out, size_t max_count, size_t *out_count);
+lv_PUBLIC_API bool lv_json_parse_double_array(lvJsonParser *p, double *out, size_t max_count, size_t *out_count);
 
 /* ===== JSON 写入器 ===== */
 
@@ -232,14 +233,14 @@ typedef struct {
  * @param initial_size  初始缓冲区大小（字节）
  * @return true 初始化成功，false 内存分配失败
  */
-bool lv_json_buf_init(lvJsonBuf *buf, size_t initial_size);
+lv_PUBLIC_API bool lv_json_buf_init(lvJsonBuf *buf, size_t initial_size);
 
 /**
  * @brief 确保缓冲区至少有 extra 字节的额外空间
  * @param buf   lvJsonBuf 指针
  * @param extra 需要的额外字节数
  */
-void lv_json_buf_ensure(lvJsonBuf *buf, size_t extra);
+lv_PUBLIC_API void lv_json_buf_ensure(lvJsonBuf *buf, size_t extra);
 
 /**
  * @brief 追加 JSON 字符串（自动转义特殊字符）
@@ -250,7 +251,7 @@ void lv_json_buf_ensure(lvJsonBuf *buf, size_t extra);
  * @param buf lvJsonBuf 指针
  * @param str 要追加的字符串（可为 NULL，此时写入 "null"）
  */
-void lv_json_buf_append_string(lvJsonBuf *buf, const char *str);
+lv_PUBLIC_API void lv_json_buf_append_string(lvJsonBuf *buf, const char *str);
 
 /**
  * @brief 追加原始字符串（不转义）
@@ -261,7 +262,7 @@ void lv_json_buf_append_string(lvJsonBuf *buf, const char *str);
  * @param buf lvJsonBuf 指针
  * @param str 要追加的原始字符串
  */
-void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str);
+lv_PUBLIC_API void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str);
 
 /**
  * @brief 元素写入前的分隔处理（逗号/换行/缩进与状态维护）
@@ -271,7 +272,7 @@ void lv_json_buf_append_raw(lvJsonBuf *buf, const char *str);
  *
  * @param buf lvJsonBuf 指针
  */
-void lv_json_buf_begin_value(lvJsonBuf *buf);
+lv_PUBLIC_API void lv_json_buf_begin_value(lvJsonBuf *buf);
 
 /**
  * @brief 追加 raw 元素（自动处理数组/对象分隔符）
@@ -282,14 +283,14 @@ void lv_json_buf_begin_value(lvJsonBuf *buf);
  * @param buf lvJsonBuf 指针
  * @param str 要追加的原始 JSON 元素
  */
-void lv_json_buf_append_raw_value(lvJsonBuf *buf, const char *str);
+lv_PUBLIC_API void lv_json_buf_append_raw_value(lvJsonBuf *buf, const char *str);
 
 /**
  * @brief 追加单个字符
  * @param buf lvJsonBuf 指针
  * @param c   要追加的字符
  */
-void lv_json_buf_append_char(lvJsonBuf *buf, char c);
+lv_PUBLIC_API void lv_json_buf_append_char(lvJsonBuf *buf, char c);
 
 /**
  * @brief 追加格式化内容（printf 风格）
@@ -297,7 +298,7 @@ void lv_json_buf_append_char(lvJsonBuf *buf, char c);
  * @param fmt printf 格式字符串
  * @param ... 可变参数
  */
-void lv_json_buf_append_fmt(lvJsonBuf *buf, const char *fmt, ...);
+lv_PUBLIC_API void lv_json_buf_append_fmt(lvJsonBuf *buf, const char *fmt, ...);
 
 /**
  * @brief 终结 JSON 缓冲区并返回内容
@@ -308,13 +309,13 @@ void lv_json_buf_append_fmt(lvJsonBuf *buf, const char *fmt, ...);
  * @param buf lvJsonBuf 指针
  * @return 缓冲区内容字符串（调用者 lv_free），失败返回 NULL
  */
-char *lv_json_buf_finalize(lvJsonBuf *buf);
+lv_PUBLIC_API char *lv_json_buf_finalize(lvJsonBuf *buf);
 
 /**
  * @brief 释放 JSON 写入缓冲区（不返回内容）
  * @param buf lvJsonBuf 指针
  */
-void lv_json_buf_free(lvJsonBuf *buf);
+lv_PUBLIC_API void lv_json_buf_free(lvJsonBuf *buf);
 
 /* ===== JSON 对象级写入 API ===== */
 
@@ -328,7 +329,7 @@ void lv_json_buf_free(lvJsonBuf *buf);
  * @param buf    lvJsonBuf 指针
  * @param pretty true 开启 pretty，false 关闭
  */
-void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty);
+lv_PUBLIC_API void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty);
 
 /**
  * @brief 设置/关闭 append_key 冒号后空格
@@ -340,7 +341,7 @@ void lv_json_buf_set_pretty(lvJsonBuf *buf, bool pretty);
  * @param buf lvJsonBuf 指针
  * @param on  true 冒号后带 1 空格，false 不带
  */
-void lv_json_buf_set_key_space(lvJsonBuf *buf, bool on);
+lv_PUBLIC_API void lv_json_buf_set_key_space(lvJsonBuf *buf, bool on);
 
 /**
  * @brief 开始一个 JSON 对象（写 '{'）
@@ -351,14 +352,14 @@ void lv_json_buf_set_key_space(lvJsonBuf *buf, bool on);
  * @param buf lvJsonBuf 指针
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_begin_object(lvJsonBuf *buf);
+lv_PUBLIC_API bool lv_json_buf_begin_object(lvJsonBuf *buf);
 
 /**
  * @brief 结束当前 JSON 对象（写 '}'）
  * @param buf lvJsonBuf 指针
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_end_object(lvJsonBuf *buf);
+lv_PUBLIC_API bool lv_json_buf_end_object(lvJsonBuf *buf);
 
 /**
  * @brief 开始一个 JSON 数组（写 '['）
@@ -368,14 +369,14 @@ bool lv_json_buf_end_object(lvJsonBuf *buf);
  * @param buf lvJsonBuf 指针
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_begin_array(lvJsonBuf *buf);
+lv_PUBLIC_API bool lv_json_buf_begin_array(lvJsonBuf *buf);
 
 /**
  * @brief 结束当前 JSON 数组（写 ']'）
  * @param buf lvJsonBuf 指针
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_end_array(lvJsonBuf *buf);
+lv_PUBLIC_API bool lv_json_buf_end_array(lvJsonBuf *buf);
 
 /**
  * @brief 写入对象键（写 '"key":'）
@@ -388,7 +389,7 @@ bool lv_json_buf_end_array(lvJsonBuf *buf);
  * @param key 键名（不能为 NULL）
  * @return true 成功，false buf 或 key 为空
  */
-bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key);
+lv_PUBLIC_API bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key);
 
 /**
  * @brief 写入整数数值（紧凑十进制，long long 范围）
@@ -400,7 +401,7 @@ bool lv_json_buf_append_key(lvJsonBuf *buf, const char *key);
  * @param v   整数值
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_append_int(lvJsonBuf *buf, long long v);
+lv_PUBLIC_API bool lv_json_buf_append_int(lvJsonBuf *buf, long long v);
 
 /**
  * @brief 写入浮点数值（%.15g 风格，与现有序列化一致）
@@ -408,7 +409,7 @@ bool lv_json_buf_append_int(lvJsonBuf *buf, long long v);
  * @param v   浮点值
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_append_double(lvJsonBuf *buf, double v);
+lv_PUBLIC_API bool lv_json_buf_append_double(lvJsonBuf *buf, double v);
 
 /**
  * @brief 写入布尔值（true/false）
@@ -416,14 +417,14 @@ bool lv_json_buf_append_double(lvJsonBuf *buf, double v);
  * @param v   布尔值
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v);
+lv_PUBLIC_API bool lv_json_buf_append_bool(lvJsonBuf *buf, bool v);
 
 /**
  * @brief 写入 null
  * @param buf lvJsonBuf 指针
  * @return true 成功，false buf 为空
  */
-bool lv_json_buf_append_null(lvJsonBuf *buf);
+lv_PUBLIC_API bool lv_json_buf_append_null(lvJsonBuf *buf);
 
 /* ===== JSON 便利查询函数 ===== */
 
@@ -439,7 +440,7 @@ bool lv_json_buf_append_null(lvJsonBuf *buf);
  * @param out_size 输出缓冲区大小
  * @return true 查找并解析成功，false 键不存在或值不是字符串
  */
-bool lv_json_get_string(const char *json, const char *key, char *out, size_t out_size);
+lv_PUBLIC_API bool lv_json_get_string(const char *json, const char *key, char *out, size_t out_size);
 
 /**
  * @brief 在 JSON 对象中按名称查找并解析整数值
@@ -448,7 +449,7 @@ bool lv_json_get_string(const char *json, const char *key, char *out, size_t out
  * @param out  输出解析结果
  * @return true 查找并解析成功
  */
-bool lv_json_get_int(const char *json, const char *key, int *out);
+lv_PUBLIC_API bool lv_json_get_int(const char *json, const char *key, int *out);
 
 /**
  * @brief 在 JSON 对象中按名称查找并解析浮点数值
@@ -457,7 +458,7 @@ bool lv_json_get_int(const char *json, const char *key, int *out);
  * @param out  输出解析结果
  * @return true 查找并解析成功
  */
-bool lv_json_get_double(const char *json, const char *key, double *out);
+lv_PUBLIC_API bool lv_json_get_double(const char *json, const char *key, double *out);
 
 /**
  * @brief 在 JSON 对象中按名称查找并解析布尔值
@@ -466,7 +467,7 @@ bool lv_json_get_double(const char *json, const char *key, double *out);
  * @param out  输出解析结果
  * @return true 查找并解析成功
  */
-bool lv_json_get_bool(const char *json, const char *key, bool *out);
+lv_PUBLIC_API bool lv_json_get_bool(const char *json, const char *key, bool *out);
 
 #ifdef __cplusplus
 }

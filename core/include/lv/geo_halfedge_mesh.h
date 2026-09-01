@@ -11,6 +11,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv_vec3.h" /* lvVec3：3D 向量单一事实来源，lvPoint3D 为其 typedef */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰） */
 
 /* ── Opaque indices ── */
 #define lv_HE_INVALID (-1)
@@ -101,27 +102,27 @@ typedef lvHalfedgeMesh lvHeMesh;
 /* ── API ── */
 lvHeMeshConfig lv_he_mesh_default_config(void);
 lvHeMesh *lv_he_mesh_create(const lvHeMeshConfig *config);
-void lv_he_mesh_destroy(lvHeMesh *mesh);
+lv_PUBLIC_API void lv_he_mesh_destroy(lvHeMesh *mesh);
 
 lvVertex lv_he_mesh_add_vertex(lvHeMesh *mesh, double x, double y, double z);
 lvPoint3D lv_he_mesh_get_vertex_position(const lvHeMesh *mesh, lvVertex v);
-void lv_he_mesh_set_vertex_position(lvHeMesh *mesh, lvVertex v, lvPoint3D pos);
+lv_PUBLIC_API void lv_he_mesh_set_vertex_position(lvHeMesh *mesh, lvVertex v, lvPoint3D pos);
 lvFace lv_he_mesh_add_face(lvHeMesh *mesh, const int *indices, int count);
 
 lvEdge lv_he_mesh_find_edge(const lvHeMesh *mesh, lvVertex v1, lvVertex v2);
 lvHalfedge lv_he_mesh_edge_halfedge(const lvHeMesh *mesh, lvEdge e);
-double lv_he_mesh_edge_length(const lvHeMesh *mesh, lvEdge e);
+lv_PUBLIC_API double lv_he_mesh_edge_length(const lvHeMesh *mesh, lvEdge e);
 
-void lv_he_mesh_compute_normals(lvHeMesh *mesh);
-void lv_he_mesh_compute_curvature(lvHeMesh *mesh);
+lv_PUBLIC_API void lv_he_mesh_compute_normals(lvHeMesh *mesh);
+lv_PUBLIC_API void lv_he_mesh_compute_curvature(lvHeMesh *mesh);
 
-int lv_he_mesh_edge_count(const lvHeMesh *mesh);
-int lv_he_mesh_face_count(const lvHeMesh *mesh);
-int lv_he_mesh_vertex_count(const lvHeMesh *mesh);
-bool lv_he_mesh_is_valid(const lvHeMesh *mesh);
-bool lv_he_mesh_validate(const lvHeMesh *mesh);
-void lv_he_mesh_edge_vertices(const lvHeMesh *mesh, lvEdge e, lvVertex *out_v1, lvVertex *out_v2);
-void lv_he_mesh_get_stats(const lvHeMesh *mesh, lvHeMeshStats *s);
+lv_PUBLIC_API int lv_he_mesh_edge_count(const lvHeMesh *mesh);
+lv_PUBLIC_API int lv_he_mesh_face_count(const lvHeMesh *mesh);
+lv_PUBLIC_API int lv_he_mesh_vertex_count(const lvHeMesh *mesh);
+lv_PUBLIC_API bool lv_he_mesh_is_valid(const lvHeMesh *mesh);
+lv_PUBLIC_API bool lv_he_mesh_validate(const lvHeMesh *mesh);
+lv_PUBLIC_API void lv_he_mesh_edge_vertices(const lvHeMesh *mesh, lvEdge e, lvVertex *out_v1, lvVertex *out_v2);
+lv_PUBLIC_API void lv_he_mesh_get_stats(const lvHeMesh *mesh, lvHeMeshStats *s);
 
 /* ── 高级几何查询 ── */
 lvHalfedge lv_he_mesh_vertex_out_halfedge(const lvHeMesh *mesh, lvVertex v);
@@ -131,17 +132,17 @@ lvHalfedge lv_he_mesh_halfedge_next(const lvHeMesh *mesh, lvHalfedge he);
 lvFace lv_he_mesh_halfedge_face(const lvHeMesh *mesh, lvHalfedge he);
 lvHalfedge lv_he_mesh_face_halfedge(const lvHeMesh *mesh, lvFace f);
 lvPoint3D lv_he_mesh_face_normal(const lvHeMesh *mesh, lvFace f);
-double lv_he_mesh_face_area(const lvHeMesh *mesh, lvFace f);
-int lv_he_mesh_face_valence(const lvHeMesh *mesh, lvFace f);
-int lv_he_mesh_face_vertices(const lvHeMesh *mesh, lvFace f, lvVertex *out_vertices);
-double lv_he_mesh_vertex_angle(const lvHeMesh *mesh, lvVertex v);
-double lv_he_mesh_vertex_curvature(const lvHeMesh *mesh, lvVertex v);
+lv_PUBLIC_API double lv_he_mesh_face_area(const lvHeMesh *mesh, lvFace f);
+lv_PUBLIC_API int lv_he_mesh_face_valence(const lvHeMesh *mesh, lvFace f);
+lv_PUBLIC_API int lv_he_mesh_face_vertices(const lvHeMesh *mesh, lvFace f, lvVertex *out_vertices);
+lv_PUBLIC_API double lv_he_mesh_vertex_angle(const lvHeMesh *mesh, lvVertex v);
+lv_PUBLIC_API double lv_he_mesh_vertex_curvature(const lvHeMesh *mesh, lvVertex v);
 lvPoint3D lv_he_mesh_vertex_normal(const lvHeMesh *mesh, lvVertex v);
-double lv_he_mesh_halfedge_angle(const lvHeMesh *mesh, lvHalfedge he1, lvHalfedge he2);
-double lv_he_mesh_halfedge_corner_angle(const lvHeMesh *mesh, lvHalfedge he);
+lv_PUBLIC_API double lv_he_mesh_halfedge_angle(const lvHeMesh *mesh, lvHalfedge he1, lvHalfedge he2);
+lv_PUBLIC_API double lv_he_mesh_halfedge_corner_angle(const lvHeMesh *mesh, lvHalfedge he);
 lvVertex lv_he_mesh_nearest_vertex(const lvHeMesh *mesh, lvPoint3D point, double *out_distance);
-double lv_he_mesh_total_area(const lvHeMesh *mesh);
-int lv_he_mesh_euler_characteristic(const lvHeMesh *mesh);
+lv_PUBLIC_API double lv_he_mesh_total_area(const lvHeMesh *mesh);
+lv_PUBLIC_API int lv_he_mesh_euler_characteristic(const lvHeMesh *mesh);
 
 /* ── 快捷构造 ── */
 lvFace lv_he_mesh_add_face_triangle(lvHeMesh *mesh, lvVertex v0, lvVertex v1, lvVertex v2);
@@ -151,26 +152,26 @@ lvFace lv_he_mesh_add_face_quad(lvHeMesh *mesh, lvVertex v0, lvVertex v1, lvVert
 lvHeVertexIterator lv_he_vertex_iter_begin(const lvHeMesh *mesh, lvVertex v);
 lvHeFaceIterator lv_he_face_iter_begin(const lvHeMesh *mesh, lvFace f);
 lvHalfedge lv_he_vertex_iter_get(const lvHeVertexIterator *iter);
-bool lv_he_vertex_iter_valid(const lvHeVertexIterator *iter);
-void lv_he_vertex_iter_next(lvHeVertexIterator *iter);
+lv_PUBLIC_API bool lv_he_vertex_iter_valid(const lvHeVertexIterator *iter);
+lv_PUBLIC_API void lv_he_vertex_iter_next(lvHeVertexIterator *iter);
 lvHalfedge lv_he_face_iter_get(const lvHeFaceIterator *iter);
-bool lv_he_face_iter_valid(const lvHeFaceIterator *iter);
-void lv_he_face_iter_next(lvHeFaceIterator *iter);
+lv_PUBLIC_API bool lv_he_face_iter_valid(const lvHeFaceIterator *iter);
+lv_PUBLIC_API void lv_he_face_iter_next(lvHeFaceIterator *iter);
 
 /* ── _mesh_ 前缀迭代器 ── */
 lvHeVertexIterator lv_he_mesh_vertex_iter_begin(lvHeMesh *mesh, int flags);
 lvHeVertexIterator lv_he_mesh_vertex_out_iter_begin(lvHeMesh *mesh, lvVertex v);
 lvVertex lv_he_mesh_vertex_out_iter_next(lvHeVertexIterator *iter);
-bool lv_he_mesh_vertex_iter_next(lvHeVertexIterator *iter);
+lv_PUBLIC_API bool lv_he_mesh_vertex_iter_next(lvHeVertexIterator *iter);
 lvHeFaceIterator lv_he_mesh_face_iter_begin(lvHeMesh *mesh, int flags);
-bool lv_he_mesh_face_iter_next(lvHeFaceIterator *iter);
+lv_PUBLIC_API bool lv_he_mesh_face_iter_next(lvHeFaceIterator *iter);
 
 /* ── Legacy ── */
 static inline lvHalfedgeMesh *lv_he_mesh_create_default(void) {
     return lv_he_mesh_create(NULL);
 }
-int lv_halfedge_mesh_add_vertex(lvHalfedgeMesh *m, double x, double y, double z);
-int lv_halfedge_mesh_add_face(lvHalfedgeMesh *m, const int *indices, size_t count);
+lv_PUBLIC_API int lv_halfedge_mesh_add_vertex(lvHalfedgeMesh *m, double x, double y, double z);
+lv_PUBLIC_API int lv_halfedge_mesh_add_face(lvHalfedgeMesh *m, const int *indices, size_t count);
 
 #ifdef __cplusplus
 }
