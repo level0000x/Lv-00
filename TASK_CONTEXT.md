@@ -10331,3 +10331,32 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F39 剩余：[copy]/[take]/[borrow] 头注释全覆盖标注（当前 2 处）、
   API_QUICKSTART/TEN_LAYER_OPTIMIZED_PLAN 文档对齐。
 - 下一批候选：K10 三态标注首批 / K65 死 sink（删除需评审）/ K62 INI 统一。
+
+---
+
+## 批次 186（K10/F39：三态所有权标注首批 13 API）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| constraint_graph.h | graph_get_node [borrow] 标注（借用语义进头注释，K10 判定「只写 design doc 未进头注释」补齐）；4 处 JSON/DOT 字符串 [take] |
+| 9 个头文件 + proof_tree.c | 批次 184 的 12 处 lv_free 返回加 [take] 标注（approx_counter/atp_backend/axiom_pkg/bdd_encoding/engine/module/float_error/memory_pool） |
+
+### ② 验证
+
+- build3 ctest **289/289**；所有权检查 0 违规（三态标注 2→15）；
+- commit 9fda0990（docs(arch): add [take]/[borrow] three-state ownership marks
+  to 13 APIs (K10/F39)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K10 三态标注首批：13 API 标注（[borrow] graph_get_node + [take] 12 处 lv_free
+  返回）；三态标注计数 15（含 memory-ownership.md 内 2 处）。
+
+### 遗留登记
+
+- F39 剩余：[copy] 标注（func_block_registry_lookup 已注释 copy 语义，补标注）、
+  其余 ~30 处 API 三态标注逐批推进、API_QUICKSTART/文档对齐。
+- 下一批候选：K10 [copy] 标注 + 常用 API 三态 / K65 死 sink（删除需评审）/
+  K62 INI 统一。
