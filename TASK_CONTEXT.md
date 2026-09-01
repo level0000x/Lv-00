@@ -9889,3 +9889,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F89 剩余：lv_bitset 位图容器（relation_model 手写 uint8 位图收编）、lv_mask_*
   推广补 64 位、lv_PLUGIN_CAP_* 死协议处置、lv_rational_mul_is_safe 裁决。
 - 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST / F33 快速幂收尾。
+
+---
+
+## 批次 171（K2/F33：快速幂 ×3 单骨架统一）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| lv_arith_safe.h（权威） | 新增 lv_POW_SQUARING 宏模板（平方求幂单骨架，mul 语句由调用方注入含错误/生命周期处理）+ lv_pow_mul_i64_fn 回调类型 + lv_pow_sq_i64（int64 域 mul 回调参数化设施） |
+| exact_arithmetic.c | lv_safe_pow 委托 lv_pow_sq_i64（mul 回调 = lv_safe_mul_i64），手写循环删除 |
+| algebraic_number_rational.c | lv_alg_rational_pow 骨架委托 lv_POW_SQUARING（mul 注入 lv_alg_rational_mul + err 检查） |
+| lv_number.c | lv_number_pow 骨架委托 lv_POW_SQUARING（mul 注入 lv_number_mul + destroy 生命周期；错误分支双销毁 cur/result 防泄漏） |
+| lv_loader.c | op_pow 登记决策：验证器饱和线性循环保留（溢出语义不同：饱和 vs 报错），未委托权威 |
+| test_exact_arithmetic_ext.c | 新增 test_pow_sq_i64（权威回调 7 断言 + 自定义饱和回调 2 断言验证 mul 参数化） |
+
+### ② 验证
+
+- build3 ctest **288/288**；build_layerval 通过；依赖矩阵 0 违规；
+- commit 20e0b041（refactor(arch): unify fast-power skeletons to lv_POW_SQUARING/
+  lv_pow_sq_i64 (K2/F33)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K2/F33 快速幂 ×3 统一完成：lv_safe_pow / lv_alg_rational_pow / lv_number_pow
+  三骨架收敛到 lv_POW_SQUARING 单骨架（C 泛型宏模板）+ lv_pow_sq_i64 公开
+  参数化设施；lv_number_pow 负指数缺陷（批次历史已修复）保持；
+- op_pow 第 4 种幂：饱和线性循环保留并登记（验证器语义差异）。
+
+### 遗留登记
+
+- lv_safe_mul_impl 薄转发保留（公开 API 兼容）。
+- 下一批候选：K63 lv_mask_* 推广补 64 位 / K63 lv_bitset 位图容器 /
+  F24 P0-② lv_loader 只产 AST（大重构需讨论）。
