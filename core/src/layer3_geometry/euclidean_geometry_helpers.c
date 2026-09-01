@@ -375,8 +375,8 @@ bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx) {
     if (!ctx)
         return false;
 
-    /* 关联公理 I.1 验证：任意两点确定唯一直线 */
-    if (ctx->enabled_axioms_mask & (1u << (EUCLID_INCIDENCE_OFFSET + (int) INCIDENCE_TWO_POINTS_ONE_LINE))) {
+    /* 关联公理 I.1 验证：任意两点确定唯一直线（K63/F89：lv_mask_test） */
+    if (lv_mask_test(ctx->enabled_axioms_mask, (unsigned) (EUCLID_INCIDENCE_OFFSET + (int) INCIDENCE_TWO_POINTS_ONE_LINE))) {
         if (ctx->constraint_graph && ctx->points_da.count >= 2) {
             const int *points = (const int *)ctx->points_da.data;
             int constraint_count = graph_get_constraint_count(ctx->constraint_graph);
@@ -411,8 +411,8 @@ bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx) {
     }
 
     /* 顺序公理 II.3 验证：任意三个共线点中，
-     * 恰有一点在其余两点之间 */
-    if (ctx->enabled_axioms_mask & (1u << (EUCLID_ORDER_OFFSET + (int) ORDER_THREE_POINTS_ONE_BETWEEN))) {
+     * 恰有一点在其余两点之间（K63/F89：lv_mask_test） */
+    if (lv_mask_test(ctx->enabled_axioms_mask, (unsigned) (EUCLID_ORDER_OFFSET + (int) ORDER_THREE_POINTS_ONE_BETWEEN))) {
         if (ctx->constraint_graph) {
             int constraint_count = graph_get_constraint_count(ctx->constraint_graph);
             for (int i = 0; i < constraint_count && i < 100; i++) {
@@ -450,8 +450,8 @@ bool euclidean_verify_axiom_inconsistency(EuclideanContext *ctx) {
         }
     }
 
-    /* 全等公理 III.2 验证：全等传递性 */
-    if (ctx->enabled_axioms_mask & (1u << (EUCLID_CONGRUENCE_OFFSET + (int) CONGRUENCE_TRANSITIVITY))) {
+    /* 全等公理 III.2 验证：全等传递性（K63/F89：lv_mask_test） */
+    if (lv_mask_test(ctx->enabled_axioms_mask, (unsigned) (EUCLID_CONGRUENCE_OFFSET + (int) CONGRUENCE_TRANSITIVITY))) {
         if (ctx->constraint_graph) {
             int constraint_count = graph_get_constraint_count(ctx->constraint_graph);
             for (int i = 0; i < constraint_count && i < 100; i++) {

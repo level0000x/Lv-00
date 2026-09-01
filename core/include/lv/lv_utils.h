@@ -399,6 +399,33 @@ static inline bool lv_mask_test(unsigned mask, unsigned bit) {
     return (mask & (1u << bit)) != 0;
 }
 
+/* K63/F89：64 位掩码变体（uint64 场景，如 STREAM_EVENT_MASK / 高维掩码） */
+
+/** @brief 生成单个 64 位掩码（1ULL<<bit） */
+static inline uint64_t lv_bit_mask64(unsigned bit) {
+    return 1ULL << bit;
+}
+
+/** @brief 生成低 nbits 位全 1 的 64 位掩码（nbits>=64 时饱和为全 1） */
+static inline uint64_t lv_mask_all64(unsigned nbits) {
+    return nbits >= 64 ? UINT64_MAX : (1ULL << nbits) - 1ULL;
+}
+
+/** @brief 64 位置位 */
+static inline void lv_mask_set64(uint64_t *mask, unsigned bit) {
+    *mask |= 1ULL << bit;
+}
+
+/** @brief 64 位清位 */
+static inline void lv_mask_clear64(uint64_t *mask, unsigned bit) {
+    *mask &= ~(1ULL << bit);
+}
+
+/** @brief 64 位测试 */
+static inline bool lv_mask_test64(uint64_t mask, unsigned bit) {
+    return (mask & (1ULL << bit)) != 0;
+}
+
 /* ============================================================
  * 整数数组便捷操作
  * ============================================================ */

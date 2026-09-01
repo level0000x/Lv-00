@@ -288,6 +288,9 @@ const char *lv_context_state_name(lvContextState state) {
  * （d）NULL 入参返回 lv_ERROR_NULL_POINTER（engine 返回 ENGINE_STATUS_INVALID_ARGUMENT），
  * （e）熔断路径支持无条件强转 ERROR（见 ctx_force_to_error，engine 无此路径）。
  * 合成共享骨架需体内 if(mode) 分支且返回类型不可统一 → 伪同构，保留各自纯函数。 */
+/* K63/F89 豁免登记：状态转换表为编译期常量初始化器——C 常量表达式不能
+ * 调用 static inline 函数（lv_bit_mask），保持裸 1u<< 枚举位（位 < 32 无 UB）。
+ * ga_multivector / rewrite_match_search 的类型掩码静态表同此豁免。 */
 static const uint32_t kValidTransitions[] = {
     [lv_CONTEXT_IDLE]      = (1u << lv_CONTEXT_PARSING) | (1u << lv_CONTEXT_ERROR),
     [lv_CONTEXT_PARSING]   = (1u << lv_CONTEXT_REASONING) | (1u << lv_CONTEXT_ERROR) | (1u << lv_CONTEXT_IDLE),

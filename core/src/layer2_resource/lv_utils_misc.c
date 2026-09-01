@@ -305,7 +305,8 @@ double lv_random_double(double min, double max) {
      * 修复方案：将 64 位随机数拆分为高 53 位（提供 double 的完整尾数精度）
      * 和低 11 位（作为附加精度），避免浮点转换时的精度丢失。 */
     uint64_t hi53 = r >> lv_DOUBLE_RAND_LO_BITS;              /* 高 53 位作为主尾数 */
-    uint64_t lo11 = r & ((1u << lv_DOUBLE_RAND_LO_BITS) - 1); /* 低 11 位作为补充精度 */
+    /* K63/F89：裸 (1u<<N)-1 改调权威 lv_mask_all */
+    uint64_t lo11 = r & lv_mask_all(lv_DOUBLE_RAND_LO_BITS);   /* 低 11 位作为补充精度 */
     /* 构造 [0.0, 1.0) 的均匀随机数：
      *   normalized = hi53/2^53 + lo11/2^64
      * 使用 2^53 作为主除数（double 的 53 位尾数可精确表示），

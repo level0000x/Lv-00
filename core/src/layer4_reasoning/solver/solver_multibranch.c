@@ -10,6 +10,7 @@
 
 #include "solver_common.h"
 #include "lv/lv_str_utils.h"
+#include "lv/lv_utils.h" /* lv_mask_test（K63/F89 掩码设施） */
 
 SymbolicCoord *poly_eval_symbolic(const mpz_poly_t *poly, const SymbolicCoord *value);
 void symbolic_coord_destroy(SymbolicCoord *coord);
@@ -150,8 +151,8 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
 
     for (int b = 0; b < total_branches; b++) {
         for (int v = 0; v < branch_count; v++) {
-            /* Bit v of b determines which root: 0 = root1, 1 = root2 */
-            double chosen = (b & (1u << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
+            /* Bit v of b determines which root: 0 = root1, 1 = root2（K63/F89：lv_mask_test） */
+            double chosen = lv_mask_test((unsigned) b, (unsigned) v) ? branch_vars[v].root2 : branch_vars[v].root1;
 
             /* Create a rational coordinate from the double value. */
             int64_t num_val = (int64_t) (chosen * lv_SOLVER_SCALE_FACTOR);
@@ -216,7 +217,7 @@ SolverStatus solver_handle_multiple_solutions(const GroebnerResult *result, cons
                 for (int v = 0; v < branch_count; v++) {
                     if (branch_vars[v].var_node_id == pe_eq->var_node_id &&
                         branch_vars[v].coord_index == pe_eq->coord_index) {
-                        branch_val = (b & (1u << v)) ? branch_vars[v].root2 : branch_vars[v].root1;
+                        branch_val = lv_mask_test((unsigned) b, (unsigned) v) ? branch_vars[v].root2 : branch_vars[v].root1;
                         found = true;
                         break;
                     }

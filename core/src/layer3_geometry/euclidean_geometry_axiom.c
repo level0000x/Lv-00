@@ -121,9 +121,10 @@ static bool euclidean_toggle_axiom(EuclideanContext *ctx, int group, int axiom_i
     }
 
     if (enabled) {
-        ctx->enabled_axioms_mask |= ((uint32_t) 1u << offset);
+        /* K63/F89：裸位置位改调权威 lv_mask_set（uint32 掩码） */
+        lv_mask_set(&ctx->enabled_axioms_mask, (unsigned) offset);
     } else {
-        ctx->enabled_axioms_mask &= ~((uint32_t) 1u << offset);
+        lv_mask_clear(&ctx->enabled_axioms_mask, (unsigned) offset);
     }
 
     euclidean_check_consistency(ctx);

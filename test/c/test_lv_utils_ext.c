@@ -336,6 +336,36 @@ static void test_memory_checks(void) {
 }
 
 /* ============================================================
+ * 位掩码设施（K63/F89：32/64 位 lv_mask_* 家族）
+ * ============================================================ */
+static void test_mask_family(void) {
+    /* 32 位 */
+    TEST_ASSERT_EQ((int) lv_mask_all(0), 0);
+    TEST_ASSERT_EQ((int) lv_mask_all(6), 63);            /* (1u<<6)-1 */
+    TEST_ASSERT_EQ((long long) lv_mask_all(32), 0xFFFFFFFFLL); /* 饱和 */
+    TEST_ASSERT_EQ((int) lv_bit_mask(3), 8);
+    unsigned m = 0;
+    lv_mask_set(&m, 2);
+    lv_mask_set(&m, 5);
+    TEST_ASSERT(lv_mask_test(m, 2) && lv_mask_test(m, 5) && !lv_mask_test(m, 3), "32 set/test");
+    lv_mask_clear(&m, 2);
+    TEST_ASSERT(!lv_mask_test(m, 2) && lv_mask_test(m, 5), "32 clear");
+
+    /* 64 位 */
+    TEST_ASSERT_EQ((long long) lv_mask_all64(0), 0LL);
+    TEST_ASSERT_EQ((long long) lv_mask_all64(64), -1LL);       /* 饱和全 1 */
+    TEST_ASSERT_EQ((long long) lv_mask_all64(3), 7LL);
+    TEST_ASSERT_EQ((long long) lv_bit_mask64(40), (long long) (1ULL << 40));
+    uint64_t m64 = 0;
+    lv_mask_set64(&m64, 40);
+    lv_mask_set64(&m64, 63);
+    TEST_ASSERT(lv_mask_test64(m64, 40) && lv_mask_test64(m64, 63) && !lv_mask_test64(m64, 39),
+                "64 set/test");
+    lv_mask_clear64(&m64, 63);
+    TEST_ASSERT(!lv_mask_test64(m64, 63) && lv_mask_test64(m64, 40), "64 clear");
+}
+
+/* ============================================================
  * 主入口
  * ============================================================ */
 TEST_MAIN_BEGIN("Lv Utils Ext")
@@ -347,5 +377,6 @@ TEST_MAIN_BEGIN("Lv Utils Ext")
     TEST_MAIN_RUN(test_free_helpers);
     TEST_MAIN_RUN(test_copy_ptr_array);
     TEST_MAIN_RUN(test_memory_checks);
+    TEST_MAIN_RUN(test_mask_family); /* K63/F89 */
 
 TEST_MAIN_END()

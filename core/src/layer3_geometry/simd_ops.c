@@ -65,6 +65,8 @@ static void detect_simd_capabilities(void) {
 
     if (cpuinfo[0] >= 1) {
         __cpuid(cpuinfo, 1);
+        /* K63/F89 豁免登记：CPUID 位测试为平台能力检测协议（设计 L1927
+         * 明确豁免），保持裸位运算不接入 lv_mask_* 家族 */
         if (cpuinfo[3] & (1 << 26))
             caps |= lv_SIMD_SSE2;
         if (cpuinfo[2] & (1 << 19))

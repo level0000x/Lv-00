@@ -161,7 +161,8 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
      * 推导，见 rewrite_participant_type_mask）须包含目标节点类型。
      * 例如 INCIDENCE 的 participants[1] 槽位只接受
      * LINE_SEGMENT/REGION/CIRCLE，避免把线段变量绑定到 POINT 节点。 */
-    if (!(var_type_masks[p] & (1u << (unsigned) tn->type)))
+    /* K63/F89：裸位测试改调权威 lv_mask_test */
+    if (!lv_mask_test(var_type_masks[p], (unsigned) tn->type))
         return false;
 
     /* 增强语义可行性检查：信任颜色和 Light Orange 子类型 */
@@ -187,7 +188,7 @@ static bool vf2_feasible(VF2State *state, int p, int t, ConstraintGraph *pattern
     /* 对于 POINT 节点，在局部等价容忍模式下检查符号坐标。
      * 仅当该模式变量允许绑定 POINT 时执行，避免对线段等非 POINT
      * 变量误走坐标比较路径。 */
-    if (pn->type == GEOM_POINT && (var_type_masks[p] & (1u << GEOM_POINT)) && local_equivalence_tolerant) {
+    if (pn->type == GEOM_POINT && lv_mask_test(var_type_masks[p], GEOM_POINT) && local_equivalence_tolerant) {
         if (pn->coord_count != tn->coord_count)
             return false;
         for (int c = 0; c < pn->coord_count; c++) {
@@ -465,7 +466,7 @@ static bool vf2_lookahead(VF2State *state, int p, int t, ConstraintGraph *patter
                         continue; /* 已映射，跳过 */
 
                     GeomNode *tn = target_graph->nodes[t_neighbor_idx];
-                    if (var_type_masks[p_neighbor] & (1u << (unsigned) tn->type)) {
+                    if (lv_mask_test(var_type_masks[p_neighbor], (unsigned) tn->type)) {
                         has_compatible = true;
                         break;
                     }
