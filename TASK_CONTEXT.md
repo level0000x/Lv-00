@@ -10652,3 +10652,35 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K59 其余 ~76 头装饰（机械批量，防御性）；
 - K67 等其余 P1。
+
+---
+
+## 批次 201（K59 批量装饰：6 头 159 处 + include 补全）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 4e326542 | lv_utils.h 同头混搭 5 处装饰 |
+| 98b03dfa | interop.h 37 + plugin_system.h 44（外部 API 高风险头） |
+| c8d6b4f1 | simd_ops.h 20 + geo_halfedge_mesh.h 29 + symbolic_coord.h 44 + lv_json.h 41 + euclidean_geometry.h 11 + interactive_geo.h 14 = 159 处；6 头补 lv_api_spec.h include（lv_PUBLIC_API 宏定义处——零装饰头原不包含宏，装饰前置） |
+
+### ② 验证
+
+- 累计装饰 245 处（K59）；build3 ctest **289/289**；layerval 通过；
+- 教训：零装饰头不 include lv_api_spec.h → 装饰前必须补宏 include（simd_ops 首爆）；
+  批量装饰需逐批构建验证（误装饰跨行/结构行会破坏编译）。
+
+### 决策登记
+
+- K59 主要风险面装饰完成（外部 API + 同头混搭 + 6 常用头）；其余 ~70 头
+  （内部实现头）登记后续——visibility hidden 未启用，防御性准备。
+
+### 剩余确认点
+
+- examples/demo.py 桩示例处置（删除）；
+- 规划文档蓝图 API 处置（当前豁免）。
+
+### 剩余可推进
+
+- K59 其余 ~70 头（机械批量，防御性）——下轮候选。
