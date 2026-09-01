@@ -1833,6 +1833,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_ast_ext CTEST_NAME lv_ast_ext_test)
     add_lv_test_auto(test_lv_ringbuf_ext CTEST_NAME lv_ringbuf_ext_test)
     add_lv_test_auto(test_lv_reasoning_stack_ext CTEST_NAME lv_reasoning_stack_ext_test)
+    add_lv_test_auto(test_lv_bitset_ext CTEST_NAME lv_bitset_ext_test)  # K63/F89 位图容器
     add_lv_test_auto(test_lv_heap_ext CTEST_NAME lv_heap_ext_test)
     add_lv_test_auto(test_lv_event_bus_ext CTEST_NAME lv_event_bus_ext_test)
     add_lv_test_auto(test_lv_circuit_breaker_ext CTEST_NAME lv_circuit_breaker_ext_test)

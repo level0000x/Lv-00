@@ -21,6 +21,7 @@
 #include "lv/error_codes.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
+#include "lv/lv_bitset.h" /* lvBitset（K63/F89 唯一位图容器，收编手写 uint8 位图） */
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
 
@@ -546,36 +547,29 @@ Relation *rel_reflexive_transitive_closure(const Relation *r) {
         if (r_i[1] > max_elem)
             max_elem = r_i[1];
     }
-    size_t bitmap_size = (size_t) (max_elem + 8) / 8 + 1;
-    uint8_t *seen = (uint8_t *) lv_calloc(bitmap_size, sizeof(uint8_t));
-    if (!seen) {
+    /* K63/F89：手写 uint8 位图收编到唯一位图容器 lv_bitset（容量按 max_elem 计算） */
+    lvBitset seen;
+    lv_bitset_init(&seen);
+    if (!lv_bitset_reserve(&seen, (size_t) (max_elem >= 0 ? max_elem : 0))) {
         rel_destroy(result);
         return NULL;
     }
-#define SEEN_SET(id)                              \
-    do {                                          \
-        if ((id) >= 0)                            \
-            seen[(id) / 8] |= (1u << ((id) % 8)); \
-    } while (0)
-#define SEEN_TEST(id) ((((id) >= 0) ? (seen[(id) / 8] & (1u << ((id) % 8))) : 0))
     for (int i = 0; i < r->tuples.count; i++) {
         int *r_i = *(int **)lv_darray_get(&r->tuples, i);
         int a = r_i[0];
         int b = r_i[1];
-        if (!SEEN_TEST(a)) {
+        if (a >= 0 && !lv_bitset_test(&seen, (size_t) a)) {
             int t[2] = {a, a};
             rel_add_tuple_inner(result, t);
-            SEEN_SET(a);
+            lv_bitset_set(&seen, (size_t) a);
         }
-        if (!SEEN_TEST(b)) {
+        if (b >= 0 && !lv_bitset_test(&seen, (size_t) b)) {
             int t[2] = {b, b};
             rel_add_tuple_inner(result, t);
-            SEEN_SET(b);
+            lv_bitset_set(&seen, (size_t) b);
         }
     }
-#undef SEEN_SET
-#undef SEEN_TEST
-    lv_free((void **) &seen);
+    lv_bitset_destroy(&seen);
 
     return result;
 }

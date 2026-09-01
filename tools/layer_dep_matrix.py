@@ -65,7 +65,7 @@ EXPLICIT_HEADER_LAYER = {
     # L2 基础工具（纯 inline/宏头，全层共享；L1 可依赖 L2）
     "lv_xmacro.h": 2, "lv_thread.h": 2, "config.h": 2, "lv_check.h": 2,
     "lv_arith_safe.h": 2, "lv_parse_utils.h": 2, "lv_utils_internal.h": 2,
-    "stream_internal.h": 2, "debug_internal.h": 2,
+    "stream_internal.h": 2, "debug_internal.h": 2, "lv_bitset.h": 2,
     # L3 几何拓扑（内部头/共享头）
     "mpz_poly.h": 3, "graph_node_internal.h": 3, "geometry_compress_internal.h": 3,
     "geometry_types.h": 3, "formula_converter_internal.h": 3,
