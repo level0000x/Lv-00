@@ -60,7 +60,10 @@ class StreamEvent(Structure):
 
     _fields_ = [
         ('type', c_int),
-        ('timestamp_ms', c_long),
+        # K66/F96 修复：timestamp_ms 为 C 侧 int64_t（8B）——原 c_long 在
+        # Windows（LLP64）下是 4B，导致结构错位（其后字段全部偏移错误）；
+        # Linux LP64 下 c_long 恰为 8B 故未暴露（设计 L756 判定）。
+        ('timestamp_ms', c_int64),
         ('step_number', c_int),
         ('total_steps', c_int),
         ('node_id', c_int),

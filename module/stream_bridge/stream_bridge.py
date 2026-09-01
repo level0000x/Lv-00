@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Lv-00 Stream Bridge - C 引擎流式事件到 JSON Lines 的桥接服务器模块
 ========================================================================
@@ -310,7 +310,9 @@ class StreamContext:
 # 提取为模块级常量，避免嵌套类引用问题
 _STREAM_EVENT_FIELDS = [
     ("type", ctypes.c_int),           # StreamEventType (enum = int)
-    ("timestamp_ms", ctypes.c_long),  # long
+    # K66/F96 修复：timestamp_ms 为 C 侧 int64_t——原 c_long 在 Windows 下
+    # 4B 导致结构错位（设计 L756 判定），Linux LP64 恰对齐未暴露
+    ("timestamp_ms", ctypes.c_int64), # int64_t
     ("step_number", ctypes.c_int),    # int
     ("total_steps", ctypes.c_int),    # int
     ("node_id", ctypes.c_int),        # int
