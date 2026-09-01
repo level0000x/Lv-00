@@ -1,4 +1,4 @@
-﻿#ifndef lv_PRESET_CORE_H
+#ifndef lv_PRESET_CORE_H
 #define lv_PRESET_CORE_H
 #include <stdbool.h>
 
@@ -19,9 +19,7 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-#ifndef PRESET_MAX_COUNT
-#define PRESET_MAX_COUNT 10000
-#endif
+/* K75：PRESET_MAX_COUNT 定义已删——预设上限单源 lv_PRESET_MAX_COUNT（func_block.h） */
 
 #ifndef PRESET_SYSTEM_VERSION_MAJOR
 #define PRESET_SYSTEM_VERSION_MAJOR 4

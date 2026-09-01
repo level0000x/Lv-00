@@ -448,8 +448,8 @@ bool preset_register_custom(const PresetMetadata *metadata, const FuncBlock *tem
         return false;
     }
 
-    /* 检查容量 */
-    if (g_library.entry_count >= PRESET_MAX_COUNT) {
+    /* 检查容量（K75：预设上限单源 lv_PRESET_MAX_COUNT，func_block.h） */
+    if (g_library.entry_count >= lv_PRESET_MAX_COUNT) {
         unlock_library();
         set_error("预设库已满");
         return false;

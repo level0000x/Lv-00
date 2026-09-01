@@ -26,21 +26,13 @@ extern "C" {
 #define PRESET_ID_OFFSET 1000
 #endif
 
-/* lv 兼容宏 */
-#ifndef lv_PRESET_MAX_COUNT
-#define lv_PRESET_MAX_COUNT PRESET_MAX_COUNT
-#endif
-
+/* lv 兼容宏（K75：lv_PRESET_MAX_COUNT 单源位于 func_block.h，本头不再重复） */
 #ifndef lv_PRESET_ID_OFFSET
 #define lv_PRESET_ID_OFFSET PRESET_ID_OFFSET
 #endif
 
 #ifndef lv_PRESET_MAX_PARAMS
 #define lv_PRESET_MAX_PARAMS 32
-#endif
-
-#ifndef PRESET_MAX_COUNT
-#define PRESET_MAX_COUNT 10000
 #endif
 
 #ifndef PRESET_SYSTEM_VERSION_MAJOR

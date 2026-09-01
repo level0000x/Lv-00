@@ -31,10 +31,7 @@
 
 #include <stdbool.h>
 
-/* 预设系统宏（如果尚未定义） */
-#ifndef lv_PRESET_MAX_COUNT
-#define lv_PRESET_MAX_COUNT 10000
-#endif
+/* K75：lv_PRESET_MAX_COUNT 单源位于 func_block.h（本头 include 之，重复兜底已删） */
 #ifndef lv_PRESET_ID_OFFSET
 #define lv_PRESET_ID_OFFSET 1000
 #endif

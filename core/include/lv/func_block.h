@@ -200,6 +200,8 @@ typedef enum {
 #ifndef lv_PRESET_ID_OFFSET
 #define lv_PRESET_ID_OFFSET 1000
 #endif
+/* K75：预设上限单源——lv_PRESET_MAX_COUNT 权威定义（func_block_preset.h /
+ * preset_common.h / preset_core.h 的重复兜底已删，引用即包含） */
 #ifndef lv_PRESET_MAX_COUNT
 #define lv_PRESET_MAX_COUNT 10000
 #endif
