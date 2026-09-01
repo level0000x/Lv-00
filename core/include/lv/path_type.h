@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file path_type.h
  * @brief 路径类型系统 —— 借鉴 Arend 同伦类型论（HoTT）的路径类型设计
  *
@@ -306,7 +306,7 @@ bool path_is_constant(const lvPathSystem *sys, int path_id);
  *
  * @param sys            路径系统
  * @param path_id        路径 ID
- * @param out_equality   输出：等式约束图（调用者负责销毁）
+ * @param out_equality   输出：等式约束图（[take] 调用者负责销毁）
  * @return 成功返回 0，失败返回负值错误码
  */
 int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality);
@@ -330,7 +330,7 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
  *
  * @param sys                路径系统
  * @param path_id            路径 ID
- * @param out_constraint     输出：等价约束（调用者负责销毁）
+ * @param out_constraint     输出：等价约束（[take] 调用者负责销毁）
  * @return 成功返回 0，失败返回负值错误码
  */
 int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint);

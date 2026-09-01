@@ -44,14 +44,14 @@ typedef struct {
  * 核心 API
  * ============================================================ */
 /**
- * @brief 将公式 AST 转换为约束图操作
+ * @brief 将公式 AST 转换为约束图操作（[take] 结果所有权，memory-ownership.md）
  * @param[in] ast   公式 AST 根节点
  * @param[in] graph 目标约束图
  * @return 转换结果，调用者负责通过 formula_to_graph_result_destroy() 销毁
  */
 FormulaToGraphResult *formula_to_graph(const FormulaNode *ast, ConstraintGraph *graph);
 /**
- * @brief 将约束图转换为公式
+ * @brief 将约束图转换为公式（[take] 结果所有权，memory-ownership.md）
  * @param[in] graph 源约束图
  * @return 转换结果，调用者负责通过 graph_to_formula_result_destroy() 销毁
  */
@@ -96,13 +96,14 @@ void formula_converter_util_cleanup(void);
  * 辅助转换函数
  * ============================================================ */
 /**
- * @brief 从 AST 数字节点创建 SymbolicCoord
+ * @brief 从 AST 数字节点创建 SymbolicCoord（[take] 结果所有权，memory-ownership.md）
  * @param[in] node 数字节点（类型须为 NODE_NUMBER）
  * @return 符号坐标指针，调用者负责销毁；失败返回 NULL
  */
 SymbolicCoord *formula_number_to_coord(const FormulaNode *node);
 /**
- * @brief 从坐标列表节点创建 SymbolicCoord 数组
+ * @brief 从坐标列表节点创建 SymbolicCoord 数组（[take] 结果所有权：调用者负责
+ * 销毁每个元素和数组本身，memory-ownership.md）
  * @param[in]  coord_list 坐标列表节点
  * @param[out] out_count  输出坐标数量
  * @return SymbolicCoord 数组，调用者负责销毁每个元素和数组本身

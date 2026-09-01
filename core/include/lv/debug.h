@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file debug.h
  * @brief 调试子系统 —— 日志、性能计数器、断言、内存池与追踪
  * @details 提供分级日志系统（DEBUG/INFO/WARN/ERROR）、全局性能计数器、
@@ -351,7 +351,7 @@ lv_PUBLIC_API void lv_log_ring_buffer_write(lvLogRingBuffer *rb, LogLevel level,
 /**
  * @brief 导出环形缓冲区中的所有日志（按时间顺序）
  *
- * 返回的数组由调用者负责释放（使用 lv_free）。
+ * 返回的数组由[take] 调用者负责释放（使用 lv_free）。
  *
  * @param rb           环形缓冲区（非 NULL）
  * @param out_count    输出：实际导出的条目数量

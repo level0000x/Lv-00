@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lexer_shared.h
  * @brief 共享词法分析器基础设施
  *
@@ -83,7 +83,9 @@ void lv_lexer_skip_whitespace_and_comments(lvLexer *lex);
  * 支持的转义序列：\\n, \\t, \\r, \\\", \\\\, 以及任意字符的 \\X
  *
  * @param lex 指向词法分析器结构体的指针
- * @return    新分配的字符串（调用者负责用 free() 释放），失败时返回 NULL
+ * @return    新分配的字符串（[take] 语义：lv_malloc 分配，调用者须用 lv_free
+ *            释放——原注释「free()」为混合分配器 UB，见 memory-ownership.md
+ *            K10/F39），失败时返回 NULL
  */
 char *lv_lexer_extract_string(lvLexer *lex);
 #ifdef __cplusplus

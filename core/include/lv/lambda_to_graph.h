@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lambda_to_graph.h
  * @brief λ-项到约束图的编译和反向转换（Public API）
  *
@@ -45,7 +45,7 @@ lv_PUBLIC_API bool lambda_to_graph(LvLambdaTerm *term, ConstraintGraph *graph, i
  *
  * @param graph 约束图
  * @param node_id 根函数块节点 ID
- * @return 还原的 λ-项（调用者负责销毁），失败返回 NULL
+ * @return 还原的 λ-项（[take] 调用者负责销毁），失败返回 NULL
  */
 lv_PUBLIC_API LvLambdaTerm *graph_to_lambda(ConstraintGraph *graph, int node_id);
 

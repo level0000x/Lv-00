@@ -1,9 +1,9 @@
-/**
+﻿/**
  * @file lambda_church.h
  * @brief Church 编码公共 API——λ-演算的标准数据编码
  *
  * 提供 Church 数字、Church 布尔值及其运算的 λ-项构造器。
- * 所有函数返回新分配的 LvLambdaTerm *（调用者负责销毁）。
+ * 所有函数返回新分配的 LvLambdaTerm *（[take] 语义：调用者负责销毁）。
  *
  * Church 编码参考：
  * - 数字 n: λf.λx.f^n x
