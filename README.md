@@ -269,7 +269,7 @@ int main(void) {
 `lv_init` · `lv_cleanup` · `lv_is_initialized` · `lv_health_check` · `lv_get_system_info`
 
 **版本**
-`lv_get_version_string` · `lv_get_version_info` · `lv_check_version_compat`
+`lv_get_version_string` · `lv_check_version_compat`
 
 **引擎与建模**
 `lv_engine_create` · `lv_engine_destroy` · `lv_add_point` · `lv_add_point_i` · `lv_add_line_segment` · `lv_add_constraint_incidence` · `lv_normalize` · `lv_solve`
@@ -278,7 +278,7 @@ int main(void) {
 `lv_config_get_int` · `lv_config_get_bool` · `lv_config_get_double` · `lv_config_get_string` · `lv_config_set_int` · `lv_config_set_bool` · `lv_config_set_double` · `lv_config_set_string`
 
 **内存与诊断**
-`lv_get_memory_stats_ex` · `lv_get_memory_limit_ex` · `lv_set_memory_limit_ex` · `lv_set_log_level` · `lv_get_log_level` · `lv_set_assertions_enabled` · `lv_are_assertions_enabled`
+`lv_get_memory_stats` · `lv_get_memory_limit` · `lv_set_memory_limit` · `lv_set_log_level` · `lv_get_log_level` · `lv_set_assertions_enabled` · `lv_are_assertions_enabled`
 
 ---
 
