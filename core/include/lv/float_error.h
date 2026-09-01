@@ -206,7 +206,7 @@ typedef struct {
     double lv_TOLERATED_FLOAT(absolute_error); /**< 绝对误差上界 */
     double lv_TOLERATED_FLOAT(relative_error); /**< 相对误差上界 */
     TrustColor trust_level;                    /**< 信任颜色等级 */
-    char *proof_text;                          /**< 误差证明文本（调用者负责 lv_free） */
+    char *proof_text;                          /**< 误差证明文本（[take] 调用者负责 lv_free） */
 } ErrorBound;
 
 /* ========================================================================

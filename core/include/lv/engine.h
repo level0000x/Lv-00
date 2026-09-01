@@ -460,7 +460,7 @@ lv_PUBLIC_API bool engine_pack_function(lvEngine *engine, const int *internal_no
  *                             映射到的实际节点 ID
  * @param[in]  arg_count       参数映射数量（应与函数块的输入端口数量一致）
  * @param[out] out_result_count 输出：实例化产生的结果（输出端口）数量
- * @return 新创建的输出端口节点 ID 数组（调用者负责 lv_free），失败返回 NULL
+ * @return 新创建的输出端口节点 ID 数组（[take] 调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API int *engine_instantiate_function(lvEngine *engine, int func_block_id, const int *arg_mappings,
                                                int arg_count, int *out_result_count);

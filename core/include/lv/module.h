@@ -199,7 +199,7 @@ lv_PUBLIC_API ModuleLoadStatus module_deserialize_from_json(const char *json, Mo
  * 独立序列化模块中的 ConstraintGraph，包含所有节点和约束。
  *
  * @param[in] mod 模块
- * @return JSON 字符串（调用者负责 lv_free），失败返回 NULL
+ * @return JSON 字符串（[take] 调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API char *module_serialize_graph_to_json(const Module *mod);
 

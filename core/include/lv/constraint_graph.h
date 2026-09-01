@@ -832,6 +832,9 @@ lv_PUBLIC_API GeomNode *graph_get_node_by_id(const ConstraintGraph *graph, int n
 /**
  * @brief 通过节点 ID 在 O(1) 时间内获取节点指针（推荐）
  *
+ * [borrow] 语义（K10/F39，memory-ownership.md）：返回图内部节点指针，
+ * 调用者不得释放；借用期不得销毁图或删除该节点。
+ *
  * @param[in] graph   约束图
  * @param[in] node_id 节点 ID
  * @return 节点指针，未找到返回 NULL
@@ -1011,7 +1014,7 @@ lv_PUBLIC_API bool graph_validate_region_closure(const ConstraintGraph *graph, i
  * 和约束（关联、之间、相交、包含、连接）。
  *
  * @param[in] graph 约束图
- * @return JSON 字符串（调用者负责 lv_free），失败返回 NULL
+ * @return JSON 字符串（[take] 调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API char *graph_serialize_to_json(const ConstraintGraph *graph);
 
@@ -1027,7 +1030,7 @@ lv_PUBLIC_API ConstraintGraph *graph_deserialize_from_json(const char *json);
  * @brief 序列化节点为 JSON 字符串
  *
  * @param[in] node 几何节点
- * @return JSON 字符串（调用者负责 lv_free），失败返回 NULL
+ * @return JSON 字符串（[take] 调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API char *graph_node_serialize_to_json(const GeomNode *node);
 
@@ -1035,7 +1038,7 @@ lv_PUBLIC_API char *graph_node_serialize_to_json(const GeomNode *node);
  * @brief 序列化约束为 JSON 字符串
  *
  * @param[in] constraint 约束
- * @return JSON 字符串（调用者负责 lv_free），失败返回 NULL
+ * @return JSON 字符串（[take] 调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API char *graph_constraint_serialize_to_json(const Constraint *constraint);
 
@@ -1153,7 +1156,7 @@ lv_PUBLIC_API DOTExportConfig dot_export_config_default(void);
  *
  * @param[in] graph   约束图（非 NULL）
  * @param[in] config  DOT 导出配置
- * @return DOT 格式字符串（调用者负责 lv_free），失败返回 NULL
+ * @return DOT 格式字符串（[take] 调用者负责 lv_free），失败返回 NULL
  *
  * @note 借鉴 Graphviz (graphviz.org) — AT&T 30+ 年稳定维护的图可视化标准
  */

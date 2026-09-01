@@ -211,7 +211,7 @@ void lv_mem_print_stats(void *stream);
  * 但提供跨平台一致性（MSVC 下使用 _strdup）。
  *
  * @param str 源字符串（不可为 NULL）
- * @return 新分配的字符串副本（调用者负责 lv_free 释放），失败返回 NULL
+ * @return 新分配的字符串副本（[take] 调用者负责 lv_free 释放），失败返回 NULL
  *
  * @note 此函数在 lv.h 中通过宏定义为 lv_strdup（映射到 strdup 或 _strdup）。
  *       此处提供显式的函数声明，便于不包含 lv.h 的模块使用。
