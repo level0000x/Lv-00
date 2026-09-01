@@ -9774,3 +9774,41 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - algebra_mode selector_node_contains GEOM_POINT 硬编码 1e-6 距离容差（K63 阈值
   多头类，非 K41 谓词面）后续批次处理。
 - 下一批候选：F24 剩余声明补齐 / K63 阈值收敛 / F33 快速幂收尾。
+
+---
+
+## 批次 168（F24 第一批：CI 依赖矩阵脚本 + L1/L2 逆向依赖修复）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| tools/layer_dep_matrix.py（新增） | 层间依赖矩阵扫描：头→层归属表（738 头：显式登记 98 + 同名 .c 推导 + 去 _internal 推导）+ lv.h 伞形头白名单（L1149）+ CAN_DEPEND 表（与 layer_validation.h 一致）；扫描 core/src 644 个 .c 的直接 include；退出码 0=无违规（CI 门禁） |
+| .github/workflows/ci.yml | 新增 dependency-matrix job（python tools/layer_dep_matrix.py） |
+| lv_reasoning_stack.c 移动 | layer3_geometry → layer2_resource（P0-① 归位 L2）；graph_snapshot 释放从 graph_destroy 直调改为 stack->graph_snapshot_free 回调（不透明解耦，删 constraint_graph.h include） |
+| lv_reasoning_stack.h | lvReasoningStack 加 graph_snapshot_free 回调字段（NULL=不释放，L0 注入） |
+| context.c | 推理栈 init 处注入 context_graph_snapshot_free（委托 LvContextResourceOps.destroy，L2 不依赖 L3；主 ctx + 快照两处） |
+| parser_safety.c 移动 | layer1_parser → layer2_resource（输入安全设施 L1/L3 共享，下沉 L2；解决 formula_parser L3→L1 违规） |
+| formula_parser.c | 恢复 parser_safety.h include（真实使用 lv_input_validate L330，下沉后合法）+ 清理重复 stream.h include |
+| CMakeLists.txt | layer2 源列表加 lv_reasoning_stack.c/parser_safety.c；layer1/layer3 列表移除 + 注释更新 |
+
+### ② 验证
+
+- build3 构建 + ctest **288/288 通过**；
+- build_layerval（ENABLE_LAYER_VALIDATION=ON）构建通过；
+- 依赖矩阵 **0 违规**（未登记 include 0）；
+- commit 002c4a68（feat(arch): add layer dependency matrix scan and fix L1/L2 reverse deps (F24)），push 成功，CI 双 workflow + dependency-matrix 待验证。
+
+### 决策登记
+
+- F24 L1149 依赖矩阵脚本落地（头→层归属表 + 白名单 + 直接 include 扫描）；
+- P0-① context.c 推理栈：采用「归位 L2 + 回调解耦」路（L1150-① 的路径 A），
+  复用既有 LvContextResourceOps 注入模式，未新增机制；
+- parser_safety 归属 L2（输入安全校验读 lvConfig，L1/L3 共享，非 L1 专属）。
+
+### 遗留登记
+
+- P0-② lv_loader.c 只产 AST 重构（解除 L1 对 L3/L4 装载依赖）——大重构单独立批；
+- 依赖矩阵增强候选：传递 include 展开检查（lv.h 伞形头传递引入）、符号引用
+  检查（不只 include）；当前直接 include 检查 + lv.h 白名单为基线。
+- 下一批候选：F24 P0-② lv_loader 只产 AST / K63 阈值收敛 / F33 快速幂收尾。
