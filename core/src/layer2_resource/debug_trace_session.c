@@ -29,44 +29,11 @@
 #include "lv/lv_strbuf.h"
 #include "debug_internal.h"
 
-/* ============== 遗留日志函数（向后兼容） ============== */
-
-/**
- * @brief 遗留日志实现：直接输出到控制台和日志文件
- *
- * 不经过级别过滤，始终以 DEBUG 语义输出。
- * 由 debug_log_rewrite 调用。
- */
-static void debug_log_legacy_impl(const char *subsystem, const char *fmt, va_list args) {
-    /* 作用域锁守卫：离开函数（含所有 return 分支）自动解锁 */
-    DEBUG_LOG_LOCK_GUARD();
-
-    /* 输出到控制台 */
-    va_list args_copy;
-    va_copy(args_copy, args);
-    vprintf(fmt, args_copy);
-    va_end(args_copy);
-    printf("\n");
-
-    /* 同时输出到日志文件（如果已初始化） */
-    if (s_debug_state.log_file && s_debug_state.initialized) {
-        char timestamp[lv_DEBUG_TIMESTAMP_BUF_SIZE];
-        get_timestamp(timestamp, sizeof(timestamp));
-        fprintf(s_debug_state.log_file, "[%s] [DEBUG] [%s] ", timestamp, subsystem);
-        va_copy(args_copy, args);
-        vfprintf(s_debug_state.log_file, fmt, args_copy);
-        va_end(args_copy);
-        fprintf(s_debug_state.log_file, "\n");
-        fflush(s_debug_state.log_file);
-    }
-}
-
-void debug_log_rewrite(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    debug_log_legacy_impl("rewrite", fmt, args);
-    va_end(args);
-}
+/* K65/F88：legacy 写路径已删（debug_log_rewrite + debug_log_legacy_impl）——
+ * 原实现恒 DEBUG 恒 stdout 不分流 + 不调 check_rotation 不增 current_log_size
+ * （10MB 阈值失效可无限增长）+ 不写环形缺该类事件；2 处调用点
+ * （rewrite_match_search.c）已改主管道 debug_log（LOG_DEBUG）。删除经用户
+ * 评审确认（2026-09-01）。 */
 
 /*=== 新日志系统实现 ===*/
 

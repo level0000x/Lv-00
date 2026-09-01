@@ -408,7 +408,9 @@ static void add_match_to_used(const RewriteMatch *match, int **used_ids, int *us
         /* 扩容 */
         if (*used_count >= *used_capacity) {
             if (!lv_ensure_capacity((void **) used_ids, *used_count, used_capacity, sizeof(int), 1)) {
-                debug_log_rewrite("内存分配失败：无法扩展 used_ids 数组");
+                /* K65：legacy 写路径改主管道 debug_log（原 debug_log_rewrite
+                 * 恒 DEBUG 恒 stdout 不分流 + 轮转/环形失效） */
+                LOG_DEBUG("rewrite", "内存分配失败：无法扩展 used_ids 数组");
                 return;
             }
         }
@@ -636,7 +638,8 @@ int rewrite_apply_all_matches(ConstraintGraph *graph, RewriteRule *rule, Rewrite
                 if (modified_count >= modified_capacity) {
                     if (!lv_ensure_capacity((void **) &modified_node_ids, modified_count, &modified_capacity,
                                             sizeof(int), 1)) {
-                        debug_log_rewrite("内存分配失败：无法扩展 modified_node_ids 数组");
+                        /* K65：legacy 写路径改主管道 debug_log */
+                        LOG_DEBUG("rewrite", "内存分配失败：无法扩展 modified_node_ids 数组");
                         break;
                     }
                 }

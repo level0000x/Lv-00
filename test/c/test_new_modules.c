@@ -302,8 +302,8 @@ lv_TEST(GeometryTransform, Inverse) {
 /* ============== 运行时监控测试 ============== */
 
 lv_TEST(RuntimeMonitor, LogInit) {
+    /* K65：lvLogConfig sink 字段（targets）已删——委托主管道，仅 min_level 等 */
     lvLogConfig config = {.min_level = LOG_LEVEL_DEBUG,
-                          .targets = LOG_TARGET_NONE, /* 禁用输出以避免干扰测试 */
                           .include_timestamp = true,
                           .include_location = false,
                           .colored_output = false};

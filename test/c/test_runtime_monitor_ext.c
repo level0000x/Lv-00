@@ -28,21 +28,7 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* 日志回调记录 */
-typedef struct {
-    int calls;
-    lvLogLevel last_level;
-    char last_tag[64];
-} LogCapture;
-
-static void log_cb(const lvLogRecord *record, void *user_data) {
-    LogCapture *cap = (LogCapture *)user_data;
-    if (cap && record) {
-        cap->calls++;
-        cap->last_level = record->level;
-        lv_strlcpy(cap->last_tag, record->tag, sizeof(cap->last_tag));
-    }
-}
+/* K65：LogCapture/log_cb 随死 sink API（set_callback）删除 */
 
 /* ============== 测试：日志系统 ============== */
 
@@ -50,22 +36,13 @@ static void test_log_api(void) {
     /* 默认配置初始化 */
     TEST_ASSERT(lv_log_init(NULL), "默认日志初始化");
 
-    /* set_level / set_targets / set_callback：调用不崩溃 */
+    /* K65：set_targets/set_callback/set_file 死 sink API 已删（委托主管道，
+     * 生产 0 调用）——仅保留 set_level 活性 API */
     lv_log_set_level(LOG_LEVEL_DEBUG);
-    lv_log_set_targets((lvLogTarget)(LOG_TARGET_STDOUT | LOG_TARGET_CALLBACK));
-    LogCapture cap;
-    memset(&cap, 0, sizeof(cap));
-    lv_log_set_callback(log_cb, &cap);
 
     /* lv_log_write 委托统一主通道（lv_log_message），调用不崩溃 */
     lv_log_write(LOG_LEVEL_INFO, "test_tag", "test.c", 42, "fn", "hello %d", 7);
     lv_log_write(LOG_LEVEL_ERROR, "err_tag", "test.c", 43, "fn", "boom");
-
-    /* set_file：临时文件 */
-    const char *path = "./_tmp_c47_log.txt";
-    remove(path);
-    TEST_ASSERT(lv_log_set_file(path), "设置日志文件");
-    remove(path);
 
     printf("  test_log_api: PASSED\n");
 }

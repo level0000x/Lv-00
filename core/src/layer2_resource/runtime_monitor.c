@@ -64,13 +64,12 @@ typedef struct RuntimeMonitorState {
     /* 统一初始化互斥锁（替代原先 4 把子系统 init 锁） */
     lv_lazy_lock init_lock;   /**< 子系统初始化保护锁（惰性初始化，首次加锁时自动完成） */
 
-    /* 日志子系统（原 g_log_system） */
+    /* 日志子系统（原 g_log_system；K65：log_file/current_file_size 死字段已删，
+     * 写路径委托主管道） */
     struct {
         lvLogConfig config;
-        FILE *log_file;
         lv_mutex_t mutex;
         bool initialized;
-        uint64_t current_file_size;
     } log;
 
     /* 性能子系统（原 g_perf_system） */
@@ -136,26 +135,15 @@ bool lv_log_init(const lvLogConfig *config) {
     if (config) {
         memcpy(&s_runtime_state.log.config, config, sizeof(lvLogConfig));
     } else {
-        /* 默认配置 */
+        /* 默认配置（K65：sink 字段已删，仅保留主管道委托所需 min_level 等） */
         s_runtime_state.log.config.min_level = LOG_LEVEL_INFO;
-        s_runtime_state.log.config.targets = LOG_TARGET_STDOUT;
         s_runtime_state.log.config.include_timestamp = true;
         s_runtime_state.log.config.include_location = false;
         s_runtime_state.log.config.include_thread_id = false;
         s_runtime_state.log.config.colored_output = true;
-        s_runtime_state.log.config.max_file_size = 10 * lv_MB_I; /* 10 MB */
-        s_runtime_state.log.config.max_backup_files = 5;
     }
 
     lv_mutex_init(&s_runtime_state.log.mutex);
-
-    /* 打开日志文件 */
-    if ((s_runtime_state.log.config.targets & LOG_TARGET_FILE) && s_runtime_state.log.config.file_path[0]) {
-        s_runtime_state.log.log_file = fopen(s_runtime_state.log.config.file_path, "a");
-        if (!s_runtime_state.log.log_file) {
-            s_runtime_state.log.config.targets &= ~LOG_TARGET_FILE;
-        }
-    }
 
     s_runtime_state.log.initialized = true;
     lv_lazy_lock_unlock(&s_runtime_state.init_lock);
@@ -165,11 +153,6 @@ bool lv_log_init(const lvLogConfig *config) {
 void lv_log_shutdown(void) {
     if (!s_runtime_state.log.initialized) {
         return;
-    }
-
-    if (s_runtime_state.log.log_file) {
-        fclose(s_runtime_state.log.log_file);
-        s_runtime_state.log.log_file = NULL;
     }
 
     lv_mutex_destroy(&s_runtime_state.log.mutex);
@@ -183,43 +166,11 @@ void lv_log_set_level(lvLogLevel level) {
     }
 }
 
-void lv_log_set_targets(lvLogTarget targets) {
-    /* 线程安全：作用域锁守卫保护全局日志目标的修改 */
-    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
-    s_runtime_state.log.config.targets = targets;
-}
-
-bool lv_log_set_file(const char *path) {
-    if (!path) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_NULL_POINTER, "lv_log_set_file: path is NULL");
-    }
-
-    /* 作用域锁守卫：先打开新文件，确保成功后再关闭旧文件，避免 fopen 失败导致日志丢失 */
-    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
-
-    FILE *new_file = fopen(path, "a");
-    if (!new_file) {
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "lv_log_set_file: fopen failed");
-    }
-
-    /* 新文件打开成功，关闭旧文件 */
-    if (s_runtime_state.log.log_file) {
-        fclose(s_runtime_state.log.log_file);
-    }
-
-    lv_strlcpy(s_runtime_state.log.config.file_path, path, sizeof(s_runtime_state.log.config.file_path));
-    s_runtime_state.log.log_file = new_file;
-    s_runtime_state.log.current_file_size = 0;
-
-    return true;
-}
-
-void lv_log_set_callback(lvLogCallback callback, void *user_data) {
-    /* 线程安全：作用域锁守卫保护回调和用户数据的修改，防止与日志写入并发冲突 */
-    LV_SCOPE_LOCK(&s_runtime_state.log.mutex);
-    s_runtime_state.log.config.callback = callback;
-    s_runtime_state.log.config.callback_user_data = user_data;
-}
+/* K65/F88：死 sink API 面已删除（lv_log_set_targets / lv_log_set_file /
+ * lv_log_set_callback + targets/log_file/file_path/callback/max_file_size/
+ * max_backup_files 字段）——lv_log_write 已委托主管道（只读 min_level），
+ * 整个 sink 选择/组合/切换面是"有配置无消费"死表面（生产 0 调用）。
+ * 删除经用户评审确认（2026-09-01）。 */
 
 /* lvLogLevel 含负数（TRACE=-1），查找表下标需偏移：表下标 = level + LOG_LEVEL_INDEX_OFFSET。
  * 未显式列出的级别（如 LOG_LEVEL_OFF）默认 0 = lv_LOG_LEVEL_OFF，与 default 一致。 */

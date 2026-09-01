@@ -71,54 +71,19 @@ struct StreamContext;
 #define LOG_LEVEL_OFF 5
 #define LOG_LEVEL_NONE 6
 
-/**
- * @brief 日志输出目标类型
- */
-typedef enum {
-    LOG_TARGET_NONE = 0,     /**< 无输出 */
-    LOG_TARGET_STDOUT = 1,   /**< 标准输出 */
-    LOG_TARGET_STDERR = 2,   /**< 标准错误 */
-    LOG_TARGET_FILE = 4,     /**< 文件 */
-    LOG_TARGET_CALLBACK = 8, /**< 回调函数 */
-    LOG_TARGET_SYSLOG = 16   /**< 系统日志 */
-} lvLogTarget;
+/* K65：lvLogTarget/lvLogRecord/lvLogCallback（sink 类型）随死 sink API 面删除 */
 
 /**
- * @brief 日志记录结构
- */
-typedef struct {
-    lvLogLevel level;                 /**< 日志级别 */
-    char tag[lv_LOG_TAG_MAX_LEN];     /**< 日志标签 */
-    char message[lv_LOG_MSG_MAX_LEN]; /**< 日志消息 */
-    char file[256];                   /**< 源文件名 */
-    int line;                         /**< 行号 */
-    char function[128];               /**< 函数名 */
-    int64_t timestamp_ms;             /**< 时间戳（毫秒） */
-    int thread_id;                    /**< 线程 ID */
-} lvLogRecord;
-
-/**
- * @brief 日志回调函数类型
- * @param record 日志记录
- * @param user_data 用户数据
- */
-typedef void (*lvLogCallback)(const lvLogRecord *record, void *user_data);
-
-/**
- * @brief 日志配置
+ * @brief 日志配置（K65：sink 字段 targets/file_path/callback/max_file_size/
+ * max_backup_files 已删——lv_log_write 委托主管道只读 min_level，sink 面
+ * 为死表面；删除经用户评审确认 2026-09-01）
  */
 typedef struct {
     lvLogLevel min_level;     /**< 最小日志级别 */
-    lvLogTarget targets;      /**< 输出目标（位掩码） */
-    char file_path[256];      /**< 日志文件路径 */
     bool include_timestamp;   /**< 是否包含时间戳 */
     bool include_location;    /**< 是否包含位置信息 */
     bool include_thread_id;   /**< 是否包含线程 ID */
     bool colored_output;      /**< 是否彩色输出 */
-    lvLogCallback callback;   /**< 回调函数 */
-    void *callback_user_data; /**< 回调用户数据 */
-    size_t max_file_size;     /**< 最大文件大小（字节） */
-    int max_backup_files;     /**< 最大备份文件数 */
 } lvLogConfig;
 
 /**
@@ -134,26 +99,6 @@ bool lv_log_init(const lvLogConfig *config);
  * @param level 最小日志级别
  */
 void lv_log_set_level(lvLogLevel level);
-
-/**
- * @brief 设置日志输出目标
- * @param targets 输出目标（位掩码）
- */
-void lv_log_set_targets(lvLogTarget targets);
-
-/**
- * @brief 设置日志文件路径
- * @param path 文件路径
- * @return 是否成功
- */
-bool lv_log_set_file(const char *path);
-
-/**
- * @brief 设置日志回调
- * @param callback 回调函数
- * @param user_data 用户数据
- */
-void lv_log_set_callback(lvLogCallback callback, void *user_data);
 
 /**
  * @brief 记录日志（内部使用）

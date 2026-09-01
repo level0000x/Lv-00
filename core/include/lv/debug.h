@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file debug.h
  * @brief 调试子系统 —— 日志、性能计数器、断言、内存池与追踪
  * @details 提供分级日志系统（DEBUG/INFO/WARN/ERROR）、全局性能计数器、
@@ -143,8 +143,7 @@ lv_PUBLIC_API void debug_context_destroy(DebugContext *ctx);
 /*=== 端口不变量断言 ===*/
 lv_PUBLIC_API int debug_assert_port_invariants(const lvEngine *engine, DebugContext *ctx);
 
-/*=== 遗留日志函数（向后兼容） ===*/
-lv_PUBLIC_API void debug_log_rewrite(const char *fmt, ...);
+/* K65：debug_log_rewrite 声明已删（legacy 写路径，调用点已改主管道 debug_log） */
 
 /*=== 新日志系统 ===*/
 
