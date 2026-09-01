@@ -323,6 +323,11 @@ void lv_config_snapshot_cleanup(void) {
         atomic_store_explicit(&g_active_snapshot, NULL, memory_order_release);
     }
     lv_lazy_lock_unlock(&g_config_lock);
+
+    /* J1 契约：cleanup 必须重置自身 once 守卫否则不得声明可重入。
+     * g_default_config_once 的 init 为幂等默认值填充（memset + X-macro），
+     * 重置后下一次 lv_config_default 重新初始化静态 def（内容不变）。 */
+    lv_once_reset(&g_default_config_once);
 }
 
 /* ---- JSON 配置加载辅助 —— 基于 lv_json.h ---- */

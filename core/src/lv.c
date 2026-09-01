@@ -330,6 +330,13 @@ bool lv_init(void) {
     lv_module_register("thread_pool", NULL, lv_global_thread_pool_destroy, lv_MODULE_PRIO_CORE);
     lv_module_register("module_delta", NULL, module_delta_cleanup, lv_MODULE_PRIO_RESOURCE);
 
+    /* J1：ecosystem 生产接线——lv_ecosystem_init 原仅测试调用（M6），
+     * 生产 lv_init 不初始化则 lv_ecosystem_register_module 恒失败
+     * （!initialized）。init 幂等（initialized 标志，shutdown 置 0 后可重入）。 */
+    if (lv_ecosystem_init() != 0) {
+        LOG_WARN("lv", "ecosystem 初始化失败（生态模块注册将不可用）");
+    }
+
     LOG_INFO("lv", "Lv-00 v%s 系统初始化开始", lv_VERSION_STRING);
 
     /* 通过模块注册表一次性初始化所有已注册模块 */
