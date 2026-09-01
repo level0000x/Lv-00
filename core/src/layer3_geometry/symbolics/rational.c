@@ -40,6 +40,7 @@
 
 #include "lv/debug.h"
 #include "lv/lv_log.h"
+#include "lv/lv_numeric.h" /* lv_mpz_bit_size（K63/F89 位数检查权威） */
 #include "lv/lv_str_utils.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
@@ -156,8 +157,9 @@ double rational_to_double(const Rational *r) {
 static CircuitStatus check_rational_circuit(const Rational *r) {
     if (!r)
         return CIRCUIT_STATUS_OK;
-    size_t num_bits = mpz_sizeinbase(mpq_numref(r->value), 2);
-    size_t den_bits = mpz_sizeinbase(mpq_denref(r->value), 2);
+    /* K63/F89：位数计算收敛到权威 lv_mpz_bit_size（lv_numeric.h） */
+    size_t num_bits = lv_mpz_bit_size(mpq_numref(r->value));
+    size_t den_bits = lv_mpz_bit_size(mpq_denref(r->value));
     /* 溢出保护：防止 num_bits + den_bits 在 size_t 范围内溢出 */
     if (num_bits > SIZE_MAX - den_bits) {
         return CIRCUIT_STATUS_TRIPPED;
@@ -189,7 +191,7 @@ static CircuitStatus check_algebraic_circuit(const Algebraic *a) {
 
     /* 检查多项式系数 */
     for (int i = 0; i <= a->minimal_poly.degree; i++) {
-        size_t coeff_bits = mpz_sizeinbase(a->minimal_poly.coeffs[i], 2);
+        size_t coeff_bits = lv_mpz_bit_size(a->minimal_poly.coeffs[i]);
         if (coeff_bits > lv_BIT_CUTOFF_THRESHOLD) {
             return CIRCUIT_STATUS_TRIPPED;
         }

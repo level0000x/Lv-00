@@ -37,6 +37,7 @@
 
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
+#include "lv/lv_numeric.h" /* lv_mpz_bit_size（K63/F89 位数检查权威） */
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
 #include "lv/mpz_poly.h"
@@ -214,7 +215,7 @@ static size_t bit_burning_bits_algebraic(const SymbolicCoord *c) {
         total += rb;
     }
     for (int i = 0; i <= c->data.algebraic->minimal_poly.degree; i++) {
-        size_t cb = (size_t) mpz_sizeinbase(c->data.algebraic->minimal_poly.coeffs[i], 2);
+        size_t cb = lv_mpz_bit_size(c->data.algebraic->minimal_poly.coeffs[i]);
         if (cb > (size_t) lv_BIT_CUTOFF_THRESHOLD)
             return SIZE_MAX;
         total += cb;
@@ -425,8 +426,9 @@ const CoordOpsVTable kCoordOpsVTable[] = {
 static size_t rational_total_bits(const Rational *r) {
     if (!r)
         return 0;
-    size_t num = mpz_sizeinbase(mpq_numref(r->value), 2);
-    size_t den = mpz_sizeinbase(mpq_denref(r->value), 2);
+    /* K63/F89：位数计算收敛到权威 lv_mpz_bit_size（lv_numeric.h） */
+    size_t num = lv_mpz_bit_size(mpq_numref(r->value));
+    size_t den = lv_mpz_bit_size(mpq_denref(r->value));
     if (num > SIZE_MAX - den)
         return SIZE_MAX;
     return num + den;

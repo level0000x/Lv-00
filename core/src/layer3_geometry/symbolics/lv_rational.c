@@ -26,20 +26,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lv/lv_numeric.h" /* lv_mpz_bit_size / lv_check_bit_limit（K63/F89 位数检查权威） */
 #include "lv/lv_utils.h"
 
 /* 用于 lv_rational_den_is_safe 的安全比特阈值 */
 #define RATIONAL_SAFE_BITS_DEFAULT 65536 /* 2^16 比特 */
 
-/* inplace 运算的位宽熔断阈值（分子/分母任一超限即转 double 近似） */
+/* inplace 运算的位宽熔断阈值（分子/分母任一超限即转 double 近似）——
+ * K63/F89 登记：相对权威 lv_BIT_CUTOFF_THRESHOLD 为更严格的原地保护（EACH 口径） */
 #define RATIONAL_INPLACE_BIT_LIMIT 128
 
-/* 内部辅助: 计算 mpz 的近似比特数 */
-static uint64_t mpz_bit_size(const mpz_t x) {
-    if (mpz_sgn(x) == 0)
-        return 0;
-    return (uint64_t) mpz_sizeinbase(x, 2);
-}
+/* K63/F89：位数计算收敛到权威 lv_mpz_bit_size（lv_numeric.h），
+ * 本地 mpz_bit_size 别名已删除（含 x==0 返回 0 语义，权威同）。 */
 
 /* ========================================================================
  * 生命周期管理
@@ -347,8 +345,8 @@ lvRational *lv_rational_abs(const lvRational *a) {
 static void lv_rational_bit_burn(lvRational *r) {
     if (!r)
         return;
-    if (mpz_sizeinbase(mpq_numref(r->value), 2) > RATIONAL_INPLACE_BIT_LIMIT ||
-        mpz_sizeinbase(mpq_denref(r->value), 2) > RATIONAL_INPLACE_BIT_LIMIT) {
+    if (lv_check_bit_limit(lv_mpz_bit_size(mpq_numref(r->value)), lv_mpz_bit_size(mpq_denref(r->value)),
+                           RATIONAL_INPLACE_BIT_LIMIT, lv_BIT_LIMIT_EACH)) {
         double d = mpq_get_d(r->value);
         mpq_set_d(r->value, d);
         mpq_canonicalize(r->value);
@@ -503,8 +501,8 @@ int lv_rational_estimate_loss(const lvRational *r) {
         return 0;
 
     /* 预估精度损失：有效位的比特数是否超出 double 的 53 位尾数 */
-    uint64_t num_bits = mpz_bit_size(mpq_numref(r->value));
-    uint64_t den_bits = mpz_bit_size(mpq_denref(r->value));
+    uint64_t num_bits = (uint64_t) lv_mpz_bit_size(mpq_numref(r->value));
+    uint64_t den_bits = (uint64_t) lv_mpz_bit_size(mpq_denref(r->value));
     uint64_t total_bits = (num_bits > den_bits) ? num_bits : den_bits;
 
     /* double 的尾数为 53 位（含隐藏位） */
@@ -523,6 +521,12 @@ int lv_rational_estimate_loss(const lvRational *r) {
 
 /**
  * @brief 判断两个有理数相乘是否安全（不会超出比特数限制）
+ *
+ * K63/F89 裁决登记：生产零调用（仅 test_rational_ext 3 处测试引用），
+ * 且默认阈值 65536 ≠ 权威 lv_BIT_CUTOFF_THRESHOLD（1000000）——接线会引入
+ * 第三套阈值语义，删除需评审（红线①）。当前保留并统一位数计算口径，
+ * 处置待用户评审。
+ *
  * @param max_bits 允许的最大比特数
  * @return true 安全，false 可能溢出
  */
@@ -535,10 +539,10 @@ bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t 
     }
 
     /* 乘法后分子/分母的比特数约为各操作数比特数之和 */
-    uint64_t num_bits_a = mpz_bit_size(mpq_numref(a->value));
-    uint64_t den_bits_a = mpz_bit_size(mpq_denref(a->value));
-    uint64_t num_bits_b = mpz_bit_size(mpq_numref(b->value));
-    uint64_t den_bits_b = mpz_bit_size(mpq_denref(b->value));
+    uint64_t num_bits_a = (uint64_t) lv_mpz_bit_size(mpq_numref(a->value));
+    uint64_t den_bits_a = (uint64_t) lv_mpz_bit_size(mpq_denref(a->value));
+    uint64_t num_bits_b = (uint64_t) lv_mpz_bit_size(mpq_numref(b->value));
+    uint64_t den_bits_b = (uint64_t) lv_mpz_bit_size(mpq_denref(b->value));
 
     /* 检查分子和分母各自是否会溢出阈值 */
     if (num_bits_a + num_bits_b > max_bits)
@@ -556,7 +560,7 @@ bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t 
 bool lv_rational_den_is_safe(const mpz_t den) {
     if (!den)
         return false;
-    uint64_t bits = mpz_bit_size(den);
+    uint64_t bits = (uint64_t) lv_mpz_bit_size(den);
     return bits <= RATIONAL_SAFE_BITS_DEFAULT;
 }
 

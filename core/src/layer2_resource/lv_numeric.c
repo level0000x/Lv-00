@@ -320,3 +320,19 @@ int lv_finite_difference_vec(lvFdVecFunc fn, void *userdata, double x, double h,
     lv_free((void **) &tmp_lo);
     return 0;
 }
+
+/* ============================================================
+ * GMP 位数检查（K63/F89：mpz_sizeinbase 唯一封装 + 语义参数化）
+ * ============================================================ */
+
+size_t lv_mpz_bit_size(const mpz_t x) {
+    if (mpz_sgn(x) == 0)
+        return 0;
+    return (size_t) mpz_sizeinbase(x, 2);
+}
+
+bool lv_check_bit_limit(size_t num_bits, size_t den_bits, size_t limit, lvBitLimitSemantics semantics) {
+    if (semantics == lv_BIT_LIMIT_SUM)
+        return num_bits + den_bits > limit;
+    return num_bits > limit || den_bits > limit;
+}

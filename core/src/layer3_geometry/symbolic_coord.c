@@ -24,6 +24,7 @@
 #include "lv/debug.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_arith_safe.h" /* lv_squarefree_i64（K2/F33 收敛权威） */
+#include "lv/lv_numeric.h" /* lv_mpz_bit_size（K63/F89 位数检查权威） */
 #include "lv/lv_utils.h" /* 提供 lv_malloc/lv_free/lv_strdup */
 #include "lv/mpz_poly.h"
 
@@ -262,7 +263,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
 
         /* Check maximum polynomial coefficient bits */
         for (int j = 0; j <= next->minimal_poly.degree; j++) {
-            int bits = (int) mpz_sizeinbase(next->minimal_poly.coeffs[j], 2);
+            int bits = (int) lv_mpz_bit_size(next->minimal_poly.coeffs[j]);
             if (bits > result.max_bits_observed) {
                 result.max_bits_observed = bits;
             }

@@ -26,6 +26,7 @@
 #include "lv/bit_burning.h"
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv/lv_numeric.h" /* lv_mpz_bit_size（K63/F89 位数检查权威） */
 
 #include "lv/debug.h"
 #include "lv/lv_log.h"
@@ -362,7 +363,7 @@ SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result) {
     } else {
         size_t max_bits = 0;
         for (int i = 0; i <= deg; i++) {
-            size_t bits = mpz_sizeinbase(a->minimal_poly.coeffs[i], 2);
+            size_t bits = lv_mpz_bit_size(a->minimal_poly.coeffs[i]);
             if (bits > max_bits)
                 max_bits = bits;
         }

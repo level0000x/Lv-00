@@ -249,7 +249,7 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
         mpz_add(k_next, k_next, k_prev);
 
         /* 检查分母比特位数 */
-        size_t den_bits = mpz_sizeinbase(k_next, 2);
+        size_t den_bits = lv_mpz_bit_size(k_next);
         if (den_bits > bit_limit) {
             /* 超过比特位限制，使用前一个渐近分数 */
             break;

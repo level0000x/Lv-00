@@ -259,6 +259,41 @@ lv_PUBLIC_API double lv_evaluate_cubic(double a, double b, double c, double d, d
 lv_PUBLIC_API void lv_mpq_set_d_checked(mpq_t q, double v);
 
 /* ============================================================
+ * GMP 位数检查（K63/F89：mpz_sizeinbase 唯一封装 + 语义参数化）
+ * ============================================================ */
+
+/**
+ * @brief 计算 mpz 整数的近似位数（二进制）
+ *
+ * K63/F89 收敛：全库 mpz_sizeinbase(x, 2) 的唯一封装（收敛 lv_rational.c
+ * 本地 mpz_bit_size 别名 + rational.c / symbolic_coord_ops.c /
+ * symbolic_coord.c / symbolic_coord_trust.c / algebraic.c 直调点）。
+ * x == 0 返回 0；负数取 |x| 的位数（mpz_sizeinbase 语义）。
+ */
+lv_PUBLIC_API size_t lv_mpz_bit_size(const mpz_t x);
+
+/** @brief 位数限制语义（K63/F89：参数化"和/每分量"两种熔断口径） */
+typedef enum {
+    lv_BIT_LIMIT_SUM,  /**< 分子+分母位和与限制比较（rational.c 熔断口径） */
+    lv_BIT_LIMIT_EACH  /**< 分子/分母各自与限制比较（lv_rational 原地熔断口径） */
+} lvBitLimitSemantics;
+
+/**
+ * @brief 参数化位数熔断检查（K63/F89 收敛"和/每分量"分裂）
+ *
+ * @param num_bits  分子位数
+ * @param den_bits  分母位数
+ * @param limit     位数上限
+ * @param semantics lv_BIT_LIMIT_SUM / lv_BIT_LIMIT_EACH
+ * @return true 超限
+ */
+lv_PUBLIC_API bool lv_check_bit_limit(size_t num_bits, size_t den_bits, size_t limit, lvBitLimitSemantics semantics);
+
+/* 登记（K63/F89）：lv_rational 原地运算位宽熔断阈值 128（分子/分母任一超限
+ * 即转 double 近似）相对权威 lv_BIT_CUTOFF_THRESHOLD（1000000）为更严格的
+ * 原地运算保护，属有意语义差异（EACH 口径 × 更小限额），消费端见 lv_rational.c。 */
+
+/* ============================================================
  * 有限差分工具（数值微分，统一 4 处手写差分实现）
  * ============================================================ */
 
