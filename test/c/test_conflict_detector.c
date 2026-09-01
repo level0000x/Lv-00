@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file test_conflict_detector.c
  * @brief 矛盾约束检测器单元测试
  *
@@ -11,6 +11,10 @@
 
 #include "lv/conflict_detector.h"
 #include "lv/lv.h"
+
+/* check_incompatible_distances 声明于 solver/solver_common.h（L4 solver 内部头，
+ * 非公共 include/lv/ 路径）；测试经前向声明引用（K71/D1 拒绝语义钉住） */
+bool check_incompatible_distances(const ConstraintGraph *graph);
 
 #include "test_helpers.h"
 
@@ -363,6 +367,45 @@ cleanup:
 
 
 /* ================================================================
+ * 测试组：distance 声明解析失败语义（K71/D1）
+ *
+ * 三处实现失败语义矛盾：graph_conflict parse_distance_value 拒绝型
+ * vs solver_symbolic / solver_equation_extract 静默 0.0（畸形输入
+ * "distance=abc" 产生距离 0 约束）。本测试钉住统一后的拒绝语义。
+ * ================================================================ */
+
+static void test_incompatible_distance_malformed_decl(void) {
+    ConstraintGraph *graph = graph_create();
+    TEST_ASSERT_NOT_NULL(graph);
+
+    /* 两条同端点线段 A(0,0)-(3,0)：声明距离 5.0 vs 畸形 "distance=abc" */
+    SymbolicCoord *c1[4] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1),
+                            symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(0, 1)};
+    SymbolicCoord *c2[4] = {symbolic_coord_create_rational(0, 1), symbolic_coord_create_rational(0, 1),
+                            symbolic_coord_create_rational(3, 1), symbolic_coord_create_rational(0, 1)};
+    GeomNode *n1 = graph_add_node_with_id(graph, 1, GEOM_LINE_SEGMENT, c1, 4);
+    GeomNode *n2 = graph_add_node_with_id(graph, 2, GEOM_LINE_SEGMENT, c2, 4);
+    TEST_ASSERT_NOT_NULL(n1);
+    TEST_ASSERT_NOT_NULL(n2);
+
+    n1->numeric_assumption_declaration = strdup("distance=5.0");
+    n2->numeric_assumption_declaration = strdup("distance=abc"); /* 畸形：旧实现静默 0.0 */
+
+    /* K71/D1：畸形声明被拒绝（跳过），不误报 5.0 vs 0 矛盾 */
+    TEST_ASSERT(!check_incompatible_distances(graph), "畸形 distance 声明不误报矛盾");
+
+    /* 真矛盾：5.0 vs 10.0 同端点 → 报矛盾（换值前释放旧声明并置 NULL，
+     * 新值由 graph_destroy 统一释放，避免 double free） */
+    free((void *) n2->numeric_assumption_declaration);
+    n2->numeric_assumption_declaration = NULL;
+    n2->numeric_assumption_declaration = strdup("distance=10.0");
+    TEST_ASSERT(check_incompatible_distances(graph), "同端点不同距离报矛盾");
+
+    /* 声明由 graph 拥有，graph_destroy 统一释放（不手动 free） */
+    graph_destroy(graph);
+}
+
+/* ================================================================
  * 测试套件
  * ================================================================ */
 
@@ -382,6 +425,7 @@ TEST_MAIN_BEGIN("Conflict Detector")
 
     /* v3.5.1: 新增矛盾检测测试 */
     TEST_MAIN_RUN(test_distance_conflict_detection);
+    TEST_MAIN_RUN(test_incompatible_distance_malformed_decl); /* K71/D1 拒绝语义 */
     /* TEST_MAIN_RUN(test_distance_no_conflict_same_value); */
     /* TEST_MAIN_RUN(test_angle_conflict_detection); */
     /* TEST_MAIN_RUN(test_angle_no_conflict_supplementary); */

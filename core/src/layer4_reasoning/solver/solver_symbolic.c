@@ -368,8 +368,10 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix);
         if (lv_str_startswith(di, prefix)) {
+            /* K71/D1 统一拒绝语义：解析失败不静默 0.0（畸形声明产生距离 0
+             * 约束为真实缺陷），与 graph_conflict parse_distance_value 拒绝型一致 */
             if (lv_parse_double(di + prefix_len, &dist_i) != 0)
-                dist_i = 0.0;
+                dist_i = -1.0;
         } else {
             if (lv_parse_double(di, &dist_i) != 0)
                 dist_i = -1.0;
@@ -399,8 +401,9 @@ bool check_incompatible_distances(const ConstraintGraph *graph) {
             const char *dj = nj->numeric_assumption_declaration;
             double dist_j = -1.0;
             if (lv_str_startswith(dj, prefix)) {
+                /* K71/D1 统一拒绝语义：解析失败不静默 0.0 */
                 if (lv_parse_double(dj + prefix_len, &dist_j) != 0)
-                    dist_j = 0.0;
+                    dist_j = -1.0;
             } else {
                 if (lv_parse_double(dj, &dist_j) != 0)
                     dist_j = -1.0;

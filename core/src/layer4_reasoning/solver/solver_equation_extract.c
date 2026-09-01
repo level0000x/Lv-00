@@ -904,8 +904,10 @@ static int extract_connection(const ConstraintGraph *graph, EquationSystem *sys,
             continue;
         const char *decl = n->numeric_assumption_declaration;
         if (lv_str_startswith(decl, prefix)) {
+            /* K71/D1 统一拒绝语义：解析失败不静默 0.0（与 graph_conflict
+             * parse_distance_value 拒绝型一致），保持 -1.0 由下方 dist_val<0 跳过 */
             if (lv_parse_double(decl + prefix_len, &dist_val) != 0)
-                dist_val = 0.0;
+                dist_val = -1.0;
             dist_node = n;
             break;
         }
@@ -1004,9 +1006,11 @@ void extract_equations_from_constraints(const ConstraintGraph *graph, EquationSy
         const char *prefix = "distance=";
         size_t prefix_len = strlen(prefix); /* 缓存前缀长度，避免重复计算 */
         if (lv_str_startswith(decl, prefix)) {
+            /* K71/D1 统一拒绝语义：解析失败不静默 0.0（保持 -1.0 由下方跳过） */
             if (lv_parse_double(decl + prefix_len, &dist_sq) != 0)
-                dist_sq = 0.0;
-            dist_sq = dist_sq * dist_sq; /* 存储平方值 */
+                dist_sq = -1.0;
+            else
+                dist_sq = dist_sq * dist_sq; /* 存储平方值 */
         } else {
             /* 尝试解析为纯数字（视为距离的平方） */
             double val;
