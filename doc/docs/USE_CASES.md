@@ -37,7 +37,7 @@ int verify_mean_value_theorem(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载分析学预设并应用 */
-    lv_preset_load(ctx, "calculus");
+    lv_preset_load(ctx, "opt_calculus_of_variations");
     lv_preset_apply(ctx, "mean_value_theorem");
 
     /* 证明目标（DSL 文本，由 lv_prove 解析并调用引擎推理） */
@@ -47,7 +47,7 @@ int verify_mean_value_theorem(void) {
         printf("中值定理验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "calculus");
+    lv_preset_unload(ctx, "opt_calculus_of_variations");
     lv_context_destroy(ctx);
 
     return result;
@@ -69,13 +69,13 @@ int verify_matrix_associativity(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载线性代数预设并应用 */
-    lv_preset_load(ctx, "linear_algebra");
+    lv_preset_load(ctx, "linalg_linear_independence");
     lv_preset_apply(ctx, "matrix_multiplication_associative");
 
     /* 证明矩阵乘法结合律 */
     int result = (lv_prove(ctx, "matrix multiplication is associative") == 0) ? 0 : 1;
 
-    lv_preset_unload(ctx, "linear_algebra");
+    lv_preset_unload(ctx, "linalg_linear_independence");
     lv_context_destroy(ctx);
 
     return result;
@@ -97,7 +97,7 @@ int verify_ode_solution(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载微分方程预设并应用 */
-    lv_preset_load(ctx, "differential_equations");
+    lv_preset_load(ctx, "differentiation_forward");
     lv_preset_apply(ctx, "ode_solution_verification");
 
     /* 验证解 y = e^x */
@@ -107,7 +107,7 @@ int verify_ode_solution(void) {
         printf("ODE 解验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "differential_equations");
+    lv_preset_unload(ctx, "differentiation_forward");
     lv_context_destroy(ctx);
 
     return result;
@@ -133,7 +133,7 @@ int verify_graph_connectivity(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载图论预设并应用 */
-    lv_preset_load(ctx, "graph_theory");
+    lv_preset_load(ctx, "comb_graph_create");
     lv_preset_apply(ctx, "graph_connected");
 
     /* 验证三角形图的连通性 */
@@ -143,7 +143,7 @@ int verify_graph_connectivity(void) {
         printf("图连通性验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "graph_theory");
+    lv_preset_unload(ctx, "comb_graph_create");
     lv_context_destroy(ctx);
 
     return result;
@@ -165,7 +165,7 @@ int verify_combinatorial_identity(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载组合数学预设并应用 */
-    lv_preset_load(ctx, "combinatorics");
+    lv_preset_load(ctx, "combin_catalan");
     lv_preset_apply(ctx, "pascal_identity");
 
     /* 验证帕斯卡恒等式 */
@@ -175,7 +175,7 @@ int verify_combinatorial_identity(void) {
         printf("组合恒等式验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "combinatorics");
+    lv_preset_unload(ctx, "combin_catalan");
     lv_context_destroy(ctx);
 
     return result;
@@ -197,7 +197,7 @@ int verify_logical_inference(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载数理逻辑预设并应用 */
-    lv_preset_load(ctx, "mathematical_logic");
+    lv_preset_load(ctx, "logic_cnf_convert");
     lv_preset_apply(ctx, "modus_ponens");
 
     /* 验证假言推理 (Modus Ponens): (P ∧ (P→Q)) → Q */
@@ -207,7 +207,7 @@ int verify_logical_inference(void) {
         printf("假言推理验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "mathematical_logic");
+    lv_preset_unload(ctx, "logic_cnf_convert");
     lv_context_destroy(ctx);
 
     return result;
@@ -233,7 +233,7 @@ int verify_euclidean_algorithm(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载数论预设并应用 */
-    lv_preset_load(ctx, "number_theory");
+    lv_preset_load(ctx, "number_euler_totient");
     lv_preset_apply(ctx, "euclidean_algorithm_correctness");
 
     /* 验证 gcd(48, 18) = 6 */
@@ -243,7 +243,7 @@ int verify_euclidean_algorithm(void) {
         printf("欧几里得算法正确性验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "number_theory");
+    lv_preset_unload(ctx, "number_euler_totient");
     lv_context_destroy(ctx);
 
     return result;
@@ -265,7 +265,7 @@ int verify_authentication_protocol(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载高级逻辑预设并应用 */
-    lv_preset_load(ctx, "logic_advanced");
+    lv_preset_load(ctx, "logic_biconditional");
     lv_preset_apply(ctx, "protocol_authentication");
 
     /* 验证协议安全性 */
@@ -275,7 +275,7 @@ int verify_authentication_protocol(void) {
         printf("协议安全性验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "logic_advanced");
+    lv_preset_unload(ctx, "logic_biconditional");
     lv_context_destroy(ctx);
 
     return result;
@@ -297,7 +297,7 @@ int verify_adder_correctness(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载布尔代数预设并应用 */
-    lv_preset_load(ctx, "boolean_algebra");
+    lv_preset_load(ctx, "logic_conjunction");
     lv_preset_apply(ctx, "full_adder_correctness");
 
     /* 验证全加器 */
@@ -307,7 +307,7 @@ int verify_adder_correctness(void) {
         printf("加法器正确性验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "boolean_algebra");
+    lv_preset_unload(ctx, "logic_conjunction");
     lv_context_destroy(ctx);
 
     return result;
@@ -333,7 +333,7 @@ int verify_rsa_mathematics(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载数论预设并应用 */
-    lv_preset_load(ctx, "number_theory");
+    lv_preset_load(ctx, "number_euler_totient");
     lv_preset_apply(ctx, "euler_theorem");
 
     /* 验证欧拉定理：a^φ(n) ≡ 1 (mod n) */
@@ -343,7 +343,7 @@ int verify_rsa_mathematics(void) {
         printf("欧拉定理验证成功（RSA 数学基础）!\n");
     }
 
-    lv_preset_unload(ctx, "number_theory");
+    lv_preset_unload(ctx, "number_euler_totient");
     lv_context_destroy(ctx);
 
     return result;
@@ -365,7 +365,7 @@ int verify_zk_properties(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载概率预设并应用 */
-    lv_preset_load(ctx, "probability");
+    lv_preset_load(ctx, "prob_event_probability");
     lv_preset_apply(ctx, "zk_completeness");
     lv_preset_apply(ctx, "zk_soundness");
     lv_preset_apply(ctx, "zk_zero_knowledge");
@@ -379,7 +379,7 @@ int verify_zk_properties(void) {
         printf("零知识证明性质验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "probability");
+    lv_preset_unload(ctx, "prob_event_probability");
     lv_context_destroy(ctx);
 
     return result;
@@ -405,7 +405,7 @@ int knowledge_graph_reasoning(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载高级逻辑预设并应用 */
-    lv_preset_load(ctx, "logic_advanced");
+    lv_preset_load(ctx, "logic_biconditional");
     lv_preset_apply(ctx, "all_humans_mortal");
     lv_preset_apply(ctx, "socrates_is_human");
     lv_preset_apply(ctx, "socrates_is_mortal");
@@ -417,7 +417,7 @@ int knowledge_graph_reasoning(void) {
         printf("知识图谱推理成功!\n");
     }
 
-    lv_preset_unload(ctx, "logic_advanced");
+    lv_preset_unload(ctx, "logic_biconditional");
     lv_context_destroy(ctx);
 
     return result;
@@ -439,7 +439,7 @@ int auto_discover_theorems(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载欧氏几何预设并应用 */
-    lv_preset_load(ctx, "euclidean_geometry");
+    lv_preset_load(ctx, "midpoint");
     lv_preset_apply(ctx, "auto_discover_properties");
 
     /* 自动发现定理 */
@@ -449,7 +449,7 @@ int auto_discover_theorems(void) {
         printf("发现新定理!\n");
     }
 
-    lv_preset_unload(ctx, "euclidean_geometry");
+    lv_preset_unload(ctx, "midpoint");
     lv_context_destroy(ctx);
 
     return 0;
@@ -471,7 +471,7 @@ int solve_sudoku(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载约束满足预设并应用 */
-    lv_preset_load(ctx, "constraint_satisfaction");
+    lv_preset_load(ctx, "comb_graph_create");
     lv_preset_apply(ctx, "sudoku_rules");
 
     /* 添加已知数字作为约束 */
@@ -484,7 +484,7 @@ int solve_sudoku(void) {
         printf("数独求解成功!\n");
     }
 
-    lv_preset_unload(ctx, "constraint_satisfaction");
+    lv_preset_unload(ctx, "comb_graph_create");
     lv_context_destroy(ctx);
 
     return 0;
@@ -510,7 +510,7 @@ int interactive_geometry_demo(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载欧氏几何预设并应用 */
-    lv_preset_load(ctx, "euclidean_geometry");
+    lv_preset_load(ctx, "midpoint");
     lv_preset_apply(ctx, "triangle_centroid");
     lv_preset_apply(ctx, "centroid_property");
 
@@ -521,7 +521,7 @@ int interactive_geometry_demo(void) {
         printf("重心性质验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "euclidean_geometry");
+    lv_preset_unload(ctx, "midpoint");
     lv_context_destroy(ctx);
 
     return 0;
@@ -543,14 +543,14 @@ int auto_grade_geometry_proof(const char *student_proof) {
     lvContext *ctx = lv_context_create();
 
     /* 加载欧氏几何预设 */
-    lv_preset_load(ctx, "euclidean_geometry");
+    lv_preset_load(ctx, "midpoint");
 
     /* 解析学生证明：将证明文本作为目标交给 lv_prove 验证 */
     int score = (lv_prove(ctx, student_proof) == 0) ? 100 : 0;
 
     printf("学生证明得分: %d\n", score);
 
-    lv_preset_unload(ctx, "euclidean_geometry");
+    lv_preset_unload(ctx, "midpoint");
     lv_context_destroy(ctx);
 
     return score;
@@ -609,7 +609,7 @@ int robot_path_verification(void) {
     lvContext *ctx = lv_context_create();
 
     /* 加载欧氏几何预设并应用 */
-    lv_preset_load(ctx, "euclidean_geometry");
+    lv_preset_load(ctx, "midpoint");
     lv_preset_apply(ctx, "path_collision_free");
 
     /* 验证路径无碰撞 */
@@ -619,7 +619,7 @@ int robot_path_verification(void) {
         printf("路径无碰撞验证成功!\n");
     }
 
-    lv_preset_unload(ctx, "euclidean_geometry");
+    lv_preset_unload(ctx, "midpoint");
     lv_context_destroy(ctx);
 
     return result;
