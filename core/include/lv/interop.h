@@ -28,7 +28,7 @@
 extern lv_THREAD_LOCAL StreamContext *interop_stream_ctx;
 
 /** @brief 设置 interop 模块的流式上下文 */
-void interop_set_stream_context(StreamContext *ctx);
+lv_PUBLIC_API void interop_set_stream_context(StreamContext *ctx);
 
 /* 前向声明 —— 避免引入 lv.h 的 16+ 传递依赖 */
 struct lvEngine;
@@ -234,7 +234,7 @@ typedef lvInteropPlugin lvPlugin;
  * @param plugin 插件信息
  * @return 成功返回0，失败返回-1
  */
-int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin);
+lv_PUBLIC_API int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin);
 
 /**
  * @brief 经插件注册表导出证明（插件体系分发入口）
@@ -249,28 +249,28 @@ int lv_interop_register_plugin(lvInteropManager *mgr, const lvPlugin *plugin);
  * @param[in]  output_size  输出缓冲区大小（字节）
  * @return 成功返回 0；插件未找到返回 lv_ERROR_NOT_FOUND，其余返回对应负错误码
  */
-int lv_interop_export_proof(const char *plugin_name, const ProofNavigator *proof, char *output, int output_size);
+lv_PUBLIC_API int lv_interop_export_proof(const char *plugin_name, const ProofNavigator *proof, char *output, int output_size);
 
 /**
  * @brief 注册 Coq 证明互操作插件（coq_bridge.c，tactic 集合为本地枚举豁免）
  * @param mgr 互操作管理器指针（非 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int lv_register_coq_plugin(lvInteropManager *mgr);
+lv_PUBLIC_API int lv_register_coq_plugin(lvInteropManager *mgr);
 
 /**
  * @brief 注册 Lean 4 证明互操作插件（lean4_bridge.c）
  * @param mgr 互操作管理器指针（非 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int lv_register_lean4_plugin(lvInteropManager *mgr);
+lv_PUBLIC_API int lv_register_lean4_plugin(lvInteropManager *mgr);
 
 /**
  * @brief 注册 OPML 证明互操作插件（opml_codec.c）
  * @param mgr 互操作管理器指针（非 NULL）
  * @return 成功返回 0，失败返回 -1
  */
-int lv_register_opml_plugin(lvInteropManager *mgr);
+lv_PUBLIC_API int lv_register_opml_plugin(lvInteropManager *mgr);
 
 /**
  * @brief 重置互操作插件注册表（清空所有已注册插件）
@@ -281,7 +281,7 @@ int lv_register_opml_plugin(lvInteropManager *mgr);
  *
  * @return 成功返回0
  */
-int lv_interop_reset_plugins(void);
+lv_PUBLIC_API int lv_interop_reset_plugins(void);
 
 /**
  * @brief 导出配置
@@ -329,7 +329,7 @@ InteropServer *interop_server_create(InteropInterfaceType type);
  * @brief 销毁互操作服务器
  * @param server 服务器指针
  */
-void interop_server_destroy(InteropServer *server);
+lv_PUBLIC_API void interop_server_destroy(InteropServer *server);
 
 /**
  * @brief 启动服务器
@@ -337,14 +337,14 @@ void interop_server_destroy(InteropServer *server);
  * @param port 端口号（WebSocket）
  * @return 成功返回0，失败返回错误码
  */
-int interop_server_start(InteropServer *server, int port);
+lv_PUBLIC_API int interop_server_start(InteropServer *server, int port);
 
 /**
  * @brief 停止服务器
  * @param server 服务器指针
  * @return 成功返回0，失败返回错误码
  */
-int interop_server_stop(InteropServer *server);
+lv_PUBLIC_API int interop_server_stop(InteropServer *server);
 
 /**
  * @brief 处理单个命令（stdio模式）
@@ -354,14 +354,14 @@ int interop_server_stop(InteropServer *server);
  * @param output_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int interop_server_process_command(InteropServer *server, const char *input, char *output, size_t output_size);
+lv_PUBLIC_API int interop_server_process_command(InteropServer *server, const char *input, char *output, size_t output_size);
 
 /**
  * @brief 运行服务器主循环（阻塞）
  * @param server 服务器指针
  * @return 成功返回0，失败返回错误码
  */
-int interop_server_run(InteropServer *server);
+lv_PUBLIC_API int interop_server_run(InteropServer *server);
 
 /* ==================== 命令处理 ==================== */
 
@@ -371,7 +371,7 @@ int interop_server_run(InteropServer *server);
  * @param cmd 输出命令结构
  * @return 成功返回0，失败返回错误码
  */
-int interop_parse_command(const char *input, InteropCommand *cmd);
+lv_PUBLIC_API int interop_parse_command(const char *input, InteropCommand *cmd);
 
 /**
  * @brief 序列化响应为字符串
@@ -380,7 +380,7 @@ int interop_parse_command(const char *input, InteropCommand *cmd);
  * @param output_size 缓冲区大小
  * @return 成功返回0，失败返回错误码
  */
-int interop_serialize_response(const InteropResponse *resp, char *output, size_t output_size);
+lv_PUBLIC_API int interop_serialize_response(const InteropResponse *resp, char *output, size_t output_size);
 
 /**
  * @brief 执行命令
@@ -389,7 +389,7 @@ int interop_serialize_response(const InteropResponse *resp, char *output, size_t
  * @param resp 输出响应
  * @return 成功返回0，失败返回错误码
  */
-int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp);
+lv_PUBLIC_API int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, InteropResponse *resp);
 
 /* ==================== 导出功能 ==================== */
 
@@ -399,7 +399,7 @@ int interop_execute_command(lvEngine *engine, const InteropCommand *cmd, Interop
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config);
+lv_PUBLIC_API int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *config);
 
 /**
  * @brief 导出证明到Lean格式
@@ -407,7 +407,7 @@ int interop_export_coq(const ProofNavigator *proof, const InteropExportConfig *c
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config);
+lv_PUBLIC_API int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *config);
 
 /**
  * @brief 导出为独立HTML演示包
@@ -415,7 +415,7 @@ int interop_export_lean(const ProofNavigator *proof, const InteropExportConfig *
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_html(const lvEngine *engine, const InteropExportConfig *config);
+lv_PUBLIC_API int interop_export_html(const lvEngine *engine, const InteropExportConfig *config);
 
 /**
  * @brief 导出为SVG矢量图
@@ -423,7 +423,7 @@ int interop_export_html(const lvEngine *engine, const InteropExportConfig *confi
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *config);
+lv_PUBLIC_API int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *config);
 
 /**
  * @brief 导出规范表示
@@ -431,7 +431,7 @@ int interop_export_svg(const ConstraintGraph *graph, const InteropExportConfig *
  * @param output_path 输出路径
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_canonical(const ConstraintGraph *graph, const char *output_path);
+lv_PUBLIC_API int interop_export_canonical(const ConstraintGraph *graph, const char *output_path);
 
 /**
  * @brief 导出为GeoJSON格式
@@ -439,7 +439,7 @@ int interop_export_canonical(const ConstraintGraph *graph, const char *output_pa
  * @param config 导出配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config);
+lv_PUBLIC_API int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConfig *config);
 
 /**
  * @brief 从 ProofNavigator 导出 OPML JSON（上层导出入口）
@@ -452,7 +452,7 @@ int interop_export_geojson(const ConstraintGraph *graph, const InteropExportConf
  * @param output_size 目标缓冲区大小
  * @return 成功返回 0，失败返回负错误码（lv_ERROR_*）
  */
-int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int output_size);
+lv_PUBLIC_API int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int output_size);
 
 /* ==================== 导入功能 ==================== */
 
@@ -462,7 +462,7 @@ int lv_opml_export_navigator(const ProofNavigator *proof, char *output, int outp
  * @param config 导入配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config);
+lv_PUBLIC_API int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config);
 
 /**
  * @brief 从GeoJSON导入
@@ -470,7 +470,7 @@ int interop_import_geogebra(lvEngine *engine, const InteropImportConfig *config)
  * @param config 导入配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config);
+lv_PUBLIC_API int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config);
 
 /**
  * @brief 从SVG导入
@@ -478,7 +478,7 @@ int interop_import_geojson(lvEngine *engine, const InteropImportConfig *config);
  * @param config 导入配置
  * @return 成功返回0，失败返回错误码
  */
-int interop_import_svg(lvEngine *engine, const InteropImportConfig *config);
+lv_PUBLIC_API int interop_import_svg(lvEngine *engine, const InteropImportConfig *config);
 
 /* ==================== 定理交换 ==================== */
 
@@ -494,7 +494,7 @@ InteropTheoremContext *interop_theorem_context_create(const char *trust_base_nam
  * @brief 销毁定理交换上下文
  * @param ctx 上下文指针
  */
-void interop_theorem_context_destroy(InteropTheoremContext *ctx);
+lv_PUBLIC_API void interop_theorem_context_destroy(InteropTheoremContext *ctx);
 
 /**
  * @brief 添加定理调用到上下文
@@ -537,14 +537,14 @@ int interop_import_external_theorem(lvEngine *engine, const char *trust_base_nam
  * @param format 导出格式
  * @return 格式名称字符串
  */
-const char *interop_export_format_name(InteropExportFormat format);
+lv_PUBLIC_API const char *interop_export_format_name(InteropExportFormat format);
 
 /**
  * @brief 获取导入格式名称
  * @param format 导入格式
  * @return 格式名称字符串
  */
-const char *interop_import_format_name(InteropImportFormat format);
+lv_PUBLIC_API const char *interop_import_format_name(InteropImportFormat format);
 
 /**
  * @brief 从字符串解析导出格式
@@ -565,14 +565,14 @@ InteropImportFormat interop_parse_import_format(const char *str);
  * @param path 文件路径
  * @return 有效返回1，无效返回0
  */
-int interop_validate_path(const char *path);
+lv_PUBLIC_API int interop_validate_path(const char *path);
 
 /**
  * @brief 获取文件扩展名
  * @param path 文件路径
  * @return 扩展名字符串（不含点）
  */
-const char *interop_get_file_extension(const char *path);
+lv_PUBLIC_API const char *interop_get_file_extension(const char *path);
 
 /* ==================== 命令补全 ==================== */
 
@@ -592,7 +592,7 @@ const char *interop_get_file_extension(const char *path);
  * @param[out] out_count 输出匹配的补全数量
  * @return 补全字符串数组（NULL 表示无匹配或错误），由调用者释放
  */
-char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count);
+lv_PUBLIC_API char **interop_get_command_completions(lvEngine *engine, const char *prefix, int *out_count);
 
 /**
  * @brief 释放命令补全结果
@@ -600,20 +600,20 @@ char **interop_get_command_completions(lvEngine *engine, const char *prefix, int
  * @param[in] completions 补全字符串数组
  * @param[in] count       补全数量
  */
-void interop_free_completions(char **completions, int count);
+lv_PUBLIC_API void interop_free_completions(char **completions, int count);
 
 /* ==================== 内部共享函数 ==================== */
 
 /** @brief 获取信任颜色对应的 SVG 颜色字符串 */
-const char *interop_trust_color_to_svg(TrustColor trust);
+lv_PUBLIC_API const char *interop_trust_color_to_svg(TrustColor trust);
 /** @brief 获取信任颜色对应的 TikZ 颜色字符串 */
-const char *interop_trust_color_to_tikz(TrustColor trust);
+lv_PUBLIC_API const char *interop_trust_color_to_tikz(TrustColor trust);
 /** @brief 获取几何类型名称字符串 */
-const char *interop_geom_type_name(GeomType type);
+lv_PUBLIC_API const char *interop_geom_type_name(GeomType type);
 /** @brief 获取约束类型名称字符串 */
-const char *interop_constraint_type_name(ConstraintType type);
+lv_PUBLIC_API const char *interop_constraint_type_name(ConstraintType type);
 /** @brief 流式输出回调（供 interop_command.c 使用） */
-void interop_stream_callback(const struct StreamEvent *event, void *user_data);
+lv_PUBLIC_API void interop_stream_callback(const struct StreamEvent *event, void *user_data);
 
 /* 兼容宏 */
 #define trust_color_to_svg(trust) interop_trust_color_to_svg(trust)
