@@ -10492,3 +10492,30 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - 下一批候选：K5 示例面修正（P0 F35：API_QUICKSTART 重写 + 根 README 4 幻影
   API + USE_CASES 失效骨架，大工程）/ K10 标注全覆盖剩余 / K67 等。
+
+---
+
+## 批次 196（K10 全覆盖 + K5 第一批：幻影 API 修正）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 3fc2840d | K10 三态标注全覆盖 43→79 处（formula_renderer×9/ga_multivector×11/ga_codegen×4/ga_interface×2/func_block×4/constraint_graph/axiom_pkg 等 12 文件）+ expr_canon 注释 free()→lv_free UB 修复 |
+| e8f3bc82 | K5 第一批：README 幻影 API 修正（lv_get_version_info 删、_ex×3→无后缀实际名）；API_QUICKSTART 6 个幻影函数修正（lv_SOLVE_SUCCESS→ENGINE_SOLVE_OK、normalization_result_free→destroy 等）+ 最小示例重写为正确引擎模型 + 25 处 lv_context_create 引擎误用批量修正（lv_init/lv_engine_create/lv_engine_destroy） |
+| a4260a50 | lv.h lv_solve 注释幻影 lv_SOLVE_SUCCESS → ENGINE_SOLVE_OK（K5） |
+
+### ② 验证
+
+- build3 构建过（纯文档）；三提交 push 成功；所有权检查 0 违规（79 标注）。
+
+### 决策登记
+
+- K10 标注全覆盖基本完成（79 处）；K5 幻影 API 面修正完成（README/QUICKSTART/lv.h）；
+- 剩余确认点：examples/demo.py 桩示例（假 API lvLang 演示）处置——删除需评审；
+  USE_CASES 15 份失效预设名收敛（真实名核对需深挖注册表，登记后续）。
+
+### 遗留登记
+
+- 下一批候选：K5 USE_CASES 预设名核对 / 示例同步机制（符号存在性脚本）/
+  demo.py 处置（确认点）。
