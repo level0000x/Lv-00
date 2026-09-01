@@ -1,4 +1,4 @@
-/*
+﻿/*
  * @file high_dim_view.c
  * @brief High-dim module - multi-projection views
  * @details Split from high_dim.c
@@ -716,13 +716,13 @@ static int high_dim_mv_handler_list(HighDimManager *manager, int *view_ids, int 
     *count = written;
     if (written > max_count) {
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK,
+    LOG_INFO("high_dim",
                      "列出视图：共%d个活跃视图，但输出数组容量仅%d，"
                      "实际写入%d个。请增大view_ids数组容量。",
                      written, max_count, max_count);
     } else {
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "列出视图：共%d个活跃视图，已全部写入view_ids数组。", written);
+    LOG_INFO("high_dim", "列出视图：共%d个活跃视图，已全部写入view_ids数组。", written);
     }
     return lv_OK;
 }
@@ -761,7 +761,7 @@ static int high_dim_mv_handler_clear(HighDimManager *manager, int *view_ids, int
         *count = cleared;
     }
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK,
+    LOG_INFO("high_dim",
                  "多视图管理：已清除%d个活跃视图。"
                  "UI层需同步关闭所有视图窗口并释放渲染资源。",
                  cleared);
@@ -788,13 +788,13 @@ static int high_dim_mv_handler_list_by_block(HighDimManager *manager, int *view_
     *count = written;
     if (written > capacity) {
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK,
+    LOG_INFO("high_dim",
                      "按block_id=%d过滤列出视图：共%d个匹配，但输出数组容量仅%d，"
                      "实际写入%d个。请增大view_ids数组容量。",
                      block_filter, written, capacity, capacity);
     } else {
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "按block_id=%d过滤列出视图：共%d个匹配，已全部写入view_ids数组。", block_filter,
+    LOG_INFO("high_dim", "按block_id=%d过滤列出视图：共%d个匹配，已全部写入view_ids数组。", block_filter,
                      written);
     }
     return lv_OK;
@@ -880,7 +880,7 @@ static int high_dim_mv_handler_create_batch(HighDimManager *manager, int *view_i
     }
     *count = batch_preset_count;
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "批量创建多投影视图：block_id=%d 成功创建%d个视图。", batch_block_id, batch_preset_count);
+    LOG_INFO("high_dim", "批量创建多投影视图：block_id=%d 成功创建%d个视图。", batch_block_id, batch_preset_count);
     return lv_OK;
 }
 
@@ -953,7 +953,7 @@ static int high_dim_mv_handler_reorder(HighDimManager *manager, int *view_ids, i
         g_multi_views[idx].z_order = i + 1;
     }
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "视图重排成功：%d个视图已按指定顺序重新排列。", n);
+    LOG_INFO("high_dim", "视图重排成功：%d个视图已按指定顺序重新排列。", n);
     return lv_OK;
 }
 
@@ -973,7 +973,7 @@ static int high_dim_mv_handler_snapshot_save(HighDimManager *manager, int *view_
         *count = saved;
     }
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "视图快照保存成功：已保存%d个活跃视图的状态。", saved);
+    LOG_INFO("high_dim", "视图快照保存成功：已保存%d个活跃视图的状态。", saved);
     return lv_OK;
 }
 
@@ -1034,7 +1034,7 @@ static int high_dim_mv_handler_snapshot_restore(HighDimManager *manager, int *vi
         *count = restored;
     }
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "视图快照恢复成功：已恢复%d个视图的状态。", restored);
+    LOG_INFO("high_dim", "视图快照恢复成功：已恢复%d个视图的状态。", restored);
     return lv_OK;
 }
 

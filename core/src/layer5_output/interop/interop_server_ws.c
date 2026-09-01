@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_server_ws.c
  * @brief WebSocket 协议实现（RFC 6455）（由 interop_server.c 拆分子模块）
  *
@@ -591,7 +591,7 @@ static int ws_message_dispatch(InteropServer *server, WsClient *client, int opco
 
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
 
-    lv_set_error(lv_OK, "WebSocket消息已收到（opcode=0x%02X，长度=%zu），正在处理...", opcode, client->msg_len);
+    LOG_INFO("interop", "WebSocket消息已收到（opcode=0x%02X，长度=%zu），正在处理...", opcode, client->msg_len);
 
     /* 文本/二进制消息均按与 STDIO 模式相同的命令逻辑处理 */
     char output[INTEROP_RESP_BUFFER_SIZE];
@@ -634,7 +634,7 @@ static int ws_frame_dispatch(InteropServer *server, WsClient *client) {
         ws_send_frame(client, WS_OP_CLOSE, payload, sizeof(payload));
         client->ctl_len = 0;
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-        lv_set_error(lv_OK, "WebSocket客户端请求关闭连接（状态码=%u）", (unsigned) code);
+        LOG_INFO("interop", "WebSocket客户端请求关闭连接（状态码=%u）", (unsigned) code);
         return -1;
     }
 
@@ -915,12 +915,12 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
                              sizeof(client->recv_buf) - client->recv_len);
         if (n < 0) {
             /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-            lv_set_error(lv_OK, "WebSocket客户端读取失败（套接字=%lld）", (long long) client->sock);
+            LOG_INFO("interop", "WebSocket客户端读取失败（套接字=%lld）", (long long) client->sock);
             return false;
         }
         if (n == 0) {
             /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-            lv_set_error(lv_OK, "WebSocket客户端断开（套接字=%lld）", (long long) client->sock);
+            LOG_INFO("interop", "WebSocket客户端断开（套接字=%lld）", (long long) client->sock);
             return false;
         }
         client->recv_len += (size_t) n;
@@ -954,7 +954,7 @@ static bool ws_client_read(InteropServer *server, WsClient *client) {
         }
         client->handshake_done = true;
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-        lv_set_error(lv_OK, "WebSocket客户端握手成功（套接字=%lld）", (long long) client->sock);
+        LOG_INFO("interop", "WebSocket客户端握手成功（套接字=%lld）", (long long) client->sock);
     }
 
     /* 帧处理 */
@@ -997,7 +997,7 @@ static void ws_accept_client(InteropServer *server, WsClient *clients, int max_c
             clients[i].frag_opcode = -1;
             clients[i].ctl_len = 0;
             /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-            lv_set_error(lv_OK, "WebSocket客户端已连接（套接字=%lld）", (long long) client_sock);
+            LOG_INFO("interop", "WebSocket客户端已连接（套接字=%lld）", (long long) client_sock);
             return;
         }
     }
@@ -1026,7 +1026,7 @@ int interop_ws_run(InteropServer *server, WsSock listen_sock) {
 
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
 
-    lv_set_error(lv_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
+    LOG_INFO("interop", "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
     WsClient *clients = (WsClient *) lv_calloc(WS_MAX_CLIENTS, sizeof(WsClient));
     if (!clients) {
@@ -1046,7 +1046,7 @@ int interop_ws_run(InteropServer *server, WsSock listen_sock) {
                          "同时接受STDIN命令",
                          server->port, WS_MAX_CLIENTS);
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-        lv_set_error(lv_OK, "%s", sb.data);
+        LOG_INFO("interop", "%s", sb.data);
         lv_strbuf_destroy(&sb);
     }
 
@@ -1140,7 +1140,7 @@ int interop_ws_run(InteropServer *server, WsSock listen_sock) {
 #endif
             if (!ws_client_read(server, cl)) {
                 /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-                lv_set_error(lv_OK, "WebSocket客户端连接已关闭（套接字=%lld）", (long long) cl->sock);
+                LOG_INFO("interop", "WebSocket客户端连接已关闭（套接字=%lld）", (long long) cl->sock);
                 ws_client_cleanup(cl);
             }
         }
@@ -1156,7 +1156,7 @@ int interop_ws_run(InteropServer *server, WsSock listen_sock) {
     }
     lv_free((void **) &clients);
     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-    lv_set_error(lv_OK, "WebSocket主循环已退出，已关闭%d个客户端连接", closed_count);
+    LOG_INFO("interop", "WebSocket主循环已退出，已关闭%d个客户端连接", closed_count);
 
     return lv_OK;
 }

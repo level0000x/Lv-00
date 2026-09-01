@@ -1,4 +1,4 @@
-/*
+﻿/*
  * @file high_dim_project.c
  * @brief High-dim module - coordinate projection and 3d projection
  * @details Split from high_dim.c
@@ -299,7 +299,7 @@ static int project_to_3d_perspective(ProjectTo3dContext *ctx) {
     if (fabs(denominator) < ctx->camera_distance * lv_EPSILON_LOW + lv_SINGULARITY_THRESHOLD) {
         double min_denom = ctx->camera_distance * lv_EPSILON_LOW + lv_SINGULARITY_THRESHOLD;
         denominator = (denominator >= 0) ? min_denom : -min_denom;
-        lv_set_error(lv_OK,
+        LOG_INFO("high_dim",
                      "4D透视投影：w=%.4f接近摄像机距离d=%.4f，"
                      "已应用奇点保护（截断因子=%.0fx）",
                      ctx->pw, ctx->camera_distance, ctx->camera_distance / min_denom);
@@ -346,7 +346,7 @@ static int project_to_3d_stereographic(ProjectTo3dContext *ctx) {
     double denom = 1.0 - ctx->pw;
     if (lv_is_zero(denom, lv_EPSILON_ULTRA)) {
         denom = (denom >= 0) ? lv_EPSILON_ULTRA : -lv_EPSILON_ULTRA;
-        lv_set_error(lv_OK, "4D立体投影：w=%.4f接近极点，已应用奇点保护。", ctx->pw);
+        LOG_INFO("high_dim", "4D立体投影：w=%.4f接近极点，已应用奇点保护。", ctx->pw);
     }
     ctx->factor = 1.0 / denom;
     ctx->depth = ctx->factor;
@@ -504,7 +504,7 @@ int high_dim_project_to_3d_full(const double *coord_nd, int dim_count, double ca
         coord_3d[1] += fold_amount;
         coord_3d[2] += fold_amount;
         if (extra != 0.0) {
-            lv_set_error(lv_OK,
+            LOG_INFO("high_dim",
                          "3D投影：已将第5维及以上的%d个维度加权折叠到3D坐标"
                          "（权重按指数衰减 w_k=2^(-(k-4))）",
                          dim_count - 4);

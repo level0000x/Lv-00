@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file interop_server.c
  * @brief 互操作服务器
  *
@@ -613,7 +613,7 @@ int interop_server_run(InteropServer *server) {
 
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
 
-        lv_set_error(lv_OK, "STDIO互操作服务器已启动，等待标准输入命令...");
+        LOG_INFO("interop", "STDIO互操作服务器已启动，等待标准输入命令...");
 
         while (server->running) {
             /* 读取输入 */
@@ -621,7 +621,7 @@ int interop_server_run(InteropServer *server) {
                 /* EOF 或读取错误 */
                 if (feof(stdin)) {
                     /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-                    lv_set_error(lv_OK, "STDIO输入流已关闭（EOF），服务器退出");
+                    LOG_INFO("interop", "STDIO输入流已关闭（EOF），服务器退出");
                 } else {
                     lv_set_error(lv_ERROR_IO, "STDIO读取错误，服务器退出");
                 }
@@ -650,7 +650,7 @@ int interop_server_run(InteropServer *server) {
     } else if (server->type == INTEROP_INTERFACE_WEBSOCKET) {
         /* ====== WebSocket 模式：完整实现（RFC 6455） ====== */
         /* 成功信息伪日志（info 级）：记录成功详情，非错误 */
-        lv_set_error(lv_OK, "WebSocket服务器主循环已启动（端口=%d）", server->port);
+        LOG_INFO("interop", "WebSocket服务器主循环已启动（端口=%d）", server->port);
 
 #if INTEROP_HAS_WINSOCK
         return interop_ws_run(server, (WsSock) (intptr_t) server->internal_data);
