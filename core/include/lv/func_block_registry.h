@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file func_block_registry.h
  * @brief 预设函数块注册系统
  *
@@ -271,7 +271,7 @@ lv_PUBLIC_API bool func_block_register(const char *name, const char *description
  * 哈希表脏时自动触发延迟重建。
  *
  * @param name 预设名称
- * @return 函数块深拷贝（调用者负责释放），未找到或失败返回 NULL
+ * @return 函数块深拷贝（[copy] 调用者负责释放），未找到或失败返回 NULL
  */
 lv_PUBLIC_API FuncBlock *func_block_registry_lookup(const char *name);
 
