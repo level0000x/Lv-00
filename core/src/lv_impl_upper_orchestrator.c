@@ -12,10 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
-
 #include "lv/atp_backend.h"
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"

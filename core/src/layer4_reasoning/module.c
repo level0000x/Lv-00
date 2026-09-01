@@ -6,14 +6,6 @@
  */
 
 #include <ctype.h>
-#ifdef _WIN32
-#include <windows.h>
-/* Windows 下使用 FindFirstFile/FindNextFile 替代 POSIX dirent */
-#include <fileapi.h>
-#else
-#include <dirent.h>
-#include <unistd.h>
-#endif
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>

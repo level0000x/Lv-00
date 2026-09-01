@@ -55,17 +55,6 @@
 
 
 /* [Bug修复] 为 realloc 非本分配器路径获取旧大小所需的平台头文件 */
-#ifdef _WIN32
-#include <malloc.h> /* _msize */
-
-#elif defined(__linux__)
-#include <malloc.h> /* malloc_usable_size */
-
-#elif defined(__APPLE__)
-#include <malloc/malloc.h> /* malloc_size on macOS */
-
-#endif
-
 #include "lv/error_codes.h"
 #include "lv/debug.h"
 #include "lv/lv_internal.h"

@@ -53,12 +53,6 @@
 #include <string.h>
 #include <time.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <pthread.h>
-#endif
-
 #include "lv/node_deep_copy.h"
 #include "lv/solver.h"
 #include "lv/stream.h"
