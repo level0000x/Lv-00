@@ -10024,3 +10024,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F89 剩余：lv_PLUGIN_CAP_* 死协议处置（7 处写入 0 处读取，删除需评审红线①）。
 - 下一批候选：lv_PLUGIN_CAP_* 处置（需评审）/ F24 P0-② lv_loader 只产 AST
   （大重构需讨论）。
+
+---
+
+## 批次 175（F24 P0-② 第一批：lv_loader 只产 AST，装载拆至 L0）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| core/src/lv_loader_engine.c（新增，L0） | 装载入图实现：名称映射表（loader_names 注册表全套 + lv_loader_reset）+ 声明处理（EntityDeclHandler/decl_register_point(_with_value)/decl_stash/process_declaration）+ 提取辅助（loader_expr_int/extract_struct_coords/extract_point_expr）+ lv_apply_parse_result（三遍处理：声明→线段→约束/Prove）；include engine.h（lvEngine/engine_get_main_graph）+ lv.h（lv_add_line_segment）+ constraint_graph.h（graph_add_constraint_with_id） |
+| lv_loader.c | 删除装载侧 4 段（names/提取/decl/apply，~470 行）；保留纯解析：lv_load_file（读取+词法/语法/语义+6 道安全闸门）+ 微自举 B 验证器（lv_verify_proofs/lv_load_file_verified，纯 AST 无 engine）；删除 lv.h 伞形头 / lv_registry.h / lv_thread.h include；头注释更新 |
+| CMakeLists.txt | lv_loader_engine.c 加入 lv_core（L0）；**删除 lv_layer1_parser 的 L3/L4 补链**（target_link_libraries(lv_layer1_parser lv_layer3_geometry ${lv_L4_LIBS}) → 移除，注释说明） |
+| lv_loader.h | 不变（前向声明 lvEngine，无 L4 头依赖；lv_apply_parse_result 声明保留，实现移 L0） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 构建通过（无层违规）；
+- 依赖矩阵 **0 违规**（645 文件，lv_loader_engine.c L0 include L3/L4 头合法）；
+- commit 05649e6e（refactor(arch): split lv_apply_parse_result loading into L0
+  lv_loader_engine, remove L1 L3/L4 link (F24 P0-2)），push 成功，CI 待验证。
+
+### 决策登记
+
+- F24 P0-② 第一批完成：lv_layer1_parser 补链解除（L1 现仅依赖 L2）；
+  lv_loader.c 只产 AST（解析 + 证明验证）；装载入图归 L0 编排层；
+- lv_PLUGIN_CAP_* 按用户决策保留 + M6 登记（lv_backend_plugin.h 注释）。
+
+### 遗留登记
+
+- F24 P0-② 剩余检查：lv_layer1_parser 是否还有其他 L3/L4 源文件（lv_sema/lv_parser/
+  lv_lexer/lv_ast/math_input 的 include 面）；测试/示例对 lv_apply_parse_result
+  的调用不受影响（声明未变）。
+- 下一批候选：F24 P0-② 剩余核查 / K61 真实缺陷（错误帧栈读端零消费）/
+  F39 所有权。
