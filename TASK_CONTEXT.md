@@ -9812,3 +9812,42 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - 依赖矩阵增强候选：传递 include 展开检查（lv.h 伞形头传递引入）、符号引用
   检查（不只 include）；当前直接 include 检查 + lv.h 白名单为基线。
 - 下一批候选：F24 P0-② lv_loader 只产 AST / K63 阈值收敛 / F33 快速幂收尾。
+
+---
+
+## 批次 169（K63/F89 第一批：位数熔断阈值单源化）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| config.h | compat 段删除 BIT_CUTOFF_THRESHOLD（1000000）/ MAX_PRECISION_BITS（100）双名旧宏（K63 P0 双名三定义）；权威 lv_BIT_CUTOFF_THRESHOLD / lv_MAX_PRECISION_BITS 保留在「根/位/降级」段 |
+| bit_burning.h | 删除自带兜底 BIT_CUTOFF_THRESHOLD 定义（引用即包含，config.h 权威） |
+| bit_burning.c | 2 处旧名 → lv_BIT_CUTOFF_THRESHOLD |
+| symbolic_coord_ops.c | 3 处旧名 → lv_BIT_CUTOFF_THRESHOLD + 文件头注释更新 |
+| symbolic_coord.c | 1 处旧名 → lv_BIT_CUTOFF_THRESHOLD；过期注释修正（声称定义在 lv_internal.h，事实不在——K63 M5） |
+| algebraic.c | ÷2 缩放语义登记注释（分母位限制，相对权威 ÷2 额度）；注释旧名更新 |
+| symbolic_coord_trust.c | ÷SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR(=10) 缩放语义登记注释（代数数单系数更严格预算） |
+
+### ② 验证
+
+- build3 ctest **288/288**（stream_extended flaky rerun 惯例后全过）；
+- build_layerval 构建通过；依赖矩阵 0 违规；
+- 旧名零残留（剩余命中全为注释/配置字段 lvConfig.bit_cutoff_threshold 等，非宏）；
+- commit dd64bdd4（refactor(arch): unify bit-cutoff threshold to single lv_BIT_CUTOFF_THRESHOLD source (K63/F89)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K63 P0 位数熔断阈值单源化完成：三处定义（config.h compat / bit_burning.h 兜底 /
+  config.h 权威）收敛为 lv_BIT_CUTOFF_THRESHOLD 单源；
+- 消费端缩放语义登记（设计 L2328 风险项）：÷2（algebraic 连分数分母）/ ÷10
+  （symbolic_coord_trust 代数数系数）为有意语义差异，注释登记，不强行统一；
+- lvConfig 运行期配置字段 bit_cutoff_threshold / max_precision_bits（X-macro
+  注册表）保留（运行期配置 vs 编译期宏，不同语义）。
+
+### 遗留登记
+
+- F89 剩余 P1：GMP 位数计算/熔断检查 5 处收敛（lv_mpz_bit_size /
+  lv_check_bit_limit）、lv_bitset 位图容器、lv_mask_* 推广补 64 位、
+  lv_PLUGIN_CAP_* 处置——后续批次。
+- 下一批候选：K63 位数检查收敛 / F24 P0-② lv_loader 只产 AST / F33 快速幂收尾。
