@@ -10684,3 +10684,30 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 ### 剩余可推进
 
 - K59 其余 ~70 头（机械批量，防御性）——下轮候选。
+
+---
+
+## 批次 202（K59 batch 2：10 头 349 处装饰）
+
+### ① 改动
+
+- lv_upper_api.h 84 / lv_str_utils.h 44 / visual_editor.h 35 / runtime_monitor.h 33 /
+  algebraic_number.h 30 / high_dim.h 27 / numerical_backend.h 27 / bootstrap_test.h 23 /
+  lv_hashtable.h 23 / lv_number.h 23 = 349 处（含 lv_api_spec.h include 补全）
+- 累计 K59 装饰 594 处（外部 API + 常用头全覆盖）
+
+### ② 验证
+
+- build3 ctest **289/289**；构建通过（一次并行中断误报，重跑成功）；
+- commit c1ec547a（refactor(arch): decorate 349 external APIs in 10 headers (K59 batch 2)），push 成功。
+
+### 决策登记
+
+- K59 主要面完成（外部 API interop/plugin/upper_api + 常用头 594 处）；
+  剩余 142 内部实现头（每头 1-20 裸）登记「随 K18 visibility hidden 执行批次」——
+  风险未激活（当前静态库默认构建无影响），防御性装饰已覆盖高风险面。
+
+### 剩余确认点
+
+- examples/demo.py 桩示例处置（删除）；
+- 规划文档蓝图 API 处置（当前豁免）。
