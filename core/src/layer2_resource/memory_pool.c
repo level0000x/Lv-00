@@ -606,9 +606,13 @@ lvObjectPool *lv_get_constraint_pool(void) {
 }
 
 lvObjectPool *lv_get_symbolic_coord_pool(void) {
+    /* K66 登记：symbolic_coord 池为死池（全库 0 使用，仅创建占 64B×1024 内存）；
+     * 删除需评审（红线①），当前保留 */
     return s_mem_state.symbolic_coord_pool;
 }
 
 lvObjectPool *lv_get_proof_step_pool(void) {
+    /* K66 登记：proof_step 池为死池（全库 0 使用，仅创建占 128B×1024 内存）；
+     * 删除需评审（红线①），当前保留 */
     return s_mem_state.proof_step_pool;
 }

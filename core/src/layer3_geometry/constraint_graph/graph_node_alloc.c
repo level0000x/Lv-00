@@ -57,6 +57,19 @@
  * @param coord_count 坐标数量
  * @return 新分配的 GeomNode 指针，失败返回 NULL
  */
+
+/* K66/F96 P0 防御：活性预设池尺寸对拍——池块按 object_size 清零，结构体
+ * 增字段超过池尺寸即池块越界写（K43 coeff_pool 尺寸失配同族）。
+ * GeomNode/Constraint 为活性池（graph_node_alloc 池化分配）：
+ *   sizeof(GeomNode)    <= lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE (128)
+ *   sizeof(Constraint)  <= lv_CONFIG_POOL_CONSTRAINT_SIZE      (96)
+ * symbolic_coord / proof_step 池为死池（全库 0 使用，仅创建），
+ * 对拍不适用（删除需评审，登记于 memory_pool.c）。 */
+_Static_assert(sizeof(GeomNode) <= lv_CONFIG_POOL_CONSTRAINT_NODE_SIZE,
+               "K66: sizeof(GeomNode) exceeds node pool block size (128)");
+_Static_assert(sizeof(Constraint) <= lv_CONFIG_POOL_CONSTRAINT_SIZE,
+               "K66: sizeof(Constraint) exceeds constraint pool block size (96)");
+
 GeomNode *node_alloc_internal(ConstraintGraph *graph, GeomType type, int id, bool with_id,
                                      SymbolicCoord **coords, int coord_count) {
     /* 错误消息前缀：与两个公开入口的原错误文本保持一致 */
