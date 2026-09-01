@@ -1855,3 +1855,60 @@ _bind_if_present('sparse_matrix_multiply', [c_void_p, c_void_p, POINTER(c_void_p
 _bind_if_present('sparse_matrix_transpose', [c_void_p, POINTER(c_void_p)], c_bool)
 _bind_if_present('graph_degree_analysis', [POINTER(_ConstraintGraph), POINTER(c_void_p)], c_bool)
 _bind_if_present('degree_analysis_free', [c_void_p], None)
+
+# ================================================================
+# K66/F96：high_dim_* 全族签名补齐（原 25 函数零声明——默认 restype=c_int
+# 导致 64 位指针截断：high_dim_manager_create 句柄 / high_dim_get_block /
+# high_dim_get_current_preset / high_dim_mapping_type_to_string 返回指针
+# 被截断成 int，设计 L762 判定 P0）
+# ================================================================
+_lib.high_dim_manager_create.argtypes = []
+_lib.high_dim_manager_create.restype = c_void_p
+_lib.high_dim_manager_destroy.argtypes = [c_void_p]
+_lib.high_dim_manager_destroy.restype = None
+_lib.high_dim_manager_init.argtypes = [c_void_p]
+_lib.high_dim_manager_init.restype = c_int
+_lib.high_dim_register_block.argtypes = [c_void_p, c_int, c_int]
+_lib.high_dim_register_block.restype = c_int
+_lib.high_dim_unregister_block.argtypes = [c_void_p, c_int]
+_lib.high_dim_unregister_block.restype = c_int
+_lib.high_dim_get_block.argtypes = [c_void_p, c_int]
+_lib.high_dim_get_block.restype = c_void_p
+_lib.high_dim_add_projection_preset.argtypes = [c_void_p, c_int, c_void_p]
+_lib.high_dim_add_projection_preset.restype = c_int
+_lib.high_dim_remove_projection_preset.argtypes = [c_void_p, c_int, c_int]
+_lib.high_dim_remove_projection_preset.restype = c_int
+_lib.high_dim_set_current_preset.argtypes = [c_void_p, c_int, c_int]
+_lib.high_dim_set_current_preset.restype = c_int
+_lib.high_dim_get_current_preset.argtypes = [c_void_p, c_int]
+_lib.high_dim_get_current_preset.restype = c_void_p
+_lib.high_dim_create_default_preset.argtypes = [c_int, c_void_p]
+_lib.high_dim_create_default_preset.restype = c_int
+_lib.high_dim_project_coordinates.argtypes = [c_void_p, c_int, c_void_p, c_int, c_void_p]
+_lib.high_dim_project_coordinates.restype = c_int
+_lib.high_dim_calculate_fidelity.argtypes = [c_void_p, c_int, c_void_p, c_void_p]
+_lib.high_dim_calculate_fidelity.restype = c_int
+_lib.high_dim_is_fidelity_below_threshold.argtypes = [c_void_p, c_int, c_double]
+_lib.high_dim_is_fidelity_below_threshold.restype = c_int
+_lib.high_dim_get_fidelity_warning.argtypes = [c_void_p, c_int, c_void_p, c_size_t]
+_lib.high_dim_get_fidelity_warning.restype = c_int
+_lib.high_dim_enter_block_perspective.argtypes = [c_void_p, c_int]
+_lib.high_dim_enter_block_perspective.restype = c_int
+_lib.high_dim_exit_block_perspective.argtypes = [c_void_p]
+_lib.high_dim_exit_block_perspective.restype = c_int
+_lib.high_dim_get_current_depth.argtypes = [c_void_p]
+_lib.high_dim_get_current_depth.restype = c_int
+_lib.high_dim_create_multi_projection_view.argtypes = [c_void_p, c_int, c_void_p, c_int, c_void_p]
+_lib.high_dim_create_multi_projection_view.restype = c_int
+_lib.high_dim_destroy_multi_projection_view.argtypes = [c_void_p, c_int]
+_lib.high_dim_destroy_multi_projection_view.restype = c_int
+_lib.high_dim_link_highlight.argtypes = [c_void_p, c_void_p, c_int, c_int]
+_lib.high_dim_link_highlight.restype = c_int
+_lib.high_dim_manage_multi_views.argtypes = [c_void_p, c_int, c_void_p, c_void_p]
+_lib.high_dim_manage_multi_views.restype = c_int
+_lib.high_dim_mapping_type_from_string.argtypes = [c_char_p]
+_lib.high_dim_mapping_type_from_string.restype = c_int
+_lib.high_dim_mapping_type_to_string.argtypes = [c_int]
+_lib.high_dim_mapping_type_to_string.restype = c_char_p
+_lib.high_dim_validate_mapping.argtypes = [c_int, c_void_p, c_int]
+_lib.high_dim_validate_mapping.restype = c_int
