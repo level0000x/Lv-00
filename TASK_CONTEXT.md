@@ -10145,3 +10145,34 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   保存时机四态策略、autosave 接线或删除——非 P0 缺陷，后续批次。
 - 下一批候选：F39 所有权 / F45 打包导出 / K71 D1 distance 声明解析失败语义
   互相矛盾（真实缺陷，随 F4/K34 立项）。
+
+---
+
+## 批次 179（K71/F96 D1：distance 声明解析失败语义统一）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| solver_symbolic.c | check_incompatible_distances 内 2 处「distance= 前缀 + lv_parse_double 失败 → 0.0」静默零修复为 -1.0（跳过）——畸形 "distance=abc" 不再产生距离 0 约束（原误报同端点 0 vs 5 矛盾） |
+| solver_equation_extract.c | extract_connection + 线段距离平方 2 处失败 0.0 → -1.0（跳过）；平方仅成功路径计算 |
+| test_conflict_detector.c | 新增 test_incompatible_distance_malformed_decl：畸形 "distance=abc" vs "distance=5.0" 同端点 → 不误报矛盾；5.0 vs 10.0 → 报矛盾；声明资源由 graph 统一释放（避免 double free）；check_incompatible_distances 经前向声明引用（内部头不暴露） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；
+- commit f6cc430c（fix(arch): unify distance-decl parse failure to reject
+  semantics, no silent zero constraint (K71/D1)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K71 D1 三处失败语义矛盾统一：graph_conflict parse_distance_value（拒绝型）
+  为权威语义，solver_symbolic（原同函数两种失败语义 0.0/-1.0）与
+  solver_equation_extract（原静默 0.0）全部收敛为「失败拒绝/跳过」；
+- 畸形 "distance=abc" 不再产生距离 0 约束（真实缺陷修复）。
+
+### 遗留登记
+
+- K71 剩余：lv_str_split 接线（生产 0 消费 vs 手写 strtok_r ~10 处）、
+  lv_parse_double 返回值检查不一致——后续批次。
+- 下一批候选：F39 所有权 / F45 打包导出 / K75 限制常量单源。
