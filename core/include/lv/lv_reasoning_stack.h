@@ -167,6 +167,10 @@ typedef struct lvReasoningStack {
 
     /** 栈绝对最大深度（在上下文创建时设定） */
     int max_depth;
+
+    /** 不透明快照释放回调（F24/I5：L2 不依赖 L3，graph_snapshot 由
+     *  L0 注入的 ConstraintGraph 销毁回调承接；NULL = 快照不释放） */
+    void (*graph_snapshot_free)(void *snapshot);
 } lvReasoningStack;
 
 /** @brief 向后兼容别名 */

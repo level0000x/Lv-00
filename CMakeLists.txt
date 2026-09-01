@@ -664,7 +664,7 @@ set(lv_LAYER1_SOURCES
     core/src/layer1_parser/lv_sema.c
     core/src/layer1_parser/lv_loader.c
     core/src/layer1_parser/math_input.c
-    core/src/layer1_parser/parser_safety.c
+    # F24/I5：parser_safety.c 已下沉 L2（输入安全校验设施被 L1/L3 共享，读 lvConfig）
     # 注：formula 家族（parser/converter/renderer）已整体迁 L3——其转换产物为
     #     ConstraintGraph（L3），formula_converter.h 直接 include constraint_graph.h，
     #     L1 依赖模型（仅 L2）无法承载；消费方仅 L0（lv.c）。
@@ -689,10 +689,14 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_config.c
     # 系统入口协调者 lv.c 已移至 lv_core（L0 便利层，可协调各层生命周期，消除 L2 反向依赖）
     core/src/layer2_resource/context.c
+    # F24/I5：parser_safety.c 自 L1 下沉（输入安全校验设施，L1/L3 共享，读 lvConfig）
+    core/src/layer2_resource/parser_safety.c
     # v4.0.0 新增：熔断器独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_circuit_breaker.c
     # v4.0.0 新增：推理分支栈独立模块（从 lvContext God Object 提取）
-    # lv_reasoning_stack.c 已移至 L3（依赖 ConstraintGraph 类型）
+    # F24/I5：已从 L3 归位 L2（快照释放经 LvContextResourceOps 回调不透明解耦，
+    # 不依赖 ConstraintGraph 类型）
+    core/src/layer2_resource/lv_reasoning_stack.c
     # v4.0.0 新增：流式输出上下文独立模块（从 lvContext God Object 提取）
     core/src/layer2_resource/lv_stream_context.c
     core/src/layer2_resource/error_codes.c
@@ -944,8 +948,7 @@ set(lv_LAYER3_SOURCES
     # v1.1.0 补全遗漏：几何原语、参数曲线、路径类型
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
-    # v2.0.0 推理栈模块（原在 L2，使用 ConstraintGraph 类型，故归位 L3）
-    core/src/layer3_geometry/lv_reasoning_stack.c
+    # F24/I5：lv_reasoning_stack.c 已归位 L2（快照释放经 LvContextResourceOps 回调，见 layer2 列表）
     # 约束图子模块：冲突检测、索引、内存、节点、序列化
     core/src/layer3_geometry/constraint_graph/graph_conflict.c
     core/src/layer3_geometry/constraint_graph/graph_index.c

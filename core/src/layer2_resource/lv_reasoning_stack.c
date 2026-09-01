@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "lv/lv_internal.h"
-#include "lv/constraint_graph.h"
 
 /* ============================================================
  * 推理栈 API 实现
@@ -29,14 +28,18 @@ void lv_reasoning_stack_init(lvReasoningStack *stack) {
     stack->top = -1;
     stack->capacity = 0;
     stack->max_depth = lv_REASONING_STACK_MAX_DEPTH;
+    stack->graph_snapshot_free = NULL; /* 由调用方（L0 注入）设置 */
 }
 
-/** 释放单帧内资源（graph_snapshot + assumption_node_ids + target_node_ids；user_data 由外部管理） */
-static void reasoning_frame_release(lvReasoningFrame *frame) {
+/** 释放单帧内资源（graph_snapshot + assumption_node_ids + target_node_ids；user_data 由外部管理）
+ *  F24/I5：graph_snapshot 为不透明资源，经 stack->graph_snapshot_free 回调释放
+ *  （L0 注入的 ConstraintGraph 销毁承接，L2 不依赖 L3）。 */
+static void reasoning_frame_release(lvReasoningStack *stack, lvReasoningFrame *frame) {
     if (!frame)
         return;
     if (frame->graph_snapshot) {
-        graph_destroy((ConstraintGraph *) frame->graph_snapshot);
+        if (stack && stack->graph_snapshot_free)
+            stack->graph_snapshot_free(frame->graph_snapshot);
         frame->graph_snapshot = NULL;
     }
     if (frame->assumption_node_ids) {
@@ -54,7 +57,7 @@ void lv_reasoning_stack_clear(lvReasoningStack *stack) {
 
     if (stack->frames) {
         for (int i = 0; i <= stack->top && i < stack->capacity; i++) {
-            reasoning_frame_release(&stack->frames[i]);
+            reasoning_frame_release(stack, &stack->frames[i]);
         }
         lv_free((void **) &stack->frames);
     }
@@ -151,7 +154,7 @@ int lv_reasoning_stack_pop(lvReasoningStack *stack) {
     lvReasoningFrame *frame = &stack->frames[stack->top];
 
     /* 释放帧内资源（与 clear 循环体共用 reasoning_frame_release） */
-    reasoning_frame_release(frame);
+    reasoning_frame_release(stack, frame);
 
     /* 清零帧 */
     memset(frame, 0, sizeof(lvReasoningFrame));

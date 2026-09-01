@@ -96,6 +96,20 @@ jobs:
             echo "::error file=ctest.log::$line"
           done
 
+  # ── F24/I5: 层间依赖矩阵扫描（头→层归属表，阻断 L1/L2 对高层引用）────
+  # tools/layer_dep_matrix.py：按"头→层归属表"检查 core/src 每层 .c 的直接
+  # include（lv.h 伞形头白名单放行，传递引入由 P0-② 只产 AST 重构解除）；
+  # 允许依赖表与 layer_validation.h 的 lv_LAYER_CAN_DEPEND 一致。
+  dependency-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Run layer dependency matrix scan
+        run: python tools/layer_dep_matrix.py
+
   # ── F24/I5: 层验证编译门（ENABLE_LAYER_VALIDATION=ON 时依赖表生效）────
   # 机制：engine.h 的 lv_ALLOW_LAYER 走 layer_validation.h 依赖表判定；
   # 已声明文件编译期校验违规（_Static_assert），未声明文件宏为空操作。

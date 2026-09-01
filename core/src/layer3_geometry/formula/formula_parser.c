@@ -35,8 +35,7 @@
 #include "lv/error_codes.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_utils.h"
-#include "lv/parser_safety.h"
-#include "lv/stream.h"
+#include "lv/parser_safety.h" /* lv_input_validate（F24/I5：已下沉 L2，L3 可依赖） */
 #include "lv/stream.h"
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"

@@ -55,6 +55,15 @@ void lv_context_register_resource_ops(const LvContextResourceOps *ops) {
     s_resource_ops_registered = true;
 }
 
+/** 推理栈不透明快照释放：委托 L0 注入的 ConstraintGraph 销毁回调
+ *  （F24/I5：L2 不依赖 L3，未注入时静默跳过） */
+static void context_graph_snapshot_free(void *snapshot) {
+    if (!snapshot)
+        return;
+    if (s_resource_ops_registered && s_resource_ops.destroy)
+        s_resource_ops.destroy((struct ConstraintGraph *) snapshot);
+}
+
 /* ============================================================
  * 第六部分：生命周期管理 API
  * ============================================================ */
@@ -93,8 +102,10 @@ lvContext *lv_context_create(void) {
     ctx->max_recursion_depth = lv_CONTEXT_MAX_RECURSION_DEPTH;
     ctx->recursion_policy = lv_RECURSION_POLICY_ERROR;
 
-    /* 4. 推理分支栈 —— 初始化为空栈 */
+    /* 4. 推理分支栈 —— 初始化为空栈；
+     *    快照释放回调委托 L0 注入的 ConstraintGraph 销毁（L2 不依赖 L3） */
     lv_reasoning_stack_init(&ctx->reasoning_stack);
+    ctx->reasoning_stack.graph_snapshot_free = context_graph_snapshot_free;
 
     /* 13. 快照/回滚支持 */
     ctx->snapshot_refcount = 0;
@@ -973,6 +984,7 @@ lvContext *lv_context_snapshot(lvContext *ctx) {
 
     /* 推理栈：最小版本不复制（能力边界见头文件文档） */
     lv_reasoning_stack_init(&snap->reasoning_stack);
+    snap->reasoning_stack.graph_snapshot_free = context_graph_snapshot_free;
 
     /* 快照链：链接回源上下文并递增引用计数 */
     snap->parent_snapshot = ctx;
