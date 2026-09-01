@@ -9958,3 +9958,33 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   lv_PLUGIN_CAP_* 死协议处置（删除需评审）。
 - 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST（大重构需讨论）/
   J1 once_reset 剩余（config/ecosystem 未重置点）。
+
+---
+
+## 批次 173（J1 剩余：config once 重置 + ecosystem 生产接线）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| lv_config.c | lv_config_snapshot_cleanup 末尾加 lv_once_reset(&g_default_config_once)（J1 契约：cleanup 必须重置自身 once 守卫否则不得声明可重入；init 幂等——memset + X-macro 默认值填充） |
+| lv.c | lv_init 生产接线 lv_ecosystem_init（原仅测试调用 M6 → 生产 lv_ecosystem_register_module 恒失败；init 幂等 initialized 标志，shutdown 置 0 后可重入），失败仅告警不阻断 |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；依赖矩阵 0 违规（lv.c L0 include ecosystem.h L4 合法）；
+- commit afbeaaa9（fix(arch): reset config once-guard on cleanup and wire
+  ecosystem init into production init (J1)），push 成功，CI 待验证。
+
+### 决策登记
+
+- J1 once_reset 剩余点收口：thread_pool（批次 162）/ module registry（批次 164）/
+  config（本批）全重置；ecosystem 为 initialized 标志（非 once_t），shutdown 置 0
+  已可重入，无需 once_reset；
+- ecosystem 生产接线完成（设计 L336 M6「lv_ecosystem_init 仅测试」修复）。
+
+### 遗留登记
+
+- F89 剩余：lv_mask_* 推广补 64 位（20+ 文件裸位运算，量大）、lv_PLUGIN_CAP_*
+  死协议处置（删除需评审）。
+- 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST（大重构需讨论）。
