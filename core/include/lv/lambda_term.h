@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file lambda_term.h
  * @brief λ-项数据结构定义
  *
@@ -123,7 +123,7 @@ lv_PUBLIC_API LvLambdaTerm *lv_lambda_copy(LvLambdaTerm *term);
  * 调用者通过 lv_free 释放。
  *
  * @param term λ-项指针
- * @return 字符串表示（调用者负责释放），失败返回 NULL
+ * @return 字符串表示（[take] 调用者负责释放），失败返回 NULL
  */
 lv_PUBLIC_API char *lv_lambda_to_string(LvLambdaTerm *term);
 

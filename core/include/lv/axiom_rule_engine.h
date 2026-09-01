@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_rule_engine.h
  * @brief 公理规则引擎 —— 可配置规则库与难度分级
  *
@@ -368,7 +368,7 @@ void lv_rule_set_status(lvRule *rule, lvRuleStatus status);
 /**
  * @brief 评估规则难度
  * @param rule 规则
- * @return 难度评估结果（调用者负责释放）
+ * @return 难度评估结果（[take] 调用者负责释放）
  */
 lvDifficultyAssessment *lv_rule_assess_difficulty(const lvRule *rule);
 /**
@@ -453,7 +453,7 @@ typedef struct {
  * @param graph 约束图
  * @param context 证明上下文
  * @param max_count 最大推荐数量
- * @return 推荐结果（调用者负责释放）
+ * @return 推荐结果（[take] 调用者负责释放）
  */
 lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const ConstraintGraph *graph,
                                         const ProofNavigator *context, uint32_t max_count);

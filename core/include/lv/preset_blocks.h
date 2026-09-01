@@ -230,7 +230,7 @@ void lv_preset_blocks_cleanup(void);
  * 函数内部已加锁保护，线程安全。
  *
  * @param name 预设名称
- * @return 元数据指针（调用者负责释放），未找到或内存不足返回 NULL
+ * @return 元数据指针（[take] 调用者负责释放），未找到或内存不足返回 NULL
  */
 PresetBlockMetadata *preset_blocks_get_metadata(const char *name);
 
@@ -353,7 +353,7 @@ int preset_blocks_get_all_names(const char **out_names, int max_count);
  *
  * 生成包含所有预设的完整文档，按类别组织。
  *
- * @return Markdown格式文档字符串（调用者负责释放）
+ * @return Markdown格式文档字符串（[take] 调用者负责释放）
  */
 char *preset_blocks_generate_documentation(void);
 
@@ -361,7 +361,7 @@ char *preset_blocks_generate_documentation(void);
  * @brief 生成单个预设的详细文档
  *
  * @param name 预设名称
- * @return Markdown格式文档字符串（调用者负责释放）
+ * @return Markdown格式文档字符串（[take] 调用者负责释放）
  */
 char *preset_blocks_generate_single_doc(const char *name);
 

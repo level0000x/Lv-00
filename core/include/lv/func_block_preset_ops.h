@@ -114,7 +114,7 @@ typedef struct {
  * @brief 验证预设的有效性
  *
  * @param preset_name 预设名称
- * @return 验证结果（调用者负责释放 error_message）
+ * @return 验证结果（[take] 调用者负责释放 error_message）
  */
 PresetValidationResult preset_validate(const char *preset_name);
 /**

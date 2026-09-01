@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：预设函数块系统 (func_block_preset)
  * 功能概述：提供理论数学研究的标准化函数块库，包含完整的预设函数块
  *          定义、参数规范和实例化接口。所有预设都有明确的输入/输出
@@ -284,7 +284,7 @@ lv_PUBLIC_API InstantiateResult func_block_preset_instantiate(const char *preset
  * @param input_count 输入数量
  * @param graph 约束图
  * @param options 实例化选项（可为NULL，使用默认）
- * @param out_details 输出详细信息（调用者负责释放warnings和error_detail）
+ * @param out_details 输出详细信息（[take] 调用者负责释放warnings和error_detail）
  * @return 实例化结果状态
  */
 lv_PUBLIC_API InstantiateResult func_block_preset_instantiate_ex(const char *preset_name, const int *input_node_ids,

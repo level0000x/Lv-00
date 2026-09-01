@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file inequality_reasoning.h
  * @brief 不等式推理系统 —— 纯符号不等式证明
  *
@@ -472,21 +472,21 @@ bool lv_ineq_erdos_mordell(lvExpr *pa, lvExpr *pb, lvExpr *pc, lvExpr *p, lvExpr
 /**
  * @brief 不等式序列化为字符串
  * @param ineq 不等式
- * @return 字符串（调用者负责释放）
+ * @return 字符串（[take] 调用者负责释放）
  */
 char *lv_ineq_to_string(const lvInequality *ineq);
 
 /**
  * @brief 证明序列化为字符串
  * @param proof 证明
- * @return 字符串（调用者负责释放）
+ * @return 字符串（[take] 调用者负责释放）
  */
 char *lv_ineq_proof_to_string(const lvInequalityProof *proof);
 
 /**
  * @brief 证明导出为 LaTeX
  * @param proof 证明
- * @return LaTeX 字符串（调用者负责释放）
+ * @return LaTeX 字符串（[take] 调用者负责释放）
  */
 char *lv_ineq_proof_to_latex(const lvInequalityProof *proof);
 

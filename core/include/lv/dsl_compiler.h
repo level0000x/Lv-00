@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：DSL 编译器 (dsl_compiler)
  * 功能概述：借鉴 Ganja.js 的 AST 转译和 GCLC 几何构造语言，提供从
  *          DSL 源码到约束图的完整编译管线。包含词法分析、语法解析、
@@ -315,7 +315,7 @@ typedef struct DslCompileConfig {
  * 错误的字符序列产生 DSL_TOK_ERROR 词法单元。
  *
  * @param source   DSL 源码字符串（以 null 结尾）
- * @param out_tokens 输出：DslToken 数组（调用者负责释放每一个 token 和数组本身）
+ * @param out_tokens 输出：DslToken 数组（[take] 调用者负责释放每一个 token 和数组本身）
  * @param out_count   输出：token 数量
  * @return true 成功，false 遇到致命词法错误
  */
