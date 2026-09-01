@@ -10242,3 +10242,34 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K71 D6 后续：如需要可对 lv_sema 声明名拆分补空段检查后收敛（低优先级）。
 - 下一批候选：K75 队列满契约登记 / F39 所有权 / K65 死 sink 清理（删除需评审）。
+
+---
+
+## 批次 183（K10/F39：内存所有权契约单源文档 + 2 处声称-实现脱节修复）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| docs/architecture/memory-ownership.md（新增） | 所有权三态契约单源文档（[copy]/[take]/[borrow] 定义 + 分配/释放配对规则 + 首批标注表 + 健康面确认 + 后续批次清单）——K10 判定 memory-ownership.md 不存在已补齐 |
+| func_block_registry.h | func_block_register 注释矛盾修复：统一为 [copy] 语义（注册表深拷贝 fb + name/description 副本，调用者仍持有原 fb 负责销毁；删「注册后由注册表接管管理」误导） |
+| module.h | module_compute_content_hash 注释修复：free() → lv_free（[take]，lv_calloc 配 free 是混合分配器 UB） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；
+- commit cad12da0（docs(arch): add memory-ownership contract and fix two
+  ownership-comment mismatches (K10/F39)），push 成功，CI 待验证。
+
+### 决策登记
+
+- F39 第一批：契约文档 + 2 处 M5 声称-实现脱节修复（func_block_register 泄漏
+  风险注释 + module_compute_content_hash UB 注释）；
+- **Lean 目录（formal/ lv-formal/ TestLake/ lv-merged/）由用户自行管理，
+  本会话不修改不提交**（用户 2026-09-01 指示）。
+
+### 遗留登记
+
+- F39 后续：[copy]/[take]/[borrow] 头注释全覆盖（~40+ 处「调用者负责 free」
+  逐点核对）+ 静态检查脚本接入 CI + graph_get_node 借用语义头注释补齐。
+- 下一批候选：K10 注释全覆盖首批 / K65 死 sink 清理（删除需评审）/ K62 INI 统一。
