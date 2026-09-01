@@ -142,6 +142,12 @@ int lv_plugin_config_load(lvPluginConfig *config, const char *filepath) {
  * @param config 插件配置指针
  * @param filepath 保存路径
  * @return 成功返回 0，失败返回 -1
+ *
+ * K62/F88 登记豁免（INI 方言差异，2026-09-01）：本 save 输出扁平 key=value
+ * （无节头无类型化），区别于系统 B config_save 的 [section] 节头+类型化——
+ * 语义域不同（per-instance 插件注册表字符串存储 vs 全局 ConfigManager 类型化
+ * 存储），load 已统一走公共 lv_ini_parse（可读节头/扁平），本格式与 load 域内
+ * 往返自洽且生产零调用，不强行统一（值语义差异为域固有）。
  */
 int lv_plugin_config_save(const lvPluginConfig *config, const char *filepath) {
     lv_CHECK_NOT_NULL(config);
