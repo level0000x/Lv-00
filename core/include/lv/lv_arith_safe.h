@@ -247,6 +247,63 @@ static inline int64_t lv_squarefree_i64(int64_t n) {
     return (int64_t) result * neg;
 }
 
+/* ============================================================
+ * 快速幂单骨架（K2/F33：整数快速幂 ×3 统一）
+ * ============================================================ */
+
+/**
+ * @brief 平方求幂循环骨架（跨域单实现）
+ *
+ * K2/F33 收敛：lv_safe_pow（int64）/ lv_alg_rational_pow（AlgRational）/
+ * lv_number_pow（lvNumber）三份同构 while 循环统一到本宏。mul_stmt(a, b)
+ * 为调用方注入的乘法语句（展开为 a = a op b，可含各域错误/生命周期处理）。
+ * 调用方负责 exp==0 / exp<0 前置分支与 mul_stmt 内的资源管理。
+ */
+#define lv_POW_SQUARING(base_var, exp_var, result_var, mul_stmt) \
+    while ((exp_var) > 0) {                                      \
+        if ((exp_var) & 1) {                                     \
+            mul_stmt((result_var), (base_var));                  \
+        }                                                        \
+        (exp_var) >>= 1;                                         \
+        if ((exp_var) > 0) {                                     \
+            mul_stmt((base_var), (base_var));                    \
+        }                                                        \
+    }
+
+/** @brief int64 域乘法回调（溢出检测语义，true=成功；*out 失败时不被修改） */
+typedef bool (*lv_pow_mul_i64_fn)(int64_t a, int64_t b, int64_t *out);
+
+/**
+ * @brief int64 域参数化快速幂（K2/F33：mul 回调参数化设施）
+ *
+ * 以 lv_safe_pow 的平方求幂语义为基线，乘法由调用方回调注入
+ * （典型传 lv_safe_mul_i64；可传自定义回调测骨架或换溢出策略）。
+ *
+ * @param base   底数
+ * @param exp    指数（>= 0，负指数不支持返回 false）
+ * @param mul    乘法回调（NULL 返回 false）
+ * @param result 输出 base^exp
+ * @return true 成功
+ */
+static inline bool lv_pow_sq_i64(int64_t base, int64_t exp, lv_pow_mul_i64_fn mul, int64_t *result) {
+    if (!result || !mul || exp < 0)
+        return false;
+    if (exp == 0) {
+        *result = 1;
+        return true;
+    }
+    int64_t b = base, e = exp, r = 1;
+#define LV_I64_POW_MUL(x, y)        \
+    do {                            \
+        if (!mul(x, y, &x))         \
+            return false;           \
+    } while (0)
+    lv_POW_SQUARING(b, e, r, LV_I64_POW_MUL);
+#undef LV_I64_POW_MUL
+    *result = r;
+    return true;
+}
+
 #ifdef __cplusplus
 }
 #endif

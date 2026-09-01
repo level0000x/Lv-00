@@ -10,6 +10,7 @@
  */
 
 #include "lv/algebraic_number.h"
+#include "lv/lv_arith_safe.h" /* lv_POW_SQUARING（K2/F33 快速幂单骨架） */
 #include "lv/lv_str_utils.h"
 #include "lv/lv_strbuf.h"
 #include "lv/lv_xmacro.h"
@@ -206,30 +207,22 @@ AlgRational lv_alg_rational_pow(const AlgRational *a, int n, AlgRationalError *e
         return lv_alg_rational_one();
     }
 
-    /* 快速幂算法 */
+    /* 快速幂算法（K2/F33：骨架委托 lv_POW_SQUARING 单实现，mul 注入域内乘法） */
     AlgRational base = *a;
     AlgRational result = lv_alg_rational_one();
     int exp = n;
 
-    while (exp > 0) {
-        if (exp & 1) {
-            AlgRationalError mul_err;
-            result = lv_alg_rational_mul(&result, &base, &mul_err);
-            if (mul_err != lv_alg_rational_OK) {
-                alg_set_error_rational(err, mul_err);
-                return lv_alg_rational_zero();
-            }
-        }
-        exp >>= 1;
-        if (exp > 0) {
-            AlgRationalError sq_err;
-            base = lv_alg_rational_mul(&base, &base, &sq_err);
-            if (sq_err != lv_alg_rational_OK) {
-                alg_set_error_rational(err, sq_err);
-                return lv_alg_rational_zero();
-            }
-        }
-    }
+#define LV_ALG_POW_MUL(x, y)                                            \
+    do {                                                                \
+        AlgRationalError me;                                            \
+        x = lv_alg_rational_mul(&x, &y, &me);                           \
+        if (me != lv_alg_rational_OK) {                                 \
+            alg_set_error_rational(err, me);                            \
+            return lv_alg_rational_zero();                              \
+        }                                                               \
+    } while (0)
+    lv_POW_SQUARING(base, exp, result, LV_ALG_POW_MUL);
+#undef LV_ALG_POW_MUL
 
     alg_set_error_rational(err, lv_alg_rational_OK);
     return result;

@@ -689,6 +689,9 @@ static bool op_mul(const LvVal *a, int n, LvVal *o) {
 }
 static bool op_pow(const LvVal *a, int n, LvVal *o) {
     if (n != 2 || a[0].kind != LV_VAL_NUM || a[1].kind != LV_VAL_NUM || a[1].num < 0) return false;
+    /* K2/F33 决策登记：验证器整数幂保留饱和线性循环（超过
+     * 0x3fffffffffffffff 停止累乘），未委托 lv_pow_sq_i64——溢出语义不同
+     * （验证器饱和 vs 权威溢出报错），行为差异属有意保留 */
     long long v = 1;
     for (long long i = 0; i < a[1].num && v <= 0x3fffffffffffffffLL; i++)
         v *= a[0].num;

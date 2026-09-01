@@ -59,36 +59,9 @@ bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out) {
  * @return true 成功，false 溢出或 b < 0
  */
 bool lv_safe_pow(int64_t a, int64_t b, int64_t *result) {
-    if (!result)
-        return false;
-    if (b < 0)
-        return false; /* 负指数不支持（结果不是整数） */
-
-    if (b == 0) {
-        *result = 1;
-        return true;
-    }
-
-    int64_t base = a;
-    int64_t exp = b;
-    int64_t res = 1;
-
-    while (exp > 0) {
-        if (exp & 1) {
-            /* res *= base */
-            if (!lv_safe_mul_impl(res, base, &res))
-                return false;
-        }
-        exp >>= 1;
-        if (exp > 0) {
-            /* base *= base */
-            if (!lv_safe_mul_impl(base, base, &base))
-                return false;
-        }
-    }
-
-    *result = res;
-    return true;
+    /* K2/F33：委托参数化快速幂设施 lv_pow_sq_i64（lv_arith_safe.h），
+     * mul 回调 = lv_safe_mul_i64（溢出检查），骨架单实现 */
+    return lv_pow_sq_i64(a, b, lv_safe_mul_i64, result);
 }
 
 /* ========================================================================

@@ -11,6 +11,7 @@
 
 #include "lv/lv_number.h"
 #include "lv/lv_numeric.h"
+#include "lv/lv_arith_safe.h" /* lv_POW_SQUARING（K2/F33 快速幂单骨架） */
 #include "lv/rational.h"
 #include "lv/lv_parse_utils.h"
 #include "lv/lv_utils.h"
@@ -586,7 +587,7 @@ lvNumber *lv_number_pow(const lvNumber *base, int exp) {
         return result;
     }
 
-    /* 快速幂算法 */
+    /* 快速幂算法（K2/F33：骨架委托 lv_POW_SQUARING 单实现，mul 注入对象乘法） */
     lvNumber *result = lv_number_from_int(1);
     lvNumber *cur = lv_number_clone(base);
     if (!result || !cur) {
@@ -596,21 +597,20 @@ lvNumber *lv_number_pow(const lvNumber *base, int exp) {
     }
 
     int e = exp;
-    while (e > 0) {
-        if (e & 1) {
-            lvNumber *new_result = lv_number_mul(result, cur);
-            lv_number_destroy(result);
-            result = new_result;
-            if (!result) { lv_number_destroy(cur); return NULL; }
-        }
-        e >>= 1;
-        if (e > 0) {
-            lvNumber *new_cur = lv_number_mul(cur, cur);
-            lv_number_destroy(cur);
-            cur = new_cur;
-            if (!cur) { lv_number_destroy(result); return NULL; }
-        }
-    }
+#define LV_NUM_POW_MUL(x, y)                        \
+    do {                                            \
+        lvNumber *nm = lv_number_mul(x, y);         \
+        lv_number_destroy(x);                       \
+        x = nm;                                     \
+        if (!x) {                                   \
+            /* x 已置 NULL；销毁另一存活对象后返回（双销毁 NULL 安全） */ \
+            lv_number_destroy(cur);                 \
+            lv_number_destroy(result);              \
+            return NULL;                            \
+        }                                           \
+    } while (0)
+    lv_POW_SQUARING(cur, e, result, LV_NUM_POW_MUL);
+#undef LV_NUM_POW_MUL
     lv_number_destroy(cur);
     return result;
 }

@@ -77,6 +77,32 @@ static void test_squarefree(void) {
     TEST_ASSERT_EQ((long long) lv_squarefree_i64(-9223372036854775807LL - 1), -2LL);
 }
 
+/* K2/F33：自定义饱和乘法回调（验证 lv_pow_sq_i64 的 mul 参数化可换溢出策略） */
+static bool sat_mul(int64_t a, int64_t b, int64_t *out) {
+    *out = (a > 0 && b > 0 && a > INT64_MAX / b) ? INT64_MAX : a * b;
+    return true;
+}
+
+/* K2/F33：lv_pow_sq_i64 参数化快速幂设施（mul 回调注入） */
+static void test_pow_sq_i64(void) {
+    int64_t r = 0;
+
+    /* 权威回调：lv_safe_mul_i64（与 lv_safe_pow 同语义） */
+    TEST_ASSERT(lv_pow_sq_i64(2, 10, lv_safe_mul_i64, &r), "2^10");
+    TEST_ASSERT_EQ((long long) r, 1024LL);
+    TEST_ASSERT(lv_pow_sq_i64(3, 0, lv_safe_mul_i64, &r), "3^0");
+    TEST_ASSERT_EQ((long long) r, 1LL);
+    TEST_ASSERT(lv_pow_sq_i64(-2, 3, lv_safe_mul_i64, &r), "(-2)^3");
+    TEST_ASSERT_EQ((long long) r, -8LL);
+    TEST_ASSERT(!lv_pow_sq_i64(2, -1, lv_safe_mul_i64, &r), "negative exponent");
+    TEST_ASSERT(!lv_pow_sq_i64(2, 3, NULL, &r), "NULL mul callback");
+    TEST_ASSERT(!lv_pow_sq_i64(2, 63, lv_safe_mul_i64, &r), "overflow detected");
+
+    /* 饱和回调：2^62 不溢出（验证骨架换溢出策略） */
+    TEST_ASSERT(lv_pow_sq_i64(2, 62, sat_mul, &r), "sat 2^62");
+    TEST_ASSERT_EQ((long long) r, (long long) (1LL << 62));
+}
+
 /* ============== Main ============== */
 
 TEST_MAIN_BEGIN("ExactArithmeticExt")
@@ -84,6 +110,7 @@ TEST_MAIN_BEGIN("ExactArithmeticExt")
     printf("\n--- exact_arithmetic (zero-coverage) ---\n");
     TEST_MAIN_RUN(test_timestamp_now);
     TEST_MAIN_RUN(test_safe_pow);
+    TEST_MAIN_RUN(test_pow_sq_i64); /* K2/F33 */
     TEST_MAIN_RUN(test_squarefree); /* K2/F33 */
 
 TEST_MAIN_END()
