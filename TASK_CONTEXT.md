@@ -10519,3 +10519,34 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - 下一批候选：K5 USE_CASES 预设名核对 / 示例同步机制（符号存在性脚本）/
   demo.py 处置（确认点）。
+
+---
+
+## 批次 197（K5 系列 + K10 收尾，自主推进轮）
+
+### ① 改动（5 提交）
+
+| 提交 | 内容 |
+| --- | --- |
+| 3fc2840d | K10 三态标注全覆盖 43→79 处 + expr_canon free() UB |
+| e8f3bc82 + a4260a50 | K5 幻影 API：README（_ex×3/lv_get_version_info）+ API_QUICKSTART（6 幻影 + 最小示例重写 + 25 处引擎模型）+ lv.h lv_SOLVE_SUCCESS |
+| e7e8e988 + 18bcee65 | USE_CASES：34 处失效 load 预设名 + 19 处虚构 apply 名 → 真实注册名 |
+| af60664c | tools/symbol_sync_check.py（文档符号存在性检查）+ 23_core_infrastructure _ex 幻影 + 32_runtime_monitoring K65 已删 API 标注 |
+| 8e4266f2 | ci.yml symbol-sync job |
+
+### ② 验证
+
+- 5 提交 push 成功；构建不受影响（纯文档/工具）；symbol_sync 抓出真幻影已修。
+
+### 剩余确认点（需用户评审）
+
+- examples/demo.py 桩示例（假 API lvLang 演示，无真实功能）处置——删除需评审；
+- 其余文档幻影（lv_PROPAGATE_ERROR/lv_debug_print_graph/lv_module_find/
+  lv_MODULE_DEPENDS_ON/lv_REGISTER_STREAM_CTX/lv_reasoning_cache_* 等 ~20 处）
+  修正或标注——部分可能是删除类；
+- K68 死平台 include 分支删除（4 处死 include）。
+
+### 决策登记
+
+- K5 主体完成（幻影 API 修正 + 同步机制工具+CI）；USE_CASES 预设名全收口；
+- K10 全覆盖完成（79 标注 + 检查工具 CI）。
