@@ -97,6 +97,17 @@ static void set_last_error(lvSession *s, lvOrchestratorInternal *in, const char 
         lv_strlcpy(s->final_error, msg, sizeof(s->final_error));
 }
 
+/* K61 保根因：失败路径把底层错误详情并入阶段错误消息——原静态通用文本
+ * （如「推理失败：引擎错误」）覆盖底层错误，从不读 lv_get_last_error_message()/
+ * engine_get_last_error()。cause 为 NULL/空时回退静态文本。 */
+static void set_error_msg_cause(lvSession *s, lvSessionStage st, const char *prefix,
+                                const char *cause) {
+    if (cause && cause[0])
+        set_error_msg(s, st, "%s：%s", prefix, cause);
+    else
+        set_error_msg(s, st, "%s", prefix);
+}
+
 /* ---------------- 阶段实现 ---------------- */
 
 static int run_stage_parse(lvSession *s) {
@@ -113,7 +124,7 @@ static int run_stage_parse(lvSession *s) {
     }
     if (!dsl_tokenize(in->input, &in->tokens, &in->token_count)) {
         set_last_error(s, in, "标记化失败：语法无法识别");
-        set_error_msg(s, lv_STAGE_PARSE, "解析失败：标记化失败");
+        set_error_msg_cause(s, lv_STAGE_PARSE, "解析失败：标记化失败", lv_get_last_error_message());
         return -1;
     }
     if (in->token_count < 1) {
@@ -124,7 +135,7 @@ static int run_stage_parse(lvSession *s) {
     DslAST *ast = NULL;
     if (!dsl_parse(in->tokens, in->token_count, &ast)) {
         set_last_error(s, in, "语法错误");
-        set_error_msg(s, lv_STAGE_PARSE, "解析失败：语法错误");
+        set_error_msg_cause(s, lv_STAGE_PARSE, "解析失败：语法错误", lv_get_last_error_message());
         return -1;
     }
     dsl_ast_destroy(ast);
@@ -142,7 +153,7 @@ static int run_stage_resource(lvSession *s) {
         in->ctx = lv_context_create();
         if (!in->ctx) {
             set_last_error(s, in, "上下文创建失败");
-            set_error_msg(s, lv_STAGE_RESOURCE, "资源加载失败：上下文创建失败");
+            set_error_msg_cause(s, lv_STAGE_RESOURCE, "资源加载失败：上下文创建失败", lv_get_last_error_message());
             return -1;
         }
     }
@@ -165,7 +176,7 @@ static int run_stage_geometry(lvSession *s) {
     ConstraintGraph *g = graph_create();
     if (!g) {
         set_last_error(s, in, "约束图创建失败");
-        set_error_msg(s, lv_STAGE_GEOMETRY, "几何构造失败：约束图创建失败");
+        set_error_msg_cause(s, lv_STAGE_GEOMETRY, "几何构造失败：约束图创建失败", lv_get_last_error_message());
         return -1;
     }
     DslCompileConfig cc;
@@ -173,7 +184,7 @@ static int run_stage_geometry(lvSession *s) {
     if (!dsl_compile_and_load(in->input, &cc, g)) {
         graph_destroy(g);
         set_last_error(s, in, "DSL 编译失败");
-        set_error_msg(s, lv_STAGE_GEOMETRY, "几何构造失败：DSL 编译失败");
+        set_error_msg_cause(s, lv_STAGE_GEOMETRY, "几何构造失败：DSL 编译失败", lv_get_last_error_message());
         return -1;
     }
     in->graph = g;
@@ -199,7 +210,7 @@ static int run_stage_reasoning(lvSession *s) {
         in->engine = engine_create();
         if (!in->engine) {
             set_last_error(s, in, "引擎创建失败");
-            set_error_msg(s, lv_STAGE_REASONING, "推理失败：引擎创建失败");
+            set_error_msg_cause(s, lv_STAGE_REASONING, "推理失败：引擎创建失败", lv_get_last_error_message());
             return -1;
         }
     }
@@ -219,7 +230,9 @@ static int run_stage_reasoning(lvSession *s) {
     }
     if (r == ENGINE_SOLVE_ERROR) {
         set_last_error(s, in, "推理错误");
-        set_error_msg(s, lv_STAGE_REASONING, "推理失败：引擎错误");
+        /* K61 保根因：引擎专属错误详情优先（engine_get_last_error），TLS 兜底 */
+        set_error_msg_cause(s, lv_STAGE_REASONING, "推理失败：引擎错误",
+                            engine_get_last_error(in->engine));
         return -1;
     }
     int ms = (int)s->stages[lv_STAGE_REASONING].elapsed_ms;
@@ -241,7 +254,7 @@ static int run_stage_output(lvSession *s) {
     char *json = graph_serialize_to_json(in->graph);
     if (!json) {
         set_last_error(s, in, "序列化失败");
-        set_error_msg(s, lv_STAGE_OUTPUT, "输出失败：序列化失败");
+        set_error_msg_cause(s, lv_STAGE_OUTPUT, "输出失败：序列化失败", lv_get_last_error_message());
         return -1;
     }
     int bytes = (int)strlen(json);
@@ -273,7 +286,7 @@ static int run_stage_visual(lvSession *s) {
     int n = lv_tikz_export((void *)in->graph, buf, sizeof(buf));
     if (n <= 0) {
         set_last_error(s, in, "TikZ 渲染失败");
-        set_error_msg(s, lv_STAGE_VISUAL, "可视化失败：TikZ 渲染失败");
+        set_error_msg_cause(s, lv_STAGE_VISUAL, "可视化失败：TikZ 渲染失败", lv_get_last_error_message());
         return -1;
     }
     set_error_msg(s, lv_STAGE_VISUAL, "可视化完成：TikZ 渲染 %d 字节 (输出结构化)", n);
