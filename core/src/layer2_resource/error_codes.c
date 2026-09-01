@@ -163,8 +163,15 @@ bool lv_error_table_validate(void) {
  * @brief 获取当前线程的最后错误码
  * @return 当前线程存储的最后错误码（lvErrorCode 枚举值）
  * @note 此函数返回的是线程局部存储的错误码，每个线程有独立的错误状态
+ *
+ * K61 接线：新式错误帧栈有帧时返回栈顶帧错误码（最新错误）——写端桥接
+ * 已同步（lv_set_error/lv_set_error_ctx 推帧、lv_clear_error 清帧；帧栈满
+ * 丢最旧帧，栈顶恒为最新），读端零改动获得 8 帧回溯/根因能力。
  */
 lvErrorCode lv_get_last_error_code(void) {
+    lvErrorContext *ctx = lv_error_context_current();
+    if (lv_error_has_error(ctx))
+        return (lvErrorCode) lv_error_code(ctx);
     return g_last_error_code;
 }
 
@@ -172,8 +179,14 @@ lvErrorCode lv_get_last_error_code(void) {
  * @brief 获取当前线程的最后错误消息
  * @return 错误消息字符串指针。如果未设置自定义消息，则返回错误码对应的默认描述
  * @note 返回的指针指向线程局部缓冲区，无需由调用者释放
+ *
+ * K61 接线：帧栈有帧时返回栈顶帧消息（与旧 TLS 消息同文，写端桥接同源推入），
+ * 帧栈为空时回退旧 TLS 路径（含默认错误描述）。
  */
 const char *lv_get_last_error_message(void) {
+    lvErrorContext *ctx = lv_error_context_current();
+    if (lv_error_has_error(ctx))
+        return lv_error_message(ctx);
     if (g_error_message[0] == '\0') {
         return lv_error_string(g_last_error_code);
     }
