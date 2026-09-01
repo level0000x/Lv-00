@@ -9923,3 +9923,38 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - lv_safe_mul_impl 薄转发保留（公开 API 兼容）。
 - 下一批候选：K63 lv_mask_* 推广补 64 位 / K63 lv_bitset 位图容器 /
   F24 P0-② lv_loader 只产 AST（大重构需讨论）。
+
+---
+
+## 批次 172（K63/F89：lv_bitset 唯一位图容器）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| core/include/lv/lv_bitset.h（新增） | lvBitset 位图容器（uint64 词数组，static inline 纯工具）：init/reserve（按 max_id 扩容保留已置位）/set/test/clear/clear_all/destroy；越界静默；依赖 lv_utils.h（L2） |
+| relation_model.c | 手写 uint8 位图（SEEN_SET/SEEN_TEST 宏 + 动态字节数组）收编到 lv_bitset（reflexive closure 去重），删除 3 个宏 |
+| test/c/test_lv_bitset_ext.c（新增） | 3 组测试：基础 set/test/clear/clear_all/越界、扩容保留已置位、relation_model 去重语义复现（{0,3,64,129} 去重 4 唯一） |
+| CMakeLists.txt | 注册 test_lv_bitset_ext（CTEST_NAME lv_bitset_ext_test） |
+| tools/layer_dep_matrix.py | 归属表登记 lv_bitset.h → L2 |
+
+### ② 验证
+
+- build3 ctest **289/289**（新增 lv_bitset_ext_test）；build_layerval 通过；
+  依赖矩阵 0 违规（未登记 0）；
+- commit f08be588（feat(arch): add lv_bitset bitmap container absorbing
+  relation_model handwritten bitmap (K63/F89)，amend 含脚本归属修正），push 成功，CI 待验证。
+
+### 决策登记
+
+- K63/F89 lv_bitset 落地：全库唯一真位图收编（relation_model 手写 uint8 位图）；
+  无独立上限闸门（容量仅受内存约束，reserve 按最大 ID）；
+- visited 集合形态登记（设计 L1928）：solver_core int 数组 / logic_check int
+  seen[26] 小规模保留（规模规则登记），仅真位图收编。
+
+### 遗留登记
+
+- F89 剩余：lv_mask_* 推广补 64 位（存量 20+ 裸位运算收编/豁免）、
+  lv_PLUGIN_CAP_* 死协议处置（删除需评审）。
+- 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST（大重构需讨论）/
+  J1 once_reset 剩余（config/ecosystem 未重置点）。
