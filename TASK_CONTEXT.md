@@ -10475,3 +10475,20 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K66 剩余：死池删除（symbolic/proof 池 0 使用，删除需评审红线①）。
 - 下一批候选：K66 死池删除评审 / F39 收尾（文档对齐）/ K63 剩余。
+
+---
+
+## 批次 195（决策登记：K66 死池保留 + K10 对齐归属确认）
+
+### 决策登记
+
+- K66 死池（symbolic_coord/proof_step，全库 0 使用）：用户 2026-09-01 决策
+  **保留 + M6 登记**（memory_pool.c 注释已有，不删除）；
+- K10 API_QUICKSTART 对齐（normalization_result_free→destroy）：设计 L1309
+  归属「随 K5 示例面修正归档消解」——不单独做，K10 主体完成
+  （memory-ownership.md + 14 处错误注释修复 + 43 处三态标注 + 检查脚本+CI）。
+
+### 遗留登记
+
+- 下一批候选：K5 示例面修正（P0 F35：API_QUICKSTART 重写 + 根 README 4 幻影
+  API + USE_CASES 失效骨架，大工程）/ K10 标注全覆盖剩余 / K67 等。
