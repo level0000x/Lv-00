@@ -579,7 +579,8 @@ lv_PUBLIC_API NormalizationResult *lv_normalize(lvEngine *engine, bool scope_awa
  * 这是 Lv-00 的核心推理入口。
  *
  * @param[in,out] engine 引擎实例
- * @return 求解结果状态码（lv_SOLVE_SUCCESS 等）
+ * @return 求解结果状态码（ENGINE_SOLVE_OK 等；K5：原注释 lv_SOLVE_SUCCESS
+ *         为幻影枚举，实际 EngineSolveResult 成员见 engine.h）
  *
  * @note   求解可能耗时较长，对于复杂问题建议设置超时（通过配置 API）。
  *
@@ -587,10 +588,10 @@ lv_PUBLIC_API NormalizationResult *lv_normalize(lvEngine *engine, bool scope_awa
  * @code
  *   EngineSolveResult result = lv_solve(engine);
  *   switch (result) {
- *       case lv_SOLVE_SUCCESS:
+ *       case ENGINE_SOLVE_OK:
  *           printf("Solved successfully\n");
  *           break;
- *       case lv_SOLVE_TIMEOUT:
+ *       case ENGINE_SOLVE_TIMEOUT:
  *           printf("Solver timed out\n");
  *           break;
  *       default:
