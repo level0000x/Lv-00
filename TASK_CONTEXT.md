@@ -10273,3 +10273,30 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F39 后续：[copy]/[take]/[borrow] 头注释全覆盖（~40+ 处「调用者负责 free」
   逐点核对）+ 静态检查脚本接入 CI + graph_get_node 借用语义头注释补齐。
 - 下一批候选：K10 注释全覆盖首批 / K65 死 sink 清理（删除需评审）/ K62 INI 统一。
+
+---
+
+## 批次 184（K10/F39：12 处 free/lv_free 混合分配器注释修复）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| 9 个头文件 | 「调用者负责 free」→「调用者负责 lv_free」12 处（approx_counter/atp_backend/axiom_pkg/bdd_encoding/constraint_graph×4/engine/module/float_error/memory_pool）——字符串/数组返回均经 lv 分配器（lv_json_buf_finalize/lv_strbuf/lv_calloc 核对），free() 是混合分配器 UB（K10 判定「~40+ 头注释无法审计」首批） |
+
+### ② 验证
+
+- build3 ctest **289/289**；commit 1dbdbff3（docs(arch): fix 12 caller-free
+  ownership comments to lv_free (K10/F39 allocator pairing)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K10 审计方法：字符串/数组返回 API 的释放标注以**实现分配器**为准（读 .c 的
+  lv_json_buf_finalize/lv_calloc/lv_malloc），非头注释声称；
+- memory-ownership.md 配对规则（批次 183）落地 12 处。
+
+### 遗留登记
+
+- F39 剩余：其余「调用者负责 free/lv_free」混用注释（ga_codegen/ga_interface 等
+  destroy 配对族已正确）、[copy]/[take]/[borrow] 全覆盖标注、静态检查脚本。
+- 下一批候选：K10 标注全覆盖 / K65 死 sink（删除需评审）/ K62 INI 统一。
