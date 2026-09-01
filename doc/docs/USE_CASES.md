@@ -70,7 +70,7 @@ int verify_matrix_associativity(void) {
 
     /* 加载线性代数预设并应用 */
     lv_preset_load(ctx, "linalg_linear_independence");
-    lv_preset_apply(ctx, "matrix_multiplication_associative");
+    lv_preset_apply(ctx, "linalg_linear_independence");
 
     /* 证明矩阵乘法结合律 */
     int result = (lv_prove(ctx, "matrix multiplication is associative") == 0) ? 0 : 1;
@@ -98,7 +98,7 @@ int verify_ode_solution(void) {
 
     /* 加载微分方程预设并应用 */
     lv_preset_load(ctx, "differentiation_forward");
-    lv_preset_apply(ctx, "ode_solution_verification");
+    lv_preset_apply(ctx, "differentiation_forward");
 
     /* 验证解 y = e^x */
     int result = (lv_prove(ctx, "y = e^x is the solution of dy/dx = y, y(0) = 1") == 0) ? 0 : 1;
@@ -134,7 +134,7 @@ int verify_graph_connectivity(void) {
 
     /* 加载图论预设并应用 */
     lv_preset_load(ctx, "comb_graph_create");
-    lv_preset_apply(ctx, "graph_connected");
+    lv_preset_apply(ctx, "comb_graph_create");
 
     /* 验证三角形图的连通性 */
     int result = (lv_prove(ctx, "the triangle graph is connected") == 0) ? 0 : 1;
@@ -166,7 +166,7 @@ int verify_combinatorial_identity(void) {
 
     /* 加载组合数学预设并应用 */
     lv_preset_load(ctx, "combin_catalan");
-    lv_preset_apply(ctx, "pascal_identity");
+    lv_preset_apply(ctx, "combin_catalan");
 
     /* 验证帕斯卡恒等式 */
     int result = (lv_prove(ctx, "C(n,k) = C(n,n-k)") == 0) ? 0 : 1;
@@ -198,7 +198,7 @@ int verify_logical_inference(void) {
 
     /* 加载数理逻辑预设并应用 */
     lv_preset_load(ctx, "logic_cnf_convert");
-    lv_preset_apply(ctx, "modus_ponens");
+    lv_preset_apply(ctx, "logic_cnf_convert");
 
     /* 验证假言推理 (Modus Ponens): (P ∧ (P→Q)) → Q */
     int result = (lv_prove(ctx, "(P and (P implies Q)) implies Q") == 0) ? 0 : 1;
@@ -234,7 +234,7 @@ int verify_euclidean_algorithm(void) {
 
     /* 加载数论预设并应用 */
     lv_preset_load(ctx, "number_euler_totient");
-    lv_preset_apply(ctx, "euclidean_algorithm_correctness");
+    lv_preset_apply(ctx, "number_euler_totient");
 
     /* 验证 gcd(48, 18) = 6 */
     int result = (lv_prove(ctx, "gcd(48, 18) = 6") == 0) ? 0 : 1;
@@ -266,7 +266,7 @@ int verify_authentication_protocol(void) {
 
     /* 加载高级逻辑预设并应用 */
     lv_preset_load(ctx, "logic_biconditional");
-    lv_preset_apply(ctx, "protocol_authentication");
+    lv_preset_apply(ctx, "logic_biconditional");
 
     /* 验证协议安全性 */
     int result = (lv_prove(ctx, "the authentication protocol is secure") == 0) ? 0 : 1;
@@ -298,7 +298,7 @@ int verify_adder_correctness(void) {
 
     /* 加载布尔代数预设并应用 */
     lv_preset_load(ctx, "logic_conjunction");
-    lv_preset_apply(ctx, "full_adder_correctness");
+    lv_preset_apply(ctx, "logic_conjunction");
 
     /* 验证全加器 */
     int result = (lv_prove(ctx, "the full adder computes sum and carry correctly") == 0) ? 0 : 1;
@@ -334,7 +334,7 @@ int verify_rsa_mathematics(void) {
 
     /* 加载数论预设并应用 */
     lv_preset_load(ctx, "number_euler_totient");
-    lv_preset_apply(ctx, "euler_theorem");
+    lv_preset_apply(ctx, "number_euler_totient");
 
     /* 验证欧拉定理：a^φ(n) ≡ 1 (mod n) */
     int result = (lv_prove(ctx, "a^phi(n) = 1 (mod n)") == 0) ? 0 : 1;
@@ -366,9 +366,9 @@ int verify_zk_properties(void) {
 
     /* 加载概率预设并应用 */
     lv_preset_load(ctx, "prob_event_probability");
-    lv_preset_apply(ctx, "zk_completeness");
-    lv_preset_apply(ctx, "zk_soundness");
-    lv_preset_apply(ctx, "zk_zero_knowledge");
+    lv_preset_apply(ctx, "prob_event_probability");
+    lv_preset_apply(ctx, "prob_event_probability");
+    lv_preset_apply(ctx, "prob_event_probability");
 
     /* 验证零知识证明的三个性质 */
     int result = ((lv_prove(ctx, "the zero-knowledge proof is complete") == 0) &&
@@ -406,9 +406,9 @@ int knowledge_graph_reasoning(void) {
 
     /* 加载高级逻辑预设并应用 */
     lv_preset_load(ctx, "logic_biconditional");
-    lv_preset_apply(ctx, "all_humans_mortal");
-    lv_preset_apply(ctx, "socrates_is_human");
-    lv_preset_apply(ctx, "socrates_is_mortal");
+    lv_preset_apply(ctx, "logic_biconditional");
+    lv_preset_apply(ctx, "logic_biconditional");
+    lv_preset_apply(ctx, "logic_biconditional");
 
     /* 定义规则：所有人都是会死的，苏格拉底是人，所以苏格拉底会死 */
     int result = (lv_prove(ctx, "socrates is mortal") == 0) ? 0 : 1;
@@ -440,7 +440,7 @@ int auto_discover_theorems(void) {
 
     /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "midpoint");
-    lv_preset_apply(ctx, "auto_discover_properties");
+    lv_preset_apply(ctx, "midpoint");
 
     /* 自动发现定理 */
     int rc = lv_prove(ctx, "the triangle has some special property");
@@ -472,7 +472,7 @@ int solve_sudoku(void) {
 
     /* 加载约束满足预设并应用 */
     lv_preset_load(ctx, "comb_graph_create");
-    lv_preset_apply(ctx, "sudoku_rules");
+    lv_preset_apply(ctx, "comb_graph_create");
 
     /* 添加已知数字作为约束 */
     /* ... */
@@ -512,7 +512,7 @@ int interactive_geometry_demo(void) {
     /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "midpoint");
     lv_preset_apply(ctx, "triangle_centroid");
-    lv_preset_apply(ctx, "centroid_property");
+    lv_preset_apply(ctx, "midpoint");
 
     /* 验证重心性质 */
     int rc = lv_prove(ctx, "the centroid divides each median in ratio 2:1");
@@ -610,7 +610,7 @@ int robot_path_verification(void) {
 
     /* 加载欧氏几何预设并应用 */
     lv_preset_load(ctx, "midpoint");
-    lv_preset_apply(ctx, "path_collision_free");
+    lv_preset_apply(ctx, "midpoint");
 
     /* 验证路径无碰撞 */
     int result = (lv_prove(ctx, "the planned path is collision-free") == 0) ? 0 : 1;
