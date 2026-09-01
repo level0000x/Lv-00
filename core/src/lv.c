@@ -25,6 +25,7 @@
 #include "lv/ecosystem.h"
 #include "lv/formula_converter.h"
 #include "lv/lv_config.h" /* lv_config_snapshot_cleanup（F43/K15 方案 B） */
+#include "lv/lv_file.h" /* lv_file_exists（K62/F88 A JSON 配置加载接线） */
 #include "lv/lv_error.h"
 #include "lv/lv_registry.h"
 #include "lv/memory_pool.h"
@@ -190,6 +191,16 @@ static bool lv_module_init_config(void) {
             lv_set_memory_limit((size_t) mem_limit_mb * lv_MB_I);
         } else {
             LOG_WARN("lv", "内存限制值 %d MB 过大，已忽略", mem_limit_mb);
+        }
+    }
+
+    /* K62/F88：A JSON 配置加载接线——lv_config_load_json 原仅测试调用
+     * （生产"配置不落盘+不加载"，改了不生效）；存在 lv.config.json 时应用
+     * （文件缺失静默跳过，默认配置继续生效）。lv_config_load_json 会把
+     * 文件键经 lv_config_apply 覆盖当前快照，缺省键保持默认。 */
+    if (lv_file_exists("lv.config.json")) {
+        if (lv_config_load_json("lv.config.json") != 0) {
+            LOG_WARN("lv", "lv.config.json 解析失败，使用默认配置");
         }
     }
 

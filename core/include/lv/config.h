@@ -1036,22 +1036,31 @@ void lv_config_reset(void);
  * 集中定义所有运行时字符串配置键，使用处一律引用宏而非裸字符串字面量，
  * 以获得编译期拼写检查（LV_CFG_* 前缀，区别于 lv_CONFIG_* 编译期常量
  * 与 LV_CONFIG_INT_KEYS / LV_CONFIG_DOUBLE_KEYS 的 JSON 键 X-macro）。
- * 其中与 lvConfig 结构体系统同名的键（如 cdcl_max_steps）两侧命名一致，
- * 但分属不同的配置存储，勿混淆。
+ *
+ * K62/F88 对拍登记（消除覆盖假象，2026-09-01）：lv_config_get_* 与 set_* 的
+ * 统一分发为「A 优先、B 回落」（lv.c v4 配置归一）：
+ *   - 与 A 注册表（LV_CONFIG_INT_KEYS/DOUBLE_KEYS）**同名**的 5 键
+ *     （circuit_overflow_threshold / smoke_test_step_limit /
+ *     smoke_test_timeout_ms / buchberger_max_steps /
+ *     groebner_reduce_max_steps）是 **A 键别名**——读返回 lvConfig 单例
+ *     （默认值与 A 一致，消费端 default 参数已对拍一致），lv_config_set_int
+ *     写 A 单例生效；**不是**独立存储（旧注释「分属不同存储」为误导）。
+ *   - 其余 28 键未注册 A → 回落系统 B（ConfigManager），set_bool/set_string
+ *     可配可读。
  * ==================================================================== */
 #define LV_CFG_META_PROOF_TIMEOUT_MS       "meta_proof_timeout_ms"
 #define LV_CFG_TYPE_INFER_MAX_DEPTH        "type_infer_max_depth"
 #define LV_CFG_TYPE_EQUIV_MAX_DEPTH        "type_equiv_max_depth"
-#define LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD  "circuit_overflow_threshold"
+#define LV_CFG_CIRCUIT_OVERFLOW_THRESHOLD  "circuit_overflow_threshold" /* A 键别名：lvConfig.health.circuit_overflow_threshold */
 #define LV_CFG_CDCL_MAX_STEPS              "cdcl_max_steps"
 #define LV_CFG_CDCL_MAX_DECISIONS          "cdcl_max_decisions"
 #define LV_CFG_CDCL_MAX_RESTARTS           "cdcl_max_restarts"
 #define LV_CFG_SMT_SOLVER_TIMEOUT_MS       "smt_solver_timeout_ms"
-#define LV_CFG_SMOKE_TEST_STEP_LIMIT       "smoke_test_step_limit"
-#define LV_CFG_SMOKE_TEST_TIMEOUT_MS       "smoke_test_timeout_ms"
+#define LV_CFG_SMOKE_TEST_STEP_LIMIT       "smoke_test_step_limit" /* A 键别名：lvConfig.test.smoke_test_step_limit */
+#define LV_CFG_SMOKE_TEST_TIMEOUT_MS       "smoke_test_timeout_ms" /* A 键别名：lvConfig.test.smoke_test_timeout_ms */
 #define LV_CFG_BUCHBERGER_TIME_BUDGET_MS   "buchberger_time_budget_ms"
-#define LV_CFG_BUCHBERGER_MAX_STEPS        "buchberger_max_steps"
-#define LV_CFG_GROEBNER_REDUCE_MAX_STEPS   "groebner_reduce_max_steps"
+#define LV_CFG_BUCHBERGER_MAX_STEPS        "buchberger_max_steps" /* A 键别名：lvConfig.engine.buchberger_max_steps */
+#define LV_CFG_GROEBNER_REDUCE_MAX_STEPS   "groebner_reduce_max_steps" /* A 键别名：lvConfig.engine.groebner_reduce_max_steps */
 #define LV_CFG_PCTL_VALUE_ITER_MAX         "pctl_value_iter_max"
 #define LV_CFG_PCTL_POWER_ITER_MAX         "pctl_power_iter_max"
 
