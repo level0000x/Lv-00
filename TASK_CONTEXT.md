@@ -10394,3 +10394,27 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - K65 相关：lv_log_set_output（L1951 P1：set_output(NULL) 恢复默认语义）后续评估；
   runtime_monitor 日志双轨（debug 管道 vs lv_log_*）已由委托消除。
 - 下一批候选：F39 收尾（文档对齐）/ K63 剩余 / K66 预设池对拍缺失（P0 防御）。
+
+---
+
+## 批次 192（K66/F96：预设池尺寸编译期对拍 + 死池登记）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| graph_node_alloc.c | 2 条 _Static_assert 编译期对拍：sizeof(GeomNode)<=128（CONSTRAINT_NODE_SIZE）、sizeof(Constraint)<=96（CONSTRAINT_SIZE）——活性池块越界写防御（K66 P0，K43 coeff_pool 同族） |
+| memory_pool.c | symbolic_coord / proof_step 池登记死池（全库 0 使用仅创建占 64/128B×1024，删除需评审红线①） |
+
+### ② 验证
+
+- build3 ctest **289/289**（_Static_assert 生效，结构体未超池尺寸）；
+- commit 480fa032（fix(arch): add active pool-size static asserts, register
+  dead symbolic/proof pools (K66)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K66 预设池对拍补齐：2 活性池编译期断言（GeomNode/Constraint）；
+  symbolic/proof 死池登记（删除需评审）。
+- 下一批候选：K66 Python StreamEvent c_long 绑定缺陷（P0 真实缺陷）/
+  K66 死池删除评审 / F39 收尾。
