@@ -9851,3 +9851,41 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   lv_check_bit_limit）、lv_bitset 位图容器、lv_mask_* 推广补 64 位、
   lv_PLUGIN_CAP_* 处置——后续批次。
 - 下一批候选：K63 位数检查收敛 / F24 P0-② lv_loader 只产 AST / F33 快速幂收尾。
+
+---
+
+## 批次 170（K63/F89 第二批：GMP 位数检查收敛）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| lv_numeric.h（权威） | 新增 lv_mpz_bit_size（mpz_sizeinbase 唯一封装，x==0 返回 0）+ lv_check_bit_limit（SUM/EACH 语义参数化）+ lvBitLimitSemantics 枚举 + RATIONAL_INPLACE_BIT_LIMIT 128 登记注释 |
+| lv_numeric.c（权威） | 两函数实现 |
+| lv_rational.c | 删本地 mpz_bit_size 别名（7 调用点 → lv_mpz_bit_size）；inplace 熔断改 lv_check_bit_limit(EACH)；lv_rational_mul_is_safe 登记 M6（生产零调用、仅测试 3 处、默认 65536 ≠ 权威——处置待评审） |
+| rational.c | check_rational_circuit 分子+分母 → lv_mpz_bit_size（SUM 口径，保留溢出保护）；系数检查 → lv_mpz_bit_size |
+| symbolic_coord_ops.c | rational_total_bits / 系数检查 → lv_mpz_bit_size |
+| symbolic_coord.c | 系数位数 → lv_mpz_bit_size（补 lv_numeric.h include） |
+| symbolic_coord_trust.c | 系数位数 → lv_mpz_bit_size（补 include） |
+| algebraic.c | 连分数分母位数 → lv_mpz_bit_size |
+
+### ② 验证
+
+- build3 ctest **288/288**；build_layerval 通过；依赖矩阵 0 违规；
+- 残余核查：唯一 mpz_sizeinbase 直调在权威实现 lv_numeric.c（正确），其余全走
+  lv_mpz_bit_size（rational.c:119 为缓冲区余量注释非调用）；
+- commit 0511a30f（refactor(arch): converge GMP bit-size checks to lv_mpz_bit_size/
+  lv_check_bit_limit (K63/F89)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K63 P1 GMP 位数检查 5 处收敛完成（rational/lv_rational 别名/symbolic_coord_ops/
+  symbolic_coord/symbolic_coord_trust/algebraic）；
+- "和/每分量"分裂参数化：SUM（rational.c 熔断）/ EACH（lv_rational inplace 128）；
+- lv_rational_mul_is_safe：保留 + M6 登记（删除需评审红线①，待用户裁决）。
+
+### 遗留登记
+
+- F89 剩余：lv_bitset 位图容器（relation_model 手写 uint8 位图收编）、lv_mask_*
+  推广补 64 位、lv_PLUGIN_CAP_* 死协议处置、lv_rational_mul_is_safe 裁决。
+- 下一批候选：K63 lv_mask_* 推广 / F24 P0-② lv_loader 只产 AST / F33 快速幂收尾。
