@@ -282,33 +282,33 @@ class HighDimManager(_PtrOwner):
 
         # 尝试调用 C 库
         try:
-            stats_buf = ctypes.create_string_buffer(24)  # HighDimVisibilityStats: 6 x int32 = 24 bytes
+            stats_buf = ctypes.create_string_buffer(40)  # K66/F96 修复：HighDimVisibilityStats 实际 40B
+            # （2×double + 4×int + bool，8 字节对齐）——原 24B 注释误称 6×int32，
+            # C 写端最小写集（fidelity_ratio@0 / visible_relations@24 /
+            # total_relations@28）超出 24B 缓冲（设计 L756 P0 潜伏越界）
             result = _lib.high_dim_calculate_fidelity(self._ptr, block_id, graph_ptr, stats_buf)
             if result == 0:
-                # HighDimVisibilityStats ctypes 结构体定义：
-                #   int total_relations;       总关系数
-                #   int visible_relations;      可见关系数
-                #   int hidden_relations;       隐藏关系数
-                #   int fidelity_percent;       保真度百分比 (0-100)
-                #   int dimension_count;        维度数
-                #   int projection_plane;        投影平面标识
+                # K66/F96 修复：结构字段与 C 侧 HighDimVisibilityStats 一致
+                # （原 6×int32 布局与 C 完全不符，读出的字段语义全错）
                 class _HighDimVisibilityStats(ctypes.Structure):
                     _fields_ = [
-                        ("total_relations", ctypes.c_int),
+                        ("fidelity_ratio", ctypes.c_double),
+                        ("occlusion_rate", ctypes.c_double),
+                        ("visible_elements", ctypes.c_int),
+                        ("total_elements", ctypes.c_int),
                         ("visible_relations", ctypes.c_int),
-                        ("hidden_relations", ctypes.c_int),
-                        ("fidelity_percent", ctypes.c_int),
-                        ("dimension_count", ctypes.c_int),
-                        ("projection_plane", ctypes.c_int),
+                        ("total_relations", ctypes.c_int),
+                        ("is_below_threshold", ctypes.c_bool),
                     ]
                 stats = ctypes.cast(
                     ctypes.byref(stats_buf), ctypes.POINTER(_HighDimVisibilityStats)
                 ).contents
-                fidelity_ratio = stats.fidelity_percent / 100.0
+                # fidelity_ratio 为 C 侧 double（0~1），直接读取（原
+                # fidelity_percent/100.0 为错误字段布局下的错误换算）
                 return {
                     "total_relations": stats.total_relations,
                     "visible_relations": stats.visible_relations,
-                    "fidelity_ratio": fidelity_ratio,
+                    "fidelity_ratio": stats.fidelity_ratio,
                 }
         except (AttributeError, OSError):
             pass  # C 库不可用，回退到纯 Python
