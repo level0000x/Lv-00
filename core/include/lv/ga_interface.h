@@ -133,8 +133,8 @@ lv_PUBLIC_API lvMultiVector *ga_embed_ray(const lvMultiVector *origin, const lvM
  * @brief Extract ray parameters from a PGA ray
  *
  * @param mv       Ray multivector (bivector)
- * @param out_origin  Output origin point (caller owns, free with ga_mv_destroy)
- * @param out_dir     Output direction vector (caller owns, free with ga_mv_destroy)
+ * @param out_origin  Output origin point ([take] caller owns, free with ga_mv_destroy)
+ * @param out_dir     Output direction vector ([take] caller owns, free with ga_mv_destroy)
  * @return 0 on success, -1 if mv is NULL or not a valid ray
  */
 lv_PUBLIC_API int ga_extract_ray(const lvMultiVector *mv, lvMultiVector **out_origin, lvMultiVector **out_dir);

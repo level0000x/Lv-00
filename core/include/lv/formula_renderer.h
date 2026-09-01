@@ -61,7 +61,7 @@ typedef struct {
  * @brief 将 AST 渲染为字符串（使用默认选项）
  * @param[in] node   AST 节点
  * @param[in] format 输出格式
- * @return 渲染后的字符串，调用者负责释放；失败返回 NULL
+ * @return 渲染后的字符串（[take] 调用者负责释放）；失败返回 NULL
  */
 char *formula_render(const FormulaNode *node, OutputFormat format);
 /**
@@ -69,7 +69,7 @@ char *formula_render(const FormulaNode *node, OutputFormat format);
  * @param[in] node    AST 节点
  * @param[in] format  输出格式
  * @param[in] options 渲染选项，为 NULL 时使用默认选项
- * @return 渲染后的字符串，调用者负责释放；失败返回 NULL
+ * @return 渲染后的字符串（[take] 调用者负责释放）；失败返回 NULL
  */
 char *formula_render_ex(const FormulaNode *node, OutputFormat format, const RenderOptions *options);
 /**
@@ -103,19 +103,19 @@ const char *formula_render_get_last_error(void);
 /**
  * @brief 渲染为 LaTeX 格式
  * @param[in] node AST 节点
- * @return LaTeX 字符串，调用者负责释放
+ * @return LaTeX 字符串（[take] 调用者负责释放）
  */
 char *formula_render_latex(const FormulaNode *node);
 /**
  * @brief 渲染为 Python 格式
  * @param[in] node AST 节点
- * @return Python 代码字符串，调用者负责释放
+ * @return Python 代码字符串（[take] 调用者负责释放）
  */
 char *formula_render_python(const FormulaNode *node);
 /**
  * @brief 渲染为 DSL 格式
  * @param[in] node AST 节点
- * @return DSL 字符串，调用者负责释放
+ * @return DSL 字符串（[take] 调用者负责释放）
  */
 char *formula_render_dsl(const FormulaNode *node);
 /* ============================================================
@@ -126,13 +126,13 @@ char *formula_render_dsl(const FormulaNode *node);
  * @param[in] name       点名
  * @param[in] coords     坐标数组
  * @param[in] coord_count 坐标数量
- * @return LaTeX 字符串，如 "A = \\left(1, 2\\right)"，调用者负责释放
+ * @return LaTeX 字符串，如 "A = \\left(1, 2\\right)"（[take] 调用者负责释放）
  */
 char *formula_render_point_latex(const char *name, const FormulaNode **coords, int coord_count);
 /**
  * @brief 渲染几何线段为 LaTeX
  * @param[in] name 线段名
- * @return LaTeX 字符串，如 "\\overline{AB}"，调用者负责释放
+ * @return LaTeX 字符串，如 "\\overline{AB}"（[take] 调用者负责释放）
  */
 char *formula_render_segment_latex(const char *name);
 /**
@@ -140,14 +140,14 @@ char *formula_render_segment_latex(const char *name);
  * @param[in] name   圆名
  * @param[in] center 圆心点名
  * @param[in] radius 半径表达式
- * @return LaTeX 字符串，调用者负责释放
+ * @return LaTeX 字符串（[take] 调用者负责释放）
  */
 char *formula_render_circle_latex(const char *name, const char *center, const FormulaNode *radius);
 /**
  * @brief 渲染分数为 LaTeX
  * @param[in] numerator   分子
  * @param[in] denominator 分母
- * @return LaTeX 字符串，如 "\\frac{3}{4}"，调用者负责释放
+ * @return LaTeX 字符串，如 "\\frac{3}{4}"（[take] 调用者负责释放）
  */
 char *formula_render_fraction_latex(int64_t numerator, uint64_t denominator);
 /**

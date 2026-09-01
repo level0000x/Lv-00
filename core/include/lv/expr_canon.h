@@ -192,7 +192,8 @@ int lv_expr_canonical_term_count(const lvExprCanonical *expr);
 /**
  * @brief 将多项式转换为字符串
  * @param expr 多项式
- * @return 字符串表示，调用者负责用 free() 释放
+ * @return 字符串表示（[take] 语义：lv_malloc 分配，调用者负责用 lv_free 释放——
+ *         原注释 free() 为混合分配器 UB，见 memory-ownership.md K10/F39）
  */
 char *lv_expr_canonical_to_string(const lvExprCanonical *expr);
 

@@ -202,7 +202,7 @@ typedef struct {
  * 为防止悬空指针风险，PresetEntry 包含引用计数字段。
  * - 初始化时 ref_count = 1（注册表持有引用）
  * - 每次 lookup 返回深拷贝时，ref_count++
- * - 深拷贝使用后由调用者负责释放，不影响 ref_count
+ * - [copy] 深拷贝使用后由调用者负责释放，不影响 ref_count
  * - cleanup 时，仅当 ref_count == 1 时才释放模板函数块
  * - 如果外部仍有引用，cleanup 仅释放注册表资源，模板函数块保留
  *
@@ -265,7 +265,7 @@ lv_PUBLIC_API bool func_block_register(const char *name, const char *description
  * @brief 按名称查找预设函数块并返回深拷贝（[copy] 语义，memory-ownership.md）
  *
  * 在注册表中查找指定名称的预设，找到后通过 func_block_copy
- * 创建一个独立的副本返回给调用者。调用者负责销毁返回的副本。
+ * [copy] 创建一个独立的副本返回给调用者。调用者负责销毁返回的副本。
  *
  * 内部使用 FNV-1a 哈希表实现 O(1) 平均查找复杂度。
  * 哈希表脏时自动触发延迟重建。

@@ -80,7 +80,7 @@ lv_PUBLIC_API void ga_mv_set(lvMultiVector *mv, int index, double value);
 lv_PUBLIC_API int ga_mv_grade(const lvMultiVector *mv);
 
 /**
- * @brief Project onto a specific grade. Caller owns result.
+ * @brief Project onto a specific grade. [take] Caller owns result.
  * @param mv multivector 指针
  * @param grade 目标阶数
  * @return 成功返回投影结果的指针，失败返回 NULL
@@ -92,7 +92,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int gr
  * ============================================================ */
 
 /**
- * @brief Add two multivectors. Caller owns result.
+ * @brief Add two multivectors. [take] Caller owns result.
  * @param a 第一个 multivector 指针
  * @param b 第二个 multivector 指针
  * @return 成功返回和值的指针，失败返回 NULL
@@ -100,7 +100,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_grade_project(const lvMultiVector *mv, int gr
 lv_PUBLIC_API lvMultiVector *ga_mv_add(const lvMultiVector *a, const lvMultiVector *b);
 
 /**
- * @brief Subtract b from a. Caller owns result.
+ * @brief Subtract b from a. [take] Caller owns result.
  * @param a 被减 multivector 指针
  * @param b 减数 multivector 指针
  * @return 成功返回差值的指针，失败返回 NULL
@@ -108,7 +108,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_add(const lvMultiVector *a, const lvMultiVect
 lv_PUBLIC_API lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVector *b);
 
 /**
- * @brief Scale multivector by a scalar. Caller owns result.
+ * @brief Scale multivector by a scalar. [take] Caller owns result.
  * @param mv multivector 指针
  * @param scalar 标量因子
  * @return 成功返回缩放结果的指针，失败返回 NULL
@@ -116,7 +116,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_sub(const lvMultiVector *a, const lvMultiVect
 lv_PUBLIC_API lvMultiVector *ga_mv_scale(const lvMultiVector *mv, double scalar);
 
 /**
- * @brief Negate a multivector. Caller owns result.
+ * @brief Negate a multivector. [take] Caller owns result.
  * @param mv multivector 指针
  * @return 成功返回取反结果的指针，失败返回 NULL
  */
@@ -127,7 +127,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_negate(const lvMultiVector *mv);
  * ============================================================ */
 
 /**
- * @brief Geometric product (simplified). Caller owns result.
+ * @brief Geometric product (simplified). [take] Caller owns result.
  * @param a 第一个 multivector 指针
  * @param b 第二个 multivector 指针
  * @return 成功返回几何积结果的指针，失败返回 NULL
@@ -143,7 +143,7 @@ lv_PUBLIC_API lvMultiVector *ga_mv_geometric_product(const lvMultiVector *a, con
 lv_PUBLIC_API double ga_mv_inner_product(const lvMultiVector *a, const lvMultiVector *b);
 
 /**
- * @brief Outer (wedge) product. Caller owns result.
+ * @brief Outer (wedge) product. [take] Caller owns result.
  * @param a 第一个 multivector 指针
  * @param b 第二个 multivector 指针
  * @return 成功返回外积结果的指针，失败返回 NULL
@@ -169,14 +169,14 @@ lv_PUBLIC_API double ga_mv_norm(const lvMultiVector *mv);
 lv_PUBLIC_API double ga_mv_norm_squared(const lvMultiVector *mv);
 
 /**
- * @brief Reverse (grade-dependent sign flip). Caller owns result.
+ * @brief Reverse (grade-dependent sign flip). [take] Caller owns result.
  * @param mv multivector 指针
  * @return 成功返回反转结果的指针，失败返回 NULL
  */
 lv_PUBLIC_API lvMultiVector *ga_mv_reverse(const lvMultiVector *mv);
 
 /**
- * @brief Normalize to unit norm. Returns NULL if norm < eps. Caller owns result.
+ * @brief Normalize to unit norm. Returns NULL if norm < eps. [take] Caller owns result.
  * @param mv multivector 指针
  * @return 成功返回归一化结果的指针，范数过小返回 NULL
  */
@@ -187,14 +187,14 @@ lv_PUBLIC_API lvMultiVector *ga_mv_normalize(const lvMultiVector *mv);
  * ============================================================ */
 
 /**
- * @brief Hodge dual (multiply by pseudoscalar inverse). Caller owns result.
+ * @brief Hodge dual (multiply by pseudoscalar inverse). [take] Caller owns result.
  * @param mv multivector 指针
  * @return 成功返回对偶结果的指针，失败返回 NULL
  */
 lv_PUBLIC_API lvMultiVector *ga_mv_dual(const lvMultiVector *mv);
 
 /**
- * @brief Sandwich product: R * mv * reverse(R). Caller owns result.
+ * @brief Sandwich product: R * mv * reverse(R). [take] Caller owns result.
  * @param rotor 转子 multivector 指针
  * @param mv 被变换的 multivector 指针
  * @return 成功返回夹心积结果的指针，失败返回 NULL

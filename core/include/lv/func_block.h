@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：函数块系统 (func_block)
  * 功能概述：提供函数块的打包、例化、确定性检查、多解选择器等核心功能。
  *          函数块是 Lv-00 系统中封装几何构造的基本单元，支持将一组
@@ -530,7 +530,7 @@ lv_PUBLIC_API FuncBlock *func_block_copy(const FuncBlock *src);
  * @return 是否存在跨边界约束
  *
  * @note 所有权：当返回 true 且存在跨边界约束时，通过 out_conflicts 输出
- *       新分配的约束数组，调用者负责使用 lv_free() 释放该数组。
+ *       新分配的约束数组，[take] 调用者负责使用 lv_free() 释放该数组。
  *       当返回 false 时，*out_conflicts 设为 NULL，无需释放。
  */
 lv_PUBLIC_API bool func_block_detect_cross_boundary(ConstraintGraph *graph, const int *internal_node_ids,
@@ -618,7 +618,7 @@ lv_PUBLIC_API DeterminismState func_block_verify_determinism(FuncBlock *fb, Cons
  * @return 例化结果
  *
  * @note 所有权：成功时通过 out_new_node_ids 输出新分配的节点ID数组，
- *       调用者负责使用 lv_free() 释放该数组。
+ *       [take] 调用者负责使用 lv_free() 释放该数组。
  *       失败时 *out_new_node_ids 设为 NULL，无需释放。
  */
 lv_PUBLIC_API InstantiateResult func_block_instantiate(FuncBlock *fb, ConstraintGraph *graph, int *arg_mappings,
@@ -651,7 +651,7 @@ lv_PUBLIC_API bool func_block_partial_apply(FuncBlock *fb, ConstraintGraph *grap
  * @return 例化结果
  *
  * @note 所有权：成功时通过 output_node_ids 输出新分配的节点ID数组，
- *       调用者负责使用 lv_free() 释放该数组。
+ *       [take] 调用者负责使用 lv_free() 释放该数组。
  *       失败时 *output_node_ids 设为 NULL，无需释放。
  */
 lv_PUBLIC_API InstantiateResult func_block_instantiate_capture_avoiding(FuncBlock *block, const int *actual_arg_nodes,

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file context.h
  * @brief Lv-00 隔离上下文系统 —— 统一状态容器、分支推理与熔断机制
  *
@@ -630,7 +630,7 @@ typedef struct lvContext {
  * @return 新上下文的指针。如果内存分配失败，返回 NULL 并通过
  *         lv_get_last_error_code() 设置错误码 lv_ERROR_OUT_OF_MEMORY。
  *
- * @note 调用者负责最终调用 lv_context_destroy() 释放。不使用时
+ * @note [take] 调用者负责最终调用 lv_context_destroy() 释放。不使用时
  *       必须销毁，否则会泄漏约束图、缓存和栈帧所占用的内存。
  *
  * @note 上下文创建是线程安全的：每个线程可以独立创建自己的上下文实例。

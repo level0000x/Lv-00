@@ -66,7 +66,7 @@ typedef struct GACodegenOptions {
 /**
  * @brief Result of code generation
  *
- * @param code        Generated source code string (caller must free with ga_codegen_result_destroy)
+ * @param code        Generated source code string ([take] caller must free with ga_codegen_result_destroy)
  * @param error_msg   Error message string (NULL if no error)
  * @param target      Target language that was used
  * @param line_count  Number of lines in generated code
@@ -90,7 +90,7 @@ typedef struct GACodegenResult {
  *
  * @param mv       Source multivector to compile
  * @param options  Code generation options
- * @return A code generation result (caller owns, free with ga_codegen_result_destroy)
+ * @return A code generation result ([take] caller owns, free with ga_codegen_result_destroy)
  */
 lv_PUBLIC_API GACodegenResult *ga_codegen_compile(const lvMultiVector *mv, const GACodegenOptions *options);
 
@@ -111,7 +111,7 @@ lv_PUBLIC_API void ga_codegen_result_destroy(GACodegenResult *result);
  * showing each non-zero blade component with its coefficient.
  *
  * @param mv  Source multivector
- * @return A new LaTeX string (caller owns, free with lv_free_ptr)
+ * @return A new LaTeX string ([take] [take] caller owns, free with lv_free_ptr)
  */
 lv_PUBLIC_API char *ga_render_latex(const lvMultiVector *mv);
 
@@ -122,7 +122,7 @@ lv_PUBLIC_API char *ga_render_latex(const lvMultiVector *mv);
  * non-zero components as a simple graph.
  *
  * @param mv  Source multivector
- * @return A new DOT string (caller owns, free with lv_free_ptr)
+ * @return A new DOT string ([take] [take] caller owns, free with lv_free_ptr)
  */
 lv_PUBLIC_API char *ga_render_dot(const lvMultiVector *mv);
 

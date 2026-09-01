@@ -126,7 +126,7 @@ typedef struct {
  * @param rules       重写规则数组
  * @param rule_count  规则数量
  * @param base_graph  基础约束图（用于节点 ID 分配等上下文，可为 NULL）
- * @return 新分配的关键对集合，调用者负责通过 critical_pair_set_destroy 释放；
+ * @return 新分配的关键对集合，[take] 调用者负责通过 critical_pair_set_destroy 释放；
  *         空规则集或 rule_count < 1 返回 NULL
  */
 CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, ConstraintGraph *base_graph);

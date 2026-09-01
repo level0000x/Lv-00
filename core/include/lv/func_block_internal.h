@@ -33,7 +33,7 @@ extern lv_THREAD_LOCAL StreamContext *func_block_stream_ctx;
  * @brief 收集功能块中所有子块的 ID 列表
  *
  * @param fb 功能块指针
- * @param out_ids 输出参数，指向 ID 数组的指针（调用方负责释放）
+ * @param out_ids 输出参数，指向 ID 数组的指针（[take] 调用方负责释放）
  * @param out_count 输出参数，ID 数量
  * @return 收集成功返回 true，失败返回 false
  */
