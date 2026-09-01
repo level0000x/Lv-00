@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * 模块名称：模块系统 (module)
  * 功能概述：提供模块的创建/销毁、依赖管理、循环依赖检测、
  *          LVZ 文本格式与 MessagePack 二进制格式的序列化/反序列化、
@@ -199,7 +199,7 @@ lv_PUBLIC_API ModuleLoadStatus module_deserialize_from_json(const char *json, Mo
  * 独立序列化模块中的 ConstraintGraph，包含所有节点和约束。
  *
  * @param[in] mod 模块
- * @return JSON 字符串（调用者负责 free），失败返回 NULL
+ * @return JSON 字符串（调用者负责 lv_free），失败返回 NULL
  */
 lv_PUBLIC_API char *module_serialize_graph_to_json(const Module *mod);
 

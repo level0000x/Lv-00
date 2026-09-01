@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file axiom_pkg.h
  * @brief 公理包系统 —— 约束模板、不可构造性记录、依赖引用追踪
  *
@@ -129,7 +129,7 @@ lv_PUBLIC_API AxiomSaveStatus axiom_package_save(const AxiomPackage *pkg, const 
  * 用于检测公理包内容是否发生变化。
  *
  * @param[in] pkg  要计算哈希的公理包
- * @return 新分配的 65 字符十六进制字符串（调用者负责 free）。
+ * @return 新分配的 65 字符十六进制字符串（调用者负责 lv_free）。
  *         如果 pkg 为 NULL 或内存分配失败，返回 NULL。
  */
 lv_PUBLIC_API char *axiom_package_compute_content_hash(AxiomPackage *pkg);

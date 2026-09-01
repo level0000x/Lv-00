@@ -110,7 +110,7 @@ bool approx_count_projected(const ConstraintGraph *graph, int *proj_vars, int pr
  *
  * @param[in]  graph          约束图（非 NULL）
  * @param[out] out_cnf_vars   输出：CNF 变量数量（可为 NULL）
- * @return DIMACS CNF 格式字符串（调用者负责 free），失败返回 NULL
+ * @return DIMACS CNF 格式字符串（调用者负责 lv_free），失败返回 NULL
  */
 char *approx_count_to_sat(const ConstraintGraph *graph, int *out_cnf_vars);
 /**

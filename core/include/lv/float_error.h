@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *
@@ -206,7 +206,7 @@ typedef struct {
     double lv_TOLERATED_FLOAT(absolute_error); /**< 绝对误差上界 */
     double lv_TOLERATED_FLOAT(relative_error); /**< 相对误差上界 */
     TrustColor trust_level;                    /**< 信任颜色等级 */
-    char *proof_text;                          /**< 误差证明文本（调用者负责 free） */
+    char *proof_text;                          /**< 误差证明文本（调用者负责 lv_free） */
 } ErrorBound;
 
 /* ========================================================================

@@ -222,7 +222,7 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
  * 生成等可满足的 CNF 公式。
  *
  * @param[in]  bdd      BDD 根节点（非 NULL）
- * @param[out] out_cnf  输出的 CNF 字符串（DIMACS 格式，调用者负责 free）
+ * @param[out] out_cnf  输出的 CNF 字符串（DIMACS 格式，调用者负责 lv_free）
  * @return true 成功，false 失败
  */
 bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);

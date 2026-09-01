@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file atp_backend.h
  * @brief 一阶逻辑自动定理证明器（FOL ATP）后端抽象层
  *
@@ -159,7 +159,7 @@ typedef struct {
  * @param[in] problem_name TPTP 问题名（如 "lv_geometry_1"）
  * @param[in] include_proof_goal  是否包含待证明目标
  * @param[in] target_prop 待证明的命题（NULL = 跳过）
- * @return TPTP 格式字符串（调用者负责 free），失败返回 NULL
+ * @return TPTP 格式字符串（调用者负责 lv_free），失败返回 NULL
  */
 char *atp_encode_constraint_graph(const ConstraintGraph *graph, ATPInputFormat format, const char *problem_name,
                                   bool include_proof_goal, const Proposition *target_prop);
