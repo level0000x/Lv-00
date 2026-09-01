@@ -10114,3 +10114,34 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K61 剩余大面：错误消息存储 ≥7 通道收敛（域内评估，非 P0 缺陷）后续批次。
 - 下一批候选：F39 所有权 / F45 打包导出 / K62 配置不落盘+LV_CFG 覆盖假象。
+
+---
+
+## 批次 178（K62/F88：A JSON 配置接线 + LV_CFG 覆盖假象消除）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| lv.c | lv_module_init_config 末尾接线 lv_config_load_json（lv.config.json 存在即应用，缺失静默跳过，解析失败告警）——A JSON 配置加载原仅测试调用（K62 P0「配置不落盘+不加载」，改了不生效）；补 lv_file.h include |
+| config.h | LV_CFG 键表对拍登记（K62 P0 覆盖假象）：旧注释「与 lvConfig 同名键分属不同存储」误导 → 更新为准确语义——5 个与 A 注册表同名键（circuit_overflow_threshold / smoke_test_step_limit / smoke_test_timeout_ms / buchberger_max_steps / groebner_reduce_max_steps）是 **A 键别名**（读 lvConfig 单例，默认值已对拍一致，set_int 写 A 生效）；其余 28 键回落 B（ConfigManager 可配）；5 键宏行加 A 键别名标注 |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；依赖矩阵 0 违规；
+- commit b270d617（fix(arch): wire A JSON config load into lv_init and document
+  LV_CFG alias semantics (K62/F88)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K62 两个 P0 修复：①A JSON 配置加载接线 lv_init（生产配置生效）；
+  ②LV_CFG 覆盖假象消除（对拍确认 5 命中键 default == A 默认，无行为缺陷，
+  语义文档化 + A 键别名标注）；
+- 注意：注释中 `*/` 序列会提前终止 C 注释（lv_config_get_*/set_* 写法踩坑已修）。
+
+### 遗留登记
+
+- K62 剩余 P1：INI 读写器统一（B vs 插件两套方言）、写原子性/备份、
+  保存时机四态策略、autosave 接线或删除——非 P0 缺陷，后续批次。
+- 下一批候选：F39 所有权 / F45 打包导出 / K71 D1 distance 声明解析失败语义
+  互相矛盾（真实缺陷，随 F4/K34 立项）。
