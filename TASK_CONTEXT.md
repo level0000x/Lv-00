@@ -10584,3 +10584,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - K59 导出宏装饰（~80 零装饰头 lv_PUBLIC_API，K18 visibility hidden 后失导出风险，
   超大机械批次）——下一轮候选。
+
+---
+
+## 批次 199（K68：5 处死平台 include 删除，设计 P0 已裁定）
+
+### ① 改动（-36 行）
+
+| 文件 | 删除内容 |
+| --- | --- |
+| proof.c | _WIN32 windows.h / else pthread.h 平台分支（pthread API 零调用） |
+| module.c | windows.h/fileapi.h/dirent.h/unistd.h 平台分支（FindFirstFile/dirent API 零调用） |
+| plugin_system_event.c | windows.h/dirent.h + 重复 lv_strbuf.h（API 零调用） |
+| lv_impl_upper_orchestrator.c | _WIN32 windows.h（API 零调用） |
+| lv_utils.c | malloc.h/_msize/malloc_usable_size/malloc_size 三态死 include（函数体零调用，设计 K68 判定「死 include 三态」） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；构建无影响（纯 include 清理）；
+- commit d344e325（refactor(arch): remove 5 dead platform includes, zero API
+  usage (K68, design-clear P0)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K68 死平台 include 5 处删除（设计 L768 明确「应删而非迁移」，非功能删除，
+  纯死 include 清理）；K68 其余（抽象层零消费者迁移 K9 范围）后续。
+
+### 剩余确认点
+
+- examples/demo.py 桩示例处置（删除）；
+- 规划文档蓝图 API 处置（当前豁免）。
+
+### 剩余可推进（不需要确认）
+
+- K59 lv_utils.h 同头混搭装饰补全（129 装饰 + ~110 裸 → 全补，shared 构建准备）。
