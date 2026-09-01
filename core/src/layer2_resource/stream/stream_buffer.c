@@ -41,6 +41,10 @@ static bool stream_ensure_buffer(StreamContext *ctx) {
  *
  * 如果缓冲区已满（达到 STREAM_MAX_BUFFER），事件被丢弃并增加 dropped_count。
  *
+ * K75/D4 队列满契约登记：本队列满行为 = 「丢弃 + 计数」（stream_buffer 环形
+ * 缓冲，dropped_count 由 stream_context 统计）——区别于 command_log 环形覆盖
+ * / 消息队列阻塞 / progress 队列丢弃（行为差异本身合理，契约记录于 TASK_CONTEXT）。
+ *
  * @param ctx   流式上下文
  * @param event 待缓冲的事件
  */
