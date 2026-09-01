@@ -809,6 +809,9 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_upper_interop.c
     core/src/lv_impl_upper_preset.c
     core/src/lv_impl_upper_utils.c
+    # F24/I5 P0-②：.lv 装载入图（lv_apply_parse_result + 名称映射表 + 声明处理）
+    # 自 lv_loader.c（L1）拆出——L0 编排层可调 L3/L4，解除 lv_layer1_parser 补链
+    core/src/lv_loader_engine.c
     # 提取的预设实现（从 lv_impl_upper.c 拆分）
     core/src/impl_preset_transformations.c
 )
@@ -1537,8 +1540,8 @@ set(lv_L4_LIBS
     lv_l4_solver lv_l4_stream lv_l4_type_logic lv_l4_unify
 )
 
-# Layer 1 补链：lv_loader.c 消费 engine（L4）与 constraint_graph（L3）符号（C-⑭）
-target_link_libraries(lv_layer1_parser lv_layer3_geometry ${lv_L4_LIBS})
+# F24/I5 P0-②：lv_loader.c 已只产 AST（纯解析，仅依赖 L2）；装载入图
+# lv_apply_parse_result 迁至 lv_core（L0），L1 补链解除（原 L3/L4 链接删除）
 
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})

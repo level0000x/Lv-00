@@ -60,6 +60,9 @@ typedef enum {
     lv_PLUGIN_CAP_UNSAT_CORE   = 1 << 3,   /**< 支持生成 unsat core */
     lv_PLUGIN_CAP_FLOAT        = 1 << 4,   /**< 支持浮点运算 */
     lv_PLUGIN_CAP_EXACT        = 1 << 5,   /**< 支持精确算术 */
+    /* M6 死协议登记（F89，用户 2026-09-01 决策：保留 + 登记）：capabilities
+     * 字段 9 处写入（atp_backend/smt_backend_impl）全库 0 处读取——能力标志
+     * 为未来插件能力查询预留；删除需评审（红线①），当前保留不接线。 */
 } lvBackendPluginCapability;
 
 /* ========================================================================
