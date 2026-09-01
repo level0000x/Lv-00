@@ -36,11 +36,12 @@ bool bit_burning_check(size_t num_bits, BitBurningState *state) {
     if (!state)
         return false;
 
-    if (num_bits > BIT_CUTOFF_THRESHOLD) {
+    if (num_bits > lv_BIT_CUTOFF_THRESHOLD) {
         state->tripped = true;
         state->bit_count = (uint64_t) num_bits;
         state->consecutive_trips++;
-        lv_snprintf(state->reason, sizeof(state->reason), "中间结果位数 %zu 超过阈值 %d", num_bits, BIT_CUTOFF_THRESHOLD);
+        lv_snprintf(state->reason, sizeof(state->reason), "中间结果位数 %zu 超过阈值 %d", num_bits,
+                    lv_BIT_CUTOFF_THRESHOLD);
         return true;
     }
 

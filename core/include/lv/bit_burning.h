@@ -13,10 +13,9 @@
 extern "C" {
 #endif
 
-#ifndef BIT_CUTOFF_THRESHOLD
-/** 位数熔断阈值（比特） */
-#define BIT_CUTOFF_THRESHOLD 1000000
-#endif
+/* K63/F89：位数熔断阈值单源化——权威 lv_BIT_CUTOFF_THRESHOLD 定义于
+ * config.h「根/位/降级」段（1000000），消费端统一使用 lv_ 前缀名，
+ * 本头不再自带兜底（引用即包含）。 */
 
 /** 连续熔断阈值（次） */
 #define MAX_CONSECUTIVE_TRIPS 3

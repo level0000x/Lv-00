@@ -366,6 +366,9 @@ SymbolicCoord *_symbolic_coord_degrade_check_algebraic(SymbolicCoord *result) {
             if (bits > max_bits)
                 max_bits = bits;
         }
+        /* K63/F89 缩放语义登记：代数数多项式系数位限制 = 权威阈值 ÷
+         * SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR（=10，单系数更严格预算），
+         * 区别于 algebraic.c 连分数分母的 ÷2 额度 */
         if (max_bits > (size_t) (lv_BIT_CUTOFF_THRESHOLD / SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR)) {
             needs_check = true;
         }

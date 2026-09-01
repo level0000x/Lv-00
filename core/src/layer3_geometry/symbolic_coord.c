@@ -28,8 +28,9 @@
 #include "lv/mpz_poly.h"
 
 /*
- * BIT_CUTOFF_THRESHOLD 和 MAX_PRECISION_BITS 现在定义在 lv_internal.h 中，
- * 通过 lv_internal.h 统一管理所有项目级常量，此处不再重复定义。
+ * K63/F89：位数熔断与精度上限为项目级常量——权威定义于 config.h
+ * 「根/位/降级」段：lv_BIT_CUTOFF_THRESHOLD（1000000）、lv_MAX_PRECISION_BITS（100）。
+ * 早期注释声称定义于 lv_internal.h 已过期（事实核查不在），此处不再重复定义。
  */
 
 /* ============================================================
@@ -276,7 +277,7 @@ StressTestResult algebraic_stress_test(int chain_length, int max_poly_degree) {
 
     /* Determine stability */
     result.precision_stable = (result.max_precision_decay <= 1);
-    result.performance_stable = (result.max_bits_observed <= BIT_CUTOFF_THRESHOLD);
+    result.performance_stable = (result.max_bits_observed <= lv_BIT_CUTOFF_THRESHOLD);
 
     return result;
 }

@@ -657,12 +657,9 @@ void lv_config_reset(void);
 #ifndef MAX_MODULE_DEPTH
 #define MAX_MODULE_DEPTH 32
 #endif
-#ifndef BIT_CUTOFF_THRESHOLD
-#define BIT_CUTOFF_THRESHOLD 1000000
-#endif
-#ifndef MAX_PRECISION_BITS
-#define MAX_PRECISION_BITS 100
-#endif
+/* K63/F89：BIT_CUTOFF_THRESHOLD / MAX_PRECISION_BITS 双名多头已单源化——
+ * 权威名为 lv_BIT_CUTOFF_THRESHOLD / lv_MAX_PRECISION_BITS（见本文件
+ * 「根/位/降级」段），compat 旧名定义删除，消费端统一迁移。 */
 
 /* rewrite.h compat */
 #ifndef WL_ITERATIONS

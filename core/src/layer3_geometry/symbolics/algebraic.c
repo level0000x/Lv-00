@@ -145,7 +145,7 @@ void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, co
  * 使用连分数展开将 double 值近似为有理数。
  *
  * 使用 GMP 多精度整数计算连分数表示的渐近分数 h_n/k_n，
- * 当分母超过 BIT_CUTOFF_THRESHOLD/2 比特时截断。
+ * 当分母超过 lv_BIT_CUTOFF_THRESHOLD/2 比特时截断。
  * 若在 epsilon 范围内找到有理数近似则返回 true。
  *
  * @param value   要近似的 double 值
@@ -204,6 +204,9 @@ static bool continued_fraction_approx(double value, double epsilon, mpq_t result
     mpz_set_ui(h_curr, (unsigned long long) int_part_d);
     mpz_set_ui(k_curr, 1);
 
+    /* K63/F89 缩放语义登记：连分数分母位限制 = lv_BIT_CUTOFF_THRESHOLD/2
+     * （分子分母各占一半额度；相对权威阈值 ÷2，区别于
+     * symbolic_coord_trust.c 的 ÷SYM_COORD_ALGEBRAIC_BIT_LIMIT_FACTOR） */
     size_t bit_limit = lv_BIT_CUTOFF_THRESHOLD / 2;
 
     /* 检查整数部分本身是否已经是足够好的近似 */

@@ -14,7 +14,7 @@
  *          任何类型 * TRANSCENDENTAL → TRANSCENDENTAL
  *          QUADRATIC ± QUADRATIC → QUADRATIC（√n 相同则合并，否则回退为 double）
  *
- *          位电路熔断：当位宽超过 BIT_CUTOFF_THRESHOLD 时触发熔断信号，
+ *          位电路熔断：当位宽超过 lv_BIT_CUTOFF_THRESHOLD 时触发熔断信号，
  *          交由 overflow_context 处理（忽略/回滚/降级）。
  *
  * @author Lv-00 Project
@@ -215,7 +215,7 @@ static size_t bit_burning_bits_algebraic(const SymbolicCoord *c) {
     }
     for (int i = 0; i <= c->data.algebraic->minimal_poly.degree; i++) {
         size_t cb = (size_t) mpz_sizeinbase(c->data.algebraic->minimal_poly.coeffs[i], 2);
-        if (cb > (size_t) BIT_CUTOFF_THRESHOLD)
+        if (cb > (size_t) lv_BIT_CUTOFF_THRESHOLD)
             return SIZE_MAX;
         total += cb;
     }
@@ -446,9 +446,9 @@ static void bit_burning_check_result(SymbolicCoord *result, const char *operatio
 
     const CoordOpsVTable *vt = &kCoordOpsVTable[result->type];
     size_t total_bits = vt->bit_burning_bits(result);
-    if (total_bits == SIZE_MAX || total_bits > (size_t) BIT_CUTOFF_THRESHOLD) {
+    if (total_bits == SIZE_MAX || total_bits > (size_t) lv_BIT_CUTOFF_THRESHOLD) {
         BitBurningState *state = bit_burning_get_global_state();
-        bit_burning_check(total_bits > (size_t) BIT_CUTOFF_THRESHOLD ? total_bits : BIT_CUTOFF_THRESHOLD, state);
+        bit_burning_check(total_bits > (size_t) lv_BIT_CUTOFF_THRESHOLD ? total_bits : lv_BIT_CUTOFF_THRESHOLD, state);
         result->trust = TRUST_AMBER;
     }
 }
