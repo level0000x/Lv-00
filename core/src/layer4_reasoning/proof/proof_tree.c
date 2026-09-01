@@ -270,7 +270,8 @@ static void export_node(const lvProofTreeNode *n, int indent, lvStrBuf *sb) {
  * @brief 将证明树导出为文本格式
  *
  * 生成包含证明树头部（定理名称和策略）和层次化节点列表的文本。
- * 调用者负责使用 free() 释放返回的字符串。
+ * 返回值经 lv_strbuf_to_string（lv_malloc）分配，调用者须用 lv_free 释放
+ * （[take]；原注释「free()」为混合分配器 UB，见 memory-ownership.md K10/F39）。
  *
  * @param tree 证明树指针
  * @param opts 可选参数（当前未使用）
