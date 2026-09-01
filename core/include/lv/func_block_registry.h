@@ -262,7 +262,7 @@ lv_PUBLIC_API bool func_block_register(const char *name, const char *description
                                        FuncBlock *fb);
 
 /**
- * @brief 按名称查找预设函数块并返回深拷贝
+ * @brief 按名称查找预设函数块并返回深拷贝（[copy] 语义，memory-ownership.md）
  *
  * 在注册表中查找指定名称的预设，找到后通过 func_block_copy
  * 创建一个独立的副本返回给调用者。调用者负责销毁返回的副本。

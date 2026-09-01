@@ -107,7 +107,7 @@ lv_PUBLIC_API LvLambdaTerm *lv_lambda_create_app(LvLambdaTerm *left, LvLambdaTer
 lv_PUBLIC_API void lv_lambda_destroy(LvLambdaTerm *term);
 
 /**
- * @brief 深拷贝 λ-项
+ * @brief 深拷贝 λ-项（[copy] 语义，memory-ownership.md K10/F39）
  *
  * 递归复制所有子项，返回完全独立的副本。
  *

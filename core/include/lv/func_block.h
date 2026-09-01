@@ -505,7 +505,7 @@ lv_PUBLIC_API const char *func_block_get_name(const FuncBlock *fb);
 lv_PUBLIC_API const char *func_block_get_description(const FuncBlock *fb);
 
 /**
- * @brief 深拷贝函数块
+ * @brief 深拷贝函数块（[copy] 语义，memory-ownership.md K10/F39）
  *
  * 创建一个函数块的完整深拷贝，包括所有动态分配的成员。
  * 拷贝后的函数块与原始函数块完全独立，修改其中一个不会影响另一个。

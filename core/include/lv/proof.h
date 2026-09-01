@@ -959,7 +959,8 @@ lv_PUBLIC_API const char *unify_result_to_string(UnifyStatus result);
 lv_PUBLIC_API bool proof_has_type_variables(const Proposition *prop);
 
 /**
- * @brief 实例化多态命题
+ * @brief 实例化多态命题（[copy] 语义：返回新命题副本，调用者负责销毁；
+ * 原始命题不被修改，memory-ownership.md K10/F39）
  *
  * 将命题中的类型变量节点替换为具体的类型区域节点。
  * 创建命题的深拷贝，在副本上执行替换，不影响原始命题。
