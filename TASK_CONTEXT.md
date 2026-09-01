@@ -10618,3 +10618,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 ### 剩余可推进（不需要确认）
 
 - K59 lv_utils.h 同头混搭装饰补全（129 装饰 + ~110 裸 → 全补，shared 构建准备）。
+
+---
+
+## 批次 200（K59 高风险头导出装饰 + K68 已登记）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| d344e325（199 批） | K68 5 处死平台 include 删除 |
+| 4e326542 | K59 lv_utils.h 同头混搭 5 处裸函数补 lv_PUBLIC_API（混搭清零） |
+| 98b03dfa | K59 interop.h 37 + plugin_system.h 44 = 81 处外部 API 声明装饰（共享库失导出最高风险头，K18 visibility hidden 前置准备） |
+
+### ② 验证
+
+- build3 ctest **289/289**；layerval 通过；构建无影响（装饰宏静态库展开为空）；
+- 3 提交 push 成功。
+
+### 决策登记
+
+- K59 高风险面装饰完成：外部 API 头（interop/plugin）+ 同头混搭（lv_utils）；
+  其余 ~76 零装饰头（内部头，simd_ops/symbolic_coord/lv_json 等）登记为
+  「随 shared 构建需求批次」——visibility hidden 未启用，风险未激活，
+  装饰为防御性准备（低优先级）。
+
+### 剩余确认点
+
+- examples/demo.py 桩示例处置（删除）；
+- 规划文档蓝图 API 处置（当前豁免）。
+
+### 剩余低优先级可推进
+
+- K59 其余 ~76 头装饰（机械批量，防御性）；
+- K67 等其余 P1。
