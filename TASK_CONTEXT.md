@@ -10176,3 +10176,37 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - K71 剩余：lv_str_split 接线（生产 0 消费 vs 手写 strtok_r ~10 处）、
   lv_parse_double 返回值检查不一致——后续批次。
 - 下一批候选：F39 所有权 / F45 打包导出 / K75 限制常量单源。
+
+---
+
+## 批次 180（K75 D2：预设上限单源）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| func_block.h | lv_PRESET_MAX_COUNT（10000）标注为 K75 单源权威（保留 #ifndef 兜底） |
+| func_block_preset.h | 删重复 lv_PRESET_MAX_COUNT 兜底（func_block.h include 可见） |
+| preset_common.h | 删 lv_PRESET_MAX_COUNT 委托链 + PRESET_MAX_COUNT 定义（双名多头） |
+| preset_core.h | 删 PRESET_MAX_COUNT 定义（无消费方） |
+| preset_manager.c | 容量检查 PRESET_MAX_COUNT → lv_PRESET_MAX_COUNT（显式 lv_ 名） |
+
+### ② 验证
+
+- build3 ctest **289/289**；build_layerval 通过；依赖矩阵 0 违规；
+- 残余核查：预设上限宏定义仅 func_block.h 一处（单源）；
+- commit 45d73fa0（refactor(arch): converge preset max count to single
+  lv_PRESET_MAX_COUNT source (K75 D2)），push 成功，CI 待验证。
+
+### 决策登记
+
+- K75 D2 预设上限 10000 收敛：原 4 处宏定义（lv_×2 + 非前缀×2）+ 1 处委托
+  → func_block.h lv_PRESET_MAX_COUNT 单源；K75 D1 的 25+ 镜像对其余项
+  （config compat 段 vs 模块头）多为不同语义同值（扫描验证），非缺陷。
+- lv_PRESET_ID_OFFSET 同类双头保留（未列入本批，后续可同法收敛）。
+
+### 遗留登记
+
+- K75 剩余：队列满行为 4 约定契约登记（纯文档）、插件双注册表 256 vs 32、
+  lv_malloc_bounded 死设施（M6）。
+- 下一批候选：K75 队列满契约登记 / F39 所有权 / K71 lv_str_split 接线。
