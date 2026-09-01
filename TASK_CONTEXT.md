@@ -10300,3 +10300,34 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 - F39 剩余：其余「调用者负责 free/lv_free」混用注释（ga_codegen/ga_interface 等
   destroy 配对族已正确）、[copy]/[take]/[borrow] 全覆盖标注、静态检查脚本。
 - 下一批候选：K10 标注全覆盖 / K65 死 sink（删除需评审）/ K62 INI 统一。
+
+---
+
+## 批次 185（K10/F39：所有权静态检查脚本 + CI job + proof_tree 注释修复）
+
+### ① 改动
+
+| 文件 | 内容 |
+| --- | --- |
+| tools/ownership_check.py（新增） | 所有权静态检查：①头注释「调用者负责 free」残留（非 lv_free，混合分配器 UB）；②裸 free( 调用审计（排除注释/函数指针/豁免清单）；③三态标注覆盖率统计。当前 0 违规 |
+| .github/workflows/ci.yml | 新增 ownership-check job |
+| proof_tree.c | 导出文本注释「调用者负责 free()」→ lv_free（实际 lv_strbuf_to_string = lv_malloc 分配，free 是 UB——脚本抓到的真违规） |
+
+### ② 验证
+
+- build3 ctest **289/289**；所有权检查 0 违规；
+- 豁免登记 8 处人工核对合法裸 free（allocator/memory_pool 分配器内部原生 malloc、
+  GMP mpz_get_str 内存、thread_pool uses_std_free 双路径、lv_free_external 专用 API）；
+- commit 92610acf（feat(arch): add ownership static check tool + CI job, fix
+  proof_tree free comment (K10/F39)），push 成功，CI 待验证（含新 ownership-check）。
+
+### 决策登记
+
+- K10/F39 静态检查落地（CI 门禁）：分配器配对 + 注释审计自动化；
+- 审计方法论：释放标注以**实现分配器**为准（读 .c），非头注释声称。
+
+### 遗留登记
+
+- F39 剩余：[copy]/[take]/[borrow] 头注释全覆盖标注（当前 2 处）、
+  API_QUICKSTART/TEN_LAYER_OPTIMIZED_PLAN 文档对齐。
+- 下一批候选：K10 三态标注首批 / K65 死 sink（删除需评审）/ K62 INI 统一。
