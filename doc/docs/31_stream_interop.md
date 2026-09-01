@@ -128,7 +128,7 @@ void stream_context_register_builtins(void);
 ```
 
 ```c
-#define lv_REGISTER_STREAM_CTX(prefix) \
+#define LV_STREAM_CTX_DECLARE(prefix) \
     stream_context_register_setter(prefix##_set_stream_context)
 ```
 

@@ -25,6 +25,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "doc" / "docs"
 INC = ROOT / "core" / "include" / "lv"
 
+# 规划/蓝图类文档豁免：其代码块多为未来设计蓝图（虚构 API 属预期实现），
+# 非教学示例幻影（K5 判定针对 README/API_QUICKSTART/USE_CASES 等教学面）
+PLAN_DOC_KEYWORDS = ("PLAN", "ROADMAP", "DESIGN", "PROPOSAL", "DECISION", "OPTIMIZATION")
+
 # 头文件声明的全部符号名（函数 + 宏 + 类型）
 declared = set()
 for h in INC.glob("*.h"):
@@ -77,11 +81,13 @@ def check_file(path):
 def main():
     total = 0
     for md in sorted(DOCS.glob("*.md")):
+        if any(kw in md.name.upper() for kw in PLAN_DOC_KEYWORDS):
+            continue  # 规划/蓝图文档豁免
         for i, sym in check_file(md):
             rel = str(md.relative_to(ROOT)).replace("\\", "/")
             print(f"  {rel}:{i}  未声明符号: {sym}")
             total += 1
-    print(f"=== K5 符号同步检查: 代码块引用 {total} 处未声明符号 ===")
+    print(f"=== K5 符号同步检查: 教学文档代码块引用 {total} 处未声明符号 ===")
     return 1 if total else 0
 
 

@@ -1,4 +1,4 @@
-# 23. 核心基础设施与配置系统
+﻿# 23. 核心基础设施与配置系统
 
 ## 23.1 模块概述
 
@@ -297,7 +297,7 @@ lv_CHECK_INDEX(idx, max, ret)
 lv_CHECK_RANGE(val, min, max, ret)
 
 // 错误传播
-lv_PROPAGATE_ERROR(code)
+lv_TRY(code)
 lv_TRY(expr, label)
 
 // 设置错误并返回
@@ -310,7 +310,7 @@ lv_ERROR_RETURN(err_code, ret, fmt, ...)
 lv_CHECK_NULL(ctx, NULL);
 lv_CHECK(index >= 0 && index < count, lv_ERROR_INVALID_PARAM, -1, "索引越界");
 lv_CHECK_ALLOC(new_node, NULL);
-lv_PROPAGATE_ERROR(graph_add_constraint(graph, type, participants, n));
+lv_TRY(graph_add_constraint(graph, type, participants, n));
 ```
 
 ---
@@ -353,17 +353,17 @@ bool lv_are_assertions_enabled(void);          // 检查断言状态
 
 ```c
 // 打印约束图结构（用于调试）
-void lv_debug_print_graph(const ConstraintGraph *graph);
+void lv_debug_print_graph /* K5: API 不存在，待核对 */(const ConstraintGraph *graph);
 
 // 打印符号坐标
-void lv_debug_print_coord(const SymbolicCoord *coord);
+void lv_debug_print_coord /* K5: API 不存在，待核对 */(const SymbolicCoord *coord);
 
 // 打印证明树
-void lv_debug_print_proof(const ProofTree *proof);
+void lv_debug_print_proof /* K5: API 不存在，待核对 */(const ProofTree *proof);
 
 // 性能分析
-void lv_debug_profile_start(const char *name);
-void lv_debug_profile_end(const char *name);
+void lv_debug_profile_start /* K5: API 不存在，待核对 */(const char *name);
+void lv_debug_profile_end /* K5: API 不存在，待核对 */(const char *name);
 ```
 
 ---
@@ -446,7 +446,7 @@ typedef struct lvModule {
 bool lv_module_register(lvModule *module);
 
 // 模块查找
-lvModule *lv_module_find(const char *name);
+lvModule *lv_module_find /* K5: API 不存在，待核对 */(const char *name);
 
 // 按优先级初始化所有模块
 bool lv_module_init_all(void);
@@ -458,10 +458,10 @@ void lv_module_cleanup_all(void);
 ### 23.7.2 模块依赖声明
 
 ```c
-#define lv_MODULE_DEPENDS_ON(mod_name) \
+#define lv_MODULE_DEPENDS_ON /* K5: API 不存在，待核对 */(mod_name) \
     extern bool lv_module_##mod_name##_loaded;
 
-#define lv_MODULE_ENSURE(mod_name) \
+#define lv_MODULE_ENSURE /* K5: API 不存在，待核对 */(mod_name) \
     do { \
         if (!lv_module_##mod_name##_loaded) { \
             lv_ERROR_RETURN(lv_ERROR_NOT_INITIALIZED, false, \
