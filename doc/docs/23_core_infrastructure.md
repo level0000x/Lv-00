@@ -486,14 +486,14 @@ typedef struct lvMemoryStats {
 } lvMemoryStats;
 
 // 获取内存统计
-bool lv_get_memory_stats_ex(lvMemoryStats *stats);
+bool lv_get_memory_stats(lvMemoryStats *stats);
 ```
 
 ### 23.8.2 内存限制
 
 ```c
-void   lv_set_memory_limit_ex(size_t limit_bytes);  // 设置内存上限（0=无限制）
-size_t lv_get_memory_limit_ex(void);                // 获取内存上限
+void   lv_set_memory_limit(size_t limit_bytes);  // 设置内存上限（0=无限制）
+size_t lv_get_memory_limit(void);                // 获取内存上限
 ```
 
 达到上限后，新分配请求将失败并返回 `lv_ERROR_OUT_OF_MEMORY`。

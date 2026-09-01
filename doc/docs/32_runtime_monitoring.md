@@ -108,9 +108,9 @@ typedef struct {
 bool lv_log_init(const lvLogConfig *config);
 void lv_log_shutdown(void);
 void lv_log_set_level(lvLogLevel level);
-void lv_log_set_targets(lvLogTarget targets);
-bool lv_log_set_file(const char *path);
-void lv_log_set_callback(lvLogCallback callback, void *user_data);
+void lv_log_set_targets /* K65 已删：死 sink API，委托主管道 */(lvLogTarget targets);
+bool lv_log_set_file /* K65 已删：死 sink API，委托主管道 */(const char *path);
+void lv_log_set_callback /* K65 已删：死 sink API，委托主管道 */(lvLogCallback callback, void *user_data);
 void lv_log_write(lvLogLevel level, const char *tag,
                     const char *file, int line, const char *function,
                     const char *fmt, ...);
