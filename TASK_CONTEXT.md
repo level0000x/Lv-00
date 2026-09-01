@@ -10418,3 +10418,33 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
   symbolic/proof 死池登记（删除需评审）。
 - 下一批候选：K66 Python StreamEvent c_long 绑定缺陷（P0 真实缺陷）/
   K66 死池删除评审 / F39 收尾。
+
+---
+
+## 批次 193（K66/F96：Python 绑定真实缺陷 3 项）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 942cfb27 | StreamEvent timestamp_ms c_long → c_int64（两处绑定 _stream_types.py + module/stream_bridge/stream_bridge.py）——Windows 下 4B vs 8B 结构错位（设计 L756 P0） |
+| c0c69065 | high_dim.py HighDimVisibilityStats 双重错误修复：缓冲 24→40B（C 写端最小写集超出 8B 潜伏越界）+ 结构字段改与 C 一致（原 6×int32 布局全错，fidelity_percent/100 错误换算） |
+| fdafcfed | _ctypes_binding.py 补 25 个 high_dim_* 签名（原零声明——默认 restype=c_int 导致 64 位指针截断：manager_create 句柄 / get_block / get_current_preset / mapping_type_to_string char* 截断 .decode AttributeError，设计 L762 P0） |
+
+### ② 验证
+
+- 三提交 push 成功；py_compile 全过（Python 绑定语法）；
+- CI（含 python-syntax job）待验证。
+
+### 决策登记
+
+- K66 Python 绑定 3 项真实缺陷修复：StreamEvent 宽度 / high_dim stats 越界+布局 /
+  high_dim 25 签名指针截断——Linux LP64 恰好对齐/未 import 潜伏，Windows 或
+  接线即暴露。
+
+### 遗留登记
+
+- K66 剩余：func_block_instantiate 绑定 6 参 vs 5 参错配（P0，调用每次 TypeError）、
+  stream_register_callback_ex 双声明 c_int vs c_uint64（P1）、
+  high_dim.py 剩余 24B 注释核对（已修）。
+- 下一批候选：K66 func_block_instantiate 绑定错配 / K66 死池删除评审 / F39 收尾。
