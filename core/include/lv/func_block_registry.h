@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_registry.h
  * @brief 预设函数块注册系统
  *
@@ -247,13 +247,15 @@ lv_PUBLIC_API void lv_func_block_registry_cleanup(void);
  * @brief 注册一个自定义预设函数块
  *
  * 将用户提供的函数块注册到全局注册表中。
- * 注册时会创建 name 和 description 的副本，以及 fb 的深拷贝。
+ * 注册时会创建 name 和 description 的副本，以及 fb 的深拷贝（[copy] 语义，
+ * 见 docs/architecture/memory-ownership.md K10/F39）。
  * 如果同名预设已存在，则返回 false。
  *
  * @param name        预设名称（唯一键，不可为 NULL）
  * @param description 描述文本（可为 NULL）
  * @param category    预设类别
- * @param fb          模板函数块（不可为 NULL，注册后由注册表接管管理）
+ * @param fb          模板函数块（不可为 NULL；注册表深拷贝之，调用者仍持有
+ *                    原 fb 并负责销毁——注册失败时 fb 同样归调用方，不泄漏）
  * @return true 注册成功，false 参数无效或同名已存在或内存不足
  */
 lv_PUBLIC_API bool func_block_register(const char *name, const char *description, PresetCategory category,

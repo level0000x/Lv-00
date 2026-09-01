@@ -141,10 +141,12 @@ lv_PUBLIC_API char *module_compute_version_hash(const Module *mod);
  *
  * 哈希内容包括：模块名称、版本、依赖数量+名称+版本约束、
  * 导出数量+ID、公理包数量+名称+版本。
- * 调用者负责 free() 返回值。
+ * 返回值经 lv_calloc 分配，调用者须用 lv_free 释放（[take] 语义；
+ * 原注释「free()」为错误——lv_calloc 配 free 是 UB，见
+ * docs/architecture/memory-ownership.md K10/F39）。
  *
  * @param mod 模块
- * @return malloc 分配的 65 字节字符串（64 hex + null），失败返回 NULL
+ * @return lv_calloc 分配的 65 字节字符串（64 hex + null），失败返回 NULL
  */
 lv_PUBLIC_API char *module_compute_content_hash(const Module *mod);
 
