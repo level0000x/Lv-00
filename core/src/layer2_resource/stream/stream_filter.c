@@ -143,22 +143,14 @@ uint64_t stream_parse_filter_mask(const char *str) {
 
     uint64_t mask = STREAM_FILTER_NONE;
 
-    /* 复制字符串用于分词（避免修改原始字符串） */
-    size_t len = strlen(str);
-    char *buf = (char *) lv_malloc(len + 1);
-    if (!buf)
-        return STREAM_FILTER_NONE;
-    lv_strlcpy(buf, str, len + 1);
-
-    /* 按逗号分词 */
-    char *saveptr = NULL;
-    char *token = lv_strtok_r(buf, ",", &saveptr);
-
-    while (token) {
+    /* K71/D6：手写 strtok_r 逗号分词收敛到权威 lv_str_split（堆分配 items，
+     * 不修改原 str，无需 buf 复制）；中间空段由下方空 token 检查兜底
+     * （strtok 跳过空段 vs lv_str_split 保留，此处显式跳过语义一致） */
+    lvStrSplitResult parts = lv_str_split(str, ",");
+    for (size_t i = 0; i < parts.count; i++) {
         /* 去除 token 首尾空白 */
-        token = lv_str_ltrim(token);
+        char *token = lv_str_ltrim(parts.items[i]);
         if (*token == '\0') {
-            token = lv_strtok_r(NULL, ",", &saveptr);
             continue; /* 空 token，跳过 */
         }
         lv_str_rtrim(token);
@@ -177,10 +169,8 @@ uint64_t stream_parse_filter_mask(const char *str) {
                 /* 无法识别的 token 静默忽略 */
             }
         }
-
-        token = lv_strtok_r(NULL, ",", &saveptr);
     }
 
-    lv_free((void **) &buf);
+    lv_str_split_free(&parts);
     return mask;
 }
