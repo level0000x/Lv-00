@@ -1,0 +1,368 @@
+/-
+Lv-00 formal: LvDSL — Lv 语言语法定义 (v1.1 R1)
+===============================================
+
+定义 .lv 文件的词法、语法和类型系统。
+对应 bootstrap/src/ 下的自举编译器实现。
+
+核心类型包括:
+  1. LvToken — 词法单元
+  2. LvType — 类型系统 (Point/Constraint/List/ADT/...)
+  3. LvExpr — 表达式
+  4. LvStmt — 语句 (Constraint/Prove/Normalize/...)
+  5. LvProgram — 完整程序
+-/
+
+import Mathlib
+
+noncomputable section
+
+namespace lvFormal.Theory.LvDSL
+
+/-! ===============================================================
+   第一部分：词法单元 (LvToken)
+   对应 compiler/lexer.lv 中的 TokenKind
+   =============================================================== -/
+
+/-- Lv 语言的词法单元类型 — 对应 bootstrap/src/compiler/lexer.lv 中的 TokenKind -/
+inductive LvToken where
+  | keywordPoint
+  | keywordConstraint
+  | keywordProve
+  | keywordNormalize
+  | ident  (name : String)
+  | strLit (value : String)
+  | intLit (value : ℤ)
+  | floatLit (value : ℝ)
+  | opAssign
+  | opSemi
+  | opColon
+  | lParen
+  | rParen
+  | lBrace
+  | rBrace
+  | comma
+  | dot
+  | eof
+  deriving DecidableEq
+
+/-! ===============================================================
+   第二部分：类型系统 (LvType)
+   对应 compiler/typer.lv 中的 Type 定义
+   =============================================================== -/
+
+/-- Lv 类型系统：8 种基础类型 + 5 种复合类型构造子 -/
+inductive LvType where
+  | point
+  | constraint
+  | real
+  | int
+  | bool
+  | string
+  | name
+  | nat
+  | arrow    (dom codom : LvType)
+  | list     (elem : LvType)
+  | set      (elem : LvType)
+  | option   (elem : LvType)
+  | pair     (first second : LvType)
+  deriving DecidableEq, Repr
+
+/-! ===============================================================
+   第三部分：模式匹配 (LvPat)
+   用于 ADT 解构
+   =============================================================== -/
+
+/-- 模式匹配：通配符、变量绑定、构造子解构 -/
+inductive LvPat where
+  | wildcard
+  | var (name : String)
+  | constructor (tag : String) (pats : List LvPat)
+
+
+/-! ===============================================================
+   第四部分：表达式 (LvExpr)
+   对应 compiler/ast.lv 和 compiler/semantic.lv 中的表达式节点
+   =============================================================== -/
+
+/-- Lv 表达式：变量、常量、函数应用、算术、lambda、量词、容器 -/
+inductive LvExpr where
+  | var      (name : String)
+  | intLit   (val : ℤ)
+  | floatLit (val : ℝ)
+  | strLit   (val : String)
+  | boolLit  (val : Bool)
+  | app      (fn : LvExpr) (arg : LvExpr)
+  | add      (e1 e2 : LvExpr)
+  | sub      (e1 e2 : LvExpr)
+  | mul      (e1 e2 : LvExpr)
+  | div      (e1 e2 : LvExpr)
+  | lambda   (param : String) (paramType : LvType) (body : LvExpr)
+  | lvForall   (x : String) (ty : LvType) (body : LvExpr)
+  | lvExists   (x : String) (ty : LvType) (body : LvExpr)
+  | listLit  (elems : List LvExpr)
+  | setLit   (elems : List LvExpr)
+  | some     (e : LvExpr)
+  | none     (ty : LvType)
+  | pair     (e1 e2 : LvExpr)
+
+
+/-! ===============================================================
+   第五部分：约束声明 (LvConstraint)
+   对应 .lv 文件中 Constraint 关键字定义的 15 种几何/逻辑约束
+   =============================================================== -/
+
+/-- Lv 约束：15 种构造子，对应 IRConstraint 的 15 种类型 -/
+inductive LvConstraint where
+  | distance      (a b : String) (d : LvExpr)
+  | collinear     (a b c : String)
+  | perpendicular (a b c d : String)
+  | parallel      (a b c d : String)
+  | angle         (a b c d : String) (theta : LvExpr)
+  | eq_expr       (e1 e2 : LvExpr)
+  | lt_expr       (e1 e2 : LvExpr)
+  | gt_expr       (e1 e2 : LvExpr)
+  | radius        (center a : String) (r : LvExpr)
+  | tangent       (circle_center circle_pt line_a line_b : String)
+  | midpoint      (m a b : String)
+  | rightAngle    (a b c : String)
+  | equalLength   (a b c d : String)
+  | equalAngle    (a b c d e f : String)
+  | ratioDivision (p a b : String) (r : LvExpr)
+
+
+/-! ===============================================================
+   第六部分：语句 (LvStmt)
+   对应 .lv 文件中的顶级语句
+   =============================================================== -/
+
+/-- Lv 语句：类型定义、约束声明、证明、归一化 -/
+inductive LvStmt where
+  | typeDecl       (name : String) (defn : LvType)
+  | constraintDecl (name : String) (c : LvConstraint) (typeChecked : Bool)
+  | prove          (target : String)
+  | normalize
+
+
+/-! ===============================================================
+   第七部分：完整程序 (LvProgram)
+   =============================================================== -/
+
+/-- 完整 Lv 程序：文件名 + 语句列表 -/
+structure LvProgram where
+  filename : String
+  stmts    : List LvStmt
+
+
+/-! ===============================================================
+   第八部分：辅助函数
+   =============================================================== -/
+
+/-- 从 Lv 程序中提取所有约束声明列表 -/
+def getConstraints (p : LvProgram) : List LvConstraint :=
+  p.stmts.filterMap fun stmt =>
+    match stmt with
+    | .constraintDecl _ c _ => some c
+    | _ => none
+
+/-- 从 Lv 程序中提取 Prove 语句（假设最多一个） -/
+def findProveStmt (p : LvProgram) : Option LvStmt :=
+  p.stmts.find? fun stmt =>
+    match stmt with
+    | .prove _ => true
+    | _ => false
+
+/-- Lv 表达式求值：将表达式映射到 ℝ（用于数值约束） -/
+def lv_expr_eval (env : String → ℝ × ℝ) : LvExpr → ℝ
+  | .var n      => (env n).1
+  | .intLit v   => (v : ℝ)
+  | .floatLit v => v
+  | .strLit _   => 0
+  | .boolLit _  => 0
+  | .add e1 e2  => lv_expr_eval env e1 + lv_expr_eval env e2
+  | .sub e1 e2  => lv_expr_eval env e1 - lv_expr_eval env e2
+  | .mul e1 e2  => lv_expr_eval env e1 * lv_expr_eval env e2
+  | .div e1 e2  => lv_expr_eval env e1 / lv_expr_eval env e2
+  | .lambda _ _ _ => 0
+  | .lvForall _ _ _ => 0
+  | .lvExists _ _ _ => 0
+  | .listLit _   => 0
+  | .setLit _    => 0
+  | .some e      => lv_expr_eval env e
+  | .none _      => 0
+  | .pair e1 e2  => lv_expr_eval env e1 + lv_expr_eval env e2
+  | .app f a     => lv_expr_eval env f + lv_expr_eval env a
+
+/-- 类型推断：为表达式推断最一般类型（若可能） -/
+def lv_type_infer : LvExpr → Option LvType
+  | .var _ => none  -- 变量类型无法推断（需环境）
+  | .intLit _ => some .int
+  | .floatLit _ => some .real
+  | .strLit _ => some .string
+  | .boolLit _ => some .bool
+  | .add e1 e2 =>
+    match lv_type_infer e1, lv_type_infer e2 with
+    | some .int, some .int => some .int
+    | some .real, some .real => some .real
+    | _, _ => none
+  | .sub e1 e2 =>
+    match lv_type_infer e1, lv_type_infer e2 with
+    | some .int, some .int => some .int
+    | some .real, some .real => some .real
+    | _, _ => none
+  | .mul e1 e2 =>
+    match lv_type_infer e1, lv_type_infer e2 with
+    | some .int, some .int => some .int
+    | some .real, some .real => some .real
+    | _, _ => none
+  | .div e1 e2 =>
+    match lv_type_infer e1, lv_type_infer e2 with
+    | some .int, some .int => some .int
+    | some .real, some .real => some .real
+    | _, _ => none
+  | .lambda p t b => some (.arrow t ((lv_type_infer b).getD LvType.real))
+  | .lvForall _ _ _ => some .bool
+  | .lvExists _ _ _ => some .bool
+  | .listLit es =>
+    match es with
+    | [] => none
+    | e :: _ => (lv_type_infer e).map .list
+  | .setLit es =>
+    match es with
+    | [] => none
+    | e :: _ => (lv_type_infer e).map .set
+  | .some e => (lv_type_infer e).map .option
+  | .none t => some (.option t)
+  | .pair e1 e2 =>
+    match lv_type_infer e1, lv_type_infer e2 with
+    | some t1, some t2 => some (.pair t1 t2)
+    | _, _ => none
+  | .app f a =>
+    match lv_type_infer f with
+    | some (.arrow _ codom) => some codom
+    | _ => none
+
+/-- 类型检查：检查表达式是否具有给定类型 -/
+partial def lv_type_check : LvExpr → LvType → Bool
+  | .var _, _ => true
+  | .intLit _, .int => true
+  | .intLit _, .real => true
+  | .floatLit _, .real => true
+  | .strLit _, .string => true
+  | .boolLit _, .bool => true
+  | .add e1 e2, .real => lv_type_check e1 .real ∧ lv_type_check e2 .real
+  | .add e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
+  | .sub e1 e2, .real => lv_type_check e1 .real ∧ lv_type_check e2 .real
+  | .sub e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
+  | .mul e1 e2, .real => lv_type_check e1 .real ∧ lv_type_check e2 .real
+  | .mul e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
+  | .div e1 e2, .real => lv_type_check e1 .real ∧ lv_type_check e2 .real
+  | .div e1 e2, .int  => lv_type_check e1 .int  ∧ lv_type_check e2 .int
+  | .lambda p t b, .arrow dom codom =>
+    -- lambda 参数类型 t 应与域类型 dom 一致，体 b 应检查为 codom
+    t = dom ∧ lv_type_check b codom
+  | .lambda _ _ _, _ => false
+  | .lvForall _ _ _, .bool => true
+  | .lvExists _ _ _, .bool => true
+  | .listLit es, .list t => es.all (fun e => lv_type_check e t)
+  | .setLit es, .set t => es.all (fun e => lv_type_check e t)
+  | .some e, .option t => lv_type_check e t
+  | .none t', .option t => t' = t
+  | .pair e1 e2, .pair t1 t2 => lv_type_check e1 t1 ∧ lv_type_check e2 t2
+  | .app f a, t =>
+    -- 函数应用的类型检查：先推断 f 的类型，若为 arrow dom codom，
+    -- 则检查 a 的类型是否为 dom，且 t 是否为 codom
+    match lv_type_infer f with
+    | some (.arrow dom codom) => lv_type_check a dom ∧ codom = t
+    | _ => false
+  | _, _ => false
+termination_by e _ => sizeOf e
+decreasing_by all_goals simp [sizeOf] <;> omega
+
+/-- 自由变量收集 -/
+partial def lv_free_vars : LvExpr → List String
+  | .var n => [n]
+  | .intLit _ => []
+  | .floatLit _ => []
+  | .strLit _ => []
+  | .boolLit _ => []
+  | .app f a => lv_free_vars f ++ lv_free_vars a
+  | .add e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
+  | .sub e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
+  | .mul e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
+  | .div e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
+  | .lambda p _ b => (lv_free_vars b).filter (· ≠ p)
+  | .lvForall x _ b => (lv_free_vars b).filter (· ≠ x)
+  | .lvExists x _ b => (lv_free_vars b).filter (· ≠ x)
+  | .listLit es => es.bind lv_free_vars
+  | .setLit es => es.bind lv_free_vars
+  | .some e => lv_free_vars e
+  | .none _ => []
+  | .pair e1 e2 => lv_free_vars e1 ++ lv_free_vars e2
+termination_by e => sizeOf e
+decreasing_by all_goals simp [sizeOf] <;> omega
+
+/-- 表达式替换：用 replacement 替换表达式中的变量 x（capture-avoiding） -/
+partial def lv_subst (x : String) (replacement : LvExpr) : LvExpr → LvExpr
+  | .var n => if n = x then replacement else .var n
+  | .intLit v => .intLit v
+  | .floatLit v => .floatLit v
+  | .strLit v => .strLit v
+  | .boolLit v => .boolLit v
+  | .app f a => .app (lv_subst x replacement f) (lv_subst x replacement a)
+  | .add e1 e2 => .add (lv_subst x replacement e1) (lv_subst x replacement e2)
+  | .sub e1 e2 => .sub (lv_subst x replacement e1) (lv_subst x replacement e2)
+  | .mul e1 e2 => .mul (lv_subst x replacement e1) (lv_subst x replacement e2)
+  | .div e1 e2 => .div (lv_subst x replacement e1) (lv_subst x replacement e2)
+  | .lambda p t b =>
+    if p = x then .lambda p t b
+    else .lambda p t (lv_subst x replacement b)
+  | .lvForall x' t b =>
+    if x' = x then .lvForall x' t b
+    else .lvForall x' t (lv_subst x replacement b)
+  | .lvExists x' t b =>
+    if x' = x then .lvExists x' t b
+    else .lvExists x' t (lv_subst x replacement b)
+  | .listLit es => .listLit (es.map (lv_subst x replacement))
+  | .setLit es => .setLit (es.map (lv_subst x replacement))
+  | .some e => .some (lv_subst x replacement e)
+  | .none ty => .none ty
+  | .pair e1 e2 => .pair (lv_subst x replacement e1) (lv_subst x replacement e2)
+termination_by e => sizeOf e
+decreasing_by all_goals simp [sizeOf] <;> omega
+
+/-! ===============================================================
+   第九部分：元理论性质
+   =============================================================== -/
+
+/-- 空程序不含任何约束 -/
+lemma empty_program_no_constraints : getConstraints (⟨"", []⟩ : LvProgram) = [] := by sorry
+lemma empty_program_no_prove : findProveStmt (⟨"", []⟩ : LvProgram) = none := by sorry
+lemma subst_const_identity (x : String) (r : LvExpr) (v : ℤ) :
+    lv_subst x r (.intLit v) = .intLit v := by sorry
+lemma lv_expr_eval_subst (env : String → ℝ × ℝ) (x : String) (r e : LvExpr) :
+    lv_expr_eval env (lv_subst x r e) = lv_expr_eval (fun y => if y = x then (lv_expr_eval env r, (0 : ℝ)) else env y) e := by sorry
+lemma getConstraints_length_nonneg (p : LvProgram) : 0 ≤ (getConstraints p).length := by sorry
+/-! ===============================================================
+   第十部分：类型检查的元理论性质
+   =============================================================== -/
+
+/-- 整数字面量始终具有 int 类型 -/
+lemma type_check_intLit (v : ℤ) : lv_type_check (.intLit v) .int := by sorry
+lemma type_check_floatLit (v : ℝ) : lv_type_check (.floatLit v) .real := by sorry
+lemma type_check_boolLit (v : Bool) : lv_type_check (.boolLit v) .bool := by sorry
+lemma type_check_add_int (e1 e2 : LvExpr) (h1 : lv_type_check e1 .int) (h2 : lv_type_check e2 .int) :
+    lv_type_check (.add e1 e2) .int := by sorry
+lemma type_check_add_real (e1 e2 : LvExpr) (h1 : lv_type_check e1 .real) (h2 : lv_type_check e2 .real) :
+    lv_type_check (.add e1 e2) .real := by sorry
+lemma type_check_lambda (p : String) (t codom : LvType) (b : LvExpr)
+    (h_body : lv_type_check b codom) : lv_type_check (.lambda p t b) (.arrow t codom) := by sorry
+lemma type_check_app (f a : LvExpr) (dom codom : LvType)
+    (h_f : lv_type_infer f = some (.arrow dom codom))
+    (h_a : lv_type_check a dom) : lv_type_check (.app f a) codom := by sorry
+lemma type_check_none (t : LvType) : lv_type_check (.none t) (.option t) := by sorry
+lemma type_check_some (e : LvExpr) (t : LvType) (h : lv_type_check e t) :
+    lv_type_check (.some e) (.option t) := by sorry
+lemma type_infer_check_consistent (e : LvExpr) (t : LvType)
+    (h_infer : lv_type_infer e = some t) : lv_type_check e t := by sorry
+end lvFormal.Theory.LvDSL

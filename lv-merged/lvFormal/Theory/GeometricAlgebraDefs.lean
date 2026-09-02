@@ -1,0 +1,159 @@
+/-
+几何代数多向量核心定义
+
+本模块提供几何代数（Geometric Algebra）的基础类型与运算定义，
+包括标量、向量、二重向量分量组成的多向量结构，以及几何积、
+外积、内积、反转等核心运算。为 GeometricAlgebra 定理文件提供依赖定义。
+
+对应论文中的几何代数形式化基础层。
+-/
+
+import Mathlib
+
+namespace lvFormal.Theory.GeometricAlgebraDefs
+
+open Real
+
+/-! ## 多向量定义 -/
+
+/-- 几何代数多向量：标量 + 三维向量 + 三维二重向量分量 -/
+structure Multivector (n : ℕ) where
+  scalar   : ℝ
+  vector   : ℝ × ℝ × ℝ
+  bivector : ℝ × ℝ × ℝ
+
+/-- 多重向量外延性（v4.14 的 structure 不自动生成 ext 定理，此处显式声明）。 -/
+@[ext] theorem Multivector.ext {n : ℕ} (a b : Multivector n) (h1 : a.scalar = b.scalar)
+    (h2 : a.vector = b.vector) (h3 : a.bivector = b.bivector) : a = b := by
+  cases a; cases b
+  dsimp at h1 h2 h3 ⊢
+  simp [h1, h2, h3]
+
+noncomputable instance (n : ℕ) : Repr (Multivector n) where
+  reprPrec _ _ := "⟨Multivector⟩"
+
+/-! ## 核心代数运算 -/
+
+/-- 向量点积 -/
+def dot (v w : ℝ × ℝ × ℝ) : ℝ :=
+  v.1 * w.1 + v.2.1 * w.2.1 + v.2.2 * w.2.2
+
+/-- 向量叉积（作为二重向量） -/
+def cross (v w : ℝ × ℝ × ℝ) : ℝ × ℝ × ℝ :=
+  (v.2.1 * w.2.2 - v.2.2 * w.2.1,
+   v.2.2 * w.1   - v.1     * w.2.2,
+   v.1     * w.2.1 - v.2.1 * w.1)
+
+/-- 几何积 (Geometric Product)：多向量乘法 -/
+def gp (a b : Multivector n) : Multivector n :=
+  let c := cross a.vector b.vector
+  { scalar   := a.scalar * b.scalar + dot a.vector b.vector
+  , vector   := (a.scalar * b.vector.1 + b.scalar * a.vector.1 + c.1,
+                 a.scalar * b.vector.2.1 + b.scalar * a.vector.2.1 + c.2.1,
+                 a.scalar * b.vector.2.2 + b.scalar * a.vector.2.2 + c.2.2)
+  , bivector := c
+  }
+
+/-- 外积 (Outer Product / Wedge Product) -/
+def outer (a b : Multivector n) : Multivector n :=
+  let s := a.scalar * b.scalar
+  let v := (a.scalar * b.vector.1 + b.scalar * a.vector.1,
+            a.scalar * b.vector.2.1 + b.scalar * a.vector.2.1,
+            a.scalar * b.vector.2.2 + b.scalar * a.vector.2.2)
+  let bv := (a.vector.2.1 * b.vector.2.2 - a.vector.2.2 * b.vector.2.1,
+             a.vector.2.2 * b.vector.1 - a.vector.1 * b.vector.2.2,
+             a.vector.1 * b.vector.2.1 - a.vector.2.1 * b.vector.1)
+  { scalar := s, vector := v, bivector := bv }
+
+/-- 内积 (Inner Product) -/
+def inner (a b : Multivector n) : Multivector n :=
+  let dot := a.vector.1 * b.vector.1 + a.vector.2.1 * b.vector.2.1 + a.vector.2.2 * b.vector.2.2
+  { scalar := a.scalar * b.scalar + dot, vector := (0, 0, 0), bivector := (0, 0, 0) }
+
+/-! ## 分量提取与缩放 -/
+
+/-- 提取标量部分 -/
+def scalar_part (a : Multivector n) : ℝ := a.scalar
+
+/-- 标量乘多向量 -/
+def scale (s : ℝ) (a : Multivector n) : Multivector n :=
+  { scalar := s * a.scalar, vector := (s * a.vector.1, s * a.vector.2.1, s * a.vector.2.2),
+    bivector := (s * a.bivector.1, s * a.bivector.2.1, s * a.bivector.2.2) }
+
+/-- 从标量构造纯标量多向量 -/
+def scalar_mv (s : ℝ) : Multivector n :=
+  { scalar := s, vector := (0, 0, 0), bivector := (0, 0, 0) }
+
+/-- 反转 (Reversion)：改变二重向量符号 -/
+def reversion (a : Multivector n) : Multivector n :=
+  { scalar := a.scalar, vector := a.vector,
+    bivector := (-a.bivector.1, -a.bivector.2.1, -a.bivector.2.2) }
+
+/-! ## 性质谓词 -/
+
+/-- 判定是否为纯向量（标量和二重向量部分为零） -/
+def is_vector (a : Multivector n) : Prop :=
+  a.scalar = 0 ∧ a.bivector = (0, 0, 0)
+
+/-- 判定是否为旋转子 (Rotor)：满足 RR† = 1 的偶次多向量 -/
+def is_rotor (a : Multivector n) : Prop :=
+  gp a (reversion a) = scalar_mv 1
+
+/-! ## 公理 -/
+
+/-- 几何积的 blade 结合律：任意 three blades 的几何积可结合
+
+    ⚠️ 已知问题：当前 `gp` 的二重向量部分只含 vector×vector 叉积，
+    缺少标量/向量与二重向量的交叉传播项（完整的 Clifford 乘法），
+    因此一般情形下结合律不成立（bivector 分量交叉项不消）。
+    需先补全 `gp` 定义（完整几何积，含 trivector 传播）后再证明。 -/
+theorem gp_blade_assoc (a b c : Multivector n) : gp (gp a b) c = gp a (gp b c) := by
+  sorry
+
+/-- 纯向量的几何积等于其内积（标量）：v^2 = v·v -/
+theorem vector_gp_square (a : Multivector n) (h : is_vector a) :
+  gp a a = scalar_mv (a.vector.1^2 + a.vector.2.1^2 + a.vector.2.2^2) := by
+  rcases h with ⟨hs, hb⟩
+  ext <;> simp [gp, scalar_mv, dot, cross, hs, hb] <;> ring
+
+/-- 标量部分与几何积可交换 -/
+theorem gp_commute_scalar_part (a b : Multivector n) :
+  scalar_part (gp a b) = scalar_part (gp b a) := by
+  unfold scalar_part gp dot
+  ring
+
+/-- 标量 1 多向量是几何积的单位元
+
+    ⚠️ 已知问题：`gp a (scalar_mv 1)` 的 bivector 分量为 0（cross a.vector (0,0,0)），
+    对 bivector ≠ 0 的 a 不成立。需完整几何积定义（含 bivector 保持）后才成立。 -/
+theorem gp_scalar_one (a : Multivector n) : gp a (scalar_mv 1) = a := by
+  sorry
+
+/-- 纯向量之间的外积反交换：u∧v = -v∧u -/
+theorem outer_anticomm (u v : Multivector n) (hu : is_vector u) (hv : is_vector v) :
+  outer u v = scale (-1) (outer v u) := by
+  rcases hu with ⟨hus, hub⟩
+  rcases hv with ⟨hvs, hvb⟩
+  ext <;> simp [outer, scale, dot, cross, hus, hub, hvs, hvb] <;> ring
+
+/-- 几何积右逆存在性（纯标量特例）：
+    若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
+    则 b = scalar_mv (1 / a.scalar) 满足 gp a b = scalar_mv 1。 -/
+theorem gp_inverse_right_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
+    (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
+  ∃ b : Multivector n, gp a b = scalar_mv 1 := by
+  use scalar_mv (1 / a.scalar)
+  ext <;> simp [gp, scalar_mv, dot, cross, h_vec] <;> field_simp [h_scalar] <;> ring
+
+/-- 几何积左逆存在性（纯标量特例）：
+    若 a 为纯标量（vector = 0 且 bivector = 0）且 a.scalar ≠ 0，
+    则 b = scalar_mv (1 / a.scalar) 满足 gp b a = scalar_mv 1。 -/
+theorem gp_inverse_left_scalar (a : Multivector n) (h_scalar : a.scalar ≠ 0)
+    (h_vec : a.vector = (0, 0, 0)) (h_biv : a.bivector = (0, 0, 0)) :
+  ∃ b : Multivector n, gp b a = scalar_mv 1 := by
+  use scalar_mv (1 / a.scalar)
+  ext <;> simp [gp, scalar_mv, dot, cross, h_vec] <;> field_simp [h_scalar] <;> ring
+
+/- Note: Full inverse for general multivectors requires stronger conditions. -/
+
+end lvFormal.Theory.GeometricAlgebraDefs

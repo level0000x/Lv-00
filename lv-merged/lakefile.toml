@@ -1,0 +1,19 @@
+name = "lvFormal"
+version = "1.2.0"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.14.0"
+
+[[lean_lib]]
+name = "lvFormal"
+root = "."
+
+[[lean_lib]]
+name = "lv"
+root = "."
+
+[[lean_lib]]
+name = "Tests"
+root = "."
