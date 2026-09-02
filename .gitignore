@@ -210,3 +210,12 @@ web/
 
 # filter-repo 临时目录
 .git-rewrite/
+
+# 收尾清理：examples 求解输出产物（非源码，防误提交）
+/examples/triangle_output.svg
+/examples/triangle_output.tex
+
+# 收尾清理：已废弃/空目录（历史残留）
+/gui/
+/scripts/
+/legacy-ui-fixed/

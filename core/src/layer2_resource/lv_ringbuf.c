@@ -6,6 +6,7 @@
  * 原始实现（~150 行）被重构为通用的 lvRingBuf + 日志专用薄封装。
  */
 #include "lv/lv_ringbuf.h"
+#include "lv/lv_utils.h" /* lv_calloc / lv_free：统一分配器（不绕过） */
 
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +16,7 @@ bool lv_ringbuf_init(lvRingBuf *rb, size_t elem_size, int capacity) {
         return false;
     }
 
-    rb->buffer = (uint8_t *) calloc((size_t) capacity, elem_size);
+    rb->buffer = (uint8_t *) lv_calloc((size_t) capacity, elem_size);
     if (!rb->buffer) {
         return false;
     }
@@ -31,8 +32,7 @@ void lv_ringbuf_destroy(lvRingBuf *rb) {
     if (!rb) {
         return;
     }
-    free(rb->buffer);
-    rb->buffer = NULL;
+    lv_free((void **) &rb->buffer); /* lv_free 置 NULL */
     rb->capacity = 0;
     rb->head = 0;
     rb->count = 0;
@@ -104,7 +104,7 @@ bool lv_ringbuf_resize(lvRingBuf *rb, int new_capacity) {
         return true;
     }
 
-    uint8_t *new_buffer = (uint8_t *) calloc((size_t) new_capacity, rb->elem_size);
+    uint8_t *new_buffer = (uint8_t *) lv_calloc((size_t) new_capacity, rb->elem_size);
     if (!new_buffer) {
         return false;
     }
@@ -134,7 +134,7 @@ bool lv_ringbuf_resize(lvRingBuf *rb, int new_capacity) {
     }
 
     /* 替换旧的缓冲区 */
-    free(rb->buffer);
+    lv_free((void **) &rb->buffer);
     rb->buffer = new_buffer;
     rb->capacity = new_capacity;
     rb->head = keep_count % new_capacity;

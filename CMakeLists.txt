@@ -819,7 +819,7 @@ set(lv_CORE_SOURCES
     core/src/lv_impl_upper_algebra.c
     core/src/lv_impl_upper_visual.c
     core/src/lv_impl_upper_orchestrator.c
-    core/src/lv_impl_upper_meta.c
+    # upper_meta.c 已删（无代码空壳：仅重复 internal.h 的 extern；L4 图级/l8 会话级实现均在各自层）
     core/src/lv_impl_upper_app.c
     core/src/lv_impl_upper_interop.c
     core/src/lv_impl_upper_preset.c
