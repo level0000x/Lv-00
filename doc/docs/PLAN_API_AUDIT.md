@@ -20,7 +20,7 @@
 用户确认「97 ❌ + 14 ⚠️ 全部补齐」，排除：Python 集成 8 个（lv_py_*/lv_python_batch_call，
 单独立项讨论）与插件安全组 12 个（G6，实现前单独过设计）。下述为已实现与状态。
 
-## 已实现（G1-G5，ctest 295/295 全绿）
+## 已实现（G1-G6，ctest 296/296 全绿）
 
 | 批次 | 覆盖 | 提交 | 验证 |
 | --- | --- | --- | --- |
@@ -37,16 +37,18 @@
 | G5a/b 安全宏+泄漏 | lv_CHECK_COORD/SAFE_DIV/validate_triangle/DEPTH_ENTER/LEAVE/STRCPY/STRCAT/REFCOUNT_* + leak_detector snapshot/report/assert_clean（读 allocator 追踪链表） | edf8ef80 | test_lv_safety 29 |
 | G5-internal | lv_ENGINE_INTERNAL 宏 + lv_internal_get/add/remove/update_dependency（既有公开 API 薄转发） | 9ce34fbc | test_graph_traversal_ext 86 |
 | G5c solver 增量 | lvIncrementalSolver create/destroy + solve_incremental + invalidate + mark_changed + solve_parallel（blueprint_ 前缀防与 L4 内部 solver_incremental 同名冲突） | 0e5b1fba→48415288 | test_blueprint_solver_incremental 40 |
+| G6 插件安全 | lv_plugin_get_descriptor + verify_signature/add_trusted_key/set_enforcement + sandbox readonly/apply/check + permission 3 + audit_log + REQUIRE_PERMISSION 宏 + dsl_security_check + 扩展（设计文档 8a992bc8 确认后实现） | ea83858c | test_plugin_security 51 |
 
 ## 状态分组（更新后）
 
-- **G1-G5 已实现**：原 ❌/⚠️ 中约 80 个（除 Python 8 排除、G6 12 待定）已落地为真实 API——
-  函数名与蓝图一致，类型按库内适配（头文件注明签名适配，如几何坐标分量对）。
-- **G6 插件安全 12 个**：设计要点文档 `docs/architecture/G6-plugin-security-design.md`
-  已出，待用户确认后实现（签名=SHA-256 哈希校验、沙箱=配置记录非真隔离的诚实范围、
-  权限/审计接线 lv_log）。
+- **G1-G6 已实现**：原 ❌/⚠️ 中除 Python 8 个排除外全部落地为真实 API——函数名与蓝图一致，
+  类型按库内适配（头文件注明签名适配）。G6 插件安全 13 API（ea83858c，设计文档确认后实现）：
+  描述符登记/查询、SHA-256 签名校验+信任表+强制策略、沙箱配置记录模式（诚实标注非 OS 隔离）、
+  三级权限+REQUIRE_PERMISSION 宏+审计日志、DSL 注入检测（6 内置模式+可扩展）。
 - **Python 集成 8 个**：单独立项（需 CPython 嵌入产品决策），本批次不实现。
 - **SIMD 4 函数导出**（✅ 替代但未导出）：仍登记 K 项待补声明。
+- **Python 绑定 CI 修复**：ctypes 缺 c_size_t/c_int64/c_uint64 导入（2be85e36）——历史遗留
+  high_dim 绑定 NameError 修复。
 
 ---
 

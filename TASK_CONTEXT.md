@@ -10792,3 +10792,26 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 
 - G6 插件安全 12 个：设计要点文档 docs/architecture/G6-plugin-security-design.md 已出，待用户确认；
 - Python 集成 8 个：单独立项（需 CPython 产品决策）；SIMD 4 函数导出登记 K 项。
+
+---
+
+## 批次 216-217（G6 插件安全 + Python CI 修复）
+
+### G6 插件安全层（用户确认设计文档后实现，ea83858c）
+
+- 设计：docs/architecture/G6-plugin-security-design.md（8a992bc8 提交，用户通过）
+- 实现 13 API：描述符登记/查询 + SHA-256 签名校验（信任表+强制策略）+ 沙箱配置记录模式
+  + 三级权限 + REQUIRE_PERMISSION 宏 + 审计日志（lv_LOG_WARN）+ DSL 注入检测（6 内置+可扩展）
+  + lv_plugin_security_cleanup（进程级表释放）
+- 层归属 L5（plugin_system 同层）；ctest 296/296；治理检查 0 违规
+
+### Python CI 修复（2be85e36）
+
+- 历史遗留：high_dim 绑定 high_dim_get_fidelity_warning 用裸 c_size_t 未导入 → Python Bindings
+  workflow Ubuntu/macOS NameError（Windows 因路径差异未触发）；同族 _stream_types c_int64 /
+  stream_bridge c_uint64 一并补导入。修复后 Python CI 待确认转绿。
+
+### 蓝图实现完成度
+
+- G1-G6 全部实现并推送（16 提交，ctest 296/296）；剩余仅 Python 集成 8 个（单独立项）+
+  SIMD 4 函数导出（K 项登记）；PLAN_API_AUDIT 状态已标注。
