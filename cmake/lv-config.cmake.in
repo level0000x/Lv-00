@@ -18,9 +18,20 @@ else()
 endif()
 
 # ---- 提供导入目标 ----
+# 前置依赖：lv_static/lv_shared 接口含 Threads::Threads（导出 targets 需先解析）
+find_package(Threads REQUIRED)
+
 if(NOT TARGET lv::lv)
     include("${CMAKE_CURRENT_LIST_DIR}/lv-targets.cmake" OPTIONAL RESULT_VARIABLE _lv_targets_file)
-    if(NOT _lv_targets_file)
+    if(_lv_targets_file)
+        # 导出目标名为 lv::lv_static / lv::lv_shared；统一别名 lv::lv（默认优先 shared）
+        if(TARGET lv::lv_shared)
+            add_library(lv::lv ALIAS lv::lv_shared)
+        elseif(TARGET lv::lv_static)
+            add_library(lv::lv ALIAS lv::lv_static)
+        endif()
+    endif()
+    if(NOT TARGET lv::lv)
         # 回退：如果未找到 targets 文件，尝试直接链接库
         add_library(lv::lv UNKNOWN IMPORTED)
         set_target_properties(lv::lv PROPERTIES
@@ -38,8 +49,18 @@ if(TARGET lv::lv)
     endif()
 endif()
 
-# ---- 检查 GMP 依赖 ----
-find_dependency(GMP QUIET)
+# ---- GMP 依赖 ----
+# 项目自身用 find_path/find_library 定位 GMP（无 FindGMP.cmake 模块），
+# find_dependency(GMP) 在消费方会失败。此处同样用 find_library 定位并挂到
+# lv::lv 接口链接；找不到时置空（消费方若链接报错需自行提供 gmp）。
+if(NOT TARGET lv::lv)
+    # targets 未加载（罕见回退路径），下面不附加 GMP
+else()
+    find_library(lv_GMP_LIBRARY gmp)
+    if(lv_GMP_LIBRARY)
+        set_property(TARGET lv::lv APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${lv_GMP_LIBRARY}")
+    endif()
+endif()
 
 # ---- 设置全局变量（向后兼容） ----
 set(lv_FOUND TRUE)

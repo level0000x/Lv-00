@@ -1701,7 +1701,9 @@ target_include_directories(lv_static PUBLIC
     ${GMP_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv>
+    # 裸 include（lv.h 内 #include "xxx.h"）安装消费需要 include/lv
     $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:include/lv>
 )
 target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
 if(WIN32)
@@ -1752,7 +1754,9 @@ if(BUILD_SHARED_LIBS)
         ${GMP_INCLUDE_DIR}
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include/lv>
+        # 裸 include 安装消费需要 include/lv
         $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:include/lv>
     )
     # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
     target_link_libraries(lv_shared ${GMP_LIBRARIES} Threads::Threads)
@@ -2308,10 +2312,11 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 # [P0 修复] 导出 CMake 目标文件，供 find_package(lv) 使用
+# 与 lv-config.cmake 同目录（${libdir}/cmake/lv），保证 find_package 能找到 targets
 install(EXPORT lv-targets
     FILE lv-targets.cmake
     NAMESPACE lv::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/build/build/cmake/lv
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lv
 )
 
 # ============================================================
