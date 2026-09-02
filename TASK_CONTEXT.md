@@ -10766,3 +10766,29 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 ### 剩余（非确认点，可后续）
 
 - SIMD 4 函数导出（K 项登记）、K18 find_package 安装验证、Linux shared CI 补测、K59 收尾核查、K66/K67 其余、J1/K62/K71。
+
+---
+
+## 批次 205-215（蓝图 API 实现 G1-G5，用户确认 97+14 全补齐）
+
+### 已实现（11 个提交，ctest 295/295 全绿，层/所有权/符号同步 0 违规）
+
+G1a 错误域(df4f6237) / G1b 约束JSON(f990bde3,修类型表size bug) / G1c 图API(852885f0) /
+G1d 预设(93f1dae6) / G2a func_block自定义(b9ab6a5f) / G2b fb_template(bccf2c97) /
+G2c DSL扩展(fed11fb3) / G3 几何23个(bc0a2c1e) / G4a meta+常量+符号缓存(6553335d) /
+G4b LRU(2e50dcc3, 子代理) / G5a/b 安全宏+泄漏(edf8ef80) / G5-internal(9ce34fbc) /
+G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
+
+### 关键决策
+
+- 蓝图伪签名（几何单坐标指针/虚构类型）按库内语义适配：坐标分量对、函数名同蓝图类型按库内
+  （头文件注明适配）；内部蓝图(lv_ENGINE_INTERNAL/internal_*)按「标准尽量少」做公开API薄转发；
+- G5c 文件命名 blueprint_solver_incremental 避免与 L4 既有 solver_incremental.c（内部依赖传播）
+  同名冲突（曾触发层归属误判 L3→L4，改名消除）；
+- SymbolicCoord 测试释放必须用 symbolic_coord_destroy（lv_free 只释外层，内部 mpz 泄漏）；
+- transcendental_create 返回 Transcendental* 非 SymbolicCoord*——常量须用 symbolic_coord_create_transcendental。
+
+### 待办
+
+- G6 插件安全 12 个：设计要点文档 docs/architecture/G6-plugin-security-design.md 已出，待用户确认；
+- Python 集成 8 个：单独立项（需 CPython 产品决策）；SIMD 4 函数导出登记 K 项。

@@ -15,6 +15,41 @@
 
 ---
 
+# 实现状态追加（2026-09，蓝图实现批次 G1-G6）
+
+用户确认「97 ❌ + 14 ⚠️ 全部补齐」，排除：Python 集成 8 个（lv_py_*/lv_python_batch_call，
+单独立项讨论）与插件安全组 12 个（G6，实现前单独过设计）。下述为已实现与状态。
+
+## 已实现（G1-G5，ctest 295/295 全绿）
+
+| 批次 | 覆盖 | 提交 | 验证 |
+| --- | --- | --- | --- |
+| G1a 错误域 | lv_get_error_message / error_category_name(_cn) / register/unregister_error_message / format_error / error_code_count + lvErrorCategory 映射库内 LV_CAT_* + 动态注册表 | df4f6237 | test_error_codes_ext 54 |
+| G1b 约束 JSON | lv_constraint_to_json / from_json（含修复 constraint 类型表 size 6→8 潜在 bug） | f990bde3 | test_graph_serialize 126 |
+| G1c 图 API | lv_graph_add_point / get_nodes_by_type / get_dependents / register_change_callback / on_node_changed / decompose（并查集连通分量） | 852885f0 | test_graph_traversal_ext 81 |
+| G1d 预设 | lvPresetBlockDef + register/unregister/get + create_midpoint/centroid/circumcenter/orthocenter/incenter/reflection/translation | 93f1dae6 | test_func_block_preset 82 |
+| G2a func_block 自定义 | CustomFunctionMeta/Registration + register_custom/unregister_custom/is_registered/get_meta/batch ×2 + call_custom 桥 | b9ab6a5f | test_func_block 334 |
+| G2b fb_template | FuncBlockTemplate create/destroy/add_param/set_script/set_version/add_dependency/register/query/unregister/instantiate | bccf2c97 | test_func_block 360 |
+| G2c DSL 扩展 | DslVersion + register/unregister_extension + version_parse/compare + syntax_transform | fed11fb3 | test_dsl_extension 44 |
+| G3 几何 | lv_point_*/segment_*/triangle_*/intersect_* 23 个（坐标分量对适配签名） | bc0a2c1e | test_geometry_ops 114 |
+| G4a 元数据/常量/缓存 | constraint_get_meta/type_from_name/python_class + symbolic init/free_constants + lv_SYM_* + lv_cache_*（8）+ insert_for_node | 6553335d | test_blueprint_g4 51 |
+| G4b LRU | lv_lru_create/destroy/put/get/count/capacity | 2e50dcc3 | test_lru_cache 397 |
+| G5a/b 安全宏+泄漏 | lv_CHECK_COORD/SAFE_DIV/validate_triangle/DEPTH_ENTER/LEAVE/STRCPY/STRCAT/REFCOUNT_* + leak_detector snapshot/report/assert_clean（读 allocator 追踪链表） | edf8ef80 | test_lv_safety 29 |
+| G5-internal | lv_ENGINE_INTERNAL 宏 + lv_internal_get/add/remove/update_dependency（既有公开 API 薄转发） | 9ce34fbc | test_graph_traversal_ext 86 |
+| G5c solver 增量 | lvIncrementalSolver create/destroy + solve_incremental + invalidate + mark_changed + solve_parallel（blueprint_ 前缀防与 L4 内部 solver_incremental 同名冲突） | 0e5b1fba→48415288 | test_blueprint_solver_incremental 40 |
+
+## 状态分组（更新后）
+
+- **G1-G5 已实现**：原 ❌/⚠️ 中约 80 个（除 Python 8 排除、G6 12 待定）已落地为真实 API——
+  函数名与蓝图一致，类型按库内适配（头文件注明签名适配，如几何坐标分量对）。
+- **G6 插件安全 12 个**：设计要点文档 `docs/architecture/G6-plugin-security-design.md`
+  已出，待用户确认后实现（签名=SHA-256 哈希校验、沙箱=配置记录非真隔离的诚实范围、
+  权限/审计接线 lv_log）。
+- **Python 集成 8 个**：单独立项（需 CPython 嵌入产品决策），本批次不实现。
+- **SIMD 4 函数导出**（✅ 替代但未导出）：仍登记 K 项待补声明。
+
+---
+
 ## PERFORMANCE_OPTIMIZATION.md（23 个）
 
 | 蓝图 API | 结论 | 已有对应/替代 |
