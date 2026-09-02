@@ -18,6 +18,7 @@
 #ifndef lv_ARENA_H
 #define lv_ARENA_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -62,40 +63,40 @@ typedef struct lvArena {
 lvArena *lv_arena_create(size_t block_size, bool thread_safe);
 
 // 销毁竞技场（释放所有块）
-void lv_arena_destroy(lvArena *arena);
+lv_PUBLIC_API void lv_arena_destroy(lvArena *arena);
 
 // 从竞技场分配内存
 // 返回对齐到 8 字节的内存指针
-void *lv_arena_alloc(lvArena *arena, size_t size);
+lv_PUBLIC_API void *lv_arena_alloc(lvArena *arena, size_t size);
 
 // 从竞技场分配内存（自定义对齐）
 // alignment: 对齐要求（必须为 2 的幂，0 表示默认 8 字节对齐）
 // 返回按 alignment 对齐的内存指针
-void *lv_arena_alloc_aligned(lvArena *arena, size_t size, size_t alignment);
+lv_PUBLIC_API void *lv_arena_alloc_aligned(lvArena *arena, size_t size, size_t alignment);
 
 // 从竞技场分配并清零内存
-void *lv_arena_calloc(lvArena *arena, size_t size);
+lv_PUBLIC_API void *lv_arena_calloc(lvArena *arena, size_t size);
 
 // 复制字符串到竞技场
-char *lv_arena_strdup(lvArena *arena, const char *str);
+lv_PUBLIC_API char *lv_arena_strdup(lvArena *arena, const char *str);
 
 // 重置竞技场（释放所有块，回到初始状态）
-void lv_arena_reset(lvArena *arena);
+lv_PUBLIC_API void lv_arena_reset(lvArena *arena);
 
 // 获取当前标记（用于 checkpoint）
 lvArenaMark lv_arena_mark(lvArena *arena);
 
 // 回滚到标记（释放标记后分配的所有内存）
-void lv_arena_reset_to_mark(lvArena *arena, lvArenaMark mark);
+lv_PUBLIC_API void lv_arena_reset_to_mark(lvArena *arena, lvArenaMark mark);
 
 // 查询统计
-size_t lv_arena_total_allocated(const lvArena *arena);
-size_t lv_arena_total_used(const lvArena *arena);
-int lv_arena_block_count(const lvArena *arena);
+lv_PUBLIC_API size_t lv_arena_total_allocated(const lvArena *arena);
+lv_PUBLIC_API size_t lv_arena_total_used(const lvArena *arena);
+lv_PUBLIC_API int lv_arena_block_count(const lvArena *arena);
 
 // 线程安全包装
-void lv_arena_lock(lvArena *arena);
-void lv_arena_unlock(lvArena *arena);
+lv_PUBLIC_API void lv_arena_lock(lvArena *arena);
+lv_PUBLIC_API void lv_arena_unlock(lvArena *arena);
 
 // 临时竞技场（线程局部，用于快速临时分配）
 lvArena *lv_arena_tmp(void);

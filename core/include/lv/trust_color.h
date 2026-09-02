@@ -21,6 +21,7 @@
 #ifndef lv_TRUST_COLOR_H
 #define lv_TRUST_COLOR_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/proof.h"          /* ProofColor */
 #include "lv/symbolic_coord.h" /* TrustColor */
 
@@ -67,7 +68,7 @@ TrustColor proof_color_to_trust(ProofColor pc);
  * @param tc TrustColor 枚举值
  * @return 静态字符串（如 "Green", "Blue (unexplored)"），越界返回 "Unknown"
  */
-const char *trust_color_name(TrustColor tc);
+lv_PUBLIC_API const char *trust_color_name(TrustColor tc);
 
 /**
  * @brief 获取 ProofColor 的人类可读名称
@@ -75,7 +76,7 @@ const char *trust_color_name(TrustColor tc);
  * @param pc ProofColor 枚举值
  * @return 静态字符串（如 "Green", "Orange (ex falso)"），越界返回 "Unknown"
  */
-const char *proof_color_name(ProofColor pc);
+lv_PUBLIC_API const char *proof_color_name(ProofColor pc);
 
 /**
  * @brief 获取 ProofColor 对应的 HTML 十六进制颜色
@@ -85,7 +86,7 @@ const char *proof_color_name(ProofColor pc);
  * @param pc ProofColor 枚举值
  * @return 静态字符串（如 "#4CAF50"），越界返回默认灰 "#78909C"
  */
-const char *proof_color_to_html_hex(ProofColor pc);
+lv_PUBLIC_API const char *proof_color_to_html_hex(ProofColor pc);
 
 /**
  * @brief 合并两个 ProofColor（语义等价于 trust_color_combine）

@@ -9,6 +9,7 @@
 #ifndef lv_PARAMETRIC_CURVES_H
 #define lv_PARAMETRIC_CURVES_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "lv_vec3.h" /* lvVec3：3D 向量单一事实来源，lvPoint3D 为其 typedef */
@@ -62,12 +63,12 @@ struct lvParametricSurface;
 struct lvParametricCurve *lv_curve_create(double t_min, double t_max, lvCurveEvalFunc eval_func,
                                           lvCurveDerivFunc deriv_func, void *user_data, bool is_closed);
 
-void lv_curve_destroy(struct lvParametricCurve *curve);
-bool lv_curve_evaluate(const struct lvParametricCurve *curve, double t, lvPoint2D *out);
-bool lv_curve_tangent(const struct lvParametricCurve *curve, double t, double *out_dx, double *out_dy);
-double lv_curve_arc_length(const struct lvParametricCurve *curve, int n_steps);
-bool lv_curve_get_domain(const struct lvParametricCurve *curve, double *out_t_min, double *out_t_max);
-bool lv_curve_is_closed(const struct lvParametricCurve *curve);
+lv_PUBLIC_API void lv_curve_destroy(struct lvParametricCurve *curve);
+lv_PUBLIC_API bool lv_curve_evaluate(const struct lvParametricCurve *curve, double t, lvPoint2D *out);
+lv_PUBLIC_API bool lv_curve_tangent(const struct lvParametricCurve *curve, double t, double *out_dx, double *out_dy);
+lv_PUBLIC_API double lv_curve_arc_length(const struct lvParametricCurve *curve, int n_steps);
+lv_PUBLIC_API bool lv_curve_get_domain(const struct lvParametricCurve *curve, double *out_t_min, double *out_t_max);
+lv_PUBLIC_API bool lv_curve_is_closed(const struct lvParametricCurve *curve);
 
 /* ============================================================
  * 参数曲面 API
@@ -77,12 +78,12 @@ struct lvParametricSurface *lv_surface_create(double u_min, double u_max, double
                                               lvSurfaceEvalFunc eval_func, lvSurfaceDerivFunc deriv_func,
                                               void *user_data);
 
-void lv_surface_destroy(struct lvParametricSurface *surf);
-bool lv_surface_evaluate(const struct lvParametricSurface *surf, double u, double v, lvPoint3D *out);
+lv_PUBLIC_API void lv_surface_destroy(struct lvParametricSurface *surf);
+lv_PUBLIC_API bool lv_surface_evaluate(const struct lvParametricSurface *surf, double u, double v, lvPoint3D *out);
 bool lv_surface_normal(const struct lvParametricSurface *surf, double u, double v, double *out_nx, double *out_ny,
                        double *out_nz);
-double lv_surface_area(const struct lvParametricSurface *surf, int n_u, int n_v);
-bool lv_surface_get_domain(const struct lvParametricSurface *surf, lvParametricDomain2D *out);
+lv_PUBLIC_API double lv_surface_area(const struct lvParametricSurface *surf, int n_u, int n_v);
+lv_PUBLIC_API bool lv_surface_get_domain(const struct lvParametricSurface *surf, lvParametricDomain2D *out);
 
 #ifdef __cplusplus
 }

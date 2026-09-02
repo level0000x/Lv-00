@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -14,7 +15,7 @@ extern "C" {
 lvErrorCode lv_input_validate(const char *input, size_t len);
 
 /** 净化输入字符串（就地修改），返回净化后的字符串长度。 */
-size_t lv_input_sanitize(char *input, size_t max_len);
+lv_PUBLIC_API size_t lv_input_sanitize(char *input, size_t max_len);
 
 /** 检查 AST 深度是否超过安全上限（K28：接入主解析链）。 */
 lvErrorCode lv_check_ast_depth(int depth);
@@ -26,7 +27,7 @@ lvErrorCode lv_check_ast_node_count(int count);
 lvErrorCode lv_check_token_length(size_t len);
 
 /** 检查字节是否为安全控制字符（K20 无头声明实现补齐）。 */
-bool lv_char_is_safe_ctrl(unsigned char c);
+lv_PUBLIC_API bool lv_char_is_safe_ctrl(unsigned char c);
 
 #ifdef __cplusplus
 }

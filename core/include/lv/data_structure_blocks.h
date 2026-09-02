@@ -3,6 +3,7 @@
 
 #include "lv/func_block.h"
 #include "lv/type_system.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,14 +43,14 @@ typedef struct lvRecordBlock {
 
 /* Factory */
 lvListBlock *lv_list_block_create(lvListOp op);
-void lv_list_block_destroy(lvListBlock *block);
+lv_PUBLIC_API void lv_list_block_destroy(lvListBlock *block);
 
 lvMapBlock *lv_map_block_create(lvMapOp op);
-void lv_map_block_destroy(lvMapBlock *block);
+lv_PUBLIC_API void lv_map_block_destroy(lvMapBlock *block);
 
 lvRecordBlock *lv_record_block_create(int field_count);
-void lv_record_block_destroy(lvRecordBlock *block);
-int lv_record_block_set_field(lvRecordBlock *block, int index, const char *name, void *type);
+lv_PUBLIC_API void lv_record_block_destroy(lvRecordBlock *block);
+lv_PUBLIC_API int lv_record_block_set_field(lvRecordBlock *block, int index, const char *name, void *type);
 
 #ifdef __cplusplus
 }

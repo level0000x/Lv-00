@@ -1,6 +1,7 @@
 ﻿#ifndef lv_EXACT_ARITHMETIC_H
 #define lv_EXACT_ARITHMETIC_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -17,9 +18,9 @@ typedef struct {
 } lvTimestamp;
 
 lvTimestamp lv_timestamp_now(void);
-bool lv_safe_pow(int64_t a, int64_t b, int64_t *result);
-bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
-bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
-bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_pow(int64_t a, int64_t b, int64_t *result);
+lv_PUBLIC_API bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
 
 #endif /* lv_EXACT_ARITHMETIC_H */

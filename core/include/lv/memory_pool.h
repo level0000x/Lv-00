@@ -34,6 +34,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -79,14 +80,14 @@ lvObjectPool *lv_pool_create(const lvPoolConfig *config);
  * @brief 销毁对象池
  * @param pool 对象池指针
  */
-void lv_pool_destroy(lvObjectPool *pool);
+lv_PUBLIC_API void lv_pool_destroy(lvObjectPool *pool);
 
 /**
  * @brief 从对象池分配一个对象
  * @param pool 对象池
  * @return 对象指针，失败返回 NULL
  */
-void *lv_pool_alloc(lvObjectPool *pool);
+lv_PUBLIC_API void *lv_pool_alloc(lvObjectPool *pool);
 
 /**
  * @brief 将对象归还到对象池
@@ -94,7 +95,7 @@ void *lv_pool_alloc(lvObjectPool *pool);
  * @param obj 对象指针
  * @return 是否成功
  */
-bool lv_pool_free(lvObjectPool *pool, void *obj);
+lv_PUBLIC_API bool lv_pool_free(lvObjectPool *pool, void *obj);
 
 /**
  * @brief 获取对象池统计信息
@@ -110,7 +111,7 @@ void lv_pool_get_stats(lvObjectPool *pool, uint64_t *out_total_allocs, uint64_t 
  * @brief 清空对象池（不销毁池本身）
  * @param pool 对象池
  */
-void lv_pool_clear(lvObjectPool *pool);
+lv_PUBLIC_API void lv_pool_clear(lvObjectPool *pool);
 
 /* ============== 全局内存统计 ============== */
 
@@ -153,32 +154,32 @@ struct lvMemoryStats {
  * @param name 类型名称
  * @return 类型 ID，失败返回 -1
  */
-int lv_mem_register_type(const char *name);
+lv_PUBLIC_API int lv_mem_register_type(const char *name);
 
 /**
  * @brief 记录内存分配
  * @param type_id 类型 ID
  * @param size 分配大小
  */
-void lv_mem_record_alloc(int type_id, size_t size);
+lv_PUBLIC_API void lv_mem_record_alloc(int type_id, size_t size);
 
 /**
  * @brief 记录内存释放
  * @param type_id 类型 ID
  * @param size 释放大小
  */
-void lv_mem_record_free(int type_id, size_t size);
+lv_PUBLIC_API void lv_mem_record_free(int type_id, size_t size);
 
 /**
  * @brief 获取全局内存统计
  * @param stats 输出统计结构
  */
-void lv_mem_get_global_stats(lvMemoryStats *stats);
+lv_PUBLIC_API void lv_mem_get_global_stats(lvMemoryStats *stats);
 
 /**
  * @brief 重置全局内存统计
  */
-void lv_mem_reset_stats(void);
+lv_PUBLIC_API void lv_mem_reset_stats(void);
 
 /**
  * @brief 打印内存统计报告
@@ -198,7 +199,7 @@ void lv_mem_reset_stats(void);
  *     lv_mem_print_stats(stdout);   // 输出到标准输出
  *     lv_mem_print_stats(stderr);   // 输出到标准错误
  */
-void lv_mem_print_stats(void *stream);
+lv_PUBLIC_API void lv_mem_print_stats(void *stream);
 
 /* ============== 通用内存管理函数 ============== */
 
@@ -217,7 +218,7 @@ void lv_mem_print_stats(void *stream);
  *       此处提供显式的函数声明，便于不包含 lv.h 的模块使用。
  *       调用者获得返回指针的所有权，负责在不再使用时释放。
  */
-char *lv_strdup(const char *str);
+lv_PUBLIC_API char *lv_strdup(const char *str);
 
 /**
  * @brief 安全内存分配（声明，定义见 lv_utils.h）
@@ -230,7 +231,7 @@ char *lv_strdup(const char *str);
  * @note 完整声明和文档见 lv_utils.h。
  *       调用者获得返回指针的所有权，负责使用 lv_free() 释放。
  */
-void *lv_malloc(size_t size);
+lv_PUBLIC_API void *lv_malloc(size_t size);
 
 /**
  * @brief 安全内存分配并清零（声明，定义见 lv_utils.h）
@@ -241,7 +242,7 @@ void *lv_malloc(size_t size);
  *
  * @note 完整声明和文档见 lv_utils.h。
  */
-void *lv_calloc(size_t nmemb, size_t size);
+lv_PUBLIC_API void *lv_calloc(size_t nmemb, size_t size);
 
 /**
  * @brief 安全内存重新分配（声明，定义见 lv_utils.h）
@@ -252,7 +253,7 @@ void *lv_calloc(size_t nmemb, size_t size);
  *
  * @note 完整声明和文档见 lv_utils.h。
  */
-void *lv_realloc(void *ptr, size_t size);
+lv_PUBLIC_API void *lv_realloc(void *ptr, size_t size);
 
 /**
  * @brief 释放内存并将指针置 NULL（声明，定义见 lv_utils.h）
@@ -261,7 +262,7 @@ void *lv_realloc(void *ptr, size_t size);
  *
  * @note 完整声明和文档见 lv_utils.h。
  */
-void lv_free(void **ptr);
+lv_PUBLIC_API void lv_free(void **ptr);
 
 /* ============== 预定义对象池 ============== */
 
@@ -276,12 +277,12 @@ void lv_free(void **ptr);
  *
  * @return 是否成功
  */
-bool lv_init_preset_pools(void);
+lv_PUBLIC_API bool lv_init_preset_pools(void);
 
 /**
  * @brief 清理预定义对象池
  */
-void lv_cleanup_preset_pools(void);
+lv_PUBLIC_API void lv_cleanup_preset_pools(void);
 
 /**
  * @brief 获取 ConstraintNode 对象池

@@ -13,6 +13,7 @@
 #ifndef lv_MPZ_POLY_H
 #define lv_MPZ_POLY_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_platform.h"
 
 #ifdef __cplusplus
@@ -288,7 +289,7 @@ typedef enum {
  * @param[out] result 结果多项式（调用者需用 mpz_poly_clear 释放）
  * @return true 成功，false 失败（度数超过 4 或其他错误）
  */
-bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
+lv_PUBLIC_API bool mpz_poly_resultant(const mpz_poly_t *p, const mpz_poly_t *q, AlgebraicOp op, mpz_poly_t *result);
 
 #ifdef __cplusplus
 }

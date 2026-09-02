@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -51,7 +52,7 @@ typedef struct {
  * @param var_count 变量个数
  * @return 正数表示 a > b，负数表示 a < b，0 表示相等
  */
-int lv_canonical_compare_terms(const int *a, const int *b, int var_count);
+lv_PUBLIC_API int lv_canonical_compare_terms(const int *a, const int *b, int var_count);
 
 /* ============================================================
  * 生命周期管理
@@ -69,7 +70,7 @@ lvExprCanonical *lv_expr_canonical_create(int var_count, const char **var_names)
  * @brief 销毁规范多项式
  * @param expr 指向多项式指针的指针（销毁后置 NULL）
  */
-void lv_expr_canonical_destroy(lvExprCanonical **expr);
+lv_PUBLIC_API void lv_expr_canonical_destroy(lvExprCanonical **expr);
 
 /**
  * @brief 克隆规范多项式
@@ -89,7 +90,7 @@ lvExprCanonical *lv_expr_canonical_clone(const lvExprCanonical *src);
  * @param exponents 项的指数数组
  * @return 是否成功
  */
-bool lv_expr_canonical_add_term(lvExprCanonical *expr, const lvRational *coeff, const int *exponents);
+lv_PUBLIC_API bool lv_expr_canonical_add_term(lvExprCanonical *expr, const lvRational *coeff, const int *exponents);
 
 /* ============================================================
  * 规范化
@@ -100,14 +101,14 @@ bool lv_expr_canonical_add_term(lvExprCanonical *expr, const lvRational *coeff, 
  * @param expr 多项式
  * @return 是否成功
  */
-bool lv_expr_canonicalize(lvExprCanonical *expr);
+lv_PUBLIC_API bool lv_expr_canonicalize(lvExprCanonical *expr);
 
 /**
  * @brief 检查多项式是否处于规范形式
  * @param expr 多项式
  * @return 是否规范
  */
-bool lv_expr_is_canonical(const lvExprCanonical *expr);
+lv_PUBLIC_API bool lv_expr_is_canonical(const lvExprCanonical *expr);
 
 /* ============================================================
  * 算术运算
@@ -162,28 +163,28 @@ lvExprCanonical *lv_expr_canonical_neg(const lvExprCanonical *a);
  * @param b 第二个多项式
  * @return 是否相等
  */
-bool lv_expr_canonical_equal(const lvExprCanonical *a, const lvExprCanonical *b);
+lv_PUBLIC_API bool lv_expr_canonical_equal(const lvExprCanonical *a, const lvExprCanonical *b);
 
 /**
  * @brief 检查多项式是否为零
  * @param a 多项式
  * @return 是否为零
  */
-bool lv_expr_canonical_is_zero(const lvExprCanonical *a);
+lv_PUBLIC_API bool lv_expr_canonical_is_zero(const lvExprCanonical *a);
 
 /**
  * @brief 获取多项式的总次数
  * @param expr 多项式
  * @return 总次数，零多项式返回 -1
  */
-int lv_expr_canonical_degree(const lvExprCanonical *expr);
+lv_PUBLIC_API int lv_expr_canonical_degree(const lvExprCanonical *expr);
 
 /**
  * @brief 获取多项式的项数
  * @param expr 多项式
  * @return 项数
  */
-int lv_expr_canonical_term_count(const lvExprCanonical *expr);
+lv_PUBLIC_API int lv_expr_canonical_term_count(const lvExprCanonical *expr);
 
 /* ============================================================
  * 字符串表示
@@ -195,7 +196,7 @@ int lv_expr_canonical_term_count(const lvExprCanonical *expr);
  * @return 字符串表示（[take] 语义：lv_malloc 分配，调用者负责用 lv_free 释放——
  *         原注释 free() 为混合分配器 UB，见 memory-ownership.md K10/F39）
  */
-char *lv_expr_canonical_to_string(const lvExprCanonical *expr);
+lv_PUBLIC_API char *lv_expr_canonical_to_string(const lvExprCanonical *expr);
 
 /**
  * @brief 从字符串解析多项式（完整实现，支持系数/变量幂次/± 分隔）
@@ -215,7 +216,7 @@ lvExprCanonical *lv_expr_canonical_from_string(const char *str, const char **var
  * @param expr 表达式字符串
  * @return 规范化后的字符串，失败返回 NULL
  */
-char *lv_expr_canon(const char *expr);
+lv_PUBLIC_API char *lv_expr_canon(const char *expr);
 
 #ifdef __cplusplus
 }

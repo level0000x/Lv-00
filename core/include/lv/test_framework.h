@@ -12,6 +12,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -135,23 +136,23 @@ struct lvBenchmark {
 };
 
 /* ── API ── */
-bool lv_test_register(const char *suite_name, const char *test_name, lvTestFunc func);
+lv_PUBLIC_API bool lv_test_register(const char *suite_name, const char *test_name, lvTestFunc func);
 bool lv_test_register_with_fixture(const char *suite_name, const char *test_name, lvTestFunc func,
                                    lvTestSetupFunc setup, lvTestTeardownFunc teardown);
-bool lv_test_register_suite_fixture(const char *suite_name, lvTestSetupFunc setup, lvTestTeardownFunc teardown);
+lv_PUBLIC_API bool lv_test_register_suite_fixture(const char *suite_name, lvTestSetupFunc setup, lvTestTeardownFunc teardown);
 bool lv_test_register_data_driven(const char *suite_name, const char *test_name, lvTestFunc func,
                                   lvTestDataGenerator generator, int data_count);
-bool lv_test_register_tag(const char *suite_name, const char *test_name, const char *tag);
+lv_PUBLIC_API bool lv_test_register_tag(const char *suite_name, const char *test_name, const char *tag);
 
 lvTestReport *lv_test_run_all(void);
 lvTestReport *lv_test_run_suite(const char *suite_name);
 lvTestReport *lv_test_run_by_tag(const char *tag);
 
-void lv_test_result_destroy(lvTestResult *result);
-void lv_test_report_destroy(lvTestReport *report);
-void lv_test_report_print(const lvTestReport *report, FILE *stream);
-char *lv_test_report_to_json(const lvTestReport *report);
-bool lv_test_report_write_file(const lvTestReport *report, const char *path, const char *format);
+lv_PUBLIC_API void lv_test_result_destroy(lvTestResult *result);
+lv_PUBLIC_API void lv_test_report_destroy(lvTestReport *report);
+lv_PUBLIC_API void lv_test_report_print(const lvTestReport *report, FILE *stream);
+lv_PUBLIC_API char *lv_test_report_to_json(const lvTestReport *report);
+lv_PUBLIC_API bool lv_test_report_write_file(const lvTestReport *report, const char *path, const char *format);
 
 /*
  * 基准统计口径豁免约定（P2-1）：
@@ -160,13 +161,13 @@ bool lv_test_report_write_file(const lvTestReport *report, const char *path, con
  * Welford 在线统计）统计口径不同，二者刻意保持独立、不做收敛复用；
  * 如需统一口径，应先评审两侧消费方对计时确定性与采样方法的依赖。
  */
-bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iterations);
+lv_PUBLIC_API bool lv_benchmark_register(const char *name, lvBenchmarkFunc func, uint64_t iterations);
 lvBenchmark *lv_benchmark_run(const char *name);
-void lv_benchmark_destroy(lvBenchmark *bench);
+lv_PUBLIC_API void lv_benchmark_destroy(lvBenchmark *bench);
 
 /* data-driven helpers */
-void *lv_test_get_data(void);
-uint32_t lv_test_get_data_index(void);
+lv_PUBLIC_API void *lv_test_get_data(void);
+lv_PUBLIC_API uint32_t lv_test_get_data_index(void);
 
 /* ── Test assertion macros (lv_ prefix) ── */
 #ifndef lv_TEST_MACROS_DEFINED

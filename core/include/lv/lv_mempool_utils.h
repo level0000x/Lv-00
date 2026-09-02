@@ -11,6 +11,7 @@
 #ifndef lv_MEMPOOL_UTILS_H
 #define lv_MEMPOOL_UTILS_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv_mempool.h"
 
 #ifdef __cplusplus
@@ -37,7 +38,7 @@ lvMemPool *lv_mempool_static_init(lvMemPool **pool, size_t block_size, int initi
  *
  * @param pool 静态 lvMemPool 指针的指针（NULL 安全）
  */
-void lv_mempool_static_destroy(lvMemPool **pool);
+lv_PUBLIC_API void lv_mempool_static_destroy(lvMemPool **pool);
 
 #ifdef __cplusplus
 }

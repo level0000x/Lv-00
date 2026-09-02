@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <gmp.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -29,22 +30,22 @@ lvRational *lv_rational_create_from_mpz(const mpz_t num, const mpz_t den);
 lvRational *lv_rational_create_from_si(long num, unsigned long den);
 lvRational *lv_rational_create_from_i64(int64_t num, uint64_t den);
 lvRational *lv_rational_clone(const lvRational *src);
-void lv_rational_destroy(lvRational **r);
+lv_PUBLIC_API void lv_rational_destroy(lvRational **r);
 
 /* ========================================================================
  * 赋值操作
  * ======================================================================== */
 
-void lv_rational_set(lvRational *dst, const lvRational *src);
-void lv_rational_set_zero(lvRational *r);
-void lv_rational_set_one(lvRational *r);
-bool lv_rational_set_mpz(lvRational *r, const mpz_t num, const mpz_t den);
+lv_PUBLIC_API void lv_rational_set(lvRational *dst, const lvRational *src);
+lv_PUBLIC_API void lv_rational_set_zero(lvRational *r);
+lv_PUBLIC_API void lv_rational_set_one(lvRational *r);
+lv_PUBLIC_API bool lv_rational_set_mpz(lvRational *r, const mpz_t num, const mpz_t den);
 
 /* ========================================================================
  * 规范化
  * ======================================================================== */
 
-void lv_rational_simplify(lvRational *r);
+lv_PUBLIC_API void lv_rational_simplify(lvRational *r);
 
 /* ========================================================================
  * 算术运算（返回新分配的有理数）
@@ -62,42 +63,42 @@ lvRational *lv_rational_abs(const lvRational *a);
  * 原地算术运算
  * ======================================================================== */
 
-void lv_rational_add_inplace(lvRational *a, const lvRational *b);
-void lv_rational_sub_inplace(lvRational *a, const lvRational *b);
-void lv_rational_mul_inplace(lvRational *a, const lvRational *b);
-bool lv_rational_div_inplace(lvRational *a, const lvRational *b);
-void lv_rational_neg_inplace(lvRational *a);
+lv_PUBLIC_API void lv_rational_add_inplace(lvRational *a, const lvRational *b);
+lv_PUBLIC_API void lv_rational_sub_inplace(lvRational *a, const lvRational *b);
+lv_PUBLIC_API void lv_rational_mul_inplace(lvRational *a, const lvRational *b);
+lv_PUBLIC_API bool lv_rational_div_inplace(lvRational *a, const lvRational *b);
+lv_PUBLIC_API void lv_rational_neg_inplace(lvRational *a);
 
 /* ========================================================================
  * 比较操作
  * ======================================================================== */
 
-int lv_rational_cmp(const lvRational *a, const lvRational *b);
-bool lv_rational_equal(const lvRational *a, const lvRational *b);
-bool lv_rational_is_zero(const lvRational *a);
-bool lv_rational_is_one(const lvRational *a);
-bool lv_rational_is_integer(const lvRational *a);
-int lv_rational_sgn(const lvRational *a);
+lv_PUBLIC_API int lv_rational_cmp(const lvRational *a, const lvRational *b);
+lv_PUBLIC_API bool lv_rational_equal(const lvRational *a, const lvRational *b);
+lv_PUBLIC_API bool lv_rational_is_zero(const lvRational *a);
+lv_PUBLIC_API bool lv_rational_is_one(const lvRational *a);
+lv_PUBLIC_API bool lv_rational_is_integer(const lvRational *a);
+lv_PUBLIC_API int lv_rational_sgn(const lvRational *a);
 
 /* ========================================================================
  * 与 double 的转换
  * ======================================================================== */
 
-bool lv_rational_to_double(const lvRational *r, double *out_lossy, int *out_loss_bits);
-int lv_rational_estimate_loss(const lvRational *r);
+lv_PUBLIC_API bool lv_rational_to_double(const lvRational *r, double *out_lossy, int *out_loss_bits);
+lv_PUBLIC_API int lv_rational_estimate_loss(const lvRational *r);
 
 /* ========================================================================
  * 防止分母溢出
  * ======================================================================== */
 
-bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t max_bits);
-bool lv_rational_den_is_safe(const mpz_t den);
+lv_PUBLIC_API bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t max_bits);
+lv_PUBLIC_API bool lv_rational_den_is_safe(const mpz_t den);
 
 /* ========================================================================
  * 格式化与调试
  * ======================================================================== */
 
-char *lv_rational_to_string(const lvRational *r);
+lv_PUBLIC_API char *lv_rational_to_string(const lvRational *r);
 lvRational *lv_rational_from_string(const char *s);
 
 /* ========================================================================
@@ -105,7 +106,7 @@ lvRational *lv_rational_from_string(const char *s);
  * ======================================================================== */
 
 lvRational *lv_rational_from_mpq(mpq_srcptr val);
-void lv_rational_to_mpq(const lvRational *r, mpq_t out);
+lv_PUBLIC_API void lv_rational_to_mpq(const lvRational *r, mpq_t out);
 
 /* ========================================================================
  * 兼容宏

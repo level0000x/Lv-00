@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -65,7 +66,7 @@ int lv_external_process_run(const char *exe, char *const argv[], const char *inp
  * @param[in] name 可执行文件名（如 "z3"）或路径
  * @return true 可用，false 不可用（含 NULL/空字符串）
  */
-bool lv_external_process_available(const char *name);
+lv_PUBLIC_API bool lv_external_process_available(const char *name);
 
 #ifdef __cplusplus
 }

@@ -36,6 +36,7 @@ extern "C" {
  * 收敛说明：lv_EPSILON_DOUBLE（1e-12）为通用 double 阈值权威之一，
  * 与 config.h 的 lv_EPSILON_ULTRA（1e-12）同值，二者均保留为数值来源。 */
 #include "config.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_platform.h"
 #include <stdbool.h>
 
@@ -51,9 +52,9 @@ struct CSGNode {
 
 /* ── CSG 节点 API ── */
 CSGNode *csg_node_create(CSGNodeKind kind);
-void csg_node_destroy(CSGNode *node);
-void csg_node_add_child(CSGNode *parent, CSGNode *child);
-void csg_node_init_bbox(CSGNode *node);
+lv_PUBLIC_API void csg_node_destroy(CSGNode *node);
+lv_PUBLIC_API void csg_node_add_child(CSGNode *parent, CSGNode *child);
+lv_PUBLIC_API void csg_node_init_bbox(CSGNode *node);
 
 /* ── 基本图元 ── */
 CSGNode *csg_sphere_create(double radius);
@@ -67,7 +68,7 @@ CSGNode *geometry_csg_difference(CSGNode *a, CSGNode *b);
 CSGNode *geometry_csg_intersection(CSGNode *a, CSGNode *b);
 
 /* ── 导出 ── */
-char *geometry_csg_export_scad(const CSGNode *root, const char *name);
+lv_PUBLIC_API char *geometry_csg_export_scad(const CSGNode *root, const char *name);
 
 #ifdef __cplusplus
 }

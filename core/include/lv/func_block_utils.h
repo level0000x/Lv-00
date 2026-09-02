@@ -11,6 +11,7 @@
  */
 #ifndef lv_FUNC_BLOCK_UTILS_H
 #define lv_FUNC_BLOCK_UTILS_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +27,7 @@ extern "C" {
  * @return true  存在
  * @return false 不存在或数组为空
  */
-bool is_id_in_array(int id, const int *array, int count);
+lv_PUBLIC_API bool is_id_in_array(int id, const int *array, int count);
 /**
  * @brief 深拷贝整数数组
  *
@@ -37,7 +38,7 @@ bool is_id_in_array(int id, const int *array, int count);
  * @param count 元素个数
  * @return 新分配的整数数组指针，失败时返回 NULL
  */
-int *dup_int_array(const int *src, int count);
+lv_PUBLIC_API int *dup_int_array(const int *src, int count);
 /**
  * @brief 合并两个整数数组
  *
@@ -51,7 +52,7 @@ int *dup_int_array(const int *src, int count);
  * @param out_count [输出] 合并后的元素个数
  * @return 新分配的整数数组指针，失败时返回 NULL
  */
-int *lv_int_array_merge(const int *a, int a_count, const int *b, int b_count, int *out_count);
+lv_PUBLIC_API int *lv_int_array_merge(const int *a, int a_count, const int *b, int b_count, int *out_count);
 /* 向后兼容别名 */
 #define merge_int_arrays lv_int_array_merge
 #ifdef __cplusplus

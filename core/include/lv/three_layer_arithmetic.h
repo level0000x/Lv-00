@@ -22,6 +22,7 @@
 #ifndef lv_THREE_LAYER_ARITHMETIC_H
 #define lv_THREE_LAYER_ARITHMETIC_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_arith_safe.h" /* lv_safe_mul_i64 / lv_safe_add_i64 / lv_safe_sub_i64（权威实现） */
 
 #ifdef __cplusplus
@@ -187,7 +188,7 @@ extern "C" {
  * @param result 输出：a * b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
 
 /**
  * @brief 安全加法实现（带溢出检测）
@@ -197,7 +198,7 @@ bool lv_safe_mul_impl(int64_t a, int64_t b, int64_t *out);
  * @param result 输出：a + b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
 
 /**
  * @brief 安全减法实现（带溢出检测）
@@ -207,7 +208,7 @@ bool lv_safe_add_check_impl(int64_t a, int64_t b, int64_t *out);
  * @param result 输出：a - b 的结果
  * @return int   1 = 成功（无溢出），0 = 溢出或 result 为 NULL
  */
-bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
+lv_PUBLIC_API bool lv_safe_sub_impl(int64_t a, int64_t b, int64_t *out);
 
 #ifdef __cplusplus
 }

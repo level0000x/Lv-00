@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -65,13 +66,13 @@ typedef struct {
 /* ── API ── */
 bool geometry_compress(const ConstraintGraph *graph, const CompressConfig *config, uint8_t **out_data, size_t *out_size,
                        CompressMetadata *out_meta);
-bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph);
-bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
-bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
+lv_PUBLIC_API bool geometry_decompress(const uint8_t *data, size_t size, ConstraintGraph **out_graph);
+lv_PUBLIC_API bool predictive_encode_coords(ConstraintGraph *graph, PredictionMode mode);
+lv_PUBLIC_API bool edgebreaker_encode(const ConstraintGraph *graph, EdgebreakerMode **modes, int *seq_len);
 
 /* ── LVZD 容器文件 I/O（K20：补头声明，原实现无头声明） ── */
-bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename);
-bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_size);
+lv_PUBLIC_API bool compress_write_lvzd(const uint8_t *data, size_t size, const char *filename);
+lv_PUBLIC_API bool compress_read_lvzd(const char *filename, uint8_t **out_data, size_t *out_size);
 
 #ifdef __cplusplus
 }

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -130,43 +131,43 @@ typedef struct SMTBackendRegistry {
 typedef struct SMTSolver SMTSolver;
 
 /* ── API ── */
-const SMTSolverConfig *smtsolver_default_config(SolverBackendType type);
+lv_PUBLIC_API const SMTSolverConfig *smtsolver_default_config(SolverBackendType type);
 SMTSolver *smtsolver_create(SolverBackendType type, const SMTSolverConfig *config);
-void smtsolver_destroy(SMTSolver *solver);
-void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg);
+lv_PUBLIC_API void smtsolver_destroy(SMTSolver *solver);
+lv_PUBLIC_API void smtsolver_set_error(SMTSolver *solver, SMTErrorCode code, const char *msg);
 SolverBackendType smtsolver_get_type(const SMTSolver *solver);
 SMTErrorCode smtsolver_get_last_error(const SMTSolver *solver);
-const char *smtsolver_get_last_error_message(const SMTSolver *solver);
+lv_PUBLIC_API const char *smtsolver_get_last_error_message(const SMTSolver *solver);
 
 int smtencode_constraint_graph_to_smtlib2(const ConstraintGraph *graph, SMTLogic logic, bool produce_unsat_cores,
                                           char *out, size_t out_len);
-int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len);
+lv_PUBLIC_API int smtsolver_encode(SMTSolver *solver, const char *smtlib2, int len);
 SMTSatResult smtsolver_check(SMTSolver *solver);
 
-void smtsolver_result_init(SMTSolverResult *result);
-int smtsolver_decode_groebner_variety(SMTSolver *solver, SMTSolverResult *out_result);
-int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result, SMTSolverResult *out_result);
-void smtsolver_result_clear(SMTSolverResult *result);
-const SMTVariableAssignment *smtsolver_result_find_assignment(const SMTSolverResult *result, int var_node_id);
-bool smtsolver_result_has_model(const SMTSolverResult *result);
-int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
-void smtsolver_result_free(SMTSolverResult *result);
-int smtsolver_check_constraint_satisfied(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
+lv_PUBLIC_API void smtsolver_result_init(SMTSolverResult *result);
+lv_PUBLIC_API int smtsolver_decode_groebner_variety(SMTSolver *solver, SMTSolverResult *out_result);
+lv_PUBLIC_API int smtsolver_decode_result(SMTSolver *solver, SMTSatResult sat_result, SMTSolverResult *out_result);
+lv_PUBLIC_API void smtsolver_result_clear(SMTSolverResult *result);
+lv_PUBLIC_API const SMTVariableAssignment *smtsolver_result_find_assignment(const SMTSolverResult *result, int var_node_id);
+lv_PUBLIC_API bool smtsolver_result_has_model(const SMTSolverResult *result);
+lv_PUBLIC_API int smtsolver_solve(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
+lv_PUBLIC_API void smtsolver_result_free(SMTSolverResult *result);
+lv_PUBLIC_API int smtsolver_check_constraint_satisfied(SMTSolver *solver, const ConstraintGraph *graph, SMTSolverResult *out_result);
 
-bool smtsolver_is_backend_available(SolverBackendType type);
-const char *smtsolver_backend_type_name(SolverBackendType type);
+lv_PUBLIC_API bool smtsolver_is_backend_available(SolverBackendType type);
+lv_PUBLIC_API const char *smtsolver_backend_type_name(SolverBackendType type);
 SolverBackendType smtsolver_backend_type_from_name(const char *name);
 
-const char *smtsolver_logic_name(SMTLogic logic);
-const char *smtsolver_sat_result_name(SMTSatResult result);
-const char *smtsolver_error_string(SMTErrorCode code);
+lv_PUBLIC_API const char *smtsolver_logic_name(SMTLogic logic);
+lv_PUBLIC_API const char *smtsolver_sat_result_name(SMTSatResult result);
+lv_PUBLIC_API const char *smtsolver_error_string(SMTErrorCode code);
 
 SMTSatResult smt_external_solver_check(SMTSolver *solver, const char *executable, const char *smt2_input, int smt2_len,
                                        char *result_buf, int result_size);
 
 SMTBackendRegistry *smtsolver_get_registry(void);
-int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry);
-const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry, SolverBackendType type);
+lv_PUBLIC_API int smtsolver_register_backend(SMTBackendRegistry *registry, const SMTBackendEntry *entry);
+lv_PUBLIC_API const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry, SolverBackendType type);
 
 /**
  * @brief 将所有 SMT 后端注册到全局后端插件注册表
@@ -175,7 +176,7 @@ const SMTBackendEntry *smtsolver_find_backend(const SMTBackendRegistry *registry
  * lv_backend_plugin_find() / lv_backend_plugin_find_by_type() 查找。
  * 可安全地多次调用（仅首次生效）。
  */
-void smt_register_all_plugins(void);
+lv_PUBLIC_API void smt_register_all_plugins(void);
 
 #ifdef __cplusplus
 }

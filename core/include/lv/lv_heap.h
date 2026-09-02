@@ -8,6 +8,7 @@
 #ifndef lv_HEAP_H
 #define lv_HEAP_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -49,7 +50,7 @@ bool lv_heap_init(lvHeap *heap, size_t elem_size, lvHeapType type,
                   lvHeapCompareFunc compare, size_t initial_capacity);
 
 /** @brief 销毁堆 */
-void lv_heap_destroy(lvHeap *heap);
+lv_PUBLIC_API void lv_heap_destroy(lvHeap *heap);
 
 /**
  * @brief 压入元素
@@ -57,7 +58,7 @@ void lv_heap_destroy(lvHeap *heap);
  * @param elem   元素数据
  * @return true 成功
  */
-bool lv_heap_push(lvHeap *heap, const void *elem);
+lv_PUBLIC_API bool lv_heap_push(lvHeap *heap, const void *elem);
 
 /**
  * @brief 弹出堆顶元素
@@ -65,7 +66,7 @@ bool lv_heap_push(lvHeap *heap, const void *elem);
  * @param out_elem 输出弹出的元素（可为 NULL）
  * @return true 成功（堆非空），false 堆空
  */
-bool lv_heap_pop(lvHeap *heap, void *out_elem);
+lv_PUBLIC_API bool lv_heap_pop(lvHeap *heap, void *out_elem);
 
 /**
  * @brief 获取堆顶元素（不弹出）
@@ -73,13 +74,13 @@ bool lv_heap_pop(lvHeap *heap, void *out_elem);
  * @param out_elem 输出堆顶元素
  * @return true 成功
  */
-bool lv_heap_top(const lvHeap *heap, void *out_elem);
+lv_PUBLIC_API bool lv_heap_top(const lvHeap *heap, void *out_elem);
 
 /** @brief 获取元素数量 */
-size_t lv_heap_size(const lvHeap *heap);
+lv_PUBLIC_API size_t lv_heap_size(const lvHeap *heap);
 
 /** @brief 堆是否为空 */
-bool lv_heap_empty(const lvHeap *heap);
+lv_PUBLIC_API bool lv_heap_empty(const lvHeap *heap);
 
 #ifdef __cplusplus
 }

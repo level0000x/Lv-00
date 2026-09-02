@@ -27,6 +27,7 @@ extern "C" {
 #include "axiom_rule_engine.h"
 #include "constraint_graph.h"
 #include "lv/lv_utils.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明：Proposition / ProofStep / ProofNavigator 完整定义在 proof.h
  * （L4 proof 域）。本头仅指针引用，打破 proof_engine_enhanced.h → proof.h

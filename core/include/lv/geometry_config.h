@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 
 /** Geometry precision mode. */
@@ -27,10 +28,10 @@ typedef struct {
 lvGeometryConfig lv_geometry_config_default(void);
 
 /** Get global geometry config. */
-const lvGeometryConfig *lv_geometry_get_config(void);
+lv_PUBLIC_API const lvGeometryConfig *lv_geometry_get_config(void);
 
 /** Set global geometry config. */
-void lv_geometry_set_config(const lvGeometryConfig *cfg);
+lv_PUBLIC_API void lv_geometry_set_config(const lvGeometryConfig *cfg);
 
 /**
  * @brief 从配置系统 A（lvConfig，lv_config.c）同步几何相关键到全局几何配置
@@ -39,7 +40,7 @@ void lv_geometry_set_config(const lvGeometryConfig *cfg);
  * 构造 lvGeometryConfig 并经 lv_geometry_set_config() 应用，实现
  * JSON 配置加载后的显式同步（原注释所述"已知差异"现已实现）。
  */
-void lv_geometry_sync_config(void);
+lv_PUBLIC_API void lv_geometry_sync_config(void);
 
 #ifdef __cplusplus
 }

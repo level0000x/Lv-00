@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <gmp.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -146,7 +147,7 @@ lvExpr *lv_expr_function(const char *func_name, lvExpr *argument);
  * @brief 销毁表达式
  * @param expr 表达式指针的地址（销毁后置 NULL）
  */
-void lv_expr_destroy(lvExpr **expr);
+lv_PUBLIC_API void lv_expr_destroy(lvExpr **expr);
 
 /* 兼容宏：旧的 lv_expr_free(x) 风格 */
 #ifndef lv_expr_free
@@ -167,7 +168,7 @@ lvExpr *lv_expr_copy(const lvExpr *expr);
  * @param expr 表达式
  * @return 是否为有理数常量
  */
-bool lv_expr_is_constant(const lvExpr *expr);
+lv_PUBLIC_API bool lv_expr_is_constant(const lvExpr *expr);
 
 /**
  * @brief 获取有理数表达式的整数值（如果是有理数且分母为1）
@@ -175,7 +176,7 @@ bool lv_expr_is_constant(const lvExpr *expr);
  * @param out_val 输出整数值
  * @return 是否成功
  */
-bool lv_expr_get_integer(const lvExpr *expr, int64_t *out_val);
+lv_PUBLIC_API bool lv_expr_get_integer(const lvExpr *expr, int64_t *out_val);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,6 @@
 #ifndef lv_PROOF_RULE_ENGINE_H
 #define lv_PROOF_RULE_ENGINE_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -13,7 +14,7 @@ typedef struct ProofRuleConfig {
     int max_rules;
     bool strict;
 } ProofRuleConfig;
-int lv_proof_rule_apply(const char *rule, const void *input, void **output);
+lv_PUBLIC_API int lv_proof_rule_apply(const char *rule, const void *input, void **output);
 
 /* 数值验证规则：对「仅含实数常量的比较表达式」目标（如 "1+2=3"、"sin(0.5)>0.4"）
  * 做区间算术求值 + FPTaylor 误差界分级（TrustColor）验证。

@@ -15,6 +15,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/sha256.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ============================================================
  * 统一内容哈希抽象（lv_hash）

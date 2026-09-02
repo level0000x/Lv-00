@@ -28,6 +28,7 @@
 #include <stdbool.h>
 
 #include "func_block.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {

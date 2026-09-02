@@ -13,6 +13,7 @@
 #ifndef lv_RENDER_VISITOR_H
 #define lv_RENDER_VISITOR_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -63,7 +64,7 @@ typedef struct {
  * @return true  全部渲染成功
  * @return false 遍历被某个回调中止
  */
-bool lv_render_scene(const lvRenderVisitor *visitor, const lvVisualScene *scene);
+lv_PUBLIC_API bool lv_render_scene(const lvRenderVisitor *visitor, const lvVisualScene *scene);
 
 /* ── 内置后端工厂函数 ── */
 
@@ -73,13 +74,13 @@ bool lv_render_scene(const lvRenderVisitor *visitor, const lvVisualScene *scene)
  * @param visitor     [out] 填充回调的 visitor 结构体
  * @return true 成功
  */
-bool lv_render_visitor_tikz_create(const char *output_path, lvRenderVisitor *visitor);
+lv_PUBLIC_API bool lv_render_visitor_tikz_create(const char *output_path, lvRenderVisitor *visitor);
 
 /**
  * @brief 销毁 TikZ 后端访问器（关闭文件，释放内存）
  * @param visitor 由 lv_render_visitor_tikz_create 填充的 visitor
  */
-void lv_render_visitor_tikz_destroy(lvRenderVisitor *visitor);
+lv_PUBLIC_API void lv_render_visitor_tikz_destroy(lvRenderVisitor *visitor);
 
 #ifdef __cplusplus
 }

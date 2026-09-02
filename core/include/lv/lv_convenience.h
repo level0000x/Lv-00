@@ -19,6 +19,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/context.h"
 
 /**
@@ -35,7 +36,7 @@ extern "C" {
  * @return -3   解析阶段失败
  * @return -4   推理阶段失败（矛盾、超时或熔断）
  */
-int lv_prove(lvContext *ctx, const char *goal);
+lv_PUBLIC_API int lv_prove(lvContext *ctx, const char *goal);
 
 /**
  * @brief 加载预设 -- 将指定名称的预设注册到上下文
@@ -48,7 +49,7 @@ int lv_prove(lvContext *ctx, const char *goal);
  * @return -3  指定名称的预设不存在
  * @return -4  内存分配失败
  */
-int lv_preset_load(lvContext *ctx, const char *name);
+lv_PUBLIC_API int lv_preset_load(lvContext *ctx, const char *name);
 
 /**
  * @brief 卸载预设 -- 从上下文中移除指定预设的加载标记
@@ -59,7 +60,7 @@ int lv_preset_load(lvContext *ctx, const char *name);
  * @return -1  参数无效（ctx 或 name 为 NULL）
  * @return -3  上下文中未找到该预设的加载记录
  */
-int lv_preset_unload(lvContext *ctx, const char *name);
+lv_PUBLIC_API int lv_preset_unload(lvContext *ctx, const char *name);
 
 /**
  * @brief 应用预设 -- 将指定预设实例化并应用到当前约束图
@@ -72,7 +73,7 @@ int lv_preset_unload(lvContext *ctx, const char *name);
  * @return -3  指定预设未加载
  * @return -4  实例化失败
  */
-int lv_preset_apply(lvContext *ctx, const char *name);
+lv_PUBLIC_API int lv_preset_apply(lvContext *ctx, const char *name);
 
 #ifdef __cplusplus
 }

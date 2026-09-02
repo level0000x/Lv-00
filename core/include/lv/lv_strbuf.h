@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -44,7 +45,7 @@ typedef struct lvStrBuf {
  * @brief 初始化字符串构建器（零初始化也可行）
  * @param sb  构建器指针
  */
-void lv_strbuf_init(lvStrBuf *sb);
+lv_PUBLIC_API void lv_strbuf_init(lvStrBuf *sb);
 
 /**
  * @brief 追加格式化字符串
@@ -52,7 +53,7 @@ void lv_strbuf_init(lvStrBuf *sb);
  * @param fmt printf 风格格式
  * @param ... 可变参数
  */
-void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...);
+lv_PUBLIC_API void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...);
 
 /**
  * @brief 追加格式化字符串（va_list 版本）
@@ -60,7 +61,7 @@ void lv_strbuf_printf(lvStrBuf *sb, const char *fmt, ...);
  * @param fmt  printf 风格格式
  * @param args 可变参数列表（由调用方负责 va_start/va_end）
  */
-void lv_strbuf_vprintf(lvStrBuf *sb, const char *fmt, va_list args);
+lv_PUBLIC_API void lv_strbuf_vprintf(lvStrBuf *sb, const char *fmt, va_list args);
 
 /**
  * @brief 获取 C 字符串（始终 NUL 结尾）
@@ -75,13 +76,13 @@ static inline const char *lv_strbuf_cstr(const lvStrBuf *sb) {
  * @brief 重置构建器（保留已分配内存）
  * @param sb  构建器指针
  */
-void lv_strbuf_reset(lvStrBuf *sb);
+lv_PUBLIC_API void lv_strbuf_reset(lvStrBuf *sb);
 
 /**
  * @brief 销毁构建器（释放堆内存）
  * @param sb  构建器指针（可 NULL）
  */
-void lv_strbuf_destroy(lvStrBuf *sb);
+lv_PUBLIC_API void lv_strbuf_destroy(lvStrBuf *sb);
 
 /**
  * @brief 将 lvStrBuf 转换为堆分配的字符串并清理
@@ -93,7 +94,7 @@ void lv_strbuf_destroy(lvStrBuf *sb);
  * @param sb lvStrBuf 指针
  * @return 堆分配的 NUL 结尾字符串（调用者 lv_free），失败返回 NULL
  */
-char *lv_strbuf_to_string(lvStrBuf *sb);
+lv_PUBLIC_API char *lv_strbuf_to_string(lvStrBuf *sb);
 
 /**
  * @brief 重复追加字符 count 次
@@ -101,7 +102,7 @@ char *lv_strbuf_to_string(lvStrBuf *sb);
  * @param ch    要重复的字符
  * @param count 重复次数
  */
-void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count);
+lv_PUBLIC_API void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count);
 
 /**
  * @brief 追加原始字节数据（可含中间 '\0'）
@@ -109,14 +110,14 @@ void lv_strbuf_append_n(lvStrBuf *sb, char ch, size_t count);
  * @param s  数据源指针（可为 NULL，空操作）
  * @param n  字节数
  */
-void lv_strbuf_append_raw(lvStrBuf *sb, const char *s, size_t n);
+lv_PUBLIC_API void lv_strbuf_append_raw(lvStrBuf *sb, const char *s, size_t n);
 
 /**
  * @brief 追加 C 字符串
  * @param sb lvStrBuf 指针
  * @param s  要追加的字符串（可为 NULL，空操作）
  */
-void lv_strbuf_append_str(lvStrBuf *sb, const char *s);
+lv_PUBLIC_API void lv_strbuf_append_str(lvStrBuf *sb, const char *s);
 
 #ifdef __cplusplus
 }

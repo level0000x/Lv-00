@@ -19,6 +19,7 @@
 #ifndef lv_PRESET_BLOCKS_H
 #define lv_PRESET_BLOCKS_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "func_block.h"
@@ -214,14 +215,14 @@ typedef struct {
  *
  * @return true 初始化成功，false 内存不足
  */
-bool preset_blocks_init(void);
+lv_PUBLIC_API bool preset_blocks_init(void);
 
 /**
  * @brief 清理扩展预设函数块系统
  *
  * 释放所有扩展预设占用的资源。
  */
-void lv_preset_blocks_cleanup(void);
+lv_PUBLIC_API void lv_preset_blocks_cleanup(void);
 
 /**
  * @brief 获取预设的详细元数据
@@ -242,7 +243,7 @@ PresetBlockMetadata *preset_blocks_get_metadata(const char *name);
  * @param max_count 最大输出数量
  * @return 实际找到的预设数量
  */
-int preset_blocks_find_by_category(PresetExtendedCategory category, const char **out_names, int max_count);
+lv_PUBLIC_API int preset_blocks_find_by_category(PresetExtendedCategory category, const char **out_names, int max_count);
 
 /**
  * @brief 将扩展类别转换为字符串
@@ -250,7 +251,7 @@ int preset_blocks_find_by_category(PresetExtendedCategory category, const char *
  * @param cat 扩展类别
  * @return 类别名称字符串（中文）
  */
-const char *preset_extended_category_to_string(PresetExtendedCategory cat);
+lv_PUBLIC_API const char *preset_extended_category_to_string(PresetExtendedCategory cat);
 
 /* ================================================================
  * 统一预设注册接口（v5.0）
@@ -321,7 +322,7 @@ bool preset_blocks_register_by_category(const char *name, const char *descriptio
  * @param max_count 最大输出数量
  * @return 实际找到的预设数量
  */
-int preset_blocks_find_by_prefix(const char *prefix, const char **out_names, int max_count);
+lv_PUBLIC_API int preset_blocks_find_by_prefix(const char *prefix, const char **out_names, int max_count);
 
 /**
  * @brief 按描述关键词查找预设
@@ -333,7 +334,7 @@ int preset_blocks_find_by_prefix(const char *prefix, const char **out_names, int
  * @param max_count 最大输出数量
  * @return 实际找到的预设数量
  */
-int preset_blocks_find_by_keyword(const char *keyword, const char **out_names, int max_count);
+lv_PUBLIC_API int preset_blocks_find_by_keyword(const char *keyword, const char **out_names, int max_count);
 
 /**
  * @brief 获取所有预设名称列表
@@ -342,7 +343,7 @@ int preset_blocks_find_by_keyword(const char *keyword, const char **out_names, i
  * @param max_count 最大输出数量
  * @return 实际返回的预设数量
  */
-int preset_blocks_get_all_names(const char **out_names, int max_count);
+lv_PUBLIC_API int preset_blocks_get_all_names(const char **out_names, int max_count);
 
 /* ================================================================
  * 预设函数块文档生成
@@ -355,7 +356,7 @@ int preset_blocks_get_all_names(const char **out_names, int max_count);
  *
  * @return Markdown格式文档字符串（[take] 调用者负责释放）
  */
-char *preset_blocks_generate_documentation(void);
+lv_PUBLIC_API char *preset_blocks_generate_documentation(void);
 
 /**
  * @brief 生成单个预设的详细文档
@@ -363,7 +364,7 @@ char *preset_blocks_generate_documentation(void);
  * @param name 预设名称
  * @return Markdown格式文档字符串（[take] 调用者负责释放）
  */
-char *preset_blocks_generate_single_doc(const char *name);
+lv_PUBLIC_API char *preset_blocks_generate_single_doc(const char *name);
 
 /* ================================================================
  * 内置预设函数块常量定义
@@ -712,14 +713,14 @@ char *preset_blocks_generate_single_doc(const char *name);
  * @param total_count 输出：预设总数
  * @param by_category 输出：各类别数量数组（大小为 PRESET_EXT_CATEGORY_COUNT）
  */
-void preset_blocks_get_stats(int *total_count, int *by_category);
+lv_PUBLIC_API void preset_blocks_get_stats(int *total_count, int *by_category);
 
 /**
  * @brief 打印预设统计信息
  *
  * 将统计信息输出到标准输出，用于调试和监控。
  */
-void preset_blocks_print_stats(void);
+lv_PUBLIC_API void preset_blocks_print_stats(void);
 
 #ifdef __cplusplus
 }

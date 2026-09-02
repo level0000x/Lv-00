@@ -29,6 +29,7 @@ extern "C" {
 
 #include "lv/lambda_term.h"
 #include "lv/type_system.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /**
  * @brief λ-项类型推断上下文

@@ -20,6 +20,7 @@ extern "C" {
 #include "graph_hash.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /**
  * @brief 设置规范化模块的流式上下文

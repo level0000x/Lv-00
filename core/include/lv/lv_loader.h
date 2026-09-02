@@ -1,6 +1,7 @@
 #ifndef LV_LOADER_H
 #define LV_LOADER_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_parser.h"
 #include "lv/lv_sema.h"
 
@@ -26,7 +27,7 @@ LvParseResult lv_load_file(const char *filepath);
  *   - Prove 语句 → 注册为证明目标
  * 返回 true 表示成功
  */
-bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSemaContext *sema);
+lv_PUBLIC_API bool lv_apply_parse_result(lvEngine *engine, const LvParseResult *result, LvSemaContext *sema);
 
 /* ================================================================
  * 微自举 B —— 证明验证（lv 系统验证自身证明，路线图步骤 5）
@@ -85,7 +86,7 @@ typedef struct {
  * @param summary 输出：验证汇总（逐条报告 + 计数）；判定流程完成返回 true
  * @return 验证流程成功执行返回 true（具体判定见 summary），参数错误返回 false
  */
-bool lv_verify_proofs(const LvParseResult *result, LvProveSummary *summary);
+lv_PUBLIC_API bool lv_verify_proofs(const LvParseResult *result, LvProveSummary *summary);
 
 /**
  * @brief 加载 .lv 文件并执行证明验证（微自举 B 便捷入口）
@@ -97,7 +98,7 @@ bool lv_verify_proofs(const LvParseResult *result, LvProveSummary *summary);
  * @param summary  输出：证明验证汇总（可为 NULL）
  * @return 文件有效且验证流程执行成功返回 true；读取/解析失败返回 false
  */
-bool lv_load_file_verified(const char *filepath, LvProveSummary *summary);
+lv_PUBLIC_API bool lv_load_file_verified(const char *filepath, LvProveSummary *summary);
 
 #ifdef __cplusplus
 }

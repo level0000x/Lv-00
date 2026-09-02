@@ -11,6 +11,7 @@
 #ifndef lv_SOLVER_DIRTY_SET_H
 #define lv_SOLVER_DIRTY_SET_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/solver_types.h"
 
 #ifdef __cplusplus
@@ -23,25 +24,25 @@ typedef struct {
 } DirtyVariableSet;
 
 /* 初始化脏变量集合 */
-void dirty_set_init(DirtyVariableSet *ds);
+lv_PUBLIC_API void dirty_set_init(DirtyVariableSet *ds);
 
 /* 检查变量 ID 是否在脏集合中 */
-bool dirty_set_contains(DirtyVariableSet *ds, int var_id);
+lv_PUBLIC_API bool dirty_set_contains(DirtyVariableSet *ds, int var_id);
 
 /* 向脏集合中添加变量 ID（已存在则忽略） */
-void dirty_set_add(DirtyVariableSet *ds, int var_id);
+lv_PUBLIC_API void dirty_set_add(DirtyVariableSet *ds, int var_id);
 
 /* 清空脏变量集合（不释放内存, 保留容量以供复用） */
-void dirty_set_clear(DirtyVariableSet *ds);
+lv_PUBLIC_API void dirty_set_clear(DirtyVariableSet *ds);
 
 /* 释放脏变量集合资源 */
-void dirty_set_free(DirtyVariableSet *ds);
+lv_PUBLIC_API void dirty_set_free(DirtyVariableSet *ds);
 
 /* 基于脏变量过滤方程（从完整方程系统中筛选出涉及脏变量的方程子集） */
-void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered);
+lv_PUBLIC_API void filter_equations_for_dirty(EquationSystem *sys, DirtyVariableSet *ds, EquationSystem *filtered);
 
 /* 判断两个 (var_node_id, coord_index) 键是否相同 */
-bool poly_eq_same_key(int a_var, int a_coord, int b_var, int b_coord);
+lv_PUBLIC_API bool poly_eq_same_key(int a_var, int a_coord, int b_var, int b_coord);
 
 #ifdef __cplusplus
 }

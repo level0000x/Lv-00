@@ -22,6 +22,7 @@
  */
 #ifndef lv_PATH_TYPE_H
 #define lv_PATH_TYPE_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -210,7 +211,7 @@ lvPathSystem *path_system_create(int path_capacity, int interval_capacity);
  *
  * @param sys  路径系统指针（销毁后置为悬空，调用方应置 NULL）
  */
-void path_system_destroy(lvPathSystem *sys);
+lv_PUBLIC_API void path_system_destroy(lvPathSystem *sys);
 /* ================================================================
  *  第六部分：API —— 路径创建与操作
  * ================================================================ */
@@ -242,7 +243,7 @@ int path_create(lvPathSystem *sys, int endpoint_a, int endpoint_b, const char *l
  * @param label        路径标签（可为 NULL）
  * @return 成功返回恒等路径 ID（>= 0），失败返回 -1
  */
-int path_create_identity(lvPathSystem *sys, int endpoint_a, const char *label);
+lv_PUBLIC_API int path_create_identity(lvPathSystem *sys, int endpoint_a, const char *label);
 /**
  * @brief 创建逆路径
  *
@@ -253,7 +254,7 @@ int path_create_identity(lvPathSystem *sys, int endpoint_a, const char *label);
  * @param path_id   待求逆的路径 ID
  * @return 成功返回逆路径 ID（>= 0），失败返回 -1
  */
-int path_create_inverse(lvPathSystem *sys, int path_id);
+lv_PUBLIC_API int path_create_inverse(lvPathSystem *sys, int path_id);
 /**
  * @brief 路径拼接（p @ q）
  *
@@ -267,7 +268,7 @@ int path_create_inverse(lvPathSystem *sys, int path_id);
  * @param label       合成路径标签（可为 NULL）
  * @return 成功返回合成路径 ID（>= 0），失败返回 -1
  */
-int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *label);
+lv_PUBLIC_API int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *label);
 /**
  * @brief 路径传输（coe —— 沿路径消去）
  *
@@ -284,7 +285,7 @@ int path_compose(lvPathSystem *sys, int path_id_p, int path_id_q, const char *la
  * @param transported    输入：源端点处的项；输出：传输后的项
  * @return 成功返回 0，失败返回负值错误码
  */
-int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTransportMode mode, void **transported);
+lv_PUBLIC_API int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTransportMode mode, void **transported);
 /* ================================================================
  *  第七部分：API —— 路径查询与变换
  * ================================================================ */
@@ -297,7 +298,7 @@ int path_transport(lvPathSystem *sys, int path_id, int source_type_id, lvTranspo
  * @param path_id  路径 ID
  * @return 若为恒等路径返回 true，否则返回 false（路径不存在也返回 false）
  */
-bool path_is_constant(const lvPathSystem *sys, int path_id);
+lv_PUBLIC_API bool path_is_constant(const lvPathSystem *sys, int path_id);
 /**
  * @brief 将 HoTT 路径转换为等式证明（与 unify.h 集成）
  *
@@ -309,7 +310,7 @@ bool path_is_constant(const lvPathSystem *sys, int path_id);
  * @param out_equality   输出：等式约束图（[take] 调用者负责销毁）
  * @return 成功返回 0，失败返回负值错误码
  */
-int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality);
+lv_PUBLIC_API int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equality);
 /**
  * @brief 从构造步骤生成路径证明
  *
@@ -321,7 +322,7 @@ int path_to_equality(lvPathSystem *sys, int path_id, ConstraintGraph **out_equal
  * @param label       路径标签（可为 NULL，则自动从步骤名派生）
  * @return 成功返回路径 ID（>= 0），失败返回 -1
  */
-int path_from_construction(lvPathSystem *sys, int step_index, const char *label);
+lv_PUBLIC_API int path_from_construction(lvPathSystem *sys, int step_index, const char *label);
 /**
  * @brief 将路径转换为约束图等价关系
  *
@@ -333,7 +334,7 @@ int path_from_construction(lvPathSystem *sys, int step_index, const char *label)
  * @param out_constraint     输出：等价约束（[take] 调用者负责销毁）
  * @return 成功返回 0，失败返回负值错误码
  */
-int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint);
+lv_PUBLIC_API int path_to_constraint_graph(lvPathSystem *sys, int path_id, ConstraintGraph **out_constraint);
 /**
  * @brief 查询两点之间的所有已知路径
  *
@@ -364,7 +365,7 @@ int path_system_get_all_paths_between(const lvPathSystem *sys, int endpoint_a, i
  * @param label   区间标签（可为 NULL）
  * @return 成功返回区间 ID（>= 0），失败返回 -1
  */
-int path_system_create_interval(lvPathSystem *sys, double left, double right, const char *label);
+lv_PUBLIC_API int path_system_create_interval(lvPathSystem *sys, double left, double right, const char *label);
 /**
  * @brief 获取区间实例
  *
@@ -372,7 +373,7 @@ int path_system_create_interval(lvPathSystem *sys, double left, double right, co
  * @param interval_id 区间 ID
  * @return 区间指针，若不存在返回 NULL
  */
-const lvInterval *path_system_get_interval(const lvPathSystem *sys, int interval_id);
+lv_PUBLIC_API const lvInterval *path_system_get_interval(const lvPathSystem *sys, int interval_id);
 /**
  * @brief 获取路径实例
  *
@@ -380,7 +381,7 @@ const lvInterval *path_system_get_interval(const lvPathSystem *sys, int interval
  * @param path_id  路径 ID
  * @return 路径指针，若不存在返回 NULL
  */
-const lvPath *path_system_get_path(const lvPathSystem *sys, int path_id);
+lv_PUBLIC_API const lvPath *path_system_get_path(const lvPathSystem *sys, int path_id);
 #ifdef __cplusplus
 }
 #endif

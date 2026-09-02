@@ -30,6 +30,7 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 /* ========================================================================
  * BDD/ADD 基础类型
  * ======================================================================== */
@@ -109,7 +110,7 @@ BDDManager *bdd_manager_create(int var_count, int unique_table_size);
  *
  * @param[in,out] mgr BDD 管理器
  */
-void bdd_manager_destroy(BDDManager *mgr);
+lv_PUBLIC_API void bdd_manager_destroy(BDDManager *mgr);
 /**
  * @brief 注册新的 BDD 变量
  *
@@ -118,7 +119,7 @@ void bdd_manager_destroy(BDDManager *mgr);
  * @param[in]     type  变量类型
  * @return 新变量 ID（>=0），失败返回 -1
  */
-int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type);
+lv_PUBLIC_API int bdd_new_var(BDDManager *mgr, const char *name, BDDVarType type);
 /* ========================================================================
  * BDD 基本节点创建
  * ======================================================================== */
@@ -129,9 +130,9 @@ BDDNode *bdd_false(BDDManager *mgr);
 /** 创建字面量节点：var_id 为正 = 正文字，var_id 为负 = 负文字 */
 BDDNode *bdd_literal(BDDManager *mgr, int var_id);
 /** 增加节点引用计数 */
-void bdd_ref(BDDNode *node);
+lv_PUBLIC_API void bdd_ref(BDDNode *node);
 /** 减少节点引用计数（为 0 时从唯一表回收） */
-void bdd_deref(BDDManager *mgr, BDDNode *node);
+lv_PUBLIC_API void bdd_deref(BDDManager *mgr, BDDNode *node);
 /* ========================================================================
  * BDD 布尔运算
  *
@@ -183,7 +184,7 @@ ADDNode *add_min(ADDManager *mgr, ADDNode *a, ADDNode *b);
  * @param[in,out] mgr BDD 管理器
  * @return 优化后的节点数（-1 表示失败）
  */
-int bdd_reorder_sift(BDDManager *mgr);
+lv_PUBLIC_API int bdd_reorder_sift(BDDManager *mgr);
 /* ========================================================================
  * 约束图 → BDD 编码
  * ======================================================================== */
@@ -211,7 +212,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr);
  * @param[in]  base_var 起始变量 ID（编码占用 base_var ~ base_var+63 共 64 位）
  * @return 成功分配的位数（通常为 64），失败返回 -1
  */
-int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
+lv_PUBLIC_API int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
 /* ========================================================================
  * BDD → CNF 转换
  * ======================================================================== */
@@ -225,7 +226,7 @@ int coord_to_bdd_var(const SymbolicCoord *coord, BDDManager *mgr, int base_var);
  * @param[out] out_cnf  输出的 CNF 字符串（DIMACS 格式，[take] 调用者负责 lv_free）
  * @return true 成功，false 失败
  */
-bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);
+lv_PUBLIC_API bool bdd_to_cnf(BDDNode *bdd, char **out_cnf);
 /* ========================================================================
  * ADD 管理器生命周期
  * ======================================================================== */
@@ -240,7 +241,7 @@ ADDManager *add_manager_create(int var_count, int unique_table_size);
 /**
  * @brief 销毁 ADD 管理器
  */
-void add_manager_destroy(ADDManager *mgr);
+lv_PUBLIC_API void add_manager_destroy(ADDManager *mgr);
 /** 创建 ADD 常量节点 */
 ADDNode *add_constant(ADDManager *mgr, double value);
 #ifdef __cplusplus

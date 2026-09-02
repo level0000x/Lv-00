@@ -49,6 +49,7 @@ extern "C" {
  * 定义在 cross_platform.h 中
  */
 #include "cross_platform.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -254,7 +255,7 @@ static inline size_t align_up(size_t size, size_t alignment) {
  *
  * @return 错误信息表条目数量
  */
-int lv_error_table_size(void);
+lv_PUBLIC_API int lv_error_table_size(void);
 
 /* ================================================================
  * 全局 ID 计数器 reset（测试进程内隔离）
@@ -265,16 +266,16 @@ int lv_error_table_size(void);
  * ================================================================ */
 
 /** @brief 重置原生实现全局 ID 计数器（lv_impl_native.c，恢复初始值 2000000） */
-void lv_native_reset_id_counter(void);
+lv_PUBLIC_API void lv_native_reset_id_counter(void);
 
 /** @brief 重置 .lv 加载器名称映射表（lv_loader.c，清空 s_loader_names） */
-void lv_loader_reset(void);
+lv_PUBLIC_API void lv_loader_reset(void);
 
 /** @brief 重置代数模式全局 ID 计数器（algebra_mode.c，恢复 0） */
-void lv_algebra_reset_id_counter(void);
+lv_PUBLIC_API void lv_algebra_reset_id_counter(void);
 
 /** @brief 重置溯源节点 ID 计数器（proof_trace_tree.c，恢复初始值 1） */
-void lv_trace_reset_id_counter(void);
+lv_PUBLIC_API void lv_trace_reset_id_counter(void);
 
 #ifdef __cplusplus
 }

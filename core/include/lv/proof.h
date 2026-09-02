@@ -42,6 +42,7 @@
 #include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
 #include "lv/lv_utils.h"
 #include "lv/trust_color_x.h" /* ProofColor 枚举单源列表 */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 */
 typedef struct ConstraintGraph ConstraintGraph;
@@ -348,7 +349,7 @@ typedef int lvProofScopeId;
 
 /* Missing enums/types used by proof.c */
 #define LIGHT_ORANGE_EXPLOSION 30
-void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated);
+lv_PUBLIC_API void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negated);
 
 /* Missing proof strategies */
 #define PROOF_STRATEGY_DIRECT 100
@@ -361,10 +362,10 @@ void lv_proof_tree_add_premise(void *tree, int idx, const char *name, bool negat
 
 /* SMT API is declared in lv/smt_backend.h — include it directly for SMT functions. */
 
-const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
-void *proof_navigator_search(void *nav);
+lv_PUBLIC_API const char *constraint_solver_get_proposition(void *solver, void *geom_obj);
+lv_PUBLIC_API void *proof_navigator_search(void *nav);
 
-const char *html_escape(const char *s);
+lv_PUBLIC_API const char *html_escape(const char *s);
 
 /* 前向声明 —— thread_pool.h 类型（仅需指针） */
 typedef struct lvThreadTask lvThreadTask;
@@ -375,12 +376,12 @@ typedef lvWaitGroup lvTaskGroup;
 
 lvTaskGroup *lv_task_group_create(const char *name);
 lvTask *lv_task_create(int (*fn)(void *), void *arg, const char *name);
-void lv_task_group_add(lvTaskGroup *g, lvTask *t);
+lv_PUBLIC_API void lv_task_group_add(lvTaskGroup *g, lvTask *t);
 /** @brief 顺序执行组内全部待执行任务，返回成功执行数 */
-int lv_task_group_run(lvTaskGroup *g);
+lv_PUBLIC_API int lv_task_group_run(lvTaskGroup *g);
 /** @brief 等待任务组全部完成（未执行任务先顺序补齐执行） */
-void lv_task_group_wait(lvTaskGroup *g);
-void lv_task_group_destroy(lvTaskGroup *g);
+lv_PUBLIC_API void lv_task_group_wait(lvTaskGroup *g);
+lv_PUBLIC_API void lv_task_group_destroy(lvTaskGroup *g);
 
 /* ============== 证明导航器 ============== */
 struct ProofNavigator {

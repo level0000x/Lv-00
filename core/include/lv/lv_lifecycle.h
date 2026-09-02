@@ -38,6 +38,7 @@
 
 #include "lv/lv_utils.h" /* lvDeferSlot / lvDeferFn / lv_defer_slot_cleanup /
                           * lv_defer_free_ptr / lv_free / lvDArray / lv_PUBLIC_API */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -207,7 +208,7 @@ typedef struct lvFieldDesc {
  * @param fields 字段描述表
  * @param n      描述表条目数
  */
-void lv_obj_destroy_fields(void *obj, const lvFieldDesc *fields, size_t n);
+lv_PUBLIC_API void lv_obj_destroy_fields(void *obj, const lvFieldDesc *fields, size_t n);
 
 #ifdef __cplusplus
 }

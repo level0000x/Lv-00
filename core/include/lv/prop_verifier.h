@@ -7,6 +7,7 @@
 
 #include "constraint_graph.h"
 #include "stream.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -142,9 +143,9 @@ PropFormula *prop_formula_create_negation(PropFormula *operand);
 PropFormula *prop_formula_create_bottom(void);
 PropFormula *prop_formula_create_true(void);
 PropFormula *prop_formula_copy(const PropFormula *f);
-void prop_formula_destroy(PropFormula *f);
-char *prop_formula_to_string(const PropFormula *f);
-char *prop_formula_to_latex(const PropFormula *f);
+lv_PUBLIC_API void prop_formula_destroy(PropFormula *f);
+lv_PUBLIC_API char *prop_formula_to_string(const PropFormula *f);
+lv_PUBLIC_API char *prop_formula_to_latex(const PropFormula *f);
 
 /* ================================================================
  * 核心验证 API
@@ -155,16 +156,16 @@ VerifyDetail prop_verifier_verify(const PropFormula **premises, int premise_coun
 /* ================================================================
  * 冒烟测试 API
  * ================================================================ */
-int prop_verifier_builtin_smoke_test_count(void);
-int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results);
-int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, VerifyDetail *results);
+lv_PUBLIC_API int prop_verifier_builtin_smoke_test_count(void);
+lv_PUBLIC_API int prop_verifier_run_builtin_smoke_tests(VerifyDetail *results);
+lv_PUBLIC_API int prop_verifier_run_smoke_tests(const SmokeTest *tests, int test_count, VerifyDetail *results);
 
 /* ================================================================
  * BHK 验证 API
  * ================================================================ */
 BHKVerificationResult prop_verifier_bhk_verify(const PropFormula **premises, int premise_count, const PropFormula *goal,
                                                const VerifierConfig *config);
-void prop_verifier_free_bhk_result(BHKVerificationResult *result);
+lv_PUBLIC_API void prop_verifier_free_bhk_result(BHKVerificationResult *result);
 
 /* ================================================================
  * 不可构成性分析 API
@@ -172,7 +173,7 @@ void prop_verifier_free_bhk_result(BHKVerificationResult *result);
 InconstructibilityAnalysis prop_verifier_analyze_inconstructibility(const PropFormula **premises, int premise_count,
                                                                     const PropFormula *goal,
                                                                     const VerifierConfig *config);
-void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis);
+lv_PUBLIC_API void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis);
 
 /* ================================================================
  * 辅助 API
@@ -180,8 +181,8 @@ void prop_verifier_free_analysis(InconstructibilityAnalysis *analysis);
 int prop_verifier_apply_trust_colors(ConstraintGraph *graph, const PropFormula **premises, int premise_count,
                                      const PropFormula *goal, const VerifierConfig *config,
                                      BHKVerificationResult *out_result);
-bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config);
-bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *config);
+lv_PUBLIC_API bool prop_verifier_check_equivalence(const PropFormula *a, const PropFormula *b, const VerifierConfig *config);
+lv_PUBLIC_API bool prop_verifier_check_tautology(const PropFormula *f, const VerifierConfig *config);
 
 /* ================================================================
  * 遗留简单 API（保留以兼容旧代码）

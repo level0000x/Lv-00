@@ -38,6 +38,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -155,7 +156,7 @@ MetaProofContext *meta_proof_context_create(ConstraintGraph *graph, PropagationC
  *
  * @param ctx  元证明上下文
  */
-void meta_proof_context_destroy(MetaProofContext *ctx);
+lv_PUBLIC_API void meta_proof_context_destroy(MetaProofContext *ctx);
 /* ================================================================
  * 剪枝合法性证明
  * ================================================================ */
@@ -225,7 +226,7 @@ CompletenessReport *meta_prove_completeness(MetaProofContext *ctx);
  * @brief 销毁完备性报告
  * @param report  完备性报告
  */
-void meta_proof_completeness_report_destroy(CompletenessReport *report);
+lv_PUBLIC_API void meta_proof_completeness_report_destroy(CompletenessReport *report);
 /* ================================================================
  * 剪枝记录管理
  * ================================================================ */
@@ -246,7 +247,7 @@ void meta_proof_record_pruning(MetaProofContext *ctx, int node_id, SymbolicCoord
  * @param ctx  元证明上下文
  * @return 剪枝记录指针
  */
-const PruningRecord *meta_proof_get_record(const MetaProofContext *ctx);
+lv_PUBLIC_API const PruningRecord *meta_proof_get_record(const MetaProofContext *ctx);
 /* ================================================================
  * 配置
  * ================================================================ */
@@ -255,38 +256,38 @@ const PruningRecord *meta_proof_get_record(const MetaProofContext *ctx);
  * @param ctx        元证明上下文
  * @param navigator  证明导航器（可为 NULL）
  */
-void meta_proof_set_navigator(MetaProofContext *ctx, ProofNavigator *navigator);
+lv_PUBLIC_API void meta_proof_set_navigator(MetaProofContext *ctx, ProofNavigator *navigator);
 /**
  * @brief 设置关联的等价类管理器
  * @param ctx      元证明上下文
  * @param mgr      等价类管理器（可为 NULL）
  */
-void meta_proof_set_equiv_manager(MetaProofContext *ctx, EquivClassManager *mgr);
+lv_PUBLIC_API void meta_proof_set_equiv_manager(MetaProofContext *ctx, EquivClassManager *mgr);
 /**
  * @brief 设置流式输出上下文
  * @param ctx         元证明上下文
  * @param stream_ctx  流式上下文（可为 NULL）
  */
-void meta_proof_set_stream_context(MetaProofContext *ctx, StreamContext *stream_ctx);
+lv_PUBLIC_API void meta_proof_set_stream_context(MetaProofContext *ctx, StreamContext *stream_ctx);
 /**
  * @brief 启用/禁用证明策略
  * @param ctx      元证明上下文
  * @param strategy 策略类型
  * @param enable   true 启用, false 禁用
  */
-void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable);
+lv_PUBLIC_API void meta_proof_set_strategy_enabled(MetaProofContext *ctx, PruneStrategy strategy, bool enable);
 /**
  * @brief 设置 L2 传播矛盾最大步数
  * @param ctx       元证明上下文
  * @param max_steps 最大步数
  */
-void meta_proof_set_max_propagation_steps(MetaProofContext *ctx, int max_steps);
+lv_PUBLIC_API void meta_proof_set_max_propagation_steps(MetaProofContext *ctx, int max_steps);
 /**
  * @brief 设置单次证明超时
  * @param ctx        元证明上下文
  * @param timeout_ms 超时毫秒数
  */
-void meta_proof_set_timeout(MetaProofContext *ctx, int timeout_ms);
+lv_PUBLIC_API void meta_proof_set_timeout(MetaProofContext *ctx, int timeout_ms);
 /* ================================================================
  * 诊断与查询
  * ================================================================ */

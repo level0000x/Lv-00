@@ -13,6 +13,7 @@ extern "C" {
 #endif
 #include <stdbool.h>
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 /* ============== 公理难度等级 ============== */
 /**
  * @brief 公理难度等级 —— 用于教育场景下的自适应难度筛选
@@ -82,13 +83,13 @@ typedef struct {
  *
  * @param grade  允许的最高难度等级
  */
-void lv_axiom_set_difficulty(lvAxiomGrade grade);
+lv_PUBLIC_API void lv_axiom_set_difficulty(lvAxiomGrade grade);
 /**
  * @brief 获取当前全局难度过滤器的配置
  *
  * @return 当前难度过滤器指针（只读），可能为 NULL
  */
-const lvAxiomGradeFilter *lv_axiom_get_filter(void);
+lv_PUBLIC_API const lvAxiomGradeFilter *lv_axiom_get_filter(void);
 /**
  * @brief 创建公理分级元数据
  *
@@ -105,7 +106,7 @@ lvAxiomGradeMeta *lv_axiom_grade_meta_create(const char *name, lvAxiomGrade grad
  *
  * @param meta  公理分级元数据指针（可为 NULL）
  */
-void lv_axiom_grade_meta_destroy(lvAxiomGradeMeta *meta);
+lv_PUBLIC_API void lv_axiom_grade_meta_destroy(lvAxiomGradeMeta *meta);
 /**
  * @brief 检查给定公理是否通过当前难度筛选
  *
@@ -113,21 +114,21 @@ void lv_axiom_grade_meta_destroy(lvAxiomGradeMeta *meta);
  * @return true  通过筛选（允许使用该公理）
  * @return false 未通过筛选（该公理被屏蔽）
  */
-bool lv_axiom_grade_check(const lvAxiomGradeMeta *meta);
+lv_PUBLIC_API bool lv_axiom_grade_check(const lvAxiomGradeMeta *meta);
 /**
  * @brief 将难度等级转换为中文字符串
  *
  * @param grade  难度等级
  * @return 中文描述字符串（静态内存，不可释放）
  */
-const char *lv_axiom_grade_to_string(lvAxiomGrade grade);
+lv_PUBLIC_API const char *lv_axiom_grade_to_string(lvAxiomGrade grade);
 /**
  * @brief 将证明风格转换为中文字符串
  *
  * @param style  证明风格
  * @return 中文描述字符串（静态内存，不可释放）
  */
-const char *lv_proof_style_to_string(lvProofStyle style);
+lv_PUBLIC_API const char *lv_proof_style_to_string(lvProofStyle style);
 /**
  * @brief 递进解锁下一个难度等级
  *

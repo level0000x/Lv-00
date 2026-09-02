@@ -20,6 +20,7 @@ extern "C" {
 #include <stdio.h>
 
 #include "lv/lambda_term.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 */
 struct ConstraintGraph;

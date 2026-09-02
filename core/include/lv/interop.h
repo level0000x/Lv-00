@@ -23,6 +23,7 @@
 #include "constraint_graph.h"
 #include "lv/cross_platform.h" /* lv_THREAD_LOCAL */
 #include "proof.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /** @brief interop 模块全局流式上下文（由 interop_command.c 集中定义） */
 extern lv_THREAD_LOCAL StreamContext *interop_stream_ctx;

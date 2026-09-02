@@ -33,6 +33,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 #include <stdio.h>
 
@@ -94,7 +95,7 @@ int lv_perf_benchmark_run(const char *name, void (*fn)(void), void *setup_fn, lv
  * @param result 基准测试结果
  * @param out    输出流（如 stdout, stderr）
  */
-void lv_perf_benchmark_print_result(const char *name, const lvPerfBenchResult *result, FILE *out);
+lv_PUBLIC_API void lv_perf_benchmark_print_result(const char *name, const lvPerfBenchResult *result, FILE *out);
 
 /* ================================================================
  * 性能会话 API
@@ -118,7 +119,7 @@ lvPerfSession *lv_perf_session_create(const char *name);
  * @param session     性能会话
  * @param region_name 区域名称
  */
-void lv_perf_begin(lvPerfSession *session, const char *region_name);
+lv_PUBLIC_API void lv_perf_begin(lvPerfSession *session, const char *region_name);
 
 /**
  * @brief 结束计时一个命名区域
@@ -129,7 +130,7 @@ void lv_perf_begin(lvPerfSession *session, const char *region_name);
  * @param session     性能会话
  * @param region_name 区域名称
  */
-void lv_perf_end(lvPerfSession *session, const char *region_name);
+lv_PUBLIC_API void lv_perf_end(lvPerfSession *session, const char *region_name);
 
 /**
  * @brief 记录一次内存分配事件
@@ -138,7 +139,7 @@ void lv_perf_end(lvPerfSession *session, const char *region_name);
  * @param type_name 分配的类型名称
  * @param bytes     分配的字节数
  */
-void lv_perf_session_record_alloc(lvPerfSession *session, const char *type_name, size_t bytes);
+lv_PUBLIC_API void lv_perf_session_record_alloc(lvPerfSession *session, const char *type_name, size_t bytes);
 
 /**
  * @brief 记录一次内存释放事件
@@ -147,7 +148,7 @@ void lv_perf_session_record_alloc(lvPerfSession *session, const char *type_name,
  * @param type_name 释放的类型名称
  * @param bytes     释放的字节数
  */
-void lv_perf_session_record_free(lvPerfSession *session, const char *type_name, size_t bytes);
+lv_PUBLIC_API void lv_perf_session_record_free(lvPerfSession *session, const char *type_name, size_t bytes);
 
 /**
  * @brief 打印性能分析报告
@@ -158,7 +159,7 @@ void lv_perf_session_record_free(lvPerfSession *session, const char *type_name, 
  * @param session 性能会话
  * @param out     输出流
  */
-void lv_perf_report_print(const lvPerfSession *session, FILE *out);
+lv_PUBLIC_API void lv_perf_report_print(const lvPerfSession *session, FILE *out);
 
 /**
  * @brief 将会话数据导出为 JSON 字符串
@@ -172,7 +173,7 @@ void lv_perf_report_print(const lvPerfSession *session, FILE *out);
  * @param buffer_size 缓冲区大小（字节）
  * @return 写入的字节数（不含末尾 '\0'），失败返回 -1
  */
-int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t buffer_size);
+lv_PUBLIC_API int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t buffer_size);
 
 /**
  * @brief 重置性能会话
@@ -181,7 +182,7 @@ int lv_perf_report_to_json(const lvPerfSession *session, char *buffer, size_t bu
  *
  * @param session 性能会话
  */
-void lv_perf_session_reset(lvPerfSession *session);
+lv_PUBLIC_API void lv_perf_session_reset(lvPerfSession *session);
 
 /**
  * @brief 销毁性能会话并释放所有资源
@@ -190,7 +191,7 @@ void lv_perf_session_reset(lvPerfSession *session);
  *
  * @param session 性能会话
  */
-void lv_perf_session_destroy(lvPerfSession *session);
+lv_PUBLIC_API void lv_perf_session_destroy(lvPerfSession *session);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,6 @@
 ﻿#ifndef lv_GAPPA_DSL_H
 #define lv_GAPPA_DSL_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -19,7 +20,7 @@ typedef struct {
 } lvGappaFormat;
 
 /** Predefined format helper */
-bool gappa_format_predefined(const char *name, lvGappaFormat *out);
+lv_PUBLIC_API bool gappa_format_predefined(const char *name, lvGappaFormat *out);
 
 /** Rounding modes */
 typedef enum { lv_ROUND_NE = 0, lv_ROUND_NA, lv_ROUND_NU, lv_ROUND_ND, lv_ROUND_ZR } lvRoundingMode;
@@ -64,30 +65,30 @@ typedef struct {
 } lvGappaRewriteRule;
 
 /** Parse Gappa DSL expression. */
-int lv_gappa_parse(const char *input);
+lv_PUBLIC_API int lv_gappa_parse(const char *input);
 
 /** Parse with structured output */
-bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGappaProofGoal **goals, int *goal_count);
+lv_PUBLIC_API bool gappa_parse(const char *input, lvGappaPredicate **hyp, int *hyp_count, lvGappaProofGoal **goals, int *goal_count);
 
 /** Free parsed results */
-void gappa_predicates_free(lvGappaPredicate *preds, int count);
-void gappa_goals_free(lvGappaProofGoal *goals, int count);
+lv_PUBLIC_API void gappa_predicates_free(lvGappaPredicate *preds, int count);
+lv_PUBLIC_API void gappa_goals_free(lvGappaProofGoal *goals, int count);
 
 /** Evaluate Gappa expression with interval bounds. */
-int lv_gappa_eval(const char *expr, double *lo, double *hi);
+lv_PUBLIC_API int lv_gappa_eval(const char *expr, double *lo, double *hi);
 
 /** Generate proof from Gappa script. */
-char *lv_gappa_prove(const char *script);
+lv_PUBLIC_API char *lv_gappa_prove(const char *script);
 
 /** Prove with structured API */
 lvGappaProofResult gappa_prove(const lvGappaPredicate *hyp, int hyp_count, const lvGappaProofGoal *goals,
                                int goal_count, const void *config);
 
 /** Free proof result */
-void gappa_result_free(lvGappaProofResult *result);
+lv_PUBLIC_API void gappa_result_free(lvGappaProofResult *result);
 
 /** Register rewrite rules */
-bool gappa_register_rewrite_rules(const lvGappaRewriteRule *rules, int count);
+lv_PUBLIC_API bool gappa_register_rewrite_rules(const lvGappaRewriteRule *rules, int count);
 
 #ifdef __cplusplus
 }

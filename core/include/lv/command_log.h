@@ -25,6 +25,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/lv_xmacro.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 */
 struct lvEngine;
@@ -205,7 +206,7 @@ CommandLog *command_log_create(int initial_capacity);
  *
  * @param log 日志指针（可为 NULL）
  */
-void command_log_destroy(CommandLog *log);
+lv_PUBLIC_API void command_log_destroy(CommandLog *log);
 
 /**
  * @brief 追加一条命令条目到日志尾部
@@ -217,7 +218,7 @@ void command_log_destroy(CommandLog *log);
  * @param entry 命令条目指针（日志接过所有权）
  * @return true 成功，false 失败
  */
-bool command_log_append(CommandLog *log, CommandEntry *entry);
+lv_PUBLIC_API bool command_log_append(CommandLog *log, CommandEntry *entry);
 
 /**
  * @brief 获取日志中的条目数量
@@ -225,7 +226,7 @@ bool command_log_append(CommandLog *log, CommandEntry *entry);
  * @param log 日志指针
  * @return 条目数量
  */
-int command_log_count(const CommandLog *log);
+lv_PUBLIC_API int command_log_count(const CommandLog *log);
 
 /**
  * @brief 按索引获取日志条目（只读引用）
@@ -234,14 +235,14 @@ int command_log_count(const CommandLog *log);
  * @param index 索引（0 ~ count-1）
  * @return 条目指针，无效索引返回 NULL
  */
-const CommandEntry *command_log_get(const CommandLog *log, int index);
+lv_PUBLIC_API const CommandEntry *command_log_get(const CommandLog *log, int index);
 
 /**
  * @brief 清除日志中的所有条目（重置到空状态）
  *
  * @param log 日志指针
  */
-void command_log_clear(CommandLog *log);
+lv_PUBLIC_API void command_log_clear(CommandLog *log);
 
 /**
  * @brief 获取当前序列号（用于断点续传检测）
@@ -249,7 +250,7 @@ void command_log_clear(CommandLog *log);
  * @param log 日志指针
  * @return 当前序列号（最后一条条目的 seq + 1，空日志返回 0）
  */
-int64_t command_log_current_seq(const CommandLog *log);
+lv_PUBLIC_API int64_t command_log_current_seq(const CommandLog *log);
 
 /* ════════════════════════════════════════════════════════════════
  *  命令执行与重放
@@ -266,7 +267,7 @@ int64_t command_log_current_seq(const CommandLog *log);
  * @param engine 引擎实例
  * @return true 执行成功，false 执行失败
  */
-bool command_log_execute(CommandLog *log, CommandEntry *entry, lvEngine *engine);
+lv_PUBLIC_API bool command_log_execute(CommandLog *log, CommandEntry *entry, lvEngine *engine);
 
 /**
  * @brief 重放日志中的所有命令到指定引擎
@@ -277,7 +278,7 @@ bool command_log_execute(CommandLog *log, CommandEntry *entry, lvEngine *engine)
  * @param engine 引擎实例（必须为空引擎）
  * @return true 全部重放成功，false 有失败的命令
  */
-bool command_log_replay(CommandLog *log, lvEngine *engine);
+lv_PUBLIC_API bool command_log_replay(CommandLog *log, lvEngine *engine);
 
 /**
  * @brief 从指定位置开始增量重放
@@ -290,7 +291,7 @@ bool command_log_replay(CommandLog *log, lvEngine *engine);
  * @param from_seq 起始序列号（只重放 seq > from_seq 的条目）
  * @return true 全部重放成功，false 有失败的命令
  */
-bool command_log_replay_from(CommandLog *log, lvEngine *engine, int64_t from_seq);
+lv_PUBLIC_API bool command_log_replay_from(CommandLog *log, lvEngine *engine, int64_t from_seq);
 
 /* ════════════════════════════════════════════════════════════════
  *  序列化 / 反序列化
@@ -305,7 +306,7 @@ bool command_log_replay_from(CommandLog *log, lvEngine *engine, int64_t from_seq
  * @param filepath 输出文件路径
  * @return true 成功，false 失败
  */
-bool command_log_serialize_json(const CommandLog *log, const char *filepath);
+lv_PUBLIC_API bool command_log_serialize_json(const CommandLog *log, const char *filepath);
 
 /**
  * @brief 从 JSON 文件反序列化命令日志
@@ -347,7 +348,7 @@ CommandEntry *command_entry_create_set_numeric_assumption(int node_id, double pr
  *
  * @param entry 条目指针（可为 NULL）
  */
-void command_entry_destroy(CommandEntry *entry);
+lv_PUBLIC_API void command_entry_destroy(CommandEntry *entry);
 
 #ifdef __cplusplus
 }

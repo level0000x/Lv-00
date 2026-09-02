@@ -1,5 +1,6 @@
 #ifndef lv_PRESET_COMMON_H
 #define lv_PRESET_COMMON_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -80,7 +81,7 @@ extern "C" {
  * ======================================================================== */
 
 #define COMMON_PRESET_COUNT 1
-bool preset_common_register(void);
+lv_PUBLIC_API bool preset_common_register(void);
 
 /**
  * @brief 声明预设注册辅助函数（消除每个 preset 文件头部的重复实现）
@@ -124,10 +125,10 @@ bool preset_common_register(void);
         }                                                                                                           \
     } while (0)
 
-int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...);
-int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
-bool preset_properties_from_string(const char *str, PresetProperty *properties);
-bool preset_module_get_names(const char *const *names, int count, char ***out_names, int *out_count);
+lv_PUBLIC_API int lv_safe_snprintf(char *dest, size_t dest_size, const char *fmt, ...);
+lv_PUBLIC_API int preset_properties_to_string(PresetProperty properties, char *buffer, size_t buffer_size);
+lv_PUBLIC_API bool preset_properties_from_string(const char *str, PresetProperty *properties);
+lv_PUBLIC_API bool preset_module_get_names(const char *const *names, int count, char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

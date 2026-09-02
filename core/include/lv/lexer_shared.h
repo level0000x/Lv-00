@@ -22,6 +22,7 @@
  */
 #ifndef lv_LEXER_SHARED_H
 #define lv_LEXER_SHARED_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 #ifdef __cplusplus
 extern "C" {
@@ -51,7 +52,7 @@ typedef struct {
  * @param lex    指向词法分析器结构体的指针
  * @param source 要解析的源字符串（词法分析器不获取所有权）
  */
-void lv_lexer_init(lvLexer *lex, const char *source);
+lv_PUBLIC_API void lv_lexer_init(lvLexer *lex, const char *source);
 /**
  * @brief 重置/清除词法分析器状态
  *
@@ -61,7 +62,7 @@ void lv_lexer_init(lvLexer *lex, const char *source);
  *
  * @param lex 指向词法分析器结构体的指针
  */
-void lv_lexer_clear(lvLexer *lex);
+lv_PUBLIC_API void lv_lexer_clear(lvLexer *lex);
 /**
  * @brief 跳过空白字符和注释
  *
@@ -70,7 +71,7 @@ void lv_lexer_clear(lvLexer *lex);
  *
  * @param lex 指向词法分析器结构体的指针
  */
-void lv_lexer_skip_whitespace_and_comments(lvLexer *lex);
+lv_PUBLIC_API void lv_lexer_skip_whitespace_and_comments(lvLexer *lex);
 /**
  * @brief 提取字符串字面量（含转义处理）
  *
@@ -87,7 +88,7 @@ void lv_lexer_skip_whitespace_and_comments(lvLexer *lex);
  *            释放——原注释「free()」为混合分配器 UB，见 memory-ownership.md
  *            K10/F39），失败时返回 NULL
  */
-char *lv_lexer_extract_string(lvLexer *lex);
+lv_PUBLIC_API char *lv_lexer_extract_string(lvLexer *lex);
 #ifdef __cplusplus
 }
 #endif

@@ -67,6 +67,7 @@ extern "C" {
 
 /* 流式输出上下文独立模块 —— 从 lvContext God Object 中提取的 StreamContext 管理子系统 */
 #include "lv/lv_stream_context.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 —— 避免循环依赖，具体类型在各模块头文件中定义 */
 struct ConstraintGraph;     /* constraint_graph.h */

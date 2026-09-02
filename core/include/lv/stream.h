@@ -309,10 +309,10 @@ lv_PUBLIC_API void stream_context_clear_all(void);
 typedef void (*StreamContextSetter)(StreamContext *ctx);
 
 /** @brief 注册一个模块的流式上下文 setter（实现于 L4 stream_context_util.c） */
-void stream_context_register_setter(StreamContextSetter setter);
+lv_PUBLIC_API void stream_context_register_setter(StreamContextSetter setter);
 
 /** @brief 便捷函数: 格式化文本并发射简单流式事件（实现于 L4 stream_context_util.c） */
-void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...);
+lv_PUBLIC_API void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...);
 
 /* ═══════════════════════════════════════════════════════════════════
  * LV_STREAM_CTX_DECLARE / LV_STREAM_CTX_DEFINE —— 模块流上下文三件套宏

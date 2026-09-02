@@ -1,6 +1,7 @@
 ﻿#ifndef lv_EXTENDED_TYPES_H
 #define lv_EXTENDED_TYPES_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/effect_system.h"
 #include "lv/type_system.h"
 
@@ -50,7 +51,7 @@ lvListTypeRegion *lv_list_type_create(void *elem_type);
  * @brief 销毁列表类型区域并释放资源
  * @param t 指向待销毁的列表类型区域的指针
  */
-void lv_list_type_destroy(lvListTypeRegion *t);
+lv_PUBLIC_API void lv_list_type_destroy(lvListTypeRegion *t);
 
 /**
  * @brief 创建映射（字典）类型区域
@@ -64,7 +65,7 @@ lvMapTypeRegion *lv_map_type_create(void *key_type, void *value_type);
  * @brief 销毁映射类型区域并释放资源
  * @param t 指向待销毁的映射类型区域的指针
  */
-void lv_map_type_destroy(lvMapTypeRegion *t);
+lv_PUBLIC_API void lv_map_type_destroy(lvMapTypeRegion *t);
 
 /**
  * @brief 创建函数类型区域
@@ -79,7 +80,7 @@ lvFunctionTypeRegion *lv_function_type_create(void *param, void *ret, int depend
  * @brief 销毁函数类型区域并释放资源
  * @param t 指向待销毁的函数类型区域的指针
  */
-void lv_function_type_destroy(lvFunctionTypeRegion *t);
+lv_PUBLIC_API void lv_function_type_destroy(lvFunctionTypeRegion *t);
 
 /**
  * @brief 创建副作用类型区域
@@ -94,7 +95,7 @@ lvEffectTypeRegion *lv_effect_type_create(lvEffectType *effects, int count, void
  * @brief 销毁副作用类型区域并释放资源
  * @param t 指向待销毁的副作用类型区域的指针
  */
-void lv_effect_type_destroy(lvEffectTypeRegion *t);
+lv_PUBLIC_API void lv_effect_type_destroy(lvEffectTypeRegion *t);
 
 /* Type compatibility check */
 
@@ -104,7 +105,7 @@ void lv_effect_type_destroy(lvEffectTypeRegion *t);
  * @param b 第二个类型指针
  * @return 非零表示兼容，0 表示不兼容
  */
-int lv_extended_type_compatible(void *a, void *b);
+lv_PUBLIC_API int lv_extended_type_compatible(void *a, void *b);
 
 #ifdef __cplusplus
 }

@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ========================================================================
  * 谓词精度模式

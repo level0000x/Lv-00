@@ -35,6 +35,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -319,7 +320,7 @@ typedef struct DslCompileConfig {
  * @param out_count   输出：token 数量
  * @return true 成功，false 遇到致命词法错误
  */
-bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
+lv_PUBLIC_API bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
 
 /**
  * @brief 释放词法分析产生的 token 数组
@@ -329,7 +330,7 @@ bool dsl_tokenize(const char *source, DslToken **out_tokens, int *out_count);
  * @note 数组销毁必须携带 count（token 数组不以哨兵终止），
  *       与主流单对象约定 void xxx_destroy(T*) 不同，属数组释放变体。
  */
-void dsl_tokens_destroy(DslToken *tokens, int count);
+lv_PUBLIC_API void dsl_tokens_destroy(DslToken *tokens, int count);
 
 /**
  * @brief 将 token 序列解析为抽象语法树
@@ -341,7 +342,7 @@ void dsl_tokens_destroy(DslToken *tokens, int count);
  * @param out_ast  输出：AST 根节点（调用者通过 dsl_ast_destroy 释放）
  * @return true 成功，false 语法错误
  */
-bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
+lv_PUBLIC_API bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
 
 /**
  * @brief 将 AST 编译为中间表示（IR）
@@ -354,7 +355,7 @@ bool dsl_parse(const DslToken *tokens, int count, DslAST **out_ast);
  * @param out_ir    输出：编译生成的 IR（调用者通过 dsl_ir_destroy 释放）
  * @return true 成功，false 语义错误
  */
-bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir);
+lv_PUBLIC_API bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_ir);
 
 /**
  * @brief 将 IR 转换为约束图
@@ -366,7 +367,7 @@ bool dsl_compile(const DslAST *ast, const DslCompileConfig *config, DslIR **out_
  * @param graph 输出：填充好的约束图（调用者已有所有权）
  * @return true 成功，false IR 中存在无法解析的引用
  */
-bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
+lv_PUBLIC_API bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
 
 /**
  * @brief 一键编译并加载：DSL 源码直接生成约束图
@@ -379,7 +380,7 @@ bool dsl_ir_to_constraint_graph(const DslIR *ir, ConstraintGraph *graph);
  * @param graph   输出：填充好的约束图
  * @return true 成功，false 编译或加载过程中出错
  */
-bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph);
+lv_PUBLIC_API bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, ConstraintGraph *graph);
 
 /**
  * @brief 获取默认编译配置
@@ -389,7 +390,7 @@ bool dsl_compile_and_load(const char *source, const DslCompileConfig *config, Co
  *
  * @param out_config 输出：填充默认值的编译配置
  */
-void dsl_compile_config_default(DslCompileConfig *out_config);
+lv_PUBLIC_API void dsl_compile_config_default(DslCompileConfig *out_config);
 
 /**
  * @brief 释放抽象语法树
@@ -398,7 +399,7 @@ void dsl_compile_config_default(DslCompileConfig *out_config);
  *
  * @param ast AST 根节点（可为 NULL）
  */
-void dsl_ast_destroy(DslAST *ast);
+lv_PUBLIC_API void dsl_ast_destroy(DslAST *ast);
 
 /**
  * @brief 释放中间表示
@@ -407,7 +408,7 @@ void dsl_ast_destroy(DslAST *ast);
  *
  * @param ir IR 对象（可为 NULL）
  */
-void dsl_ir_destroy(DslIR *ir);
+lv_PUBLIC_API void dsl_ir_destroy(DslIR *ir);
 
 /**
  * @brief 将 AST 以可读格式输出到文件描述符
@@ -418,7 +419,7 @@ void dsl_ir_destroy(DslIR *ir);
  * @param fd   输出文件描述符（使用 stdout/stderr 或文件句柄）
  * @param indent 缩进级别（根节点使用 0）
  */
-void dsl_ast_dump(const DslAST *ast, void *fd, int indent);
+lv_PUBLIC_API void dsl_ast_dump(const DslAST *ast, void *fd, int indent);
 
 /**
  * @brief 将 IR 以可读格式输出到文件描述符
@@ -428,7 +429,7 @@ void dsl_ast_dump(const DslAST *ast, void *fd, int indent);
  * @param ir IR 对象
  * @param fd 输出文件描述符
  */
-void dsl_ir_dump(const DslIR *ir, void *fd);
+lv_PUBLIC_API void dsl_ir_dump(const DslIR *ir, void *fd);
 
 /**
  * @brief 获取 IR 操作码的字符串名称
@@ -436,7 +437,7 @@ void dsl_ir_dump(const DslIR *ir, void *fd);
  * @param op 操作码
  * @return 静态字符串（不需要释放）
  */
-const char *dsl_ir_op_name(DslIROp op);
+lv_PUBLIC_API const char *dsl_ir_op_name(DslIROp op);
 
 /**
  * @brief 获取 DSL AST 节点类型的字符串名称
@@ -444,7 +445,7 @@ const char *dsl_ir_op_name(DslIROp op);
  * @param type AST 节点类型
  * @return 静态字符串（不需要释放）
  */
-const char *dsl_ast_type_name(DslASTType type);
+lv_PUBLIC_API const char *dsl_ast_type_name(DslASTType type);
 
 #ifdef __cplusplus
 }

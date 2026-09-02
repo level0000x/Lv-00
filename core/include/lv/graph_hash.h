@@ -1,6 +1,7 @@
 #ifndef lv_GRAPH_HASH_H
 #define lv_GRAPH_HASH_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -38,7 +39,7 @@ GraphHash *compute_complete_graph_hash(const ConstraintGraph *graph);
  * @param a, b 图哈希指针
  * @return true 相等
  */
-bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
+lv_PUBLIC_API bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
 
 /**
  * @brief 计算快速图哈希（轻量级，用于循环检测）
@@ -49,12 +50,12 @@ bool graph_hash_equal(const GraphHash *a, const GraphHash *b);
  * @param graph 约束图指针
  * @return uint64_t 图哈希值，输入为 NULL 时返回 0
  */
-uint64_t compute_quick_graph_hash(const ConstraintGraph *graph);
+lv_PUBLIC_API uint64_t compute_quick_graph_hash(const ConstraintGraph *graph);
 
 /**
  * @brief 销毁图哈希
  */
-void graph_hash_destroy(GraphHash *hash);
+lv_PUBLIC_API void graph_hash_destroy(GraphHash *hash);
 
 #ifdef __cplusplus
 }

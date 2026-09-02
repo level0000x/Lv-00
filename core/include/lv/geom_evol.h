@@ -23,6 +23,7 @@
 #ifndef lv_GEOM_EVOL_H
 #define lv_GEOM_EVOL_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -231,7 +232,7 @@ lvGeomEvol *geoevol_create(int dim, lvEvolMethod method, lvGeomEvolRHSFunc rhs);
  *
  * @param[in,out] evol  要销毁的引擎（设为 NULL 是安全的）
  */
-void geoevol_destroy(lvGeomEvol *evol);
+lv_PUBLIC_API void geoevol_destroy(lvGeomEvol *evol);
 
 /**
  * @brief 设置演化步长参数
@@ -241,7 +242,7 @@ void geoevol_destroy(lvGeomEvol *evol);
  * @param[in]     step_min  最小步长
  * @param[in]     step_max  最大步长
  */
-void geoevol_set_step(lvGeomEvol *evol, double step_size, double step_min, double step_max);
+lv_PUBLIC_API void geoevol_set_step(lvGeomEvol *evol, double step_size, double step_min, double step_max);
 
 /**
  * @brief 将演化引擎运行至目标时间 tout

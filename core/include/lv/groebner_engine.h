@@ -21,6 +21,7 @@
  */
 #ifndef lv_GROEBNER_ENGINE_H
 #define lv_GROEBNER_ENGINE_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -251,7 +252,7 @@ lvRingRegistry *ring_registry_create(int capacity);
  *
  * @param registry  环注册表
  */
-void ring_registry_destroy(lvRingRegistry *registry);
+lv_PUBLIC_API void ring_registry_destroy(lvRingRegistry *registry);
 /**
  * @brief 创建一个多项式环
  *
@@ -276,7 +277,7 @@ int ring_create(lvRingRegistry *registry, const char *var_names[], int var_count
  * @param registry  环注册表
  * @param ring_id   环 ID
  */
-void ring_destroy(lvRingRegistry *registry, int ring_id);
+lv_PUBLIC_API void ring_destroy(lvRingRegistry *registry, int ring_id);
 /**
  * @brief 注册一个外部创建的环
  *
@@ -284,7 +285,7 @@ void ring_destroy(lvRingRegistry *registry, int ring_id);
  * @param ring      环指针
  * @return 成功返回分配的环 ID（>= 0），失败返回 -1
  */
-int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring);
+lv_PUBLIC_API int ring_register(lvRingRegistry *registry, lvPolynomialRing *ring);
 /**
  * @brief 按 ID 查找环
  *
@@ -307,14 +308,14 @@ lvPolynomialRing *ring_find(const lvRingRegistry *registry, int ring_id);
  * @param label     多项式标签（可为 NULL）
  * @return 成功返回多项式 ID（>= 0），失败返回 -1
  */
-int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char *label);
+lv_PUBLIC_API int poly_create(lvRingRegistry *registry, int ring_id, int capacity, const char *label);
 /**
  * @brief 销毁多项式
  *
  * @param registry  环注册表
  * @param poly_id   多项式 ID
  */
-void poly_destroy(lvRingRegistry *registry, int poly_id);
+lv_PUBLIC_API void poly_destroy(lvRingRegistry *registry, int poly_id);
 /**
  * @brief 多项式加法：h = f + g
  *
@@ -324,7 +325,7 @@ void poly_destroy(lvRingRegistry *registry, int poly_id);
  * @param result_label 结果标签（可为 NULL）
  * @return 成功返回结果多项式 ID（>= 0），失败返回 -1
  */
-int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label);
+lv_PUBLIC_API int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label);
 /**
  * @brief 多项式乘法：h = f * g
  *
@@ -334,7 +335,7 @@ int poly_add(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char 
  * @param result_label 结果标签（可为 NULL）
  * @return 成功返回结果多项式 ID（>= 0），失败返回 -1
  */
-int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label);
+lv_PUBLIC_API int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const char *result_label);
 /**
  * @brief 多项式代入：将指定变量替换为另一个多项式
  *
@@ -347,7 +348,7 @@ int poly_multiply(lvRingRegistry *registry, int poly_id_f, int poly_id_g, const 
  * @param result_label 结果标签（可为 NULL）
  * @return 成功返回结果多项式 ID（>= 0），失败返回 -1
  */
-int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int subst_poly_id, const char *result_label);
+lv_PUBLIC_API int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int subst_poly_id, const char *result_label);
 /**
  * @brief 获取多项式实例
  *
@@ -355,7 +356,7 @@ int poly_substitute(lvRingRegistry *registry, int poly_id, int var_index, int su
  * @param poly_id   多项式 ID
  * @return 多项式指针，若不存在返回 NULL
  */
-const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id);
+lv_PUBLIC_API const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id);
 /* ================================================================
  *  第九部分：API —— 理想与 Gröbner 基
  * ================================================================ */
@@ -369,14 +370,14 @@ const lvPolynomial *poly_get(const lvRingRegistry *registry, int poly_id);
  * @param label     理想标签（可为 NULL）
  * @return 成功返回理想 ID（>= 0），失败返回 -1
  */
-int ideal_create(lvRingRegistry *registry, int ring_id, const char *label);
+lv_PUBLIC_API int ideal_create(lvRingRegistry *registry, int ring_id, const char *label);
 /**
  * @brief 销毁理想
  *
  * @param registry  环注册表
  * @param ideal_id  理想 ID
  */
-void ideal_destroy(lvRingRegistry *registry, int ideal_id);
+lv_PUBLIC_API void ideal_destroy(lvRingRegistry *registry, int ideal_id);
 /**
  * @brief 向理想添加生成元
  *
@@ -385,7 +386,7 @@ void ideal_destroy(lvRingRegistry *registry, int ideal_id);
  * @param poly_id   生成元多项式 ID
  * @return 成功返回 0，失败返回负值错误码
  */
-int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id);
+lv_PUBLIC_API int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id);
 /**
  * @brief 计算 Gröbner 基（核心函数）
  *
@@ -397,7 +398,7 @@ int ideal_add_generator(lvRingRegistry *registry, int ideal_id, int poly_id);
  * @param algorithm 算法选择
  * @return 成功返回 0，失败返回负值错误码
  */
-int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm algorithm);
+lv_PUBLIC_API int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm algorithm);
 /**
  * @brief 增量式 Gröbner 基计算
  *
@@ -409,7 +410,7 @@ int groebner_compute(lvRingRegistry *registry, int ideal_id, lvGroebnerAlgorithm
  * @param new_poly_id   新增的生成元多项式 ID
  * @return 成功返回 0，失败返回负值错误码
  */
-int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new_poly_id);
+lv_PUBLIC_API int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new_poly_id);
 /**
  * @brief 理想成员判定
  *
@@ -421,7 +422,7 @@ int groebner_compute_incremental(lvRingRegistry *registry, int ideal_id, int new
  * @param poly_id   待判定多项式 ID
  * @return 属于理想返回 true，否则返回 false
  */
-bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id);
+lv_PUBLIC_API bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id);
 /**
  * @brief 理想交：计算 I ∩ J
  *
@@ -430,7 +431,7 @@ bool ideal_membership(lvRingRegistry *registry, int ideal_id, int poly_id);
  * @param ideal_id_b   理想 J 的 ID
  * @return >= 0 新理想 ID, < 0 错误码
  */
-int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b);
+lv_PUBLIC_API int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b);
 /**
  * @brief 理想商：计算 I : J
  *
@@ -440,7 +441,7 @@ int ideal_intersection(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b)
  * @param result_label 结果标签（可为 NULL）
  * @return >= 0 新理想 ID, < 0 错误码
  */
-int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label);
+lv_PUBLIC_API int ideal_quotient(lvRingRegistry *registry, int ideal_id_a, int ideal_id_b, const char *result_label);
 
 /* Forward declarations for smt_backend_impl.c */
 int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
@@ -449,9 +450,9 @@ int constraint_graph_to_ideal(lvRingRegistry *registry, const ConstraintGraph *g
  * 存在编码失败约束时，基于该理想得到的 SAT/UNSAT 判定不可信，调用方应返回 UNKNOWN。 */
 int constraint_graph_to_ideal_ex(lvRingRegistry *registry, const ConstraintGraph *graph, int ring_id,
                                  const char *ideal_name, int *out_encode_failed);
-int variety_compute(lvRingRegistry *registry, int ideal_id, const char *variety_name);
-bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id);
-int variety_dimension(lvRingRegistry *registry, int variety_id);
+lv_PUBLIC_API int variety_compute(lvRingRegistry *registry, int ideal_id, const char *variety_name);
+lv_PUBLIC_API bool variety_is_zero_dimensional(lvRingRegistry *registry, int variety_id);
+lv_PUBLIC_API int variety_dimension(lvRingRegistry *registry, int variety_id);
 
 /**
  * @brief 从代数簇中获取指定索引的解点坐标

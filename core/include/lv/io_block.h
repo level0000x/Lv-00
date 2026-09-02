@@ -12,6 +12,7 @@
 #ifndef lv_IO_BLOCK_H
 #define lv_IO_BLOCK_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -33,7 +34,7 @@ typedef struct lvIOBlockState {
  *
  * @param state IO 块共享内部状态指针（可为 NULL）
  */
-void lv_io_block_state_destroy(lvIOBlockState *state);
+lv_PUBLIC_API void lv_io_block_state_destroy(lvIOBlockState *state);
 
 #ifdef __cplusplus
 }

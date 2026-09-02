@@ -376,6 +376,7 @@ static inline int lv_is_little_endian(void) {
 #define lv_BSWAP64(x) __builtin_bswap64(x)
 #elif defined(_MSC_VER)
 #include <stdlib.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #define lv_BSWAP16(x) _byteswap_ushort(x)
 #define lv_BSWAP32(x) _byteswap_ulong(x)
 #define lv_BSWAP64(x) _byteswap_uint64(x)

@@ -4,6 +4,7 @@
 #include "lv/effect_system.h"
 #include "lv/func_block.h"
 #include "lv/lv_utils.h" /* lv_dirty_set */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,18 +47,18 @@ typedef struct lvBlockScheduler {
 
 /* Lifecycle */
 lvBlockScheduler *lv_block_scheduler_create(void *graph);
-void lv_block_scheduler_destroy(lvBlockScheduler *sched);
+lv_PUBLIC_API void lv_block_scheduler_destroy(lvBlockScheduler *sched);
 
 /* Configuration */
-void lv_block_scheduler_set_strategy(lvBlockScheduler *sched, lvSchedStrategy strategy);
+lv_PUBLIC_API void lv_block_scheduler_set_strategy(lvBlockScheduler *sched, lvSchedStrategy strategy);
 
 /* Execution */
 lvExecResult lv_block_scheduler_run(lvBlockScheduler *sched);
 lvExecResult lv_block_scheduler_run_incremental(lvBlockScheduler *sched, int *dirty, int count);
 
 /* Dirty tracking */
-void lv_block_scheduler_mark_dirty(lvBlockScheduler *sched, int block_id);
-void lv_block_scheduler_mark_all_dirty(lvBlockScheduler *sched);
+lv_PUBLIC_API void lv_block_scheduler_mark_dirty(lvBlockScheduler *sched, int block_id);
+lv_PUBLIC_API void lv_block_scheduler_mark_all_dirty(lvBlockScheduler *sched);
 
 #ifdef __cplusplus
 }

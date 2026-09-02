@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv.h"
 
 /** 将 [0,1] 浮点颜色值转换为 [0,255] 整数字节 */
@@ -15,8 +16,8 @@ static inline int tikz_byte(float c) {
     return v;
 }
 
-int lv_tikz_export(void *graph, char *out, size_t buf_size);
-int lv_tikz_export_file(void *graph, const char *filename);
+lv_PUBLIC_API int lv_tikz_export(void *graph, char *out, size_t buf_size);
+lv_PUBLIC_API int lv_tikz_export_file(void *graph, const char *filename);
 
 #ifdef __cplusplus
 }

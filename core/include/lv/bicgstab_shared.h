@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #include "numerical_backend.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,7 +83,7 @@ int lv_bicgstab_solve(const lvBicgstabOps *ops, const lvMatrix *a,
  * @param[out] max_iters 最大迭代次数（可为 NULL）
  * @param[out] tol       收敛容差（可为 NULL）
  */
-void lv_linsol_default_params(int *max_iters, double *tol);
+lv_PUBLIC_API void lv_linsol_default_params(int *max_iters, double *tol);
 
 #ifdef __cplusplus
 }

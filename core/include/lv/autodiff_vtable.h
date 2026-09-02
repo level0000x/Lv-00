@@ -19,6 +19,7 @@ extern "C" {
 
 #include "autodiff.h"
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ============================================================
  * Forward mode evaluation result
@@ -70,7 +71,7 @@ typedef struct lvADExprOps {
  * @param kind  The expression kind (AD_CONST, AD_VAR, ...)
  * @return Pointer to the vtable, or NULL if kind is invalid
  */
-const lvADExprOps *lv_ad_get_ops(lvADExprKind kind);
+lv_PUBLIC_API const lvADExprOps *lv_ad_get_ops(lvADExprKind kind);
 
 #ifdef __cplusplus
 }

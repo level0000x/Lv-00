@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -41,15 +42,15 @@ lvBitVec *lv_bv_add(const lvBitVec *a, const lvBitVec *b);
 lvBitVec *lv_bv_mul(const lvBitVec *a, const lvBitVec *b);
 
 /** Comparison operations. */
-int lv_bv_equals(const lvBitVec *a, const lvBitVec *b);
+lv_PUBLIC_API int lv_bv_equals(const lvBitVec *a, const lvBitVec *b);
 
-void lv_bv_free(lvBitVec *bv);
+lv_PUBLIC_API void lv_bv_free(lvBitVec *bv);
 
 /** Bitwise NOT */
 lvBitVec *lv_bv_not(const lvBitVec *a);
 
 /** Convert bitvector to integer */
-long long lv_bv_to_int(const lvBitVec *bv);
+lv_PUBLIC_API long long lv_bv_to_int(const lvBitVec *bv);
 
 #ifdef __cplusplus
 }

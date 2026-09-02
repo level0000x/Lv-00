@@ -5,11 +5,12 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv.h"
 
-int lv_gc_parse(const char *source, void *engine);
-const char *lv_gc_error(void);
-int lv_gc_command_count(void);
+lv_PUBLIC_API int lv_gc_parse(const char *source, void *engine);
+lv_PUBLIC_API const char *lv_gc_error(void);
+lv_PUBLIC_API int lv_gc_command_count(void);
 
 #ifdef __cplusplus
 }

@@ -46,6 +46,7 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "rewrite.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ============================================================================
  * 数据结构
@@ -147,7 +148,7 @@ CriticalPairSet *critical_pair_compute_all(RewriteRule **rules, int rule_count, 
  * @return true 比较成功执行（不代表汇合——汇合性见 cp->is_confluent）；
  *         false 表示 cp 为 NULL 或无重叠图
  */
-bool critical_pair_compare(CriticalPair *cp);
+lv_PUBLIC_API bool critical_pair_compare(CriticalPair *cp);
 
 /**
  * @brief 批量比较关键对集合中的所有条目
@@ -157,7 +158,7 @@ bool critical_pair_compare(CriticalPair *cp);
  * @param set  关键对集合
  * @return 汇合的关键对数量（is_confluent == true 的条目数）
  */
-int critical_pair_compare_all(CriticalPairSet *set);
+lv_PUBLIC_API int critical_pair_compare_all(CriticalPairSet *set);
 
 /**
  * @brief 导出关键对的两个归约结果为标准化邻接表文本
@@ -173,7 +174,7 @@ int critical_pair_compare_all(CriticalPairSet *set);
  * @param filepath  输出文件路径（已存在则覆盖）
  * @return true 导出成功，false 表示 cp 或 filepath 为 NULL
  */
-bool critical_pair_export_text(const CriticalPair *cp, const char *filepath);
+lv_PUBLIC_API bool critical_pair_export_text(const CriticalPair *cp, const char *filepath);
 
 /**
  * @brief 销毁关键对集合并释放所有资源
@@ -182,7 +183,7 @@ bool critical_pair_export_text(const CriticalPair *cp, const char *filepath);
  *
  * @param set  要销毁的关键对集合
  */
-void critical_pair_set_destroy(CriticalPairSet *set);
+lv_PUBLIC_API void critical_pair_set_destroy(CriticalPairSet *set);
 
 /**
  * @brief 获取汇合性统计摘要
@@ -195,7 +196,7 @@ void critical_pair_set_destroy(CriticalPairSet *set);
  * @param out_confluent  输出：已比较且汇合的关键对数
  * @param out_pending    输出：尚未比较的关键对数
  */
-void critical_pair_get_statistics(const CriticalPairSet *set, int *out_total, int *out_confluent, int *out_pending);
+lv_PUBLIC_API void critical_pair_get_statistics(const CriticalPairSet *set, int *out_total, int *out_confluent, int *out_pending);
 
 #ifdef __cplusplus
 }

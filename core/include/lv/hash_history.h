@@ -22,6 +22,7 @@
 #ifndef lv_HASH_HISTORY_H
 #define lv_HASH_HISTORY_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -46,14 +47,14 @@ typedef struct HashHistory {
  * @param capacity  环形容量
  * @param use_light 是否启用 32 位轻量预筛缓冲
  */
-void hash_history_init(HashHistory *hh, int capacity, bool use_light);
+lv_PUBLIC_API void hash_history_init(HashHistory *hh, int capacity, bool use_light);
 
 /**
  * @brief 销毁哈希历史，释放缓冲区
  *
  * @param hh 哈希历史结构指针
  */
-void hash_history_destroy(HashHistory *hh);
+lv_PUBLIC_API void hash_history_destroy(HashHistory *hh);
 
 /**
  * @brief 向环形缓冲区推入一个新的 64 位哈希（满容量时覆盖最旧条目）
@@ -62,7 +63,7 @@ void hash_history_destroy(HashHistory *hh);
  * @param capacity  环形容量（与 init 传入的一致）
  * @param hash      64 位哈希值
  */
-void hash_history_add(HashHistory *hh, int capacity, uint64_t hash);
+lv_PUBLIC_API void hash_history_add(HashHistory *hh, int capacity, uint64_t hash);
 
 /**
  * @brief 检查哈希是否已存在于历史中（两阶段：light 预筛 → full 确认）
@@ -71,7 +72,7 @@ void hash_history_add(HashHistory *hh, int capacity, uint64_t hash);
  * @param hash 64 位哈希值
  * @return true 已存在，false 不存在
  */
-bool hash_history_contains(const HashHistory *hh, uint64_t hash);
+lv_PUBLIC_API bool hash_history_contains(const HashHistory *hh, uint64_t hash);
 
 /**
  * @brief 返回历史中的元素数量
@@ -79,7 +80,7 @@ bool hash_history_contains(const HashHistory *hh, uint64_t hash);
  * @param hh 哈希历史结构指针
  * @return 元素数量
  */
-int hash_history_count(const HashHistory *hh);
+lv_PUBLIC_API int hash_history_count(const HashHistory *hh);
 
 #ifdef __cplusplus
 }

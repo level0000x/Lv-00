@@ -45,6 +45,7 @@ extern "C" {
 #include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
 #include "lv/lv_hashtable.h" /* 反向索引（node_id -> 约束下标列表） */
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 */
 typedef struct StreamContext StreamContext;

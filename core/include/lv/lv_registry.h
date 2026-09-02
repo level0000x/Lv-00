@@ -1,6 +1,7 @@
 #ifndef lv_REGISTRY_H
 #define lv_REGISTRY_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include "lv_platform.h"  /* for lvMutex, lv_MUTEX_* */
@@ -35,14 +36,14 @@ typedef struct lvRegistry {
  * @param reg      注册表指针
  * @param capacity 初始容量（0 则使用默认 16）
  */
-void lv_registry_init(lvRegistry *reg, int capacity);
+lv_PUBLIC_API void lv_registry_init(lvRegistry *reg, int capacity);
 
 /**
  * @brief 销毁注册表
  *
  * 依次调用每个条目的 destroy 回调（若有）并释放内部拷贝的 name。
  */
-void lv_registry_destroy(lvRegistry *reg);
+lv_PUBLIC_API void lv_registry_destroy(lvRegistry *reg);
 
 /**
  * @brief 清空注册表（释放所有条目，保留数组与互斥锁）
@@ -53,7 +54,7 @@ void lv_registry_destroy(lvRegistry *reg);
  *
  * @param reg 注册表指针
  */
-void lv_registry_clear(lvRegistry *reg);
+lv_PUBLIC_API void lv_registry_clear(lvRegistry *reg);
 
 /**
  * @brief 注册一个条目（name→factory 形态，向后兼容 API）
@@ -70,13 +71,13 @@ bool lv_registry_register(lvRegistry *reg, const char *name, void *(*create)(voi
  * @param name 后端名称
  * @return 创建的对象指针，未找到返回 NULL
  */
-void *lv_registry_create(const lvRegistry *reg, const char *name);
+lv_PUBLIC_API void *lv_registry_create(const lvRegistry *reg, const char *name);
 
 /**
  * @brief 按名称查找条目索引
  * @return 索引，未找到返回 -1
  */
-int lv_registry_find(const lvRegistry *reg, const char *name);
+lv_PUBLIC_API int lv_registry_find(const lvRegistry *reg, const char *name);
 
 /* ============================================================
  * 泛型条目 API（name→value 形态）
@@ -93,7 +94,7 @@ int lv_registry_find(const lvRegistry *reg, const char *name);
  * @param value  泛型值指针
  * @return true 成功，false name 重复或内存不足
  */
-bool lv_registry_put(lvRegistry *reg, const char *name, void *value);
+lv_PUBLIC_API bool lv_registry_put(lvRegistry *reg, const char *name, void *value);
 
 /**
  * @brief 存入一个泛型条目（带析构回调）
@@ -111,7 +112,7 @@ bool lv_registry_put_ex(lvRegistry *reg, const char *name, void *value, void (*d
  * @param name 条目名称
  * @return 值指针，未找到返回 NULL
  */
-void *lv_registry_get(const lvRegistry *reg, const char *name);
+lv_PUBLIC_API void *lv_registry_get(const lvRegistry *reg, const char *name);
 
 /**
  * @brief 按名称删除条目
@@ -123,7 +124,7 @@ void *lv_registry_get(const lvRegistry *reg, const char *name);
  * @param name 条目名称
  * @return true 删除成功，false 未找到
  */
-bool lv_registry_remove(lvRegistry *reg, const char *name);
+lv_PUBLIC_API bool lv_registry_remove(lvRegistry *reg, const char *name);
 
 /**
  * @brief 按名称前缀批量移除条目
@@ -137,14 +138,14 @@ bool lv_registry_remove(lvRegistry *reg, const char *name);
  * @param prefix 名称前缀（按字节 strncmp 匹配，非 NULL）
  * @return 移除的条目数
  */
-int lv_registry_remove_prefix(lvRegistry *reg, const char *prefix);
+lv_PUBLIC_API int lv_registry_remove_prefix(lvRegistry *reg, const char *prefix);
 
 /**
  * @brief 获取当前条目数
  * @param reg 注册表指针
  * @return 条目数
  */
-int lv_registry_count(const lvRegistry *reg);
+lv_PUBLIC_API int lv_registry_count(const lvRegistry *reg);
 
 /**
  * @brief 按索引获取条目（用于遍历）
@@ -154,7 +155,7 @@ int lv_registry_count(const lvRegistry *reg);
  * @param value 输出条目值（可为 NULL）
  * @return true 成功，false 索引越界
  */
-bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value);
+lv_PUBLIC_API bool lv_registry_get_at(const lvRegistry *reg, int index, const char **name, void **value);
 
 /* ============================================================
  * 静态注册表声明宏（Static Registry Declaration Macros）
@@ -226,24 +227,24 @@ bool lv_module_register(const char *name, lvModuleInitFunc init_fn,
  * @brief 按优先级顺序初始化所有已注册的模块
  * @return true 全部成功，false 任一模块失败
  */
-bool lv_module_init_all(void);
+lv_PUBLIC_API bool lv_module_init_all(void);
 
 /**
  * @brief 按反向优先级顺序清理所有已注册的模块
  */
-void lv_module_cleanup_all(void);
+lv_PUBLIC_API void lv_module_cleanup_all(void);
 
 /**
  * @brief 重置模块注册表（J1/F28：cleanup_all 后清空 count，修复
  * "cleanup 后重复注册被吞"——不重置则第二次 lv_init 的注册被 count 满拒绝）
  */
-void lv_module_registry_reset(void);
+lv_PUBLIC_API void lv_module_registry_reset(void);
 
 /**
  * @brief 获取已注册的模块数量
  * @return 已注册模块数
  */
-int lv_module_count(void);
+lv_PUBLIC_API int lv_module_count(void);
 
 /**
  * @brief 在文件作用域自动注册模块

@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -194,7 +195,7 @@ typedef lvReasoningStack ReasoningStack;
  *
  * @param stack 推理栈指针（非 NULL）
  */
-void lv_reasoning_stack_init(lvReasoningStack *stack);
+lv_PUBLIC_API void lv_reasoning_stack_init(lvReasoningStack *stack);
 
 /**
  * @brief 清空推理栈，释放所有帧资源
@@ -204,7 +205,7 @@ void lv_reasoning_stack_init(lvReasoningStack *stack);
  *
  * @param stack 推理栈指针（非 NULL）
  */
-void lv_reasoning_stack_clear(lvReasoningStack *stack);
+lv_PUBLIC_API void lv_reasoning_stack_clear(lvReasoningStack *stack);
 
 /**
  * @brief 确保推理栈有足够容量（内部辅助，供上层使用）
@@ -216,7 +217,7 @@ void lv_reasoning_stack_clear(lvReasoningStack *stack);
  * @return lv_OK 成功，lv_ERROR_OUT_OF_MEMORY 内存不足，
  *         lv_ERROR_RESOURCE_EXHAUSTED 已达最大深度
  */
-int lv_reasoning_stack_ensure_capacity(lvReasoningStack *stack);
+lv_PUBLIC_API int lv_reasoning_stack_ensure_capacity(lvReasoningStack *stack);
 
 /**
  * @brief 在栈顶压入一个新帧
@@ -233,7 +234,7 @@ int lv_reasoning_stack_ensure_capacity(lvReasoningStack *stack);
  * @return lv_OK 成功，lv_ERROR_OUT_OF_MEMORY 内存不足，
  *         lv_ERROR_RESOURCE_EXHAUSTED 已达最大深度
  */
-int lv_reasoning_stack_push(lvReasoningStack *stack, lvReasoningBranchType branch_type);
+lv_PUBLIC_API int lv_reasoning_stack_push(lvReasoningStack *stack, lvReasoningBranchType branch_type);
 
 /**
  * @brief 弹出栈顶帧并释放其资源
@@ -244,7 +245,7 @@ int lv_reasoning_stack_push(lvReasoningStack *stack, lvReasoningBranchType branc
  * @param stack 推理栈指针（非 NULL）
  * @return lv_OK 成功，lv_ERROR_INVALID_STATE 栈为空
  */
-int lv_reasoning_stack_pop(lvReasoningStack *stack);
+lv_PUBLIC_API int lv_reasoning_stack_pop(lvReasoningStack *stack);
 
 /**
  * @brief 获取推理栈中的帧数量
@@ -252,7 +253,7 @@ int lv_reasoning_stack_pop(lvReasoningStack *stack);
  * @param stack 推理栈指针（非 NULL）
  * @return 栈中帧的数量（0 = 空栈）
  */
-int lv_reasoning_stack_count(const lvReasoningStack *stack);
+lv_PUBLIC_API int lv_reasoning_stack_count(const lvReasoningStack *stack);
 
 /**
  * @brief 获取栈顶帧指针

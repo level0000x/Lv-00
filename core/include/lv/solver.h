@@ -41,6 +41,7 @@ extern "C" {
 #include "mpz_poly.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 稀疏矩阵求解器（sparse_linear_algebra.h）在 solver_sparse_solve 中按需引用 */
 

@@ -1,5 +1,6 @@
 ﻿#ifndef lv_PRESET_BASIC_MATH_H
 #define lv_PRESET_BASIC_MATH_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "func_block_registry.h"
@@ -16,7 +17,7 @@ extern "C" {
 #endif
 
 #define BASIC_MATH_PRESET_COUNT 10
-bool preset_basic_math_register(void);
+lv_PUBLIC_API bool preset_basic_math_register(void);
 
 #ifdef __cplusplus
 }

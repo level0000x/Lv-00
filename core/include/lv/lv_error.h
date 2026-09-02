@@ -26,6 +26,7 @@
 
 /* 确保 lv_FORMAT_PRINTF（权威定义位于 cross_platform.h）与 lv_PUBLIC_API 可用 */
 #include "cross_platform.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #ifndef lv_PUBLIC_API
   #define lv_PUBLIC_API
 #endif

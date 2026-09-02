@@ -13,6 +13,7 @@
 #ifndef lv_SMT_THEORY_COMBINER_H
 #define lv_SMT_THEORY_COMBINER_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -60,12 +61,12 @@ typedef struct {
 } lvTheoryCombiner;
 
 lvTheoryCombiner *smt_combiner_create(int initial_capacity, double timeout_ms);
-void smt_combiner_destroy(lvTheoryCombiner *combiner);
+lv_PUBLIC_API void smt_combiner_destroy(lvTheoryCombiner *combiner);
 
 bool smt_combiner_add_theory(lvTheoryCombiner *combiner, lvTheoryId theory_id, int priority, lvTheorySolverFn solver_fn,
                              void *solver_context);
 
-bool smt_combiner_set_enabled(lvTheoryCombiner *combiner, lvTheoryId theory_id, bool enabled);
+lv_PUBLIC_API bool smt_combiner_set_enabled(lvTheoryCombiner *combiner, lvTheoryId theory_id, bool enabled);
 
 lvTheoryResult smt_combiner_solve(const lvTheoryCombiner *combiner, const void *constraints);
 

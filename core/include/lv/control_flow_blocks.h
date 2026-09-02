@@ -3,6 +3,7 @@
 
 #include "lv/func_block.h"
 #include "lv/type_system.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -69,18 +70,18 @@ typedef struct lvMatchBlock {
 
 /* Factory functions */
 lvIfBlock *lv_if_block_create(void);
-void lv_if_block_destroy(lvIfBlock *block);
-int lv_if_block_set_branches(lvIfBlock *block, void *then_branch, void *else_branch);
+lv_PUBLIC_API void lv_if_block_destroy(lvIfBlock *block);
+lv_PUBLIC_API int lv_if_block_set_branches(lvIfBlock *block, void *then_branch, void *else_branch);
 
 lvWhileBlock *lv_while_block_create(void);
-void lv_while_block_destroy(lvWhileBlock *block);
-int lv_while_block_set_body(lvWhileBlock *block, void *body);
-int lv_while_block_set_invariant(lvWhileBlock *block, void *invariant);
+lv_PUBLIC_API void lv_while_block_destroy(lvWhileBlock *block);
+lv_PUBLIC_API int lv_while_block_set_body(lvWhileBlock *block, void *body);
+lv_PUBLIC_API int lv_while_block_set_invariant(lvWhileBlock *block, void *invariant);
 
 lvMatchBlock *lv_match_block_create(int case_count);
-void lv_match_block_destroy(lvMatchBlock *block);
-int lv_match_block_set_case(lvMatchBlock *block, int index, void *pattern, void *handler);
-int lv_match_block_set_default(lvMatchBlock *block, void *handler);
+lv_PUBLIC_API void lv_match_block_destroy(lvMatchBlock *block);
+lv_PUBLIC_API int lv_match_block_set_case(lvMatchBlock *block, int index, void *pattern, void *handler);
+lv_PUBLIC_API int lv_match_block_set_default(lvMatchBlock *block, void *handler);
 
 #ifdef __cplusplus
 }

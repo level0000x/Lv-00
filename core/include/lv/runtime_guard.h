@@ -102,6 +102,7 @@ typedef CRITICAL_SECTION lvMutex;
 #else
 /* POSIX 平台：使用 pthread_rwlock 和 pthread_mutex */
 #include <pthread.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /** @brief 运行时保护读写锁类型（POSIX） */
 typedef struct lvRwLock {

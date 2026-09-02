@@ -40,6 +40,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "constraint_graph.h"
@@ -151,7 +152,7 @@ TypeEquivExplorer *type_equiv_explore_create(TypeSystem *ts, const TypeRegion *l
  * @param max_steps  最大步数限制（设得越小越快但越容易漏解）
  * @return true 找到合一路径，false 未能在限制内找到
  */
-bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);
+lv_PUBLIC_API bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);
 
 /**
  * @brief 获取已找到的证明路径（只读）
@@ -159,7 +160,7 @@ bool type_equiv_explore_search(TypeEquivExplorer *explorer, int max_steps);
  * @param explorer  探索器
  * @return 证明路径（只读，由探索器持有），未找到等价时返回 NULL
  */
-const TypeRewritePath *type_equiv_explore_get_path(const TypeEquivExplorer *explorer);
+lv_PUBLIC_API const TypeRewritePath *type_equiv_explore_get_path(const TypeEquivExplorer *explorer);
 
 /**
  * @brief 销毁探索器并释放所有资源
@@ -169,7 +170,7 @@ const TypeRewritePath *type_equiv_explore_get_path(const TypeEquivExplorer *expl
  *
  * @param explorer  探索器
  */
-void type_equiv_explore_destroy(TypeEquivExplorer *explorer);
+lv_PUBLIC_API void type_equiv_explore_destroy(TypeEquivExplorer *explorer);
 
 /**
  * @brief 获取搜索统计信息

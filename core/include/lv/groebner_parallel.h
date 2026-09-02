@@ -1,6 +1,7 @@
 #ifndef lv_GROEBNER_PARALLEL_H
 #define lv_GROEBNER_PARALLEL_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -48,16 +49,16 @@ lvGroebnerConfig lv_groebner_default_config(void);
 
 /* Lifecycle */
 lvGroebnerParallel *lv_groebner_parallel_create(const lvGroebnerConfig *config);
-void lv_groebner_parallel_destroy(lvGroebnerParallel *engine);
+lv_PUBLIC_API void lv_groebner_parallel_destroy(lvGroebnerParallel *engine);
 
 /* Execution */
-int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, int poly_count);
+lv_PUBLIC_API int lv_groebner_parallel_compute(lvGroebnerParallel *engine, void *polynomials, int poly_count);
 
 /* Progress query */
 lvGroebnerState lv_groebner_parallel_state(const lvGroebnerParallel *engine);
 
 /* Basis inspection */
-bool lv_groebner_poly_is_nonzero_constant(void *poly);
+lv_PUBLIC_API bool lv_groebner_poly_is_nonzero_constant(void *poly);
 
 /* Performance target: 50%+ improvement over sequential computation */
 /* Baseline: sequential Buchberger algorithm */

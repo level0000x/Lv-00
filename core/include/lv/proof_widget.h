@@ -19,6 +19,7 @@
  */
 #ifndef lv_PROOF_WIDGET_H
 #define lv_PROOF_WIDGET_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -115,19 +116,19 @@ struct lvWidgetLayout {
  *  第三部分：API —— 生命周期
  * ================================================================ */
 lvWidgetLayout *proof_widget_init(int layout_capacity);
-void proof_widget_destroy(lvWidgetLayout *layout);
+lv_PUBLIC_API void proof_widget_destroy(lvWidgetLayout *layout);
 /* ================================================================
  *  第四部分：API —— Widget 注册与更新
  * ================================================================ */
-int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step);
+lv_PUBLIC_API int proof_widget_register(lvWidgetLayout *layout, ProofWidgetType widget_type, const char *label, int bound_step);
 int proof_widget_update(lvWidgetLayout *layout, int widget_id, bool is_active, bool is_enabled,
                         const char *display_label, int bound_step_id, const char *interaction_json);
 /* ================================================================
  *  第五部分：API —— 证明状态查询
  * ================================================================ */
-int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal);
-int proof_widget_get_hypotheses(const ProofNavigator *navigator, lvHypothesisEntry *out_hypotheses, int max_count);
-void goal_display_free(lvGoalDisplay *goal);
+lv_PUBLIC_API int proof_widget_get_goal(const ProofNavigator *navigator, lvGoalDisplay *out_goal);
+lv_PUBLIC_API int proof_widget_get_hypotheses(const ProofNavigator *navigator, lvHypothesisEntry *out_hypotheses, int max_count);
+lv_PUBLIC_API void goal_display_free(lvGoalDisplay *goal);
 /* ================================================================
  *  第六部分：API —— 智能推荐与可视化
  * ================================================================ */
@@ -135,20 +136,20 @@ int proof_widget_suggest_tactic(const ProofNavigator *navigator, char **out_sugg
                                 int max_count);
 int proof_widget_get_step_highlights(const ProofNavigator *navigator, lvProofStepHighlight *out_highlights,
                                      int max_count);
-char *proof_widget_get_search_tree(const ProofNavigator *navigator);
-char *proof_widget_get_dependency_graph(const ProofNavigator *navigator);
+lv_PUBLIC_API char *proof_widget_get_search_tree(const ProofNavigator *navigator);
+lv_PUBLIC_API char *proof_widget_get_dependency_graph(const ProofNavigator *navigator);
 /* ================================================================
  *  第七部分：API —— 布局导出与策略回传
  * ================================================================ */
-char *proof_widget_export_layout(const lvWidgetLayout *layout);
+lv_PUBLIC_API char *proof_widget_export_layout(const lvWidgetLayout *layout);
 int proof_widget_apply_tactic(ProofNavigator *navigator, const char *tactic_name, const char *tactic_args,
                               bool *out_success, char **out_feedback);
 /* ================================================================
  *  第八部分：API —— 布局管理
  * ================================================================ */
-void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type, int columns, int rows);
-void proof_widget_set_persistence_key(lvWidgetLayout *layout, const char *persistence_key);
-void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices, int count);
+lv_PUBLIC_API void proof_widget_set_layout_type(lvWidgetLayout *layout, lvLayoutType layout_type, int columns, int rows);
+lv_PUBLIC_API void proof_widget_set_persistence_key(lvWidgetLayout *layout, const char *persistence_key);
+lv_PUBLIC_API void proof_widget_set_order(lvWidgetLayout *layout, const int *order_indices, int count);
 #ifdef __cplusplus
 }
 #endif

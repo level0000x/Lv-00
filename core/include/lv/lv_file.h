@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -23,14 +24,14 @@ extern "C" {
  * @param mode  打开模式（同 fopen）
  * @return      文件指针，失败返回 NULL 并记录错误日志
  */
-FILE *lv_file_open(const char *path, const char *mode);
+lv_PUBLIC_API FILE *lv_file_open(const char *path, const char *mode);
 
 /**
  * @brief 安全关闭文件
  * @param fp    文件指针（可 NULL）
  * @return      0 成功，-1 失败
  */
-int lv_file_close(FILE *fp);
+lv_PUBLIC_API int lv_file_close(FILE *fp);
 
 /**
  * @brief 读取整个文件到堆缓冲区
@@ -38,7 +39,7 @@ int lv_file_close(FILE *fp);
  * @param out_len  输出：读取的字节数
  * @return         堆分配的缓冲区（调用者 lv_free），失败返回 NULL
  */
-uint8_t *lv_file_read_all(const char *path, size_t *out_len);
+lv_PUBLIC_API uint8_t *lv_file_read_all(const char *path, size_t *out_len);
 
 /**
  * @brief 读取整个文件到堆缓冲区（带大小上限校验）
@@ -51,7 +52,7 @@ uint8_t *lv_file_read_all(const char *path, size_t *out_len);
  * @param max_size 允许的最大文件大小（字节）；文件大小等于 max_size 时允许读取
  * @return         堆分配的缓冲区（调用者 lv_free），失败返回 NULL
  */
-uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_size);
+lv_PUBLIC_API uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_size);
 
 /**
  * @brief 读取文本文件到调用方缓冲区（固定缓冲整读）
@@ -63,7 +64,7 @@ uint8_t *lv_file_read_all_limited(const char *path, size_t *out_len, size_t max_
  *       收敛对象：lv_impl_upper_app.c / lv_impl_upper_orchestrator.c 孪生 read_file_text
  *       （fopen + fread(buf_size-1) + 手写 NUL 样板），不分配堆内存。
  */
-bool lv_file_read_text(const char *path, char *buf, size_t buf_size);
+lv_PUBLIC_API bool lv_file_read_text(const char *path, char *buf, size_t buf_size);
 
 /**
  * @brief 写入缓冲区到文件
@@ -72,7 +73,7 @@ bool lv_file_read_text(const char *path, char *buf, size_t buf_size);
  * @param len   数据长度
  * @return      0 成功，-1 失败
  */
-int lv_file_write_all(const char *path, const void *data, size_t len);
+lv_PUBLIC_API int lv_file_write_all(const char *path, const void *data, size_t len);
 
 /**
  * @brief 获取文件大小
@@ -84,9 +85,9 @@ int lv_file_write_all(const char *path, const void *data, size_t len);
  * @param path 文件路径
  * @return true 存在，false 不存在（含 NULL 参数）
  */
-bool lv_file_exists(const char *path);
+lv_PUBLIC_API bool lv_file_exists(const char *path);
 
-size_t lv_file_size(FILE *fp);
+lv_PUBLIC_API size_t lv_file_size(FILE *fp);
 
 #ifdef __cplusplus
 }

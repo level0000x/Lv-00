@@ -48,6 +48,7 @@ extern "C" {
  * ======================================================================== */
 #include "lv_utils.h" /* lv_EPSILON_DOUBLE / lv_EPSILON_NEWTON 等 */
 #include "config.h"   /* lv_GEO_ANGLE_EPSILON / lv_EPSILON_MEDIUM 等 */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #define GEO_EPSILON lv_EPSILON_DOUBLE          /**< 浮点比较容差（1e-12，= lv_EPSILON_DOUBLE） */
 #define GEO_ANGLE_EPSILON lv_GEO_ANGLE_EPSILON /**< 角度比较容差（1e-10，= config.h 权威值） */

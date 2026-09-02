@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API

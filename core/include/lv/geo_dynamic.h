@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -76,48 +77,48 @@ typedef void (*lvDynUpdateFunc)(lvDynGraph *graph, int node_id);
 lvDynGraphConfig lv_dyn_graph_default_config(void);
 
 lvDynGraph *lv_dyn_graph_create(const lvDynGraphConfig *config);
-void lv_dyn_graph_destroy(lvDynGraph *graph);
+lv_PUBLIC_API void lv_dyn_graph_destroy(lvDynGraph *graph);
 
 int lv_dyn_graph_add_node(lvDynGraph *graph, lvDynNodeType type, const int *parent_ids, int parent_count,
                           const double *params, int param_count);
 
 lvDynNode *lv_dyn_graph_get_node(lvDynGraph *graph, int node_id);
-bool lv_dyn_graph_remove_node(lvDynGraph *graph, int node_id);
+lv_PUBLIC_API bool lv_dyn_graph_remove_node(lvDynGraph *graph, int node_id);
 
-int lv_dyn_graph_get_parents(const lvDynGraph *graph, int node_id, int *out_parents, int max_count);
+lv_PUBLIC_API int lv_dyn_graph_get_parents(const lvDynGraph *graph, int node_id, int *out_parents, int max_count);
 
-int lv_dyn_graph_get_children(const lvDynGraph *graph, int node_id, int *out_children, int max_count);
+lv_PUBLIC_API int lv_dyn_graph_get_children(const lvDynGraph *graph, int node_id, int *out_children, int max_count);
 
-int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc update_func);
+lv_PUBLIC_API int lv_dyn_graph_update_cascade(lvDynGraph *graph, int root_id, lvDynUpdateFunc update_func);
 
-int lv_dyn_graph_update_chain(lvDynGraph *graph, int leaf_id);
-void lv_dyn_graph_mark_dirty(lvDynGraph *graph, int node_id);
-int lv_dyn_graph_update_all(lvDynGraph *graph);
+lv_PUBLIC_API int lv_dyn_graph_update_chain(lvDynGraph *graph, int leaf_id);
+lv_PUBLIC_API void lv_dyn_graph_mark_dirty(lvDynGraph *graph, int node_id);
+lv_PUBLIC_API int lv_dyn_graph_update_all(lvDynGraph *graph);
 
-bool lv_dyn_graph_has_path(const lvDynGraph *graph, int start_id, int target_id);
+lv_PUBLIC_API bool lv_dyn_graph_has_path(const lvDynGraph *graph, int start_id, int target_id);
 
-bool lv_dyn_graph_would_create_cycle(const lvDynGraph *graph, int parent_id, int child_id);
+lv_PUBLIC_API bool lv_dyn_graph_would_create_cycle(const lvDynGraph *graph, int parent_id, int child_id);
 
-int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order);
+lv_PUBLIC_API int lv_dyn_graph_topological_sort(const lvDynGraph *graph, int *out_order);
 
-int lv_dyn_create_point(lvDynGraph *graph, double x, double y);
-int lv_dyn_create_line(lvDynGraph *graph, int p1_id, int p2_id);
-int lv_dyn_create_circle(lvDynGraph *graph, int center_id, int point_id);
-int lv_dyn_create_midpoint(lvDynGraph *graph, int p1_id, int p2_id);
-int lv_dyn_create_parallel(lvDynGraph *graph, int base_line_id, int through_point_id);
-int lv_dyn_create_perpendicular(lvDynGraph *graph, int base_line_id, int through_point_id);
-int lv_dyn_create_distance(lvDynGraph *graph, int p1_id, int p2_id);
+lv_PUBLIC_API int lv_dyn_create_point(lvDynGraph *graph, double x, double y);
+lv_PUBLIC_API int lv_dyn_create_line(lvDynGraph *graph, int p1_id, int p2_id);
+lv_PUBLIC_API int lv_dyn_create_circle(lvDynGraph *graph, int center_id, int point_id);
+lv_PUBLIC_API int lv_dyn_create_midpoint(lvDynGraph *graph, int p1_id, int p2_id);
+lv_PUBLIC_API int lv_dyn_create_parallel(lvDynGraph *graph, int base_line_id, int through_point_id);
+lv_PUBLIC_API int lv_dyn_create_perpendicular(lvDynGraph *graph, int base_line_id, int through_point_id);
+lv_PUBLIC_API int lv_dyn_create_distance(lvDynGraph *graph, int p1_id, int p2_id);
 
-void lv_dyn_graph_get_stats(const lvDynGraph *graph, lvDynGraphStats *out_stats);
+lv_PUBLIC_API void lv_dyn_graph_get_stats(const lvDynGraph *graph, lvDynGraphStats *out_stats);
 
-void lv_dyn_graph_clear_dirty(lvDynGraph *graph);
-void lv_dyn_graph_reset_states(lvDynGraph *graph);
+lv_PUBLIC_API void lv_dyn_graph_clear_dirty(lvDynGraph *graph);
+lv_PUBLIC_API void lv_dyn_graph_reset_states(lvDynGraph *graph);
 
 typedef struct {
     double x, y, vx, vy;
 } lvDynamicPoint;
 
-void lv_geo_dynamic_step(lvDynamicPoint *points, size_t count, double dt);
+lv_PUBLIC_API void lv_geo_dynamic_step(lvDynamicPoint *points, size_t count, double dt);
 
 #ifdef __cplusplus
 }

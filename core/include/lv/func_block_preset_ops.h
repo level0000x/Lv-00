@@ -15,6 +15,7 @@
  */
 #ifndef lv_FUNC_BLOCK_PRESET_OPS_H
 #define lv_FUNC_BLOCK_PRESET_OPS_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "func_block.h"
@@ -42,7 +43,7 @@ PresetChain *preset_chain_create(void);
  *
  * @param chain 预设链
  */
-void preset_chain_destroy(PresetChain *chain);
+lv_PUBLIC_API void preset_chain_destroy(PresetChain *chain);
 /**
  * @brief 向链中添加预设
  *
@@ -51,7 +52,7 @@ void preset_chain_destroy(PresetChain *chain);
  * @param input_mapping 输入映射（指定前一输出到本输入的对应关系）
  * @return true 添加成功
  */
-bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping);
+lv_PUBLIC_API bool preset_chain_add(PresetChain *chain, const char *preset_name, const int *input_mapping);
 /**
  * @brief 执行预设链
  *
@@ -122,7 +123,7 @@ PresetValidationResult preset_validate(const char *preset_name);
  *
  * @param result 验证结果
  */
-void preset_validation_result_destroy(PresetValidationResult *result);
+lv_PUBLIC_API void preset_validation_result_destroy(PresetValidationResult *result);
 /**
  * @brief 测试预设的实例化
  *
@@ -134,7 +135,7 @@ void preset_validation_result_destroy(PresetValidationResult *result);
  * @param arg_count 参数数量
  * @return true 测试通过
  */
-bool preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count);
+lv_PUBLIC_API bool preset_test_instantiation(const char *preset_name, ConstraintGraph *graph, const int *test_args, int arg_count);
 /* ================================================================
  * 预设参数操作
  * ================================================================ */
@@ -154,13 +155,13 @@ typedef struct {
  * @param out_count 输出绑定数量
  * @return true 创建成功
  */
-bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count);
+lv_PUBLIC_API bool preset_create_bindings(const char *preset_name, PresetParamBinding **out_bindings, int *out_count);
 /**
  * @brief 释放参数绑定数组
  *
  * @param bindings 绑定数组
  */
-void preset_bindings_destroy(PresetParamBinding *bindings);
+lv_PUBLIC_API void preset_bindings_destroy(PresetParamBinding *bindings);
 /**
  * @brief 应用部分绑定创建新预设
  *
@@ -193,7 +194,7 @@ typedef struct {
  * @param out_result 搜索结果
  * @return 找到的结果数量
  */
-int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result);
+lv_PUBLIC_API int preset_search_by_signature(int input_count, int output_count, PresetSearchResult *out_result);
 /**
  * @brief 基于类别的预设推荐
  *
@@ -203,13 +204,13 @@ int preset_search_by_signature(int input_count, int output_count, PresetSearchRe
  * @param out_result 推荐结果
  * @return 推荐数量
  */
-int preset_recommend_related(const char *preset_name, PresetSearchResult *out_result);
+lv_PUBLIC_API int preset_recommend_related(const char *preset_name, PresetSearchResult *out_result);
 /**
  * @brief 释放搜索结果
  *
  * @param result 搜索结果
  */
-void preset_search_result_destroy(PresetSearchResult *result);
+lv_PUBLIC_API void preset_search_result_destroy(PresetSearchResult *result);
 /* ================================================================
  * 预设组合操作
  * ================================================================ */
@@ -249,7 +250,7 @@ typedef enum {
  * @param out_recursive_name 输出递归预设名称
  * @return true 创建成功
  */
-bool preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name);
+lv_PUBLIC_API bool preset_make_recursive(const char *base_preset, int max_iterations, char **out_recursive_name);
 #ifdef __cplusplus
 }
 #endif

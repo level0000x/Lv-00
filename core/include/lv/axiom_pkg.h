@@ -21,6 +21,7 @@ extern "C" {
 #include "lv_utils.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /**
  * @brief 命题类型枚举 —— 标识公理包中命题的类型

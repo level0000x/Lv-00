@@ -47,6 +47,7 @@
 #include "func_block_utils.h"
 #include "stream.h"
 #include "symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {

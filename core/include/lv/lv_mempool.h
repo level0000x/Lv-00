@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 #include <stdint.h>
 
@@ -34,21 +35,21 @@ lvMemPool *lv_mempool_create(size_t block_size, int initial_blocks);
  * @brief 销毁内存池
  * @param pool 内存池指针（NULL 安全）
  */
-void lv_mempool_destroy(lvMemPool *pool);
+lv_PUBLIC_API void lv_mempool_destroy(lvMemPool *pool);
 
 /**
  * @brief 从内存池分配一个块
  * @param pool 内存池指针
  * @return 块指针，池满时返回 NULL
  */
-void *lv_mempool_alloc(lvMemPool *pool);
+lv_PUBLIC_API void *lv_mempool_alloc(lvMemPool *pool);
 
 /**
  * @brief 将块归还内存池
  * @param pool  内存池指针
  * @param block 要释放的块指针（必须由 lv_mempool_alloc 返回）
  */
-void lv_mempool_free(lvMemPool *pool, void *block);
+lv_PUBLIC_API void lv_mempool_free(lvMemPool *pool, void *block);
 
 #ifdef __cplusplus
 }

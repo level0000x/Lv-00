@@ -12,6 +12,7 @@
 #include <stdbool.h>
 
 #include "proof.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 /* ============== 前向声明 ============== */
 typedef struct lvProofObject lvProofObject;
 typedef struct lvProofTrace lvProofTrace;

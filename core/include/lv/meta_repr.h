@@ -20,6 +20,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 /* ============== 前向声明 ============== */
@@ -73,12 +74,12 @@ MetaReprEncoder *meta_repr_encoder_create(const MetaReprConfig *config);
  * @brief 销毁编码器
  * @param encoder 编码器实例
  */
-void meta_repr_encoder_destroy(MetaReprEncoder *encoder);
+lv_PUBLIC_API void meta_repr_encoder_destroy(MetaReprEncoder *encoder);
 /**
  * @brief 重置编码器状态
  * @param encoder 编码器实例
  */
-void meta_repr_encoder_reset(MetaReprEncoder *encoder);
+lv_PUBLIC_API void meta_repr_encoder_reset(MetaReprEncoder *encoder);
 /**
  * @brief 编码 ConstraintGraph 为几何表示
  * @param encoder 编码器实例
@@ -124,7 +125,7 @@ MetaReprDecoder *meta_repr_decoder_create(void);
  * @brief 销毁解码器
  * @param decoder 解码器实例
  */
-void meta_repr_decoder_destroy(MetaReprDecoder *decoder);
+lv_PUBLIC_API void meta_repr_decoder_destroy(MetaReprDecoder *decoder);
 /**
  * @brief 从几何表示解码为 ConstraintGraph
  * @param decoder 解码器实例
@@ -154,21 +155,21 @@ FuncBlock *meta_repr_decode_func_block(MetaReprDecoder *decoder, const GeomNode 
  * @param type_name 结构体类型名称（用于日志）
  * @return 是否等价
  */
-bool meta_repr_verify_roundtrip(const void *original, const void *decoded, const char *type_name);
+lv_PUBLIC_API bool meta_repr_verify_roundtrip(const void *original, const void *decoded, const char *type_name);
 /**
  * @brief 比较两个约束图是否语义等价
  * @param a 约束图 A
  * @param b 约束图 B
  * @return 是否等价
  */
-bool meta_repr_graph_equivalent(const ConstraintGraph *a, const ConstraintGraph *b);
+lv_PUBLIC_API bool meta_repr_graph_equivalent(const ConstraintGraph *a, const ConstraintGraph *b);
 /**
  * @brief 比较两个几何表示是否同构
  * @param a 几何表示 A
  * @param b 几何表示 B
  * @return 是否同构等价
  */
-bool meta_repr_isomorphic(const ConstraintGraph *a, const ConstraintGraph *b);
+lv_PUBLIC_API bool meta_repr_isomorphic(const ConstraintGraph *a, const ConstraintGraph *b);
 /* ============== 工具 API ============== */
 /**
  * @brief 获取编码统计信息
@@ -176,20 +177,20 @@ bool meta_repr_isomorphic(const ConstraintGraph *a, const ConstraintGraph *b);
  * @param out_node_count 输出节点数量
  * @param out_constraint_count 输出约束数量
  */
-void meta_repr_get_stats(MetaReprEncoder *encoder, int *out_node_count, int *out_constraint_count);
+lv_PUBLIC_API void meta_repr_get_stats(MetaReprEncoder *encoder, int *out_node_count, int *out_constraint_count);
 /**
  * @brief 导出几何表示为 DOT 格式（用于可视化）
  * @param encoded_graph 编码后的几何表示
  * @param filepath 输出文件路径
  * @return 是否成功
  */
-bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *filepath);
+lv_PUBLIC_API bool meta_repr_export_dot(const ConstraintGraph *encoded_graph, const char *filepath);
 /**
  * @brief 导出几何表示为 JSON 格式
  * @param encoded_graph 编码后的几何表示
  * @return JSON 字符串（需由调用者释放）
  */
-char *meta_repr_export_json(const ConstraintGraph *encoded_graph);
+lv_PUBLIC_API char *meta_repr_export_json(const ConstraintGraph *encoded_graph);
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/orchestrator.h"
 
 /* ============================================================
@@ -83,28 +84,28 @@ lvMetaVerifier *lv_meta_verifier_create(void);
  * @brief 销毁元验证器
  * @param verifier 元验证器指针
  */
-void lv_meta_verifier_destroy(lvMetaVerifier *verifier);
+lv_PUBLIC_API void lv_meta_verifier_destroy(lvMetaVerifier *verifier);
 
 /**
  * @brief 启用指定检查项
  * @param verifier 元验证器指针
  * @param check 要启用的检查项
  */
-void lv_meta_verifier_enable_check(lvMetaVerifier *verifier, lvVerifyCheck check);
+lv_PUBLIC_API void lv_meta_verifier_enable_check(lvMetaVerifier *verifier, lvVerifyCheck check);
 
 /**
  * @brief 禁用指定检查项
  * @param verifier 元验证器指针
  * @param check 要禁用的检查项
  */
-void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck check);
+lv_PUBLIC_API void lv_meta_verifier_disable_check(lvMetaVerifier *verifier, lvVerifyCheck check);
 
 /**
  * @brief 设置严格模式
  * @param verifier 元验证器指针
  * @param strict 非零启用严格模式，零关闭
  */
-void lv_meta_verifier_set_strict(lvMetaVerifier *verifier, int strict);
+lv_PUBLIC_API void lv_meta_verifier_set_strict(lvMetaVerifier *verifier, int strict);
 
 /**
  * @brief 对会话执行元验证
@@ -127,14 +128,14 @@ lvVerifyReport lv_meta_verify_proof(lvMetaVerifier *verifier, void *proof);
  * @param report 验证报告指针
  * @return 全部通过返回 1，否则返回 0
  */
-int lv_verify_report_passed(const lvVerifyReport *report);
+lv_PUBLIC_API int lv_verify_report_passed(const lvVerifyReport *report);
 
 /**
  * @brief 获取报告摘要
  * @param report 验证报告指针
  * @return 返回报告摘要字符串
  */
-const char *lv_verify_report_summary(const lvVerifyReport *report);
+lv_PUBLIC_API const char *lv_verify_report_summary(const lvVerifyReport *report);
 
 /**
  * @brief 获取指定检查项的结果
@@ -142,7 +143,7 @@ const char *lv_verify_report_summary(const lvVerifyReport *report);
  * @param check 检查项标识
  * @return 返回对应检查结果指针
  */
-const lvMetaVerifyResult *lv_verify_report_result(const lvVerifyReport *report, lvVerifyCheck check);
+lv_PUBLIC_API const lvMetaVerifyResult *lv_verify_report_result(const lvVerifyReport *report, lvVerifyCheck check);
 
 #ifdef __cplusplus
 }

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -52,7 +53,7 @@ void lv_dot_begin(lvStrBuf *sb, const char *graph_name, const char *rankdir,
  * @param label       节点显示文本（可为 NULL，省略 label 属性）
  * @param extra_attrs 附加属性列表，如 "shape=box, style=filled"（可为 NULL）
  */
-void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *extra_attrs);
+lv_PUBLIC_API void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *extra_attrs);
 
 /**
  * @brief 以整型 id 输出节点语句（ID 内部格式化为 "前缀%d"，定长缓冲）
@@ -66,7 +67,7 @@ void lv_dot_node(lvStrBuf *sb, const char *id, const char *label, const char *ex
  * @param label       节点显示文本（可为 NULL）
  * @param extra_attrs 附加属性列表（可为 NULL）
  */
-void lv_dot_node_id(lvStrBuf *sb, const char *prefix, int id, const char *label, const char *extra_attrs);
+lv_PUBLIC_API void lv_dot_node_id(lvStrBuf *sb, const char *prefix, int id, const char *label, const char *extra_attrs);
 
 /**
  * @brief 输出一条边语句
@@ -103,7 +104,7 @@ void lv_dot_edge_id(lvStrBuf *sb, const char *prefix, int from_id, int to_id, co
  * @brief 输出收尾大括号 `}\n`
  * @param sb 目标 lvStrBuf（追加模式）
  */
-void lv_dot_end(lvStrBuf *sb);
+lv_PUBLIC_API void lv_dot_end(lvStrBuf *sb);
 
 /**
  * @brief 将字符串经 JSON/DOT 转义后追加到 lvStrBuf（公共转义工具）
@@ -116,7 +117,7 @@ void lv_dot_end(lvStrBuf *sb);
  * @param sb   目标 lvStrBuf（追加模式）
  * @param text 源字符串（NUL 结尾，可为 NULL，此时无操作）
  */
-void lv_dot_append_escaped(lvStrBuf *sb, const char *text);
+lv_PUBLIC_API void lv_dot_append_escaped(lvStrBuf *sb, const char *text);
 
 /**
  * @brief 将 DOT 内容统一落盘
@@ -128,7 +129,7 @@ void lv_dot_append_escaped(lvStrBuf *sb, const char *text);
  * @param len     DOT 内容长度（字节，不含 NUL）
  * @return true 写入成功，false 失败
  */
-bool lv_dot_write_file(const char *path, const char *content, size_t len);
+lv_PUBLIC_API bool lv_dot_write_file(const char *path, const char *content, size_t len);
 
 #ifdef __cplusplus
 }

@@ -20,6 +20,7 @@
  */
 #ifndef lv_MINI_KERNEL_H
 #define lv_MINI_KERNEL_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -212,7 +213,7 @@ MiniKernel *mini_kernel_create(const MiniKernelConfig *config);
  *
  * @param kernel 极简验证内核（可为 NULL，什么也不做）
  */
-void mini_kernel_destroy(MiniKernel *kernel);
+lv_PUBLIC_API void mini_kernel_destroy(MiniKernel *kernel);
 /* ============== 语句管理 ============== */
 /**
  * @brief 添加变量声明（$f 语句）
@@ -225,7 +226,7 @@ void mini_kernel_destroy(MiniKernel *kernel);
  * @param type_formula 类型声明公式（如 "set", "wff"）
  * @return 新语句的 ID，失败返回 -1
  */
-int mini_kernel_add_var(MiniKernel *kernel, const char *label, const char *type_formula);
+lv_PUBLIC_API int mini_kernel_add_var(MiniKernel *kernel, const char *label, const char *type_formula);
 /**
  * @brief 添加前提（$e 语句）
  *
@@ -237,7 +238,7 @@ int mini_kernel_add_var(MiniKernel *kernel, const char *label, const char *type_
  * @param formula 前提公式文本
  * @return 新语句的 ID，失败返回 -1
  */
-int mini_kernel_add_hyp(MiniKernel *kernel, const char *label, const char *formula);
+lv_PUBLIC_API int mini_kernel_add_hyp(MiniKernel *kernel, const char *label, const char *formula);
 /**
  * @brief 添加公理（$a 语句）
  *
@@ -250,7 +251,7 @@ int mini_kernel_add_hyp(MiniKernel *kernel, const char *label, const char *formu
  * @param formula 公理公式文本
  * @return 新语句的 ID，失败返回 -1
  */
-int mini_kernel_add_axiom(MiniKernel *kernel, const char *label, const char *formula);
+lv_PUBLIC_API int mini_kernel_add_axiom(MiniKernel *kernel, const char *label, const char *formula);
 /**
  * @brief 添加定理（$p 语句）
  *
@@ -328,7 +329,7 @@ MiniVerifyResult mini_kernel_verify_all(MiniKernel *kernel, int *out_passed, int
  * @param filepath Metamath 文件路径
  * @return 成功导入的语句数，负数表示错误
  */
-int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath);
+lv_PUBLIC_API int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath);
 /**
  * @brief 导出内核为 Metamath 格式
  *
@@ -340,7 +341,7 @@ int mini_kernel_import_mm(MiniKernel *kernel, const char *filepath);
  * @param filepath 输出文件路径
  * @return 导出成功返回 true
  */
-bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath);
+lv_PUBLIC_API bool mini_kernel_export_mm(const MiniKernel *kernel, const char *filepath);
 /* ============== 内核自检 ============== */
 /**
  * @brief 内核自检 —— 验证验证器自身的逻辑一致性
@@ -387,7 +388,7 @@ void mini_kernel_stats(const MiniKernel *kernel, int *out_total_stmts, int *out_
  * @param node_id 约束图节点 ID
  * @return 映射成功返回 true
  */
-bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id);
+lv_PUBLIC_API bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id);
 /**
  * @brief 根据约束图节点查找对应的验证语句
  *
@@ -395,7 +396,7 @@ bool mini_kernel_bind_to_graph(MiniKernel *kernel, int stmt_id, int node_id);
  * @param node_id 约束图节点 ID
  * @return 对应的语句 ID，未找到返回 -1
  */
-int mini_kernel_find_by_node(const MiniKernel *kernel, int node_id);
+lv_PUBLIC_API int mini_kernel_find_by_node(const MiniKernel *kernel, int node_id);
 /* ============== 辅助函数 ============== */
 /**
  * @brief 语句类型转字符串
@@ -403,14 +404,14 @@ int mini_kernel_find_by_node(const MiniKernel *kernel, int node_id);
  * @param type 语句类型枚举
  * @return 类型名称字符串（静态，勿释放）
  */
-const char *mini_stmt_type_to_string(MiniStmtType type);
+lv_PUBLIC_API const char *mini_stmt_type_to_string(MiniStmtType type);
 /**
  * @brief 验证结果转字符串
  *
  * @param result 验证结果枚举
  * @return 结果描述字符串（静态，勿释放）
  */
-const char *mini_verify_result_to_string(MiniVerifyResult result);
+lv_PUBLIC_API const char *mini_verify_result_to_string(MiniVerifyResult result);
 /**
  * @brief 根据标签查找语句 ID
  *
@@ -418,7 +419,7 @@ const char *mini_verify_result_to_string(MiniVerifyResult result);
  * @param label  语句标签
  * @return 语句 ID，未找到返回 -1
  */
-int mini_kernel_find_by_label(const MiniKernel *kernel, const char *label);
+lv_PUBLIC_API int mini_kernel_find_by_label(const MiniKernel *kernel, const char *label);
 /**
  * @brief 封存内核（禁止再添加新公理）
  *
@@ -427,7 +428,7 @@ int mini_kernel_find_by_label(const MiniKernel *kernel, const char *label);
  *
  * @param kernel 极简验证内核
  */
-void mini_kernel_seal(MiniKernel *kernel);
+lv_PUBLIC_API void mini_kernel_seal(MiniKernel *kernel);
 /**
  * @brief 创建默认配置
  *
@@ -440,7 +441,7 @@ MiniKernelConfig mini_kernel_config_default(void);
  *
  * @param kernel 极简验证内核
  */
-void mini_kernel_reset(MiniKernel *kernel);
+lv_PUBLIC_API void mini_kernel_reset(MiniKernel *kernel);
 #ifdef __cplusplus
 }
 #endif

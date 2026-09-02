@@ -141,6 +141,7 @@ struct lvContext;
 
 /* ── 引擎状态码（提取至 engine_status.h，供 engine.h 和 context.h 共用）── */
 #include "lv/engine_status.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* ============================================================
  * 五状态引擎状态机（v3.3.0 形式化）

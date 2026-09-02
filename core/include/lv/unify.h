@@ -38,6 +38,7 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "stream.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明：TypeRegion 完整定义在 type_system.h（L4 type_logic 域）。
  * 仅指针引用，打破 unify.h → type_system.h → rewrite.h 的头级依赖三角环 */

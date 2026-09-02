@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API
@@ -209,7 +210,7 @@ lv_PUBLIC_API lvAABB3D lv_aabb3d_root_bbox(const lvAABBTree3D *tree);
 /** Build AABB tree from points. */
 lvAABBTree *lv_aabb_tree_build(const double *points, size_t count, int dim);
 /** Query AABB tree for points in box. */
-size_t lv_aabb_tree_query(const lvAABBTree *tree, const lvAABB *box, double *out, size_t max_out);
+lv_PUBLIC_API size_t lv_aabb_tree_query(const lvAABBTree *tree, const lvAABB *box, double *out, size_t max_out);
 
 #ifdef __cplusplus
 }

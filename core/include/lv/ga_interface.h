@@ -21,6 +21,7 @@
 #define lv_GA_INTERFACE_H
 
 #include "ga_multivector.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {

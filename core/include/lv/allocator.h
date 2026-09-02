@@ -18,6 +18,7 @@
 #define lv_LV_ALLOCATOR_H
 
 #include <stddef.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,7 +64,7 @@ typedef struct {
  * @warning 切换分配器时，所有已分配的内存必须使用原分配器释放。
  *          混合使用不同分配器的 alloc/free 会导致未定义行为。
  */
-const AllocatorOps *lv_allocator_set(const AllocatorOps *ops);
+lv_PUBLIC_API const AllocatorOps *lv_allocator_set(const AllocatorOps *ops);
 
 /**
  * @brief 获取当前分配器
@@ -73,14 +74,14 @@ const AllocatorOps *lv_allocator_set(const AllocatorOps *ops);
  *       不进行互斥锁保护。由于指针写入仅发生在切换时（罕见操作），
  *      且指针读取在目标平台上是对齐的原子操作，此设计是安全的。
  */
-const AllocatorOps *lv_allocator_get(void);
+lv_PUBLIC_API const AllocatorOps *lv_allocator_get(void);
 
 /**
  * @brief 重置为默认分配器（调试分配器，带魔数检测和追踪）
  *
  * @note 线程安全：内部使用互斥锁保护写操作。
  */
-void lv_allocator_reset(void);
+lv_PUBLIC_API void lv_allocator_reset(void);
 
 /**
  * @brief 获取原始分配器（标准 malloc/free）
@@ -89,7 +90,7 @@ void lv_allocator_reset(void);
  * 原始分配器直接透传标准库的 malloc/free/calloc/realloc，
  * 不附加任何魔数检测、内存追踪或毒模式填充。
  */
-const AllocatorOps *lv_allocator_raw(void);
+lv_PUBLIC_API const AllocatorOps *lv_allocator_raw(void);
 
 /**
  * @brief 获取调试分配器（带魔数检测和追踪）
@@ -102,7 +103,7 @@ const AllocatorOps *lv_allocator_raw(void);
  *   - 内存统计（MemoryStats）
  *   - 内存限制检查
  */
-const AllocatorOps *lv_allocator_debug(void);
+lv_PUBLIC_API const AllocatorOps *lv_allocator_debug(void);
 
 #ifdef __cplusplus
 }

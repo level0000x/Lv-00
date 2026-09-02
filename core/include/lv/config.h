@@ -21,6 +21,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59 导出装饰，纯宏头无环） */
+
 /* K28：深度限制单一权威表（仅依赖标准头，无环；compat 段引用其宏） */
 #include "depth_limits.h"
 #ifdef __cplusplus
@@ -604,11 +606,11 @@ typedef struct lvConfig {
  * 运行时配置 API
  * ==================================================================== */
 
-const lvConfig *lv_config_default(void);
-const lvConfig *lv_config_current(void);
-int lv_config_apply(const lvConfig *cfg);
-int lv_config_load_json(const char *json_path);
-int lv_config_to_json(char *buf, size_t buf_size);
+lv_PUBLIC_API const lvConfig *lv_config_default(void);
+lv_PUBLIC_API const lvConfig *lv_config_current(void);
+lv_PUBLIC_API int lv_config_apply(const lvConfig *cfg);
+lv_PUBLIC_API int lv_config_load_json(const char *json_path);
+lv_PUBLIC_API int lv_config_to_json(char *buf, size_t buf_size);
 
 /* ====================================================================
  * 运行时单字段修改 API（不重编译，立即生效）
@@ -625,18 +627,18 @@ LV_CONFIG_DOUBLE_KEYS(LV_CONFIG_DECL_SET)
 #undef LV_CONFIG_DECL_SET
 
 /* ---- 通用 key-value setter（低频字段用，一次调用不改编译） ---- */
-bool lv_config_set_int(const char *key, int val);
-bool lv_config_set_double(const char *key, double val);
+lv_PUBLIC_API bool lv_config_set_int(const char *key, int val);
+lv_PUBLIC_API bool lv_config_set_double(const char *key, double val);
 
 /* ---- 通用 key-value getter（实现于 lv.c；供内部文件脱离 lv.h 门面直连，
  *     与 lv.h 中 lv_PUBLIC_API 声明同签名并存，C 重复声明合法） ---- */
-int lv_config_get_int(const char *key, int default_val);
-bool lv_config_get_bool(const char *key, bool default_val);
-double lv_config_get_double(const char *key, double default_val);
-const char *lv_config_get_string(const char *key, const char *default_val);
+lv_PUBLIC_API int lv_config_get_int(const char *key, int default_val);
+lv_PUBLIC_API bool lv_config_get_bool(const char *key, bool default_val);
+lv_PUBLIC_API double lv_config_get_double(const char *key, double default_val);
+lv_PUBLIC_API const char *lv_config_get_string(const char *key, const char *default_val);
 
 /* ---- 重置 ---- */
-void lv_config_reset(void);
+lv_PUBLIC_API void lv_config_reset(void);
 
 /* ====================================================================
  * 兼容层 —— 旧宏名 → 现在全部走 lvConfig 或保留的编译期常量

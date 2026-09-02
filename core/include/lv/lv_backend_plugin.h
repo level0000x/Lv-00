@@ -19,6 +19,7 @@
 #ifndef lv_BACKEND_PLUGIN_H
 #define lv_BACKEND_PLUGIN_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -111,13 +112,13 @@ typedef struct lvBackendPluginRegistry {
  * @brief 初始化后端插件注册表
  * @param reg 注册表指针（非 NULL）
  */
-void lv_backend_plugin_registry_init(lvBackendPluginRegistry *reg);
+lv_PUBLIC_API void lv_backend_plugin_registry_init(lvBackendPluginRegistry *reg);
 
 /**
  * @brief 销毁后端插件注册表，释放所有资源
  * @param reg 注册表指针（非 NULL）
  */
-void lv_backend_plugin_registry_cleanup(lvBackendPluginRegistry *reg);
+lv_PUBLIC_API void lv_backend_plugin_registry_cleanup(lvBackendPluginRegistry *reg);
 
 /* ========================================================================
  * 插件注册与注销 API
@@ -129,7 +130,7 @@ void lv_backend_plugin_registry_cleanup(lvBackendPluginRegistry *reg);
  * @param plugin 插件描述符指针（调用者维护生命周期，注册表不接管所有权）
  * @return true 注册成功，false 名称重复或内存不足
  */
-bool lv_backend_plugin_register(lvBackendPluginRegistry *reg, lvBackendPlugin *plugin);
+lv_PUBLIC_API bool lv_backend_plugin_register(lvBackendPluginRegistry *reg, lvBackendPlugin *plugin);
 
 /**
  * @brief 按名称注销一个后端插件
@@ -137,7 +138,7 @@ bool lv_backend_plugin_register(lvBackendPluginRegistry *reg, lvBackendPlugin *p
  * @param name 插件名称
  * @return true 注销成功，false 未找到
  */
-bool lv_backend_plugin_unregister(lvBackendPluginRegistry *reg, const char *name);
+lv_PUBLIC_API bool lv_backend_plugin_unregister(lvBackendPluginRegistry *reg, const char *name);
 
 /* ========================================================================
  * 插件查找与遍历 API
@@ -167,7 +168,7 @@ int lv_backend_plugin_find_by_type(lvBackendPluginRegistry *reg, lvBackendPlugin
  * @param reg 注册表指针
  * @return 插件数量
  */
-int lv_backend_plugin_count(lvBackendPluginRegistry *reg);
+lv_PUBLIC_API int lv_backend_plugin_count(lvBackendPluginRegistry *reg);
 
 /* ========================================================================
  * 批量生命周期管理 API
@@ -177,13 +178,13 @@ int lv_backend_plugin_count(lvBackendPluginRegistry *reg);
  * @brief 初始化所有已注册的插件（按优先级顺序）
  * @param reg 注册表指针
  */
-void lv_backend_plugin_init_all(lvBackendPluginRegistry *reg);
+lv_PUBLIC_API void lv_backend_plugin_init_all(lvBackendPluginRegistry *reg);
 
 /**
  * @brief 清理所有已注册的插件（按反向优先级顺序）
  * @param reg 注册表指针
  */
-void lv_backend_plugin_cleanup_all(lvBackendPluginRegistry *reg);
+lv_PUBLIC_API void lv_backend_plugin_cleanup_all(lvBackendPluginRegistry *reg);
 
 /* ========================================================================
  * 全局单例注册表

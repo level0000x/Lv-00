@@ -18,6 +18,7 @@ extern "C" {
 
 #include "lv/constraint_graph.h"
 #include "lv/lambda_term.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /**
  * @brief 将 λ-项编译为约束图

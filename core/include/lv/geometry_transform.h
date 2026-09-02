@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -198,17 +199,17 @@ lvTransform *lv_transform_reflection_line(const mpq_t a, const mpq_t b, const mp
  * @brief 释放变换内存
  * @param t 变换指针
  */
-void lv_transform_destroy(lvTransform *t);
+lv_PUBLIC_API void lv_transform_destroy(lvTransform *t);
 /**
  * @brief 增加变换引用计数
  * @param t 变换指针
  */
-void lv_transform_ref(lvTransform *t);
+lv_PUBLIC_API void lv_transform_ref(lvTransform *t);
 /**
  * @brief 减少变换引用计数（计数归零时释放）
  * @param t 变换指针
  */
-void lv_transform_unref(lvTransform *t);
+lv_PUBLIC_API void lv_transform_unref(lvTransform *t);
 /**
  * @brief 使用变换平移点（原地修改有理数坐标）
  * @param t 变换指针
@@ -216,7 +217,7 @@ void lv_transform_unref(lvTransform *t);
  * @param y 点的 Y 坐标（输入/输出，有理数）
  * @return 成功返回 true，失败返回 false
  */
-bool lv_transform_apply_point(const lvTransform *t, mpq_t x, mpq_t y);
+lv_PUBLIC_API bool lv_transform_apply_point(const lvTransform *t, mpq_t x, mpq_t y);
 /**
  * @brief 使用变换平移点（有理数坐标，输出到目标坐标）
  * @param t 变换指针
@@ -225,7 +226,7 @@ bool lv_transform_apply_point(const lvTransform *t, mpq_t x, mpq_t y);
  * @param dst_x 目标 X 坐标（输出，有理数）
  * @param dst_y 目标 Y 坐标（输出，有理数）
  */
-void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t src_y, mpq_t dst_x, mpq_t dst_y);
+lv_PUBLIC_API void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t src_y, mpq_t dst_x, mpq_t dst_y);
 /**
  * @brief 使用变换平移点（浮点坐标）
  * @param t 变换指针
@@ -234,7 +235,7 @@ void lv_transform_apply_mpq(const lvTransform *t, const mpq_t src_x, const mpq_t
  * @param dst_x 目标 X 坐标（输出）
  * @param dst_y 目标 Y 坐标（输出）
  */
-void lv_transform_apply_double(const lvTransform *t, double src_x, double src_y, double *dst_x, double *dst_y);
+lv_PUBLIC_API void lv_transform_apply_double(const lvTransform *t, double src_x, double src_y, double *dst_x, double *dst_y);
 /**
  * @brief 组合两个变换（先应用 a 再应用 b）
  * @param a 第一个变换指针
@@ -248,25 +249,25 @@ lvTransform *lv_transform_compose(const lvTransform *a, const lvTransform *b);
  * @param matrix 输出矩阵指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix);
+lv_PUBLIC_API bool lv_transform_get_matrix(lvTransform *t, lvTransformMatrix *matrix);
 /**
  * @brief 获取变换类型的名称字符串
  * @param type 变换类型枚举
  * @return 返回类型名称字符串
  */
-const char *lv_transform_type_name(lvTransformType type);
+lv_PUBLIC_API const char *lv_transform_type_name(lvTransformType type);
 /**
  * @brief 判断变换是否为等距变换
  * @param t 变换指针
  * @return 是等距变换返回 true，否则返回 false
  */
-bool lv_transform_is_isometry(const lvTransform *t);
+lv_PUBLIC_API bool lv_transform_is_isometry(const lvTransform *t);
 /**
  * @brief 判断变换是否保持定向
  * @param t 变换指针
  * @return 保持定向返回 true，否则返回 false
  */
-bool lv_transform_is_orientation_preserving(const lvTransform *t);
+lv_PUBLIC_API bool lv_transform_is_orientation_preserving(const lvTransform *t);
 /**
  * @brief 计算逆变换
  * @param t 变换指针
@@ -302,14 +303,14 @@ lvTransformSequence *lv_transform_sequence_create(void);
  * @brief 销毁变换序列
  * @param seq 变换序列指针
  */
-void lv_transform_sequence_destroy(lvTransformSequence *seq);
+lv_PUBLIC_API void lv_transform_sequence_destroy(lvTransformSequence *seq);
 /**
  * @brief 向变换序列添加一个变换
  * @param seq 变换序列指针
  * @param t 要添加的变换指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv_transform_sequence_add(lvTransformSequence *seq, lvTransform *t);
+lv_PUBLIC_API bool lv_transform_sequence_add(lvTransformSequence *seq, lvTransform *t);
 /**
  * @brief 将序列中所有变换合成为一个变换
  * @param seq 变换序列指针
@@ -328,14 +329,14 @@ lvTransformGroup *lv_transform_group_create(const char *name);
  * @brief 销毁变换群
  * @param group 变换群指针
  */
-void lv_transform_group_destroy(lvTransformGroup *group);
+lv_PUBLIC_API void lv_transform_group_destroy(lvTransformGroup *group);
 /**
  * @brief 向变换群添加生成元
  * @param group 变换群指针
  * @param generator 生成元变换指针
  * @return 成功返回 true，失败返回 false
  */
-bool lv_transform_group_add_generator(lvTransformGroup *group, lvTransform *generator);
+lv_PUBLIC_API bool lv_transform_group_add_generator(lvTransformGroup *group, lvTransform *generator);
 /**
  * @brief 创建预设变换群
  * @param type 预设类型字符串
@@ -348,7 +349,7 @@ lvTransformGroup *lv_transform_group_create_preset(const char *type);
  * @brief 创建恒等 4x4 矩阵（双精度）
  * @param out 输出的 4x4 矩阵（16 元素数组）
  */
-void lv_transform_identity_double(double out[16]);
+lv_PUBLIC_API void lv_transform_identity_double(double out[16]);
 /**
  * @brief 创建平移 4x4 矩阵（双精度）
  * @param out 输出的 4x4 矩阵（16 元素数组）
@@ -356,7 +357,7 @@ void lv_transform_identity_double(double out[16]);
  * @param y Y 轴平移量
  * @param z Z 轴平移量
  */
-void lv_transform_translate_double(double out[16], double x, double y, double z);
+lv_PUBLIC_API void lv_transform_translate_double(double out[16], double x, double y, double z);
 /**
  * @brief 创建旋转 4x4 矩阵（双精度）
  * @param out 输出的 4x4 矩阵（16 元素数组）
@@ -365,7 +366,7 @@ void lv_transform_translate_double(double out[16], double x, double y, double z)
  * @param y 旋转轴 Y 分量
  * @param z 旋转轴 Z 分量
  */
-void lv_transform_rotate_double(double out[16], double angle_rad, double x, double y, double z);
+lv_PUBLIC_API void lv_transform_rotate_double(double out[16], double angle_rad, double x, double y, double z);
 /**
  * @brief 创建缩放 4x4 矩阵（双精度）
  * @param out 输出的 4x4 矩阵（16 元素数组）
@@ -373,7 +374,7 @@ void lv_transform_rotate_double(double out[16], double angle_rad, double x, doub
  * @param sy Y 轴缩放因子
  * @param sz Z 轴缩放因子
  */
-void lv_transform_scale_double(double out[16], double sx, double sy, double sz);
+lv_PUBLIC_API void lv_transform_scale_double(double out[16], double sx, double sy, double sz);
 /**
  * @brief 应用 4x4 变换到顶点数组（双精度）
  * @param t 4x4 变换矩阵（16 元素数组）
@@ -381,7 +382,7 @@ void lv_transform_scale_double(double out[16], double sx, double sy, double sz);
  * @param out 输出顶点数组
  * @param count 顶点数量
  */
-void lv_transform_apply_double4x4(const double t[16], const double *in, double *out, size_t count);
+lv_PUBLIC_API void lv_transform_apply_double4x4(const double t[16], const double *in, double *out, size_t count);
 
 /* -- 变换阶与对称性分析 -- */
 
@@ -394,7 +395,7 @@ void lv_transform_apply_double4x4(const double t[16], const double *in, double *
  * @param t 变换指针
  * @return 阶数（1=恒等，0=无限阶，-1=错误）
  */
-int lv_transform_order(const lvTransform *t);
+lv_PUBLIC_API int lv_transform_order(const lvTransform *t);
 
 /**
  * @brief 分析约束图的对称变换
@@ -406,7 +407,7 @@ int lv_transform_order(const lvTransform *t);
  * @param max_count       数组最大容量
  * @return 找到的对称变换数量
  */
-int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform **out_transforms, int max_count);
+lv_PUBLIC_API int lv_transform_identify_symmetries(const ConstraintGraph *graph, lvTransform **out_transforms, int max_count);
 
 #ifdef __cplusplus
 }

@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <gmp.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -141,7 +142,7 @@ lvInequality *lv_ineq_create(lvExpr *left, lvInequalityType type, lvExpr *right)
  * @brief 销毁不等式
  * @param ineq 不等式指针
  */
-void lv_ineq_destroy(lvInequality *ineq);
+lv_PUBLIC_API void lv_ineq_destroy(lvInequality *ineq);
 
 /**
  * @brief 复制不等式
@@ -160,7 +161,7 @@ lvInequalitySystem *lv_ineq_system_create(void);
  * @brief 销毁不等式系统
  * @param sys 系统指针
  */
-void lv_ineq_system_destroy(lvInequalitySystem *sys);
+lv_PUBLIC_API void lv_ineq_system_destroy(lvInequalitySystem *sys);
 
 /**
  * @brief 添加不等式到系统
@@ -168,7 +169,7 @@ void lv_ineq_system_destroy(lvInequalitySystem *sys);
  * @param ineq 不等式
  * @return 是否成功
  */
-bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq);
+lv_PUBLIC_API bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq);
 
 /**
  * @brief 添加变量约束（如 x > 0）
@@ -178,7 +179,7 @@ bool lv_ineq_system_add(lvInequalitySystem *sys, lvInequality *ineq);
  * @param value 约束值（通常为 0）
  * @return 是否成功
  */
-bool lv_ineq_system_add_var_constraint(lvInequalitySystem *sys, lvExpr *var, lvInequalityType type, const mpq_t value);
+lv_PUBLIC_API bool lv_ineq_system_add_var_constraint(lvInequalitySystem *sys, lvExpr *var, lvInequalityType type, const mpq_t value);
 
 /* ============== 基本不等式证明 ============== */
 
@@ -195,7 +196,7 @@ lvInequalityStatus lv_ineq_prove(lvInequality *ineq, const lvInequalitySystem *s
  * @brief 销毁证明
  * @param proof 证明指针
  */
-void lv_ineq_proof_destroy(lvInequalityProof *proof);
+lv_PUBLIC_API void lv_ineq_proof_destroy(lvInequalityProof *proof);
 
 /**
  * @brief 尝试使用指定方法证明不等式
@@ -222,7 +223,7 @@ lvInequalityStatus lv_ineq_prove_with_method(lvInequality *ineq, lvInequalityMet
  * @param out_upper_bound 输出上界（几何平均）
  * @return 是否成功
  */
-bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_bound, lvExpr **out_upper_bound);
+lv_PUBLIC_API bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_bound, lvExpr **out_upper_bound);
 
 /**
  * @brief 应用 Cauchy-Schwarz 不等式
@@ -235,7 +236,7 @@ bool lv_ineq_am_gm(lvExpr **expressions, uint32_t count, lvExpr **out_lower_boun
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality **out_ineq);
+lv_PUBLIC_API bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality **out_ineq);
 
 /**
  * @brief 应用排序不等式
@@ -250,7 +251,7 @@ bool lv_ineq_cauchy_schwarz(lvExpr **a, lvExpr **b, uint32_t count, lvInequality
  * @param out_max 输出最大和
  * @return 是否成功
  */
-bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count, lvExpr **out_min, lvExpr **out_max);
+lv_PUBLIC_API bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count, lvExpr **out_min, lvExpr **out_max);
 
 /**
  * @brief 应用 Schur 不等式
@@ -265,7 +266,7 @@ bool lv_ineq_rearrangement(lvExpr **a, lvExpr **b, uint32_t count, lvExpr **out_
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **out_ineq);
+lv_PUBLIC_API bool lv_ineq_schur(lvExpr *a, lvExpr *b, lvExpr *c, uint32_t r, lvInequality **out_ineq);
 
 /**
  * @brief 应用 Jensen 不等式
@@ -296,7 +297,7 @@ bool lv_ineq_jensen(const char *func, lvExpr **points, mpq_t *weights, uint32_t 
  * @param max_count 最大输出数量
  * @return 实际输出数量
  */
-uint32_t lv_ineq_triangle(lvExpr *a, lvExpr *b, lvExpr *c, lvInequality **out_inequalities, uint32_t max_count);
+lv_PUBLIC_API uint32_t lv_ineq_triangle(lvExpr *a, lvExpr *b, lvExpr *c, lvInequality **out_inequalities, uint32_t max_count);
 
 /* ============== 不等式变换 ============== */
 
@@ -338,7 +339,7 @@ lvInequality *lv_ineq_negate(lvInequality *ineq);
  * @param out_result 输出结果不等式
  * @return 是否可以传递
  */
-bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
+lv_PUBLIC_API bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
 
 /**
  * @brief 合并同向不等式
@@ -347,7 +348,7 @@ bool lv_ineq_transitive(lvInequality **ineqs, uint32_t count, lvInequality **out
  * @param out_result 输出结果不等式
  * @return 是否可以合并
  */
-bool lv_ineq_merge(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
+lv_PUBLIC_API bool lv_ineq_merge(lvInequality **ineqs, uint32_t count, lvInequality **out_result);
 
 /* ============== 表达式符号判定 ============== */
 
@@ -377,7 +378,7 @@ lvSign lv_expr_sign(lvExpr *expr, const lvInequalitySystem *sys);
  * @param sys 不等式系统
  * @return 是否为正
  */
-bool lv_expr_is_positive(lvExpr *expr, const lvInequalitySystem *sys);
+lv_PUBLIC_API bool lv_expr_is_positive(lvExpr *expr, const lvInequalitySystem *sys);
 
 /**
  * @brief 检查表达式是否为非负
@@ -385,7 +386,7 @@ bool lv_expr_is_positive(lvExpr *expr, const lvInequalitySystem *sys);
  * @param sys 不等式系统
  * @return 是否为非负
  */
-bool lv_expr_is_nonnegative(lvExpr *expr, const lvInequalitySystem *sys);
+lv_PUBLIC_API bool lv_expr_is_nonnegative(lvExpr *expr, const lvInequalitySystem *sys);
 
 /* ============== 平方和分解 ============== */
 
@@ -409,13 +410,13 @@ typedef struct {
  * @param out_sos 输出分解结果
  * @return 是否成功分解
  */
-bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos);
+lv_PUBLIC_API bool lv_expr_sos_decompose(lvExpr *poly, lvSOSDecomposition **out_sos);
 
 /**
  * @brief 销毁平方和分解
  * @param sos 分解结果
  */
-void lv_sos_destroy(lvSOSDecomposition *sos);
+lv_PUBLIC_API void lv_sos_destroy(lvSOSDecomposition *sos);
 
 /* ============== 几何不等式 ============== */
 
@@ -432,7 +433,7 @@ void lv_sos_destroy(lvSOSDecomposition *sos);
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
+lv_PUBLIC_API bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
 
 /**
  * @brief Weitzenböck 不等式
@@ -447,7 +448,7 @@ bool lv_ineq_triangle_area(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvIneq
  * @param out_ineq 输出不等式
  * @return 是否成功
  */
-bool lv_ineq_weitzenbock(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
+lv_PUBLIC_API bool lv_ineq_weitzenbock(lvExpr *a, lvExpr *b, lvExpr *c, lvExpr *area, lvInequality **out_ineq);
 
 /**
  * @brief Erdős–Mordell 不等式
@@ -474,21 +475,21 @@ bool lv_ineq_erdos_mordell(lvExpr *pa, lvExpr *pb, lvExpr *pc, lvExpr *p, lvExpr
  * @param ineq 不等式
  * @return 字符串（[take] 调用者负责释放）
  */
-char *lv_ineq_to_string(const lvInequality *ineq);
+lv_PUBLIC_API char *lv_ineq_to_string(const lvInequality *ineq);
 
 /**
  * @brief 证明序列化为字符串
  * @param proof 证明
  * @return 字符串（[take] 调用者负责释放）
  */
-char *lv_ineq_proof_to_string(const lvInequalityProof *proof);
+lv_PUBLIC_API char *lv_ineq_proof_to_string(const lvInequalityProof *proof);
 
 /**
  * @brief 证明导出为 LaTeX
  * @param proof 证明
  * @return LaTeX 字符串（[take] 调用者负责释放）
  */
-char *lv_ineq_proof_to_latex(const lvInequalityProof *proof);
+lv_PUBLIC_API char *lv_ineq_proof_to_latex(const lvInequalityProof *proof);
 
 #ifdef __cplusplus
 }

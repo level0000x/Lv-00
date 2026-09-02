@@ -16,6 +16,7 @@
 #ifndef lv_EXPORT_COMMON_H
 #define lv_EXPORT_COMMON_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -33,7 +34,7 @@ extern "C" {
  * @param dst      目标缓冲（NULL 或 dst_size==0 时直接返回）
  * @param dst_size 目标缓冲大小（字节）
  */
-void lv_export_xml_escape(const char *src, char *dst, size_t dst_size);
+lv_PUBLIC_API void lv_export_xml_escape(const char *src, char *dst, size_t dst_size);
 
 /**
  * @brief 将内存缓冲一次性写入文件（fopen "w" + fwrite + fclose 样板）
@@ -43,7 +44,7 @@ void lv_export_xml_escape(const char *src, char *dst, size_t dst_size);
  * @param len  数据长度（字节）
  * @return 实际写入字节数；文件打开失败返回 -1
  */
-int lv_export_write_file(const char *path, const void *data, size_t len);
+lv_PUBLIC_API int lv_export_write_file(const char *path, const void *data, size_t len);
 
 #ifdef __cplusplus
 }

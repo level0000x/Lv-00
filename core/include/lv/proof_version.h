@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -96,7 +97,7 @@ lvProofRepo *proof_repo_open(const char *path);
  *
  * @param repo 仓库指针
  */
-void proof_repo_destroy(lvProofRepo *repo);
+lv_PUBLIC_API void proof_repo_destroy(lvProofRepo *repo);
 /**
  * @brief 提交证明快照到仓库，记录当前文件状态并生成提交哈希
  *
@@ -117,7 +118,7 @@ bool proof_repo_commit(lvProofRepo *repo, const char *message, const char **file
  * @param max_count 最多返回的提交记录数量
  * @return 实际返回的提交记录数量
  */
-size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_count);
+lv_PUBLIC_API size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_count);
 /**
  * @brief 比较两个提交之间的差异，生成差异条目列表
  *
@@ -127,13 +128,13 @@ size_t proof_repo_log(lvProofRepo *repo, lvProofCommit *commits, size_t max_coun
  * @param diff 输出参数，存储差异结果
  * @return 比较成功返回 true，失败返回 false
  */
-bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lvProofDiff *diff);
+lv_PUBLIC_API bool proof_repo_diff(lvProofRepo *repo, const char *oid_a, const char *oid_b, lvProofDiff *diff);
 /**
  * @brief 销毁差异对象，释放差异条目占用的内存
  *
  * @param diff 差异对象指针
  */
-void proof_repo_diff_destroy(lvProofDiff *diff);
+lv_PUBLIC_API void proof_repo_diff_destroy(lvProofDiff *diff);
 /**
  * @brief 在仓库中创建新分支
  *
@@ -141,7 +142,7 @@ void proof_repo_diff_destroy(lvProofDiff *diff);
  * @param name 分支名称
  * @return 创建成功返回 true，失败（如重名或容量已满）返回 false
  */
-bool proof_repo_branch(lvProofRepo *repo, const char *name);
+lv_PUBLIC_API bool proof_repo_branch(lvProofRepo *repo, const char *name);
 /**
  * @brief 切换到指定分支，更新 HEAD 到该分支的最新提交
  *
@@ -149,7 +150,7 @@ bool proof_repo_branch(lvProofRepo *repo, const char *name);
  * @param name 目标分支名称
  * @return 切换成功返回 true，失败返回 false
  */
-bool proof_repo_checkout(lvProofRepo *repo, const char *name);
+lv_PUBLIC_API bool proof_repo_checkout(lvProofRepo *repo, const char *name);
 
 #ifdef __cplusplus
 }

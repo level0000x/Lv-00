@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -121,25 +122,25 @@ typedef struct lvRuleEngine {
 
 lvRuleEngine *rule_engine_create(void);
 lvRuleEngine *rule_engine_create_ex(lvSearchStrategy strategy, int max_depth, uint64_t timeout_ms);
-void rule_engine_destroy(lvRuleEngine *engine);
-bool rule_engine_add_rule(lvRuleEngine *engine, lvProofRule *rule);
-bool rule_engine_remove_rule(lvRuleEngine *engine, const char *name);
-const lvProofRule *rule_engine_find_rule(const lvRuleEngine *engine, const char *name);
+lv_PUBLIC_API void rule_engine_destroy(lvRuleEngine *engine);
+lv_PUBLIC_API bool rule_engine_add_rule(lvRuleEngine *engine, lvProofRule *rule);
+lv_PUBLIC_API bool rule_engine_remove_rule(lvRuleEngine *engine, const char *name);
+lv_PUBLIC_API const lvProofRule *rule_engine_find_rule(const lvRuleEngine *engine, const char *name);
 lvSearchResultStatus rule_engine_search(lvRuleEngine *engine, lvProofState *state);
-int rule_engine_rule_count(const lvRuleEngine *engine);
+lv_PUBLIC_API int rule_engine_rule_count(const lvRuleEngine *engine);
 
 lvProofState *proof_state_create(const char *initial_goal);
-void proof_state_destroy(lvProofState *state);
-bool proof_state_push_goal(lvProofState *state, const char *goal);
-bool proof_state_pop_goal(lvProofState *state);
-bool proof_state_add_hypothesis(lvProofState *state, const char *hypothesis);
-bool proof_state_record_rule(lvProofState *state, const char *name);
-bool proof_state_is_complete(const lvProofState *state);
-const char *proof_state_current_goal(const lvProofState *state);
+lv_PUBLIC_API void proof_state_destroy(lvProofState *state);
+lv_PUBLIC_API bool proof_state_push_goal(lvProofState *state, const char *goal);
+lv_PUBLIC_API bool proof_state_pop_goal(lvProofState *state);
+lv_PUBLIC_API bool proof_state_add_hypothesis(lvProofState *state, const char *hypothesis);
+lv_PUBLIC_API bool proof_state_record_rule(lvProofState *state, const char *name);
+lv_PUBLIC_API bool proof_state_is_complete(const lvProofState *state);
+lv_PUBLIC_API const char *proof_state_current_goal(const lvProofState *state);
 
-const char *proof_rule_type_to_string(lvProofRuleType type);
-const char *search_strategy_to_string(lvSearchStrategy strategy);
-const char *search_result_status_to_string(lvSearchResultStatus status);
+lv_PUBLIC_API const char *proof_rule_type_to_string(lvProofRuleType type);
+lv_PUBLIC_API const char *search_strategy_to_string(lvSearchStrategy strategy);
+lv_PUBLIC_API const char *search_result_status_to_string(lvSearchResultStatus status);
 
 #ifdef __cplusplus
 }

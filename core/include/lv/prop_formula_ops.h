@@ -1,6 +1,7 @@
 #ifndef LV_PROP_FORMULA_OPS_H
 #define LV_PROP_FORMULA_OPS_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/prop_verifier.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -25,7 +26,7 @@ typedef struct {
 } PropFormulaOps;
 
 /* Get the VTable for a given PropFormulaType */
-const PropFormulaOps *prop_formula_get_ops(PropFormulaType type);
+lv_PUBLIC_API const PropFormulaOps *prop_formula_get_ops(PropFormulaType type);
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,6 @@
 #ifndef lv_PRESET_CORE_H
 #define lv_PRESET_CORE_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "func_block_registry.h"
@@ -38,7 +39,7 @@ extern "C" {
  * ======================================================================== */
 
 #define CORE_PRESET_COUNT 1
-bool preset_core_register(void);
+lv_PUBLIC_API bool preset_core_register(void);
 
 #ifdef __cplusplus
 }

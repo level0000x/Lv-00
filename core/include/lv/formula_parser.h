@@ -33,6 +33,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -256,7 +257,7 @@ struct FormulaNode {
  * @param[in] input 输入的公式字符串
  * @return 语法类型字符串: "latex", "python", "dsl", "unknown"
  */
-const char *formula_detect_syntax(const char *input);
+lv_PUBLIC_API const char *formula_detect_syntax(const char *input);
 
 /**
  * @brief 解析器上下文结构体
@@ -289,7 +290,7 @@ FormulaNode *formula_parse(const char *input, const char *syntax);
  *
  * @return 错误信息字符串，无错误时返回 NULL
  */
-const char *formula_parser_get_last_error(void);
+lv_PUBLIC_API const char *formula_parser_get_last_error(void);
 
 /* ============================================================
  * 公共 API —— AST 节点管理
@@ -303,7 +304,7 @@ const char *formula_parser_get_last_error(void);
  *
  * @param[in] node 要销毁的 AST 节点
  */
-void formula_node_destroy(FormulaNode *node);
+lv_PUBLIC_API void formula_node_destroy(FormulaNode *node);
 
 /**
  * @brief 增加 AST 节点引用计数
@@ -314,7 +315,7 @@ void formula_node_destroy(FormulaNode *node);
  * @param[in] node AST节点指针（不能为NULL）
  * @return 增加后的引用计数值
  */
-int formula_node_ref(FormulaNode *node);
+lv_PUBLIC_API int formula_node_ref(FormulaNode *node);
 
 /**
  * @brief 获取 AST 节点当前引用计数
@@ -322,7 +323,7 @@ int formula_node_ref(FormulaNode *node);
  * @param[in] node AST节点指针
  * @return 当前引用计数，node为NULL时返回0
  */
-int formula_node_refcount(const FormulaNode *node);
+lv_PUBLIC_API int formula_node_refcount(const FormulaNode *node);
 
 /**
  * @brief 深拷贝 AST 节点
@@ -497,7 +498,7 @@ FormulaNode *formula_create_compound(FormulaNode **statements, int count);
  * @param[in] statement 要添加的语句
  * @return 成功返回 0，失败返回 -1
  */
-int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement);
+lv_PUBLIC_API int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement);
 
 /* ============================================================
  * 解析器内部辅助函数 —— 跨编译单元共享
@@ -507,35 +508,35 @@ int formula_compound_add_statement(FormulaNode *compound, FormulaNode *statement
  * ============================================================ */
 
 /** @brief 跳过空白字符和注释 */
-void formula_skip_whitespace(ParserContext *ctx);
+lv_PUBLIC_API void formula_skip_whitespace(ParserContext *ctx);
 /** @brief 查看当前字符（不消费） */
-char formula_peek(ParserContext *ctx);
+lv_PUBLIC_API char formula_peek(ParserContext *ctx);
 /** @brief 查看下一个字符（不消费） */
-char formula_peek_next(ParserContext *ctx);
+lv_PUBLIC_API char formula_peek_next(ParserContext *ctx);
 /** @brief 消费当前字符 */
-char formula_consume(ParserContext *ctx);
+lv_PUBLIC_API char formula_consume(ParserContext *ctx);
 /** @brief 期望并消费指定字符 */
-bool formula_expect_char(ParserContext *ctx, char c);
+lv_PUBLIC_API bool formula_expect_char(ParserContext *ctx, char c);
 /** @brief 设置解析错误信息 */
-void formula_set_error(ParserContext *ctx, const char *msg);
+lv_PUBLIC_API void formula_set_error(ParserContext *ctx, const char *msg);
 /** @brief 检查是否到达输入末尾 */
-bool formula_is_at_end(ParserContext *ctx);
+lv_PUBLIC_API bool formula_is_at_end(ParserContext *ctx);
 /** @brief 检查字符是否为字母或下划线 */
-bool formula_is_alpha(char c);
+lv_PUBLIC_API bool formula_is_alpha(char c);
 /** @brief 检查字符是否为字母、数字或下划线 */
-bool formula_is_alnum(char c);
+lv_PUBLIC_API bool formula_is_alnum(char c);
 /** @brief 检查字符是否为十进制数字 */
-bool formula_is_digit(char c);
+lv_PUBLIC_API bool formula_is_digit(char c);
 /** @brief 检查当前位置是否匹配字符串（不消费） */
-bool formula_match_string(ParserContext *ctx, const char *str);
+lv_PUBLIC_API bool formula_match_string(ParserContext *ctx, const char *str);
 /** @brief 匹配并消费字符串 */
-bool formula_match_and_consume(ParserContext *ctx, const char *str);
+lv_PUBLIC_API bool formula_match_and_consume(ParserContext *ctx, const char *str);
 /** @brief 跟踪节点（设置行列号、引用计数） */
 FormulaNode *formula_track_node(ParserContext *ctx, FormulaNode *node);
 /** @brief 解析数字字面量 */
 FormulaNode *formula_parse_number(ParserContext *ctx);
 /** @brief 解析标识符字符串 */
-char *formula_parse_identifier_str(ParserContext *ctx);
+lv_PUBLIC_API char *formula_parse_identifier_str(ParserContext *ctx);
 
 /** @brief 数学函数分发表条目（formula_dsl / formula_python 共享，替代两处重复 typedef） */
 typedef struct {

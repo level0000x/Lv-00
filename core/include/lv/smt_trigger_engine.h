@@ -13,6 +13,7 @@
 #ifndef lv_SMT_TRIGGER_ENGINE_H
 #define lv_SMT_TRIGGER_ENGINE_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -49,16 +50,16 @@ typedef struct {
 
 lvTriggerEngine *trigger_engine_create(int initial_trigger_count, int initial_cache_size, int max_instances);
 
-void trigger_engine_destroy(lvTriggerEngine *engine);
+lv_PUBLIC_API void trigger_engine_destroy(lvTriggerEngine *engine);
 
-int trigger_engine_add_pattern(lvTriggerEngine *engine, const int *pattern_ids, int pattern_size, double weight);
+lv_PUBLIC_API int trigger_engine_add_pattern(lvTriggerEngine *engine, const int *pattern_ids, int pattern_size, double weight);
 
 bool trigger_engine_find_matches(lvTriggerEngine *engine, int quantifier_id, const void *ground_term,
                                  uint64_t term_hash, int *match_count);
 
-void trigger_engine_clear_cache(lvTriggerEngine *engine);
+lv_PUBLIC_API void trigger_engine_clear_cache(lvTriggerEngine *engine);
 
-int trigger_engine_get_instantiation_count(const lvTriggerEngine *engine);
+lv_PUBLIC_API int trigger_engine_get_instantiation_count(const lvTriggerEngine *engine);
 
 #ifdef __cplusplus
 }

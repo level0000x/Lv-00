@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -201,7 +202,7 @@ AlgebraicGeom *algebra_create(lvPlane plane, const char *name);
  *
  * @param geom 代数几何体（可为 NULL）
  */
-void algebra_destroy(AlgebraicGeom *geom);
+lv_PUBLIC_API void algebra_destroy(AlgebraicGeom *geom);
 /* ---- 点构造 ---- */
 /**
  * @brief 在指定坐标创建点
@@ -363,7 +364,7 @@ lvSelector *algebra_selector_create(lvSelectorType type, const char *expr);
  *
  * @param sel 选择器（可为 NULL）
  */
-void algebra_selector_destroy(lvSelector *sel);
+lv_PUBLIC_API void algebra_selector_destroy(lvSelector *sel);
 /**
  * @brief 向复合选择器（COMPOSITE）添加子选择器
  *
@@ -376,7 +377,7 @@ void algebra_selector_destroy(lvSelector *sel);
  * @param child  子选择器（所有权转移给 parent，parent 销毁时一并释放）
  * @return 成功返回 0，失败返回非零（NULL 参数 / parent 非复合 / 扩容失败）
  */
-int algebra_selector_add_child(lvSelector *parent, lvSelector *child);
+lv_PUBLIC_API int algebra_selector_add_child(lvSelector *parent, lvSelector *child);
 /**
  * @brief 选择满足条件的子实体
  *
@@ -439,7 +440,7 @@ AlgebraOpResult algebra_get_status(const AlgebraicGeom *geom);
  * @param geom 代数几何体
  * @return 实体 ID，未创建时返回 -1
  */
-int algebra_get_current_entity(const AlgebraicGeom *geom);
+lv_PUBLIC_API int algebra_get_current_entity(const AlgebraicGeom *geom);
 /* ---- Undo/Redo ---- */
 /**
  * @brief 撤销上一次操作
@@ -467,7 +468,7 @@ AlgebraicGeom *algebra_redo(AlgebraicGeom *geom);
  * @param geom 代数几何体
  * @return 快照索引（>=0），失败返回 -1
  */
-int algebra_snapshot(AlgebraicGeom *geom);
+lv_PUBLIC_API int algebra_snapshot(AlgebraicGeom *geom);
 /**
  * @brief 恢复到指定快照
  *

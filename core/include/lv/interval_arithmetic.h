@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -46,20 +47,20 @@ lvInterval interval_intersect(lvInterval a, lvInterval b);
 lvInterval interval_union(lvInterval a, lvInterval b);
 
 /* ── Queries ── */
-double interval_diam(lvInterval a);
-double interval_mid(lvInterval a);
-int interval_is_empty(lvInterval a);
-int interval_contains(lvInterval a, double val);
-int interval_is_subset(lvInterval a, lvInterval b);
-int interval_equals(lvInterval a, lvInterval b);
+lv_PUBLIC_API double interval_diam(lvInterval a);
+lv_PUBLIC_API double interval_mid(lvInterval a);
+lv_PUBLIC_API int interval_is_empty(lvInterval a);
+lv_PUBLIC_API int interval_contains(lvInterval a, double val);
+lv_PUBLIC_API int interval_is_subset(lvInterval a, lvInterval b);
+lv_PUBLIC_API int interval_equals(lvInterval a, lvInterval b);
 
 /* ── Symbolic / string ── */
 lvInterval interval_from_symbolic(const char *expr_str, const char **var_names, const lvInterval *var_intervals,
                                   int var_count);
-int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size);
+lv_PUBLIC_API int interval_to_symbolic(lvInterval a, char *buf, size_t buf_size);
 
 /* ── Verification ── */
-int interval_verify_solution(lvInterval f_interval, double tolerance);
+lv_PUBLIC_API int interval_verify_solution(lvInterval f_interval, double tolerance);
 int interval_verify_adaptive(const char *expr_str, const char **var_names, lvInterval *var_intervals, int var_count,
                              int max_depth, double tolerance);
 

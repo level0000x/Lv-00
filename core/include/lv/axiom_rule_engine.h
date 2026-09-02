@@ -23,6 +23,7 @@ extern "C" {
 
 #include "constraint_graph.h"
 #include "proof.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 /* ============== 配置常量 ============== */
 /** 规则名称最大长度 */
 #define lv_RULE_NAME_MAX_LEN 128
@@ -235,21 +236,21 @@ lvRuleLibrary *lv_rule_library_create(const lvRuleLibraryConfig *config);
  * @brief 销毁规则库
  * @param library 规则库指针
  */
-void lv_rule_library_destroy(lvRuleLibrary *library);
+lv_PUBLIC_API void lv_rule_library_destroy(lvRuleLibrary *library);
 /**
  * @brief 添加规则到规则库
  * @param library 规则库
  * @param rule 规则
  * @return 是否成功
  */
-bool lv_rule_library_add(lvRuleLibrary *library, lvRule *rule);
+lv_PUBLIC_API bool lv_rule_library_add(lvRuleLibrary *library, lvRule *rule);
 /**
  * @brief 从规则库移除规则
  * @param library 规则库
  * @param rule_id 规则 ID
  * @return 是否成功
  */
-bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id);
+lv_PUBLIC_API bool lv_rule_library_remove(lvRuleLibrary *library, uint32_t rule_id);
 /**
  * @brief 根据 ID 获取规则
  * @param library 规则库
@@ -307,7 +308,7 @@ lvRule *lv_rule_create(const char *name, lvRuleType type);
  * @brief 销毁规则
  * @param rule 规则指针
  */
-void lv_rule_destroy(lvRule *rule);
+lv_PUBLIC_API void lv_rule_destroy(lvRule *rule);
 /**
  * @brief 复制规则
  * @param rule 源规则
@@ -320,7 +321,7 @@ lvRule *lv_rule_copy(const lvRule *rule);
  * @param description 描述
  * @return 是否成功
  */
-bool lv_rule_set_description(lvRule *rule, const char *description);
+lv_PUBLIC_API bool lv_rule_set_description(lvRule *rule, const char *description);
 /**
  * @brief 添加变量
  * @param rule 规则
@@ -328,7 +329,7 @@ bool lv_rule_set_description(lvRule *rule, const char *description);
  * @param type 类型约束
  * @return 是否成功
  */
-bool lv_rule_add_variable(lvRule *rule, const char *name, const char *type);
+lv_PUBLIC_API bool lv_rule_add_variable(lvRule *rule, const char *name, const char *type);
 /**
  * @brief 添加前提
  * @param rule 规则
@@ -336,7 +337,7 @@ bool lv_rule_add_variable(lvRule *rule, const char *name, const char *type);
  * @param is_optional 是否可选
  * @return 是否成功
  */
-bool lv_rule_add_premise(lvRule *rule, const char *pattern, bool is_optional);
+lv_PUBLIC_API bool lv_rule_add_premise(lvRule *rule, const char *pattern, bool is_optional);
 /**
  * @brief 添加结论
  * @param rule 规则
@@ -344,26 +345,26 @@ bool lv_rule_add_premise(lvRule *rule, const char *pattern, bool is_optional);
  * @param trust_color 信任颜色
  * @return 是否成功
  */
-bool lv_rule_add_conclusion(lvRule *rule, const char *pattern, TrustColor trust_color);
+lv_PUBLIC_API bool lv_rule_add_conclusion(lvRule *rule, const char *pattern, TrustColor trust_color);
 /**
  * @brief 添加标签
  * @param rule 规则
  * @param tag 标签
  * @return 是否成功
  */
-bool lv_rule_add_tag(lvRule *rule, const char *tag);
+lv_PUBLIC_API bool lv_rule_add_tag(lvRule *rule, const char *tag);
 /**
  * @brief 设置规则优先级
  * @param rule 规则
  * @param priority 优先级
  */
-void lv_rule_set_priority(lvRule *rule, lvRulePriority priority);
+lv_PUBLIC_API void lv_rule_set_priority(lvRule *rule, lvRulePriority priority);
 /**
  * @brief 设置规则状态
  * @param rule 规则
  * @param status 状态
  */
-void lv_rule_set_status(lvRule *rule, lvRuleStatus status);
+lv_PUBLIC_API void lv_rule_set_status(lvRule *rule, lvRuleStatus status);
 /* ============== 难度评估 ============== */
 /**
  * @brief 评估规则难度
@@ -375,7 +376,7 @@ lvDifficultyAssessment *lv_rule_assess_difficulty(const lvRule *rule);
  * @brief 销毁难度评估结果
  * @param assessment 评估结果
  */
-void lv_difficulty_assessment_destroy(lvDifficultyAssessment *assessment);
+lv_PUBLIC_API void lv_difficulty_assessment_destroy(lvDifficultyAssessment *assessment);
 /**
  * @brief 评估证明步骤难度
  * @param step 证明步骤
@@ -394,13 +395,13 @@ lvDifficultyAssessment *lv_proposition_assess_difficulty(const Proposition *prop
  * @param level 难度等级 (1-10)
  * @return 描述字符串
  */
-const char *lv_difficulty_level_to_string(uint32_t level);
+lv_PUBLIC_API const char *lv_difficulty_level_to_string(uint32_t level);
 /**
  * @brief 获取难度维度名称
  * @param dimension 维度
  * @return 名称字符串
  */
-const char *lv_difficulty_dimension_to_string(lvDifficultyDimension dimension);
+lv_PUBLIC_API const char *lv_difficulty_dimension_to_string(lvDifficultyDimension dimension);
 /* ============== 规则匹配 ============== */
 /**
  * @brief 在约束图中查找匹配的规则
@@ -428,7 +429,7 @@ uint32_t lv_rule_apply_match(const lvRuleMatch *match, ConstraintGraph *graph, P
  * @brief 销毁规则匹配
  * @param match 匹配指针
  */
-void lv_rule_match_destroy(lvRuleMatch *match);
+lv_PUBLIC_API void lv_rule_match_destroy(lvRuleMatch *match);
 /**
  * @brief 检查规则是否适用于约束图
  * @param rule 规则
@@ -436,7 +437,7 @@ void lv_rule_match_destroy(lvRuleMatch *match);
  * @param context 证明上下文
  * @return 是否适用
  */
-bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, const ProofNavigator *context);
+lv_PUBLIC_API bool lv_rule_is_applicable(const lvRule *rule, const ConstraintGraph *graph, const ProofNavigator *context);
 /* ============== 规则推荐 ============== */
 /**
  * @brief 规则推荐结果
@@ -461,14 +462,14 @@ lvRuleRecommendation *lv_rule_recommend(const lvRuleLibrary *library, const Cons
  * @brief 销毁规则推荐
  * @param rec 推荐指针
  */
-void lv_rule_recommendation_destroy(lvRuleRecommendation *rec);
+lv_PUBLIC_API void lv_rule_recommendation_destroy(lvRuleRecommendation *rec);
 /* ============== 规则序列化 ============== */
 /**
  * @brief 规则序列化为 JSON
  * @param rule 规则
  * @return JSON 字符串
  */
-char *lv_rule_to_json(const lvRule *rule);
+lv_PUBLIC_API char *lv_rule_to_json(const lvRule *rule);
 /**
  * @brief 从 JSON 解析规则
  * @param json JSON 字符串

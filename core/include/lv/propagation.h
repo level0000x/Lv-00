@@ -41,6 +41,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -64,9 +65,9 @@ extern "C" {
 #define PROP_ENTROPY_UNBOUNDED (-1.0)
 
 // Config defaults — values read from runtime lvConfig:
-int propagation_default_max_iterations(void);
-int propagation_default_max_backtracks(void);
-int propagation_wfc_max_collaboration_iterations(void);
+lv_PUBLIC_API int propagation_default_max_iterations(void);
+lv_PUBLIC_API int propagation_default_max_backtracks(void);
+lv_PUBLIC_API int propagation_wfc_max_collaboration_iterations(void);
 /* ================================================================
  * 枚举类型
  * ================================================================ */
@@ -184,7 +185,7 @@ PropagationContext *propagation_context_create(ConstraintGraph *graph);
  *
  * @param ctx  传播上下文
  */
-void propagation_context_destroy(PropagationContext *ctx);
+lv_PUBLIC_API void propagation_context_destroy(PropagationContext *ctx);
 /* ================================================================
  * 状态空间初始化
  * ================================================================ */
@@ -224,7 +225,7 @@ NodeStateSpace *propagation_get_state_space(PropagationContext *ctx, int node_id
  * @param constraint_id   约束 ID
  * @return true = 状态空间被收缩（有值被移除），false = 无变化
  */
-bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
+lv_PUBLIC_API bool propagation_arc_reduce(PropagationContext *ctx, int constraint_id);
 /**
  * @brief 运行 AC-3 约束传播
  *
@@ -252,14 +253,14 @@ PropagationResult propagation_run(PropagationContext *ctx);
  * @param ctx  传播上下文
  * @return 节点 ID，无候选时返回 -1
  */
-int propagation_select_node(PropagationContext *ctx);
+lv_PUBLIC_API int propagation_select_node(PropagationContext *ctx);
 /**
  * @brief 计算节点的熵
  *
  * @param state  节点状态空间
  * @return 熵值（log2），unbounded 返回 PROP_ENTROPY_UNBOUNDED
  */
-double propagation_compute_entropy(const NodeStateSpace *state);
+lv_PUBLIC_API double propagation_compute_entropy(const NodeStateSpace *state);
 /**
  * @brief 坍缩节点状态
  *
@@ -272,7 +273,7 @@ double propagation_compute_entropy(const NodeStateSpace *state);
  * @param node_id  要坍缩的节点 ID
  * @return true = 成功坍缩, false = 状态空间为空或已坍缩
  */
-bool propagation_collapse(PropagationContext *ctx, int node_id);
+lv_PUBLIC_API bool propagation_collapse(PropagationContext *ctx, int node_id);
 /* ================================================================
  * 完整 WFC 求解循环
  * ================================================================ */
@@ -310,13 +311,13 @@ PropagationSnapshot *propagation_snapshot_save(PropagationContext *ctx);
  * @param ctx   传播上下文
  * @param snap  要恢复的快照（所有权转移，调用后不可再使用）
  */
-void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *snap);
+lv_PUBLIC_API void propagation_snapshot_restore(PropagationContext *ctx, PropagationSnapshot *snap);
 /**
  * @brief 销毁快照
  *
  * @param snap  要销毁的快照
  */
-void propagation_snapshot_destroy(PropagationSnapshot *snap);
+lv_PUBLIC_API void propagation_snapshot_destroy(PropagationSnapshot *snap);
 /* ================================================================
  * 配置
  * ================================================================ */
@@ -325,31 +326,31 @@ void propagation_snapshot_destroy(PropagationSnapshot *snap);
  * @param ctx       传播上下文
  * @param strategy  传播策略
  */
-void propagation_set_strategy(PropagationContext *ctx, PropagationStrategy strategy);
+lv_PUBLIC_API void propagation_set_strategy(PropagationContext *ctx, PropagationStrategy strategy);
 /**
  * @brief 设置坍缩策略
  * @param ctx       传播上下文
  * @param strategy  坍缩策略
  */
-void propagation_set_collapse_strategy(PropagationContext *ctx, CollapseStrategy strategy);
+lv_PUBLIC_API void propagation_set_collapse_strategy(PropagationContext *ctx, CollapseStrategy strategy);
 /**
  * @brief 设置流式输出上下文
  * @param ctx  传播上下文
  * @param stream_ctx  流式上下文（可为 NULL 以禁用）
  */
-void propagation_set_stream_context(PropagationContext *ctx, StreamContext *stream_ctx);
+lv_PUBLIC_API void propagation_set_stream_context(PropagationContext *ctx, StreamContext *stream_ctx);
 /**
  * @brief 设置最大迭代次数
  * @param ctx           传播上下文
  * @param max_iterations  最大迭代次数
  */
-void propagation_set_max_iterations(PropagationContext *ctx, int max_iterations);
+lv_PUBLIC_API void propagation_set_max_iterations(PropagationContext *ctx, int max_iterations);
 /**
  * @brief 设置最大回溯次数
  * @param ctx            传播上下文
  * @param max_backtracks  最大回溯次数
  */
-void propagation_set_max_backtracks(PropagationContext *ctx, int max_backtracks);
+lv_PUBLIC_API void propagation_set_max_backtracks(PropagationContext *ctx, int max_backtracks);
 /* ================================================================
  * 诊断与查询
  * ================================================================ */
@@ -369,13 +370,13 @@ void propagation_get_statistics(const PropagationContext *ctx, int64_t *out_step
  * @param ctx  传播上下文
  * @return 未坍缩且非 unbounded 的节点数量
  */
-int propagation_count_uncollapsed(const PropagationContext *ctx);
+lv_PUBLIC_API int propagation_count_uncollapsed(const PropagationContext *ctx);
 /**
  * @brief 检查传播结果是否为 SATISFIED
  * @param ctx  传播上下文
  * @return true = 所有节点已坍缩
  */
-bool propagation_is_fully_collapsed(const PropagationContext *ctx);
+lv_PUBLIC_API bool propagation_is_fully_collapsed(const PropagationContext *ctx);
 #ifdef __cplusplus
 }
 #endif

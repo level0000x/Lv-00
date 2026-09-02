@@ -10,6 +10,7 @@
 #ifndef lv_PROP_FORMULA_VISITOR_H
 #define lv_PROP_FORMULA_VISITOR_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/prop_verifier.h"
 
 #ifdef __cplusplus
@@ -42,7 +43,7 @@ typedef struct PropFormulaVisitor {
  * @param visitor  The visitor vtable (may be NULL; silently ignored).
  * @param context  Opaque pointer forwarded to the visitor method.
  */
-void prop_formula_accept(const PropFormula *f, const PropFormulaVisitor *visitor, void *context);
+lv_PUBLIC_API void prop_formula_accept(const PropFormula *f, const PropFormulaVisitor *visitor, void *context);
 
 #ifdef __cplusplus
 }

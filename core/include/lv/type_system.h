@@ -34,6 +34,7 @@
 #include "constraint_graph.h"
 #include "stream.h"
 #include "lv/lv_xmacro.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明：RewriteRule 完整定义在 rewrite.h（L4 rewrite 域）。
  * 仅指针数组引用（rewrite_rules 字段），打破 type_system.h → rewrite.h
@@ -219,7 +220,7 @@ TypeRegion *type_region_deep_copy(const TypeRegion *src);
  * @brief 释放 type_region_deep_copy 产生的类型区域（递归释放子类型与字符串）
  * @param tr 要释放的类型区域
  */
-void type_region_deep_free(TypeRegion *tr);
+lv_PUBLIC_API void type_region_deep_free(TypeRegion *tr);
 
 /**
  * @brief 遍历 TypeRegion 的全部子类型节点字段
@@ -513,7 +514,7 @@ lv_PUBLIC_API TypeRegion *type_predicate_subtype_get_base(TypeRegion *subtype);
  */
 lv_PUBLIC_API void type_region_destroy(TypeRegion *tr);
 
-void type_region_deep_free(TypeRegion *tr);
+lv_PUBLIC_API void type_region_deep_free(TypeRegion *tr);
 /**
  * 添加类型别名
  */

@@ -1,6 +1,7 @@
 #ifndef lv_STREAM_CONTEXT_UTIL_H
 #define lv_STREAM_CONTEXT_UTIL_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "stream.h"
 
 #ifdef __cplusplus
@@ -9,7 +10,7 @@ extern "C" {
 
 typedef void (*StreamContextSetter)(StreamContext *ctx);
 
-void stream_context_register_setter(StreamContextSetter setter);
+lv_PUBLIC_API void stream_context_register_setter(StreamContextSetter setter);
 
 /* ═══════════════════════════════════════════════════════════════════
  * LV_STREAM_CTX_DECLARE / LV_STREAM_CTX_DEFINE —— 模块流上下文三件套宏
@@ -63,7 +64,7 @@ void stream_context_register_setter(StreamContextSetter setter);
  * @param fmt         printf 风格格式串
  * @param ...         格式化参数
  */
-void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...);
+lv_PUBLIC_API void stream_emit_fmt(StreamContext *ctx, StreamEventType type, int step_number, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

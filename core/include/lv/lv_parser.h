@@ -1,6 +1,7 @@
 #ifndef LV_PARSER_H
 #define LV_PARSER_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_ast.h"
 #include "lv/lv_lexer.h"
 
@@ -22,7 +23,7 @@ typedef struct {
 } LvParseResult;
 
 LvParser *lv_parser_create(LvLexer *lexer);
-void lv_parser_destroy(LvParser *parser);
+lv_PUBLIC_API void lv_parser_destroy(LvParser *parser);
 LvParseResult lv_parser_parse_program(LvParser *parser);
 
 #ifdef __cplusplus

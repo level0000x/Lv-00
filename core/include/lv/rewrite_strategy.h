@@ -1,6 +1,7 @@
 ﻿#ifndef lv_REWRITE_STRATEGY_H
 #define lv_REWRITE_STRATEGY_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -82,22 +83,22 @@ typedef struct lvRewriteContext {
 lvRewriteEngineEx *rewrite_engine_ex_create(lvRewriteStrategyType strategy, int max_iterations);
 
 /** 销毁重写引擎（NULL 安全） */
-void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine);
+lv_PUBLIC_API void rewrite_engine_ex_destroy(lvRewriteEngineEx *engine);
 
 /** 添加重写规则（按优先级排序） */
 bool rewrite_engine_ex_add_rule(lvRewriteEngineEx *engine, const char *name, const char *pattern,
                                 const char *replacement, int priority, lvRewriteConditionFn condition);
 
 /** 执行重写引擎 */
-bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result);
+lv_PUBLIC_API bool rewrite_engine_ex_apply(lvRewriteEngineEx *engine, const char *input, lvRewriteResultEx *result);
 
 /** 销毁重写结果（NULL 安全） */
-void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result);
+lv_PUBLIC_API void rewrite_engine_result_ex_destroy(lvRewriteResultEx *result);
 
 /* ============== 函数声明 ============== */
 
 /** 应用重写策略 */
-int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strategy);
+lv_PUBLIC_API int lv_rewrite_apply_strategy(lvRewriteContext *ctx, lvRewriteStrategyType strategy);
 
 #ifdef __cplusplus
 }

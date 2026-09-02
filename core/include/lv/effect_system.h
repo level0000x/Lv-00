@@ -1,6 +1,7 @@
 #ifndef lv_EFFECT_SYSTEM_H
 #define lv_EFFECT_SYSTEM_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_utils.h"
 #include "lv/io_blocks.h"
 
@@ -42,13 +43,13 @@ lvEffectTracker *lv_effect_tracker_create(void);
  * @brief 销毁副作用追踪器并释放所有资源
  * @param tracker 指向待销毁的副作用追踪器的指针
  */
-void lv_effect_tracker_destroy(lvEffectTracker *tracker);
+lv_PUBLIC_API void lv_effect_tracker_destroy(lvEffectTracker *tracker);
 
 /**
  * @brief 重置副作用追踪器，清空所有已记录的副作用日志
  * @param tracker 指向待重置的副作用追踪器的指针
  */
-void lv_effect_tracker_reset(lvEffectTracker *tracker);
+lv_PUBLIC_API void lv_effect_tracker_reset(lvEffectTracker *tracker);
 
 /* Recording */
 
@@ -59,7 +60,7 @@ void lv_effect_tracker_reset(lvEffectTracker *tracker);
  * @param block_id 关联的代码块 ID
  * @param desc 副作用描述信息
  */
-void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int block_id, const char *desc);
+lv_PUBLIC_API void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int block_id, const char *desc);
 
 /* Query */
 
@@ -69,21 +70,21 @@ void lv_effect_tracker_record(lvEffectTracker *tracker, lvEffectType effect, int
  * @param effect 要查询的副作用类型
  * @return 非零表示存在该副作用，0 表示不存在
  */
-int lv_effect_tracker_has_effect(const lvEffectTracker *tracker, lvEffectType effect);
+lv_PUBLIC_API int lv_effect_tracker_has_effect(const lvEffectTracker *tracker, lvEffectType effect);
 
 /**
  * @brief 检查追踪器是否处于纯净状态（无副作用记录）
  * @param tracker 指向副作用追踪器的指针
  * @return 非零表示纯净无副作用，0 表示存在副作用
  */
-int lv_effect_tracker_is_pure(const lvEffectTracker *tracker);
+lv_PUBLIC_API int lv_effect_tracker_is_pure(const lvEffectTracker *tracker);
 
 /**
  * @brief 获取当前追踪器中的组合副作用注解
  * @param tracker 指向副作用追踪器的指针
  * @return 返回当前组合副作用注解的常量指针，无副作用时返回 NULL
  */
-const lvEffectAnnotation *lv_effect_tracker_current(const lvEffectTracker *tracker);
+lv_PUBLIC_API const lvEffectAnnotation *lv_effect_tracker_current(const lvEffectTracker *tracker);
 
 /* Effect composition */
 
@@ -99,7 +100,7 @@ lvEffectAnnotation *lv_effect_compose(const lvEffectAnnotation *a, const lvEffec
  * @brief 销毁副作用注解并释放资源
  * @param ann 指向待销毁的副作用注解的指针
  */
-void lv_effect_annotation_destroy(lvEffectAnnotation *ann);
+lv_PUBLIC_API void lv_effect_annotation_destroy(lvEffectAnnotation *ann);
 
 /* Effect checking rules */
 
@@ -108,7 +109,7 @@ void lv_effect_annotation_destroy(lvEffectAnnotation *ann);
  * @param tracker 指向副作用追踪器的指针
  * @return 非零表示几何操作纯净，0 表示存在副作用
  */
-int lv_effect_check_geometry_pure(const lvEffectTracker *tracker);
+lv_PUBLIC_API int lv_effect_check_geometry_pure(const lvEffectTracker *tracker);
 
 #ifdef __cplusplus
 }

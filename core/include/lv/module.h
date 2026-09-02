@@ -39,6 +39,7 @@ extern "C" {
 
 #include "axiom_pkg.h"
 #include "lv_utils.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* MAX_MODULE_DEPTH —— 权威定义在 symbolic_coord.h 中
  * 此处使用 #ifndef 守卫防止重复定义。若需修改此值，请修改

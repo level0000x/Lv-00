@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,7 +39,7 @@ typedef enum {
  * @param fmt    printf 风格格式字符串
  * @param ...    可变参数
  */
-void lv_log(lvLogLevel level, const char *fmt, ...);
+lv_PUBLIC_API void lv_log(lvLogLevel level, const char *fmt, ...);
 
 /**
  * @brief 获取当前日志级别
@@ -57,20 +58,20 @@ lvLogLevel lv_log_get_level(void);
  * @note 此函数由运行时监控日志子系统（runtime_monitor.c）实现，
  *       声明集中放置于本日志头文件，与 lv_log_init() 配对使用。
  */
-void lv_log_shutdown(void);
-void lv_log_set_output(FILE *fp);
+lv_PUBLIC_API void lv_log_shutdown(void);
+lv_PUBLIC_API void lv_log_set_output(FILE *fp);
 
 /**
  * @brief 启用/禁用日志时间戳前缀
  * @param enable  true = 开启，false = 关闭（默认 false）
  */
-void lv_log_enable_timestamp(bool enable);
+lv_PUBLIC_API void lv_log_enable_timestamp(bool enable);
 
 /**
  * @brief 启用/禁用日志源位置（file:line function）前缀
  * @param enable  true = 开启，false = 关闭（默认 false）
  */
-void lv_log_enable_source(bool enable);
+lv_PUBLIC_API void lv_log_enable_source(bool enable);
 
 /** @cond 内部宏辅助 */
 #if defined(__GNUC__) || defined(__clang__)

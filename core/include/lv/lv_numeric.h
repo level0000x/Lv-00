@@ -26,6 +26,7 @@ extern "C" {
 #include <gmp.h>
 
 #include "config.h" /* lv_PI / lv_TWO_PI / lv_HALF_PI / lv_QUARTER_PI 权威源（W2 单源化） */
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifndef lv_PUBLIC_API
 #define lv_PUBLIC_API

@@ -1,6 +1,7 @@
 #ifndef lv_SOLVER_TYPES_H
 #define lv_SOLVER_TYPES_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/cross_platform.h"
 #include "lv/lv_utils.h"
 #include "lv/stream.h"
@@ -35,13 +36,13 @@ typedef struct EquationSystem {
 } EquationSystem;
 
 /** @brief 初始化方程系统 */
-void equation_system_init(EquationSystem *sys);
+lv_PUBLIC_API void equation_system_init(EquationSystem *sys);
 
 /** @brief 向方程系统添加一个方程 */
-int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
+lv_PUBLIC_API int equation_system_push(EquationSystem *sys, mpz_poly_t poly, int var_node_id, int coord_index);
 
 /** @brief 清空方程系统（释放所有方程资源） */
-void equation_system_clear(EquationSystem *sys);
+lv_PUBLIC_API void equation_system_clear(EquationSystem *sys);
 
 /** @brief push 方程，失败时设置 OOM 错误并返回非零
  *          （原 EQUATION_PUSH_OR_GOTO 宏函数化；调用点通过返回值分支保持 goto label 语义） */

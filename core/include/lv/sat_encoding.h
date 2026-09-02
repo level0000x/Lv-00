@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -196,20 +197,20 @@ struct SatModel {
 
 /* ── API ── */
 SatEncoding *sat_encoding_create(int initial_var_capacity, int initial_clause_capacity);
-void sat_encoding_destroy(SatEncoding *enc);
+lv_PUBLIC_API void sat_encoding_destroy(SatEncoding *enc);
 
-int sat_encoding_register_var(SatEncoding *enc, int arity, const int *atom_ids);
-int sat_encoding_lookup_var(const SatEncoding *enc, int arity, const int *atom_ids);
-int sat_encoding_add_clause(SatEncoding *enc, const SatLiteral *literals, int count);
-int sat_encoding_add_assumption(SatEncoding *enc, SatLiteral literal);
+lv_PUBLIC_API int sat_encoding_register_var(SatEncoding *enc, int arity, const int *atom_ids);
+lv_PUBLIC_API int sat_encoding_lookup_var(const SatEncoding *enc, int arity, const int *atom_ids);
+lv_PUBLIC_API int sat_encoding_add_clause(SatEncoding *enc, const SatLiteral *literals, int count);
+lv_PUBLIC_API int sat_encoding_add_assumption(SatEncoding *enc, SatLiteral literal);
 
-int sat_encode_collinearity(SatEncoding *enc, int p1, int p2, int p3);
-int sat_encode_parallelism(SatEncoding *enc, int p1, int p2, int p3, int p4);
-int sat_encode_perpendicularity(SatEncoding *enc, int p1, int p2, int p3, int p4);
-int sat_encode_distance_eq(SatEncoding *enc, int p1, int p2, int p3, int p4);
-int sat_encode_angle_eq(SatEncoding *enc, int p1, int p2, int p3, int p4, int p5, int p6);
-int sat_encode_containment(SatEncoding *enc, int p_id, int r_id);
-int sat_encode_constraint(SatEncoding *enc, int constraint_id);
+lv_PUBLIC_API int sat_encode_collinearity(SatEncoding *enc, int p1, int p2, int p3);
+lv_PUBLIC_API int sat_encode_parallelism(SatEncoding *enc, int p1, int p2, int p3, int p4);
+lv_PUBLIC_API int sat_encode_perpendicularity(SatEncoding *enc, int p1, int p2, int p3, int p4);
+lv_PUBLIC_API int sat_encode_distance_eq(SatEncoding *enc, int p1, int p2, int p3, int p4);
+lv_PUBLIC_API int sat_encode_angle_eq(SatEncoding *enc, int p1, int p2, int p3, int p4, int p5, int p6);
+lv_PUBLIC_API int sat_encode_containment(SatEncoding *enc, int p_id, int r_id);
+lv_PUBLIC_API int sat_encode_constraint(SatEncoding *enc, int constraint_id);
 
 SatResult constraint_graph_to_sat(const ConstraintGraph *graph, SatEncoding *enc);
 SatResult relation_model_to_sat(const RelModel *model, const SmallScopeConfig *scope, SatEncoding *enc);
@@ -220,11 +221,11 @@ SatResult sat_solve_incremental(SatEncoding *enc, const SatLiteral *literals, in
 ConstraintGraph *sat_model_to_graph(const SatModel *model);
 RelInstance *sat_model_to_instance(const SatEncoding *enc, const SatModel *model);
 
-void sat_model_destroy(SatModel *model);
-void relation_instance_destroy(RelInstance *inst);
-int *sat_get_unsat_core(const SatEncoding *enc, int *out_count);
-bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath);
-void sat_encoding_get_stats(const SatEncoding *enc, int *out_vars, int *out_clauses);
+lv_PUBLIC_API void sat_model_destroy(SatModel *model);
+lv_PUBLIC_API void relation_instance_destroy(RelInstance *inst);
+lv_PUBLIC_API int *sat_get_unsat_core(const SatEncoding *enc, int *out_count);
+lv_PUBLIC_API bool sat_encoding_export_dimacs(const SatEncoding *enc, const char *filepath);
+lv_PUBLIC_API void sat_encoding_get_stats(const SatEncoding *enc, int *out_vars, int *out_clauses);
 
 #ifdef __cplusplus
 }

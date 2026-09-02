@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -82,35 +83,35 @@ struct EquivClassManager {
 
 /* ── API ── */
 EquivClassManager *equiv_manager_create(ConstraintGraph *graph);
-void equiv_manager_destroy(EquivClassManager *mgr);
+lv_PUBLIC_API void equiv_manager_destroy(EquivClassManager *mgr);
 
-int equiv_manager_find(EquivClassManager *mgr, int node_id);
-bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b);
-bool equiv_are_equivalent(const EquivClassManager *mgr, int a, int b);
+lv_PUBLIC_API int equiv_manager_find(EquivClassManager *mgr, int node_id);
+lv_PUBLIC_API bool equiv_manager_are_equivalent(EquivClassManager *mgr, int a, int b);
+lv_PUBLIC_API bool equiv_are_equivalent(const EquivClassManager *mgr, int a, int b);
 EquivMergeResult equiv_merge_classes(EquivClassManager *mgr, int node_a, int node_b, EquivSourceType source,
                                      int constraint_id, TrustColor trust);
 
-int equiv_merge_by_coord(EquivClassManager *mgr);
-int equiv_derive_from_constraints(EquivClassManager *mgr);
-int equiv_merge_algebraic_conjugates(EquivClassManager *mgr);
-int equiv_merge_by_transform(EquivClassManager *mgr);
-bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_b_idx);
-int equiv_merge_all(EquivClassManager *mgr);
-int equiv_find(const EquivClassManager *mgr, int node_id);
-const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id);
-int equiv_class_count(const EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_merge_by_coord(EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_derive_from_constraints(EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_merge_algebraic_conjugates(EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_merge_by_transform(EquivClassManager *mgr);
+lv_PUBLIC_API bool equiv_prove_merge_valid(EquivClassManager *mgr, int class_a_idx, int class_b_idx);
+lv_PUBLIC_API int equiv_merge_all(EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_find(const EquivClassManager *mgr, int node_id);
+lv_PUBLIC_API const EquivClass *equiv_get_class(const EquivClassManager *mgr, int node_id);
+lv_PUBLIC_API int equiv_class_count(const EquivClassManager *mgr);
 void equiv_get_statistics(const EquivClassManager *mgr, int64_t *out_total, int64_t *out_coord, int64_t *out_derive,
                           int64_t *out_conjugate, int64_t *out_transform, int64_t *out_rejected);
 
-int equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
-int equiv_manager_get_representative(EquivClassManager *mgr, int node_id);
-bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
+lv_PUBLIC_API int equiv_manager_get_class_size(EquivClassManager *mgr, int node_id);
+lv_PUBLIC_API int equiv_manager_get_representative(EquivClassManager *mgr, int node_id);
+lv_PUBLIC_API bool equiv_manager_sync_from_graph(EquivClassManager *mgr);
 
 /* Legacy aliases */
 lvEquivClass *lv_equiv_class_create(size_t n_elements);
-void lv_equiv_class_destroy(lvEquivClass *ec);
-int lv_equiv_class_union(lvEquivClass *ec, int a, int b);
-int lv_equiv_class_find(lvEquivClass *ec, int a);
+lv_PUBLIC_API void lv_equiv_class_destroy(lvEquivClass *ec);
+lv_PUBLIC_API int lv_equiv_class_union(lvEquivClass *ec, int a, int b);
+lv_PUBLIC_API int lv_equiv_class_find(lvEquivClass *ec, int a);
 
 #ifdef __cplusplus
 }

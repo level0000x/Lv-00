@@ -37,6 +37,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "constraint_graph.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 /* 前向声明 */
 typedef struct StreamContext StreamContext;
@@ -84,7 +85,7 @@ typedef struct RewriteMatch {
  * 集中替换散落的 lv_free(node_bindings) → lv_free(constraint_bindings) →
  * lv_free(match) 三连释放样板（先例：lv_rule_match_destroy）。
  */
-void rewrite_match_destroy(RewriteMatch *match);
+lv_PUBLIC_API void rewrite_match_destroy(RewriteMatch *match);
 
 /* 前置条件评估回调类型 */
 typedef bool (*RewritePrecondition)(ConstraintGraph *graph, RewriteMatch *match, void *user_data);

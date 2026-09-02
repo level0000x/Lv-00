@@ -18,6 +18,7 @@
  */
 #ifndef lv_MATH_THEORY_GUIDE_CN_H
 #define lv_MATH_THEORY_GUIDE_CN_H
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h> /* size_t */
 #ifdef __cplusplus
@@ -47,7 +48,7 @@ extern "C" {
  *   lv_add_line_segment(engine, p3, p1);
  * @endcode
  */
-void guide_euclidean_geometry_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_euclidean_geometry_cn(char *buf, size_t buf_size);
 /**
  * @brief 解析几何研究接口
  *
@@ -57,7 +58,7 @@ void guide_euclidean_geometry_cn(char *buf, size_t buf_size);
  * - 角度计算
  * - 面积计算
  */
-void guide_analytic_geometry_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_analytic_geometry_cn(char *buf, size_t buf_size);
 /**
  * @brief 射影几何研究接口
  *
@@ -67,7 +68,7 @@ void guide_analytic_geometry_cn(char *buf, size_t buf_size);
  * - 透视对应
  * - 交比计算
  */
-void guide_projective_geometry_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_projective_geometry_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 代数学研究接口
  * ============================================================ */
@@ -81,7 +82,7 @@ void guide_projective_geometry_cn(char *buf, size_t buf_size);
  * - 行列式计算
  * - 线性方程组求解
  */
-void guide_linear_algebra_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_linear_algebra_cn(char *buf, size_t buf_size);
 /**
  * @brief 抽象代数研究接口
  *
@@ -91,7 +92,7 @@ void guide_linear_algebra_cn(char *buf, size_t buf_size);
  * - 域（有限域、扩域）
  * - 模与向量空间
  */
-void guide_abstract_algebra_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_abstract_algebra_cn(char *buf, size_t buf_size);
 /**
  * @brief 数论研究接口
  *
@@ -102,7 +103,7 @@ void guide_abstract_algebra_cn(char *buf, size_t buf_size);
  * - 原根与离散对数
  * - 连分数展开
  */
-void guide_number_theory_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_number_theory_cn(char *buf, size_t buf_size);
 /**
  * @brief 多项式代数研究接口
  *
@@ -113,7 +114,7 @@ void guide_number_theory_cn(char *buf, size_t buf_size);
  * - 多项式结式计算
  * - Groebner基计算
  */
-void guide_polynomial_algebra_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_polynomial_algebra_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 拓扑学研究接口
  * ============================================================ */
@@ -126,7 +127,7 @@ void guide_polynomial_algebra_cn(char *buf, size_t buf_size);
  * - 同胚
  * - 紧致性与连通性
  */
-void guide_point_set_topology_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_point_set_topology_cn(char *buf, size_t buf_size);
 /**
  * @brief 代数拓扑研究接口
  *
@@ -136,7 +137,7 @@ void guide_point_set_topology_cn(char *buf, size_t buf_size);
  * - 同调群
  * - 欧拉示性数
  */
-void guide_algebraic_topology_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_algebraic_topology_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 数理逻辑研究接口
  * ============================================================ */
@@ -149,7 +150,7 @@ void guide_algebraic_topology_cn(char *buf, size_t buf_size);
  * - 永真式判定
  * - 可满足性判定
  */
-void guide_propositional_logic_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_propositional_logic_cn(char *buf, size_t buf_size);
 /**
  * @brief 一阶逻辑研究接口
  *
@@ -159,7 +160,7 @@ void guide_propositional_logic_cn(char *buf, size_t buf_size);
  * - 前束范式转换
  * - Skolem化
  */
-void guide_first_order_logic_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_first_order_logic_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 范畴论研究接口
  * ============================================================ */
@@ -172,7 +173,7 @@ void guide_first_order_logic_cn(char *buf, size_t buf_size);
  * - 函子与自然变换
  * - 米田引理
  */
-void guide_category_theory_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_category_theory_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 同调代数研究接口
  * ============================================================ */
@@ -185,7 +186,7 @@ void guide_category_theory_cn(char *buf, size_t buf_size);
  * - 同调群计算
  * - 短正合列
  */
-void guide_homological_algebra_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_homological_algebra_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 微分几何研究接口
  * ============================================================ */
@@ -198,7 +199,7 @@ void guide_homological_algebra_cn(char *buf, size_t buf_size);
  * - 曲率与挠率
  * - Levi-Civita联络
  */
-void guide_differential_geometry_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API void guide_differential_geometry_cn(char *buf, size_t buf_size);
 /* ============================================================
  * 综合指南
  * ============================================================ */
@@ -209,7 +210,7 @@ void guide_differential_geometry_cn(char *buf, size_t buf_size);
  * @param buf_size 缓冲区大小
  * @return 写入的字符数
  */
-int guide_generate_full_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API int guide_generate_full_cn(char *buf, size_t buf_size);
 /**
  * @brief 生成快速开始指南
  *
@@ -217,7 +218,7 @@ int guide_generate_full_cn(char *buf, size_t buf_size);
  * @param buf_size 缓冲区大小
  * @return 写入的字符数
  */
-int guide_quick_start_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API int guide_quick_start_cn(char *buf, size_t buf_size);
 /**
  * @brief 生成数学符号对照表
  *
@@ -225,7 +226,7 @@ int guide_quick_start_cn(char *buf, size_t buf_size);
  * @param buf_size 缓冲区大小
  * @return 写入的字符数
  */
-int guide_symbol_reference_cn(char *buf, size_t buf_size);
+lv_PUBLIC_API int guide_symbol_reference_cn(char *buf, size_t buf_size);
 /**
  * @brief 获取预设模块的数学定义
  *
@@ -234,7 +235,7 @@ int guide_symbol_reference_cn(char *buf, size_t buf_size);
  * @param buf_size 缓冲区大小
  * @return 写入的字符数，失败返回-1
  */
-int guide_preset_math_definition_cn(const char *preset_name, char *buf, size_t buf_size);
+lv_PUBLIC_API int guide_preset_math_definition_cn(const char *preset_name, char *buf, size_t buf_size);
 #ifdef __cplusplus
 }
 #endif

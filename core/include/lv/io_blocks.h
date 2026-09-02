@@ -1,6 +1,7 @@
 ﻿#ifndef lv_IO_BLOCKS_H
 #define lv_IO_BLOCKS_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/func_block.h"
 
 #ifdef __cplusplus
@@ -62,13 +63,13 @@ typedef struct lvUIEventBlock {
 
 /* Factory */
 lvFileBlock *lv_file_block_create(lvEffectType effect);
-void lv_file_block_destroy(lvFileBlock *block);
+lv_PUBLIC_API void lv_file_block_destroy(lvFileBlock *block);
 
 lvNetworkBlock *lv_network_block_create(void);
-void lv_network_block_destroy(lvNetworkBlock *block);
+lv_PUBLIC_API void lv_network_block_destroy(lvNetworkBlock *block);
 
 lvUIEventBlock *lv_ui_event_block_create(lvEffectType effect);
-void lv_ui_event_block_destroy(lvUIEventBlock *block);
+lv_PUBLIC_API void lv_ui_event_block_destroy(lvUIEventBlock *block);
 
 #ifdef __cplusplus
 }

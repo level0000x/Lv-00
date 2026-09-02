@@ -35,6 +35,7 @@
 #ifndef lv_FLOAT_ERROR_H
 #define lv_FLOAT_ERROR_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "constraint_graph.h"
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for error-analysis double */
 #include "symbolic_coord.h"
@@ -275,7 +276,7 @@ bool fptaylor_evaluate_expr(const char *expr, const FloatInterval *var_bounds, i
  * @param[out] out     输出的误差界
  * @return true 成功，false 失败
  */
-bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out);
+lv_PUBLIC_API bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var_id, const FPTaylorConfig *cfg, ErrorBound *out);
 
 /**
  * @brief 验证误差界是否在安全容差范围内
@@ -325,7 +326,7 @@ FloatInterval interval_make(double lo, double hi, bool is_exact);
  *
  * @param[in,out] bound 误差界
  */
-void error_bound_destroy(ErrorBound *bound);
+lv_PUBLIC_API void error_bound_destroy(ErrorBound *bound);
 
 #ifdef __cplusplus
 }

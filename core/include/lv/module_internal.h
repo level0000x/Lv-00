@@ -13,6 +13,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/constraint_graph.h"
 #include "lv/module.h"
 
@@ -73,12 +74,12 @@ AutoSaveConfig *get_or_create_autosave_config(const char *module_name);
 /**
  * @brief 释放全部自动保存配置（供程序退出或模块卸载时调用）
  */
-void module_autosave_cleanup(void);
+lv_PUBLIC_API void module_autosave_cleanup(void);
 
 /**
  * @brief 释放 Delta 基线表全部条目（供 lv_cleanup 末尾调用）
  */
-void module_delta_cleanup(void);
+lv_PUBLIC_API void module_delta_cleanup(void);
 
 #ifdef __cplusplus
 }

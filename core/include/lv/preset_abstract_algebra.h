@@ -13,6 +13,7 @@
 #ifndef lv_PRESET_ABSTRACT_ALGEBRA_H
 #define lv_PRESET_ABSTRACT_ALGEBRA_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -21,9 +22,9 @@ extern "C" {
 
 #define ABSTRACT_ALGEBRA_PRESET_COUNT 40
 
-bool preset_abstract_algebra_register(void);
-int preset_abstract_algebra_count(void);
-bool preset_abstract_algebra_get_names(char ***out_names, int *out_count);
+lv_PUBLIC_API bool preset_abstract_algebra_register(void);
+lv_PUBLIC_API int preset_abstract_algebra_count(void);
+lv_PUBLIC_API bool preset_abstract_algebra_get_names(char ***out_names, int *out_count);
 
 #ifdef __cplusplus
 }

@@ -12,6 +12,7 @@
 #ifndef lv_GRAPH_TRAVERSAL_H
 #define lv_GRAPH_TRAVERSAL_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -140,17 +141,17 @@ static inline void lv_tree_release_recursive(
 // ---- 便利函数 ----
 
 // 计算图节点数
-int lv_graph_count_nodes(ConstraintGraph *graph);
+lv_PUBLIC_API int lv_graph_count_nodes(ConstraintGraph *graph);
 
 // 检查图是否包含环
-bool lv_graph_has_cycle(ConstraintGraph *graph);
+lv_PUBLIC_API bool lv_graph_has_cycle(ConstraintGraph *graph);
 
 // 获取拓扑排序
-int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_count);
+lv_PUBLIC_API int lv_graph_topological_sort(ConstraintGraph *graph, int **out_nodes, int *out_count);
 
 // 遍历状态转字符串
-const char *lv_traversal_order_to_string(lvTraversalOrder order);
-const char *lv_traversal_result_to_string(lvTraversalResult result);
+lv_PUBLIC_API const char *lv_traversal_order_to_string(lvTraversalOrder order);
+lv_PUBLIC_API const char *lv_traversal_result_to_string(lvTraversalResult result);
 
 // ---- 通用图算法核心（任意整数 id 图：回调驱动，供各模块复用） ----
 //
@@ -209,7 +210,7 @@ typedef struct lvBfsSpec {
 } lvBfsSpec;
 
 /** @brief 通用 BFS：返回出队节点数；内存不足返回 -1（visited 状态不可靠，调用方应中止） */
-int lv_bfs_run(const lvBfsSpec *spec);
+lv_PUBLIC_API int lv_bfs_run(const lvBfsSpec *spec);
 
 /** @brief 通用 Kahn 拓扑排序配置（节点空间 0..node_count-1，后继由回调枚举） */
 typedef struct lvTopoSpec {
@@ -231,7 +232,7 @@ typedef struct lvTopoSpec {
  * @return 已排序节点数；小于去重后的待排序节点数表示存在环（仅输出无环部分）；
  *         内存不足返回 -1
  */
-int lv_topo_run(const lvTopoSpec *spec);
+lv_PUBLIC_API int lv_topo_run(const lvTopoSpec *spec);
 
 /**
  * @brief 三色环检测：发现 from_id → to_id 反向边（to_id 为 GRAY）时回调
@@ -253,7 +254,7 @@ typedef struct lvCycleDetectSpec {
 } lvCycleDetectSpec;
 
 /** @brief 通用三色环检测：返回是否存在环 */
-bool lv_cycle_detect(const lvCycleDetectSpec *spec);
+lv_PUBLIC_API bool lv_cycle_detect(const lvCycleDetectSpec *spec);
 
 #ifdef __cplusplus
 }

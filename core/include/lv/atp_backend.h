@@ -22,6 +22,7 @@
 #define lv_ATP_BACKEND_H
 #include "constraint_graph.h"
 #include "proof.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -201,7 +202,7 @@ ATPBackendSolver *atp_solver_create(ATPBackendType type, const ATPConfig *config
  * @brief 销毁 ATP 求解器
  * @param solver 求解器句柄
  */
-void atp_solver_destroy(ATPBackendSolver *solver);
+lv_PUBLIC_API void atp_solver_destroy(ATPBackendSolver *solver);
 /**
  * @brief 获取求解器后端类型
  */
@@ -215,14 +216,14 @@ ATPBackendType atp_solver_get_type(const ATPBackendSolver *solver);
  * @param tptp_text TPTP 格式文本
  * @return lv_OK 成功
  */
-int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text);
+lv_PUBLIC_API int atp_solver_load(ATPBackendSolver *solver, const char *tptp_text);
 /**
  * @brief 执行求解
  * @param solver 求解器
  * @param result 输出结果（调用者用 atp_result_destroy 释放）
  * @return lv_OK 成功
  */
-int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result);
+lv_PUBLIC_API int atp_solver_solve(ATPBackendSolver *solver, ATPResultInfo *result);
 /**
  * @brief 便捷函数：编码 + 加载 + 求解
  *
@@ -249,11 +250,11 @@ int atp_solver_solve_graph(ATPBackendSolver *solver, const ConstraintGraph *grap
 /**
  * @brief 释放 ATP 求解结果
  */
-void atp_result_destroy(ATPResultInfo *result);
+lv_PUBLIC_API void atp_result_destroy(ATPResultInfo *result);
 /**
  * @brief 初始化 ATP 求解结果
  */
-void atp_result_init(ATPResultInfo *result);
+lv_PUBLIC_API void atp_result_init(ATPResultInfo *result);
 /**
  * @brief 将 ATP 证明转换为 Lv-00 ProofNavigator 步骤
  *
@@ -267,7 +268,7 @@ void atp_result_init(ATPResultInfo *result);
  *
  * @note 当前仅支持 TSTP（Vampire/E Prover 输出格式）
  */
-int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count);
+lv_PUBLIC_API int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count);
 /* ========================================================================
  * 后端注册与发现
  *
@@ -277,12 +278,12 @@ int atp_proof_to_lv(const ATPResultInfo *result, Proof *proof, int *step_count);
 /**
  * @brief 获取全局 ATP 后端注册表
  */
-const ATPBackendRegistry *atp_get_registry(void);
+lv_PUBLIC_API const ATPBackendRegistry *atp_get_registry(void);
 /**
  * @brief 注册自定义 ATP 后端
  * @return lv_OK 成功，lv_ERROR_ALREADY_EXISTS 已存在
  */
-int atp_register_backend(const ATPBackendEntry *entry);
+lv_PUBLIC_API int atp_register_backend(const ATPBackendEntry *entry);
 /**
  * @brief 检查后端在系统上是否可用
  *
@@ -291,16 +292,16 @@ int atp_register_backend(const ATPBackendEntry *entry);
  * - ATP_BACKEND_EPROVER → `eprover --version`
  * - ATP_BACKEND_IPROVER → `iprover --version`
  */
-bool atp_is_backend_available(ATPBackendType type);
+lv_PUBLIC_API bool atp_is_backend_available(ATPBackendType type);
 /**
  * @brief 查找后端条目
  * @return 找到返回条目指针，否则 NULL
  */
-const ATPBackendEntry *atp_find_backend(ATPBackendType type);
+lv_PUBLIC_API const ATPBackendEntry *atp_find_backend(ATPBackendType type);
 /**
  * @brief 获取后端类型名称（如 "Vampire"）
  */
-const char *atp_backend_type_name(ATPBackendType type);
+lv_PUBLIC_API const char *atp_backend_type_name(ATPBackendType type);
 /**
  * @brief 将所有 ATP 后端注册到全局后端插件注册表
  *
@@ -308,12 +309,12 @@ const char *atp_backend_type_name(ATPBackendType type);
  * lv_backend_plugin_find() / lv_backend_plugin_find_by_type() 查找。
  * 可安全地多次调用（仅首次生效）。
  */
-void atp_register_all_plugins(void);
+lv_PUBLIC_API void atp_register_all_plugins(void);
 /**
  * @brief 从名称字符串解析后端类型
  * @return 成功返回 true，失败返回 false
  */
-bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
+lv_PUBLIC_API bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
 /* ========================================================================
  * 引擎调度器集成
  *
@@ -330,7 +331,7 @@ bool atp_backend_type_from_name(const char *name, ATPBackendType *out_type);
  *
  * @return 注册的后端数量
  */
-int atp_register_all_to_scheduler(void);
+lv_PUBLIC_API int atp_register_all_to_scheduler(void);
 /**
  * @brief 自动选择最优后端并求解（ATP vs SMT）
  *
@@ -344,14 +345,14 @@ int atp_register_all_to_scheduler(void);
  * @param result 输出结果
  * @return lv_OK 成功
  */
-int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config, ATPResultInfo *result);
+lv_PUBLIC_API int atp_auto_solve(const ConstraintGraph *graph, const ATPConfig *config, ATPResultInfo *result);
 /* ========================================================================
  * 字符串工具
  * ======================================================================== */
 /** 获取结果类型名称 */
-const char *atp_result_name(ATPResult result);
+lv_PUBLIC_API const char *atp_result_name(ATPResult result);
 /** 获取输入格式名称 */
-const char *atp_format_name(ATPInputFormat format);
+lv_PUBLIC_API const char *atp_format_name(ATPInputFormat format);
 #ifdef __cplusplus
 }
 #endif

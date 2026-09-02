@@ -1,6 +1,7 @@
 #ifndef LV_LEXER_H
 #define LV_LEXER_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -133,7 +134,7 @@ typedef struct LvLexer LvLexer;
 LvLexer *lv_lexer_create(const char *source, size_t source_len);
 
 /** 销毁 lexer */
-void lv_lexer_destroy(LvLexer *lexer);
+lv_PUBLIC_API void lv_lexer_destroy(LvLexer *lexer);
 
 /** 获取下一个 token */
 LvToken lv_lexer_next(LvLexer *lexer);
@@ -145,10 +146,10 @@ LvToken lv_lexer_peek(LvLexer *lexer, int lookahead);
 LvSourceLoc lv_lexer_get_loc(const LvLexer *lexer);
 
 /** 将 token 类型转为字符串（用于调试/错误消息） */
-const char *lv_token_type_name(LvTokenType type);
+lv_PUBLIC_API const char *lv_token_type_name(LvTokenType type);
 
 /** 将 token 的文本提取到缓冲区（安全） */
-size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size);
+lv_PUBLIC_API size_t lv_token_text(const LvToken *token, char *buf, size_t buf_size);
 
 /* ── 共享几何关键词表（parser/sema 单一事实源，定义见 lv_lexer.c） ── */
 

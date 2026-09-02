@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -46,12 +47,12 @@ typedef struct lvEventBus {
 /**
  * @brief 初始化事件总线
  */
-void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config);
+lv_PUBLIC_API void lv_event_bus_init(lvEventBus *bus, const lvEventBusConfig *config);
 
 /**
  * @brief 释放事件总线资源
  */
-void lv_event_bus_cleanup(lvEventBus *bus);
+lv_PUBLIC_API void lv_event_bus_cleanup(lvEventBus *bus);
 
 /**
  * @brief 注册事件回调
@@ -69,7 +70,7 @@ void lv_event_bus_cleanup(lvEventBus *bus);
  * @param user_data  用户自定义数据（透传给回调）
  * @return 订阅 ID（用于取消订阅），失败返回 -1
  */
-int lv_event_subscribe(lvEventBus *bus, int event_type, lvEventCallbackFn callback, void *user_data);
+lv_PUBLIC_API int lv_event_subscribe(lvEventBus *bus, int event_type, lvEventCallbackFn callback, void *user_data);
 
 /**
  * @brief 取消订阅
@@ -77,7 +78,7 @@ int lv_event_subscribe(lvEventBus *bus, int event_type, lvEventCallbackFn callba
  * @param subscription_id lv_event_subscribe 返回的 ID
  * @return true 成功，false 未找到
  */
-bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id);
+lv_PUBLIC_API bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id);
 
 /**
  * @brief 发出事件
@@ -85,7 +86,7 @@ bool lv_event_unsubscribe(lvEventBus *bus, int subscription_id);
  * @param event_type 事件类型
  * @param event_data 事件数据指针（透传给回调）
  */
-void lv_event_emit(lvEventBus *bus, int event_type, void *event_data);
+lv_PUBLIC_API void lv_event_emit(lvEventBus *bus, int event_type, void *event_data);
 
 /**
  * @brief 关联 StreamContext（可选）
@@ -101,7 +102,7 @@ void lv_event_emit(lvEventBus *bus, int event_type, void *event_data);
  * @param bus        事件总线
  * @param stream_ctx StreamContext 指针（或 NULL）
  */
-void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx);
+lv_PUBLIC_API void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx);
 
 /**
  * @brief 获取关联的 StreamContext
@@ -109,7 +110,7 @@ void lv_event_bus_set_stream(lvEventBus *bus, struct StreamContext *stream_ctx);
  * @param bus 事件总线
  * @return 关联的 StreamContext 指针，未关联时返回 NULL
  */
-struct StreamContext *lv_event_bus_get_stream(const lvEventBus *bus);
+lv_PUBLIC_API struct StreamContext *lv_event_bus_get_stream(const lvEventBus *bus);
 
 #ifdef __cplusplus
 }

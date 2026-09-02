@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "constraint_graph.h"
@@ -69,14 +70,14 @@ typedef struct ProbConstraintNode {
 
 /* ── API ── */
 ProbDistribution *prob_dist_create(ProbDistType type, double *params, int param_count);
-void prob_dist_destroy(ProbDistribution *dist);
-double prob_dist_pdf(ProbDistribution *dist, double x);
-double prob_dist_cdf(ProbDistribution *dist, double x);
-int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples);
+lv_PUBLIC_API void prob_dist_destroy(ProbDistribution *dist);
+lv_PUBLIC_API double prob_dist_pdf(ProbDistribution *dist, double x);
+lv_PUBLIC_API double prob_dist_cdf(ProbDistribution *dist, double x);
+lv_PUBLIC_API int prob_dist_sample(ProbDistribution *dist, int n_samples, double **out_samples);
 
 ProbConstraintNode *prob_constraint_create(int node_id, ProbDistribution *dist);
-void prob_constraint_destroy(ProbConstraintNode *node);
-int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out_samples);
+lv_PUBLIC_API void prob_constraint_destroy(ProbConstraintNode *node);
+lv_PUBLIC_API int prob_constraint_sample(ProbConstraintNode *node, int n_samples, double **out_samples);
 
 bool prob_constraint_infer(const ConstraintGraph *graph, int target_var, ProbConstraintNode **constraints, int n,
                            double *out_prob);

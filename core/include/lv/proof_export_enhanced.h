@@ -1,6 +1,7 @@
 ﻿#ifndef lv_PROOF_EXPORT_ENHANCED_H
 #define lv_PROOF_EXPORT_ENHANCED_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -69,7 +70,7 @@ lvExportResult *proof_export_from_navigator(const char *theorem_name, lvExportFo
  * 释放导出结果。
  * @param result 导出结果（NULL 安全）
  */
-void proof_export_result_destroy(lvExportResult *result);
+lv_PUBLIC_API void proof_export_result_destroy(lvExportResult *result);
 
 #ifdef __cplusplus
 }

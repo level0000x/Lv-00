@@ -6,12 +6,13 @@ extern "C" {
 #endif
 
 #include "lv/lv.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
-int lv_ecosystem_init(void);
-void lv_ecosystem_shutdown(void);
-int lv_ecosystem_register_module(const char *name, int layer);
-int lv_ecosystem_module_count(void);
-const char *lv_ecosystem_module_name(int idx);
+lv_PUBLIC_API int lv_ecosystem_init(void);
+lv_PUBLIC_API void lv_ecosystem_shutdown(void);
+lv_PUBLIC_API int lv_ecosystem_register_module(const char *name, int layer);
+lv_PUBLIC_API int lv_ecosystem_module_count(void);
+lv_PUBLIC_API const char *lv_ecosystem_module_name(int idx);
 
 #ifdef __cplusplus
 }

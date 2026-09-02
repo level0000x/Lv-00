@@ -9,6 +9,7 @@
 #ifndef lv_GEO_VISUAL_H
 #define lv_GEO_VISUAL_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -112,24 +113,24 @@ lvVisualObject *lv_visual_group_create(lvVisualObject **objs, size_t n);
 /* ============ 样式设置 ============ */
 
 /** 将完整的样式应用到对象 */
-void lv_visual_set_style(lvVisualObject *obj, const lvVisualStyle *style);
+lv_PUBLIC_API void lv_visual_set_style(lvVisualObject *obj, const lvVisualStyle *style);
 
 /** 设置对象描边颜色 (RGBA, 各分量 [0, 1]) */
-void lv_visual_set_color(lvVisualObject *obj, float r, float g, float b, float a);
+lv_PUBLIC_API void lv_visual_set_color(lvVisualObject *obj, float r, float g, float b, float a);
 
 /** 设置对象是否使用虚线 */
-void lv_visual_set_dashed(lvVisualObject *obj, int dashed);
+lv_PUBLIC_API void lv_visual_set_dashed(lvVisualObject *obj, int dashed);
 
 /* ============ 空间变换 ============ */
 
 /** 平移对象 */
-void lv_visual_translate(lvVisualObject *obj, float dx, float dy, float dz);
+lv_PUBLIC_API void lv_visual_translate(lvVisualObject *obj, float dx, float dy, float dz);
 
 /** 缩放对象 */
-void lv_visual_scale(lvVisualObject *obj, float sx, float sy);
+lv_PUBLIC_API void lv_visual_scale(lvVisualObject *obj, float sx, float sy);
 
 /** 旋转对象；axis 为 NULL 或零向量时默认绕 Z 轴旋转 */
-void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]);
+lv_PUBLIC_API void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]);
 
 /* ============ 场景管理 ============ */
 
@@ -137,13 +138,13 @@ void lv_visual_rotate(lvVisualObject *obj, float angle, float axis[3]);
 lvVisualScene *lv_visual_scene_create(void);
 
 /** 向场景中添加一个对象 */
-void lv_visual_scene_add(lvVisualScene *scene, lvVisualObject *obj);
+lv_PUBLIC_API void lv_visual_scene_add(lvVisualScene *scene, lvVisualObject *obj);
 
 /** 清空场景并销毁其中所有对象 */
-void lv_visual_scene_clear(lvVisualScene *scene);
+lv_PUBLIC_API void lv_visual_scene_clear(lvVisualScene *scene);
 
 /** 设置场景相机参数 */
-void lv_visual_scene_set_camera(lvVisualScene *scene, float cx, float cy, float cz, float zoom);
+lv_PUBLIC_API void lv_visual_scene_set_camera(lvVisualScene *scene, float cx, float cy, float cz, float zoom);
 
 /* ============ 渲染器 ============ */
 
@@ -151,17 +152,17 @@ void lv_visual_scene_set_camera(lvVisualScene *scene, float cx, float cy, float 
 lvVisualRenderer *lv_visual_renderer_create(lvRenderBackend backend, int width, int height);
 
 /** 执行渲染，将场景输出到指定路径 */
-void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const char *output_path);
+lv_PUBLIC_API void lv_visual_render(lvVisualRenderer *renderer, lvVisualScene *scene, const char *output_path);
 
 /* ============ 资源释放 ============ */
 
 /** 销毁可视化对象及其子对象 */
-void lv_visual_object_destroy(lvVisualObject *obj);
+lv_PUBLIC_API void lv_visual_object_destroy(lvVisualObject *obj);
 
 /** 销毁场景及其所有对象 */
-void lv_visual_scene_destroy(lvVisualScene *scene);
+lv_PUBLIC_API void lv_visual_scene_destroy(lvVisualScene *scene);
 
 /** 销毁渲染器 */
-void lv_visual_renderer_destroy(lvVisualRenderer *renderer);
+lv_PUBLIC_API void lv_visual_renderer_destroy(lvVisualRenderer *renderer);
 
 #endif /* lv_GEO_VISUAL_H */

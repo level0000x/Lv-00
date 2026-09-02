@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include "lv/lv_platform.h"
 #include "lv/lv_utils.h" /* GEO_EVENT_DEFAULT_TOL 语义别名 = lv_EPSILON_DOUBLE */
 #include <stdbool.h>
@@ -82,16 +83,16 @@ struct lvEventDetector {
 
 /* ── API ── */
 lvEventDetector *geo_event_detector_create(void);
-void geo_event_detector_destroy(lvEventDetector *detector);
+lv_PUBLIC_API void geo_event_detector_destroy(lvEventDetector *detector);
 int geo_event_register(lvEventDetector *detector, int event_id, lvEventType type, lvEventFunc func, int direction,
                        bool terminal, lvEventCallback callback);
 lvEventResult geo_event_detect(lvEventDetector *detector, double t_prev, const double *param_prev, double t_curr,
                                const double *param_curr, int dim, int *event_id, double *t_event);
-int geo_event_get_count(const lvEventDetector *detector);
-const lvEventEntry *geo_event_get_entry(const lvEventDetector *detector, int idx);
+lv_PUBLIC_API int geo_event_get_count(const lvEventDetector *detector);
+lv_PUBLIC_API const lvEventEntry *geo_event_get_entry(const lvEventDetector *detector, int idx);
 
 /* ── Internal root-locating helpers ── */
-int geo_event_check_sign(double g_prev, double g_curr, int direction);
+lv_PUBLIC_API int geo_event_check_sign(double g_prev, double g_curr, int direction);
 int geo_event_root_locate(lvEventDetector *detector, int event_id, const double *param_a, const double *param_b,
                           int dim, double a, double b, double ga, double gb, double *root);
 int geo_event_root_brent(lvEventDetector *detector, int event_id, const double *param_a, const double *param_b, int dim,

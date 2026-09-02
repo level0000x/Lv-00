@@ -1,6 +1,7 @@
 #ifndef lv_ENGINE_SCHEDULER_H
 #define lv_ENGINE_SCHEDULER_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -94,60 +95,60 @@ typedef struct EngineScheduler EngineScheduler;
 
 /* ── 生命周期 ── */
 EngineScheduler *scheduler_create(void);
-void scheduler_destroy(EngineScheduler *scheduler);
-void scheduler_reset(EngineScheduler *scheduler);
+lv_PUBLIC_API void scheduler_destroy(EngineScheduler *scheduler);
+lv_PUBLIC_API void scheduler_reset(EngineScheduler *scheduler);
 
 /* ── 后端注册 ── */
 int scheduler_register_backend(EngineScheduler *scheduler, SolverBackendType type, int priority,
                                const char *description, SolverBackendDetectFunc detect_func);
-int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType type);
-int scheduler_list_available_backends(const EngineScheduler *scheduler, SolverBackendType *out_types, int max_count);
+lv_PUBLIC_API int scheduler_unregister_backend(EngineScheduler *scheduler, SolverBackendType type);
+lv_PUBLIC_API int scheduler_list_available_backends(const EngineScheduler *scheduler, SolverBackendType *out_types, int max_count);
 
 /* ── 后端选择与可用性 ── */
-bool scheduler_is_backend_available(const EngineScheduler *scheduler, SolverBackendType type);
-void scheduler_set_backend_available(EngineScheduler *scheduler, SolverBackendType type, bool available);
+lv_PUBLIC_API bool scheduler_is_backend_available(const EngineScheduler *scheduler, SolverBackendType type);
+lv_PUBLIC_API void scheduler_set_backend_available(EngineScheduler *scheduler, SolverBackendType type, bool available);
 
 /* ── 路由规则管理 ── */
-int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule);
-int scheduler_remove_routing_rule(EngineScheduler *scheduler, const char *name);
-int scheduler_load_preset_rules(EngineScheduler *scheduler);
+lv_PUBLIC_API int scheduler_add_routing_rule(EngineScheduler *scheduler, RoutingRule *rule);
+lv_PUBLIC_API int scheduler_remove_routing_rule(EngineScheduler *scheduler, const char *name);
+lv_PUBLIC_API int scheduler_load_preset_rules(EngineScheduler *scheduler);
 
 /* ── 图特征分析 ── */
-int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features);
-const char *scheduler_feature_summary(const GraphFeatures *features);
+lv_PUBLIC_API int scheduler_analyze_graph(const ConstraintGraph *graph, GraphFeatures *features);
+lv_PUBLIC_API const char *scheduler_feature_summary(const GraphFeatures *features);
 
 /* ── 后端选择 ── */
 SolverBackendType scheduler_select_backend(const EngineScheduler *scheduler, const ConstraintGraph *graph,
                                            char *out_reason, size_t reason_size);
 
 /* ── 分发求解 ── */
-int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SMTSolverResult *out_result);
+lv_PUBLIC_API int scheduler_solve(EngineScheduler *scheduler, const ConstraintGraph *graph, SMTSolverResult *out_result);
 int scheduler_solve_with_backend(EngineScheduler *scheduler, const ConstraintGraph *graph,
                                  SolverBackendType backend_type, SMTSolverResult *out_result);
 int scheduler_solve_groebner_compat(EngineScheduler *scheduler, const ConstraintGraph *graph,
                                     GroebnerResult **out_result);
 
 /* ── 配置 ── */
-void scheduler_set_default_backend(EngineScheduler *scheduler, SolverBackendType type);
+lv_PUBLIC_API void scheduler_set_default_backend(EngineScheduler *scheduler, SolverBackendType type);
 void scheduler_set_fallback_policy(EngineScheduler *scheduler, bool enable, const SolverBackendType *fallback_types,
                                    int depth);
-void scheduler_set_auto_create(EngineScheduler *scheduler, bool auto_create);
+lv_PUBLIC_API void scheduler_set_auto_create(EngineScheduler *scheduler, bool auto_create);
 
 /* ── 统计与诊断 ── */
-void scheduler_get_stats(const EngineScheduler *scheduler, SchedulerStats *stats);
-void scheduler_reset_stats(EngineScheduler *scheduler);
-int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_size);
+lv_PUBLIC_API void scheduler_get_stats(const EngineScheduler *scheduler, SchedulerStats *stats);
+lv_PUBLIC_API void scheduler_reset_stats(EngineScheduler *scheduler);
+lv_PUBLIC_API int scheduler_diagnose(const EngineScheduler *scheduler, char *buf, size_t buf_size);
 
 /* ── 结果转换 ── */
 GroebnerResult *scheduler_convert_smt_to_groebner(const SMTSolverResult *smt_result, const ConstraintGraph *graph);
 
 /* ── 向后兼容 ── */
 struct lvEngine;
-void lv_engine_scheduler_init(struct lvEngine *engine);
-void lv_engine_scheduler_shutdown(struct lvEngine *engine);
-int lv_engine_schedule(const char *task_name, int priority);
-bool lv_engine_execute_pending(void);
-int lv_engine_pending_count(void);
+lv_PUBLIC_API void lv_engine_scheduler_init(struct lvEngine *engine);
+lv_PUBLIC_API void lv_engine_scheduler_shutdown(struct lvEngine *engine);
+lv_PUBLIC_API int lv_engine_schedule(const char *task_name, int priority);
+lv_PUBLIC_API bool lv_engine_execute_pending(void);
+lv_PUBLIC_API int lv_engine_pending_count(void);
 
 #ifdef __cplusplus
 }

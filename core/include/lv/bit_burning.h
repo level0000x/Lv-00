@@ -8,6 +8,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,7 +49,7 @@ typedef struct {
  * @param state 输出：熔断状态
  * @return true 超过阈值，需要触发熔断
  */
-bool bit_burning_check(size_t num_bits, BitBurningState *state);
+lv_PUBLIC_API bool bit_burning_check(size_t num_bits, BitBurningState *state);
 
 /**
  * @brief 设置冻结点（在可能触发熔断的操作前调用）
@@ -58,7 +59,7 @@ bool bit_burning_check(size_t num_bits, BitBurningState *state);
  * @param graph 约束图
  * @param state 熔断状态
  */
-void bit_burning_set_checkpoint(ConstraintGraph *graph, BitBurningState *state);
+lv_PUBLIC_API void bit_burning_set_checkpoint(ConstraintGraph *graph, BitBurningState *state);
 
 /**
  * @brief 执行熔断操作
@@ -71,7 +72,7 @@ void bit_burning_set_checkpoint(ConstraintGraph *graph, BitBurningState *state);
  * @param action 用户选择的操作
  * @return true 操作成功
  */
-bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *state, BurningAction action);
+lv_PUBLIC_API bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *state, BurningAction action);
 
 /**
  * @brief 回退到冻结点
@@ -82,7 +83,7 @@ bool bit_burning_execute(ConstraintGraph *graph, int node_id, BitBurningState *s
  * @param state 熔断状态
  * @return true 回退成功
  */
-bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state);
+lv_PUBLIC_API bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state);
 
 /**
  * @brief 永久降级为数值假设
@@ -96,7 +97,7 @@ bool bit_burning_rollback(ConstraintGraph *graph, BitBurningState *state);
  * @param declaration 声明文本
  * @return true 降级成功
  */
-bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id, double precision, const char *declaration);
+lv_PUBLIC_API bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id, double precision, const char *declaration);
 
 /**
  * @brief 检查下游传播是否被阻断
@@ -109,7 +110,7 @@ bool bit_burning_downgrade_to_amber(ConstraintGraph *graph, int node_id, double 
  * @param target_node_id 目标节点 ID  
  * @return true 传播被阻断，false 可以安全传播
  */
-bool bit_burning_is_blocked(ConstraintGraph *graph, int source_node_id, int target_node_id);
+lv_PUBLIC_API bool bit_burning_is_blocked(ConstraintGraph *graph, int source_node_id, int target_node_id);
 
 /**
  * @brief 永久降级的自动传播
@@ -120,7 +121,7 @@ bool bit_burning_is_blocked(ConstraintGraph *graph, int source_node_id, int targ
  * @param graph 约束图
  * @param node_id 已降级节点 ID
  */
-void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id);
+lv_PUBLIC_API void bit_burning_propagate_downgrade(ConstraintGraph *graph, int node_id);
 
 /**
  * @brief 获取线程局部全局熔断状态

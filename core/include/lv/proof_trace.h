@@ -15,14 +15,14 @@ typedef struct ProofTrace ProofTrace;
 /* 生命周期（ProofTrace 系统，与 proof_compiler.h 的 lvProofTrace 系统
  * 相互独立；命名避开已被 L5 占用的 lv_proof_trace_create） */
 ProofTrace *lv_proof_trace_alloc(void);
-void lv_proof_trace_free(ProofTrace *trace);
-int lv_proof_trace_add_step(ProofTrace *t, const char *rule, const void *state);
+lv_PUBLIC_API void lv_proof_trace_free(ProofTrace *trace);
+lv_PUBLIC_API int lv_proof_trace_add_step(ProofTrace *t, const char *rule, const void *state);
 /* 访问器函数 */
-int lv_proof_trace_get_step_count(const ProofTrace *t);
-const char *lv_proof_trace_get_rule(const ProofTrace *t, int step_index);
-bool lv_proof_trace_is_complete(const ProofTrace *t);
-void lv_proof_trace_mark_complete(ProofTrace *t);
-char *lv_proof_trace_export(const ProofTrace *t);
+lv_PUBLIC_API int lv_proof_trace_get_step_count(const ProofTrace *t);
+lv_PUBLIC_API const char *lv_proof_trace_get_rule(const ProofTrace *t, int step_index);
+lv_PUBLIC_API bool lv_proof_trace_is_complete(const ProofTrace *t);
+lv_PUBLIC_API void lv_proof_trace_mark_complete(ProofTrace *t);
+lv_PUBLIC_API char *lv_proof_trace_export(const ProofTrace *t);
 
 /* ── Proof Tree API (used by test_proof_trace.c) ── */
 typedef struct lvProofPremise {
@@ -61,11 +61,11 @@ typedef struct lvProofTree {
 } lvProofTree;
 
 lvProofTree *lv_proof_tree_create(const char *name, const char *strategy);
-void lv_proof_tree_destroy(lvProofTree *tree);
+lv_PUBLIC_API void lv_proof_tree_destroy(lvProofTree *tree);
 lvProofTreeNode *lv_proof_tree_add_step(lvProofTree *tree, lvProofTreeNode *parent, const char *desc,
                                         const char *detail, int id);
-bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node);
-char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts);
+lv_PUBLIC_API bool lv_proof_tree_mark_contradiction(lvProofTreeNode *node);
+lv_PUBLIC_API char *lv_proof_tree_export_text(const lvProofTree *tree, const char *opts);
 
 #ifdef __cplusplus
 }

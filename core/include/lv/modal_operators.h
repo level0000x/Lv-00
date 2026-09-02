@@ -36,6 +36,7 @@
 #include "proof.h"
 #include "three_valued_logic.h"
 #include "lv/lv_utils.h"
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 
 #ifdef __cplusplus
 extern "C" {

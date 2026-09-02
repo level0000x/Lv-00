@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -49,17 +50,17 @@ typedef enum { lv_TOP_VERTEX, lv_TOP_EDGE, lv_TOP_FACE, lv_TOP_CELL } lvTopoElem
 
 /* ── API ── */
 lvSimplicialComplex *geo_simplicial_create(int n_vertices);
-void geo_simplicial_destroy(lvSimplicialComplex *sc);
-bool geo_simplicial_add_edge(lvSimplicialComplex *sc, int v0, int v1);
-bool geo_simplicial_add_triangle(lvSimplicialComplex *sc, int v0, int v1, int v2);
-int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc);
+lv_PUBLIC_API void geo_simplicial_destroy(lvSimplicialComplex *sc);
+lv_PUBLIC_API bool geo_simplicial_add_edge(lvSimplicialComplex *sc, int v0, int v1);
+lv_PUBLIC_API bool geo_simplicial_add_triangle(lvSimplicialComplex *sc, int v0, int v1, int v2);
+lv_PUBLIC_API int geo_simplicial_euler_characteristic(const lvSimplicialComplex *sc);
 lvBoundary *geo_simplicial_boundary(const lvSimplicialComplex *sc, const lvTriangle *tri);
-void geo_simplicial_boundary_destroy(lvBoundary *boundary);
-int geo_simplicial_connected_components(const lvSimplicialComplex *sc);
+lv_PUBLIC_API void geo_simplicial_boundary_destroy(lvBoundary *boundary);
+lv_PUBLIC_API int geo_simplicial_connected_components(const lvSimplicialComplex *sc);
 
 /* ── Legacy compatibility wrappers (implemented in geo_topology.c) ── */
-int lv_euler_characteristic(int vertices, int edges, int faces);
-int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim);
+lv_PUBLIC_API int lv_euler_characteristic(int vertices, int edges, int faces);
+lv_PUBLIC_API int lv_is_simplicial_complex(const int *faces, size_t n_faces, size_t dim);
 
 #ifdef __cplusplus
 }

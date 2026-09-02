@@ -1,6 +1,7 @@
 #ifndef LV_AST_H
 #define LV_AST_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stddef.h>
 
 #include "lv/lv_lexer.h"
@@ -245,22 +246,22 @@ LvAstNode *lv_ast_create_logic_binary(LvAstNodeType type, LvSourceLoc loc, const
                                       LvAstNode *left, LvAstNode *right);
 
 /** 追加子节点到链表末尾 */
-void lv_ast_append_child(LvAstNode *parent, LvAstNode *child);
+lv_PUBLIC_API void lv_ast_append_child(LvAstNode *parent, LvAstNode *child);
 
 /** 销毁整个 AST 树 */
-void lv_ast_destroy(LvAstNode *node);
+lv_PUBLIC_API void lv_ast_destroy(LvAstNode *node);
 
 /** 打印 AST 树（调试用） */
-void lv_ast_print(const LvAstNode *node, int indent);
+lv_PUBLIC_API void lv_ast_print(const LvAstNode *node, int indent);
 
 /** 计算 AST 树的最大深度（K28/F54：lv_check_ast_depth 接线辅助） */
-int lv_ast_max_depth(const LvAstNode *node);
+lv_PUBLIC_API int lv_ast_max_depth(const LvAstNode *node);
 
 /** 计算 AST 树节点总数（F16/G1：lv_check_ast_node_count 接线辅助） */
-int lv_ast_node_count(const LvAstNode *node);
+lv_PUBLIC_API int lv_ast_node_count(const LvAstNode *node);
 
 /** 获取实体类型名称 */
-const char *lv_entity_type_name(LvEntityType type);
+lv_PUBLIC_API const char *lv_entity_type_name(LvEntityType type);
 
 /** 根据关键字 token 类型获取实体类型 */
 LvEntityType lv_entity_type_from_token(LvTokenType tok);

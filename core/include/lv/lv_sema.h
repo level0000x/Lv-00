@@ -1,6 +1,7 @@
 #ifndef LV_SEMA_H
 #define LV_SEMA_H
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 
 #include "lv/lv_ast.h"
@@ -32,16 +33,16 @@ typedef struct LvSemaContext LvSemaContext;
 LvSemaContext *lv_sema_create(void);
 
 /** 销毁语义分析上下文 */
-void lv_sema_destroy(LvSemaContext *ctx);
+lv_PUBLIC_API void lv_sema_destroy(LvSemaContext *ctx);
 
 /** 对 AST 执行语义分析，返回 true 表示无严重错误 */
-bool lv_sema_analyze(LvSemaContext *ctx, LvAstNode *ast);
+lv_PUBLIC_API bool lv_sema_analyze(LvSemaContext *ctx, LvAstNode *ast);
 
 /** 获取语义错误的数量 */
-int lv_sema_error_count(const LvSemaContext *ctx);
+lv_PUBLIC_API int lv_sema_error_count(const LvSemaContext *ctx);
 
 /** 获取第 index 条语义错误消息 */
-const char *lv_sema_error_msg(const LvSemaContext *ctx, int index);
+lv_PUBLIC_API const char *lv_sema_error_msg(const LvSemaContext *ctx, int index);
 
 #ifdef __cplusplus
 }

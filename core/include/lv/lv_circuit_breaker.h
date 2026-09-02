@@ -24,6 +24,7 @@
 extern "C" {
 #endif
 
+#include "lv_api_spec.h" /* lv_PUBLIC_API（K59） */
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -169,7 +170,7 @@ typedef lvCircuitBreakerState CircuitBreakerState;
  *
  * @param cb 熔断器指针（非 NULL）
  */
-void lv_circuit_breaker_init(lvCircuitBreaker *cb);
+lv_PUBLIC_API void lv_circuit_breaker_init(lvCircuitBreaker *cb);
 
 /**
  * @brief 检查熔断器是否已跳闸
@@ -184,7 +185,7 @@ void lv_circuit_breaker_init(lvCircuitBreaker *cb);
  * @return true  熔断器已跳闸，拒绝执行
  *         false 可以继续操作
  */
-bool lv_circuit_breaker_is_tripped(const lvCircuitBreaker *cb);
+lv_PUBLIC_API bool lv_circuit_breaker_is_tripped(const lvCircuitBreaker *cb);
 
 /**
  * @brief 记录一次成功操作
@@ -194,7 +195,7 @@ bool lv_circuit_breaker_is_tripped(const lvCircuitBreaker *cb);
  *
  * @param cb 熔断器指针（非 NULL）
  */
-void lv_circuit_breaker_record_success(lvCircuitBreaker *cb);
+lv_PUBLIC_API void lv_circuit_breaker_record_success(lvCircuitBreaker *cb);
 
 /**
  * @brief 记录一次错误操作
@@ -206,7 +207,7 @@ void lv_circuit_breaker_record_success(lvCircuitBreaker *cb);
  * @return true  熔断器仍在 CLOSED 态（正常）
  *         false 熔断器已跳闸（错误次数超限或半开态失败）
  */
-bool lv_circuit_breaker_record_error(lvCircuitBreaker *cb);
+lv_PUBLIC_API bool lv_circuit_breaker_record_error(lvCircuitBreaker *cb);
 
 /**
  * @brief 重置熔断器到初始状态
@@ -217,7 +218,7 @@ bool lv_circuit_breaker_record_error(lvCircuitBreaker *cb);
  *
  * @param cb 熔断器指针（非 NULL）
  */
-void lv_circuit_breaker_reset(lvCircuitBreaker *cb);
+lv_PUBLIC_API void lv_circuit_breaker_reset(lvCircuitBreaker *cb);
 
 /**
  * @brief 获取熔断器当前状态
@@ -239,7 +240,7 @@ lvCircuitBreakerState lv_circuit_breaker_state(const lvCircuitBreaker *cb);
  * @return true  可以继续操作
  *         false 熔断器打开（已跳闸），拒绝执行
  */
-bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb);
+lv_PUBLIC_API bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb);
 
 /**
  * @brief 触发熔断器跳闸（状态置为 OPEN）
@@ -250,7 +251,7 @@ bool lv_circuit_breaker_check_guarded(lvCircuitBreaker *cb);
  * @param cb     熔断器指针（非 NULL）
  * @param reason 跳闸原因的可读描述（可为 NULL，此时使用 "未知原因"）
  */
-void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason);
+lv_PUBLIC_API void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason);
 
 /**
  * @brief 获取熔断器状态的可读名称（枚举所在层 L2 的规范实现）
@@ -262,7 +263,7 @@ void lv_circuit_breaker_do_trip(lvCircuitBreaker *cb, const char *reason);
  * @param cb 熔断器实例（可为 NULL，返回"无熔断器"）
  * @return 状态名称字符串（静态存储，不需释放）
  */
-const char *lv_circuit_breaker_state_name_cb(const lvCircuitBreaker *cb);
+lv_PUBLIC_API const char *lv_circuit_breaker_state_name_cb(const lvCircuitBreaker *cb);
 
 #ifdef __cplusplus
 }
