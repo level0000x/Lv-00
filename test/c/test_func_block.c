@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include "lv.h"
+#include "lv/func_block_custom.h" /* 蓝图自定义函数接口（G2a） */
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -1825,6 +1826,103 @@ static void test_selector_failure_cases(void) {
 
 }
 
+/* ============== 蓝图自定义函数注册接口（TEN_LAYER_OPTIMIZED_PLAN §4.1.2，G2a） ============== */
+
+/* 自定义回调：把输入 ID 求和作为输出节点 */
+static bool custom_add_cb(ConstraintGraph *graph, const int *input_node_ids, int input_count, int **output_node_ids,
+                          int *output_count, void *user_data) {
+    (void) graph;
+    (void) user_data;
+    if (output_node_ids == NULL || output_count == NULL)
+        return false;
+    int *out = (int *) lv_malloc(sizeof(int));
+    if (out == NULL)
+        return false;
+    out[0] = 0;
+    for (int i = 0; i < input_count; i++)
+        out[0] += input_node_ids[i];
+    *output_node_ids = out;
+    *output_count = 1;
+    return true;
+}
+
+static void test_blueprint_func_block_custom(void) {
+    printf("Test: blueprint func_block custom...\n");
+
+    /* 注册单个 */
+    const char *input_types[2] = {"POINT", "POINT"};
+    const char *output_types[1] = {"POINT"};
+    CustomFunctionMeta meta = {
+        .name = "custom_sum",
+        .description = "sum inputs",
+        .category = "custom",
+        .min_inputs = 1,
+        .max_inputs = 8,
+        .output_count = 1,
+        .input_types = input_types,
+        .output_types = output_types,
+        .param_names = NULL,
+    };
+    CustomFunctionRegistration reg = {
+        .meta = meta,
+        .callback = custom_add_cb,
+        .user_data = NULL,
+        .free_user_data = NULL,
+    };
+    lv_ASSERT(lv_func_block_register_custom(&reg));
+    lv_ASSERT(!lv_func_block_register_custom(&reg));
+    lv_ASSERT(lv_func_block_is_custom_registered("custom_sum"));
+    lv_ASSERT(!lv_func_block_is_custom_registered("no_such"));
+
+    /* 元数据查询 */
+    const CustomFunctionMeta *m = lv_func_block_get_custom_meta("custom_sum");
+    lv_ASSERT_NOT_NULL(m);
+    lv_ASSERT(strcmp(m->name, "custom_sum") == 0);
+    lv_ASSERT(m->max_inputs == 8);
+    lv_ASSERT(lv_func_block_get_custom_meta("no_such") == NULL);
+
+    /* 执行 */
+    ConstraintGraph *g = graph_create();
+    lv_ASSERT_NOT_NULL(g);
+    int inputs[3] = {1, 2, 3};
+    int *outputs = NULL;
+    int out_count = 0;
+    lv_ASSERT(lv_func_block_call_custom("custom_sum", g, inputs, 3, &outputs, &out_count));
+    lv_ASSERT(out_count == 1 && outputs[0] == 6);
+    lv_free((void **) &outputs);
+    lv_ASSERT(!lv_func_block_call_custom("no_such", g, inputs, 3, &outputs, &out_count));
+    lv_ASSERT(!lv_func_block_call_custom(NULL, g, inputs, 3, &outputs, &out_count));
+
+    /* 参数校验 */
+    CustomFunctionRegistration bad = reg;
+    bad.callback = NULL;
+    lv_ASSERT(!lv_func_block_register_custom(&bad));
+    lv_ASSERT(!lv_func_block_register_custom(NULL));
+
+    /* 批量注册/注销 */
+    CustomFunctionMeta meta2 = {.name = "custom_mul", .description = NULL, .category = NULL,
+                                .min_inputs = 1, .max_inputs = 4, .output_count = 1,
+                                .input_types = NULL, .output_types = NULL, .param_names = NULL};
+    CustomFunctionRegistration reg2 = {.meta = meta2, .callback = custom_add_cb, .user_data = NULL, .free_user_data = NULL};
+    CustomFunctionRegistration regs[2] = {reg, reg2};
+    CustomFunctionRegistry batch = {.registrations = regs, .count = 2};
+    /* reg 已存在 → 批量失败（含同名） */
+    lv_ASSERT(!lv_func_block_register_custom_batch(&batch));
+    /* 先注销 custom_sum 再批量成功 */
+    lv_ASSERT(lv_func_block_unregister_custom("custom_sum"));
+    lv_ASSERT(lv_func_block_register_custom_batch(&batch));
+    lv_ASSERT(lv_func_block_is_custom_registered("custom_mul"));
+
+    const char *names[2] = {"custom_sum", "custom_mul"};
+    lv_ASSERT(lv_func_block_unregister_custom_batch(names, 2));
+    lv_ASSERT(!lv_func_block_is_custom_registered("custom_sum"));
+    lv_ASSERT(!lv_func_block_unregister_custom("custom_sum"));
+    lv_ASSERT(!lv_func_block_unregister_custom(NULL));
+
+    graph_destroy(g);
+    printf("  blueprint func_block custom: PASSED\n");
+}
+
 /* ============== 主函数 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
@@ -1886,5 +1984,7 @@ TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
     TEST_MAIN_RUN(test_registry_register_unregister);
     /* 选择器失败情况测试 */
     TEST_MAIN_RUN(test_selector_failure_cases);
+    /* 蓝图自定义函数注册接口（TEN_LAYER_OPTIMIZED_PLAN §4.1.2，批次 G2a） */
+    TEST_MAIN_RUN(test_blueprint_func_block_custom);
     printf("\n=== All function block tests PASSED! ===\n");
 TEST_MAIN_END()

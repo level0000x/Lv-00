@@ -220,6 +220,7 @@ extern "C" {
 #include "func_block.h"          /* 函数块系统 */
 #include "func_block_preset.h"   /* 预设函数块库 */
 #include "func_block_registry.h" /* 预设函数块注册系统 */
+#include "func_block_custom.h"   /* 蓝图自定义函数注册接口（§4.1.2） */
 
 /* 模块化预设函数块系统 */
 #include "modal_operators.h"        /* 模态逻辑算子 */
