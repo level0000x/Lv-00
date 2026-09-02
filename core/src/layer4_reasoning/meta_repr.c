@@ -21,6 +21,7 @@
 #include "lv/lv_file.h"
 
 #include <math.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1097,4 +1098,92 @@ char *meta_repr_export_json(const ConstraintGraph *encoded_graph) {
     lv_json_buf_end_object(&_jb);
 
     return lv_json_buf_finalize(&_jb);
+}
+
+/* ============================================================
+ * 蓝图约束元数据 API（TEN_LAYER_OPTIMIZED_PLAN §12.8 R11）
+ * ============================================================ */
+
+/* 每类型参与数与参数要求（与 kConstraintAddOps 的 arity 语义一致） */
+typedef struct {
+    int min_participants;
+    int max_participants;
+    bool requires_parameters;
+} ConstraintMetaSpec;
+
+static const ConstraintMetaSpec kConstraintMetaSpecs[] = {
+    {2, 2, false},  /* INCIDENCE */
+    {3, 3, false},  /* BETWEENNESS */
+    {3, 3, false},  /* INTERSECTION */
+    {2, 2, false},  /* CONTAINMENT */
+    {2, 2, false},  /* CONNECTION */
+    {2, 2, true},   /* ANGLE（numeric_value） */
+    {2, 2, false},  /* PARALLEL */
+    {2, 2, false},  /* PERPENDICULAR */
+};
+_Static_assert(lv_ARRAY_SIZE(kConstraintMetaSpecs) == (PERPENDICULAR + 1),
+               "kConstraintMetaSpecs must match ConstraintType enum count");
+
+/* 用宏生成元数据表（参与数/参数要求取自 kConstraintMetaSpecs） */
+#define LV_CONSTRAINT_META_ROW(ENUM, NAME, ALIAS)                                                     \
+    {ENUM, NAME, ALIAS, kConstraintMetaSpecs[ENUM].min_participants, kConstraintMetaSpecs[ENUM].max_participants, \
+     kConstraintMetaSpecs[ENUM].requires_parameters},
+static const lvConstraintMeta kConstraintMetaTable[] = {
+    LV_CONSTRAINT_TYPE_ENTRY(LV_CONSTRAINT_META_ROW)
+};
+#undef LV_CONSTRAINT_META_ROW
+_Static_assert(lv_ARRAY_SIZE(kConstraintMetaTable) == (PERPENDICULAR + 1),
+               "kConstraintMetaTable must match ConstraintType enum count");
+
+const lvConstraintMeta *lv_constraint_get_meta(ConstraintType type) {
+    if ((unsigned) type >= lv_ARRAY_SIZE(kConstraintMetaTable))
+        return NULL;
+    return &kConstraintMetaTable[type];
+}
+
+int lv_constraint_type_from_name(const char *name) {
+    if (name == NULL)
+        return -1;
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kConstraintTypeEntries); i++) {
+        if (lv_str_icmp(kConstraintTypeEntries[i].name, name) == 0 ||
+            lv_str_icmp(kConstraintTypeEntries[i].alias, name) == 0) {
+            return (int) i;
+        }
+    }
+    return -1;
+}
+
+int lv_constraint_type_from_python_class(const char *class_name) {
+    if (class_name == NULL)
+        return -1;
+    /* 常见 Python 类名形态：直接名 / "Constraint" 前缀 / "Py" 前缀 → 去前后缀后匹配。
+     * 大小写不敏感：先整体转小写到本地缓冲。 */
+    char lower[64];
+    size_t len = strlen(class_name);
+    if (len >= sizeof(lower))
+        len = sizeof(lower) - 1;
+    for (size_t i = 0; i < len; i++)
+        lower[i] = (char) tolower((unsigned char) class_name[i]);
+    lower[len] = '\0';
+
+    const char *p = lower;
+    if (lv_str_startswith(p, "constraint"))
+        p += 10;
+    else if (lv_str_startswith(p, "py"))
+        p += 2;
+    char buf[64];
+    size_t blen = strlen(p);
+    if (blen >= sizeof(buf))
+        blen = sizeof(buf) - 1;
+    memcpy(buf, p, blen);
+    buf[blen] = '\0';
+    if (lv_str_endswith(buf, "constraint") && blen > 10)
+        buf[blen - 10] = '\0';
+    else if (lv_str_endswith(buf, "type") && blen > 4)
+        buf[blen - 4] = '\0';
+    for (size_t i = 0; i < lv_ARRAY_SIZE(kConstraintTypeEntries); i++) {
+        if (strcmp(kConstraintTypeEntries[i].alias, buf) == 0)
+            return (int) i;
+    }
+    return -1;
 }

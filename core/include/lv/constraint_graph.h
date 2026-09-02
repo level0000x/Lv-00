@@ -1361,6 +1361,57 @@ typedef struct {
  */
 lv_PUBLIC_API int lv_graph_decompose(const ConstraintGraph *graph, lvSubgraphTask **out_tasks, int *out_task_count);
 
+/* ============================================================
+ * 蓝图约束元数据 API（TEN_LAYER_OPTIMIZED_PLAN §12.8 R11 落地）
+ *
+ * 规划文档 lvConstraintType 枚举（EQUALITY/INEQUALITY/...）为第二套
+ * 约束体系，与库内 ConstraintType 冲突；按「标准尽量少」映射到库内
+ * ConstraintType（INCIDENCE/.../PERPENDICULAR）。lvConstraintMeta 为
+ * 每类型元数据（名称/别名/参与数）。
+ * ============================================================ */
+
+/** @brief 约束元数据（蓝图 lvConstraintMeta 的库内适配） */
+typedef struct {
+    ConstraintType type;          /**< 约束类型枚举 */
+    const char *name;             /**< 规范名（大写，如 "PARALLEL"） */
+    const char *alias;            /**< CLI 小写别名（如 "parallel"） */
+    int min_participants;         /**< 最少参与节点数 */
+    int max_participants;         /**< 最多参与节点数（-1 表示不限制） */
+    bool requires_parameters;     /**< 是否需数值参数（ANGLE 为 true） */
+} lvConstraintMeta;
+
+/**
+ * @brief 获取约束类型元数据（蓝图 lv_constraint_get_meta）
+ *
+ * 返回静态存储（编译期生成），勿修改或释放。
+ *
+ * @param type 约束类型
+ * @return 元数据指针；越界返回 NULL
+ */
+lv_PUBLIC_API const lvConstraintMeta *lv_constraint_get_meta(ConstraintType type);
+
+/**
+ * @brief 按名称查约束类型（蓝图 lv_constraint_type_from_name）
+ *
+ * 接受规范名（"PARALLEL"）与小写别名（"parallel"），大小写不敏感。
+ *
+ * @param name 约束名称
+ * @return 约束类型；未找到返回 -1
+ */
+lv_PUBLIC_API int lv_constraint_type_from_name(const char *name);
+
+/**
+ * @brief 按 Python 类名查约束类型（蓝图 lv_constraint_type_from_python_class）
+ *
+ * 接受常见 Python 类名（如 "Parallel"、"ConstraintParallel"），
+ * 大小写不敏感去后缀匹配别名。库内无 Python 绑定，此接口为
+ * 名称→类型映射的统一入口。
+ *
+ * @param class_name Python 类名
+ * @return 约束类型；未找到返回 -1
+ */
+lv_PUBLIC_API int lv_constraint_type_from_python_class(const char *class_name);
+
 #ifdef __cplusplus
 }
 #endif

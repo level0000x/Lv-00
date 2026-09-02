@@ -424,6 +424,7 @@ set(lv_HEADERS
     core/include/lv/lv_path.h
     core/include/lv/lv_heap.h
     core/include/lv/lv_hashtable.h
+    core/include/lv/lv_lru_cache.h
     core/include/lv/dsl_extension.h
     core/include/lv/high_dim.h
     core/include/lv/interop.h
@@ -544,6 +545,7 @@ set(lv_HEADERS
     core/include/lv/geo_dynamic.h
     core/include/lv/geo_predicate.h
     core/include/lv/geometry_ops.h
+    core/include/lv/symbolic_cache.h
     core/include/lv/geometry_config.h
     core/include/lv/performance_profiler.h
     core/include/lv/proof_export_enhanced.h
@@ -761,6 +763,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_hash.c
     # v6.0.0 统一哈希表设施（int/string 双形态，收敛 graph/geo/preset 手写哈希）
     core/src/layer2_resource/lv_hashtable.c
+    # 蓝图 LRU 缓存（PERFORMANCE_OPTIMIZATION.md §2.3：哈希表 + 双向链表）
+    core/src/layer2_resource/lv_lru_cache.c
     # 蓝图 DSL 扩展注册表与版本语义（§4.1.5）
     core/src/layer2_resource/dsl_extension.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
@@ -956,6 +960,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/bit_burning.c
     # 蓝图几何运算（§12.3/12.5/12.6/12.7）
     core/src/layer3_geometry/geometry_ops.c
+    # 蓝图符号坐标缓存（§15.2）
+    core/src/layer3_geometry/symbolic_cache.c
     # v1.1.0 补全遗漏：几何原语、参数曲线、路径类型
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
@@ -1868,7 +1874,9 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_hashtable_ext CTEST_NAME lv_hashtable_ext_test)
     add_lv_test_auto(test_error_codes_ext CTEST_NAME error_codes_ext_test)
     add_lv_test_auto(test_dsl_extension CTEST_NAME dsl_extension_test)
+    add_lv_test_auto(test_lru_cache CTEST_NAME lru_cache_test)
     add_lv_test_auto(test_geometry_ops CTEST_NAME geometry_ops_test)
+    add_lv_test_auto(test_blueprint_g4 CTEST_NAME blueprint_g4_test)
     add_lv_test_auto(test_sha256_ext CTEST_NAME sha256_ext_test)
     add_lv_test_auto(test_lv_strbuf_ext CTEST_NAME lv_strbuf_ext_test)
     add_lv_test_auto(test_data_structure_blocks_ext CTEST_NAME data_structure_blocks_ext_test)

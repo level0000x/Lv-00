@@ -430,6 +430,28 @@ lv_PUBLIC_API void circuit_reset_context(void);
 lv_PUBLIC_API void circuit_set_frozen_point(void *snapshot);
 lv_PUBLIC_API int circuit_get_overflow_count(void);
 
+/* ============================================================
+ * 符号常量池（TEN_LAYER_OPTIMIZED_PLAN §12.10 落地）
+ *
+ * lv_symbolic_coord_init_constants 幂等懒创建进程级常用符号常量；
+ * free_constants 释放并置 NULL（再次 init 可重建）。常量只读——
+ * 调用方不得 destroy。默认未初始化（NULL），需显式 init。
+ * ============================================================ */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_ZERO;    /* 0 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_ONE;     /* 1 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_TWO;     /* 2 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_THREE;   /* 3 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_HALF;    /* 1/2 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_NEG_ONE; /* -1 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_SQRT2;   /* √2 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_SQRT3;   /* √3 */
+lv_PUBLIC_API extern SymbolicCoord *lv_SYM_PI;      /* π（符号表示） */
+
+/** @brief 初始化符号常量池（幂等；线程安全） */
+lv_PUBLIC_API void lv_symbolic_coord_init_constants(void);
+/** @brief 释放符号常量池并置 NULL（可再次 init） */
+lv_PUBLIC_API void lv_symbolic_coord_free_constants(void);
+
 #ifdef __cplusplus
 }
 #endif

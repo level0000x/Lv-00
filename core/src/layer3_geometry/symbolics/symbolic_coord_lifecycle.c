@@ -499,3 +499,55 @@ bool symbolic_coord_is_positive(const SymbolicCoord *coord) {
 bool symbolic_coord_is_negative(const SymbolicCoord *coord) {
     return symbolic_coord_to_double(coord) < 0;
 }
+
+/* ============================================================
+ * 符号常量池（TEN_LAYER_OPTIMIZED_PLAN §12.10 落地）
+ * ============================================================ */
+
+SymbolicCoord *lv_SYM_ZERO = NULL;
+SymbolicCoord *lv_SYM_ONE = NULL;
+SymbolicCoord *lv_SYM_TWO = NULL;
+SymbolicCoord *lv_SYM_THREE = NULL;
+SymbolicCoord *lv_SYM_HALF = NULL;
+SymbolicCoord *lv_SYM_NEG_ONE = NULL;
+SymbolicCoord *lv_SYM_SQRT2 = NULL;
+SymbolicCoord *lv_SYM_SQRT3 = NULL;
+SymbolicCoord *lv_SYM_PI = NULL;
+
+void lv_symbolic_coord_init_constants(void) {
+    if (lv_SYM_ZERO != NULL)
+        return; /* 已初始化（幂等） */
+    lv_SYM_ZERO = symbolic_coord_create_rational(0, 1);
+    lv_SYM_ONE = symbolic_coord_create_rational(1, 1);
+    lv_SYM_TWO = symbolic_coord_create_rational(2, 1);
+    lv_SYM_THREE = symbolic_coord_create_rational(3, 1);
+    lv_SYM_HALF = symbolic_coord_create_rational(1, 2);
+    lv_SYM_NEG_ONE = symbolic_coord_create_rational(-1, 1);
+    /* √2 + √3：符号 sqrt（quadratic 表示） */
+    if (lv_SYM_TWO != NULL)
+        lv_SYM_SQRT2 = symbolic_coord_sqrt(lv_SYM_TWO);
+    if (lv_SYM_THREE != NULL)
+        lv_SYM_SQRT3 = symbolic_coord_sqrt(lv_SYM_THREE);
+    /* π：超越数 SymbolicCoord 表示 */
+    lv_SYM_PI = symbolic_coord_create_transcendental("pi");
+}
+void lv_symbolic_coord_free_constants(void) {
+    symbolic_coord_destroy(lv_SYM_PI);
+    symbolic_coord_destroy(lv_SYM_ZERO);
+    symbolic_coord_destroy(lv_SYM_ONE);
+    symbolic_coord_destroy(lv_SYM_TWO);
+    symbolic_coord_destroy(lv_SYM_THREE);
+    symbolic_coord_destroy(lv_SYM_HALF);
+    symbolic_coord_destroy(lv_SYM_NEG_ONE);
+    symbolic_coord_destroy(lv_SYM_SQRT2);
+    symbolic_coord_destroy(lv_SYM_SQRT3);
+    lv_SYM_ZERO = NULL;
+    lv_SYM_ONE = NULL;
+    lv_SYM_TWO = NULL;
+    lv_SYM_THREE = NULL;
+    lv_SYM_HALF = NULL;
+    lv_SYM_NEG_ONE = NULL;
+    lv_SYM_SQRT2 = NULL;
+    lv_SYM_SQRT3 = NULL;
+    lv_SYM_PI = NULL;
+}
