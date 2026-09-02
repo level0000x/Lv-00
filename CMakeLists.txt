@@ -967,6 +967,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_rank.c
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
     core/src/layer3_geometry/constraint_graph/graph_dot_export.c
+    core/src/layer3_geometry/constraint_graph/blueprint_graph_api.c
     # 图/树遍历抽象层实现
     core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
     core/src/layer3_geometry/constraint_graph/graph_traversal_bfs.c

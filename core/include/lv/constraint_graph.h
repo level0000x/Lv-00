@@ -1268,6 +1268,99 @@ lv_PUBLIC_API bool lv_constraint_to_json(const Constraint *constraint, char **ou
  */
 lv_PUBLIC_API bool lv_constraint_from_json(const char *json, Constraint **out_constraint);
 
+/* ============================================================
+ * 蓝图图 API（TEN_LAYER_OPTIMIZED_PLAN §12.4 / §15.2.2 / §15.4 落地）
+ *
+ * 规划文档类型名 lvConstraintGraph 对应库内 ConstraintGraph。
+ * lv_graph_* 系列为约束图高层操作（按类型查询、变更通知、依赖查询、
+ * 连通分量分解），接线现有 constraint_graph / lv_graph_traversal 设施。
+ * ============================================================ */
+
+/** @brief 节点变更回调（蓝图 lvNodeChangeCallback；change_type: 0=ADD 1=REMOVE 2=UPDATE） */
+typedef void (*lvNodeChangeCallback)(int graph_id, int node_id, int change_type, void *user_data);
+
+/**
+ * @brief 向约束图添加二维点（蓝图 lv_graph_add_point）
+ *
+ * 以 double 坐标创建有理点节点（symbolic_coord_create_rational），
+ * 等价 graph_add_point_xy。返回新节点 ID；失败返回 -1。
+ *
+ * @param graph 约束图（非 NULL）
+ * @param x     x 坐标
+ * @param y     y 坐标
+ * @return 新节点 ID；失败返回 -1
+ */
+lv_PUBLIC_API int lv_graph_add_point(ConstraintGraph *graph, double x, double y);
+
+/**
+ * @brief 按几何类型查询节点 ID（蓝图 lv_graph_get_nodes_by_type）
+ *
+ * @param[in]  graph     约束图（非 NULL）
+ * @param[in]  type      几何类型（GeomType 枚举值）
+ * @param[out] out_ids   输出节点 ID 数组（[take] 调用者负责 lv_free）
+ * @param[out] out_count 输出数量
+ * @return true 成功；false 参数无效或内存不足
+ */
+lv_PUBLIC_API bool lv_graph_get_nodes_by_type(const ConstraintGraph *graph, int type, int **out_ids, int *out_count);
+
+/**
+ * @brief 获取依赖指定节点的所有下游节点（蓝图 lv_graph_get_dependents）
+ *
+ * 返回参与以 node_id 为参与者的约束的其他节点 ID（去重），
+ * 以及 node_id 自身作为哨兵结尾（-1 终止）。
+ *
+ * @param[in]  graph   约束图（非 NULL）
+ * @param[in]  node_id 节点 ID
+ * @return 节点 ID 数组（-1 结尾，[take] 调用者负责 lv_free）；无依赖返回仅含 -1 的数组
+ */
+lv_PUBLIC_API int *lv_graph_get_dependents(const ConstraintGraph *graph, int node_id);
+
+/**
+ * @brief 注册节点变更回调（蓝图 lv_graph_register_change_callback）
+ *
+ * 每图至多注册一个回调（重复注册覆盖前一个）。回调在
+ * lv_graph_on_node_changed 调用时触发（当前实现不自动挂接图内部
+ * add/remove 路径，由调用方在变更点显式调用 lv_graph_on_node_changed）。
+ *
+ * @param graph     约束图（非 NULL）
+ * @param callback  回调（可为 NULL 取消注册）
+ * @param user_data  回调用户数据
+ * @return true 成功
+ */
+lv_PUBLIC_API bool lv_graph_register_change_callback(ConstraintGraph *graph, lvNodeChangeCallback callback,
+                                                     void *user_data);
+
+/**
+ * @brief 通知节点变更（蓝图 lv_graph_on_node_changed）
+ *
+ * 触发已注册回调。graph_id 取图指针低位（进程内图实例区分）。
+ *
+ * @param graph      约束图（非 NULL）
+ * @param node_id    变更节点 ID
+ * @param change_type 0=ADD 1=REMOVE 2=UPDATE
+ */
+lv_PUBLIC_API void lv_graph_on_node_changed(ConstraintGraph *graph, int node_id, int change_type);
+
+/** @brief 独立约束子图任务（蓝图 lvSubgraphTask；lvProofResult 占位为 void* 语义未接线） */
+typedef struct {
+    int subgraph_id;  /**< 子图序号 */
+    int *node_ids;    /**< 子图节点 ID 数组（[take]） */
+    int node_count;   /**< 节点数量 */
+    void *partial_result; /**< 预留（未接线，恒 NULL） */
+} lvSubgraphTask;
+
+/**
+ * @brief 将约束图分解为独立连通子图（蓝图 lv_graph_decompose）
+ *
+ * 以节点邻接关系（同约束参与者相连）做连通分量分解。
+ *
+ * @param[in]  graph          约束图（非 NULL）
+ * @param[out] out_tasks      子图任务数组（[take] 逐项释放：lv_free(node_ids) + lv_free(task) 后 lv_free 数组）
+ * @param[out] out_task_count 子图数量
+ * @return 0 成功；非 0 失败（参数无效 / 内存不足）
+ */
+lv_PUBLIC_API int lv_graph_decompose(const ConstraintGraph *graph, lvSubgraphTask **out_tasks, int *out_task_count);
+
 #ifdef __cplusplus
 }
 #endif

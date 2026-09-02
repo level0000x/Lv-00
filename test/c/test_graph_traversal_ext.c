@@ -332,6 +332,113 @@ static void test_tree_api(void) {
     printf("  test_tree_api: PASSED\n");
 }
 
+/* ========== 蓝图图 API（TEN_LAYER_OPTIMIZED_PLAN §12.4/§15.2.2/§15.4，批次 G1c） ========== */
+
+/* 变更回调记录 */
+static int g_cb_events = 0;
+static int g_cb_last_node = -1;
+static int g_cb_last_type = -1;
+static void test_change_callback(int graph_id, int node_id, int change_type, void *user_data) {
+    (void) graph_id;
+    (void) user_data;
+    g_cb_events++;
+    g_cb_last_node = node_id;
+    g_cb_last_type = change_type;
+}
+
+static void test_blueprint_graph_api(void) {
+    ConstraintGraph *g = graph_create();
+    TEST_ASSERT_NOT_NULL(g);
+
+    /* lv_graph_add_point：double 坐标建点 */
+    int p0 = lv_graph_add_point(g, 0.0, 0.0);
+    int p1 = lv_graph_add_point(g, 3.0, 4.0);
+    int p2 = lv_graph_add_point(g, 1.0, 1.0);
+    int p3 = lv_graph_add_point(g, 5.0, 2.0);
+    TEST_ASSERT(p0 >= 0 && p1 >= 0 && p2 >= 0 && p3 >= 0, "add_point 均成功");
+    TEST_ASSERT_EQ(p1, p0 + 1);
+
+    /* 两条线段（ID 4,5）+ 平行约束连接 0-1 与 2-3 */
+    TEST_ASSERT_EQ(graph_add_line_segment(g, p0, p1), ADD_NODE_OK);
+    TEST_ASSERT_EQ(graph_add_line_segment(g, p2, p3), ADD_NODE_OK);
+    TEST_ASSERT_EQ(graph_add_parallel(g, 4, 5), ADD_CONSTRAINT_OK);
+
+    /* lv_graph_get_nodes_by_type：POINT 4 个、LINE_SEGMENT 2 个 */
+    int *ids = NULL;
+    int cnt = 0;
+    TEST_ASSERT(lv_graph_get_nodes_by_type(g, GEOM_POINT, &ids, &cnt), "POINT 查询成功");
+    TEST_ASSERT_EQ(cnt, 4);
+    lv_free((void **) &ids);
+    TEST_ASSERT(lv_graph_get_nodes_by_type(g, GEOM_LINE_SEGMENT, &ids, &cnt), "SEGMENT 查询成功");
+    TEST_ASSERT_EQ(cnt, 2);
+    TEST_ASSERT(ids[0] == 4 && ids[1] == 5, "线段 ID 正确");
+    lv_free((void **) &ids);
+    TEST_ASSERT(lv_graph_get_nodes_by_type(g, GEOM_CIRCLE, &ids, &cnt), "CIRCLE 空查询成功");
+    TEST_ASSERT_EQ(cnt, 0);
+    lv_free((void **) &ids);
+    TEST_ASSERT(!lv_graph_get_nodes_by_type(g, GEOM_POINT, NULL, &cnt), "NULL out 拒绝");
+    TEST_ASSERT(!lv_graph_get_nodes_by_type(NULL, GEOM_POINT, &ids, &cnt), "NULL graph 拒绝");
+
+    /* lv_graph_get_dependents：节点 4（线段）参与的平行约束另一参与者为 5 */
+    int *deps = lv_graph_get_dependents(g, 4);
+    TEST_ASSERT_NOT_NULL(deps);
+    int found_5 = 0;
+    for (int i = 0; deps[i] >= 0; i++) {
+        if (deps[i] == 5) found_5 = 1;
+    }
+    TEST_ASSERT(found_5, "依赖含 5");
+    lv_free((void **) &deps);
+
+    /* 节点 5 的依赖为 4 */
+    deps = lv_graph_get_dependents(g, 5);
+    TEST_ASSERT_NOT_NULL(deps);
+    int found_4 = 0;
+    for (int i = 0; deps[i] >= 0; i++) {
+        if (deps[i] == 4) found_4 = 1;
+    }
+    TEST_ASSERT(found_4, "依赖含 4");
+    lv_free((void **) &deps);
+
+    /* 无依赖节点 → 仅 -1 结尾 */
+    deps = lv_graph_get_dependents(g, 0);
+    TEST_ASSERT_NOT_NULL(deps);
+    TEST_ASSERT_EQ(deps[0], -1);
+    lv_free((void **) &deps);
+    TEST_ASSERT_NULL(lv_graph_get_dependents(NULL, 0));
+    TEST_ASSERT_NULL(lv_graph_get_dependents(g, -1));
+
+    /* 变更回调：注册 + 触发 + 覆盖 + 取消 */
+    g_cb_events = 0;
+    TEST_ASSERT(lv_graph_register_change_callback(g, test_change_callback, NULL), "注册回调");
+    lv_graph_on_node_changed(g, 7, 2);
+    TEST_ASSERT_EQ(g_cb_events, 1);
+    TEST_ASSERT_EQ(g_cb_last_node, 7);
+    TEST_ASSERT_EQ(g_cb_last_type, 2);
+    lv_graph_on_node_changed(g, 8, 0);
+    TEST_ASSERT_EQ(g_cb_events, 2);
+    TEST_ASSERT(lv_graph_register_change_callback(g, NULL, NULL), "取消回调");
+    lv_graph_on_node_changed(g, 9, 1);
+    TEST_ASSERT_EQ(g_cb_events, 2); /* 取消后不再触发 */
+    TEST_ASSERT(!lv_graph_register_change_callback(NULL, test_change_callback, NULL), "NULL graph 拒绝");
+
+    /* lv_graph_decompose：4 点 + 2 线段 + 平行约束 → 单连通分量（所有节点相连） */
+    lvSubgraphTask *tasks = NULL;
+    int task_count = 0;
+    TEST_ASSERT_EQ(lv_graph_decompose(g, &tasks, &task_count), 0);
+    TEST_ASSERT_EQ(task_count, 1);
+    TEST_ASSERT_EQ(tasks[0].node_count, 6);
+    for (int i = 0; i < tasks[0].node_count; i++)
+        lv_free((void **) &tasks[0].node_ids);
+    lv_free((void **) &tasks);
+
+    /* 分解 NULL 契约 */
+    TEST_ASSERT_EQ(lv_graph_decompose(NULL, &tasks, &task_count), -1);
+    TEST_ASSERT_EQ(lv_graph_decompose(g, NULL, &task_count), -1);
+
+    graph_destroy(g);
+    printf("  test_blueprint_graph_api: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Graph Traversal Ext Test Suite")
@@ -344,6 +451,7 @@ TEST_MAIN_BEGIN("Lv-00 Graph Traversal Ext Test Suite")
     TEST_MAIN_RUN(test_topo_run_api);
     TEST_MAIN_RUN(test_cycle_detect_api);
     TEST_MAIN_RUN(test_tree_api);
+    TEST_MAIN_RUN(test_blueprint_graph_api);
 
     lv_cleanup();
 TEST_MAIN_END()
