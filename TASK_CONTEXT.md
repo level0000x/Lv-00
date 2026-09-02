@@ -10843,3 +10843,22 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 ### CI
 
 - SIMD/K18 提交双 workflow 全绿；工作区干净。
+
+---
+
+## 批次 221（代理收尾清理提交审核通过，9648c2df）
+
+### 审核结论（逐项核对）
+
+- 删除 21 文件 (-1938 行) 均合理：build4/lv.pc 生成物、examples/triangle_output 求解输出、
+  tool/ 一次性脚本(fix_build/fix_cmake/gen_stubs/cleanup_code/gen_report/extract_preset_data/
+  fix_symbolic_coord)、迁移脚本(_c11_migrate/refactor/do_switch5/_migrate*)、空壳
+  lv_impl_upper_meta.c（48 行纯 include+extern 无函数；3 个 extern 定义在
+  layer4 meta_verify.c，声明在 lv_impl_upper_internal.h L79-81，无残留引用 grep 0 命中）；
+- 保留正确：convert_presets.py(.lvz 生成源，check_preset_sync import)、tool/report_generators
+  (ui/doc 引用)、formal/lv-formal/lv-merged(用户指示)、根目录散落脚本已历史 git rm --cached；
+- 代码修复：lv_ringbuf.c calloc/free → lv_calloc/lv_free((void**)&)（统一分配器合规）；
+- 验证：本地 build3 ctest 296/296 ✓、build_layerval 1142/1142(代理)、治理四检查 0 违规 ✓；
+- 遗留：tool/ vs tools/ 撞名未合并（tool/report_generators 与 tools/ 检查脚本分家，登记后续）、
+  M7 双 meta_verify 未裁决（L4 lv_graph_meta_verify_* vs L8 lv_meta_verifier_*，代理删除仅消
+  一处游离声明）。
