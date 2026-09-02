@@ -543,6 +543,7 @@ set(lv_HEADERS
     core/include/lv/gappa_propagate.h
     core/include/lv/geo_aabb_tree.h
     core/include/lv/geo_constraint_solver.h
+    core/include/lv/solver_incremental.h
     core/include/lv/geo_dynamic.h
     core/include/lv/geo_predicate.h
     core/include/lv/geometry_ops.h
@@ -985,6 +986,7 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/constraint_graph/graph_serialize.c
     core/src/layer3_geometry/constraint_graph/graph_dot_export.c
     core/src/layer3_geometry/constraint_graph/blueprint_graph_api.c
+    core/src/layer3_geometry/constraint_graph/solver_incremental.c
     # 图/树遍历抽象层实现
     core/src/layer3_geometry/constraint_graph/lv_graph_traversal.c
     core/src/layer3_geometry/constraint_graph/graph_traversal_bfs.c
@@ -1881,6 +1883,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_geometry_ops CTEST_NAME geometry_ops_test)
     add_lv_test_auto(test_blueprint_g4 CTEST_NAME blueprint_g4_test)
     add_lv_test_auto(test_lv_safety CTEST_NAME lv_safety_test)
+    add_lv_test_auto(test_solver_incremental CTEST_NAME solver_incremental_test)
     add_lv_test_auto(test_sha256_ext CTEST_NAME sha256_ext_test)
     add_lv_test_auto(test_lv_strbuf_ext CTEST_NAME lv_strbuf_ext_test)
     add_lv_test_auto(test_data_structure_blocks_ext CTEST_NAME data_structure_blocks_ext_test)
