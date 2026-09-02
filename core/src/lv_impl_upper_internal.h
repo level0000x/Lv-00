@@ -74,11 +74,10 @@ typedef struct {
 extern UpperState s_upper_state;
 
 /* ---- cross-section internal APIs ----
- * 实现于 layer4_reasoning/proof/meta_verify.c（与 layer8_meta_verify/meta_verify.c
- * 同名不同模块，函数以 lv_graph_meta_verify_* 前缀区分） */
-int lv_graph_meta_verify_completeness(const ConstraintGraph *graph);
-int lv_graph_meta_verify_soundness(const ConstraintGraph *graph);
-int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
+ * 图级元验证（lv_graph_meta_verify_*）：实现于 layer4_reasoning/proof/meta_verify.c，
+ * 契约头 lv_graph_meta_verify.h（M7：与 layer8 会话级 lv_meta_verifier_* 分层非重复）。
+ * 声明统一走契约头，本处不再重复 extern。 */
+#include "lv/lv_graph_meta_verify.h"
 
 #ifdef __cplusplus
 }

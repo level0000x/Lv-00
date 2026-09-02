@@ -17,6 +17,7 @@
 
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
+#include "lv/lv_graph_meta_verify.h" /* M7：本模块契约头（声明 + lv_PUBLIC_API） */
 
 /**
  * Verify completeness: check that constraint graph has no unconstrained

@@ -232,6 +232,7 @@ extern "C" {
 #include "preset_transformations.h" /* 几何变换模块 */
 #include "proof.h"                  /* 命题与证明系统 */
 #include "proof_engine_enhanced.h"  /* 增强证明引擎 */
+#include "lv_graph_meta_verify.h"   /* 图级元验证（M7 契约头） */
 #include "quantifier.h"             /* 量词系统 */
 #include "recursion.h"              /* 递归与条件 */
 #include "three_valued_logic.h"     /* 三值逻辑系统 */

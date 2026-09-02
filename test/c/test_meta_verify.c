@@ -12,6 +12,7 @@
 #include "lv/conflict_detector.h"
 #include "lv/constraint_graph.h"
 #include "lv/lv.h"
+#include "lv/lv_graph_meta_verify.h" /* M7：图级元验证契约头（声明统一走此） */
 #include "lv/lv_parse_utils.h"
 
 #include "test_helpers.h"
@@ -20,10 +21,7 @@
 int g_pass_count = 0;
 int g_fail_count = 0;
 
-/* 前向声明：待测函数（layer4_reasoning/proof/meta_verify.c，lv_graph_ 前缀） */
-extern int lv_graph_meta_verify_completeness(const ConstraintGraph *graph);
-extern int lv_graph_meta_verify_soundness(const ConstraintGraph *graph);
-extern int lv_graph_meta_verify_differential(const ConstraintGraph *graph_a, const ConstraintGraph *graph_b);
+/* 待测函数声明经 lv_graph_meta_verify.h 提供（原游离 extern 移除，M7） */
 
 /**
  * @brief 创建包含一个已指定坐标的 POINT 节点的约束图

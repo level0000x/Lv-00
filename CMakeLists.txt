@@ -400,6 +400,7 @@ set(lv_HEADERS
     core/include/lv/lv_error.h
     core/include/lv/symbolic_coord.h
     core/include/lv/constraint_graph.h
+    core/include/lv/lv_graph_meta_verify.h
     core/include/lv/normalization.h
     core/include/lv/graph_hash.h
     core/include/lv/solver.h
