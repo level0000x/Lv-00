@@ -532,6 +532,7 @@ set(lv_HEADERS
     core/include/lv/nt_polynomial.h
     core/include/lv/ode_solver.h
     core/include/lv/plugin_system.h
+    core/include/lv/plugin_security.h
     core/include/lv/proof_compiler.h
     # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
     core/include/lv/lv_protocol.h
@@ -1427,6 +1428,8 @@ set(lv_LAYER5_SOURCES
     # v1.1.0 补全遗漏：插件系统、证明编译器
     core/src/layer5_output/plugin_system.c
     core/src/layer5_output/plugin_system_core.c
+    # 蓝图插件安全层（§16.1/§16.2.1）
+    core/src/layer5_output/plugin_security.c
     # 导出公共工具（XML 转义 / 写文件；原在 layer2，调用者仅 L5，归位输出层）
     core/src/layer5_output/lv_export_common.c
     core/src/layer5_output/plugin_system_load.c
@@ -1884,6 +1887,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_blueprint_g4 CTEST_NAME blueprint_g4_test)
     add_lv_test_auto(test_lv_safety CTEST_NAME lv_safety_test)
     add_lv_test_auto(test_blueprint_solver_incremental CTEST_NAME blueprint_solver_incremental_test)
+    add_lv_test_auto(test_plugin_security CTEST_NAME plugin_security_test)
     add_lv_test_auto(test_sha256_ext CTEST_NAME sha256_ext_test)
     add_lv_test_auto(test_lv_strbuf_ext CTEST_NAME lv_strbuf_ext_test)
     add_lv_test_auto(test_data_structure_blocks_ext CTEST_NAME data_structure_blocks_ext_test)
