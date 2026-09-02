@@ -10741,3 +10741,28 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 ### 剩余
 
 - 确认点 3：规划文档蓝图 API 逐项核对（B，用户指示最后做）——下一步。
+
+---
+
+## 批次 204（确认点 3：规划文档蓝图 API 逐项核对，B 方案完成）
+
+### ① 核对结论（用户确认点 3 最后处理，已完成）
+
+- 工具：新增 `tools/plan_api_audit.py`（提取 5 个豁免规划文档代码块 lv_* 符号 + 对照头文件声明）；
+- 报告：`doc/docs/PLAN_API_AUDIT.md`（文件名含 PLAN，symbol_sync 自然豁免，不产生 CI 噪音）；
+- **151 个蓝图符号 = 40 ✅ 已有对应/替代 + 14 ⚠️ 部分替代 + 97 ❌ 纯蓝图**；
+  - CONSTRAINT_PROOF_TEST_PLAN / DOCUMENT_GOVERNANCE_PLAN / TEN_LAYER_INTEGRATION_PLAN：代码块内 0 个 lv_* 符号，无需核对；
+  - PERFORMANCE_OPTIMIZATION：23 个（20✅+3❌，仅 LRU 纯蓝图）；
+  - TEN_LAYER_OPTIMIZED_PLAN：128 个（20✅+14⚠️+94❌）。
+- 重要发现：4 个 SIMD 函数（lv_simd_add_array_d/sum/distance/cross2d）在 src 已实现但未导出（simd_batch.c/simd_geo_matrix.c），需后续补声明（登记 K 项）。
+
+### ② 决策登记
+
+- 纯蓝图 97 个（插件签名/沙箱/权限/审计、func_block 自定义注册、fb_template、Python 集成、DSL 扩展、
+  符号缓存、几何点/三角形高级 API）判定为「未来设计」，与 K5 教学面幻影 API 不冲突，保留；
+- 40 个已有替代的蓝图 API 在报告中逐项标注替代符号，文档若当使用手册会误导，报告已注明；
+- 核对方法（plan_api_audit.py）可复用，后续规划文档变更可重跑。
+
+### 剩余（非确认点，可后续）
+
+- SIMD 4 函数导出（K 项登记）、K18 find_package 安装验证、Linux shared CI 补测、K59 收尾核查、K66/K67 其余、J1/K62/K71。
