@@ -321,7 +321,7 @@ static GeomType string_to_geom_type(const char *str) {
 }
 
 static ConstraintType string_to_constraint_type(const char *str) {
-    return (ConstraintType)lv_str_to_enum(constraint_type_map, 6, str, INCIDENCE);
+    return (ConstraintType)lv_str_to_enum(constraint_type_map, lv_ARRAY_SIZE(constraint_type_map), str, INCIDENCE);
 }
 
 /** @brief 将坐标类型字符串反序列化为 CoordType 枚举（未命中返回 -1，保持原默认值语义） */
@@ -962,4 +962,79 @@ ConstraintGraph *graph_deserialize_from_json(const char *json) {
     }
 
     return graph;
+}
+
+/* ============================================================
+ * 蓝图约束 JSON API（TEN_LAYER_OPTIMIZED_PLAN §12.8 R13 落地）
+ *
+ * lv_constraint_to_json 与 graph_constraint_serialize_to_json 同实现；
+ * lv_constraint_from_json 复用 constraint_field_* 字段处理器。
+ * ============================================================ */
+
+bool lv_constraint_to_json(const Constraint *constraint, char **out_json) {
+    if (out_json == NULL) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_constraint_to_json: out_json is NULL");
+    }
+    *out_json = graph_constraint_serialize_to_json(constraint);
+    return *out_json != NULL;
+}
+
+bool lv_constraint_from_json(const char *json, Constraint **out_constraint) {
+    if (out_constraint == NULL) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_constraint_from_json: out_constraint is NULL");
+    }
+    *out_constraint = NULL;
+    if (json == NULL) {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_constraint_from_json: json is NULL");
+    }
+
+    size_t json_len = strlen(json);
+    lvJsonParser p;
+    lv_json_parser_init(&p, json, json_len);
+
+    if (lv_json_peek(&p) != '{') {
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_constraint_from_json: expected JSON object");
+    }
+    p.pos++; /* skip '{' */
+
+    ConstraintDeserCtx cctx;
+    memset(&cctx, 0, sizeof(cctx));
+    cctx.template_id = -1;
+    cctx.constraint_type = INCIDENCE;
+
+    char *key = NULL;
+    while (lv_json_parse_field(&p, &key)) {
+        ConstraintFieldHandler cfh = constraint_field_lookup(key);
+        if (cfh)
+            cfh(&p, &cctx);
+        else
+            lv_json_skip_value(&p);
+        lv_free((void **) &key);
+    }
+
+    if (lv_json_peek(&p) == '}')
+        p.pos++;
+
+    if (cctx.participants == NULL || cctx.participant_count <= 0) {
+        lv_free((void **) &cctx.participants);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "lv_constraint_from_json: missing participants");
+    }
+
+    /* 单约束堆分配：字段与 graph_add_constraint_with_id 初始化一致（不含图注册） */
+    Constraint *constraint = (Constraint *) lv_calloc(1, sizeof(Constraint));
+    if (constraint == NULL) {
+        lv_free((void **) &cctx.participants);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_OUT_OF_MEMORY, "lv_constraint_from_json: calloc failed");
+    }
+    constraint->id = cctx.constraint_id;
+    constraint->type = cctx.constraint_type;
+    constraint->participants = cctx.participants;
+    constraint->participant_count = cctx.participant_count;
+    constraint->template_id = cctx.template_id;
+    constraint->numeric_value = cctx.numeric_value;
+    constraint->is_active = true;
+    constraint->satisfaction = 0.0;
+
+    *out_constraint = constraint;
+    return true;
 }

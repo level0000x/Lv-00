@@ -343,6 +343,64 @@ void test_advanced_node_roundtrip_and_deepcopy(void) {
     printf("区域/端口/函数块/圆 三方一致测试通过!\n\n");
 }
 
+/* ========== 蓝图约束 JSON API（TEN_LAYER_OPTIMIZED_PLAN §12.8 R13，批次 G1b） ========== */
+
+static void test_blueprint_constraint_json(void) {
+    printf("=== 测试蓝图单约束 JSON（lv_constraint_to_json / from_json）===\n");
+
+    /* 构建：图 + 两条线段 + 平行约束（取约束对象） */
+    ConstraintGraph *graph = graph_create();
+    lv_ASSERT_NOT_NULL(graph);
+    add_point(graph, 0, 1, 0, 1);   /* p0 (0,0) */
+    add_point(graph, 3, 1, 4, 1);   /* p1 (3,4) */
+    add_point(graph, 1, 1, 1, 1);   /* p2 (1,1) */
+    add_point(graph, 4, 1, 5, 1);   /* p3 (4,5) */
+    lv_ASSERT(graph_add_line_segment(graph, 0, 1) == ADD_NODE_OK);  /* 线段 ID 4 */
+    lv_ASSERT(graph_add_line_segment(graph, 2, 3) == ADD_NODE_OK);  /* 线段 ID 5 */
+    AddConstraintResult cr = graph_add_parallel(graph, 4, 5);
+    lv_ASSERT(cr == ADD_CONSTRAINT_OK);
+    Constraint *con = graph_get_constraint(graph, 0);
+    lv_ASSERT_NOT_NULL(con);
+    lv_ASSERT(con->type == PARALLEL);
+    lv_ASSERT(con->participant_count == 2);
+    lv_ASSERT(con->participants[0] == 4);
+    lv_ASSERT(con->participants[1] == 5);
+
+    /* to_json */
+    char *json = NULL;
+    lv_ASSERT(lv_constraint_to_json(con, &json));
+    lv_ASSERT_NOT_NULL(json);
+    lv_ASSERT(strstr(json, "PARALLEL") != NULL);
+    lv_ASSERT(strstr(json, "participants") != NULL);
+
+    /* from_json：round-trip 字段一致 */
+    Constraint *parsed = NULL;
+    lv_ASSERT(lv_constraint_from_json(json, &parsed));
+    lv_ASSERT_NOT_NULL(parsed);
+    lv_ASSERT(parsed->type == PARALLEL);
+    lv_ASSERT(parsed->id == con->id);
+    lv_ASSERT(parsed->participant_count == con->participant_count);
+    lv_ASSERT(parsed->participants[0] == con->participants[0]);
+    lv_ASSERT(parsed->participants[1] == con->participants[1]);
+    lv_ASSERT(parsed->is_active);
+
+    /* 参数校验（独立变量，避免覆盖 parsed） */
+    Constraint *bad = NULL;
+    lv_ASSERT(!lv_constraint_to_json(NULL, &json));
+    lv_ASSERT(!lv_constraint_to_json(con, NULL));
+    lv_ASSERT(!lv_constraint_from_json(NULL, &bad));
+    lv_ASSERT(!lv_constraint_from_json("{bad", &bad));
+    lv_ASSERT(!lv_constraint_from_json("{}", &bad));
+
+    /* 清理：parsed 为堆分配单约束，participants 内部存储由 lv_free 一并释放 */
+    void *parts = parsed->participants;
+    lv_free(&parts);
+    lv_free((void **) &parsed);
+    lv_free_ptr(json);
+    graph_destroy(graph);
+    printf("蓝图单约束 JSON 测试通过!\n\n");
+}
+
 TEST_MAIN_BEGIN("约束图序列化与反序列化测试")
     printf("========================================\n");
     printf("约束图序列化与反序列化测试\n");
@@ -352,6 +410,7 @@ TEST_MAIN_BEGIN("约束图序列化与反序列化测试")
     TEST_MAIN_RUN(test_constraint_serialization);
     TEST_MAIN_RUN(test_module_graph_serialization);
     TEST_MAIN_RUN(test_advanced_node_roundtrip_and_deepcopy);
+    TEST_MAIN_RUN(test_blueprint_constraint_json);
     printf("========================================\n");
     printf("所有序列化测试通过!\n");
     printf("========================================\n");

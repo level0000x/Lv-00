@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * 模块名称：约束图 (constraint_graph)
  * 功能概述：Lv-00 系统的核心数据结构，提供几何节点（点、线段、区域、
  *          端口、函数块）和约束（关联、之间、相交、包含、连接、角度）的
@@ -1234,6 +1234,39 @@ lv_PUBLIC_API void graph_sync_nodes(ConstraintGraph *graph);
  * @return lv_OK 成功，其他错误码表示失败
  */
 lv_PUBLIC_API int graph_deactivate_constraint(ConstraintGraph *graph, int constraint_id);
+
+/* ============================================================
+ * 蓝图约束 JSON API（TEN_LAYER_OPTIMIZED_PLAN §12.8 R13 落地）
+ *
+ * 规划文档类型名 lvConstraint 对应库内 Constraint；lv_constraint_to_json /
+ * lv_constraint_from_json 为单约束序列化（graph_serialize_to_json 的
+ * 单条约束形态）。序列化格式与 graph_constraint_serialize_to_json 一致
+ * （键：id / constraint_type / participants / template_id / numeric_value）。
+ * ============================================================ */
+
+/**
+ * @brief 将单个约束序列化为 JSON 字符串
+ *
+ * 等价于 graph_constraint_serialize_to_json（同一实现，蓝图命名）。
+ *
+ * @param[in]  constraint 约束（非 NULL）
+ * @param[out] out_json   输出 JSON 字符串（[take] 调用者负责 lv_free）
+ * @return true 成功；false 参数无效或内存不足
+ */
+lv_PUBLIC_API bool lv_constraint_to_json(const Constraint *constraint, char **out_json);
+
+/**
+ * @brief 从 JSON 字符串反序列化单个约束
+ *
+ * 解析 {id, constraint_type, participants, template_id, numeric_value}。
+ * 返回的约束为堆分配对象（[take] 调用者负责 lv_free——注意 Constraint
+ * 不含自持指针，直接 lv_free 即可），participants 数组为内部存储。
+ *
+ * @param[in]  json            JSON 字符串（非 NULL）
+ * @param[out] out_constraint  输出约束指针（[take]）
+ * @return true 成功；false 解析失败或参数无效
+ */
+lv_PUBLIC_API bool lv_constraint_from_json(const char *json, Constraint **out_constraint);
 
 #ifdef __cplusplus
 }
