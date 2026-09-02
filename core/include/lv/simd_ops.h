@@ -167,6 +167,18 @@ lv_PUBLIC_API double lv_simd_dot_product_array(const double *a, const double *b,
 lv_PUBLIC_API void lv_simd_norm_array(const double *in, double *out, size_t count);
 lv_PUBLIC_API void lv_simd_scale_array(const double *in, double scale, double *out, size_t count);
 
+/* ── 蓝图批量数组原语导出（PERFORMANCE_OPTIMIZATION.md §2.3；src 已实现，补声明）── */
+/** @brief 批量加法 out[i] = a[i] + b[i]（蓝图 lv_simd_add_array_d） */
+lv_PUBLIC_API void lv_simd_add_array_d(const double *a, const double *b, double *out, size_t count);
+/** @brief 批量求和 sum(arr[0..count))（蓝图 lv_simd_sum_array_d） */
+lv_PUBLIC_API double lv_simd_sum_array_d(const double *arr, size_t count);
+/** @brief 批量 2D 距离（蓝图 lv_simd_distance_array；x1/y1 与 x2/y2 逐对求欧氏距离写 distances） */
+lv_PUBLIC_API void lv_simd_distance_array(const double *x1, const double *y1, const double *x2, const double *y2,
+                                          double *distances, size_t count);
+/** @brief 批量 2D 叉积 out[i] = ax[i]*by[i] - ay[i]*bx[i]（蓝图 lv_simd_cross2d_array） */
+lv_PUBLIC_API void lv_simd_cross2d_array(const double *ax, const double *ay, const double *bx, const double *by,
+                                         double *out, size_t count);
+
 #ifdef __cplusplus
 }
 #endif

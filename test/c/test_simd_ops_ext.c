@@ -322,6 +322,48 @@ static void test_simd_matrix_batch_api(void) {
     printf("  test_simd_matrix_batch_api: PASSED\n");
 }
 
+/* ============== 蓝图批量原语导出（PERFORMANCE_OPTIMIZATION.md §2.3，批次 SIMD-export） ============== */
+
+static void test_blueprint_simd_batch_export(void) {
+    /* add_array_d */
+    double a[5] = {1, 2, 3, 4, 5};
+    double b[5] = {10, 20, 30, 40, 50};
+    double o[5] = {0, 0, 0, 0, 0};
+    lv_simd_add_array_d(a, b, o, 5);
+    for (int i = 0; i < 5; i++)
+        TEST_ASSERT_DOUBLE(o[i], a[i] + b[i], 1e-9);
+    lv_simd_add_array_d(a, b, o, 0); /* 空 count 安全 */
+
+    /* sum_array_d */
+    TEST_ASSERT_DOUBLE(lv_simd_sum_array_d(a, 5), 15, 1e-9);
+    TEST_ASSERT_DOUBLE(lv_simd_sum_array_d(a, 0), 0, 1e-9);
+    double neg[3] = {-1.5, 2.5, -1.0};
+    TEST_ASSERT_DOUBLE(lv_simd_sum_array_d(neg, 3), 0, 1e-9);
+
+    /* distance_array：2D 逐对欧氏距离 */
+    double x1[3] = {0, 3, 1};
+    double y1[3] = {0, 4, 1};
+    double x2[3] = {0, 0, 4};
+    double y2[3] = {0, 0, 5};
+    double dout[3] = {0, 0, 0};
+    lv_simd_distance_array(x1, y1, x2, y2, dout, 3);
+    TEST_ASSERT_DOUBLE(dout[0], 0, 1e-9);   /* (0,0)-(0,0) */
+    TEST_ASSERT_DOUBLE(dout[1], 5, 1e-9);   /* (3,4)-(0,0) */
+    TEST_ASSERT_DOUBLE(dout[2], 5, 1e-9);   /* (1,1)-(4,5) */
+
+    /* cross2d_array：叉积 z 分量 */
+    double ax[2] = {1, 3};
+    double ay[2] = {0, 4};
+    double bx[2] = {0, 5};
+    double by[2] = {2, 6};
+    double cout[2] = {0, 0};
+    lv_simd_cross2d_array(ax, ay, bx, by, cout, 2);
+    TEST_ASSERT_DOUBLE(cout[0], 1 * 2 - 0 * 0, 1e-9); /* 2 */
+    TEST_ASSERT_DOUBLE(cout[1], 3 * 6 - 4 * 5, 1e-9); /* -2 */
+
+    printf("  test_blueprint_simd_batch_export: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 SIMD Ops Ext Test Suite")
@@ -336,6 +378,7 @@ TEST_MAIN_BEGIN("Lv-00 SIMD Ops Ext Test Suite")
     TEST_MAIN_RUN(test_vec4f_api);
     TEST_MAIN_RUN(test_vec8f_api);
     TEST_MAIN_RUN(test_simd_matrix_batch_api);
+    TEST_MAIN_RUN(test_blueprint_simd_batch_export);
 
     lv_cleanup();
 TEST_MAIN_END()
