@@ -3,9 +3,9 @@ const { Document, Packer, Paragraph, TextRun, Table, TableRow, HeadingLevel,
 const fs = require('fs');
 const path = require('path');
 
-// 共享辅助（来自 tool/report_generators/docx_helpers.js）
+// 共享辅助（来自 tools/report_generators/docx_helpers.js）
 const { font, borders, PAGE_WIDTH, PAGE_HEIGHT, MARGIN, makeCell, makeBulletConfig } =
-    require('../tool/report_generators/docx_helpers');
+    require('../tools/report_generators/docx_helpers');
 
 function cell(text, opts = {}) {
     return makeCell(text, {

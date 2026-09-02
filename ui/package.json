@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "lv",
   "version": "3.4.0",
   "description": "Lv-00 几何元语言 —— 将几何构造、计算程序、一阶逻辑证明统一于同一语法体系的理论数学研究平台",
@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "report": "node tool/report_generators/generate_report.js",
+    "report": "node tools/report_generators/generate_report.js",
     "cmake:configure": "cmake -B build -DCMAKE_BUILD_TYPE=Release",
     "cmake:configure:debug": "cmake -B build -DCMAKE_BUILD_TYPE=Debug",
     "cmake:build": "cmake --build build --config Release -j",
