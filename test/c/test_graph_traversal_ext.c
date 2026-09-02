@@ -435,6 +435,15 @@ static void test_blueprint_graph_api(void) {
     TEST_ASSERT_EQ(lv_graph_decompose(NULL, &tasks, &task_count), -1);
     TEST_ASSERT_EQ(lv_graph_decompose(g, NULL, &task_count), -1);
 
+    /* G5-internal：蓝图内部访问转发（ENGINE_INTERNAL / internal_*） */
+    GeomNode *inode = lv_internal_get_node(g, p0);
+    TEST_ASSERT_NOT_NULL(inode);
+    TEST_ASSERT_EQ(inode->id, p0);
+    TEST_ASSERT_NULL(lv_internal_get_node(g, 9999));
+    TEST_ASSERT(lv_internal_remove_node(g, 9999) == false, "未知节点移除 false");
+    GeomNode *ginfo = lv_internal_get_node(g, 0);
+    TEST_ASSERT_NOT_NULL(ginfo);
+
     graph_destroy(g);
     printf("  test_blueprint_graph_api: PASSED\n");
 }

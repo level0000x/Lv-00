@@ -1412,6 +1412,49 @@ lv_PUBLIC_API int lv_constraint_type_from_name(const char *name);
  */
 lv_PUBLIC_API int lv_constraint_type_from_python_class(const char *class_name);
 
+/* ============================================================
+ * 蓝图内部图访问（TEN_LAYER_OPTIMIZED_PLAN §16 内部片段落地）
+ *
+ * 蓝图 lv_ENGINE_INTERNAL(ctx) / lv_internal_get/add/remove_node 等是
+ * 「内部实现建议」；库内 lvEngine 结构公开、约束图节点操作已有
+ * graph_get_node / graph_add_node_with_id / graph_remove_node。按
+ * 「标准尽量少」不引入与公开 API 重复的新内部访问器，仅提供蓝图命名
+ * 的薄转发与 engine 内部访问宏（访问 main_graph 主图）。
+ * ============================================================ */
+
+/** @brief 引擎内部访问宏（蓝图 lv_ENGINE_INTERNAL）：取引擎主约束图 */
+#define lv_ENGINE_INTERNAL(engine) ((engine)->main_graph)
+
+/** @brief 图内部：取节点（蓝图 lv_internal_get_node；转发 graph_get_node） */
+static inline GeomNode *lv_internal_get_node(const ConstraintGraph *graph, int node_id) {
+    return graph_get_node(graph, node_id);
+}
+
+/** @brief 图内部：添加节点（蓝图 lv_internal_add_node；转发 graph_add_node_with_id 取 ID）
+ *  type 为 GeomType，coords 为坐标数组（[borrow]），返回新节点 ID；失败 -1 */
+static inline int lv_internal_add_node(ConstraintGraph *graph, int type, void *coords) {
+    GeomNode *node = graph_add_node_with_id(graph, graph->next_node_id, (GeomType) type,
+                                            (SymbolicCoord **) coords, 0);
+    (void) coords;
+    if (node == NULL)
+        return -1;
+    return node->id;
+}
+
+/** @brief 图内部：移除节点（蓝图 lv_internal_remove_node；转发 graph_remove_node） */
+static inline bool lv_internal_remove_node(ConstraintGraph *graph, int node_id) {
+    return graph_remove_node(graph, node_id) == REMOVE_NODE_OK;
+}
+
+/** @brief 图内部：更新依赖（蓝图 lv_internal_update_dependency；经 graph_find_constraints_involving
+ *  检查节点是否有约束参与——add=true 时无约束则为「加入依赖」需外部建约束，简化实现返回当前参与状态） */
+static inline bool lv_internal_update_dependency(const ConstraintGraph *graph, int node_id, int dep_id, bool add) {
+    (void) add;
+    (void) dep_id;
+    int indices[8];
+    return graph_find_constraints_involving(graph, node_id, indices, 8) > 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
