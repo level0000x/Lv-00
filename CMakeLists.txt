@@ -424,6 +424,7 @@ set(lv_HEADERS
     core/include/lv/lv_path.h
     core/include/lv/lv_heap.h
     core/include/lv/lv_hashtable.h
+    core/include/lv/dsl_extension.h
     core/include/lv/high_dim.h
     core/include/lv/interop.h
     core/include/lv/formula_parser.h
@@ -759,6 +760,8 @@ set(lv_LAYER2_SOURCES
     core/src/layer2_resource/lv_hash.c
     # v6.0.0 统一哈希表设施（int/string 双形态，收敛 graph/geo/preset 手写哈希）
     core/src/layer2_resource/lv_hashtable.c
+    # 蓝图 DSL 扩展注册表与版本语义（§4.1.5）
+    core/src/layer2_resource/dsl_extension.c
     # v1.1.0 线程池（原在 L3，v2.0.0 移入 L2 作为基础设施）
     core/src/layer2_resource/thread_pool.c
     # v3.8.0 统一日志抽象层
@@ -1861,6 +1864,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_path_ext CTEST_NAME lv_path_ext_test)
     add_lv_test_auto(test_lv_hashtable_ext CTEST_NAME lv_hashtable_ext_test)
     add_lv_test_auto(test_error_codes_ext CTEST_NAME error_codes_ext_test)
+    add_lv_test_auto(test_dsl_extension CTEST_NAME dsl_extension_test)
     add_lv_test_auto(test_sha256_ext CTEST_NAME sha256_ext_test)
     add_lv_test_auto(test_lv_strbuf_ext CTEST_NAME lv_strbuf_ext_test)
     add_lv_test_auto(test_data_structure_blocks_ext CTEST_NAME data_structure_blocks_ext_test)
