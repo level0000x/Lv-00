@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file func_block_registry.h
  * @brief 预设函数块注册系统
  *
@@ -340,6 +340,73 @@ lv_PUBLIC_API int func_block_registry_get_count(void);
  * @return 0 成功，-1 未找到
  */
 lv_PUBLIC_API int func_block_registry_unregister(const char *name);
+
+/* ============================================================
+ * 蓝图预设 API（TEN_LAYER_OPTIMIZED_PLAN §12.9 R14 落地）
+ *
+ * 规划文档类型名 lvPresetBlockDef 此处定义；lv_preset_register 注册
+ * 自定义预设（execute 函数指针），lv_preset_get/unregister 查询/注销
+ * （回退 preset_blocks 元数据注册表与 func_block_registry）。
+ * lv_preset_create_* 为约束图上的几何构造（符号精度运算 + graph_add_point）。
+ * ============================================================ */
+
+/** @brief 蓝图预设块定义（规划文档 §12.9） */
+typedef struct {
+    const char *name;               /**< 预设名称（唯一键） */
+    const char *category;           /**< 类别名（中文或英文） */
+    const char *description;        /**< 描述 */
+    int (*min_inputs)(void);        /**< 最小输入数（可为 NULL） */
+    int (*max_inputs)(void);        /**< 最大输入数（可为 NULL） */
+    bool (*execute)(ConstraintGraph *graph, const int *inputs, int input_count, int **outputs, int *output_count);
+} lvPresetBlockDef;
+
+/**
+ * @brief 注册自定义预设函数块（蓝图 lv_preset_register）
+ *
+ * 注册项被复制存储（strdup），调用方注册后可释放原 def 字符串。
+ * 同名（自定义表）已存在时返回 false。
+ *
+ * @param def 预设定义（非 NULL）
+ * @return true 注册成功；false 参数无效 / 同名已存在 / 表满 / 内存不足
+ */
+lv_PUBLIC_API bool lv_preset_register(const lvPresetBlockDef *def);
+
+/**
+ * @brief 注销预设（蓝图 lv_preset_unregister）
+ *
+ * 先查自定义注册表，未命中回退 func_block_registry_unregister。
+ *
+ * @param name 预设名称
+ * @return true 注销成功；false 未注册过该名
+ */
+lv_PUBLIC_API bool lv_preset_unregister(const char *name);
+
+/**
+ * @brief 查询预设定义（蓝图 lv_preset_get）
+ *
+ * 先查自定义注册表，未命中回退 preset_blocks 元数据注册表
+ * （此时 execute 为 NULL，仅名称/类别/描述可用）。
+ * 返回的指针指向注册表内部静态存储，勿修改或释放。
+ *
+ * @param name 预设名称
+ * @return 预设定义指针；未找到返回 NULL
+ */
+lv_PUBLIC_API const lvPresetBlockDef *lv_preset_get(const char *name);
+
+/** @brief 构造中点（蓝图 lv_preset_create_midpoint） */
+lv_PUBLIC_API bool lv_preset_create_midpoint(ConstraintGraph *graph, int p1, int p2, int *out_midpoint);
+/** @brief 构造外心（蓝图 lv_preset_create_circumcenter） */
+lv_PUBLIC_API bool lv_preset_create_circumcenter(ConstraintGraph *graph, int a, int b, int c, int *out_center);
+/** @brief 构造重心（蓝图 lv_preset_create_centroid） */
+lv_PUBLIC_API bool lv_preset_create_centroid(ConstraintGraph *graph, int a, int b, int c, int *out_centroid);
+/** @brief 构造垂心（蓝图 lv_preset_create_orthocenter） */
+lv_PUBLIC_API bool lv_preset_create_orthocenter(ConstraintGraph *graph, int a, int b, int c, int *out_orthocenter);
+/** @brief 构造内心（蓝图 lv_preset_create_incenter） */
+lv_PUBLIC_API bool lv_preset_create_incenter(ConstraintGraph *graph, int a, int b, int c, int *out_incenter);
+/** @brief 构造反射（点关于点）（蓝图 lv_preset_create_reflection） */
+lv_PUBLIC_API bool lv_preset_create_reflection(ConstraintGraph *graph, int point, int mirror, int *out_reflection);
+/** @brief 构造平移（蓝图 lv_preset_create_translation） */
+lv_PUBLIC_API bool lv_preset_create_translation(ConstraintGraph *graph, int point, int vector, int *out_translated);
 
 #ifdef __cplusplus
 }

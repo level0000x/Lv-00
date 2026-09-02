@@ -1160,6 +1160,7 @@ set(lv_L4_FUNC_BLOCK_SOURCES
     core/src/layer4_reasoning/func_block/func_block_preset_ops.c
     core/src/layer4_reasoning/func_block/func_block_preset_query.c
     core/src/layer4_reasoning/func_block/func_block_registry.c
+    core/src/layer4_reasoning/func_block/blueprint_preset_api.c
     core/src/layer4_reasoning/func_block/func_block_selector.c
     core/src/layer4_reasoning/func_block/func_block_serialize.c
     core/src/layer4_reasoning/func_block/func_block_utils.c
