@@ -218,6 +218,8 @@ static void lv_module_cleanup_config(void) {
 /** @brief 错误上下文清理包装（注册表 cleanup 无参签名适配） */
 static void lv_module_cleanup_error_context(void) {
     lv_error_context_cleanup(lv_error_context_current());
+    /* 动态错误消息注册表（蓝图 lv_register_error_message 扩展）进程级清理 */
+    lv_error_messages_cleanup();
 }
 
 /** @brief 预设对象池初始化包装

@@ -217,6 +217,21 @@ extern "C" {
 #define LV_EC_CAT_LONG(key) LV_EC_CAT_CONCAT(LV_EC_CAT_LONG_, key)
 
 /**
+ * @brief 错误类别枚举（lvErrorCategory，蓝图 API 适配）
+ *
+ * 规划文档（TEN_LAYER_OPTIMIZED_PLAN §4.1.6）蓝图 lvErrorCategory 是第二套
+ * 独立类别（SYNTAX/TYPE/CONSTRAINT/...），与库内 LV_CAT_* 类别键体系重复。
+ * 按「标准尽量少」原则：不引入第二套类别，枚举成员复用 LV_ERROR_CATEGORIES_X
+ * 类别键（该列表是库内类别的单一事实来源），蓝图 API 的参数/字段直接映射。
+ */
+#define LV_X_EC_CAT_ENUM_ITEM(key) key,
+typedef enum {
+    LV_ERROR_CATEGORIES_X(LV_X_EC_CAT_ENUM_ITEM)
+    lv_ERROR_CATEGORY_COUNT /**< 类别总数（哨兵，不属于类别） */
+} lvErrorCategory;
+#undef LV_X_EC_CAT_ENUM_ITEM
+
+/**
  * @brief 状态码类别区间 X-macro —— 粗粒度类别区间的单一事实来源
  *
  * 条目形态：x(min, max, 类别键)
@@ -543,5 +558,108 @@ lv_PUBLIC_API lvErrorCode lv_error_code_from_string(const char *name);
 #ifdef __cplusplus
 }
 #endif
+
+/* ============================================================
+ * 蓝图错误消息 API（TEN_LAYER_OPTIMIZED_PLAN §4.1.6 落地）
+ *
+ * 规划文档 lvErrorCategory 为第二套独立类别（SYNTAX/TYPE/...），
+ * 按「标准尽量少」映射到库内 LV_CAT_* 类别键（lvErrorCategory 枚举
+ * 定义于类别键区，成员即 LV_CAT_* 键名），不引入第二套类别。
+ * lvErrorMessage 为结构化错误信息（英文/中文/建议/文档链接），
+ * 与现有 lv_error_string/lv_error_name（每码查询）互补。
+ * ============================================================ */
+
+/** @brief 结构化错误消息（蓝图 lvErrorMessage） */
+typedef struct {
+    int code;                    /**< 错误码 */
+    lvErrorCategory category;    /**< 错误类别（库内 LV_CAT_* 键） */
+    const char *message;         /* 英文（枚举名） */
+    const char *message_cn;      /* 中文消息 */
+    const char *suggestion;      /* 修复建议（未提供为 NULL） */
+    const char *documentation;   /* 相关文档链接（未提供为 NULL） */
+} lvErrorMessage;
+
+/** @brief 错误消息注册项（蓝图 lvErrorMessageRegistration，允许插件扩展） */
+typedef struct {
+    int code;                    /**< 错误码 */
+    lvErrorCategory category;    /**< 错误类别 */
+    const char *message;         /* 英文消息 */
+    const char *message_cn;      /* 中文消息 */
+    const char *suggestion;      /* 修复建议（可为 NULL） */
+} lvErrorMessageRegistration;
+
+/**
+ * @brief 查询错误码的结构化错误消息
+ *
+ * 优先查询动态注册表（lv_register_error_message 注册的插件扩展消息），
+ * 未命中回退编译期规范表（LV_ERROR_CODES_X）。返回静态存储，无需释放；
+ * 动态注册项的生命周期由注册表管理（进程级，lv_error_messages_cleanup 清理）。
+ *
+ * @param error_code 错误码
+ * @return 结构化错误消息（静态存储）；未知错误码返回 NULL
+ */
+lv_PUBLIC_API const lvErrorMessage *lv_get_error_message(int error_code);
+
+/**
+ * @brief 获取错误类别的英文名（如 "OK"、"SYSTEM"）
+ * @param category 错误类别（lvErrorCategory 枚举成员）
+ * @return 英文类别名；越界返回 NULL
+ */
+lv_PUBLIC_API const char *lv_error_category_name(lvErrorCategory category);
+
+/**
+ * @brief 获取错误类别的中文名（长名，如 "通用系统错误"）
+ * @param category 错误类别
+ * @return 中文类别名；越界返回 NULL
+ */
+lv_PUBLIC_API const char *lv_error_category_name_cn(lvErrorCategory category);
+
+/**
+ * @brief 注册自定义错误消息（允许插件扩展错误码）
+ *
+ * 注册后 lv_get_error_message 优先返回注册项（覆盖同码编译期表项）。
+ * 注册项被复制存储（strdup），调用方可在注册后释放原字符串。
+ *
+ * @param reg 注册项（非 NULL）
+ * @return true 注册成功；false 参数无效或内存不足
+ */
+lv_PUBLIC_API bool lv_register_error_message(const lvErrorMessageRegistration *reg);
+
+/**
+ * @brief 注销自定义错误消息
+ * @param code 错误码
+ * @return true 注销成功；false 未注册过该码
+ */
+lv_PUBLIC_API bool lv_unregister_error_message(int code);
+
+/**
+ * @brief 格式化错误输出（蓝图 lv_format_error）
+ *
+ * 将错误码、类别、消息与上下文拼装为一行文本：
+ *   [类别] 名称 (0x00000008): 消息 [context]
+ *
+ * @param buffer 输出缓冲区
+ * @param buffer_size 缓冲区大小
+ * @param error_code 错误码
+ * @param context 上下文描述（可为 NULL）
+ * @return 实际写入字符数（不含终止符），失败返回 -1
+ */
+lv_PUBLIC_API int lv_format_error(char *buffer, size_t buffer_size, int error_code, const char *context);
+
+/**
+ * @brief 获取已注册的错误消息总数（编译期表 + 动态注册表）
+ *
+ * 蓝图 lv_error_code_count 落地；编译期表部分即 lv_error_table_size()。
+ *
+ * @return 错误消息条目总数
+ */
+lv_PUBLIC_API int lv_error_code_count(void);
+
+/**
+ * @brief 清理动态错误消息注册表（进程退出时调用）
+ *
+ * 释放 lv_register_error_message 注册项的存储。lv.c 模块清理路径调用。
+ */
+lv_PUBLIC_API void lv_error_messages_cleanup(void);
 
 #endif /* lv_ERROR_CODES_H */
