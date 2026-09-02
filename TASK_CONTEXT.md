@@ -10711,3 +10711,33 @@ F16 剩余（lv_ast_node_count + 节点数/token 长度闸门）完成——**F1
 
 - examples/demo.py 桩示例处置（删除）；
 - 规划文档蓝图 API 处置（当前豁免）。
+
+---
+
+## 批次 203（K18 导出机制统一 + K59 全量完成，用户确认 A）
+
+### ① 改动
+
+| 提交 | 内容 |
+| --- | --- |
+| 911196fc | examples/demo.py 删除（用户确认，假 API 桩示例） |
+| a5f5c4aa | K59 全量装饰：197 头 +1226/-1030（含 60 头 lv_api_spec.h include 补全 + config.h 手动 include + lv_lifecycle 注释错位修复）——K59 全部零装饰头清零 |
+| ca199d46 | K18：CMake C_VISIBILITY_PRESET hidden（仅非 Windows，实测 Windows MinGW 下 hidden 与 dllexport 冲突致 0 导出）+ lv_USE_SHARED 使用方接线（lv-config.cmake.in shared 时定义） |
+
+### ② 验证
+
+- build3 ctest **289/289**；layerval 通过；
+- shared 构建验证：Windows liblv.dll 10568 导出（lv_init/lv_solve/lv_engine_create 等正常导出；
+  中文路径致 objdump 误报 0——ASCII 路径检查确认）；非 Windows hidden 生效待 CI；
+- 3 提交 push 成功。
+
+### 决策登记
+
+- K18 分批 A 完成：K59 全量装饰 → visibility hidden（非 Win）→ lv_USE_SHARED 接线；
+  Windows 导出走 dllexport + WINDOWS_EXPORT_ALL_SYMBOLS（保持现状，hidden 仅 GCC/Clang）；
+- 教训：批量装饰脚本需排除缩进行（结构体字段）+ 函数指针（(*）+ 注释跨行
+  include 插入防护 + 零装饰头补 lv_api_spec.h include（config.h 手动）。
+
+### 剩余
+
+- 确认点 3：规划文档蓝图 API 逐项核对（B，用户指示最后做）——下一步。
