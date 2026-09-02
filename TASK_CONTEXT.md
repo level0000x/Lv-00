@@ -10862,3 +10862,21 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - 遗留：tool/ vs tools/ 撞名未合并（tool/report_generators 与 tools/ 检查脚本分家，登记后续）、
   M7 双 meta_verify 未裁决（L4 lv_graph_meta_verify_* vs L8 lv_meta_verifier_*，代理删除仅消
   一处游离声明）。
+
+---
+
+## 批次 222-223（遗留项处理：M7 裁决 + tool/tools 合并）
+
+### M7 双 meta_verify 裁决（d254613d）
+
+- 裁决：L4 图级（lv_graph_meta_verify_* 3 检查，6KB）与 L8 会话级（lv_meta_verifier_* 6 检查，35KB）
+  语义不同层非重复 → 豁免登记 + 补契约头；
+- 新增 core/include/lv/lv_graph_meta_verify.h（lv_PUBLIC_API 装饰 K59 + M7 分层说明）；
+- 消除游离声明：lv_impl_upper_internal.h 重复 extern → include 契约头；test_meta_verify.c 游离 extern → include；
+  lv.h 伞头补 include；实现文件 include 契约头。ctest 296/296。
+
+### tool/tools 目录合并（75e8654d）
+
+- tool/report_generators → tools/report_generators（git mv），tool/ 目录删除（含 .gitkeep）；
+- 引用更新：ui/package.json report 脚本、doc/generate_version_doc.js require 路径；
+- JS 语法验证通过；tools/ 现统一：5 检查脚本 + report_generators；无 tool/ 残留（git ls-files 空）。
