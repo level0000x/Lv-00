@@ -35,7 +35,7 @@ import sys
 import time
 import argparse
 from typing import Optional, Callable, Any, Dict, List
-from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, POINTER
+from ctypes import CDLL, CFUNCTYPE, c_void_p, c_int, c_long, c_double, c_char_p, c_uint64, POINTER
 
 from ._stream_types import StreamEvent, WEBSOCKETS_AVAILABLE
 

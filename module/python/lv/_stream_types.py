@@ -10,7 +10,7 @@ Lv-00 共享类型定义模块
 """
 
 import logging
-from ctypes import c_int, c_long, c_double, c_char_p, c_void_p, POINTER, Structure
+from ctypes import c_int, c_int64, c_long, c_double, c_char_p, c_void_p, POINTER, Structure
 
 logger = logging.getLogger('stream_bridge')
 
