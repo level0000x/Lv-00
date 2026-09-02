@@ -69,7 +69,8 @@ static void test_async_mode_capacity(void) {
     StreamContext *ctx = stream_context_create();
     lv_ASSERT_NOT_NULL(ctx);
 
-    stream_register_callback(ctx, count_callback, &(int) {0});
+    int delivered = 0;
+    stream_register_callback(ctx, count_callback, &delivered);
 
     lv_ASSERT(stream_set_async_mode(ctx, true, 100) == true);
 
@@ -77,13 +78,17 @@ static void test_async_mode_capacity(void) {
     memset(&ev, 0, sizeof(ev));
     ev.type = STREAM_EVENT_INFO;
 
+    /* emit 50（≤ capacity 100）；消费者线程并发消费，pending 计数是瞬时值
+     * （本地快时可 ==50，慢 CI 上可能已部分消费），契约断言改为：
+     * flush 后清空 + 回调完整收到 50。 */
     for (int i = 0; i < 50; i++) {
         stream_emit(ctx, &ev);
     }
 
-    lv_ASSERT(stream_pending_count(ctx) == 50);
-
     stream_flush(ctx);
+    lv_ASSERT(stream_pending_count(ctx) == 0);
+    lv_ASSERT(delivered == 50);
+
     stream_context_destroy(ctx);
     printf("  PASSED\n");
 
