@@ -19,6 +19,7 @@
 
 #include "lv.h"
 #include "lv/func_block_custom.h" /* 蓝图自定义函数接口（G2a） */
+#include "lv/func_block_template.h" /* 蓝图函数块模板（G2b） */
 #include "test_helpers.h"
 
 int g_pass_count = 0;
@@ -1923,6 +1924,84 @@ static void test_blueprint_func_block_custom(void) {
     printf("  blueprint func_block custom: PASSED\n");
 }
 
+/* ============== 蓝图函数块模板系统（TEN_LAYER_OPTIMIZED_PLAN §4.1.3，G2b） ============== */
+
+static void test_blueprint_fb_template(void) {
+    printf("Test: blueprint fb_template...\n");
+
+    /* 创建 + 配置 */
+    FuncBlockTemplate *t = lv_fb_template_create("tpl_add", "add two points");
+    lv_ASSERT_NOT_NULL(t);
+    lv_ASSERT(lv_fb_template_create(NULL, "no name") == NULL);
+    lv_ASSERT(lv_fb_template_set_script(t, "out = in0 + in1"));
+    lv_ASSERT(lv_fb_template_set_version(t, "1.0.0"));
+    lv_ASSERT(lv_fb_template_add_dependency(t, "dep_a"));
+    lv_ASSERT(lv_fb_template_add_dependency(t, "dep_b"));
+    lv_ASSERT(lv_fb_template_add_dependency(t, "dep_a")); /* 去重 */
+
+    FuncBlockTemplateParam param;
+    memset(&param, 0, sizeof(param));
+    strcpy(param.name, "in0");
+    strcpy(param.type, "POINT");
+    param.required = true;
+    lv_ASSERT(lv_fb_template_add_param(t, &param));
+    lv_ASSERT(!lv_fb_template_add_param(t, NULL));
+    FuncBlockTemplateParam bad;
+    memset(&bad, 0, sizeof(bad));
+    lv_ASSERT(!lv_fb_template_add_param(t, &bad)); /* 空名拒绝 */
+
+    /* 注册 / 查询 */
+    lv_ASSERT(lv_fb_template_register(t));
+    lv_ASSERT(!lv_fb_template_register(t)); /* 重复注册拒绝 */
+    FuncBlockTemplate *q = lv_fb_template_query("tpl_add");
+    lv_ASSERT_NOT_NULL(q);
+    lv_ASSERT(lv_fb_template_query("no_such") == NULL);
+    lv_ASSERT(lv_fb_template_query(NULL) == NULL);
+
+    /* 同名模板注册拒绝 */
+    FuncBlockTemplate *t2 = lv_fb_template_create("tpl_add", "dup");
+    lv_ASSERT_NOT_NULL(t2);
+    lv_ASSERT(!lv_fb_template_register(t2)); /* 同名拒绝 */
+    lv_fb_template_destroy(t2);              /* 未注册可单独销毁 */
+
+    /* 已注册模板不可再修改 */
+    lv_ASSERT(!lv_fb_template_set_script(q, "x"));
+
+    /* 注销 */
+    lv_ASSERT(lv_fb_template_unregister("tpl_add"));
+    lv_ASSERT(!lv_fb_template_unregister("tpl_add")); /* 重复注销失败 */
+    lv_ASSERT(lv_fb_template_query("tpl_add") == NULL);
+
+    /* 实例化 */
+    FuncBlockTemplate *t3 = lv_fb_template_create("tpl_inst", "instantiate me");
+    lv_ASSERT_NOT_NULL(t3);
+    lv_ASSERT(lv_fb_template_set_script(t3, "noop"));
+    lv_ASSERT(lv_fb_template_register(t3));
+
+    ConstraintGraph *g = graph_create();
+    lv_ASSERT_NOT_NULL(g);
+    int p0 = add_point(g, 0, 1, 0, 1);
+    int p1 = add_point(g, 3, 1, 4, 1);
+    (void) p0;
+    (void) p1;
+
+    /* 无输入实例化（返回函数块节点 ID） */
+    int fb_node = lv_fb_template_instantiate("tpl_inst", g, NULL);
+    lv_ASSERT(fb_node >= 0);
+    GeomNode *fn = graph_get_node(g, fb_node);
+    lv_ASSERT_NOT_NULL(fn);
+    lv_ASSERT(fn->type == GEOM_FUNCTION_BLOCK);
+
+    /* 未知模板 / NULL 契约 */
+    lv_ASSERT(lv_fb_template_instantiate("no_such", g, NULL) == -1);
+    lv_ASSERT(lv_fb_template_instantiate(NULL, g, NULL) == -1);
+    lv_ASSERT(lv_fb_template_instantiate("tpl_inst", NULL, NULL) == -1);
+
+    graph_destroy(g);
+    lv_ASSERT(lv_fb_template_unregister("tpl_inst"));
+    printf("  blueprint fb_template: PASSED\n");
+}
+
 /* ============== 主函数 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
@@ -1986,5 +2065,7 @@ TEST_MAIN_BEGIN("Lv-00 Function Block System Test Suite")
     TEST_MAIN_RUN(test_selector_failure_cases);
     /* 蓝图自定义函数注册接口（TEN_LAYER_OPTIMIZED_PLAN §4.1.2，批次 G2a） */
     TEST_MAIN_RUN(test_blueprint_func_block_custom);
+    /* 蓝图函数块模板系统（§4.1.3，批次 G2b） */
+    TEST_MAIN_RUN(test_blueprint_fb_template);
     printf("\n=== All function block tests PASSED! ===\n");
 TEST_MAIN_END()
