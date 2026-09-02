@@ -1739,6 +1739,16 @@ if(BUILD_SHARED_LIBS)
     # v1.1.0: 定义 lv_BUILD_SHARED 以启用 lv.h 中的 dllexport/visibility
     target_compile_definitions(lv_shared PRIVATE lv_BUILD_SHARED)
 
+    # K18/F96：导出机制统一——GCC/Clang（非 Windows）下未装饰符号隐藏
+    # （lv_PUBLIC_API 装饰全覆盖 K59 后安全）；Windows 走 __declspec(dllexport)
+    # + WINDOWS_EXPORT_ALL_SYMBOLS，visibility hidden 会与之冲突（实测 0 导出）
+    if(NOT WIN32)
+        set_target_properties(lv_shared PROPERTIES
+            C_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON
+        )
+    endif()
+
     set_target_properties(lv_shared PROPERTIES
         OUTPUT_NAME lv
         VERSION ${PROJECT_VERSION}

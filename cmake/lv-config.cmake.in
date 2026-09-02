@@ -1,4 +1,4 @@
-﻿@PACKAGE_INIT@
+@PACKAGE_INIT@
 
 # ---- Lv-00 CMake 包配置文件 ----
 # 由 CMake 的 configure_package_config_file() 自动生成
@@ -27,6 +27,14 @@ if(NOT TARGET lv::lv)
             IMPORTED_LOCATION "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@/@CMAKE_STATIC_LIBRARY_PREFIX@lv@CMAKE_STATIC_LIBRARY_SUFFIX@"
             INTERFACE_INCLUDE_DIRECTORIES "@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_INCLUDEDIR@"
         )
+    endif()
+endif()
+
+# ---- K18/F96：shared 库使用时定义 lv_USE_SHARED（Windows dllimport） ----
+if(TARGET lv::lv)
+    get_target_property(_lv_target_type lv::lv TYPE)
+    if(NOT _lv_target_type STREQUAL "STATIC_LIBRARY")
+        set_property(TARGET lv::lv APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS lv_USE_SHARED)
     endif()
 endif()
 
