@@ -543,6 +543,7 @@ set(lv_HEADERS
     core/include/lv/geo_constraint_solver.h
     core/include/lv/geo_dynamic.h
     core/include/lv/geo_predicate.h
+    core/include/lv/geometry_ops.h
     core/include/lv/geometry_config.h
     core/include/lv/performance_profiler.h
     core/include/lv/proof_export_enhanced.h
@@ -953,6 +954,8 @@ set(lv_LAYER3_SOURCES
     core/src/layer3_geometry/geo_predicate.c
     # 位数熔断系统（自 L4 numeric 归位：依赖 L3 图内部结构，被 L3/L4 消费）
     core/src/layer3_geometry/bit_burning.c
+    # 蓝图几何运算（§12.3/12.5/12.6/12.7）
+    core/src/layer3_geometry/geometry_ops.c
     # v1.1.0 补全遗漏：几何原语、参数曲线、路径类型
     core/src/layer3_geometry/parametric_curves.c
     core/src/layer3_geometry/path_type.c
@@ -1865,6 +1868,7 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_hashtable_ext CTEST_NAME lv_hashtable_ext_test)
     add_lv_test_auto(test_error_codes_ext CTEST_NAME error_codes_ext_test)
     add_lv_test_auto(test_dsl_extension CTEST_NAME dsl_extension_test)
+    add_lv_test_auto(test_geometry_ops CTEST_NAME geometry_ops_test)
     add_lv_test_auto(test_sha256_ext CTEST_NAME sha256_ext_test)
     add_lv_test_auto(test_lv_strbuf_ext CTEST_NAME lv_strbuf_ext_test)
     add_lv_test_auto(test_data_structure_blocks_ext CTEST_NAME data_structure_blocks_ext_test)
