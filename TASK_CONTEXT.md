@@ -10815,3 +10815,31 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 
 - G1-G6 全部实现并推送（16 提交，ctest 296/296）；剩余仅 Python 集成 8 个（单独立项）+
   SIMD 4 函数导出（K 项登记）；PLAN_API_AUDIT 状态已标注。
+
+---
+
+## 批次 218-220（SIMD 导出 + K18 find_package 验证修复 + K59 核查）
+
+### SIMD 4 函数导出（eea3cfc1）
+
+- lv_simd_add_array_d/sum_array_d/distance_array/cross2d_array 已在 src 实现但未在 simd_ops.h 声明
+  → 从未导出（PERFORMANCE_OPTIMIZATION §2.3 缺口）；补 lv_PUBLIC_API 声明 + 测试（test_simd_ops_ext 175）。
+
+### K18 find_package 安装验证（e0501ac4，修 2 bug）
+
+- 端到端验证：cmake --install → 消费工程 find_package(lv) + lv::lv 构建运行 OK（lv_init/engine/solve）；
+- Bug1: install(EXPORT lv-targets) DESTINATION 误 lib/build/build/cmake/lv → 修 lib/cmake/lv（与 lv-config 同目录）；
+- Bug2: lv_static/lv_shared 缺 INSTALL_INTERFACE include/lv（lv.h 内部裸 include 需 lv 子目录）→ 补；
+- lv-config.cmake.in: find_dependency(GMP) 无 FindGMP 模块改 find_library(gmp)；补 find_package(Threads)
+  （导出 targets 含 Threads::Threads）；导出 lv::lv_static/shared 别名 lv::lv；
+- 注：中文路径致 ld 乱码失败（与 objdump 同族），ASCII 前缀（C:\Users\Public）验证通过。
+
+### K59 收尾核查
+
+- 含 lv_PUBLIC_API 头全部宏可见（engine_access.h 自带 #ifndef 兜底定义，非缺失）；
+- Linux shared CI：python.yml Ubuntu/macOS BUILD_SHARED_LIBS=ON + pytest 调 C 符号 → 隐式验证
+  hidden 导出正常（非 Windows lv_PUBLIC_API 可见性生效）。
+
+### CI
+
+- SIMD/K18 提交双 workflow 全绿；工作区干净。
