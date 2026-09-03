@@ -10899,3 +10899,50 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
   MISSING_ONLY/BOTH/NO_C_FILE → exit 1（C_EMPTY/EXTRA_ONLY 预期状态不误报）；
 - ci.yml 新 preset-sync job（双门禁：--ci --verify + --ci）；本地 56 模块 LOAD_OK exit 0；
 - CI 全 11 job 绿（含新 preset-sync 首次运行 success）。
+
+---
+
+## 批次 226（自主实施批：CMake 治理 + 配置原子写 + 文档登记）
+
+### ① 用户授权（goal 更新）
+- 全部开始实施所有立项允许；文档对齐类只写文档说明、执行暂缓；Lean 暂缓；
+- 需要确认点在确认点叫用户；**所有可接线项默认允许接线**（除自己判断不该接）；
+- **认为有需要可直接写新设施、允许自主立项**。
+
+### ② 实施（10 提交，均已 push，ctest 296/296）
+
+| 提交 | 内容 |
+| --- | --- |
+| 2c7cba3b | fix(arch): lv_log_set_output(NULL) 恢复默认主管道（K65 P1，B2）+ selector_node_contains GEOM_POINT 距离容差读 lvGeometryConfig（K63，C4） |
+| 255daaac | chore(tools): symbol_sync_check docstring 无效转义 SyntaxWarning 修复 |
+| e83648b5 | refactor(arch): plugin 容量读配置 A（integration.max_plugins/max_interfaces，K75 D7 双注册表单源，C3） |
+| ee96c2fc | fix(build): lv_core -O2 排除 Debug/coverage（C8；原无条件 -O2 覆盖 -O0 断点失效） |
+| b8d1b6e7 | refactor(build): 层内部 include 改 PRIVATE，消费者接口 PUBLIC（C9；消除宏 5 路径 vs 聚合 3 路径不一致） |
+| a1d4048e | refactor(build): 抽 add_lv_program 公共脚手架（C10；example 补 ws2_32 分支） |
+| d44be9eb | refactor(build): lv_AGGREGATE_OBJECTS 单源（B6；54→27 次 TARGET_OBJECTS） |
+| 706a2e97 | refactor(build): lv_L23_LIBS 基础依赖三元组单源（R2） |
+| a8a64d77 | fix(build): lv_HEADERS 与磁盘同步 317 头 + check_headers_sync.py + CI headers-sync job（B5） |
+| 8a0009e1 | fix(config): config_save 原子写（临时文件+rename，K62；原 "w" 覆盖写一半失败即损坏） |
+
+### ③ 核查结论（登记，无代码动作）
+- D2：lv_layer1_parser 6 文件仅 lv_loader.c include engine.h（白名单宏 lv_ALLOW_LAYER），无 L3/L4 残留；
+- E3/E4：lv_FD_GRADIENT_STEP（formula_curve.c:145）与 now_ms→lv_get_time_ns 收敛已落地，抽查通过；
+- C6：lv_sema 声明名拆分保留 strtok（跳过空段防空符号注入，lv_str_split 会引入空段风险）——豁免确认；
+- D4：剩余零装饰头（geometric_primitives/interval_arith/lv_protocol/node_deep_copy 等）为库内部件
+  （消费方全在 core/src + 静态测试；Python 绑定零消费；shared 导出实测正常）——维持登记不装饰；
+- K75 lv_malloc_bounded：解析闸门已覆盖输入上限，无明确接线点，维持 M6 登记。
+
+### ④ 文档登记（文档类，按用户决策只写说明）
+- docs/architecture/memory-ownership.md：F39 剩余收尾 §6（[copy] 标注 / ~30 处三态 /
+  API_QUICKSTART 对齐 / graph_get_node [borrow] 补录），执行暂缓；
+- docs/architecture/queue-full-contract.md（新增）：K75/D4 队列满行为现状契约——
+  修正设计文档过时描述：command_log 实为 darray 扩容（非环形覆盖）、thread_pool
+  满时返回错误（非阻塞）、无独立 progress 队列（progress 是 StreamEvent 类型）。
+
+### 决策登记
+- CI 新增 headers-sync job（第 12 job）；上次全量 ctest 一次 stream_extended_test 偶发
+  失败（重跑即过，-O0 切换后并行负载时序），5 轮串行 0 失败，非回归。
+
+### 遗留登记
+- CI 双 workflow 全绿待确认（11+1 job）；K62 INI 方言统一已豁免登记（插件域内自洽）；
+- 下一批候选：K10 [copy] 标注 + API_QUICKSTART 对齐（文档类暂缓）/ C1 收尾等。
