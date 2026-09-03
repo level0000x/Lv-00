@@ -1534,10 +1534,14 @@ target_link_libraries(lv_layer3_geometry Threads::Threads)
 # ── Layer 4: 公理推理层 —— 按子域拆分为独立 OBJECT 库（2026-08-14）──
 # 依赖：Layer 3，Layer 2。所有 L4 子域库统一基础依赖；L4 五个 include 环
 # 已于 C-⑩ 全破，子域间依赖具备无环性，跨子域链接的逐域精化留作后续批次。
+
+# R2：L2+L3 基础依赖三元组单源（原宏内/手写/高层库 4 处逐字重复）
+set(lv_L23_LIBS lv_layer3_geometry lv_layer2_resource)
+
 macro(lv_l4_subdomain lib)
     add_library(${lib} OBJECT ${ARGN})
     lv_setup_layer(${lib} 4)
-    target_link_libraries(${lib} lv_layer3_geometry lv_layer2_resource)
+    target_link_libraries(${lib} ${lv_L23_LIBS})
 endmacro()
 
 lv_l4_subdomain(lv_l4_core ${lv_L4_CORE_SOURCES})
@@ -1549,7 +1553,7 @@ lv_l4_subdomain(lv_l4_expr ${lv_L4_EXPR_SOURCES})
 # func_block 域：额外携带运行时预设目录编译定义（preset_blocks.c 使用）
 add_library(lv_l4_func_block OBJECT ${lv_L4_FUNC_BLOCK_SOURCES})
 lv_setup_layer(lv_l4_func_block 4)
-target_link_libraries(lv_l4_func_block lv_layer3_geometry lv_layer2_resource)
+target_link_libraries(lv_l4_func_block ${lv_L23_LIBS})
 target_compile_definitions(lv_l4_func_block PRIVATE
     lv_PRESETS_DIR="${CMAKE_SOURCE_DIR}/module/presets")
 lv_l4_subdomain(lv_l4_kernel ${lv_L4_KERNEL_SOURCES})
@@ -1579,7 +1583,7 @@ set(lv_L4_LIBS
 # Layer 5: 结果输出层（依赖 Layer 4，Layer 3，Layer 2）
 add_library(lv_layer5_output OBJECT ${lv_LAYER5_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_layer5_output 5)
-target_link_libraries(lv_layer5_output ${lv_L4_LIBS} lv_layer3_geometry lv_layer2_resource)
+target_link_libraries(lv_layer5_output ${lv_L4_LIBS} ${lv_L23_LIBS})
 # v3.5.0: 互操作层需要 ws2_32（Windows socket）
 if(WIN32)
     target_link_libraries(lv_layer5_output ws2_32)
@@ -1638,7 +1642,7 @@ set(lv_LAYER6_HEADERS
 
 add_library(lv_layer6_visual OBJECT ${lv_LAYER6_SOURCES} ${lv_LAYER6_HEADERS})
 lv_setup_layer(lv_layer6_visual 6)
-target_link_libraries(lv_layer6_visual lv_layer5_output ${lv_L4_LIBS} lv_layer3_geometry lv_layer2_resource)
+target_link_libraries(lv_layer6_visual lv_layer5_output ${lv_L4_LIBS} ${lv_L23_LIBS})
 
 # ── Layer 7: 编排调度层 (Orchestration Layer) ──
 # 注: orchestrator.c / lv_pipeline.c 已随死代码清理移除；orchestrator.h 保留在
