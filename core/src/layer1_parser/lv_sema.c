@@ -37,6 +37,7 @@ typedef struct {
 struct LvSemaContext {
     lvHashtable *symbols; /* str 形态：符号名 → LvSymbol* */
     char errors[LV_SEMA_MAX_ERRORS][256];
+    LvDiagSeverity severities[LV_SEMA_MAX_ERRORS]; /* R4：与 errors 逐条对应的级别 */
     int error_count;
 };
 
@@ -51,6 +52,7 @@ static void sema_error(LvSemaContext *ctx, LvSourceLoc loc, const char *fmt, ...
     va_start(args, fmt);
     vsnprintf(buf + n, (size_t) (256 - n), fmt, args);
     va_end(args);
+    ctx->severities[ctx->error_count] = LV_DIAG_ERROR; /* 现有 sema 错误均为硬错误 */
     ctx->error_count++;
 }
 
@@ -627,4 +629,10 @@ const char *lv_sema_error_msg(const LvSemaContext *ctx, int index) {
     if (!ctx || index < 0 || index >= ctx->error_count)
         return NULL;
     return ctx->errors[index];
+}
+
+LvDiagSeverity lv_sema_error_severity(const LvSemaContext *ctx, int index) {
+    if (!ctx || index < 0 || index >= ctx->error_count)
+        return LV_DIAG_ERROR;
+    return ctx->severities[index];
 }

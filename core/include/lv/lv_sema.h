@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "lv/lv_ast.h"
+#include "lv/lv_parser.h" /* LvDiagSeverity（R4 三级诊断码共享） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,9 @@ lv_PUBLIC_API int lv_sema_error_count(const LvSemaContext *ctx);
 
 /** 获取第 index 条语义错误消息 */
 lv_PUBLIC_API const char *lv_sema_error_msg(const LvSemaContext *ctx, int index);
+
+/** 获取第 index 条语义错误的严重级别（R4 三级诊断码；越界返回 LV_DIAG_ERROR） */
+lv_PUBLIC_API LvDiagSeverity lv_sema_error_severity(const LvSemaContext *ctx, int index);
 
 #ifdef __cplusplus
 }
