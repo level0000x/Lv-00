@@ -130,19 +130,107 @@ static bool loader_expr_int(const LvAstNode *node, long long *out) {
     return false;
 }
 
+/** 坐标数值节点 → (num, den) 精确有理数对。
+ *  支持 INTEGER / RATIONAL / DECIMAL / unary(-)（S1 坐标字面量与既有 {x,y} 共用）。 */
+static bool loader_expr_coord(const LvAstNode *node, long long *num, unsigned long *den) {
+    if (!node)
+        return false;
+    if (node->type == LV_AST_INTEGER_LITERAL) {
+        *num = node->data.literal.integer_value;
+        *den = 1;
+        return true;
+    }
+    if (node->type == LV_AST_RATIONAL_LITERAL) {
+        *num = node->data.literal.rational_value.num;
+        *den = (unsigned long) node->data.literal.rational_value.den;
+        if (*den == 0)
+            return false;
+        return true;
+    }
+    if (node->type == LV_AST_DECIMAL_LITERAL) {
+        /* DECIMAL 节点的文本需重建：从 decimal_value 转回字符串不保精度，
+         * 故 parser 在 S1 坐标字面量路径用 DECIMAL 字面量节点时附 str 原文？
+         * ——当前 DECIMAL 节点只存 double。此处用 double 精确转：
+         * 取小数位数转分数（double 由文本解析，精度 1e-15 内，坐标够用）。 */
+        double v = node->data.literal.decimal_value;
+        /* 检查是否为有限可精确表示的十进制（如 3.5） */
+        long long ip = (long long) v;
+        double frac = v - (double) ip;
+        if (frac == 0.0) {
+            *num = ip;
+            *den = 1;
+            return true;
+        }
+        /* 一般 double：尝试最多 9 位小数（坐标精度上限 1e-9） */
+        unsigned long d = 1;
+        long long acc = ip;
+        double f = frac;
+        int digits = 0;
+        while (digits < 9 && f != 0.0) {
+            f *= 10.0;
+            long long digit = (long long) f;
+            if (digit < 0 || digit > 9)
+                break;
+            acc = acc * 10 + digit;
+            d *= 10;
+            f -= (double) digit;
+            digits++;
+            /* 浮点余项小到可忽略即停 */
+            if (f < 1e-12)
+                break;
+        }
+        if (d == 1) {
+            *num = ip;
+            *den = 1;
+            return true;
+        }
+        *num = acc;
+        *den = d;
+        /* 归约（除以公因子，最小化） */
+        unsigned long a = (unsigned long) (acc < 0 ? -acc : acc);
+        unsigned long b = d;
+        while (b) {
+            unsigned long t = a % b;
+            a = b;
+            b = t;
+        }
+        if (a > 1) {
+            *num /= (long long) a;
+            *den /= a;
+        }
+        return true;
+    }
+    if (node->type == LV_AST_UNARY_OP) {
+        /* 负数：-(N) → num 取负 */
+        const char *op = node->data.unary.op;
+        if (op && op[0] == '-') {
+            long long n2;
+            unsigned long d2;
+            if (loader_expr_coord(node->data.unary.operand, &n2, &d2)) {
+                *num = -n2;
+                *den = d2;
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
 /**
- * @brief 提取结构化坐标：Point A := {x: N, y: M}
+ * @brief 提取结构化坐标：Point A := {x: N, y: M} / Point A = (1, 2)（S1）
  *
  * STRUCT_LITERAL → child 链表为 FIELD 节点，每个 FIELD 有 name 和 value。
- * 支持字段名 "x"/"y"（及别名 "X"/"Y"）。
+ * 支持字段名 "x"/"y"（及别名 "X"/"Y"）；值支持整数/有理数/小数/负数。
  *
  * @param value AST 声明值节点
- * @param out_x 输出 x（仅当找到时有效）
- * @param out_y 输出 y
+ * @param out_x / out_y 输出坐标分子
+ * @param out_xd / out_yd 输出坐标分母（新，S1 小数坐标）
  * @param has_x / has_y 输出是否找到对应字段
  */
 static void loader_extract_struct_coords(const LvAstNode *value,
                                          long long *out_x, long long *out_y,
+                                         unsigned long *out_xd, unsigned long *out_yd,
                                          bool *has_x, bool *has_y) {
     *has_x = *has_y = false;
     if (!value || value->type != LV_AST_STRUCT_LITERAL)
@@ -151,10 +239,11 @@ static void loader_extract_struct_coords(const LvAstNode *value,
         if (f->type != LV_AST_STRUCT_FIELD || !f->data.field.name)
             continue;
         const char *fn = f->data.field.name;
-        if ((fn[0] == 'x' || fn[0] == 'X') && !*has_x)
-            *has_x = loader_expr_int(f->data.field.value, out_x);
-        else if ((fn[0] == 'y' || fn[0] == 'Y') && !*has_y)
-            *has_y = loader_expr_int(f->data.field.value, out_y);
+        if ((fn[0] == 'x' || fn[0] == 'X') && !*has_x) {
+            *has_x = loader_expr_coord(f->data.field.value, out_x, out_xd);
+        } else if ((fn[0] == 'y' || fn[0] == 'Y') && !*has_y) {
+            *has_y = loader_expr_coord(f->data.field.value, out_y, out_yd);
+        }
     }
 }
 
@@ -204,10 +293,11 @@ static void decl_register_point(lvEngine *engine, const char *name) {
 /**
  * @brief 注册带坐标的点（声明值版本）
  *
- * 支持两种声明值形态：
+ * 支持三种声明值形态：
  *   - Point A := {x: 3, y: 4};   （结构字面量）
+ *   - Point A = (1.5, -2);       （S1 坐标字面量 → 同一结构字面量路径）
  *   - Point A := point(3, 4);    （几何表达式）
- * 坐标用 lv_add_point 的精确有理数接口写入。
+ * 坐标用 lv_add_point 的精确有理数接口写入（整数/小数/负数均转 num/den）。
  *
  * @param engine 引擎
  * @param name   实体名
@@ -216,12 +306,13 @@ static void decl_register_point(lvEngine *engine, const char *name) {
 static void decl_register_point_with_value(lvEngine *engine, const char *name,
                                            const LvAstNode *value) {
     long long x = 0, y = 0;
+    unsigned long xd = 1, yd = 1;
     bool has_x = false, has_y = false;
     bool ok = false;
 
     if (value) {
-        /* 形态 1: 结构字面量 {x, y} */
-        loader_extract_struct_coords(value, &x, &y, &has_x, &has_y);
+        /* 形态 1: 结构字面量 {x, y}（含 S1 坐标字面量转换结果） */
+        loader_extract_struct_coords(value, &x, &y, &xd, &yd, &has_x, &has_y);
         if (has_x && has_y) {
             ok = true;
         } else {
@@ -234,8 +325,8 @@ static void decl_register_point_with_value(lvEngine *engine, const char *name,
     }
 
     int id;
-    if (ok) {
-        id = lv_add_point(engine, (int64_t) x, 1, (int64_t) y, 1);
+    if (ok && xd > 0 && yd > 0) {
+        id = lv_add_point(engine, (int64_t) x, (uint64_t) xd, (int64_t) y, (uint64_t) yd);
     } else {
         id = lv_add_point(engine, 0, 1, 0, 1);
     }

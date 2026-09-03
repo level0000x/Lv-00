@@ -164,6 +164,65 @@ static void test_declaration(void) {
     }
 }
 
+/* S1 坐标字面量：Point A = (1, 2); Point B = (3.5, -2); Point C = (1/2, 3); */
+static void test_coord_literal_decl(void) {
+    printf("[S1 坐标字面量声明]\n");
+
+    {
+        const char *src = "Point A = (1, 2);";
+        LvParseResult res = parse_source(src);
+        TEST("Point A = (1, 2)");
+        if (res.ast && res.ast->child && res.error_count == 0) {
+            LvAstNode *decl = res.ast->child;
+            if (decl->type == LV_AST_DECLARATION && decl->data.decl.value &&
+                decl->data.decl.value->type == LV_AST_STRUCT_LITERAL) {
+                PASS();
+            } else {
+                FAIL("expected decl with STRUCT_LITERAL value");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        const char *src = "Point B = (3.5, -2); Point C = (1/2, 3);";
+        LvParseResult res = parse_source(src);
+        TEST("Point B = (3.5, -2); Point C = (1/2, 3)");
+        if (res.ast && res.error_count == 0) {
+            int structs = 0;
+            for (LvAstNode *s = res.ast->child; s; s = s->next) {
+                if (s->type == LV_AST_DECLARATION && s->data.decl.value &&
+                    s->data.decl.value->type == LV_AST_STRUCT_LITERAL) {
+                    structs++;
+                }
+            }
+            if (structs == 2) {
+                PASS();
+            } else {
+                FAIL("expected 2 coordinate-literal declarations");
+            }
+        } else {
+            FAIL("parse failed (decimal/negative/rational coords)");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 坐标字面量仅限声明值：普通表达式 (1,2) 仍走子表达式路径不应误判 */
+        const char *src = "Point D := point(1, 2);";
+        LvParseResult res = parse_source(src);
+        TEST("Point D := point(1, 2) (:= 保持)");
+        if (res.ast && res.error_count == 0) {
+            PASS();
+        } else {
+            FAIL(":= declaration regressed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
 static void test_constraint(void) {
     printf("[约束/关系语句]\n");
 
@@ -1410,6 +1469,8 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_fold_eval_vtable);
     printf("\n");
     TEST_MAIN_RUN(test_declaration);
+    printf("\n");
+    TEST_MAIN_RUN(test_coord_literal_decl);
     printf("\n");
     TEST_MAIN_RUN(test_constraint);
     printf("\n");

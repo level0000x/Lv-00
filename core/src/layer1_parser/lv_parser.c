@@ -227,6 +227,142 @@ static char *extract_return_type(LvAstNode *value) {
 }
 
 /** DeclarationStmt ::= EntityType IdentifierList ";" */
+
+/* ── S1 坐标字面量辅助：将 (NUM, NUM) 解析为结构字面量 {x, y} ── */
+
+/** 解析单个数值 token（INTEGER / DECIMAL / 前导负号），返回字面量节点或 NULL */
+static LvAstNode *parse_coord_number(LvParser *p) {
+    LvSourceLoc loc = p->current.loc;
+    if (p->current.type == LV_TOKEN_MINUS) {
+        advance(p);
+        /* 负数：-N → unary(-, N)（与 parse_unary_expr 同一表示） */
+        LvAstNode *val = parse_coord_number(p);
+        if (!val)
+            return NULL;
+        return lv_ast_create_unary(loc, "-", val);
+    }
+    if (p->current.type == LV_TOKEN_INTEGER) {
+        const char *txt = token_text(&p->current);
+        char *end = NULL;
+        errno = 0;
+        long long v = strtoll(txt, &end, 10);
+        if (errno != 0 || end == txt) {
+            v = 0;
+        }
+        advance(p);
+        return lv_ast_create_int(loc, v);
+    }
+    if (p->current.type == LV_TOKEN_RATIONAL) {
+        const char *txt = token_text(&p->current);
+        long long num = 0, den = 1;
+        char *end = NULL;
+        errno = 0;
+        num = strtoll(txt, &end, 10);
+        if (errno == 0 && end != txt && *end == '/') {
+            errno = 0;
+            den = strtoll(end + 1, &end, 10);
+            if (errno != 0 || den == 0)
+                den = 1;
+        }
+        advance(p);
+        return lv_ast_create_rational(loc, num, den);
+    }
+
+    if (p->current.type == LV_TOKEN_DECIMAL) {
+        const char *txt = token_text(&p->current);
+        double val;
+        if (lv_parse_double(txt, &val) != 0) {
+            val = 0.0;
+        }
+        advance(p);
+        return lv_ast_create_decimal(loc, val);
+    }
+    return NULL;
+}
+
+/**
+ * @brief 解析声明值（S1：坐标字面量 (NUM, NUM) → 结构字面量 {x,y}；
+ *        其它形态回落 parse_logic_expr 普通表达式）
+ */
+static LvAstNode *parse_decl_value(LvParser *p, LvSourceLoc *out_loc) {
+    LvSourceLoc loc = p->current.loc;
+    /* 坐标字面量前置检查：( 且内容恰为 坐标对 才走坐标分支。
+     * 坐标格式：( <x> , <y> )，其中 <x>/<y> ∈ { NUM | -NUM }，
+     * NUM ∈ INTEGER / RATIONAL / DECIMAL。 */
+    int is_coord = 0;
+    if (p->current.type == LV_TOKEN_LPAREN) {
+        LvToken t[7];
+        for (int i = 0; i < 7; i++)
+            t[i] = lv_lexer_peek(p->lexer, i);
+
+        /* 从 t[0] 起消费 可选的 '-' + NUM，遇 ',' 继续，再消费 可选 '-' + NUM，遇 ')' 匹配 */
+        int pos = 0;
+        if (t[pos].type == LV_TOKEN_MINUS)
+            pos++;
+        if (pos < 7 &&
+            (t[pos].type == LV_TOKEN_INTEGER || t[pos].type == LV_TOKEN_RATIONAL ||
+             t[pos].type == LV_TOKEN_DECIMAL)) {
+            pos++;
+            if (pos < 7 && t[pos].type == LV_TOKEN_COMMA) {
+                pos++;
+                if (pos < 7 && t[pos].type == LV_TOKEN_MINUS)
+                    pos++;
+                if (pos < 7 &&
+                    (t[pos].type == LV_TOKEN_INTEGER || t[pos].type == LV_TOKEN_RATIONAL ||
+                     t[pos].type == LV_TOKEN_DECIMAL)) {
+                    pos++;
+                    if (pos < 7 && t[pos].type == LV_TOKEN_RPAREN)
+                        is_coord = 1;
+                }
+            }
+        }
+    }
+
+    if (!is_coord) {
+        return parse_logic_expr(p);
+    }
+
+    advance(p); /* ( */
+    LvAstNode *vx = parse_coord_number(p);
+    expect(p, LV_TOKEN_COMMA, "expected ',' in coordinate literal");
+    LvAstNode *vy = parse_coord_number(p);
+    expect(p, LV_TOKEN_RPAREN, "expected ')' after coordinate literal");
+
+    if (!vx || !vy) {
+        lv_ast_destroy(vx);
+        lv_ast_destroy(vy);
+        return NULL;
+    }
+
+    /* 构造 {x: vx, y: vy} 结构字面量（复用 loader_extract_struct_coords） */
+    LvAstNode *fx = lv_ast_create(LV_AST_STRUCT_FIELD, loc);
+    LvAstNode *fy = lv_ast_create(LV_AST_STRUCT_FIELD, loc);
+    if (!fx || !fy) {
+        lv_ast_destroy(vx);
+        lv_ast_destroy(vy);
+        lv_ast_destroy(fx);
+        lv_ast_destroy(fy);
+        return NULL;
+    }
+    fx->data.field.name = lv_strdup("x");
+    fx->data.field.value = vx;
+    fy->data.field.name = lv_strdup("y");
+    fy->data.field.value = vy;
+    fx->next = fy;
+
+    LvAstNode *node = lv_ast_create(LV_AST_STRUCT_LITERAL, loc);
+    if (!node) {
+        lv_ast_destroy(fx);
+        lv_ast_destroy(fy);
+        return NULL;
+    }
+    node->child = fx;
+    node->child_count = 2;
+    if (out_loc)
+        *out_loc = loc;
+    return node;
+}
+
 static LvAstNode *parse_declaration_stmt(LvParser *p) {
     LvSourceLoc loc = p->current.loc;
     LvEntityType entity = lv_entity_type_from_token(p->current.type);
@@ -276,13 +412,24 @@ static LvAstNode *parse_declaration_stmt(LvParser *p) {
 
     /* EntityType Identifier ":=" Expr ";" — 声明值（如 "Point Spec := {...}"）。
      * 注意：":=" 由 COLON + EQUALS 两个 token 组成。
+     * S1 语法糖：单 "=" 亦接受（Point A = (1, 2);），二者等价。
      * 返回类型标注："F(args) -> Type" 中 "-> Type" 记录到 decl.return_type
      *（识别规则见 extract_return_type，与逻辑蕴含 P -> Q 的区分条件见该函数注释）。 */
+    int has_decl_value = 0;
     if (p->current.type == LV_TOKEN_COLON && check(p, 0, LV_TOKEN_EQUALS)) {
         advance(p); /* ':' */
         advance(p); /* '=' */
-        decl_value = parse_logic_expr(p);
-        if (node) {
+        has_decl_value = 1;
+    } else if (p->current.type == LV_TOKEN_EQUALS) {
+        advance(p); /* '='（S1：单等号声明值） */
+        has_decl_value = 1;
+    }
+    if (has_decl_value) {
+        /* S1 坐标字面量：声明值为 (NUM, NUM) → 结构字面量 {x: NUM, y: NUM}
+         * （复用 loader_extract_struct_coords 消费路径）。仅当以 '(' 开头且
+         * 内容恰为 两个数值 时走坐标分支；否则回落普通表达式解析。 */
+        decl_value = parse_decl_value(p, node ? &node->loc : NULL);
+        if (node && decl_value) {
             node->data.decl.value = decl_value;
             node->data.decl.return_type = extract_return_type(decl_value);
             if (node->data.decl.return_type) {

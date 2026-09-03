@@ -355,6 +355,54 @@ static void test_full_pipeline(void) {
         engine_destroy(engine);
 }
 
+/* ── 测试 5b: S1 坐标字面量端到端 ── */
+static void test_coord_literal_pipeline(void) {
+    printf("\n[S1 坐标字面量端到端]\n");
+
+    const char *src =
+        "Point A = (1, 2);\n"
+        "Point B = (3.5, -2);\n"
+        "Point C = (1/2, 3);\n";
+
+    LvParseResult res = parse_string(src);
+    TEST("S1 解析（整数/小数/负数/有理数坐标）");
+    if (res.ast && res.error_count == 0) {
+        PASS();
+    } else {
+        for (int i = 0; i < res.error_count; i++)
+            printf("  err: %s\n", res.errors[i].message);
+        FAIL("S1 解析失败");
+    }
+
+    LvSemaContext *sema = res.ast ? lv_sema_create() : NULL;
+    if (sema) {
+        TEST("S1 语义分析");
+        if (lv_sema_analyze(sema, res.ast)) {
+            PASS();
+        } else {
+            FAIL("S1 语义分析失败");
+        }
+    }
+
+    lvEngine *engine = engine_create();
+    if (engine && res.ast) {
+        TEST("S1 引擎应用");
+        bool ok = lv_apply_parse_result(engine, &res, sema);
+        if (ok) {
+            PASS();
+        } else {
+            FAIL("S1 引擎应用失败");
+        }
+    }
+
+    if (sema)
+        lv_sema_destroy(sema);
+    if (res.ast)
+        lv_ast_destroy(res.ast);
+    if (engine)
+        engine_destroy(engine);
+}
+
 /* ════════════════════════════════════════════════════════════════
  * 微自举 B —— lv 系统验证自身证明（路线图步骤 5）
  *
@@ -846,6 +894,7 @@ TEST_MAIN_BEGIN("lv bootstrap test")
     TEST_MAIN_RUN(test_engine_apply);
     TEST_MAIN_RUN(test_load_file);
     TEST_MAIN_RUN(test_full_pipeline);
+    TEST_MAIN_RUN(test_coord_literal_pipeline);
 
     /* 微自举 B：证明验证（路线图步骤 5） */
     TEST_MAIN_RUN(test_proof_verify_arithmetic);
