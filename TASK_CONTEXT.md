@@ -10992,3 +10992,32 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - R5：错误恢复点增强（@ / #! 恢复点，synchronize 已有 ; 基础）；
 - S1-S8 语法糖（多字符 token |> . 前置 + 逐项实现，约 900-1100 行）；
 - 第二批 S9-S15 / 第三批 S16-S24 待前批稳定后逐个立项。
+
+---
+
+## 批次 228（DSL S1 坐标字面量落地，b65b294a）
+
+### ① 实施（S1 语法糖第一批首个）
+
+| 层 | 改动 |
+| --- | --- |
+| lv_parser.c | 声明值接受单 "="（S1：Point A = (1,2)）；新增 parse_decl_value：前瞻确认
+  (NUM, NUM) / (-NUM, NUM) / (NUM, -NUM) / (-NUM, -NUM)（NUM ∈ 整数/有理数/小数）
+  坐标形态 → 生成 {x, y} STRUCT_LITERAL（复用 loader 结构坐标路径）；否则回落普通表达式；
+  parse_coord_number 支持 INTEGER/RATIONAL/DECIMAL/前导负号(unary) |
+| lv_loader_engine.c | loader_expr_coord 新设施：AST 数值节点 → (num, den) 精确有理数对
+  （INTEGER/RATIONAL/DECIMAL-转分数/负号）；loader_extract_struct_coords 输出分母；
+  decl_register_point_with_value 用 num/den 调 lv_add_point（原仅整数 1 分母） |
+| 测试 | test_lv_parser test_coord_literal_decl（整数/小数/负数/有理数 + ":=" 保持回归）；
+  test_lv_bootstrap test_coord_literal_pipeline（解析→sema→引擎应用端到端） |
+
+### ② 决策登记
+- S1 语法 Point A = (1, 2);（= 单等号）与既有 Point A := point(1,2); / := {x,y} 并存；
+  "=" 是新糖、":=" 保持（向后兼容旧脚本零改动）；
+- 坐标值用精确有理数（整数 num/1、小数转分数并归约、有理数原样）写入 lv_add_point；
+- 前瞻判定基于 lexer peek（7 token 窗口），非坐标形态（如 (1+2, 3) 或 (A, B)）回落普通表达式。
+
+### 遗留登记
+- S7 自动命名（裸构造语句 midpoint(A,B); → 自动 P<n>）：需新语句类型 + 构造名→实体类型
+  推断 + loader 注册扩展（midpoint/intersect 等 loader 侧无实现）——下轮；
+- S2 管道 |> / S3 解构 / S4 字段访问 . / S5-S6 具名默认参数 / S8 列表字面量 后续。
