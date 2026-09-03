@@ -11723,3 +11723,24 @@ P5 起步。
 - P5-2：REAL 的算术（add/sub/mul/div/neg/abs/compare 跨 kind 经 mpfr 精确）、精度语义
   （结果 prec = max/上下文）——下一子批；
 - MSVC（CMakeSettings 可选构建）链 mpfr 需预编译 MSVC 版（既有 GMP 同类限制，登记）。
+
+---
+
+## 批次 252（P5-2：REAL_MPFR 跨 kind 算术）
+
+### 实施
+- `lv_number.c`：
+  - guarded 辅助：`new_real_prec`（建 REAL+精度）、`node_to_mpfr_prec`（任意 kind→mpfr，
+    int set_si/float set_d/rational set_q/real copy）、`real_prec_for`（= 各 real 精度 max/默认）；
+  - `bin_op`：任一 REAL_MPFR → mpfr 高精度 add/sub/mul/div（prec=real_prec_for，÷0→mpfr inf），
+    **优先于 float 分支**（real 参与即升到 real，不降 double）；
+  - `neg`（REAL 同精度 mpfr_neg）、`compare`（任一 REAL → mpfr_cmp，同提升规则）；
+- 契约测试 `test_lv_number_real_ext` 增 `test_real_arith`：real+int / real×int / real+rational /
+  0.1+0.2==0.3（128bit RNDN）/ compare / neg。
+
+### 验证
+- 全量重建 + ctest **302/302 全绿**。
+
+### 遗留登记
+- P5-3：abs/pow/to_int（real 精度截断）、字符串规范形输出策略、默认精度上下文；
+- MPFR 表示接入后续供批次 C（float_error 复核通道）与 interval 端点。
