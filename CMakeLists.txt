@@ -1472,7 +1472,11 @@ set(lv_LAYER5_SOURCES
 
 # ── 辅助宏：为每个层设置公共编译属性 ──
 macro(lv_setup_layer target layer_id)
-    target_include_directories(${target} PUBLIC
+    # C9：内部 OBJECT 库的 include 路径（含 core/src / core/src/preset——
+    # 源文件裸 include 内部头如 graph_node_internal.h / debug_internal.h 需要）
+    # 仅本库编译需要，PRIVATE 不外泄；消费者接口由聚合库 lv_static/lv_shared
+    # 的 PUBLIC 3 路径（core/include + core/include/lv + GMP）承担。
+    target_include_directories(${target} PRIVATE
         ${GMP_INCLUDE_DIR}
         ${CMAKE_SOURCE_DIR}/core/include
         ${CMAKE_SOURCE_DIR}/core/include/lv
