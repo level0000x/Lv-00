@@ -11210,3 +11210,36 @@ ame: value
 
 - 实施未启动：dependency-policy 批次 A（CMake/CI 依赖地基）先行；其后按设计 §4 开 0 期
   （抽象层落地）；MPFR 代码接入（B1）在抽象层落地后改为「新增表示/经抽象层」，不裸接。
+
+---
+
+## 批次 233（依赖地基批次 A：MPFR/MPC 入构建链 + CI 依赖，D-0903-6）
+
+### 实施
+
+| 提交 | 内容 |
+| :--- | :--- |
+| （本次） | CMakeLists：新增 MPFR/MPC/MPFI 查找块（跟随 GMP 已定位目录，Windows **静态优先** `lib*.a`）；GMP/MPFR/MPC **REQUIRED**，MPFI **可选 + `lv_HAS_MPFI`**；WASM 分支补 `lv_NO_MPFR`；`lv_PC_REQUIRES` → `gmp mpfr mpc`；CPACK DEB/RPM 依赖同步 |
+| （本次） | CI：ci.yml（Ubuntu ×2 + MSYS2 windows-build）、python.yml（Ubuntu/macOS/Windows）、fuzz.yml 补装 gmp+mpfr+mpc（apt: `libmpfr-dev libmpc-dev`；brew: `mpfr libmpc`；msys2: `mingw-w64-x86_64-mpfr/-mpc`） |
+
+### 决策要点（D-0903-6）
+
+- MPFI 未 REQUIRED 原因：**msys2 mingw64 仓库无 `mingw-w64-x86_64-mpfi` 包**（仅 ucrt64/clang64 有），
+  强制 REQUIRED 会挂掉本地 mingw64 与 CI windows-build；降为可选 + 宏，首个消费者立项时再
+  source-build 或转工具链；
+- 链接仍为空（代码层「装了 ≠ 用了」，D-0903-3）：仅查找/声明 + 元数据同步，未把 MPFR 链进
+  lv_static/shared——等 B1/抽象层消费者接入时经 `MPFR_LIBRARIES` 追加。
+
+### 验证
+
+- build3 重新配置：`MPFR found: .../libmpfr.a`、`MPC found: .../libmpc.a`（静态命中）、
+  MPFI 可选提示、`Configuring done`；
+- ninja no work（纯 CMake/CI 变更，无代码改动）；
+- ctest **297/297 全绿**（171s，0 failed）；
+- 注：GitHub Actions 结果待 push 后验证（本机未跑 workflow）。
+
+### 遗留登记
+
+- 本地 mingw64 缺 MPFI（可选链成员，无消费者，不阻塞）；
+- CI 双 workflow 待 push 验证；
+- 下一步排序待用户确认：抽象层 0 期（推荐先做，MPFR 表示经抽象层接入，避免 B1 裸接返工）vs 先 B1 直用 MPFR。
