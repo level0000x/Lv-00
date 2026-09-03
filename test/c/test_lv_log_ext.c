@@ -7,7 +7,8 @@
  *
  * 契约要点（与 lv_log.h / lv_log.c 核对）：
  *   - get_level：默认 lv_LOG_INFO。
- *   - set_output(fp)：非 NULL 输出重定向到 fp；NULL 恢复默认 stderr。
+ *   - set_output(fp)：非 NULL 输出重定向到 fp（显式定制路径）；NULL 恢复默认
+ *     （g_output_configured 复位，重新委托统一日志主管道 lv_log_message）。
  *   - enable_timestamp(true)：输出前缀追加 [HH:MM:SS]。
  *   - enable_source(true)：输出前缀追加 源文件:行号（记录点 __FILE__，含 lv_log.c）。
  *   - lv_log：level > lv_LOG_FATAL 直接忽略（不输出）。
@@ -68,7 +69,7 @@ static void test_output_customization(void) {
     lv_log_set_output(NULL);
     fclose(f);
 
-    /* 恢复后再记录不崩溃（定制路径输出到 stderr） */
+    /* 恢复后再记录不崩溃（恢复默认：委托统一日志主管道） */
     lv_log(lv_LOG_WARN, "restored-%d", 7);
 }
 

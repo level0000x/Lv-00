@@ -17,6 +17,7 @@
 
 #include "lv/constraint_graph.h"
 #include "lv/lv_internal.h"
+#include "lv/geometry_config.h" /* lv_geometry_get_config（K63：点命中容差读 lvGeometryConfig） */
 #include "lv/geo_predicate.h" /* lv_lines_parallel / lv_lines_perpendicular / lv_side_of_circle（K41 权威谓词） */
 #include "lv/geo_utils.h"
 #include "lv/lv_numeric.h"
@@ -639,14 +640,19 @@ static bool selector_node_matches_type(const GeomNode *node, const char *type_ex
 }
 
 /** @brief 节点是否包含指定位置（SELECTOR_AT_LOCATION）
- *  - 点：距离 < 1e-6；线段：geo_point_on_segment；区域：射线法；圆：|dist - r| < 1e-6 */
+ *  - 点：距离 < lvGeometryConfig.distance_epsilon；线段：geo_point_on_segment；
+ *    区域：射线法；圆：lv_side_of_circle（K41，容差同源） */
 static bool selector_node_contains(const ConstraintGraph *graph, const GeomNode *node, double px, double py) {
     if (!node)
         return false;
+    /* K63：点命中容差读 lvGeometryConfig（可配置不硬编码；与 GEOM_CIRCLE 的
+     * lv_side_of_circle 同源 distance_epsilon，消除同函数内 1e-6/1e-8 双档不一致） */
+    const lvGeometryConfig *gcfg = lv_geometry_get_config();
+    double eps = gcfg != NULL ? gcfg->distance_epsilon : lv_GEO_DISTANCE_EPSILON;
     switch (node->type) {
         case GEOM_POINT: {
             double x, y;
-            return selector_node_coords(node, &x, &y) && geo_distance_2d(x, y, px, py) < 1e-6;
+            return selector_node_coords(node, &x, &y) && geo_distance_2d(x, y, px, py) < eps;
         }
         case GEOM_LINE_SEGMENT: {
             double x1, y1, x2, y2;

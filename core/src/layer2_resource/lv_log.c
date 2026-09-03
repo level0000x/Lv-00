@@ -117,11 +117,12 @@ lvLogLevel lv_log_get_level(void) {
 }
 
 void lv_log_set_output(FILE *fp) {
-    /* 替换/关闭日志输出目标：非 NULL 时 lv_log 直接输出到 fp；
-     * NULL 时恢复到默认 stderr（与头文件注释一致）。 */
+    /* 替换/关闭日志输出目标：非 NULL 时 lv_log 直接输出到 fp（显式定制路径）；
+     * NULL 时恢复默认（g_output_configured 复位——重新委托统一日志主管道
+     * lv_log_message，而非停留于"显式输出到 stderr"的定制路径）。 */
     lv_lazy_lock_lock(&g_log_state_lock, g_log_state_lock_init_once);
     g_output_fp = fp;
-    g_output_configured = true;
+    g_output_configured = (fp != NULL);
     lv_lazy_lock_unlock(&g_log_state_lock);
 }
 

@@ -49,8 +49,10 @@ lvLogLevel lv_log_get_level(void);
 
 /**
  * @brief 重定向日志输出
- * @param fp  文件指针（NULL = 恢复到默认 stderr）
+ * @param fp  文件指针（NULL = 恢复默认行为：重新委托统一日志主管道
+ *            lv_log_message，即 lv_log_set_output 从未被调用时的状态）
  */
+lv_PUBLIC_API void lv_log_set_output(FILE *fp);
 
 /**
  * @brief 关闭日志系统
@@ -59,7 +61,6 @@ lvLogLevel lv_log_get_level(void);
  *       声明集中放置于本日志头文件，与 lv_log_init() 配对使用。
  */
 lv_PUBLIC_API void lv_log_shutdown(void);
-lv_PUBLIC_API void lv_log_set_output(FILE *fp);
 
 /**
  * @brief 启用/禁用日志时间戳前缀
