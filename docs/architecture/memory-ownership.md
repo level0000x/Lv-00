@@ -2,8 +2,9 @@
 
 > 单源文档：Lv-00 公共 API 的内存所有权三态契约。
 > 立项：F39（K10 所有权三态契约落地，用户 2026-08-31 确认 P0）。
-> 状态：契约定义 + 首批修复落地；[copy]/[take]/[borrow] 头注释全覆盖与
-> 静态检查脚本为后续批次。
+> 状态：契约定义 + 首批修复落地；三态标注 79 处全覆盖（批次 196）+ 静态检查
+> 脚本 CI 门禁（批次 185 ownership-check job）已完成；剩余收尾见 §6
+> （文档对齐类，按用户 2026-09-01 决策只登记说明、执行暂缓）。
 
 ## 1. 三态契约
 
@@ -42,7 +43,21 @@
 
 ## 5. 后续批次
 
-- [copy]/[take]/[borrow] 头注释全覆盖（~40+ 处「调用者负责 free」标注逐点核对）
-- 静态检查脚本（grep 分配器/释放器配对，接入 CI）
-- memory-ownership 与 API_QUICKSTART 的 _create/_get 表、TEN_LAYER_OPTIMIZED_PLAN
-  的 _create/_alloc 后缀表对齐
+- [copy]/[take]/[borrow] 头注释全覆盖（~40+ 处「调用者负责 free」标注逐点核对）——**已完成**（批次 184-186 首批 15 处、批次 196 全覆盖 79 处 + ownership-check CI 门禁）
+- 静态检查脚本（grep 分配器/释放器配对，接入 CI）——**已完成**（tools/ownership_check.py，批次 185，0 违规）
+- memory-ownership 与 API_QUICKSTART 的 _create/_get 表、TEN_LAYER_OPTIMIZED_PLAN 的 _create/_alloc 后缀表对齐——待执行（文档对齐类，见 §6）
+
+## 6. 剩余收尾（文档对齐类，登记说明 · 执行暂缓）
+
+以下为 F39/K10 文档对齐面剩余待执行内容（用户 2026-09-01 决策：文档类只写
+本说明登记，代码/文档大改暂缓，后续按批次推进）：
+
+1. **[copy] 标注补齐**：`func_block_registry_lookup` 头注释已具 copy 语义，补
+   正式 `[copy]` 标注（批次 186 遗留）。
+2. **其余 ~30 处 API 三态标注**：常用 API（func_block 族 / engine 创建族等）
+   头注释三态标注逐批推进（批次 196 后剩余面）。
+3. **API_QUICKSTART / 教学文档所有权对齐**：API_QUICKSTART 的 _create/_get
+   表与 memory-ownership 契约对齐；TEN_LAYER_OPTIMIZED_PLAN 的
+   _create/_alloc 后缀表核对（后者属规划文档豁免面，核对方式仿 PLAN_API_AUDIT）。
+4. **本文件 §4 健康面补录**：`graph_get_node` 的 `[borrow]` 标注已补头注释
+   （批次 186），本文件 §4 引用句「待头注释补齐」需同步为已完成。
