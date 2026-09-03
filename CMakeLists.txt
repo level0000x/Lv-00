@@ -394,183 +394,217 @@ endif()
 
 # ── 共享头文件列表（所有层共用）──
 set(lv_HEADERS
-    core/include/lv/lv.h
-    core/include/lv/cross_platform.h
-    core/include/lv/error_codes.h
-    core/include/lv/lv_error.h
-    core/include/lv/symbolic_coord.h
-    core/include/lv/constraint_graph.h
-    core/include/lv/lv_graph_meta_verify.h
-    core/include/lv/normalization.h
-    core/include/lv/graph_hash.h
-    core/include/lv/solver.h
-    core/include/lv/rewrite.h
-    core/include/lv/unify.h
-    # v3.6.0 新增：WFC 范式头文件
-    core/include/lv/propagation.h
-    core/include/lv/equiv_class.h
-    core/include/lv/meta_proof.h
+    # --- A ---
+    core/include/lv/adaptive_threshold.h
+    core/include/lv/algebra_mode.h
+    core/include/lv/algebraic_number.h
+    core/include/lv/allocator.h
+    core/include/lv/application.h
+    core/include/lv/approx_counter.h
+    core/include/lv/atp_backend.h
+    core/include/lv/autodiff.h
+    core/include/lv/autodiff_vtable.h
+    core/include/lv/axiom_grade.h
     core/include/lv/axiom_pkg.h
-    core/include/lv/module.h
+    core/include/lv/axiom_rule_engine.h
+    # --- B ---
+    core/include/lv/bdd_encoding.h
+    core/include/lv/bicgstab_shared.h
+    core/include/lv/bit_burning.h
+    core/include/lv/block_graph_view.h
+    core/include/lv/block_scheduler.h
+    core/include/lv/blueprint_solver_incremental.h
+    core/include/lv/bootstrap_test.h
+    # --- C ---
+    core/include/lv/circuit_breaker.h
+    core/include/lv/coeff_pool.h
+    core/include/lv/command_log.h
+    core/include/lv/config.h
+    core/include/lv/conflict_detector.h
+    core/include/lv/constraint_graph.h
+    core/include/lv/context.h
+    core/include/lv/control_flow_blocks.h
+    core/include/lv/critical_pair.h
+    core/include/lv/cross_platform.h
+    # --- D ---
+    core/include/lv/data_structure_blocks.h
+    core/include/lv/debug.h
+    core/include/lv/default_host_ops.h
+    core/include/lv/depth_limits.h
+    core/include/lv/determinism_state.h
+    core/include/lv/dsl_compiler.h
+    core/include/lv/dsl_extension.h
+    # --- E ---
+    core/include/lv/ecosystem.h
+    core/include/lv/effect_system.h
     core/include/lv/engine.h
     core/include/lv/engine_access.h
-    core/include/lv/debug.h
-    core/include/lv/lv_mempool.h
-    core/include/lv/mpz_poly.h
-    core/include/lv/func_block.h
-    core/include/lv/type_system.h
-    core/include/lv/proof.h
-    core/include/lv/recursion.h
-    core/include/lv/lv_utils.h
-    core/include/lv/lv_path.h
-    core/include/lv/lv_heap.h
-    core/include/lv/lv_hashtable.h
-    core/include/lv/lv_lru_cache.h
-    core/include/lv/dsl_extension.h
-    core/include/lv/lv_safety.h
-    core/include/lv/high_dim.h
-    core/include/lv/interop.h
+    core/include/lv/engine_scheduler.h
+    core/include/lv/engine_status.h
+    core/include/lv/equiv_class.h
+    core/include/lv/error_codes.h
+    core/include/lv/euclidean_geometry.h
+    core/include/lv/exact_arithmetic.h
+    core/include/lv/expr_canon.h
+    core/include/lv/expr_canonical.h
+    core/include/lv/expr_vtable.h
+    core/include/lv/extended_types.h
+    # --- F ---
+    core/include/lv/fast_index.h
+    core/include/lv/float_error.h
+    core/include/lv/formula_converter.h
     core/include/lv/formula_parser.h
     core/include/lv/formula_renderer.h
-    core/include/lv/formula_converter.h
-    core/include/lv/prop_verifier.h
-    core/include/lv/lexer_shared.h
-    core/include/lv/stream.h
-    core/include/lv/func_block_utils.h
-    core/include/lv/stream_context_util.h
-    core/include/lv/func_block_registry.h
+    core/include/lv/func_block.h
     core/include/lv/func_block_custom.h
-    core/include/lv/func_block_template.h
-    core/include/lv/func_block_preset_ops.h
-    # v1.1.0 新增模块头文件（第一轮：核心计算模块）
-    core/include/lv/groebner_engine.h
-    core/include/lv/engine_scheduler.h
-    core/include/lv/euclidean_geometry.h
-    core/include/lv/geometry_compress.h
-    core/include/lv/float_error.h
-    core/include/lv/smt_backend.h
-    core/include/lv/bdd_encoding.h
-    core/include/lv/approx_counter.h
-    # 位数熔断系统
-    core/include/lv/bit_burning.h
-    core/include/lv/command_log.h
-    # v1.1.0 新增模块头文件（第二轮：计算后端与数值模块）
-    core/include/lv/atp_backend.h
-    core/include/lv/solver_core.h
-    core/include/lv/sat_encoding.h
-    core/include/lv/relation_model.h
-    core/include/lv/numerical_backend.h
-    core/include/lv/geom_evol.h
-    core/include/lv/geo_event_detect.h
-    core/include/lv/geo_visual.h
-    core/include/lv/lv_render_visitor.h
-    core/include/lv/lv_numeric.h
-    core/include/lv/lv_arith_safe.h
-    core/include/lv/probabilistic_constraint.h
-    # v1.1.0 新增模块头文件（第三轮：几何构造与交互模块）
-    core/include/lv/algebra_mode.h
-    core/include/lv/dsl_compiler.h
-    core/include/lv/interactive_geo.h
-    # v1.1.0 新增模块头文件（第四轮：证明与规约模块）
-    core/include/lv/mini_kernel.h
-    core/include/lv/proof_widget.h
-    core/include/lv/path_type.h
-    core/include/lv/three_layer_arithmetic.h
-    core/include/lv/geometric_primitives.h
-    # λ-演算：λ-项与约束图编译
-    core/include/lv/lambda_to_graph.h
-    # λ-演算：λ-项类型检查
-    core/include/lv/lambda_type_check.h
-    # λ-演算：Church 编码公共 API
-    core/include/lv/lambda_church.h
-    # 模块化预设函数块系统
-    core/include/lv/preset_blocks.h
-    # v1.1.0 性能优化模块
-    core/include/lv/thread_pool.h
-    core/include/lv/simd_ops.h
-    # v1.1.0 新增核心模块（整改实施）
-    core/include/lv/memory_pool.h
-    core/include/lv/expr_canonical.h
-    core/include/lv/geometry_transform.h
-    core/include/lv/inequality_reasoning.h
-    core/include/lv/runtime_monitor.h
-    core/include/lv/axiom_rule_engine.h
-    core/include/lv/proof_engine_enhanced.h
-    core/include/lv/test_framework.h
-    # 内部/实现头文件（用于 IDE 索引和 OBJECT 库关联）
-    core/include/lv/lv_internal.h
-    core/include/lv/lv_block_utils.h
-    core/include/lv/config.h
-    core/include/lv/context.h
-    core/include/lv/geometry_types.h
-    core/include/lv/node_deep_copy.h
-    core/include/lv/parser_safety.h
     core/include/lv/func_block_internal.h
     core/include/lv/func_block_preset.h
-    core/include/lv/expr_canon.h
-    core/include/lv/modal_operators.h
-    core/include/lv/circuit_breaker.h
-    # v4.0.0 新增：熔断器独立模块头文件
-    core/include/lv/lv_circuit_breaker.h
-    core/include/lv/axiom_grade.h
-    core/include/lv/three_valued_logic.h
-    core/include/lv/quantifier.h
-    core/include/lv/rational.h
-    core/include/lv/proof_trace.h
-    core/include/lv/runtime_guard.h
-    core/include/lv/exact_arithmetic.h
-    core/include/lv/sha256.h
-    # v3.7.0 新增头文件（原 Pending header additions）
-    core/include/lv/autodiff.h
-    core/include/lv/conflict_detector.h
+    core/include/lv/func_block_preset_ops.h
+    core/include/lv/func_block_registry.h
+    core/include/lv/func_block_template.h
+    core/include/lv/func_block_utils.h
+    # --- G ---
     core/include/lv/ga_codegen.h
     core/include/lv/ga_interface.h
     core/include/lv/ga_multivector.h
-    core/include/lv/groebner_parallel.h
-    core/include/lv/math_theory_guide_cn.h
-    core/include/lv/meta_repr.h
-    core/include/lv/nt_number_theory.h
-    core/include/lv/nt_polynomial.h
-    core/include/lv/ode_solver.h
-    core/include/lv/plugin_system.h
-    core/include/lv/plugin_security.h
-    core/include/lv/proof_compiler.h
-    # v3.0.0 UI-Kernel 通信协议（替代 view_projection）
-    core/include/lv/lv_protocol.h
-    # v3.0.0 API 版式规范
-    core/include/lv/lv_api_spec.h
-    # stubs→headers: 17 semi-finished headers
-    core/include/lv/adaptive_threshold.h
     core/include/lv/gappa_dsl.h
     core/include/lv/gappa_propagate.h
+    core/include/lv/gc_language.h
     core/include/lv/geo_aabb_tree.h
     core/include/lv/geo_constraint_solver.h
-    core/include/lv/blueprint_solver_incremental.h
     core/include/lv/geo_dynamic.h
+    core/include/lv/geo_event_detect.h
+    core/include/lv/geo_halfedge_mesh.h
+    core/include/lv/geo_invariant_type.h
     core/include/lv/geo_predicate.h
-    core/include/lv/geometry_ops.h
-    core/include/lv/symbolic_cache.h
-    core/include/lv/geometry_config.h
-    core/include/lv/performance_profiler.h
-    core/include/lv/proof_export_enhanced.h
-    core/include/lv/proof_rule_engine.h
-    core/include/lv/proof_session.h
-    core/include/lv/proof_version.h
-    core/include/lv/rewrite_strategy.h
-    core/include/lv/smt_bitvector.h
-    core/include/lv/sym_expr.h
-    # v3.5.0 stub→real: 12 non-preset modules
-    core/include/lv/ecosystem.h
-    core/include/lv/fast_index.h
-    core/include/lv/gc_language.h
     core/include/lv/geo_spec.h
+    core/include/lv/geo_topology.h
+    core/include/lv/geo_utils.h
+    core/include/lv/geo_visual.h
+    core/include/lv/geom_evol.h
+    core/include/lv/geometric_primitives.h
+    core/include/lv/geometry_compress.h
+    core/include/lv/geometry_config.h
+    core/include/lv/geometry_ops.h
+    core/include/lv/geometry_transform.h
+    core/include/lv/geometry_types.h
+    core/include/lv/gmres_shared.h
+    core/include/lv/graph_hash.h
+    core/include/lv/groebner_engine.h
+    core/include/lv/groebner_parallel.h
+    # --- H ---
+    core/include/lv/hash_history.h
+    core/include/lv/high_dim.h
+    core/include/lv/host_linalg.h
+    # --- I ---
+    core/include/lv/inequality_reasoning.h
+    core/include/lv/interactive_geo.h
+    core/include/lv/interop.h
+    core/include/lv/interop_bridge_common.h
+    core/include/lv/interop_step_type.h
+    core/include/lv/interval_arith.h
+    core/include/lv/interval_arithmetic.h
+    core/include/lv/io_block.h
+    core/include/lv/io_blocks.h
+    # --- L ---
+    core/include/lv/lambda_church.h
+    core/include/lv/lambda_term.h
+    core/include/lv/lambda_to_graph.h
+    core/include/lv/lambda_type_check.h
+    core/include/lv/lambda_unify.h
+    core/include/lv/layer_validation.h
+    core/include/lv/lexer_shared.h
     core/include/lv/logic_check.h
-    core/include/lv/math_input.h
-    core/include/lv/sparse_linear_algebra.h
-    core/include/lv/status_codes.h
-    core/include/lv/tikz_export.h
+    core/include/lv/lv.h
+    core/include/lv/lv_api_spec.h
+    core/include/lv/lv_arena.h
+    core/include/lv/lv_arith_safe.h
+    core/include/lv/lv_ast.h
+    core/include/lv/lv_backend_plugin.h
+    core/include/lv/lv_bitset.h
+    core/include/lv/lv_block_utils.h
+    core/include/lv/lv_builtin_commands.h
+    core/include/lv/lv_bytes.h
+    core/include/lv/lv_callback_list.h
+    core/include/lv/lv_check.h
+    core/include/lv/lv_circuit_breaker.h
+    core/include/lv/lv_config.h
+    core/include/lv/lv_constraint_guard.h
+    core/include/lv/lv_convenience.h
+    core/include/lv/lv_dot_writer.h
+    core/include/lv/lv_error.h
+    core/include/lv/lv_event_bus.h
     core/include/lv/lv_export_common.h
-    # v3.5.0 stub→real: 61 preset module headers
+    core/include/lv/lv_file.h
+    core/include/lv/lv_graph_meta_verify.h
+    core/include/lv/lv_graph_traversal.h
+    core/include/lv/lv_hash.h
+    core/include/lv/lv_hashtable.h
+    core/include/lv/lv_heap.h
+    core/include/lv/lv_internal.h
+    core/include/lv/lv_json.h
+    core/include/lv/lv_lexer.h
+    core/include/lv/lv_lifecycle.h
+    core/include/lv/lv_loader.h
+    core/include/lv/lv_log.h
+    core/include/lv/lv_lru_cache.h
+    core/include/lv/lv_mempool.h
+    core/include/lv/lv_mempool_utils.h
+    core/include/lv/lv_number.h
+    core/include/lv/lv_numeric.h
+    core/include/lv/lv_parse_utils.h
+    core/include/lv/lv_parser.h
+    core/include/lv/lv_path.h
+    core/include/lv/lv_platform.h
+    core/include/lv/lv_process.h
+    core/include/lv/lv_protocol.h
+    core/include/lv/lv_reasoning_stack.h
+    core/include/lv/lv_registry.h
+    core/include/lv/lv_render_visitor.h
+    core/include/lv/lv_ringbuf.h
+    core/include/lv/lv_safety.h
+    core/include/lv/lv_sema.h
+    core/include/lv/lv_serialize_adapters.h
+    core/include/lv/lv_storage.h
+    core/include/lv/lv_str_utils.h
+    core/include/lv/lv_strbuf.h
+    core/include/lv/lv_stream_context.h
+    core/include/lv/lv_thread.h
+    core/include/lv/lv_upper_api.h
+    core/include/lv/lv_utils.h
+    core/include/lv/lv_vec3.h
+    core/include/lv/lv_view.h
+    core/include/lv/lv_xmacro.h
+    # --- M ---
+    core/include/lv/math_input.h
+    core/include/lv/math_theory_guide_cn.h
+    core/include/lv/memory_pool.h
+    core/include/lv/meta_proof.h
+    core/include/lv/meta_repr.h
+    core/include/lv/meta_verify.h
+    core/include/lv/mini_kernel.h
+    core/include/lv/modal_operators.h
+    core/include/lv/module.h
+    core/include/lv/module_internal.h
+    core/include/lv/mpz_poly.h
+    # --- N ---
+    core/include/lv/node_deep_copy.h
+    core/include/lv/normalization.h
+    core/include/lv/nt_number_theory.h
+    core/include/lv/nt_polynomial.h
+    core/include/lv/numerical_backend.h
+    # --- O ---
+    core/include/lv/ode_integrator.h
+    core/include/lv/ode_solver.h
+    core/include/lv/orchestrator.h
+    # --- P ---
+    core/include/lv/parametric_curves.h
+    core/include/lv/parser_safety.h
+    core/include/lv/path_type.h
+    core/include/lv/performance_profiler.h
+    core/include/lv/plugin_security.h
+    core/include/lv/plugin_system.h
+    core/include/lv/preset_abstract_algebra.h
     core/include/lv/preset_advanced_geometry.h
     core/include/lv/preset_algebraic.h
     core/include/lv/preset_algebraic_geometry.h
@@ -580,7 +614,9 @@ set(lv_HEADERS
     core/include/lv/preset_arithmetic_geometry.h
     core/include/lv/preset_basic_geometry.h
     core/include/lv/preset_basic_math.h
+    core/include/lv/preset_blocks.h
     core/include/lv/preset_calculus.h
+    core/include/lv/preset_category.h
     core/include/lv/preset_category_theory.h
     core/include/lv/preset_category_theory_adv.h
     core/include/lv/preset_coding_theory.h
@@ -613,6 +649,7 @@ set(lv_HEADERS
     core/include/lv/preset_matrix.h
     core/include/lv/preset_measure_theory.h
     core/include/lv/preset_measurements.h
+    core/include/lv/preset_name_defs.h
     core/include/lv/preset_number_theory.h
     core/include/lv/preset_numerical.h
     core/include/lv/preset_numerical_analysis.h
@@ -631,35 +668,69 @@ set(lv_HEADERS
     core/include/lv/preset_topology.h
     core/include/lv/preset_transformations.h
     core/include/lv/preset_trigonometry.h
-    # v1.1.0 新增：关键对计算引擎 + 类型等价探索器
-    core/include/lv/critical_pair.h
-    core/include/lv/type_equiv_explorer.h
-    # v1.9.0 micro-bootstrap: 语义分析与加载器
-    core/include/lv/lv_sema.h
-    core/include/lv/lv_loader.h
-    # v1.1.0 通用注册表接口
-    core/include/lv/lv_registry.h
-    # v1.1.0 统一后端插件系统抽象层
-    core/include/lv/lv_backend_plugin.h
-    # v4.0.0 新增：推理分支栈独立模块头文件
-    core/include/lv/lv_reasoning_stack.h
-    # v4.0.0 新增：流式输出上下文独立模块头文件
-    core/include/lv/lv_stream_context.h
-    # 泛型环形缓冲区（从 debug.c 提取）
-    core/include/lv/lv_ringbuf.h
-    # 脏变量追踪（增量求解支持，从 solver.c 提取）
+    core/include/lv/probabilistic_constraint.h
+    core/include/lv/proof.h
+    core/include/lv/proof_compiler.h
+    core/include/lv/proof_engine_enhanced.h
+    core/include/lv/proof_export_enhanced.h
+    core/include/lv/proof_rule_engine.h
+    core/include/lv/proof_rule_engine_internal.h
+    core/include/lv/proof_session.h
+    core/include/lv/proof_session_internal.h
+    core/include/lv/proof_step_strategy.h
+    core/include/lv/proof_trace.h
+    core/include/lv/proof_version.h
+    core/include/lv/proof_version_internal.h
+    core/include/lv/proof_widget.h
+    core/include/lv/prop_formula_ops.h
+    core/include/lv/prop_formula_visitor.h
+    core/include/lv/prop_verifier.h
+    core/include/lv/propagation.h
+    # --- Q ---
+    core/include/lv/quantifier.h
+    # --- R ---
+    core/include/lv/rational.h
+    core/include/lv/recursion.h
+    core/include/lv/rel_atom_type.h
+    core/include/lv/relation_model.h
+    core/include/lv/representation_converter.h
+    core/include/lv/rewrite.h
+    core/include/lv/rewrite_strategy.h
+    core/include/lv/runtime_guard.h
+    core/include/lv/runtime_monitor.h
+    # --- S ---
+    core/include/lv/sat_encoding.h
+    core/include/lv/sha256.h
+    core/include/lv/simd_ops.h
+    core/include/lv/smt_backend.h
+    core/include/lv/smt_bitvector.h
+    core/include/lv/smt_theory_combiner.h
+    core/include/lv/smt_trigger_engine.h
+    core/include/lv/solver.h
+    core/include/lv/solver_core.h
     core/include/lv/solver_dirty_set.h
-    # v5.0.0 流水线抽象层
-    # v5.0.0 统一存储抽象层
-    core/include/lv/lv_storage.h
-    # 内置序列化适配器（业务序列化对 ↔ 统一序列化注册表）
-    core/include/lv/lv_serialize_adapters.h
-    # 图/树遍历抽象层
-    core/include/lv/lv_graph_traversal.h
-    # v1.0.0 竞技场分配器抽象层
-    core/include/lv/lv_arena.h
-    # 数值类型统一抽象层
-    core/include/lv/lv_number.h
+    core/include/lv/solver_types.h
+    core/include/lv/sparse_linear_algebra.h
+    core/include/lv/status_codes.h
+    core/include/lv/stream.h
+    core/include/lv/stream_context_util.h
+    core/include/lv/sym_expr.h
+    core/include/lv/symbolic_cache.h
+    core/include/lv/symbolic_coord.h
+    # --- T ---
+    core/include/lv/test_framework.h
+    core/include/lv/thread_pool.h
+    core/include/lv/three_layer_arithmetic.h
+    core/include/lv/three_valued_logic.h
+    core/include/lv/tikz_export.h
+    core/include/lv/trust_color.h
+    core/include/lv/trust_color_x.h
+    core/include/lv/type_equiv_explorer.h
+    core/include/lv/type_system.h
+    # --- U ---
+    core/include/lv/unify.h
+    # --- V ---
+    core/include/lv/visual_editor.h
 )
 
 # ── Layer 1: 输入解析层 (Parser) ──

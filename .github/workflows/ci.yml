@@ -132,6 +132,17 @@ jobs:
       - name: Run symbol sync check
         run: python tools/symbol_sync_check.py
 
+  # ── K40/B5: lv_HEADERS 手写清单漂移校验（新增头未登记即失败）────
+  headers-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Run header list sync check
+        run: python tools/check_headers_sync.py --ci
+
   # ── 预设同步门（tool_audit R3：.lvz 与 C 注册数据防漂移）────
   # check_preset_sync.py --ci：verify 模式模拟 loader（module_lvz.c）验证 .lvz
   # 可加载；dry-run 检测纯缺失/双向差异/缺 C 文件（C_EMPTY/EXTRA_ONLY 为预期状态）。
