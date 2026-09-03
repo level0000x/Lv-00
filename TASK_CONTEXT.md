@@ -11773,3 +11773,21 @@ P5 起步。
 - 定位：REAL 复核 = 新增旁路（opt-in），**不改 float_error/fptaylor/gappa 现有 double
   区间/信任语义**；C1（独立复核 util+单测）可立即，C2-C4（进入信任域 API）待 C1 稳定；
 - CI：251 ✅；252/253 运行中（无失败）。
+
+---
+
+## 批次 255（C1：REAL 高精度复核判定 `lv_number_real_verify`）
+
+### 实施
+- `lv_number.h/.c` 新增 `lv_number_real_verify(approx, ref_real, rel_tol, abs_tol)`：
+  `|approx − ref| ≤ abs_tol + rel_tol·|ref|`（REAL 参考精度下 mpfr 判定）；
+  ref 非 REAL / NULL / 非 WASM → false；容差负值钳 0；
+- 契约测试：π 精确匹配通过、3.2 vs π 拒绝、相对容差随 |ref| 缩放（ref≈1000 差 1：
+  rel 1e-3 过 / 1e-4 拒）、NULL / ref 非 REAL 拒绝。
+
+### 验证
+- 全量重建 + ctest **302/302 全绿**；
+- 该 util 为批次 C2（float_error 导出旁路复核）的直接底层件。
+
+### 遗留登记
+- C2-C4（进入 float_error 信任域）待 C1 稳定后按 batch-c-reverify-plan 推进。
