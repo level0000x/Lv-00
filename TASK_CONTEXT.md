@@ -11594,3 +11594,22 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
 ### 遗留登记
 
 - MPC 同型冒烟可并入未来复数消费者批次；MPFI 待装后补链。
+
+---
+
+## 批次 246（dependency-policy：MPC 链路冒烟测试）
+
+### 实施
+
+- 新增 `test/c/test_mpc_smoke.c`（CTEST mpc_smoke_test）：复数加法（1+2i）+0i → 实/虚 2、
+  cabs|-3+4i|=5、精度 256bit；用 `mpc_set_si_si` 数值构造（文本解析格式差异大，避开）；
+- CMake 注册 + include/link，链接顺序 **mpc → mpfr → gmp**（静态依赖方向）。
+
+### 验证
+
+- mpc_smoke_test 通过（0.41s）；全量 ctest **301/301 全绿**（300 → 301）；
+- GMP 家族四件套地基（除 MPFI 本地缺包）全部编译/链接/运行端到端验证。
+
+### 遗留登记
+
+- MPFI（msys2 mingw64 缺包）待装后补冒烟；MPC 文本解析格式差异记录（未来复数 DSL 用数值构造或规范化文本）。
