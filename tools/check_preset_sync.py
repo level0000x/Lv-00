@@ -330,6 +330,8 @@ def main():
     ap.add_argument('--module', default=None, help='仅检查指定模块（不含前缀，如 information_theory）')
     ap.add_argument('--verify', action='store_true',
                     help='模拟 C loader（module_lvz.c）验证所有 .lvz 可被加载（Python 复刻词法/语法）')
+    ap.add_argument('--ci', action='store_true',
+                    help='CI 门禁模式：verify 有 LOAD_FAIL、或同步差异含 MISSING_ONLY/BOTH/NO_C_FILE 时 exit 1')
     args = ap.parse_args()
 
     # ---- --verify：模拟 loader 加载验证（不依赖同步状态） ----
@@ -343,6 +345,8 @@ def main():
         print(f'汇总: LOAD_OK={summary["LOAD_OK"]}, LOAD_FAIL={summary["LOAD_FAIL"]}')
         if args.json:
             print(json.dumps({'verify': results, 'summary': summary}, ensure_ascii=False))
+        if args.ci and summary['LOAD_FAIL'] > 0:
+            sys.exit(1)  # CI 门禁：存在无法加载的 .lvz
         sys.exit(0)
 
     name_map = convert_presets.load_name_defs(NAME_DEFS_PATH)
@@ -431,6 +435,12 @@ def main():
     if args.json:
         print(json.dumps({'summary': summary, 'modules': results,
                           'fixed': [f[0] for f in fixed] if args.fix else None}, ensure_ascii=False))
+
+    # ---- CI 门禁：同步差异含纯缺失/双向差异/缺 C 文件 → exit 1 ----
+    if args.ci and not args.fix:
+        problematic = summary.get('MISSING_ONLY', 0) + summary.get('BOTH', 0) + summary.get('NO_C_FILE', 0)
+        if problematic > 0:
+            sys.exit(1)
 
 
 if __name__ == '__main__':
