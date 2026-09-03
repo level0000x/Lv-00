@@ -97,6 +97,7 @@ extern "C" {
     x(LV_TOKEN_DARROW, "DARROW") /* |- */ \
     x(LV_TOKEN_MODELS, "MODELS") /* |= */ \
     x(LV_TOKEN_THEREFORE, "THEREFORE") /* => */ \
+    x(LV_TOKEN_PIPE_GT, "PIPE_GT") /* |> (S2 管道) */ \
     x(LV_TOKEN_PIPE, "PIPE") /* | */ \
     /* 特殊 */ \
     x(LV_TOKEN_EOF, "EOF") \

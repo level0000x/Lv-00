@@ -286,6 +286,78 @@ static void test_auto_named_stmt(void) {
     }
 }
 
+/* S2 管道：A |> midpoint(B) == midpoint(A, B) */
+static void test_pipe_expr(void) {
+    printf("[S2 管道表达式]\n");
+
+    {
+        const char *src = "Point M = A |> midpoint(B);";
+        LvParseResult res = parse_source(src);
+        TEST("A |> midpoint(B)");
+        if (res.ast && res.error_count == 0) {
+            LvAstNode *decl = res.ast->child;
+            if (decl && decl->type == LV_AST_DECLARATION && decl->data.decl.value) {
+                LvAstNode *v = decl->data.decl.value;
+                /* 重写后应为调用节点（FUNCTION_CALL），首参 A */
+                if (v->type == LV_AST_FUNCTION_CALL && v->data.call.args &&
+                    v->data.call.args->type == LV_AST_IDENTIFIER_EXPR &&
+                    strcmp(v->data.call.args->data.ident.name, "A") == 0) {
+                    PASS();
+                } else {
+                    printf("  value type=%d\n", v->type);
+                    FAIL("expected FUNCTION_CALL with A as first arg");
+                }
+            } else {
+                FAIL("expected decl with value");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 链式管道：A |> f(B) |> g(C) —— 左结合逐级重写 */
+        const char *src = "Point X = A |> midpoint(B) |> reflect(C);";
+        LvParseResult res = parse_source(src);
+        TEST("A |> midpoint(B) |> reflect(C) 链式");
+        if (res.ast && res.error_count == 0) {
+            LvAstNode *decl = res.ast->child;
+            LvAstNode *v = decl && decl->type == LV_AST_DECLARATION ? decl->data.decl.value : NULL;
+            /* 外层 = reflect(midpoint(A,B), C) */
+            if (v && v->type == LV_AST_FUNCTION_CALL && v->data.call.func_name &&
+                strcmp(v->data.call.func_name, "reflect") == 0 && v->data.call.args &&
+                v->data.call.args->next) {
+                LvAstNode *inner = v->data.call.args;
+                if (inner->type == LV_AST_FUNCTION_CALL && inner->data.call.func_name &&
+                    strcmp(inner->data.call.func_name, "midpoint") == 0) {
+                    PASS();
+                } else {
+                    FAIL("inner should be midpoint call");
+                }
+            } else {
+                FAIL("expected reflect(midpoint(A,B), C)");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 管道右侧非调用：报错 */
+        const char *src = "Point M = A |> B;";
+        LvParseResult res = parse_source(src);
+        TEST("A |> B（右侧非调用报错）");
+        if (res.error_count > 0) {
+            PASS();
+        } else {
+            FAIL("expected error for non-call rhs");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
 static void test_constraint(void) {
     printf("[约束/关系语句]\n");
 
@@ -1536,6 +1608,8 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_coord_literal_decl);
     printf("\n");
     TEST_MAIN_RUN(test_auto_named_stmt);
+    printf("\n");
+    TEST_MAIN_RUN(test_pipe_expr);
     printf("\n");
     TEST_MAIN_RUN(test_constraint);
     printf("\n");

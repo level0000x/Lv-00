@@ -416,6 +416,12 @@ static LvToken lex_raw(LvLexer *lexer) {
             lexer->column += 2;
             return make_token_at(lexer, LV_TOKEN_MODELS, start, 2, start_col);
         }
+        if (n == '>') {
+            /* S2 管道 |> */
+            lexer->pos += 2;
+            lexer->column += 2;
+            return make_token_at(lexer, LV_TOKEN_PIPE_GT, start, 2, start_col);
+        }
     }
     if (c == '|') {
         /* 单独 '|'：类型联合分隔符 */

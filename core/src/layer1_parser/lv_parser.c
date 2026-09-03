@@ -117,6 +117,7 @@ static void synchronize(LvParser *p) {
 /* ── 前向声明 ── */
 static LvAstNode *parse_statement(LvParser *p);
 static LvAstNode *parse_logic_expr(LvParser *p);
+static LvAstNode *parse_pipe_expr(LvParser *p); /* S2：管道最低优先级 */
 static LvAstNode *parse_iff_expr(LvParser *p);
 static LvAstNode *parse_implies_expr(LvParser *p);
 static LvAstNode *parse_or_expr(LvParser *p);
@@ -952,9 +953,58 @@ static LvAstNode *parse_statement(LvParser *p) {
  *   primary (literals, idents, calls, (), measure, geometry)
  */
 
-/** LogicExpr ::= IffExpr */
+/** LogicExpr ::= PipeExpr */
 static LvAstNode *parse_logic_expr(LvParser *p) {
-    return parse_iff_expr(p);
+    return parse_pipe_expr(p);
+}
+
+/* S2 管道重写辅助：lhs |> f(args) → f(lhs, args)
+ * 仅当右侧为调用节点（FUNCTION_CALL/RELATION/MEASURE/GEOMETRY_EXPR）时
+ * 把 lhs 作为首参插入；右侧非调用（如裸标识符）则报错回落。 */
+static LvAstNode *pipe_rewrite(LvParser *p, LvAstNode *lhs) {
+    LvSourceLoc loc = lhs ? lhs->loc : p->current.loc;
+    advance(p); /* 消费 |> */
+    LvAstNode *rhs = parse_iff_expr(p);
+    if (!rhs) {
+        lv_ast_destroy(lhs);
+        return NULL;
+    }
+    int is_call = rhs->type == LV_AST_FUNCTION_CALL || rhs->type == LV_AST_RELATION ||
+                  rhs->type == LV_AST_MEASURE || rhs->type == LV_AST_GEOMETRY_EXPR;
+    if (!is_call) {
+        /* 右侧不是调用：报错并释放 */
+        if (p->error_count < 64) {
+            int idx = p->error_count++;
+            p->errors[idx].loc = rhs->loc;
+            p->errors[idx].severity = LV_DIAG_ERROR;
+            lv_snprintf(p->errors[idx].message, sizeof(p->errors[idx].message),
+                        "|> 右侧必须是函数/构造调用");
+            p->errors[idx].fix_hint[0] = '\0';
+        }
+        lv_ast_destroy(lhs);
+        lv_ast_destroy(rhs);
+        return NULL;
+    }
+    /* 把 lhs 插入 rhs 的参数链表头部 */
+    LvAstNode *old_args = rhs->data.call.args;
+    rhs->data.call.args = lhs;
+    lhs->next = old_args;
+    rhs->loc = loc; /* 保留管道整体起点 */
+    return rhs;
+}
+
+/** PipeExpr ::= IffExpr ("|>" IffExpr)*  （S2：最低优先级，左结合） */
+static LvAstNode *parse_pipe_expr(LvParser *p) {
+    LvAstNode *left = parse_iff_expr(p);
+    if (!left)
+        return NULL;
+    while (p->current.type == LV_TOKEN_PIPE_GT) {
+        LvAstNode *rewritten = pipe_rewrite(p, left);
+        if (!rewritten)
+            return NULL;
+        left = rewritten;
+    }
+    return left;
 }
 
 /** IffExpr ::= ImpliesExpr (("iff" | "<->") ImpliesExpr)* */
