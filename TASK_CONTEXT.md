@@ -11496,3 +11496,15 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
 ### 验证
 
 - 文档批（design §4 0 期进展 + 本登记）；批次 239 CI/Python 均绿（gh 确认）。
+
+---
+
+## 批次 241（域迁移路线图：公共头 GMP 零泄漏跟踪 + 整簇分期，文档批）
+
+- 新增 `docs/architecture/domain-migration-roadmap.md`：
+  - 公共头 GMP 泄漏基线清单（12 头 / 计数表，含已清零的 lv_number.h、expr_canon.h）；
+  - 整簇分期 S1（系数数组族→0e 连续段同批）→ S2（工具面）→ S3（quadratic 整簇）→
+    S4（geometry_transform）→ S5（symbolic_coord/constraint_graph/solver 终端域）；
+  - 每簇硬门禁：grep 全仓直读消费点 + 全量重建 + ctest（批次 238 教训固化）；
+  - S1 前置设计点登记：lvNumber 表示取舍（整数系数 → RATIONAL(k,1) 而非新增 mpz 表示位）。
+- 待用户/后续轮次选定启始簇（建议 S2 先行：工具面收敛后各簇互通样板最少）。

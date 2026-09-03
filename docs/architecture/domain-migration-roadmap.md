@@ -1,0 +1,61 @@
+# Lv-00 域迁移路线图（公共头 GMP 零泄漏跟踪 + 整簇分期）
+
+> 状态：**正式（2026-09-03，批次 241）**——数值抽象层（number-abstraction-layer-design.md）
+> 域迁移的执行路线图；每簇独立立项、全量重建 + ctest 门禁。
+> 目标：公共头不再出现 GMP 类型（mpq_t/mpz_t…），`gmp.h`/`mpfr.h` include 收敛到
+> 抽象层唯一实现点，为外部库升级/MPFR 表示接入留隔离带。
+
+---
+
+## 0. 进度跟踪：公共头 GMP 泄漏清单（2026-09-03 基线）
+
+| 公共头 | GMP 类型计数 | 归属簇 | 状态 |
+|:---|:--:|:---|:--:|
+| `geometry_transform.h` | 60 | S4 | ⏳ |
+| `nt_number_theory.h` | 26 | S1 | ⏳ |
+| `mpz_poly.h` | 14 | S1 | ⏳ |
+| `coeff_pool.h` | 12 | S2 | ⏳ |
+| `rational.h` | 8 | S2 | ⏳ |
+| `nt_polynomial.h` | 5 | S1 | ⏳ |
+| `symbolic_coord.h` | 3 | S3/S5 | ⏳ |
+| `lv_numeric.h` | 3 | S2 | ⏳ |
+| `expr_canonical.h` | 3 | S1 | ⏳ |
+| `lv_str_utils.h` | 2 | S2 | ⏳ |
+| `groebner_engine.h` | 2 | S5 | ⏳ |
+| `inequality_reasoning.h` | 2 | S5 | ⏳ |
+
+**已清零**：`lv_number.h`（0，批次 234/237）——模板域 `expr_canon.h`（0，批次 237）。
+
+---
+
+## 1. 分期（按依赖与边界，每簇一次立项）
+
+| 簇 | 内容 | 关键点 | 映射（设计 §4） |
+|:--:|:---|:---|:--:|
+| **S1 系数数组族** | `nt_polynomial`/`mpz_poly`/`expr_canonical` + `nt_number_theory` 数组形态 | 多项式系数「整批数值」→ **0e 连续段原语同批落地（ND-5）**；含 test/ 直读排查 | 期 3（+0e） |
+| **S2 工具面** | `rational.h`（lvRational opaque 化或访问器收敛）/`lv_numeric.h`/`lv_str_utils.h`/`coeff_pool.h` | 函数级 mpq 参数收敛；`coeff_pool` 并入池设施 | 期 2 |
+| **S3 quadratic 整簇** | `quadratic.c` + `algebraic_number_quadratic` + coord 比较/序列化读方 | 已实测 quadratic 全走 Rational API（25 处 a/b 无 direct value）；依赖链构成整簇，不单文件切碎 | 期 4 |
+| **S4 geometry_transform** | 60 处 mpq 内嵌字段 + API | 结构体内嵌数值 → 坐标句柄类型 | 期 4 |
+| **S5 终端大域** | `symbolic_coord` 值域 / `constraint_graph` 节点值 / `solver` / `groebner_engine` / `inequality_reasoning` | 最大、依赖前述各簇 | 期 5 |
+
+**每簇硬门禁**：
+1. grep（core + test + module + examples）直读消费点清零/同步更新；
+2. 全量重建 0 error/0 warning；
+3. ctest 全绿 + 涉簇契约测试**零改动或按语义等价显式更新**（批次 238 教训：本地必须全量重建后再跑 ctest）。
+
+---
+
+## 2. 簇内推进节奏（以 S1/S3 为例）
+
+- **S1**：先出「系数表示设计」（句柄数组 vs 段基址+偏移），与 0e 段原语一同评审 → 逐文件迁移（nt_number_theory 需从 mpz 语义切到 lvNumber int/rational 的表示决策，含大整数——lvNumber INTEGER 仅 int64 inline，**需先扩 mpz 表示位**，此为 S1 前置设计点）；
+- **S3**：quadratic 字段改为不透明句柄 → algebraic_number_quadratic 同步 → coord 比较/序列化消费点收敛（可用别名过渡期桥接）。
+
+---
+
+## 3. 遗留与依赖
+
+- **S1 前置**：lvNumber 尚无任意精度整数（INTEGER=int64）表示 → mpz 表示位（RATIONAL 的分子分母已可承载 mpz？lvRational mpq 已任意精度；S1 可把「整数系数」表示为 RATIONAL(k,1) 避免新增 mpz 表示——设计取舍待 S1 立项确认）；
+- 0e 连续段随 S1 同批；
+- 顺序建议 S2 → S1 → S3 → S4 → S5（工具面先清可减少后续簇的 mpq 互通样板）或按用户意愿插队。
+
+> 参考：number-abstraction-layer-design.md §4 期 2-6；批次 236-240 登记。
