@@ -10889,3 +10889,13 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
   有后台消费者线程并发消费——慢 CI 上断言前已部分消费 → 偶发失败（非 M7/tool 改动引入）；
 - 修复：断言真实契约——flush 后 pending==0 + 回调完整收到 50（5 轮本地串行 + CI 双 workflow 全绿）；
 - 教训：async 模式 pending 是瞬时值，测试不应假设 emit 后无消费。
+
+---
+
+## 批次 225（preset-sync CI 门禁，b30f57db）
+
+- tool_audit R3 缺口闭合：.lvz 与 C 预设注册同步检查纳入 CI（此前仅手动）；
+- check_preset_sync.py 加 --ci：verify 模式 LOAD_FAIL>0 → exit 1；dry-run 有
+  MISSING_ONLY/BOTH/NO_C_FILE → exit 1（C_EMPTY/EXTRA_ONLY 预期状态不误报）；
+- ci.yml 新 preset-sync job（双门禁：--ci --verify + --ci）；本地 56 模块 LOAD_OK exit 0；
+- CI 全 11 job 绿（含新 preset-sync 首次运行 success）。
