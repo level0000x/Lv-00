@@ -11508,3 +11508,15 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
   - 每簇硬门禁：grep 全仓直读消费点 + 全量重建 + ctest（批次 238 教训固化）；
   - S1 前置设计点登记：lvNumber 表示取舍（整数系数 → RATIONAL(k,1) 而非新增 mpz 表示位）。
 - 待用户/后续轮次选定启始簇（建议 S2 先行：工具面收敛后各簇互通样板最少）。
+
+---
+
+## 批次 242（S1 前置表示设计草案，文档批）
+
+- roadmap §4 新增 S1 前置设计：
+  - 系数表示取舍 **A：整数系数 → RATIONAL(k,1)**（推荐；弃新增 mpz 表示位 B）；
+  - ND-5 段草案：新块预留连续段、元素置值 API 设计（`lv_number_segment_get` +
+    `lv_number_rational_set`（gmp-free 签名置值版））、逐元素回收先行；
+  - S1 落地顺序 5 步（池段原语 → 置值 API → expr_canonical → nt_polynomial/mpz_poly 段 →
+    nt_number_theory 语义对拍，重点风险标注）。
+- 纯文档批；实施待立项（用户授权或续轮低风险默认）。

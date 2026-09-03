@@ -58,4 +58,37 @@
 - 0e 连续段随 S1 同批；
 - 顺序建议 S2 → S1 → S3 → S4 → S5（工具面先清可减少后续簇的 mpq 互通样板）或按用户意愿插队。
 
+---
+
+## 4. S1 前置表示设计（批次 242，草案定稿待立项实施）
+
+### 4.1 系数表示取舍
+
+| 方案 | 说明 | 判定 |
+|:---|:---|:--:|
+| A. 整数系数 → `RATIONAL(k,1)` | 复用 mpq 任意精度；无新表示位；显示/比较走既有 rational 路径 | ✅ 推荐（无新表示、零特例） |
+| B. 新增 `mpz` 大整数表示位 | 内存/位操作更省，但新增 kind + ops + 字符串/比较/哈希全套特例 | ❌ 债务不划算（ND-7） |
+
+结论：S1 系数一律 lvNumber `RATIONAL` kind；整数即分母 1。此取舍也同时消除 expr_canonical.h 的 mpq_t 值域与 `nt_number_theory` 的 mpz 语义切换问题（大整数走 mpq 分子）。
+
+### 4.2 系数数组存储形态（ND-5 段草案）
+
+- **段 = 一块连续 lvNumber 节点**（新块专用，避免 free-list 拆散）：池增加「预留连续段」路径——按需 `lv_malloc` 一块 ≥ n 节点的 Block，节点不进 free-list，直接按序授予调用方；段首地址 + n 即段句柄。
+- 段内节点**元素级填充**（从 GMP 语义转换）需实现层写入口：公共面（lv_number.h 文本级零 GMP）提供
+  `lv_number_segment_get(seg, i)`（返回可销毁句柄）与 `lv_number_from_lvRational`（现成）
+  组合即可覆盖「先取句柄 → from_lvRational 语义置值」？——实际置值需写已有节点而非新造，
+  故再补 `lv_number_rational_set(lvNumber*, const struct lvRational*)`（置值版，gmp-free 签名，
+  内部 mpq_set）。两 API 供 S1 内核把 mpz/mpq 系数逐元素灌入段。
+- **回收**：段析构 = 逐元素 `lv_number_destroy`（还 free-list）；或段级批量归还（块重建进
+  free-list）——逐元素先落地，段级批量留作优化项（不引双轨）。
+- 帧池语义：段为**常驻**对象（多项式长存）；临时系数块（如 result 构建）可走帧。
+
+### 4.3 S1 落地顺序（立项后）
+
+1. 池「预留连续段」原语（含测试：连续地址断言、超块扩容）；
+2. `lv_number_rational_set` 置值 API + 契约测试；
+3. `expr_canonical.h`（lvExpr 值域 mpq_t）→ lvNumber（此域消费面需全仓 grep：类型表/符号表/引擎转换点）；
+4. `nt_polynomial`/`mpz_poly` 系数数组 → 段；
+5. `nt_number_theory` mpz 语义 → RATIONAL(k,1)（大整数模逆等语义对拍是重点风险，独立小批验证）。
+
 > 参考：number-abstraction-layer-design.md §4 期 2-6；批次 236-240 登记。
