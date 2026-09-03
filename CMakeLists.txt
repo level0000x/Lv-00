@@ -302,6 +302,7 @@ if(BUILD_WASM)
     set(GMP_LIBRARIES "")
     add_definitions(-Dlv_WASM_BUILD=1)
     add_definitions(-Dlv_NO_GMP=1)
+    add_definitions(-Dlv_NO_MPFR=1)
 endif()
 
 # --- 安全相关编译选项（GCC / Clang）---
@@ -380,6 +381,92 @@ else()
 endif()
 
 # GMP_LIBRARIES 已包含完整路径，无需 link_directories
+
+# ============================================================
+# MPFR / MPC / MPFI 库查找（默认底层依赖集：GMP 家族，D-0903-2）
+# ============================================================
+# 默认底层依赖集 = GMP / MPFR / MPFI / MPC（dependency-policy.md v1.0）。
+# 非 WASM 构建四件套全部 REQUIRED（与 GMP 同策略：静态库优先，规避运行时
+# DLL 依赖；查找目录 Hint 跟随 GMP 已定位目录 + MSYS2/Vcpkg 常用路径）。
+# WASM 构建（lv_NO_GMP）下 MPFR/MPFI/MPC 一并跳过（依赖 GMP，见上分支）。
+# 说明：本批仅查找 + 声明（代码层「装了 ≠ 用了」，D-0903-3）；链接在对应
+# 消费者接入时经 MPFR_LIBRARIES / MPC_LIBRARIES / MPFI_LIBRARIES 追加。
+
+# 目录 Hint 基底：跟随 GMP 已定位目录
+set(_NUM_INC_HINTS)
+set(_NUM_LIB_HINTS)
+if(GMP_INCLUDE_DIR)
+    list(APPEND _NUM_INC_HINTS "${GMP_INCLUDE_DIR}")
+endif()
+if(GMP_LIBRARIES AND EXISTS "${GMP_LIBRARIES}")
+    get_filename_component(_gmp_lib_dir "${GMP_LIBRARIES}" DIRECTORY)
+    list(APPEND _NUM_LIB_HINTS "${_gmp_lib_dir}")
+elseif(GMP_INCLUDE_DIR)
+    get_filename_component(_gmp_inc_dir "${GMP_INCLUDE_DIR}" DIRECTORY)
+    list(APPEND _NUM_LIB_HINTS "${_gmp_inc_dir}/lib")
+endif()
+if(WIN32)
+    list(APPEND _NUM_INC_HINTS "C:/msys64/mingw64/include" "C:/vcpkg/installed/x64-windows/include")
+    list(APPEND _NUM_LIB_HINTS "C:/msys64/mingw64/lib" "C:/vcpkg/installed/x64-windows/lib")
+endif()
+
+if(NOT BUILD_WASM)
+    # ---- MPFR（REQUIRED；静态优先，跟随 GMP 已定位目录）----
+    find_path(MPFR_INCLUDE_DIR mpfr.h
+        HINTS ${MPFR_ROOT}/include ENV MPFR_ROOT/include ${_NUM_INC_HINTS})
+    if(EXISTS "${MPFR_ROOT}/lib/libmpfr.a")
+        set(MPFR_LIBRARIES "${MPFR_ROOT}/lib/libmpfr.a")
+    elseif(EXISTS "${_gmp_lib_dir}/libmpfr.a")
+        set(MPFR_LIBRARIES "${_gmp_lib_dir}/libmpfr.a")
+    else()
+        find_library(MPFR_LIBRARIES mpfr
+            HINTS ${MPFR_ROOT}/lib ENV MPFR_ROOT/lib ${GMP_ROOT}/lib ${_NUM_LIB_HINTS})
+    endif()
+    if(NOT MPFR_INCLUDE_DIR OR NOT MPFR_LIBRARIES)
+        message(FATAL_ERROR "MPFR library not found (default bottom layer). "
+            "Set -DMPFR_ROOT=<path> or install libmpfr-dev / mingw-w64-x86_64-mpfr / brew mpfr.")
+    endif()
+    message(STATUS "MPFR found: ${MPFR_LIBRARIES}")
+
+    # ---- MPC（REQUIRED；静态优先，跟随 GMP 已定位目录）----
+    find_path(MPC_INCLUDE_DIR mpc.h
+        HINTS ${MPC_ROOT}/include ENV MPC_ROOT/include ${_NUM_INC_HINTS})
+    if(EXISTS "${MPC_ROOT}/lib/libmpc.a")
+        set(MPC_LIBRARIES "${MPC_ROOT}/lib/libmpc.a")
+    elseif(EXISTS "${_gmp_lib_dir}/libmpc.a")
+        set(MPC_LIBRARIES "${_gmp_lib_dir}/libmpc.a")
+    else()
+        find_library(MPC_LIBRARIES mpc
+            HINTS ${MPC_ROOT}/lib ENV MPC_ROOT/lib ${GMP_ROOT}/lib ${_NUM_LIB_HINTS})
+    endif()
+    if(NOT MPC_INCLUDE_DIR OR NOT MPC_LIBRARIES)
+        message(FATAL_ERROR "MPC library not found (default bottom layer). "
+            "Set -DMPC_ROOT=<path> or install libmpc-dev / mingw-w64-x86_64-mpc / brew libmpc.")
+    endif()
+    message(STATUS "MPC found: ${MPC_LIBRARIES}")
+
+    # ---- MPFI（可选：默认链成员；静态优先；msys2 mingw64 仓库缺包，首个消费者立项时转 REQUIRED）----
+    find_path(MPFI_INCLUDE_DIR mpfi.h
+        HINTS ${MPFI_ROOT}/include ENV MPFI_ROOT/include ${_NUM_INC_HINTS})
+    if(EXISTS "${MPFI_ROOT}/lib/libmpfi.a")
+        set(MPFI_LIBRARIES "${MPFI_ROOT}/lib/libmpfi.a")
+    elseif(EXISTS "${_gmp_lib_dir}/libmpfi.a")
+        set(MPFI_LIBRARIES "${_gmp_lib_dir}/libmpfi.a")
+    else()
+        find_library(MPFI_LIBRARIES mpfi
+            HINTS ${MPFI_ROOT}/lib ENV MPFI_ROOT/lib ${GMP_ROOT}/lib ${_NUM_LIB_HINTS})
+    endif()
+    if(MPFI_INCLUDE_DIR AND MPFI_LIBRARIES)
+        add_compile_definitions(lv_HAS_MPFI=1)
+        message(STATUS "MPFI found: ${MPFI_LIBRARIES}")
+    else()
+        message(STATUS "MPFI not found (optional default-chain member; "
+            "msys2 mingw64 repo lacks it — install libmpfi-dev/brew mpfi on other platforms, "
+            "or build from source when first consumer lands)")
+    endif()
+else()
+    message(STATUS "WASM: 跳过 MPFR/MPC/MPFI 库查找（lv_NO_MPFR）")
+endif()
 
 # ============================================================
 # 源文件 —— 五层架构组织（v3.3）
@@ -2389,7 +2476,7 @@ install(EXPORT lv-targets
 # ============================================================
 
 # 准备 pkg-config 变量
-set(lv_PC_REQUIRES "gmp")            # 依赖的 pkg-config 包
+set(lv_PC_REQUIRES "gmp mpfr mpc")    # 依赖的 pkg-config 包（默认底层集 GMP/MPFR/MPC；MPFI 待消费者接入后追加）
 
 # 计算 libdir（相对于 prefix）
 # 若 CMAKE_INSTALL_LIBDIR 是绝对路径则使用，否则添加 ${prefix}/
@@ -2488,13 +2575,13 @@ endif()
 # DEB 包特定设置
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Lv-00 Project")
 set(CPACK_DEBIAN_PACKAGE_SECTION     "libs")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS     "libgmp10 (>= 6.0.0)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS     "libgmp10 (>= 6.0.0), libmpfr6 (>= 4.0.0), libmpc3 (>= 1.1.0)")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE    "https://github.com/example/lv")
 
 # RPM 包特定设置
 set(CPACK_RPM_PACKAGE_LICENSE        "MIT")
 set(CPACK_RPM_PACKAGE_GROUP          "Development/Libraries")
-set(CPACK_RPM_PACKAGE_REQUIRES       "gmp >= 6.0.0")
+set(CPACK_RPM_PACKAGE_REQUIRES       "gmp >= 6.0.0, mpfr >= 3.1.0, libmpc >= 1.0.0")
 set(CPACK_RPM_PACKAGE_URL            "https://github.com/example/lv")
 
 # 排除不需要的文件
