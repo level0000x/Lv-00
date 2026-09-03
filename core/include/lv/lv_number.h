@@ -85,6 +85,15 @@ lv_PUBLIC_API void lv_number_set_default_real_prec(int prec_bits);
 /** @brief 查询当前 REAL_MPFR 默认精度（0 = 跟随 MPFR 默认） */
 lv_PUBLIC_API int lv_number_default_real_prec(void);
 
+/**
+ * @brief REAL 高精度复核判定（批次 C1）：|approx - ref| ≤ abs_tol + rel_tol·|ref|
+ * @param approx   近似值节点（任意 kind，通常为 FLOAT/double 结果）
+ * @param ref_real REAL_MPFR 参考真值节点
+ * @return true = 复核通过；false = 超差 / 参数非法 / ref 非 REAL / 非 WASM
+ */
+lv_PUBLIC_API bool lv_number_real_verify(const lvNumber *approx, const lvNumber *ref_real,
+                                         double rel_tol, double abs_tol);
+
 /* ============================================================
  * 池连续段（ND-5，批次 243）：多项式系数等「整批数值」形态
  * ============================================================ */

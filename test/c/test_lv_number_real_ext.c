@@ -160,6 +160,38 @@ static void test_real_context_pow(void) {
     printf("  test_real_context_pow: PASSED\n");
 }
 
+static void test_real_verify(void) {
+    lvNumber *ref = lv_number_real_from_string("3.141592653589793", 128);
+    TEST_ASSERT_NOT_NULL(ref);
+
+    /* 近似值（FLOAT double）在容差内 → 通过 */
+    lvNumber *approx = lv_number_from_double(3.141592653589793);
+    TEST_ASSERT(lv_number_real_verify(approx, ref, 1e-12, 1e-15), "π 精确匹配");
+    /* 超差 → 拒绝 */
+    lvNumber *bad = lv_number_from_double(3.2);
+    TEST_ASSERT(!lv_number_real_verify(bad, ref, 1e-6, 1e-9), "3.2 vs π 拒绝");
+
+    /* 相对容差随 |ref| 缩放：ref≈1000，abs 差 1 → rel 1e-3 通过，1e-4 拒绝 */
+    lvNumber *ref1000 = lv_number_real_from_string("1000", 128);
+    lvNumber *ap999 = lv_number_from_double(999.0);
+    TEST_ASSERT(lv_number_real_verify(ap999, ref1000, 1e-3, 0.0), "rel 1e-3 通过");
+    TEST_ASSERT(!lv_number_real_verify(ap999, ref1000, 1e-4, 0.0), "rel 1e-4 拒绝");
+
+    /* NULL / ref 非 REAL 拒绝 */
+    TEST_ASSERT(!lv_number_real_verify(NULL, ref, 1e-6, 1e-9), "NULL 拒绝");
+    lvNumber *ione = lv_number_from_int(1);
+    TEST_ASSERT_NOT_NULL(ione);
+    TEST_ASSERT(!lv_number_real_verify(approx, ione, 1e-6, 1e-9), "ref 非 REAL 拒绝");
+    lv_number_destroy(ione);
+
+    lv_number_destroy(ap999);
+    lv_number_destroy(ref1000);
+    lv_number_destroy(bad);
+    lv_number_destroy(approx);
+    lv_number_destroy(ref);
+    printf("  test_real_verify: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
@@ -171,6 +203,7 @@ TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
     TEST_MAIN_RUN(test_real_clone_hash);
     TEST_MAIN_RUN(test_real_arith);
     TEST_MAIN_RUN(test_real_context_pow);
+    TEST_MAIN_RUN(test_real_verify);
 
     lv_cleanup();
 TEST_MAIN_END()

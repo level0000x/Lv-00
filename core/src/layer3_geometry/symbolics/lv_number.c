@@ -252,6 +252,36 @@ int lv_number_default_real_prec(void) {
     return g_default_real_prec;
 }
 
+static void node_to_mpfr_prec(mpfr_t out, const lvNumber *n); /* 前向（定义见下，算术用） */
+
+bool lv_number_real_verify(const lvNumber *approx, const lvNumber *ref_real,
+                           double rel_tol, double abs_tol) {
+    if (!approx || !ref_real)
+        return false;
+#ifndef lv_NO_MPFR
+    if (!is_real(ref_real))
+        return false; /* 参考必须为 REAL_MPFR */
+    int prec = real_prec(ref_real);
+    mpfr_t a, e, ref, bound;
+    mpfr_inits2((mpfr_prec_t) prec, a, e, ref, bound, (mpfr_ptr) 0);
+    node_to_mpfr_prec(a, approx);
+    mpfr_set(ref, ref_real->u.m, MPFR_RNDN);
+    /* e = |approx - ref| */
+    mpfr_sub(e, a, ref, MPFR_RNDN);
+    mpfr_abs(e, e, MPFR_RNDN);
+    /* bound = abs_tol + rel_tol·|ref| */
+    mpfr_abs(bound, ref, MPFR_RNDN);
+    mpfr_mul_d(bound, bound, rel_tol > 0.0 ? rel_tol : 0.0, MPFR_RNDN);
+    mpfr_add_d(bound, bound, abs_tol > 0.0 ? abs_tol : 0.0, MPFR_RNDN);
+    int ok = mpfr_lessequal_p(e, bound);
+    mpfr_clears(a, e, ref, bound, (mpfr_ptr) 0);
+    return ok != 0;
+#else
+    (void) rel_tol; (void) abs_tol;
+    return false;
+#endif
+}
+
 /** 建 REAL 节点并 init 精度（prec≤0 用默认上下文） */
 static lvNumber *new_real_prec(int prec) {
     lvNumber *n = node_new(lv_NUMBER_REAL_MPFR);
