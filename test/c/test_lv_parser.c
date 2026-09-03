@@ -574,6 +574,9 @@ static void test_error_recovery(void) {
         if (res.error_count > 0) {
             printf("  (got %d errors, as expected)\n", res.error_count);
         }
+        /* R4：severity 通道——解析错误默认 ERROR（memset 后 0=ERROR 语义） */
+        TEST_ASSERT(res.error_count == 0 || res.errors[0].severity == LV_DIAG_ERROR,
+                    "parse error severity defaults to ERROR");
         lv_ast_destroy(res.ast);
     }
 
