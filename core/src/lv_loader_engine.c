@@ -147,58 +147,12 @@ static bool loader_expr_coord(const LvAstNode *node, long long *num, unsigned lo
             return false;
         return true;
     }
+    /* LV_AST_DECIMAL_LITERAL：批次 D 起 parser 不再产出（十进制文本已在解析期
+     * 精确转为 RATIONAL 节点，见 lv_parser.c decimal_text_to_rational）；
+     * 坐标值要求精确有理数——外部 API 若直接构造 decimal 节点于坐标位置，
+     * 返回 false（加载报错）而非静默 double 近似。 */
     if (node->type == LV_AST_DECIMAL_LITERAL) {
-        /* DECIMAL 节点的文本需重建：从 decimal_value 转回字符串不保精度，
-         * 故 parser 在 S1 坐标字面量路径用 DECIMAL 字面量节点时附 str 原文？
-         * ——当前 DECIMAL 节点只存 double。此处用 double 精确转：
-         * 取小数位数转分数（double 由文本解析，精度 1e-15 内，坐标够用）。 */
-        double v = node->data.literal.decimal_value;
-        /* 检查是否为有限可精确表示的十进制（如 3.5） */
-        long long ip = (long long) v;
-        double frac = v - (double) ip;
-        if (frac == 0.0) {
-            *num = ip;
-            *den = 1;
-            return true;
-        }
-        /* 一般 double：尝试最多 9 位小数（坐标精度上限 1e-9） */
-        unsigned long d = 1;
-        long long acc = ip;
-        double f = frac;
-        int digits = 0;
-        while (digits < 9 && f != 0.0) {
-            f *= 10.0;
-            long long digit = (long long) f;
-            if (digit < 0 || digit > 9)
-                break;
-            acc = acc * 10 + digit;
-            d *= 10;
-            f -= (double) digit;
-            digits++;
-            /* 浮点余项小到可忽略即停 */
-            if (f < 1e-12)
-                break;
-        }
-        if (d == 1) {
-            *num = ip;
-            *den = 1;
-            return true;
-        }
-        *num = acc;
-        *den = d;
-        /* 归约（除以公因子，最小化） */
-        unsigned long a = (unsigned long) (acc < 0 ? -acc : acc);
-        unsigned long b = d;
-        while (b) {
-            unsigned long t = a % b;
-            a = b;
-            b = t;
-        }
-        if (a > 1) {
-            *num /= (long long) a;
-            *den /= a;
-        }
-        return true;
+        return false;
     }
     if (node->type == LV_AST_UNARY_OP) {
         /* 负数：-(N) → num 取负 */

@@ -235,6 +235,99 @@ static char *extract_return_type(LvAstNode *value) {
 
 /* ── S1 坐标字面量辅助：将 (NUM, NUM) 解析为结构字面量 {x, y} ── */
 
+/**
+ * @brief DECIMAL token 文本 → 精确有理数 (num, den)（批次 D，十进制无浮点转换）
+ *
+ * 支持 "3.14" / ".5" / "-1.25" / 可选 e|E 指数（|exp| ≤ 18）；int64 溢出或
+ * 不支持形态返回 false（调用方回落 double 路径，不回归）。layer1 无 GMP，
+ * 纯文本 → num/den（den = 10^k，可含负指数倍乘）。
+ */
+static bool decimal_text_to_rational(const char *txt, long long *out_num, unsigned long *out_den) {
+    if (!txt || !*txt)
+        return false;
+    const char *p = txt;
+    int neg = 0;
+    if (*p == '+' || *p == '-') {
+        neg = (*p == '-');
+        p++;
+    }
+    if (*p == '\0')
+        return false;
+
+    char int_part[64];
+    char frac_part[64];
+    size_t int_len = 0, frac_len = 0;
+    while (*p >= '0' && *p <= '9' && int_len < 63)
+        int_part[int_len++] = *p++;
+    if (*p == '.') {
+        p++;
+        while (*p >= '0' && *p <= '9' && frac_len < 63)
+            frac_part[frac_len++] = *p++;
+    }
+    if (int_len == 0 && frac_len == 0)
+        return false;
+
+    int exp10 = 0;
+    if (*p == 'e' || *p == 'E') {
+        p++;
+        int esign = 1;
+        if (*p == '+' || *p == '-') {
+            esign = (*p == '-') ? -1 : 1;
+            p++;
+        }
+        if (*p == '\0')
+            return false;
+        errno = 0;
+        char *e = NULL;
+        long e2 = strtol(p, &e, 10);
+        if (errno != 0 || e == p)
+            return false;
+        exp10 = esign * (int) e2;
+        if (exp10 > 18 || exp10 < -18)
+            return false;
+        p = e;
+    }
+    if (*p != '\0')
+        return false; /* 未知残留形态 */
+
+    /* 合并数字串（去小数点），限 int64 精度 */
+    char digits[160];
+    size_t dl = 0;
+    for (size_t i = 0; i < int_len; i++)
+        digits[dl++] = int_part[i];
+    for (size_t i = 0; i < frac_len; i++)
+        digits[dl++] = frac_part[i];
+    if (dl > 19)
+        return false;
+    digits[dl] = '\0';
+
+    errno = 0;
+    long long num = strtoll(digits, NULL, 10);
+    if (errno != 0)
+        return false;
+
+    int scale = (int) frac_len - exp10; /* den = 10^scale（scale<0 → num×10^{−scale}） */
+    unsigned long long den = 1;
+    if (scale < 0) {
+        for (int i = 0; i < -scale; i++) {
+            if (num > (LLONG_MAX - 9) / 10)
+                return false; /* 溢出 */
+            num *= 10;
+        }
+    } else {
+        if (scale > 18)
+            return false;
+        for (int i = 0; i < scale; i++)
+            den *= 10ull;
+    }
+
+    if (neg)
+        num = -num;
+    *out_num = num;
+    *out_den = (unsigned long) den;
+    return true;
+}
+
 /** 解析单个数值 token（INTEGER / DECIMAL / 前导负号），返回字面量节点或 NULL */
 static LvAstNode *parse_coord_number(LvParser *p) {
     LvSourceLoc loc = p->current.loc;
@@ -275,6 +368,13 @@ static LvAstNode *parse_coord_number(LvParser *p) {
 
     if (p->current.type == LV_TOKEN_DECIMAL) {
         const char *txt = token_text(&p->current);
+        /* 批次 D：十进制文本 → 精确有理数节点（无浮点/GMP）；极端形态回落 double */
+        long long dnum;
+        unsigned long dden;
+        if (decimal_text_to_rational(txt, &dnum, &dden)) {
+            advance(p);
+            return lv_ast_create_rational(loc, dnum, dden);
+        }
         double val;
         if (lv_parse_double(txt, &val) != 0) {
             val = 0.0;
@@ -1731,6 +1831,13 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
 
     if (p->current.type == LV_TOKEN_DECIMAL) {
         const char *txt = token_text(&p->current);
+        /* 批次 D：十进制文本 → 精确有理数节点（无浮点/GMP）；极端形态回落 double */
+        long long dnum;
+        unsigned long dden;
+        if (decimal_text_to_rational(txt, &dnum, &dden)) {
+            advance(p);
+            return lv_ast_create_rational(loc, dnum, dden);
+        }
         double val;
         if (lv_parse_double(txt, &val) != 0) {
             val = 0.0;
