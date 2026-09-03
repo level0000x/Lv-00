@@ -11567,3 +11567,30 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
 ### 验证
 
 - 文档批；批次 243 CI/Python 运行中（gh 确认中）。
+
+---
+
+## 批次 245（dependency-policy B0：MPFR 链路冒烟测试）
+
+### 背景
+
+批次 A 起 MPFR/MPC 为 REQUIRED 依赖但**全库零 include/零链接**——编译/链接地基未验证。
+
+### 实施
+
+- 新增 `test/c/test_mpfr_smoke.c`（CTEST mpfr_smoke_test）：任意精度加法/比较（0.1+0.2、
+  1/3）、π 字符串往返前缀断言；仅库冒烟，不涉及 Lv-00 语义；
+- CMake：`if(MPFR_INCLUDE_DIR AND MPFR_LIBRARIES)` 注册 + include + 链接；
+  发现并解决两个基建问题：
+  1. add_lv_program 用无关键字 `target_link_libraries` → 追加须同签名（去 PRIVATE）；
+  2. **静态链接顺序**：libmpfr.a 引用 GMP 符号，GMP 须排在 mpfr **之后** →
+     `target_link_libraries(test_mpfr_smoke ${MPFR_LIBRARIES} ${GMP_LIBRARIES})`。
+
+### 验证
+
+- mpfr_smoke_test 通过（0.38s）；全量 ctest **300/300 全绿**（299 → 300）；
+- 依赖地基（find/头/静态链接/运行）端到端验证，未来 B1/C 接 MPFR 零基建风险。
+
+### 遗留登记
+
+- MPC 同型冒烟可并入未来复数消费者批次；MPFI 待装后补链。
