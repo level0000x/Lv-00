@@ -11744,3 +11744,22 @@ P5 起步。
 ### 遗留登记
 - P5-3：abs/pow/to_int（real 精度截断）、字符串规范形输出策略、默认精度上下文；
 - MPFR 表示接入后续供批次 C（float_error 复核通道）与 interval 端点。
+
+---
+
+## 批次 253（P5-3：REAL_MPFR 默认精度上下文 + 负指数保精度）
+
+### 实施
+- `lv_number.h/.c`：
+  - 默认精度上下文：`lv_number_set_default_real_prec(prec)` / `lv_number_default_real_prec()`
+    （静态，0=跟随 mpfr_get_default_prec；复位机制）；工厂/real_prec_for/new_real_prec 的
+    prec≤0 回落走 `real_default_prec()`；
+  - `pow` 负指数：REAL 基 → 构造 REAL 1.0/pos 经 mpfr（**不降 double**）；非 REAL 保持旧 double 路径；
+- 契约测试：默认精度 set/get/复位、real(2)^-2 = 0.25 且 kind 保持 REAL。
+
+### 验证
+- 全量重建 + ctest **302/302 全绿**。
+
+### 遗留登记
+- REAL kind 功能收敛完成（kind/工厂/查询/转换/算术/精度上下文/pow）；
+- 下一目标：批次 C（float_error 等用 REAL 做高精度复核/信任通道）——REAL 已具备承接能力。
