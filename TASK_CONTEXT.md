@@ -11021,3 +11021,15 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - S7 自动命名（裸构造语句 midpoint(A,B); → 自动 P<n>）：需新语句类型 + 构造名→实体类型
   推断 + loader 注册扩展（midpoint/intersect 等 loader 侧无实现）——下轮；
 - S2 管道 |> / S3 解构 / S4 字段访问 . / S5-S6 具名默认参数 / S8 列表字面量 后续。
+
+## 批次 228 补充（DSL S7 自动命名，263f00b1）
+
+- S7：裸几何构造语句（segment(A, B); / circle(A, B); 等，无声明前缀）
+  自动生成命名声明 P<N>（N 贯穿文件递增，后续可引用）；
+- parser：parse_auto_named_stmt（构造名→实体类型 geom_func_to_entity：point/line/
+  segment/circle/ray/triangle）+ LvParser.auto_name_seq 计数器；语句仅以几何构造
+  关键字调用开头触发，其余回落既有错误路径；
+- loader 端零改动复用：自动命名 DECLARATION 带 GEOMETRY_EXPR value → 既有
+  process_declaration 第二遍端点接线（segment/line）与点坐标注册链；
+- 测试：test_lv_parser test_auto_named_stmt（单条/连续递增）+ test_lv_bootstrap
+  test_auto_named_pipeline（裸 segment 从已声明点创建，解析→sema→引擎注册端到端）。
