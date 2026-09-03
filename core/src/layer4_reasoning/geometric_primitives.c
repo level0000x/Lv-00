@@ -100,6 +100,13 @@ static GeoResult geo_create_node_region(ConstraintGraph *graph, const int *ids, 
     return geo_create_node_finish(graph_add_region(graph, ids, count), graph);
 }
 
+static GeoResult geo_create_node_circle(ConstraintGraph *graph, const int *ids, int count) {
+    /* 圆：ids = [center_node_id, radius_node_id]（圆心 + 半径端点，见 graph_add_circle） */
+    if (!ids || count < 2)
+        return geo_err(GEO_STATUS_INVALID_PARAM, "圆需圆心与半径端点 2 个节点");
+    return geo_create_node_finish(graph_add_circle(graph, ids[0], ids[1]), graph);
+}
+
 static GeoResult geo_create_node_port(ConstraintGraph *graph, const int *ids, int count) {
     if (!ids || count < 3)
         return geo_err(GEO_STATUS_INVALID_PARAM, "端口需3个参数");
@@ -121,6 +128,7 @@ static GeoResult (*const s_node_handlers[])(ConstraintGraph *, const int *, int)
     [GEO_NODE_POINT] = geo_create_node_point,
     [GEO_NODE_LINE_SEGMENT] = geo_create_node_line_segment,
     [GEO_NODE_REGION] = geo_create_node_region,
+    [GEO_NODE_CIRCLE] = geo_create_node_circle,
     [GEO_NODE_PORT] = geo_create_node_port,
     [GEO_NODE_FUNCTION_BLOCK] = geo_create_node_function_block,
 };

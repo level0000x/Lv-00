@@ -1902,6 +1902,7 @@ if(BUILD_TESTS)
     enable_testing()
 
     # 正式模块测试（注册到 CTest）
+    add_lv_test_auto(test_geometric_primitives CTEST_NAME geometric_primitives_test)
     add_lv_test_auto(test_basic CTEST_NAME basic_test)
     add_lv_test_auto(test_edge_cases CTEST_NAME edge_cases_test)
     add_lv_test_auto(test_complex_graph CTEST_NAME complex_graph_test)
