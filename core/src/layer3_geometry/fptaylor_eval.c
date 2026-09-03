@@ -2,17 +2,20 @@
  * @file fptaylor_eval.c
  * @brief FPTaylor 浮点误差分析 — 简化实现（静态辅助函数）
  *
- * @details 本文件仅包含 fptaylor_eval 模块的静态辅助函数。
- *          所有公共 API（float_interval_*、fptaylor_evaluate_expr、
- *          fptaylor_evaluate_graph、fptaylor_verify_safety 等）
- *          在 float_error.c 中有完整实现。
+ * @details 本文件为 fptaylor_eval 模块辅助与 REAL 高精度复核后端：
+ *          浮点误差分析的公共 API（float_interval_*、fptaylor_evaluate_expr、
+ *          fptaylor_evaluate_graph、fptaylor_verify_safety 等）在 float_error.c
+ *          中有完整实现。
  *
- *          包含的静态函数：
- *          - eval_simple_expr:     简易表达式求值器（递归下降解析）
+ *          本文件含：
+ *          - eval_simple_expr:     简易表达式求值器（递归下降解析，double）
  *          - compute_absolute_error_bound: 一阶泰勒展开绝对误差上界
  *          - compute_taylor_coefficients:  中心值和近似导数计算
+ *          - fptaylor_eval_real_expr / fptaylor_eval_expr_double /
+ *            fptaylor_verify_expr_real（批次 C1-C3：REAL(MPFR) 高精度复核，
+ *            同一文法任意精度重算 + double 中心判定）
  *
- * @version 3.5.0
+ * @version 3.5.0（+C1-C3）
  * @date 2026-05-24
  */
 

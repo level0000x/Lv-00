@@ -11847,3 +11847,11 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 验证
 - 本地（Win）重配仍走静态（WIN32 分支不变）；Linux/mac 共享链经 CI 复跑确认；
 - 需 CI：main + Python Bindings 双 workflow 复跑全绿。
+
+---
+
+## 批次 259（一致性收尾：批次 C 状态 + fptaylor_eval 头注释，文档批）
+
+- fptaylor_eval.c 头注释更新（现含 C1-C3 公共 REAL 复核函数，非仅静态辅助）；
+- batch-c-reverify-plan.md 状态置 C1-C3 已交付、C4 可选待启；
+- 已验证：批次 258 主 CI + Python Bindings 全绿；本地 303/303。
