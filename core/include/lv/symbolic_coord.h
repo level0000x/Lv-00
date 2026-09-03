@@ -13,10 +13,10 @@ extern "C" {
 #include "config.h"            /* lv_CONFIG_POOL_*（K66 编译期对拍） */
 #include "lv/cross_platform.h" /* lv_STATIC_ASSERT */
 #include "lv/lv_xmacro.h"
+#include "lv/rational.h"       /* lvRational（ND-4 批次 236：Rational 统一为别名） */
 #include "mpz_poly.h" /* mpz_poly_t, AlgebraicOp */
 
 /* ── Forward decls ── */
-typedef struct Rational Rational;
 typedef struct Algebraic Algebraic;
 typedef struct Quadratic Quadratic;
 typedef struct TranscendentalExpr TranscendentalExpr;
@@ -109,10 +109,10 @@ typedef enum {
     LO_EXPLOSION = 2 /* 爆炸原理步骤 */
 } LightOrangeSubtype;
 
-/* ── Rational ── */
-struct Rational {
-    mpq_t value;
-};
+/* ── Rational ──（ND-4 / 批次 236：与 lvRational 同形（单 mpq_t 成员），
+ *    统一为 typedef 别名以消灭双类型；布局逐字节一致，direct .value 访问与
+ *    既有 (Rational *) 强转全部保持兼容。域迁移完成后将整体替换为 lvNumber。） */
+typedef lvRational Rational;
 
 /* ── Algebraic ── */
 struct Algebraic {
