@@ -2402,6 +2402,12 @@ if(BUILD_TESTS)
         # mpfr 引用 GMP 符号：GMP 需排在 mpfr 之后（静态链接顺序）
         target_link_libraries(test_mpfr_smoke ${MPFR_LIBRARIES} ${GMP_LIBRARIES})
     endif()
+    # 批次 246：MPC 编译+静态链接冒烟（复数依赖链 mpc → mpfr → gmp）
+    if(MPC_INCLUDE_DIR AND MPC_LIBRARIES)
+        add_lv_test_auto(test_mpc_smoke CTEST_NAME mpc_smoke_test)
+        target_include_directories(test_mpc_smoke PRIVATE ${MPC_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
+        target_link_libraries(test_mpc_smoke ${MPC_LIBRARIES} ${MPFR_LIBRARIES} ${GMP_LIBRARIES})
+    endif()
     add_lv_test_auto(test_lexer_shared_ext CTEST_NAME lexer_shared_ext_test)
     add_lv_test_auto(test_geo_spec_ext CTEST_NAME geo_spec_ext_test)
     add_lv_test_auto(test_gmres_shared_ext CTEST_NAME gmres_shared_ext_test)
