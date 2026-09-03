@@ -11855,3 +11855,18 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - fptaylor_eval.c 头注释更新（现含 C1-C3 公共 REAL 复核函数，非仅静态辅助）；
 - batch-c-reverify-plan.md 状态置 C1-C3 已交付、C4 可选待启；
 - 已验证：批次 258 主 CI + Python Bindings 全绿；本地 303/303。
+
+---
+
+## 批次 260（REAL(MPFR) 分配器接线评估 → 回退登记，文档批）
+
+### 评估
+尝试把 mpfr 内部分配接入 lv 分配器（对齐 GMP 批次 235）。**结论：不接线**——
+- 当前 MPFR 构建（msys2 mingw64 4.2.x）**未声明 `mpfr_set_memory_functions`**；
+- 自定义内存函数与 mpfr 线程安全机制不兼容，且各发行版导出不一致（不可移植）。
+
+### 处置
+- 代码回退（lv_str_utils/lv_number.h 恢复 GMP-only 接线）；REAL(MPFR) 内部存储走 mpfr
+  默认分配器；
+- lv_number.h 登记该限制；SECURITY.md「GMP 不受管」已由批次 235 关闭（GMP），MPFR 保持
+  系统分配器（与批次 235 前 GMP 同姿态），记录说明。

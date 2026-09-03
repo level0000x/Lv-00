@@ -24,9 +24,9 @@
  *              frame_end 整体回收，**不得**逐对象 destroy（destroy 为无害空操作）；
  *            - 帧对象指针在 frame_end 后悬空（arena 语义，与 lv_arena 一致）。
  *
- *          注意：mpq 内部 limb 存储由 GMP 分配器管理（同 coeff_pool/mpz 现状）；
- *          GMP 全局 allocator 接线已于批次 235 完成（lv_gmp_memory_wire，lv_init 首行，
- *          SECURITY.md 盲区关闭）；全部 mpz/mpq_get_str(NULL) 调用点已迁移为调用方缓冲。
+ *          注意：mpq 内部存储由 GMP 分配器管理（已接线到 lv 分配器，批次 235）；
+ *          REAL(MPFR) 内部存储走 mpfr 默认分配器（本构建未导出 mpfr_set_memory_functions，
+ *          且自定义内存函数与 mpfr 线程安全不兼容——批次 260 回退登记，不接线）。
  *
  * @version 2.0.0-dev（0b）
  * @see docs/architecture/number-abstraction-layer-design.md
