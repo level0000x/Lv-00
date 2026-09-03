@@ -11033,3 +11033,16 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
   process_declaration 第二遍端点接线（segment/line）与点坐标注册链；
 - 测试：test_lv_parser test_auto_named_stmt（单条/连续递增）+ test_lv_bootstrap
   test_auto_named_pipeline（裸 segment 从已声明点创建，解析→sema→引擎注册端到端）。
+
+## 批次 228 补充 2（DSL S2 管道，d1e04933）
+
+- S2：管道运算符 |>（新增 LV_TOKEN_PIPE_GT token）——A |> f(B) 语法重写为
+  (A, B)（lhs 作为首参插入调用）；左结合支持链式 A |> f(B) |> g(C)；
+- lexer：|> 多字符识别（在 | 分支加，先于单独 | PIPE）；
+- parser：parse_pipe_expr 最低优先级层（parse_logic_expr 入口）+ pipe_rewrite
+  （右侧须为调用节点，非调用报错）；
+- 端到端验证：Segment S := B |> segment(A); → segment(B,A) 经 loader 第二遍
+  端点接线建线段（test_lv_bootstrap test_pipe_pipeline）；
+- 测试：parser 单管道/链式/非调用错误 + bootstrap 端到端。ctest 296/296。
+- 注：midpoint/reflect 等非基础构造名引擎侧无实现（decl_stash），管道对其
+  解析可用但引擎注册待几何能力补全（非语法糖范围）。
