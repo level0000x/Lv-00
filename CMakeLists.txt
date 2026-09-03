@@ -1672,9 +1672,9 @@ set(lv_LAYER10_HEADERS
 add_library(lv_layer10_interop OBJECT ${lv_LAYER10_SOURCES} ${lv_LAYER10_HEADERS})
 lv_setup_layer(lv_layer10_interop 10)
 
-# ── 聚合静态库（向后兼容 lv_static）──
-# 将所有层的 OBJECT 文件聚合到一个静态库中
-add_library(lv_static STATIC
+# ── 聚合对象清单（lv_static / lv_shared 共用单一事实源，B6：消除 27×2 逐字重复）──
+# 新增 OBJECT 库只需在此追加一行，静态/共享两聚合库自动同步
+set(lv_AGGREGATE_OBJECTS
     $<TARGET_OBJECTS:lv_core>
     $<TARGET_OBJECTS:lv_layer1_parser>
     $<TARGET_OBJECTS:lv_layer2_resource>
@@ -1704,6 +1704,10 @@ add_library(lv_static STATIC
     $<TARGET_OBJECTS:lv_layer8_meta_verify>
     $<TARGET_OBJECTS:lv_layer10_interop>
 )
+
+# ── 聚合静态库（向后兼容 lv_static）──
+# 将所有层的 OBJECT 文件聚合到一个静态库中
+add_library(lv_static STATIC ${lv_AGGREGATE_OBJECTS})
 target_include_directories(lv_static PUBLIC
     ${GMP_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
@@ -1727,36 +1731,7 @@ set_target_properties(lv_static PROPERTIES OUTPUT_NAME lv)
 # preset_differential_geometry, preset_functional_analysis 已修复，预设计数已同步
 
 if(BUILD_SHARED_LIBS)
-    add_library(lv_shared SHARED
-        $<TARGET_OBJECTS:lv_core>
-        $<TARGET_OBJECTS:lv_layer1_parser>
-        $<TARGET_OBJECTS:lv_layer2_resource>
-        $<TARGET_OBJECTS:lv_layer3_geometry>
-        $<TARGET_OBJECTS:lv_layer5_output>
-        $<TARGET_OBJECTS:lv_layer6_visual>
-        # L4 子域 OBJECT 库（2026-08-14 拆分）
-        $<TARGET_OBJECTS:lv_l4_core>
-        $<TARGET_OBJECTS:lv_l4_axiom>
-        $<TARGET_OBJECTS:lv_l4_backends>
-        $<TARGET_OBJECTS:lv_l4_dsl>
-        $<TARGET_OBJECTS:lv_l4_engine>
-        $<TARGET_OBJECTS:lv_l4_expr>
-        $<TARGET_OBJECTS:lv_l4_func_block>
-        $<TARGET_OBJECTS:lv_l4_kernel>
-        $<TARGET_OBJECTS:lv_l4_lambda>
-        $<TARGET_OBJECTS:lv_l4_model>
-        $<TARGET_OBJECTS:lv_l4_module>
-        $<TARGET_OBJECTS:lv_l4_numeric>
-        $<TARGET_OBJECTS:lv_l4_proof>
-        $<TARGET_OBJECTS:lv_l4_proof_system>
-        $<TARGET_OBJECTS:lv_l4_rewrite>
-        $<TARGET_OBJECTS:lv_l4_solver>
-        $<TARGET_OBJECTS:lv_l4_stream>
-        $<TARGET_OBJECTS:lv_l4_type_logic>
-        $<TARGET_OBJECTS:lv_l4_unify>
-        $<TARGET_OBJECTS:lv_layer8_meta_verify>
-        $<TARGET_OBJECTS:lv_layer10_interop>
-    )
+    add_library(lv_shared SHARED ${lv_AGGREGATE_OBJECTS})
     target_include_directories(lv_shared PUBLIC
         ${GMP_INCLUDE_DIR}
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/core/include>
