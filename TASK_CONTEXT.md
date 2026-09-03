@@ -11445,3 +11445,31 @@ build**，CI 全量重建即暴露。）
 
 - 模板要点补充：公开结构成员变更须同步排查 test/ 直读消费点（此前 grep 仅限 core/）；
 - 237 CI 复跑、233 Python 瞬时失败（235/236 同配置绿）记录在案。
+
+---
+
+## 批次 239（dependency 批次 D：DECIMAL 字面量解析期精确化，删 loader 手搓 double→分数）
+
+### 实施
+
+- `lv_parser.c`：新增 `decimal_text_to_rational`（layer1 无 GMP：文本 → num/den，支持
+  符号/小数点/可选 e|E 指数 |exp|≤18，int64 溢出或未知形态返回 false）；**两处**
+  DECIMAL 字面量创建点（S1 坐标 `parse_coord_number` + 通用表达式解析）改为先精确
+  转 **RATIONAL 节点**，失败才回落原 double 路径（不回归）；
+- `lv_loader_engine.c`：`loader_expr_coord` 删除 DECIMAL 手搓 double→分数循环
+  （原注释含 "？" 自问）——parser 已不再产出 decimal；坐标值拒绝静默近似
+  （API 直接构造 decimal 节点于坐标位 → 返回 false 报错）。
+
+### 效果
+
+- `Point B = (3.5, -2)` 等 S1 坐标与通用十进制字面量在**解析期**即精确有理数
+  （3.5 → 7/2），不再经 double 中转；loader 近似循环清零。
+
+### 验证
+
+- 全量重建 **309 targets** + ctest **298/298 全绿**（89s，含 S1/parser/bootstrap 测试）；
+- DECIMAL 节点类型/API 保留（sema、API 构造、打印兼容），仅 parser 文本路径不再产出。
+
+### 遗留登记
+
+- 0e（池 bulk/连续段原语，ND-5）为下一任务（用户定序 D → 0e）；域迁移其余域待 0e 后回归。
