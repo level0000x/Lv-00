@@ -10880,3 +10880,12 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - tool/report_generators → tools/report_generators（git mv），tool/ 目录删除（含 .gitkeep）；
 - 引用更新：ui/package.json report 脚本、doc/generate_version_doc.js require 路径；
 - JS 语法验证通过；tools/ 现统一：5 检查脚本 + report_generators；无 tool/ 残留（git ls-files 空）。
+
+---
+
+## 批次 224（stream_extended flaky 根因修复，d5d7cc27）
+
+- 根因：test_async_mode_capacity 在 emit 50 后立即断言 stream_pending_count==50，但 async 模式
+  有后台消费者线程并发消费——慢 CI 上断言前已部分消费 → 偶发失败（非 M7/tool 改动引入）；
+- 修复：断言真实契约——flush 后 pending==0 + 回调完整收到 50（5 轮本地串行 + CI 双 workflow 全绿）；
+- 教训：async 模式 pending 是瞬时值，测试不应假设 emit 后无消费。
