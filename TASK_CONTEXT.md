@@ -11368,3 +11368,48 @@ ND-4 双轨合一的规模盘点：实际为「三轨」——`rational.h` `lvRa
 - layer3 十余文件（quadratic/transform/algebraic_number_*/ops 等）的 Rational 使用点
   尚未迁移到 lvNumber（属设计期 4 域迁移，另行立项）；
 - 0e：批量连续段（ND-5）应用于 nt_*/mpz_poly 系数。
+
+---
+
+## 批次 237（0d-2 域迁移试点模板：expr_canon 系数 → lvNumber 表示）
+
+### 背景
+
+用户选定「A. 域迁移试点 expr_canon」，钉出可复用迁移模板再铺开其他域。
+
+### 实施
+
+- `expr_canon.h`：`lvExprTerm.coeff` 类型 `lvRational*` → `lvNumber*`（kind=RATIONAL，
+  池句柄）；include lv_number.h；公共 API 签名（收/发 `lvRational`）**保持不变**；
+- `lv_number.h/.c`：新增工厂 `lv_number_from_lvRational(const struct lvRational*)`
+  （头文件用全局 tag 前向声明 `struct lvRational;`，文本级零 GMP）；
+- `expr_canon.c`（38 个 lv_rational 用点全替换）：
+  - 内部添加 `expr_add_term_num`（公共 add_term 转 lvRational→lvNumber 后委托）；
+  - 辅助 `num_sgn` / `num_add_inplace` / `num_mul_inplace` / `num_neg_inplace`
+    （lvNumber 精确语义，替换 lv_rational_*_inplace）；
+  - clone/add/mul/scale/neg/equal/to_string/parse_decimal/主循环全部改 lvNumber
+    （含解析零系数跳过、符号前缀、is_one/abs 显示路径）；
+  - 语义保真：系数恒为 RATIONAL；`to_string`（规范形）与旧 lv_rational 输出一致。
+
+### 验证
+
+- 相关测试（expr_canon / expr_canon_ext / expr_canonical_ext / lv_number 三件套）6/6 绿；
+- 全量 ctest **298/298 全绿**（87s）；
+- **既有 expr_canon 契约测试零改动通过** → 模板成立。
+
+### 模板要点（后续域迁移复用）
+
+1. 公共 API 签名保留（收/发 lvRational 或 mpq 的地方不变），内部换 lvNumber；
+2. 域内系数一律 RATIONAL kind（不引入 int/float kind 的显示/比较漂移）；
+3. in-place 语义用 num_*_inplace 辅助（allocate+destroy 替换），失败路径按旧语义保守处理；
+4. 保真由「既有契约测试零改动」+ 全量 298 钉住。
+
+### 决策登记
+
+- 工厂放 lv_number.h 但以 struct tag 前向声明（不重复 typedef、不引入 GMP 文本）；
+- expr_canon 成为第一个完成「lvNumber 化」的生产域（layer4 expr）。
+
+### 遗留登记
+
+- 其余域（algebraic_number_*/quadratic/symbolic_coord/solver 等）按本模板逐个迁移（期 2-6）；
+- 0e 连续段（ND-5）在系数域开始用 lvNumber 后评估是否引入池段原语。

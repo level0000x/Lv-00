@@ -146,6 +146,11 @@ typedef enum lvNumberKind {
 > - **0d-1（批次 236）**：`symbolic_coord.h` `struct Rational` → `typedef lvRational Rational`
 >   （双同形结构体消灭其一；盘点证实 Rational 公共 API 早已薄转发（rational.c），
 >   ND-4「存储并入」的剩余部分 = 域迁移期逐步把 direct `.value` 使用点换为 lvNumber）。
+> - **0d-2 域迁移试点（批次 237，模板）**：`expr_canon`（layer4 expr，lv_rational 38 用点）
+>   系数存储 `lvRational*` → `lvNumber*`（kind=RATIONAL，池句柄）；公共 API 仍收/发
+>   `lvRational`（经新工厂 `lv_number_from_lvRational` 转换，lv_number.h 文本级零 GMP）；
+>   新增 num_sgn/add/mul/neg in-place 辅助；既有 expr_canon 契约测试零改动通过 → 此形态
+>   即后续各域迁移的可复用模板（边界：公共签名保留 + 内部 lvNumber + 保真测试零改动）。
 
 > 每期独立提交、独立登记；任何一期不绿不进入下一期。函数**符号名全程保留** → ctypes/Python
 > 绑定、测试、Lean 桥接无损；ABI 变更集中在公共头签名，版本策略见 §7（ND-6）。
