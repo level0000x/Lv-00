@@ -11870,3 +11870,7 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
   默认分配器；
 - lv_number.h 登记该限制；SECURITY.md「GMP 不受管」已由批次 235 关闭（GMP），MPFR 保持
   系统分配器（与批次 235 前 GMP 同姿态），记录说明。
+
+### 补记（复跑）
+批次 260 Windows Python job 首跑瞬时 mass-Error（横跨数十 TU，而 260 仅改注释）；
+`gh run rerun --failed` 复跑 **success**——确认 Windows runner 瞬时故障，非代码。
