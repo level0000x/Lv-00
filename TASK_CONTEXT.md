@@ -11676,3 +11676,23 @@ CI 巡检、依赖/文档一致性小步、测试补强；不启动 P1-P7 大代
   - 动工条件：P1a（只读建图）可立即；P1b 起代码重构（核心几何/代数语义）建议用户明示
     开启，避免无人值守大 diff 难复核。
 - CI：245/246/247 全绿，248 Python ✅（CI 运行中），无失败。
+
+---
+
+## 批次 250（P1a 建图结论 + 范围重估，文档批）
+
+### P1a 结论
+include `rational.h`/`symbolic_coord.h` 的 .c 遍布全 core **~150 文件**（compression/graph/
+euclidean/transform/solver…）→ Rational 公共 API 渗入全引擎。
+
+### 范围判定
+「Rational 公共 API 全量 opaque + 公共头零 GMP」= **全引擎级重构**（数十批超大 diff），
+超出 P1/S3 合理范围，属**战略级**再架构——不建议无人值守自行启动。
+
+### 建议（待用户知情拍板，见 p1-s3-execution-plan.md §七）
+- A：lv_number/MPFR 作隔离抽象服务新增/外包（P5、批次 C），不做全量 retro（推荐）；
+- B：窄 retro（expr_canon 已完成；quadratic 若 API 纯净则做，不追零-GMP）；
+- C：坚持全量 zero-GMP（需成本/收益认账）。
+
+### 验证
+- 只读建图，无代码改动；CI 已确认 245-248 绿。

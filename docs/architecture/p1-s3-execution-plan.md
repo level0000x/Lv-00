@@ -36,3 +36,19 @@
 - P2（S1 系数段）可与 P1b 工具面共享访问器成果；
 - P5（MPFR 表示）依赖 P1b/c 后抽象层存储稳定；
 - DSL 线冻结（见 dsl-remaining-work.md），互不影响。
+
+## 六、P1a 建图结论（批次 250，范围重估）
+- include `rational.h` / `symbolic_coord.h` 的 .c **遍布全 core ~150 文件**（geometry_compress、
+  constraint_graph、euclidean_geometry、geometry_transform、solver…），Rational 型 API 已渗入
+  引擎几乎所有域；
+- 故「Rational 公共 API 全量 opaque/公共头零 GMP」= **全引擎级重构**（数十批、超大 diff、
+  长时间无人值守期），超出 S3/P1 合理范围，属**战略级**再架构。
+
+## 七、范围修订建议（待用户知情拍板）
+- 方案 A（推荐，聚焦原诉求）：**lv_number/MPFR 作为隔离抽象，只服务新增/外部复杂度外包
+  （P5 MPFR 表示、批次 C 复核通道）**；不对既有 Rational 公共 API 做全量 retro（高风险/
+  低收益）；
+- 方案 B：窄 retro——仅 expr_canon 已完成、quadratic 若确有 API 纯净则做（不 opaque、
+  不追公共头零 GMP）；
+- 方案 C：仍坚持全量 zero-GMP（接受数十批全引擎重构，分期长跑）。
+> 结论：建议 A（或 B）；C 需明确收益/成本认账后启动。
