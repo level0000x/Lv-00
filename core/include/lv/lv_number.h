@@ -79,6 +79,12 @@ lv_PUBLIC_API lvNumber *lv_number_real_from_double(double v, int prec_bits);
  */
 lv_PUBLIC_API lvNumber *lv_number_real_from_string(const char *s, int prec_bits);
 
+/** @brief 设置 REAL_MPFR 默认精度（bits）；≤0 重置为使用 MPFR 默认（复位机制） */
+lv_PUBLIC_API void lv_number_set_default_real_prec(int prec_bits);
+
+/** @brief 查询当前 REAL_MPFR 默认精度（0 = 跟随 MPFR 默认） */
+lv_PUBLIC_API int lv_number_default_real_prec(void);
+
 /* ============================================================
  * 池连续段（ND-5，批次 243）：多项式系数等「整批数值」形态
  * ============================================================ */

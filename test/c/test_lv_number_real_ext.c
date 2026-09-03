@@ -141,6 +141,25 @@ static void test_real_arith(void) {
     printf("  test_real_arith: PASSED\n");
 }
 
+static void test_real_context_pow(void) {
+    /* 默认精度上下文 set/get/复位 */
+    TEST_ASSERT_EQ(lv_number_default_real_prec(), 0);
+    lv_number_set_default_real_prec(192);
+    TEST_ASSERT_EQ(lv_number_default_real_prec(), 192);
+    lv_number_set_default_real_prec(0); /* 复位 → 0 */
+    TEST_ASSERT_EQ(lv_number_default_real_prec(), 0);
+
+    /* REAL 基负指数：保持 REAL（不降 double） */
+    lvNumber *two = lv_number_real_from_double(2.0, 128);
+    lvNumber *p = lv_number_pow(two, -2);
+    TEST_ASSERT_NOT_NULL(p);
+    TEST_ASSERT_EQ((int) lv_number_type(p), (int) lv_NUMBER_REAL_MPFR);
+    TEST_ASSERT_DOUBLE(lv_number_to_double(p), 0.25, 1e-12);
+    lv_number_destroy(p);
+    lv_number_destroy(two);
+    printf("  test_real_context_pow: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
@@ -151,6 +170,7 @@ TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
     TEST_MAIN_RUN(test_real_query_api);
     TEST_MAIN_RUN(test_real_clone_hash);
     TEST_MAIN_RUN(test_real_arith);
+    TEST_MAIN_RUN(test_real_context_pow);
 
     lv_cleanup();
 TEST_MAIN_END()

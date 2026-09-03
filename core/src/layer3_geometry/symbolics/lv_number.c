@@ -238,11 +238,25 @@ static bool is_real(const lvNumber *n) {
 static int real_prec(const lvNumber *n) {
     return (int) mpfr_get_prec(n->u.m);
 }
-/** 建 REAL 节点并 init 精度（prec>0） */
+static int g_default_real_prec = 0; /* 0 = 跟随 mpfr_get_default_prec */
+
+static int real_default_prec(void) {
+    return g_default_real_prec > 0 ? g_default_real_prec : (int) mpfr_get_default_prec();
+}
+
+void lv_number_set_default_real_prec(int prec_bits) {
+    g_default_real_prec = prec_bits > 0 ? prec_bits : 0;
+}
+
+int lv_number_default_real_prec(void) {
+    return g_default_real_prec;
+}
+
+/** 建 REAL 节点并 init 精度（prec≤0 用默认上下文） */
 static lvNumber *new_real_prec(int prec) {
     lvNumber *n = node_new(lv_NUMBER_REAL_MPFR);
     if (n)
-        mpfr_init2(n->u.m, (mpfr_prec_t) (prec > 0 ? prec : mpfr_get_default_prec()));
+        mpfr_init2(n->u.m, (mpfr_prec_t) (prec > 0 ? prec : real_default_prec()));
     return n;
 }
 /** 把任意 kind 数值装入已 init 的 mpfr（out 精度由调用方决定） */
@@ -260,7 +274,7 @@ static int real_prec_for(const lvNumber *a, const lvNumber *b) {
     int p = 0;
     if (is_real(a)) p = real_prec(a);
     if (is_real(b) && real_prec(b) > p) p = real_prec(b);
-    return p > 0 ? p : (int) mpfr_get_default_prec();
+    return p > 0 ? p : real_default_prec();
 }
 #endif
 
@@ -398,9 +412,23 @@ lvNumber *lv_number_pow(const lvNumber *base, int exp) {
     if (!base) return NULL;
     if (exp == 0) return new_int(1);
     if (exp < 0) {
-        /* 负指数：1 / base^|exp|（double 路径，与旧行为一致） */
+        /* 负指数：1 / base^|exp| */
         lvNumber *pos = lv_number_pow(base, -exp);
         if (!pos) return NULL;
+#ifndef lv_NO_MPFR
+        if (is_real(base)) {
+            /* REAL 基：保持 REAL 精度，1.0/pos 经 mpfr（不降 double） */
+            lvNumber *one = new_real_prec(real_prec_for(base, pos));
+            if (!one) {
+                if (!g_frame) node_release(pos);
+                return NULL;
+            }
+            mpfr_set_ui(one->u.m, 1, MPFR_RNDN);
+            lvNumber *res = lv_number_div(one, pos);
+            if (!g_frame) { node_release(one); node_release(pos); }
+            return res;
+        }
+#endif
         double pd = node_to_double(pos);
         if (!g_frame) node_release(pos);
         return new_float(1.0 / pd);
@@ -760,7 +788,7 @@ static lvNumber *real_node_from(const char *s, double v, int prec) {
     lvNumber *n = node_new(lv_NUMBER_REAL_MPFR);
     if (!n)
         return NULL;
-    mpfr_init2(n->u.m, prec > 0 ? (mpfr_prec_t) prec : mpfr_get_default_prec());
+    mpfr_init2(n->u.m, (mpfr_prec_t) (prec > 0 ? prec : real_default_prec()));
     int rc = 0;
     if (s)
         rc = mpfr_set_str(n->u.m, s, 10, MPFR_RNDN);
