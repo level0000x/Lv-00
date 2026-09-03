@@ -457,9 +457,15 @@ bool config_save(const ConfigManager *mgr) {
     if (!mgr || !mgr->config_file)
         lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_save 参数无效");
 
-    FILE *f = lv_file_open(mgr->config_file, "w");
+    /* K62 写原子性：先写临时文件，成功后 rename 替换目标——中途崩溃/写入失败
+     * 不损坏既有配置（原直接 "w" 覆盖，写一半失败即损坏原文件）。 */
+    char tmp_path[1024];
+    if (lv_snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", mgr->config_file) < 0)
+        lv_RETURN_ERROR_BOOL(lv_ERROR_INVALID_PARAM, "config_save 临时路径过长");
+
+    FILE *f = lv_file_open(tmp_path, "w");
     if (!f)
-        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 打开文件失败");
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 打开临时文件失败");
 
     fprintf(f, "# Lv-00 Configuration File\n");
     fprintf(f, "# Auto-generated\n\n");
@@ -501,6 +507,17 @@ bool config_save(const ConfigManager *mgr) {
         item = item->next;
     }
 
-    lv_file_close(f);
+    if (lv_file_close(f) != 0) {
+        remove(tmp_path); /* 关闭失败：清理临时文件，保留原配置 */
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 关闭临时文件失败");
+    }
+
+    /* 原子替换：rename 成功即新配置生效（POSIX rename 原子；Windows 上
+     * rename 目标已存在时行为见实现——先 remove 目标再 rename 保证覆盖） */
+    remove(mgr->config_file); /* 目标存在时 Windows rename 失败，先移除（同 debug_state 先例） */
+    if (rename(tmp_path, mgr->config_file) != 0) {
+        remove(tmp_path);
+        lv_RETURN_ERROR_BOOL(lv_ERROR_IO, "config_save 替换配置文件失败");
+    }
     return true;
 }
