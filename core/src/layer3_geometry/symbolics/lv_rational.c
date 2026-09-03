@@ -28,9 +28,17 @@
 
 #include "lv/lv_numeric.h" /* lv_mpz_bit_size / lv_check_bit_limit（K63/F89 位数检查权威） */
 #include "lv/lv_utils.h"
+#include "lv/config.h" /* lv_BIT_CUTOFF_THRESHOLD（K63：安全比特阈值权威源） */
 
-/* 用于 lv_rational_den_is_safe 的安全比特阈值 */
-#define RATIONAL_SAFE_BITS_DEFAULT 65536 /* 2^16 比特 */
+/* lv_rational_den_is_safe 的分母安全比特阈值（独立语义：分母防循环无界增长，
+ * 保守上限 2^16 比特；与 mul_is_safe 的默认不同——mul 是"乘法后总比特"
+ * 的容量判断，对齐权威 lv_BIT_CUTOFF_THRESHOLD 见 RATIONAL_MUL_BITS_DEFAULT） */
+#define RATIONAL_DEN_SAFE_BITS 65536
+
+/* lv_rational_mul_is_safe 的默认安全比特阈值——
+ * K63/Q1（用户 2026-09-02 决策）：默认值对齐权威 lv_BIT_CUTOFF_THRESHOLD
+ * （1000000，原 65536 与权威不一致——第三套阈值语义消除） */
+#define RATIONAL_MUL_BITS_DEFAULT lv_BIT_CUTOFF_THRESHOLD
 
 /* inplace 运算的位宽熔断阈值（分子/分母任一超限即转 double 近似）——
  * K63/F89 登记：相对权威 lv_BIT_CUTOFF_THRESHOLD 为更严格的原地保护（EACH 口径） */
@@ -522,12 +530,11 @@ int lv_rational_estimate_loss(const lvRational *r) {
 /**
  * @brief 判断两个有理数相乘是否安全（不会超出比特数限制）
  *
- * K63/F89 裁决登记：生产零调用（仅 test_rational_ext 3 处测试引用），
- * 且默认阈值 65536 ≠ 权威 lv_BIT_CUTOFF_THRESHOLD（1000000）——接线会引入
- * 第三套阈值语义，删除需评审（红线①）。当前保留并统一位数计算口径，
- * 处置待用户评审。
+ * K63/F89 + Q1（用户 2026-09-02）裁决：生产零调用（仅 test_rational_ext
+ * 测试引用），保留不删；默认阈值已对齐权威 lv_BIT_CUTOFF_THRESHOLD
+ * （1000000，原 65536 第三套阈值语义已消除）。
  *
- * @param max_bits 允许的最大比特数
+ * @param max_bits 允许的最大比特数（0 = 使用权威默认 lv_BIT_CUTOFF_THRESHOLD）
  * @return true 安全，false 可能溢出
  */
 bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t max_bits) {
@@ -535,7 +542,7 @@ bool lv_rational_mul_is_safe(const lvRational *a, const lvRational *b, uint64_t 
         return false;
 
     if (max_bits == 0) {
-        max_bits = RATIONAL_SAFE_BITS_DEFAULT;
+        max_bits = RATIONAL_MUL_BITS_DEFAULT;
     }
 
     /* 乘法后分子/分母的比特数约为各操作数比特数之和 */
@@ -561,7 +568,7 @@ bool lv_rational_den_is_safe(const mpz_t den) {
     if (!den)
         return false;
     uint64_t bits = (uint64_t) lv_mpz_bit_size(den);
-    return bits <= RATIONAL_SAFE_BITS_DEFAULT;
+    return bits <= RATIONAL_DEN_SAFE_BITS;
 }
 
 /* ========================================================================
