@@ -11046,3 +11046,14 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - 测试：parser 单管道/链式/非调用错误 + bootstrap 端到端。ctest 296/296。
 - 注：midpoint/reflect 等非基础构造名引擎侧无实现（decl_stash），管道对其
   解析可用但引擎注册待几何能力补全（非语法糖范围）。
+
+## 批次 228 补充 3（DSL S5 关键字参数等号形态，b3515864）
+
+- S5：函数/构造调用实参接受 
+ame = value（等号）关键字参数形态（既有 
+ame: value
+  冒号形态保持）；circle(center = A, through = B) 参数包装为 NAMED_ARG；
+- 排除歧义：标识符后 == 是比较运算（非命名参数），用双 token 前瞻区分；
+- parser 层 + 测试（等号形态/冒号保持/== 不误判）；ctest 296/296。
+- 注：loader 按形参表绑参（center/through→circle 位置）待 loader 构造能力补全；
+  当前 NAMED_ARG 由消费方按名解释（sema/loader 侧）。
