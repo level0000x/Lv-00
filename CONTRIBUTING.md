@@ -1,4 +1,4 @@
-﻿# 贡献指南
+# 贡献指南
 
 感谢您对 Lv-00 几何元语言内核的关注！
 
@@ -12,7 +12,7 @@ Lv-00 是一个纯 C11 从零自主研发的轻量化初等几何形式化自动
 
 - **编译器**: GCC ≥ 11 / Clang ≥ 14 / MSVC ≥ 2019
 - **构建系统**: CMake ≥ 3.16
-- **GMP**: GNU Multiple Precision Arithmetic Library ≥ 6.2
+- **GMP 家族（默认底层依赖集）**: GMP ≥ 6.2（当前必需）/ MPFR / MPFI / MPC（标准底层成员，接入按[外部依赖策略](docs/architecture/dependency-policy.md)）
 - **Python** (可选): ≥ 3.8（用于 Python 绑定和辅助工具）
 - **Node.js** (可选): ≥ 18（用于 Web GUI）
 
@@ -37,16 +37,19 @@ cd build && ctest
 
 ### C 语言规范
 
-- 遵循项目 **[编码标准](docs/CODING_STANDARD.md)**
-- 遵循项目 **[命名规范](docs/NAMING_CONVENTION.md)**
+- 编码/格式标准由 `.clang-format` / `.editorconfig` 机器强制；命名规则（`lv_` 前缀族）见 `core/include/lv/lv_api_spec.h` 头注释
 - 使用 4 空格缩进
 - 公共函数使用 `lv_PUBLIC_API` 宏标记
 - 所有公共 API 添加 Doxygen 风格注释
 - 内存分配统一使用 `lv_malloc` / `lv_free` / `lv_calloc`
 
+### 外部依赖规范
+
+- 遵循项目 **[外部依赖策略](docs/architecture/dependency-policy.md)**（代码标准 v1.0，2026-09-03 批准）：默认底层依赖 GMP/MPFR/MPFI/MPC；外包边界判据、外部材料三级分类与许可红线见该文档
+
 ### 十层架构规范
 
-项目严格遵循十层单向依赖架构（详见 [ARCHITECTURE_v3.3.md](docs/ARCHITECTURE_v3.3.md)）：
+项目严格遵循十层单向依赖架构（详见 [README 系统架构](README.md#系统架构)）：
 
 1. **第 1 层** - 输入解析层 (Parser)：词法分析、公式解析
 2. **第 2 层** - 资源管理层 (Resource)：内存、错误码、调试
