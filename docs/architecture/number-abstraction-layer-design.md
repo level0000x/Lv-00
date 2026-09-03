@@ -115,11 +115,11 @@ typedef enum lvNumberKind {
 - 抽象层实现初始化：`mp_set_memory_functions(lv_malloc_fn, lv_realloc_fn, lv_free_fn)` 统一 GMP 内部内存走 lv 分配器；
 - MPFR 引入时同款接线 `mpfr_set_memory_functions`（批次 A 事项，本设计只登记接口位）；
 - 效果：SECURITY.md「GMP 不受管」盲区关闭，内存审计全链统一。
-- **0b 裁决（2026-09-03）**：全局接线拆为**独立小步**——须先迁移全部
-  `mpz_get_str`/`mpq_get_str` 释放点为 allocator 感知（现多处用 `lv_free_external`
-  = 系统 free，wire 后释放 lv 分配器内存会不匹配），再 `mp_set_memory_functions`；
-  在接线完成前，lvNumber 池节点内 mpq 的 limb 存储走 GMP 默认分配器
-  （同 coeff_pool/mpz 现状，无行为变化）。
+- **0b 裁决（2026-09-03）**：全局接线拆为独立小步。**已执行（批次 235）**：全部
+  `mpz_get_str`/`mpq_get_str`(NULL) 调用点迁移为调用方缓冲（新增 `lv_mpz_to_alloc_str`，
+  `lv_mpq_to_string` 内部缓冲化）；`lv_gmp_memory_wire()`（lv_init 首行，动态查询当前
+  allocator，realloc 可空回退）关闭 SECURITY.md「GMP 不受管」盲区；池节点内 mpq limb
+  与全库 GMP 分配统一走 lv 分配器（debug 追踪/审计受益）。
 
 ---
 

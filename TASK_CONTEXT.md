@@ -11291,3 +11291,43 @@ ame: value
 - 0 期剩余：双轨内部合一（ND-4）、批量连续段（ND-5 应用于 nt_*/mpz_poly）、
   域迁移（期 1-6）；全局 allocator 接线独立小步；
 - 帧池容量在 lv_cleanup 后保留（池块不缩）——内存统计 WARN 属池容量非泄漏，登记说明。
+
+---
+
+## 批次 235（GMP allocator 接线前置小步：get_str 调用点缓冲化 + lv_gmp_memory_wire）
+
+### 实施
+
+- **GMP 分配串全量缓冲化**（消除 mpz/mpq_get_str(NULL) 系统 malloc 依赖面）：
+  - 新增 `lv_mpz_to_alloc_str(mpz, base)`（lv_malloc 缓冲，sizeinbase+2 预分配，无 GMP 分配）；
+  - `lv_mpq_to_string` 内部改走 lv_mpz_to_alloc_str（不再 free() GMP 内存）；
+  - 迁移 4 处调用点：`lv_impl_native.c` coord_to_string（经 lv_mpq_to_string(true)）、
+    `symbolic_coord_trust.c` hash_algebraic（hex 系数）、`mpz_poly.h` 内联 get_str、
+    `lv_str_utils.c` 自身——全部改 lv_free 释放；
+- **GMP 全局 allocator 接线**：`lv_gmp_memory_wire()`（lv_str_utils.c，动态查询
+  `lv_allocator_get()`，ops->realloc 可空时手动 alloc+copy+free 回退）；
+  `lv_init` 首行调用（先于任何 mpq/mpz 分配；幂等，嵌套 init 安全）。
+
+### 效果
+
+- SECURITY.md「GMP 用系统默认分配器、不受 lv 管理」盲区**关闭**：全库 GMP 内部
+  分配（含 lvNumber 池节点 mpq limb）统一走 lv 分配器（debug 追踪/审计可见）；
+- `lv_free_external` 内部调用点清零（仅剩公共声明/实现，供潜在外部集成）。
+
+### 验证
+
+- build3 全量重建 **1211 targets 0 error/0 warning** + ctest **298/298 全绿**（91s）；
+- grep：core/ 无 `mp[zq]_get_str(NULL`/`lv_free_external(` 活动调用点。
+
+### 决策登记
+
+- get_str 调用点缓冲化 = allocator 接线的唯一安全前置（wire 后 lv_free_external
+  → 系统 free 释放 lv 内存会不匹配，故先行迁移）；
+- 接线放 lv_init 首行而非构造函数：保证「wire 前零 GMP 分配」的同时不依赖
+  链接期对象拉取（凡走 lv_init 的二进制即接线；不走 lv_init 的保持系统分配器自洽）。
+
+### 遗留登记
+
+- `lv_free_external` 保留为公共 API（零内部调用）——收尾期（设计 §4 期 6）评估删除
+  及符号同步；
+- 0d 双轨内部合一（ND-4：lvRational/Rational 存储并入 lvNumber + 薄包装）为下一子步。
