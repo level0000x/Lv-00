@@ -11331,3 +11331,40 @@ ame: value
 - `lv_free_external` 保留为公共 API（零内部调用）——收尾期（设计 §4 期 6）评估删除
   及符号同步；
 - 0d 双轨内部合一（ND-4：lvRational/Rational 存储并入 lvNumber + 薄包装）为下一子步。
+
+---
+
+## 批次 236（0d-1：Rational → lvRational typedef 别名，双同形结构体合一）
+
+### 背景
+
+ND-4 双轨合一的规模盘点：实际为「三轨」——`rational.h` `lvRational`、
+`symbolic_coord.h` `struct Rational`、及 lvNumber 池内核。盘点发现 Rational 公共 API
+（`rational_*`）早已是**薄转发层**（rational.c 头注释：实现已合并到 lvRational 统一原语），
+但两个**同形结构体**（均单 mpq_t 成员、布局逐字节一致）仍公开并存，rational.c 长期靠
+`(Rational *)` 等价强转桥接。
+
+### 实施
+
+- `core/include/lv/symbolic_coord.h`：
+  - include `lv/rational.h`；删除 `struct Rational` 定义与前向声明；
+  - `typedef lvRational Rational;`（别名 + 注释：direct `.value` 访问与既有强转兼容）；
+- 全库 grep 确认无其他 `struct Rational` 标签使用（仅本头两处，已处理）。
+
+### 验证
+
+- build3 全量重建 **1061 targets 0 error/0 warning** + ctest **298/298 全绿**（91s）；
+- 别名零 ABI/布局变化（单 mpq_t 成员同形），Python ctypes/Lean 桥接不受影响。
+
+### 决策登记
+
+- ND-4「存储并入 lvNumber」的剩余部分明确为**域迁移期工作**（期 2-6 逐步把
+  direct `.value` 使用点替换为 lvNumber 表示），不在 0 期一次性完成——规模盘点
+  修正了 ND-4 的 0 期含混表述；
+- 别名先行消灭「双同形类型」审计项（K/J 系列「同型双轨」）。
+
+### 遗留登记
+
+- layer3 十余文件（quadratic/transform/algebraic_number_*/ops 等）的 Rational 使用点
+  尚未迁移到 lvNumber（属设计期 4 域迁移，另行立项）；
+- 0e：批量连续段（ND-5）应用于 nt_*/mpz_poly 系数。

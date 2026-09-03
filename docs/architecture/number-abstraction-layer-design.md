@@ -143,6 +143,9 @@ typedef enum lvNumberKind {
 >   保真 "3/2"/"7"、跨帧 hash 同值）；既有 `lv_number_ext/ops_ext` 契约测试零改动通过；
 > - 全局 GMP allocator 接线按上述 §3.4 裁决拆为独立小步（先迁移 get_str 释放点）。
 > - 待续：双轨合一（ND-4）、批量连续段（ND-5 应用于 nt_*）、域迁移（期 1-6）。
+> - **0d-1（批次 236）**：`symbolic_coord.h` `struct Rational` → `typedef lvRational Rational`
+>   （双同形结构体消灭其一；盘点证实 Rational 公共 API 早已薄转发（rational.c），
+>   ND-4「存储并入」的剩余部分 = 域迁移期逐步把 direct `.value` 使用点换为 lvNumber）。
 
 > 每期独立提交、独立登记；任何一期不绿不进入下一期。函数**符号名全程保留** → ctypes/Python
 > 绑定、测试、Lean 桥接无损；ABI 变更集中在公共头签名，版本策略见 §7（ND-6）。
