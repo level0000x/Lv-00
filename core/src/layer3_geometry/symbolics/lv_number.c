@@ -238,6 +238,30 @@ static bool is_real(const lvNumber *n) {
 static int real_prec(const lvNumber *n) {
     return (int) mpfr_get_prec(n->u.m);
 }
+/** 建 REAL 节点并 init 精度（prec>0） */
+static lvNumber *new_real_prec(int prec) {
+    lvNumber *n = node_new(lv_NUMBER_REAL_MPFR);
+    if (n)
+        mpfr_init2(n->u.m, (mpfr_prec_t) (prec > 0 ? prec : mpfr_get_default_prec()));
+    return n;
+}
+/** 把任意 kind 数值装入已 init 的 mpfr（out 精度由调用方决定） */
+static void node_to_mpfr_prec(mpfr_t out, const lvNumber *n) {
+    switch (n->kind) {
+        case lv_NUMBER_INTEGER:  mpfr_set_si(out, n->u.i, MPFR_RNDN); break;
+        case lv_NUMBER_FLOAT:    mpfr_set_d(out, n->u.f, MPFR_RNDN); break;
+        case lv_NUMBER_RATIONAL: mpfr_set_q(out, n->u.q, MPFR_RNDN); break;
+        case lv_NUMBER_REAL_MPFR: mpfr_set(out, n->u.m, MPFR_RNDN); break;
+        default:                 mpfr_set_ui(out, 0, MPFR_RNDN); break;
+    }
+}
+/** 二元 real 目标精度 = 各操作数 real 精度最大值（无 real 用默认） */
+static int real_prec_for(const lvNumber *a, const lvNumber *b) {
+    int p = 0;
+    if (is_real(a)) p = real_prec(a);
+    if (is_real(b) && real_prec(b) > p) p = real_prec(b);
+    return p > 0 ? p : (int) mpfr_get_default_prec();
+}
 #endif
 
 static lvNumber *new_int(int64_t v) {
@@ -280,6 +304,31 @@ static lvNumber *bin_op(const lvNumber *a, const lvNumber *b, lvNumBinOp op) {
         }
     }
 
+    /* 任一 REAL_MPFR：mpfr 高精度（精确提升，prec = 各 real 精度 max/默认）；
+     * ÷0 产生 mpfr inf（与 float 语义一致）。 */
+#ifndef lv_NO_MPFR
+    if (is_real(a) || is_real(b)) {
+        int prec = real_prec_for(a, b);
+        mpfr_t x, y;
+        mpfr_init2(x, (mpfr_prec_t) prec);
+        mpfr_init2(y, (mpfr_prec_t) prec);
+        node_to_mpfr_prec(x, a);
+        node_to_mpfr_prec(y, b);
+        lvNumber *r = new_real_prec(prec);
+        if (r) {
+            switch (op) {
+                case LV_NUM_BIN_ADD: mpfr_add(r->u.m, x, y, MPFR_RNDN); break;
+                case LV_NUM_BIN_SUB: mpfr_sub(r->u.m, x, y, MPFR_RNDN); break;
+                case LV_NUM_BIN_MUL: mpfr_mul(r->u.m, x, y, MPFR_RNDN); break;
+                case LV_NUM_BIN_DIV: mpfr_div(r->u.m, x, y, MPFR_RNDN); break;
+            }
+        }
+        mpfr_clear(x);
+        mpfr_clear(y);
+        return r;
+    }
+#endif
+
     /* 任一 float：double 语义（与旧行为一致；float÷0 → inf） */
     if (any_float(a, b)) {
         double x = node_to_double(a), y = node_to_double(b);
@@ -319,6 +368,14 @@ lvNumber *lv_number_div(const lvNumber *a, const lvNumber *b) { return bin_op(a,
 
 lvNumber *lv_number_neg(const lvNumber *n) {
     if (!n) return NULL;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) {
+        lvNumber *r = new_real_prec(real_prec(n));
+        if (r)
+            mpfr_neg(r->u.m, n->u.m, MPFR_RNDN);
+        return r;
+    }
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  return new_int(-n->u.i);
         case lv_NUMBER_FLOAT:    return new_float(-n->u.f);
@@ -384,6 +441,20 @@ int lv_number_compare(const lvNumber *a, const lvNumber *b) {
     if (node_is_int(a) && node_is_int(b)) {
         return (a->u.i < b->u.i) ? -1 : (a->u.i > b->u.i ? 1 : 0);
     }
+#ifndef lv_NO_MPFR
+    if (is_real(a) || is_real(b)) {
+        int prec = real_prec_for(a, b);
+        mpfr_t x, y;
+        mpfr_init2(x, (mpfr_prec_t) prec);
+        mpfr_init2(y, (mpfr_prec_t) prec);
+        node_to_mpfr_prec(x, a);
+        node_to_mpfr_prec(y, b);
+        int c = mpfr_cmp(x, y);
+        mpfr_clear(x);
+        mpfr_clear(y);
+        return (c < 0) ? -1 : (c > 0 ? 1 : 0);
+    }
+#endif
     if (any_float(a, b)) {
         double x = node_to_double(a), y = node_to_double(b);
         return (x < y) ? -1 : (x > y ? 1 : 0);

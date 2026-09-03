@@ -84,6 +84,63 @@ static void test_real_clone_hash(void) {
     printf("  test_real_clone_hash: PASSED\n");
 }
 
+static void test_real_arith(void) {
+    /* real + int → real（精确提升） */
+    lvNumber *r15 = lv_number_real_from_double(1.5, 128);
+    lvNumber *i1 = lv_number_from_int(1);
+    lvNumber *s = lv_number_add(r15, i1);
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQ((int) lv_number_type(s), (int) lv_NUMBER_REAL_MPFR);
+    TEST_ASSERT_DOUBLE(lv_number_to_double(s), 2.5, 1e-12);
+    lv_number_destroy(s);
+
+    /* real × int → real */
+    lvNumber *i2 = lv_number_from_int(2);
+    lvNumber *m = lv_number_mul(r15, i2);
+    TEST_ASSERT_NOT_NULL(m);
+    TEST_ASSERT_DOUBLE(lv_number_to_double(m), 3.0, 1e-12);
+    lv_number_destroy(m);
+
+    /* real + rational → real */
+    lvNumber *half = lv_number_from_rational(1, 2);
+    lvNumber *rr = lv_number_add(r15, half);
+    TEST_ASSERT_NOT_NULL(rr);
+    TEST_ASSERT_DOUBLE(lv_number_to_double(rr), 2.0, 1e-12);
+    lv_number_destroy(rr);
+
+    /* 精度：0.1+0.2 与 mpfr("0.3") 同值（128bit RNDN） */
+    lvNumber *a = lv_number_real_from_string("0.1", 128);
+    lvNumber *b = lv_number_real_from_string("0.2", 128);
+    lvNumber *c = lv_number_add(a, b);
+    lvNumber *three = lv_number_real_from_string("0.3", 128);
+    TEST_ASSERT_NOT_NULL(c);
+    TEST_ASSERT_NOT_NULL(three);
+    TEST_ASSERT_EQ(lv_number_compare(c, three), 0);
+    lv_number_destroy(three);
+    lv_number_destroy(c);
+
+    /* 比较 real < real */
+    lvNumber *lo = lv_number_real_from_double(1.0, 64);
+    lvNumber *hi = lv_number_real_from_double(2.0, 64);
+    TEST_ASSERT(lv_number_lt(lo, hi), "1.0 < 2.0");
+    lv_number_destroy(lo);
+    lv_number_destroy(hi);
+
+    /* neg */
+    lvNumber *ng = lv_number_neg(r15);
+    TEST_ASSERT_NOT_NULL(ng);
+    TEST_ASSERT(lv_number_is_negative(ng), "-1.5 负");
+    lv_number_destroy(ng);
+
+    lv_number_destroy(b);
+    lv_number_destroy(a);
+    lv_number_destroy(half);
+    lv_number_destroy(i2);
+    lv_number_destroy(i1);
+    lv_number_destroy(r15);
+    printf("  test_real_arith: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
@@ -93,6 +150,7 @@ TEST_MAIN_BEGIN("Lv-00 Number REAL_MPFR Ext Test Suite")
     TEST_MAIN_RUN(test_real_factory_api);
     TEST_MAIN_RUN(test_real_query_api);
     TEST_MAIN_RUN(test_real_clone_hash);
+    TEST_MAIN_RUN(test_real_arith);
 
     lv_cleanup();
 TEST_MAIN_END()
