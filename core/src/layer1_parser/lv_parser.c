@@ -132,6 +132,7 @@ static LvAstNode *parse_unary_expr(LvParser *p);
 static LvAstNode *parse_primary_expr(LvParser *p);
 static int is_geometry_func(const char *name); /* S7：前向声明（定义在查找表区） */
 static int geom_func_to_entity(const char *name);
+static LvAstNode *parse_list_literal(LvParser *p); /* S8：前向声明 */
 
 /* ── 查找表 ── */
 
@@ -1519,6 +1520,51 @@ static LvAstNode *parse_struct_literal(LvParser *p) {
     return node;
 }
 
+/** S8 列表字面量: "[" Expr ("," Expr)* "]"
+ *  元素存为 child 链表（LV_AST_LIST_LITERAL），供变参消费方（polygon 等）展开。 */
+static LvAstNode *parse_list_literal(LvParser *p) {
+    LvSourceLoc loc = p->current.loc;
+    if (!match(p, LV_TOKEN_LBRACKET)) {
+        expect(p, LV_TOKEN_LBRACKET, "expected '[' to open list literal");
+        return NULL;
+    }
+
+    LvAstNode *first_item = NULL;
+    LvAstNode *last_item = NULL;
+    int item_count = 0;
+
+    if (p->current.type != LV_TOKEN_RBRACKET) {
+        while (1) {
+            LvAstNode *item = parse_logic_expr(p);
+            if (!item)
+                break;
+
+            if (!first_item) {
+                first_item = item;
+            } else {
+                last_item->next = item;
+            }
+            last_item = item;
+            item_count++;
+
+            if (p->current.type == LV_TOKEN_COMMA) {
+                advance(p);
+            } else {
+                break;
+            }
+        }
+    }
+
+    expect(p, LV_TOKEN_RBRACKET, "expected ']' to close list literal");
+
+    LvAstNode *node = lv_ast_create(LV_AST_LIST_LITERAL, loc);
+    if (node) {
+        node->child = first_item;
+        node->child_count = item_count;
+    }
+    return node;
+}
+
 /* ── 嵌套泛型辅助（前瞻扫描 + 消费式拼接） ── */
 
 static int scan_generic_arg(LvParser *p, int i, char *buf, size_t cap, size_t *pos);
@@ -1737,6 +1783,11 @@ static LvAstNode *parse_primary_expr(LvParser *p) {
     /* 记录字面量: { field: value, ... }（规格文件，如 Point Spec := { a: T }） */
     if (p->current.type == LV_TOKEN_LBRACE) {
         return parse_struct_literal(p);
+    }
+
+    /* S8 列表字面量: [A, B, C]（元素为 child 链表；供 polygon/变参消费方展开） */
+    if (p->current.type == LV_TOKEN_LBRACKET) {
+        return parse_list_literal(p);
     }
 
     /* 标识符（可能是函数调用、关系、度量、几何表达式） */

@@ -553,6 +553,11 @@ static int ast_debug_struct_literal(const LvAstNode *node, lvStrBuf *sb) {
     return 0;
 }
 
+static int ast_debug_list_literal(const LvAstNode *node, lvStrBuf *sb) {
+    lv_strbuf_printf(sb, " [items=%d]", node->child_count);
+    return 0;
+}
+
 static int ast_debug_struct_field(const LvAstNode *node, lvStrBuf *sb) {
     lv_strbuf_printf(sb, " [%s]",
                      node->data.field.name ? node->data.field.name : "");
@@ -670,6 +675,7 @@ static const LvAstVTable kAstVTable[LV_AST_VTABLE_COUNT] = {
     [LV_AST_COMPARE]         = { ast_destroy_nop,        ast_debug_compare,     ast_print_compare },
     [LV_AST_STRUCT_LITERAL]  = { ast_destroy_nop,        ast_debug_struct_literal, ast_print_nop },
     [LV_AST_STRUCT_FIELD]    = { ast_destroy_struct_field, ast_debug_struct_field, ast_print_struct_field },
+    [LV_AST_LIST_LITERAL]    = { ast_destroy_nop,        ast_debug_list_literal,  ast_print_nop },
     [LV_AST_NAMED_ARG]       = { ast_destroy_struct_field, ast_debug_struct_field, ast_print_struct_field },
     [LV_AST_UNION]           = { ast_destroy_union,      ast_debug_binary_op,   ast_print_binary_op },
     [LV_AST_PREDICATE_APP]   = { ast_destroy_predicate_app, ast_debug_call,      ast_print_call },
@@ -753,6 +759,7 @@ void lv_ast_destroy(LvAstNode *node) {
     x(LV_AST_COMPARE, "COMPARE") \
     x(LV_AST_STRUCT_LITERAL, "STRUCT_LITERAL") \
     x(LV_AST_STRUCT_FIELD, "STRUCT_FIELD") \
+    x(LV_AST_LIST_LITERAL, "LIST_LITERAL") \
     x(LV_AST_NAMED_ARG, "NAMED_ARG") \
     x(LV_AST_UNION, "UNION") \
     x(LV_AST_PREDICATE_APP, "PREDICATE_APP") \

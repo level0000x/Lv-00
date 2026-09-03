@@ -56,6 +56,7 @@ typedef enum {
     LV_AST_COMPARE,        // a == b, a != b, a < b, etc.
     LV_AST_STRUCT_LITERAL, // { field: value, ... } 记录字面量
     LV_AST_STRUCT_FIELD,   // 结构字段 name: value
+    LV_AST_LIST_LITERAL,   // [A, B, C] 列表字面量（S8：元素为 child 链表）
     LV_AST_NAMED_ARG,      // 命名参数 name: value（函数/构造子调用中，复用 field 布局）
     LV_AST_UNION,          // A | B 类型联合
     LV_AST_PREDICATE_APP,  // 无符号中缀谓词: expr pred

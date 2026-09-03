@@ -420,6 +420,55 @@ static void test_keyword_args(void) {
     }
 }
 
+/* S8 列表字面量：[A, B, C] */
+static void test_list_literal(void) {
+    printf("[S8 列表字面量]\n");
+
+    {
+        const char *src = "Polygon P := polygon([A, B, C]);";
+        LvParseResult res = parse_source(src);
+        TEST("polygon([A, B, C])");
+        if (res.ast && res.error_count == 0) {
+            LvAstNode *decl = res.ast->child;
+            if (decl && decl->type == LV_AST_DECLARATION && decl->data.decl.value) {
+                LvAstNode *v = decl->data.decl.value;
+                /* polygon 非基础构造名 → FUNCTION_CALL；基础构造（point 等）→ GEOMETRY_EXPR */
+                int is_call = v->type == LV_AST_GEOMETRY_EXPR || v->type == LV_AST_FUNCTION_CALL;
+                if (is_call && v->data.call.args && v->data.call.args->type == LV_AST_LIST_LITERAL) {
+                    LvAstNode *lst = v->data.call.args;
+                    if (lst->child_count == 3 && lst->child) {
+                        PASS();
+                    } else {
+                        printf("  list count=%d\n", lst->child_count);
+                        FAIL("expected 3-item list");
+                    }
+                } else {
+                    printf("  value type=%d arg0=%p\n", v->type, (void *) (v->data.call.args));
+                    FAIL("expected call with list arg");
+                }
+            } else {
+                FAIL("expected decl with value");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 空列表与多类型元素 */
+        const char *src = "Point Spec := { xs: [], ys: [1, 2.5] };";
+        LvParseResult res = parse_source(src);
+        TEST("空列表与混合列表");
+        if (res.ast && res.error_count == 0) {
+            PASS();
+        } else {
+            FAIL("list literal in struct field failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
 static void test_constraint(void) {
     printf("[约束/关系语句]\n");
 
@@ -1674,6 +1723,8 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_pipe_expr);
     printf("\n");
     TEST_MAIN_RUN(test_keyword_args);
+    printf("\n");
+    TEST_MAIN_RUN(test_list_literal);
     printf("\n");
     TEST_MAIN_RUN(test_constraint);
     printf("\n");
