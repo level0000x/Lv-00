@@ -79,12 +79,19 @@ lvPluginSystem *lv_plugin_system_create(lvContext *ctx) {
     PluginSystemGuard guard = {system};
     lv_DEFER(plugin_system_guard_cleanup, &guard);
 
-    system->plugin_capacity = lv_MAX_PLUGINS;
+    /* K75 限制常量单源：容量读配置系统 A（integration.max_plugins / max_interfaces，
+     * X 宏键名即宏名），默认值 lv_MAX_PLUGINS/lv_MAX_INTERFACES（256/128）与
+     * config.h 权威默认一致——消除「宏硬编码 vs 配置键」同值双源漂移 */
+    system->plugin_capacity = lv_config_get_int("max_plugins", lv_MAX_PLUGINS);
+    if (system->plugin_capacity <= 0)
+        system->plugin_capacity = lv_MAX_PLUGINS; /* 配置非法（<=0）回退权威默认 */
     system->plugins = (lvPlugin **) lv_malloc(sizeof(lvPlugin *) * system->plugin_capacity);
     if (!system->plugins)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: plugins malloc failed");
 
-    system->interface_capacity = lv_MAX_INTERFACES;
+    system->interface_capacity = lv_config_get_int("max_interfaces", lv_MAX_INTERFACES);
+    if (system->interface_capacity <= 0)
+        system->interface_capacity = lv_MAX_INTERFACES; /* 配置非法（<=0）回退权威默认 */
     system->interfaces = (lvPluginInterface **) lv_malloc(sizeof(lvPluginInterface *) * system->interface_capacity);
     if (!system->interfaces)
         lv_RETURN_ERROR_NULL(lv_ERROR_OUT_OF_MEMORY, "lv_plugin_system_create: interfaces malloc failed");
