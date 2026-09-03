@@ -115,6 +115,11 @@ typedef enum lvNumberKind {
 - 抽象层实现初始化：`mp_set_memory_functions(lv_malloc_fn, lv_realloc_fn, lv_free_fn)` 统一 GMP 内部内存走 lv 分配器；
 - MPFR 引入时同款接线 `mpfr_set_memory_functions`（批次 A 事项，本设计只登记接口位）；
 - 效果：SECURITY.md「GMP 不受管」盲区关闭，内存审计全链统一。
+- **0b 裁决（2026-09-03）**：全局接线拆为**独立小步**——须先迁移全部
+  `mpz_get_str`/`mpq_get_str` 释放点为 allocator 感知（现多处用 `lv_free_external`
+  = 系统 free，wire 后释放 lv 分配器内存会不匹配），再 `mp_set_memory_functions`；
+  在接线完成前，lvNumber 池节点内 mpq 的 limb 存储走 GMP 默认分配器
+  （同 coeff_pool/mpz 现状，无行为变化）。
 
 ---
 
@@ -129,6 +134,15 @@ typedef enum lvNumberKind {
 | 4 | 几何/符号域：`geometry_transform`（60 字段）、`symbolic_coord` 坐标值 | 几何测试绿（含保真断言） |
 | 5 | **solver 热区**（342/268 处裸调）+ graph 节点值存储 | 全量 ctest 绿 + 性能不劣化（帧池生效） |
 | 6 | **收尾**：删除薄包装、`gmp.h` include 白名单 grep 清零、CI 加「数值依赖 include 白名单」+「ABI/符号对拍」（ND-6）门禁（复用 headers-sync/symbol-sync 模式）、决策登记 | CI 全绿 + 门禁生效 |
+
+> **0 期实施进展（批次 234，2026-09-03）**：
+> - **0b**：`lv_number.h` 不透明化（句柄即池节点，公共面无 GMP 类型）+ 两级池
+>   （常驻 free-list + 帧池 TLS 栈）+ 跨类型算术**精确提升**（int×rational → rational；
+>   任一 float → float；int÷int 截断契约保留）+ hash 统一 double-bits（eq→同哈希不变式）；
+> - **0c 基线**：新增 `test_lv_number_pool_ext`（帧/常驻生命周期、精确提升、GMP 规范形
+>   保真 "3/2"/"7"、跨帧 hash 同值）；既有 `lv_number_ext/ops_ext` 契约测试零改动通过；
+> - 全局 GMP allocator 接线按上述 §3.4 裁决拆为独立小步（先迁移 get_str 释放点）。
+> - 待续：双轨合一（ND-4）、批量连续段（ND-5 应用于 nt_*）、域迁移（期 1-6）。
 
 > 每期独立提交、独立登记；任何一期不绿不进入下一期。函数**符号名全程保留** → ctypes/Python
 > 绑定、测试、Lean 桥接无损；ABI 变更集中在公共头签名，版本策略见 §7（ND-6）。

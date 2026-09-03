@@ -11243,3 +11243,51 @@ ame: value
 - 本地 mingw64 缺 MPFI（可选链成员，无消费者，不阻塞）；
 - CI 双 workflow 待 push 验证；
 - 下一步排序待用户确认：抽象层 0 期（推荐先做，MPFR 表示经抽象层接入，避免 B1 裸接返工）vs 先 B1 直用 MPFR。
+
+---
+
+## 批次 234（抽象层 0b/0c：不透明 lvNumber + 强制池化 + 精确提升 + 保真基线）
+
+用户确认「先 4 后 1」（先 push 验证 CI，再开抽象层 0 期）。CI 由批次 233 push 触发
+验证中；本批落地 number-abstraction-layer-design.md 的 0 期前两子步。
+
+### 0b 实施内容
+
+- `lv_number.h` **不透明化**：句柄即池节点，公共面无 GMP 类型（结构/ops vtable 移入
+  实现）；枚举扩展 `lv_NUMBER_REAL_MPFR`（预留位）；
+- `lv_number.c` 重写（~800 行）：
+  - **两级池**（ND-2）：常驻池 free-list（块链，512 节点/块，lv_malloc 一次性）+
+    帧池 TLS 栈（frame_begin/end 整体回收，含 mpq 内部存储；嵌套帧；帧对象 destroy
+    无害空操作）；
+  - **跨类型精确提升**：int ±/×/÷ rational → rational（mpq），替代旧 double 降级；
+    任一 float → float（旧语义）；int÷int 整数截断（旧契约保留）；
+  - hash 统一 double-bits → **eq ⇒ 同哈希** 跨 kind 不变式（int 2 == rational 6/3）；
+  - `to_string` 经 `lv_mpq_to_string` 复刻 GMP 规范形（"3/2"、整数省略分母 "7"）。
+- 裁决：**全局 GMP allocator 接线拆为独立小步**（先迁移 mpz_get_str/mpq_get_str
+  释放点，再 wire；0b 起池节点 mpq limb 走 GMP 默认分配器，同 coeff_pool 现状）——
+  见 design §3.4。
+
+### 0c 测试基线
+
+- 新增 `test/c/test_lv_number_pool_ext.c`（CTEST lv_number_pool_ext_test）：
+  帧/常驻生命周期（含 20k 循环复用）、嵌套帧、跨类型精确提升断言（1+1/2=3/2、
+  2×3/4=3/2、1÷(1/3)=3）、规范形保真、跨帧 hash 同值、除零契约。
+- 既有 `lv_number_ext_test`/`lv_number_ops_ext_test` **契约测试零改动通过**。
+
+### 验证
+
+- build3 全量 ctest **298/298 全绿**（297 → 298，86s；含新 lv_number_pool_ext_test）；
+- 变更仅 lv_number 域（grep 证实无其他 TU include lv_number.h → 无波及）；
+- 提交后 CI 待 push 验证。
+
+### 决策登记
+
+- 0b 跨类型精确提升（弃 double 降级）——既有测试未钉死该语义，安全替换；
+- hash 跨 kind 同值同哈希统一为 double-bits；
+- GMP allocator 接线推迟（先迁移 get_str 释放点，独立小步）。
+
+### 遗留登记
+
+- 0 期剩余：双轨内部合一（ND-4）、批量连续段（ND-5 应用于 nt_*/mpz_poly）、
+  域迁移（期 1-6）；全局 allocator 接线独立小步；
+- 帧池容量在 lv_cleanup 后保留（池块不缩）——内存统计 WARN 属池容量非泄漏，登记说明。
