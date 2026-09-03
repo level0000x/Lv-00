@@ -11613,3 +11613,43 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
 ### 遗留登记
 
 - MPFI（msys2 mingw64 缺包）待装后补冒烟；MPC 文本解析格式差异记录（未来复数 DSL 用数值构造或规范化文本）。
+
+---
+
+## 批次 247（里程碑快照 + 需立项项清单，文档批）
+
+### 抽象层主线里程碑（批次 232-246，master 全绿）
+
+| 阶段 | 批次 | 产物 | 状态 |
+|:---|:---|:---|:--:|
+| 设计定稿 | 232 | number-abstraction-layer-design（ND-1..7） | ✅ |
+| 依赖地基 | 233（A） | GMP/MPFR/MPC REQUIRED + 静态优先 + CI 依赖；D-0903-6 | ✅ |
+| 池化内核 | 234（0b/0c） | lvNumber 不透明 + 两级池 + 精确提升 + 保真基线 298 | ✅ |
+| GMP 接线 | 235 | get_str 缓冲化 + lv_gmp_memory_wire（SECURITY 盲区关闭） | ✅ |
+| 双轨合一 | 236（0d-1） | Rational → lvRational 别名 | ✅ |
+| 迁移模板 | 237（0d-2） | expr_canon 系数 → lvNumber（+238 测试直读修复） | ✅ |
+| decimal 精确化 | 239（D） | 解析期 DECIMAL → RATIONAL，删 loader 手搓循环 | ✅ |
+| 路线图 | 240-242 | 域迁移路线图 S1-S5 / 0e 校准 / S1 前置设计 | ✅ |
+| 连续段原语 | 243（S1-1/2） | segment_alloc/get、rational_set、destroy + 测试 299 | ✅ |
+| 路线修正 | 244 | GMP 匿名结构体前向技巧不成立 → S2 并入 S3 | ✅ |
+| 依赖冒烟 | 245/246 | MPFR/MPC 编译+静态链冒烟（顺序问题修复）301 | ✅ |
+
+### 需立项项清单（大工程，待授权开工）
+
+| # | 立项名 | 范围 | 依赖 | 量级 |
+|:--:|:---|:---|:---|:---:|
+| P1 | **S3 整簇** | quadratic + algebraic_number_quadratic + coord 比较/序列化 + 工具面 opaque（lvRational 句柄/访问器，承接 S2） | 无（先行推荐） | 数千行/多批 |
+| P2 | **S1 步骤 3-5** | expr_canonical(mpq 值域) → nt_polynomial/mpz_poly 系数**段**（消费 243 原语）→ nt_number_theory 语义对拍 | 依赖 P1 工具面或可并行 | 大/多批 |
+| P3 | **S4** | geometry_transform 60 mpq 字段 → 坐标句柄类型 | P1 | 大 |
+| P4 | **S5** | symbolic_coord 值域 / constraint_graph 节点值 / solver / groebner / inequality | P1-P3 | 特大 |
+| P5 | **MPFR 表示接入** | 经抽象层激活 LV_NUM_REAL_MPFR（原 B1 变形）+ 批次 C（float_error 高精度复核通道） | 依赖 P1 抽象层稳定 | 中-大 |
+| P6 | **MPFI 引入** | source-build 或转 ucrt64/clang64 工具链决策 | 决策项 | 小-中 |
+| P7 | **DSL 线**（如交我） | R4 phase4 / R5 / S3-S6 语法糖 | 你手头现状 | 按批 |
+
+### 无新授权下的低风险默认（已执行模式）
+
+CI 巡检、依赖/文档一致性小步、测试补强；不启动 P1-P7 大代码。
+
+### 验证
+
+- 批次 243 CI/Python ✅；244/245/246 队列运行中（截至快照无失败）。
