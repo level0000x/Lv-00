@@ -2395,6 +2395,13 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_number_pool_ext CTEST_NAME lv_number_pool_ext_test)
     # ND-5 / 批次 243：池连续段原语契约（roadmap §4.2）
     add_lv_test_auto(test_lv_number_segment_ext CTEST_NAME lv_number_segment_ext_test)
+    # B0 / 批次 245：MPFR 编译+静态链接冒烟（MPFR/MPC REQUIRED 依赖地基验证）
+    if(MPFR_INCLUDE_DIR AND MPFR_LIBRARIES)
+        add_lv_test_auto(test_mpfr_smoke CTEST_NAME mpfr_smoke_test)
+        target_include_directories(test_mpfr_smoke PRIVATE ${MPFR_INCLUDE_DIR})
+        # mpfr 引用 GMP 符号：GMP 需排在 mpfr 之后（静态链接顺序）
+        target_link_libraries(test_mpfr_smoke ${MPFR_LIBRARIES} ${GMP_LIBRARIES})
+    endif()
     add_lv_test_auto(test_lexer_shared_ext CTEST_NAME lexer_shared_ext_test)
     add_lv_test_auto(test_geo_spec_ext CTEST_NAME geo_spec_ext_test)
     add_lv_test_auto(test_gmres_shared_ext CTEST_NAME gmres_shared_ext_test)
