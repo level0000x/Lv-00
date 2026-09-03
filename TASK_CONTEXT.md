@@ -11830,3 +11830,20 @@ P5 起步。
 ### 遗留登记
 - C4（把 verify 接到 fptaylor_evaluate_expr 的误差分析结果，作为建议降级的旁路信号）可选后续；
 - 双通道能力已齐：double 区间误差分析（既有）+ REAL 高精度复核判定（C1-C3）。
+
+---
+
+## 批次 258（CI 修复：Linux/mac 共享库链 mpfr 的非 PIC 静态误用）
+
+### 根因
+批次 251 把 MPFR 链进 lv_shared；但 MPFR/MPC/MPFI 检测的「静态优先（_gmp_lib_dir/lib*.a）」
+分支**无条件执行**（含 Linux）——Ubuntu 上把非 PIC 的 libmpfr.a 链进 liblv.so →
+`relocation R_X86_64_TPOFF32 ... recompile with -fPIC`，Python Bindings（shared）自 252 起红。
+
+### 修复
+CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `find_library`（共享库），
+规避非 PIC 静态链入 .so。
+
+### 验证
+- 本地（Win）重配仍走静态（WIN32 分支不变）；Linux/mac 共享链经 CI 复跑确认；
+- 需 CI：main + Python Bindings 双 workflow 复跑全绿。

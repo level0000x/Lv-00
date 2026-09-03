@@ -411,12 +411,12 @@ if(WIN32)
 endif()
 
 if(NOT BUILD_WASM)
-    # ---- MPFR（REQUIRED；静态优先，跟随 GMP 已定位目录）----
+    # ---- MPFR（REQUIRED；静态优先仅在 WIN32，Linux/mac 用共享避免非 PIC 静态链进 .so）----
     find_path(MPFR_INCLUDE_DIR mpfr.h
         HINTS ${MPFR_ROOT}/include ENV MPFR_ROOT/include ${_NUM_INC_HINTS})
-    if(EXISTS "${MPFR_ROOT}/lib/libmpfr.a")
+    if(WIN32 AND EXISTS "${MPFR_ROOT}/lib/libmpfr.a")
         set(MPFR_LIBRARIES "${MPFR_ROOT}/lib/libmpfr.a")
-    elseif(EXISTS "${_gmp_lib_dir}/libmpfr.a")
+    elseif(WIN32 AND EXISTS "${_gmp_lib_dir}/libmpfr.a")
         set(MPFR_LIBRARIES "${_gmp_lib_dir}/libmpfr.a")
     else()
         find_library(MPFR_LIBRARIES mpfr
@@ -428,12 +428,12 @@ if(NOT BUILD_WASM)
     endif()
     message(STATUS "MPFR found: ${MPFR_LIBRARIES}")
 
-    # ---- MPC（REQUIRED；静态优先，跟随 GMP 已定位目录）----
+    # ---- MPC（REQUIRED；静态优先仅在 WIN32）----
     find_path(MPC_INCLUDE_DIR mpc.h
         HINTS ${MPC_ROOT}/include ENV MPC_ROOT/include ${_NUM_INC_HINTS})
-    if(EXISTS "${MPC_ROOT}/lib/libmpc.a")
+    if(WIN32 AND EXISTS "${MPC_ROOT}/lib/libmpc.a")
         set(MPC_LIBRARIES "${MPC_ROOT}/lib/libmpc.a")
-    elseif(EXISTS "${_gmp_lib_dir}/libmpc.a")
+    elseif(WIN32 AND EXISTS "${_gmp_lib_dir}/libmpc.a")
         set(MPC_LIBRARIES "${_gmp_lib_dir}/libmpc.a")
     else()
         find_library(MPC_LIBRARIES mpc
@@ -445,12 +445,12 @@ if(NOT BUILD_WASM)
     endif()
     message(STATUS "MPC found: ${MPC_LIBRARIES}")
 
-    # ---- MPFI（可选：默认链成员；静态优先；msys2 mingw64 仓库缺包，首个消费者立项时转 REQUIRED）----
+    # ---- MPFI（可选：默认链成员；静态优先仅在 WIN32；msys2 mingw64 仓库缺包，首个消费者立项时转 REQUIRED）----
     find_path(MPFI_INCLUDE_DIR mpfi.h
         HINTS ${MPFI_ROOT}/include ENV MPFI_ROOT/include ${_NUM_INC_HINTS})
-    if(EXISTS "${MPFI_ROOT}/lib/libmpfi.a")
+    if(WIN32 AND EXISTS "${MPFI_ROOT}/lib/libmpfi.a")
         set(MPFI_LIBRARIES "${MPFI_ROOT}/lib/libmpfi.a")
-    elseif(EXISTS "${_gmp_lib_dir}/libmpfi.a")
+    elseif(WIN32 AND EXISTS "${_gmp_lib_dir}/libmpfi.a")
         set(MPFI_LIBRARIES "${_gmp_lib_dir}/libmpfi.a")
     else()
         find_library(MPFI_LIBRARIES mpfi
