@@ -10960,3 +10960,35 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 - 主 workflow 12/12 job 全绿（新增 headers-sync job 首次运行 success）；
 - Python Bindings workflow success；本地 ctest 296/296（一次 stream_extended
   偶发失败重跑即过，5 轮串行 0 失败，非回归）。
+
+---
+
+## 批次 227（用户决策落地 + DSL 0 批次 R4 启动）
+
+### ① 用户决策（ask_user_question 四项确认）
+- Q1 lv_rational_mul_is_safe：**保留 + 默认值对齐权威**（65536→lv_BIT_CUTOFF_THRESHOLD 1000000）；
+- Q2 Python 集成 8 个：**不立项**（ctypes 绑定已覆盖，蓝图保留为未来设计）；
+- Q3 DSL 语法糖：**启动第一批**（0 批次 R4+R5 + S1-S8，落点 lv 家族）；
+- Q4 B(ConfigManager) autosave：**保留豁免**（A JSON 已承担持久化）。
+
+### ② 实施（提交，均 push）
+
+| 提交 | 内容 |
+| --- | --- |
+| 1c07bbca | fix(arch): lv_rational_mul_is_safe 默认对齐 lv_BIT_CUTOFF_THRESHOLD；den_is_safe 独立保守限 65536（Q1；拆两常量防误伤 den 语义） |
+| 2e31ca2b | feat(dsl): LvParseError 加 severity（LvDiagSeverity，0=ERROR 兼容 memset）+ fix_hint（R4 phase 1 结构） |
+| dbaf22ef | feat(dsl): sema 错误通道加 per-error severity + lv_sema_error_severity API（R4 phase 2） |
+| 42b05b9c | test(dsl): parser 错误 severity=ERROR 默认钉住（R4 phase 3） |
+
+### ③ 决策登记
+- Q1 设计取舍：den_is_safe（分母防无界增长，保守 2^16）与 mul_is_safe（乘法容量判断）共用
+  原 RATIONAL_SAFE_BITS_DEFAULT——对齐权威时拆为 RATIONAL_DEN_SAFE_BITS(65536) 与
+  RATIONAL_MUL_BITS_DEFAULT(lv_BIT_CUTOFF_THRESHOLD)，避免 den 语义被连带放宽。
+- R4 severity 设计：LvDiagSeverity 0=ERROR（LvParseResult memset 后旧槽天然错误，
+  兼容全部旧消费方）；INFO/WARNING 为扩展位。
+
+### 遗留登记
+- R4 phase 4：诊断码枚举 + #!suppress 指令 + loader 汇总（独立小批次续）；
+- R5：错误恢复点增强（@ / #! 恢复点，synchronize 已有 ; 基础）；
+- S1-S8 语法糖（多字符 token |> . 前置 + 逐项实现，约 900-1100 行）；
+- 第二批 S9-S15 / 第三批 S16-S24 待前批稳定后逐个立项。
