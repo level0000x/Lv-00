@@ -444,5 +444,25 @@ GeoResult geo_query(const ConstraintGraph *graph, const char *query, int target_
         cnt[1] = graph_get_constraint_count(graph);
         return geo_ok(cnt);
     }
+    /* "stats" = count 别名（geometric_primitives.md:539 文档查询类型） */
+    if (lv_str_eq(query, "stats")) {
+        int *cnt = (int *) lv_malloc(2 * sizeof(int));
+        if (!cnt)
+            return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
+        cnt[0] = graph_get_node_count(graph);
+        cnt[1] = graph_get_constraint_count(graph);
+        return geo_ok(cnt);
+    }
+    /* "type"：返回节点几何类型（GeomType 整数值，geometric_primitives.md:539） */
+    if (lv_str_eq(query, "type")) {
+        GeomNode *n = graph_get_node(graph, target_id);
+        if (!n)
+            return geo_err(GEO_STATUS_NOT_FOUND, "节点未找到");
+        int *t = (int *) lv_malloc(sizeof(int));
+        if (!t)
+            return geo_err(GEO_STATUS_INTERNAL_ERROR, "内存分配失败");
+        *t = (int) n->type;
+        return geo_ok(t);
+    }
     return geo_err(GEO_STATUS_INVALID_PARAM, "未知查询类型");
 }

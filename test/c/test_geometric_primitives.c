@@ -126,6 +126,48 @@ static void test_query_count(void) {
     }
 }
 
+static void test_query_stats_alias(void) {
+    TEST("geo_query stats（= count 别名）");
+    if (!g_engine)
+        FAIL("engine 未创建");
+    ConstraintGraph *g = engine_get_main_graph(g_engine);
+    GeoResult r = geo_query(g, "stats", 0);
+    if (r.status == GEO_STATUS_OK && r.data) {
+        int *cnt = (int *) r.data;
+        if (cnt[0] >= 3) {
+            PASS();
+        } else {
+            FAIL("stats 节点数异常");
+        }
+        lv_free((void **) &r.data);
+    } else {
+        FAIL("geo_query stats 失败");
+    }
+}
+
+static void test_query_type(void) {
+    TEST("geo_query type（补文档查询类型）");
+    if (!g_engine)
+        FAIL("engine 未创建");
+    ConstraintGraph *g = engine_get_main_graph(g_engine);
+    /* 取首个节点（测试前序已建点/圆），查其类型应为有效 GeomType */
+    int nid = 0;
+    GeoResult r = geo_query(g, "type", nid);
+    if (r.status == GEO_STATUS_OK && r.data) {
+        int t = *(int *) r.data;
+        lv_free((void **) &r.data);
+        /* GeomType 非负即视为有效（具体枚举值域见 constraint_graph.h） */
+        if (t >= 0) {
+            PASS();
+        } else {
+            FAIL("type 返回负值");
+        }
+    } else {
+        printf("  status=%d msg=%s\n", (int) r.status, r.message ? r.message : "(null)");
+        FAIL("geo_query type 失败");
+    }
+}
+
 /* ============== geo_create_constraint ============== */
 
 static void test_constraint_param(void) {
@@ -170,6 +212,8 @@ TEST_MAIN_BEGIN("GeometricPrimitives")
     TEST_MAIN_RUN(test_create_circle);
     TEST_MAIN_RUN(test_invalid_type);
     TEST_MAIN_RUN(test_query_count);
+    TEST_MAIN_RUN(test_query_stats_alias);
+    TEST_MAIN_RUN(test_query_type);
     TEST_MAIN_RUN(test_constraint_param);
     TEST_MAIN_RUN(test_solve_empty);
 
