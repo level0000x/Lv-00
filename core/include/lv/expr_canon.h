@@ -10,6 +10,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "lv/rational.h"
+#include "lv/lv_number.h"
 
 /* ============================================================
  * 类型定义
@@ -19,9 +20,11 @@ extern "C" {
  * @brief 多项式项结构
  *
  * 表示一个单项式：coeff * x0^e0 * x1^e1 * ... * xn^en
+ * （域迁移试点模板/批次 237：系数为 lvNumber（RATIONAL）池化句柄，
+ *  公共 API 仍收/发 lvRational，经 lv_number_from_lvRational 转换。）
  */
 typedef struct {
-    lvRational *coeff; /**< 系数 */
+    lvNumber *coeff;   /**< 系数（lvNumber，kind=RATIONAL） */
     int *exponents;    /**< 各变量的指数数组，长度为 var_count */
     int var_count;     /**< 变量个数 */
 } lvExprTerm;

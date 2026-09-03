@@ -521,6 +521,16 @@ lvNumber *lv_number_from_int(int64_t val) {
     return new_int(val);
 }
 
+lvNumber *lv_number_from_lvRational(const struct lvRational *r) {
+    if (!r)
+        return NULL;
+    lvNumber *n = node_new(lv_NUMBER_RATIONAL);
+    if (!n)
+        return NULL;
+    mpq_set(n->u.q, r->value);
+    return n;
+}
+
 lvNumber *lv_number_from_string(const char *str) {
     if (!str) return NULL;
 

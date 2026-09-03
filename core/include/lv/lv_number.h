@@ -58,6 +58,11 @@ typedef enum {
 /* 不透明句柄：布局只存在于 lv_number.c（强制池化节点），禁止直接访问 */
 typedef struct lvNumber lvNumber;
 
+struct lvRational; /* 前向声明：域迁移工厂参数（rational.h 中定义为 struct lvRational） */
+
+/* 域迁移试点工厂：从 lvRational（有理数封装）构造 RATIONAL 节点。 */
+lv_PUBLIC_API lvNumber *lv_number_from_lvRational(const struct lvRational *r);
+
 /* ============================================================
  * 强制池化 —— 帧池 API（ND-2）
  * ============================================================ */
