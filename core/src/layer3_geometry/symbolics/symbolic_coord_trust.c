@@ -27,6 +27,7 @@
 #include "lv/constraint_graph.h"
 #include "lv/symbolic_coord.h"
 #include "lv/lv_numeric.h" /* lv_mpz_bit_size（K63/F89 位数检查权威） */
+#include "lv/lv_str_utils.h" /* lv_mpz_to_alloc_str（批次 235：无 GMP 分配串） */
 
 #include "lv/debug.h"
 #include "lv/lv_log.h"
@@ -138,10 +139,10 @@ static uint64_t hash_rational(const SymbolicCoord *coord, uint64_t hash) {
 static uint64_t hash_algebraic(const SymbolicCoord *coord, uint64_t hash) {
     Algebraic *a = coord->data.algebraic;
     for (int i = 0; i <= a->minimal_poly.degree; i++) {
-        char *coeff_str = mpz_get_str(NULL, 16, a->minimal_poly.coeffs[i]);
+        char *coeff_str = lv_mpz_to_alloc_str(a->minimal_poly.coeffs[i], 16);
         if (coeff_str) {
             hash = lv_fnv1a_update(hash, coeff_str, strlen(coeff_str));
-            lv_free_external((void **) &coeff_str);
+            lv_free((void **) &coeff_str);
         }
     }
     hash = lv_fnv1a_update(hash, (const char *) &a->left_bound, sizeof(double));

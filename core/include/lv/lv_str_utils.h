@@ -429,9 +429,18 @@ lv_PUBLIC_API char *lv_str_latex_escape_alloc(const char *src);
 /* ===== 有理数格式化 ===== */
 
 /**
+ * @brief 将 GMP 整数格式化为指定进制字符串（调用方缓冲，无 GMP 分配）
+ *
+ * @param z    GMP 整数（可为 NULL，按失败处理）
+ * @param base 进制（2-62；越界回落 10）
+ * @return lv_malloc 分配的字符串（含 NUL），调用者用 lv_free 释放；失败 NULL
+ */
+lv_PUBLIC_API char *lv_mpz_to_alloc_str(const mpz_t z, int base);
+
+/**
  * @brief 将 GMP 有理数格式化为十进制字符串（统一 rational→string 入口）
  *
- * 内部以两遍法将 mpq_get_str / mpz_get_str 的 GMP 内存拷贝为 lv_malloc 堆串，
+ * 内部经 lv_mpz_to_alloc_str 以调用方缓冲实现，无 GMP 分配内存；
  * 调用者需用 lv_free 释放；den=1 且 omit_unit_denominator=true 时输出整数形式，
  * 否则输出恒定的 "num/den"。
  *
@@ -440,6 +449,15 @@ lv_PUBLIC_API char *lv_str_latex_escape_alloc(const char *src);
  * @return 堆分配的十进制字符串（含 NUL），分配失败返回 NULL
  */
 lv_PUBLIC_API char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator);
+
+/**
+ * @brief 把 GMP 内部 alloc/realloc/free 改接到当前 lv 分配器（幂等）
+ *
+ * @details 必须在任何 mpq/mpz 分配之前调用（lv_init 首行）。关闭 SECURITY.md
+ *          「GMP 不受管」盲区；全部 mpz_get_str/mpq_get_str(NULL) 调用点已迁移
+ *          为调用方缓冲（批次 235）。
+ */
+lv_PUBLIC_API void lv_gmp_memory_wire(void);
 
 /* ===== 报告表格辅助 ===== */
 

@@ -256,11 +256,11 @@ static inline char *mpz_poly_get_str(const mpz_poly_t *p) {
     }
     char **coeff_strs = lv_malloc(coeff_count * sizeof(char *));
     for (int i = 0; i <= p->degree; i++) {
-        coeff_strs[i] = mpz_get_str(NULL, 10, p->coeffs[i]);
+        coeff_strs[i] = lv_mpz_to_alloc_str(p->coeffs[i], 10); /* lv 堆串（无 GMP 分配） */
     }
     char *result = lv_str_join((const char **) coeff_strs, coeff_count, ",");
     for (int i = 0; i <= p->degree; i++) {
-        lv_free_external((void **) &(coeff_strs[i])); /* GMP 分配（mpz_get_str），须用系统 free 释放 */
+        lv_free((void **) &(coeff_strs[i]));
     }
     lv_free((void **) &(coeff_strs));
     return result;

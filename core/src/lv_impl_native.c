@@ -271,16 +271,17 @@ void coord_cross(mpq_t result, const Coord *a, const Coord *b) {
 int coord_to_string(const Coord *c, char *buf, size_t bufsz) {
     if (!c || !buf || bufsz == 0)
         return 0;
-    char *xs = mpq_get_str(NULL, 10, c->x);
-    char *ys = mpq_get_str(NULL, 10, c->y);
+    /* lv 堆串（无 GMP 分配；省略单位分母 = mpq_get_str 语义） */
+    char *xs = lv_mpq_to_string(c->x, true);
+    char *ys = lv_mpq_to_string(c->y, true);
     if (!xs || !ys) {
-        lv_free_external((void **) &xs);
-        lv_free_external((void **) &ys);
+        lv_free((void **) &xs);
+        lv_free((void **) &ys);
         return lv_snprintf(buf, bufsz, "(null)");
     }
     int n = lv_snprintf(buf, bufsz, "(%s, %s)", xs, ys);
-    lv_free_external((void **) &xs);
-    lv_free_external((void **) &ys);
+    lv_free((void **) &xs);
+    lv_free((void **) &ys);
     return n;
 }
 

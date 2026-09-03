@@ -25,9 +25,8 @@
  *            - 帧对象指针在 frame_end 后悬空（arena 语义，与 lv_arena 一致）。
  *
  *          注意：mpq 内部 limb 存储由 GMP 分配器管理（同 coeff_pool/mpz 现状）；
- *          全局 GMP 分配器接线（SECURITY.md 盲区）拆为专门小步——需先迁移全部
- *          mpz_get_str/mpq_get_str 释放点为 allocator 感知，否则 wire 后
- *          lv_free_external（系统 free）释放 lv 分配器内存会不匹配（批次登记）。
+ *          GMP 全局 allocator 接线已于批次 235 完成（lv_gmp_memory_wire，lv_init 首行，
+ *          SECURITY.md 盲区关闭）；全部 mpz/mpq_get_str(NULL) 调用点已迁移为调用方缓冲。
  *
  * @version 2.0.0-dev（0b）
  * @see docs/architecture/number-abstraction-layer-design.md

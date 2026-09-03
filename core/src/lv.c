@@ -28,6 +28,7 @@
 #include "lv/lv_file.h" /* lv_file_exists（K62/F88 A JSON 配置加载接线） */
 #include "lv/lv_error.h"
 #include "lv/lv_registry.h"
+#include "lv/lv_str_utils.h" /* lv_gmp_memory_wire（批次 235：GMP allocator 接线） */
 #include "lv/memory_pool.h"
 #include "lv/module_internal.h"
 #include "lv/runtime_monitor.h"
@@ -284,6 +285,10 @@ static void lv_module_cleanup_interop_plugins(void) {
 
 /** @brief 系统初始化主函数 @details 初始化内存管理、配置系统和全局状态。 @return true 成功，false 失败 */
 bool lv_init(void) {
+    /* 0d/批次 235：GMP 全局分配器接线——必须先于任何 mpq/mpz 分配
+     * （关闭 SECURITY.md「GMP 不受管」盲区；幂等，嵌套 init 安全）。 */
+    lv_gmp_memory_wire();
+
     /* F28/J1：进程级锁——跨线程并发 lv_init 互斥（原 TLS 状态各线程独立，
      * 共享底层资源被重复初始化）；锁保护整个初始化过程 */
     lv_lazy_lock_lock(&g_lv_state_lock, g_lv_state_lock_init_once);

@@ -5,6 +5,7 @@
 
 #include "lv/lv_str_utils.h"
 #include "lv/lv_utils.h"
+#include "lv/allocator.h" /* lv_allocator_get（GMP allocator 接线，批次 235） */
 
 #include <ctype.h>
 #include <gmp.h>
@@ -670,38 +671,93 @@ char *lv_str_latex_escape_alloc(const char *src) {
     return buf;
 }
 
+/* ============================================================
+ * GMP 字符串 helper + 全局 allocator 接线（批次 235）
+ * ============================================================ */
+
+char *lv_mpz_to_alloc_str(const mpz_t z, int base) {
+    if (!z)
+        return NULL;
+    if (base < 2 || base > 62)
+        base = 10;
+    /* sizeinbase 返回绝对值位数；+2 裕度覆盖符号位与 NUL */
+    size_t need = (size_t) mpz_sizeinbase(z, base) + 2;
+    char *buf = (char *) lv_malloc(need);
+    if (!buf)
+        return NULL;
+    if (!mpz_get_str(buf, base, z)) {
+        lv_free((void **) &buf);
+        return NULL;
+    }
+    return buf;
+}
+
+/* ---- GMP 内部 alloc/realloc/free 改接当前 lv 分配器（动态查询，幂等）---- */
+
+static int g_gmp_wired = 0;
+
+static void *lv_mp_hook_alloc(size_t n) {
+    return lv_allocator_get()->alloc(n);
+}
+
+static void *lv_mp_hook_realloc(void *ptr, size_t old_size, size_t new_size) {
+    const AllocatorOps *ops = lv_allocator_get();
+    if (ops->realloc)
+        return ops->realloc(ptr, new_size);
+    /* realloc 可空回退：分配 + 拷贝 + 释放 */
+    void *np = ops->alloc(new_size);
+    if (!np)
+        return NULL;
+    if (ptr && old_size > 0)
+        memcpy(np, ptr, old_size < new_size ? old_size : new_size);
+    ops->free(ptr);
+    return np;
+}
+
+static void lv_mp_hook_free(void *ptr, size_t size) {
+    (void) size;
+    lv_allocator_get()->free(ptr);
+}
+
+/**
+ * @brief 把 GMP 内部 alloc/realloc/free 改接到当前 lv 分配器（幂等）
+ *
+ * @details 必须在任何 mpq/mpz 分配之前调用（lv_init 首行）。接线后 GMP 串
+ *          （如 mpz_get_str 返回值）不再出现——调用点已全部迁移为调用方缓冲
+ *          （lv_mpz_to_alloc_str / lv_mpq_to_string），关闭 SECURITY.md
+ *          「GMP 不受管」盲区。
+ */
+void lv_gmp_memory_wire(void) {
+    if (g_gmp_wired)
+        return;
+    mp_set_memory_functions(lv_mp_hook_alloc, lv_mp_hook_realloc, lv_mp_hook_free);
+    g_gmp_wired = 1;
+}
+
 char *lv_mpq_to_string(const mpq_t q, bool omit_unit_denominator) {
     if (!q)
         return NULL;
-    char *num_str = mpz_get_str(NULL, 10, mpq_numref(q));
+    char *num_str = lv_mpz_to_alloc_str(mpq_numref(q), 10);
     if (!num_str)
         return NULL;
     if (omit_unit_denominator && mpz_cmp_ui(mpq_denref(q), 1) == 0) {
-        size_t num_len = strlen(num_str);
-        char *buf = (char *) lv_malloc(num_len + 1);
-        if (!buf) {
-            free(num_str);
-            return NULL;
-        }
-        memcpy(buf, num_str, num_len + 1);
-        free(num_str);
-        return buf;
+        return num_str; /* lv 堆串（整数形式，省略分母） */
     }
-    char *den_str = mpz_get_str(NULL, 10, mpq_denref(q));
+    char *den_str = lv_mpz_to_alloc_str(mpq_denref(q), 10);
     if (!den_str) {
-        free(num_str);
+        lv_free((void **) &num_str);
         return NULL;
     }
     size_t need = strlen(num_str) + strlen(den_str) + 2;
     char *buf = (char *) lv_malloc(need);
     if (!buf) {
-        free(num_str);
-        free(den_str);
+        lv_free((void **) &num_str);
+        lv_free((void **) &den_str);
         return NULL;
     }
     lv_snprintf(buf, need, "%s/%s", num_str, den_str);
-    free(num_str);
-    free(den_str);
+    lv_free((void **) &num_str);
+    lv_free((void **) &den_str);
     return buf;
 }
 
