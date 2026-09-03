@@ -223,6 +223,69 @@ static void test_coord_literal_decl(void) {
     }
 }
 
+/* S7 自动命名：裸几何构造语句 → 自动 P<N> 声明 */
+static void test_auto_named_stmt(void) {
+    printf("[S7 自动命名构造]\n");
+
+    {
+        const char *src = "Point A = (1, 2); circle(A, A);";
+        LvParseResult res = parse_source(src);
+        TEST("裸 circle(A, A) 自动命名");
+        if (res.ast && res.error_count == 0) {
+            int decls = 0;
+            int has_circle = 0;
+            const char *names = NULL;
+            for (LvAstNode *s = res.ast->child; s; s = s->next) {
+                if (s->type != LV_AST_DECLARATION)
+                    continue;
+                decls++;
+                if (s->data.decl.entity_type == LV_ENTITY_CIRCLE && s->data.decl.value) {
+                    has_circle = 1;
+                    names = s->data.decl.names;
+                }
+            }
+            if (decls == 2 && has_circle && names && strncmp(names, "P", 1) == 0) {
+                PASS();
+            } else {
+                printf("  decls=%d has_circle=%d names=%s\n", decls, has_circle, names ? names : "(null)");
+                FAIL("expected 2 decls incl auto-named circle");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 连续裸构造：自动名递增 P1, P2 */
+        const char *src = "circle(A, A); circle(B, B);";
+        LvParseResult res = parse_source(src);
+        TEST("连续裸构造自动名递增");
+        if (res.ast && res.error_count == 0) {
+            int circles = 0;
+            char prev[16] = "";
+            int incr_ok = 1;
+            for (LvAstNode *s = res.ast->child; s; s = s->next) {
+                if (s->type == LV_AST_DECLARATION && s->data.decl.entity_type == LV_ENTITY_CIRCLE &&
+                    s->data.decl.names) {
+                    circles++;
+                    if (prev[0] && strcmp(prev, s->data.decl.names) >= 0)
+                        incr_ok = 0;
+                    lv_strlcpy(prev, s->data.decl.names, sizeof(prev));
+                }
+            }
+            if (circles == 2 && incr_ok) {
+                PASS();
+            } else {
+                FAIL("expected 2 auto-named circles with increasing names");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
 static void test_constraint(void) {
     printf("[约束/关系语句]\n");
 
@@ -1471,6 +1534,8 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_declaration);
     printf("\n");
     TEST_MAIN_RUN(test_coord_literal_decl);
+    printf("\n");
+    TEST_MAIN_RUN(test_auto_named_stmt);
     printf("\n");
     TEST_MAIN_RUN(test_constraint);
     printf("\n");

@@ -403,6 +403,56 @@ static void test_coord_literal_pipeline(void) {
         engine_destroy(engine);
 }
 
+/* ── 测试 5c: S7 自动命名端到端（裸构造从已声明实体创建） ── */
+static void test_auto_named_pipeline(void) {
+    printf("\n[S7 自动命名端到端]\n");
+
+    const char *src =
+        "Point A = (0, 0);\n"
+        "Point B = (1, 1);\n"
+        "segment(A, B);\n";
+
+    LvParseResult res = parse_string(src);
+    TEST("S7 解析（裸 segment 自动命名）");
+    if (res.ast && res.error_count == 0) {
+        PASS();
+    } else {
+        for (int i = 0; i < res.error_count; i++)
+            printf("  err: %s\n", res.errors[i].message);
+        FAIL("S7 解析失败");
+    }
+
+    LvSemaContext *sema = res.ast ? lv_sema_create() : NULL;
+    if (sema) {
+        TEST("S7 语义分析");
+        if (lv_sema_analyze(sema, res.ast)) {
+            PASS();
+        } else {
+            for (int i = 0; i < lv_sema_error_count(sema); i++)
+                printf("  sema: %s\n", lv_sema_error_msg(sema, i));
+            FAIL("S7 语义分析失败");
+        }
+    }
+
+    lvEngine *engine = engine_create();
+    if (engine && res.ast) {
+        TEST("S7 引擎应用（自动命名 segment 注册）");
+        bool ok = lv_apply_parse_result(engine, &res, sema);
+        if (ok) {
+            PASS();
+        } else {
+            FAIL("S7 引擎应用失败");
+        }
+    }
+
+    if (sema)
+        lv_sema_destroy(sema);
+    if (res.ast)
+        lv_ast_destroy(res.ast);
+    if (engine)
+        engine_destroy(engine);
+}
+
 /* ════════════════════════════════════════════════════════════════
  * 微自举 B —— lv 系统验证自身证明（路线图步骤 5）
  *
@@ -895,6 +945,7 @@ TEST_MAIN_BEGIN("lv bootstrap test")
     TEST_MAIN_RUN(test_load_file);
     TEST_MAIN_RUN(test_full_pipeline);
     TEST_MAIN_RUN(test_coord_literal_pipeline);
+    TEST_MAIN_RUN(test_auto_named_pipeline);
 
     /* 微自举 B：证明验证（路线图步骤 5） */
     TEST_MAIN_RUN(test_proof_verify_arithmetic);

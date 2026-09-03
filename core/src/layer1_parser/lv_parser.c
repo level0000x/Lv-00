@@ -22,6 +22,7 @@ struct LvParser {
     LvParseError errors[64];
     int paren_depth; /* K28/F54：括号嵌套递归深度计数（防纯括号嵌套爆栈，
                       * 上限读 lvConfig.parser.parser_max_ast_depth，不硬编码） */
+    int auto_name_seq; /* S7：自动命名计数器（裸构造语句生成 P<n> 等） */
 };
 
 /* ── 辅助函数 ── */
@@ -128,6 +129,8 @@ static LvAstNode *parse_add_expr(LvParser *p);
 static LvAstNode *parse_mul_expr(LvParser *p);
 static LvAstNode *parse_unary_expr(LvParser *p);
 static LvAstNode *parse_primary_expr(LvParser *p);
+static int is_geometry_func(const char *name); /* S7：前向声明（定义在查找表区） */
+static int geom_func_to_entity(const char *name);
 
 /* ── 查找表 ── */
 
@@ -848,10 +851,79 @@ static const StatementParseHandler kStatementParseHandlers[LV_TOKEN_COUNT] = {
     [LV_TOKEN_KW_IMPORT]     = parse_import_decl,
 };
 
+/* S7 自动命名（匿名构造）：裸几何构造语句
+ *   midpoint(A, B);  segment(A, B);  circle(A, B); ...
+ * → 自动生成命名声明 "P<N> <func>(args)" 或 "<name> <func>(args)"。
+ * 构造名 → 实体类型 映射（与 loader 端 decl handler 一致）。
+ */
+static int geom_func_to_entity(const char *name) {
+    if (lv_str_eq(name, "point")) return LV_ENTITY_POINT;
+    if (lv_str_eq(name, "line")) return LV_ENTITY_LINE;
+    if (lv_str_eq(name, "segment")) return LV_ENTITY_SEGMENT;
+    if (lv_str_eq(name, "circle")) return LV_ENTITY_CIRCLE;
+    if (lv_str_eq(name, "ray")) return LV_ENTITY_RAY;
+    if (lv_str_eq(name, "triangle")) return LV_ENTITY_TRIANGLE;
+    return -1;
+}
+
+/** S7：裸构造语句 → 自动命名 DECLARATION（名 P<N>，类型由构造名推断）。
+ *  仅当语句以几何构造关键字调用开头时触发；其余回落 NULL（正常报错路径）。 */
+static LvAstNode *parse_auto_named_stmt(LvParser *p) {
+    LvSourceLoc loc = p->current.loc;
+    if (p->current.type != LV_TOKEN_IDENTIFIER)
+        return NULL;
+    const char *name = token_text(&p->current);
+    if (!is_geometry_func(name))
+        return NULL;
+    int entity = geom_func_to_entity(name);
+    if (entity < 0)
+        return NULL;
+
+    /* 解析完整构造调用表达式 */
+    LvAstNode *expr = parse_primary_expr(p);
+    if (!expr)
+        return NULL;
+    if (expr->type != LV_AST_GEOMETRY_EXPR) {
+        /* 不是构造调用（如裸关系/度量），释放并回落 */
+        lv_ast_destroy(expr);
+        return NULL;
+    }
+
+    /* 自动命名 P<N>（后续可引用；命名序列贯穿整个文件） */
+    char auto_name[32];
+    lv_snprintf(auto_name, sizeof(auto_name), "P%d", ++p->auto_name_seq);
+
+    LvAstNode *node = lv_ast_create(LV_AST_DECLARATION, loc);
+    if (!node) {
+        lv_ast_destroy(expr);
+        return NULL;
+    }
+    node->data.decl.entity_type = entity;
+    node->data.decl.names = lv_strdup(auto_name);
+    node->data.decl.value = expr;
+    node->data.decl.return_type = NULL;
+
+    if (!match(p, LV_TOKEN_SEMICOLON)) {
+        expect(p, LV_TOKEN_SEMICOLON, "expected ';' after auto-named construct");
+        synchronize(p);
+    }
+    return node;
+}
+
 /** Statement ::= DeclarationStmt | ConstraintStmt | ... */
 static LvAstNode *parse_statement(LvParser *p) {
     if (is_entity_type(p->current.type)) {
         return parse_declaration_stmt(p);
+    }
+
+    /* S7：裸几何构造调用（自动命名），如 "midpoint(A, B);"（若以标识符构造开头） */
+    if (p->current.type == LV_TOKEN_IDENTIFIER) {
+        const char *nm = token_text(&p->current);
+        if (is_geometry_func(nm)) {
+            LvAstNode *auto_stmt = parse_auto_named_stmt(p);
+            if (auto_stmt)
+                return auto_stmt;
+        }
     }
 
     if (p->current.type >= 0 && p->current.type < LV_TOKEN_COUNT) {
