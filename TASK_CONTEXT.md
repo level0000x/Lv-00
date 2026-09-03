@@ -11696,3 +11696,30 @@ euclidean/transform/solver…）→ Rational 公共 API 渗入全引擎。
 
 ### 验证
 - 只读建图，无代码改动；CI 已确认 245-248 绿。
+
+---
+
+## 批次 251（P5-1：REAL_MPFR 表示接入起步，kind+存储+工厂+查询/转换）
+
+### 背景
+范围重估（批次 250）后默认走方案 A：lv_number/MPFR 作隔离抽象服务新增；不追全引擎 retro。
+P5 起步。
+
+### 实施
+- `lv_number.h/.c`：激活 `lv_NUMBER_REAL_MPFR` 表示——
+  - 节点 union 增 `mpfr_t m`（`#ifndef lv_NO_MPFR`）；node_release 对 REAL_MPFR `mpfr_clear`；
+  - 工厂 `lv_number_real_from_double(v, prec)` / `lv_number_real_from_string(s, prec)`
+    （prec≤0 用默认；mpfr_set_str base10；非法串 NULL；lv_NO_MPFR 下返回 NULL）；
+  - 查询/转换/clone/hash 加 REAL 早期分支：is_zero/one/negative/integer、to_string
+    （mpfr_asprintf %.17Rg）、to_double、clone（同精度）、hash（double 位，eq→同哈希不变式）；
+- `test_lv_number_real_ext.c`（CTEST lv_number_real_ext_test）：工厂/查询/clone-hash/NULL/非法串；
+- **构建**：lv_number.c 引用 mpfr → 全消费者须 -lmpfr；`add_lv_program`/`lv_static`/`lv_shared`
+  在 GMP 前补 `${MPFR_LIBRARIES}`（WASM 下为空安全）。
+
+### 验证
+- 全量重建 **321 targets** + ctest **302/302 全绿**（301 → 302；含 REAL 测试 + 既有全量）。
+
+### 遗留登记
+- P5-2：REAL 的算术（add/sub/mul/div/neg/abs/compare 跨 kind 经 mpfr 精确）、精度语义
+  （结果 prec = max/上下文）——下一子批；
+- MSVC（CMakeSettings 可选构建）链 mpfr 需预编译 MSVC 版（既有 GMP 同类限制，登记）。
