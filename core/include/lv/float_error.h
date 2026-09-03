@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file float_error.h
  * @brief FPTaylor 风格浮点误差验证 —— 泰勒展开 + 区间算术误差界分析
  *
@@ -39,6 +39,7 @@
 #include "constraint_graph.h"
 #include "exact_arithmetic.h" /* lv_TOLERATED_FLOAT for error-analysis double */
 #include "symbolic_coord.h"
+#include "lv/lv_number.h" /* lvNumber（C2：REAL 高精度重算） */
 
 #ifdef __cplusplus
 extern "C" {
@@ -297,6 +298,10 @@ lv_PUBLIC_API bool fptaylor_evaluate_graph(const ConstraintGraph *graph, int var
  */
 TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance);
 
+/* C2：REAL(MPFR) 高精度重算简易算术表达式（同 fptaylor double 文法）。
+ * 返回 REAL 结果 [take]（调用者 lv_number_destroy）；解析失败/非 WASM 返回 NULL。 */
+lv_PUBLIC_API lvNumber *fptaylor_eval_real_expr(const char *expr, const double *var_values, int var_count,
+                                                int prec_bits);
 /* ========================================================================
  * 便捷工厂函数
  * ======================================================================== */

@@ -2398,6 +2398,8 @@ if(BUILD_TESTS)
     # P5 / 批次 251：REAL_MPFR 表示契约（仅非 WASM/mpfr 有效）
     if(NOT BUILD_WASM)
         add_lv_test_auto(test_lv_number_real_ext CTEST_NAME lv_number_real_ext_test)
+        # C2 / 批次 256：REAL 高精度表达式重算（float_error 旁路）
+        add_lv_test_auto(test_fptaylor_real_ext CTEST_NAME fptaylor_real_ext_test)
     endif()
     # B0 / 批次 245：MPFR 编译+静态链接冒烟（MPFR/MPC REQUIRED 依赖地基验证）
     if(MPFR_INCLUDE_DIR AND MPFR_LIBRARIES)

@@ -26,6 +26,7 @@
 #include "lv/float_error.h"
 #include "lv/lv_internal.h"
 #include "lv/lv_numeric.h" /* 有限差分公共工具（lv_finite_difference / lv_NUMERICAL_DIFF_EPSILON） */
+#include "lv/lv_number.h" /* C2：REAL(MPFR) 高精度重算后端 */
 
 /* ============================================================
  * 简易表达式求值器（递归下降解析）
@@ -238,6 +239,114 @@ static double eval_simple_expr(const char *expr, const double *var_values, int v
         return NAN;
     }
     return result;
+}
+
+/* ============================================================
+ * REAL(MPFR) 后端：同一文法的任意精度重算（C2，批次 256）
+ * ============================================================ */
+/** 二元合并：结果 = a op b，随后销毁 a,b（失败返回 NULL，a/b 仍销毁） */
+static lvNumber *fpexpr_bin2(lvNumber *a, lvNumber *b, int is_add, int is_mul, int is_div) {
+    lvNumber *r = NULL;
+    if (is_add) r = lv_number_add(a, b);
+    else if (is_mul) r = lv_number_mul(a, b);
+    else if (is_div) r = lv_number_div(a, b);
+    else r = lv_number_sub(a, b);
+    lv_number_destroy(a);
+    lv_number_destroy(b);
+    return r;
+}
+
+static lvNumber *fpexpr_expr(Lexer *lex, int prec); /* 前向 */
+
+static lvNumber *fpexpr_primary(Lexer *lex, int prec) {
+    if (lex->tok == FP_TOKEN_NUMBER) {
+        lvNumber *n = lv_number_real_from_double(lex->num_val, prec);
+        lex_advance(lex);
+        return n;
+    }
+    if (lex->tok == FP_TOKEN_VARIABLE) {
+        lvNumber *n = lv_number_real_from_double(lex->var_vals[lex->var_idx], prec);
+        lex_advance(lex);
+        return n;
+    }
+    if (lex->tok == FP_TOKEN_LPAREN) {
+        lex_advance(lex);
+        lvNumber *v = fpexpr_expr(lex, prec);
+        if (!v) return NULL;
+        if (lex->tok != FP_TOKEN_RPAREN) { lv_number_destroy(v); return NULL; }
+        lex_advance(lex);
+        return v;
+    }
+    if (lex->tok == FP_TOKEN_MINUS) {
+        lex_advance(lex);
+        lvNumber *v = fpexpr_primary(lex, prec);
+        if (!v) return NULL;
+        lvNumber *n = lv_number_neg(v);
+        lv_number_destroy(v);
+        return n;
+    }
+    if (lex->tok == FP_TOKEN_PLUS) {
+        lex_advance(lex);
+        return fpexpr_primary(lex, prec);
+    }
+    return NULL;
+}
+
+static lvNumber *fpexpr_term(Lexer *lex, int prec) {
+    lvNumber *v = fpexpr_primary(lex, prec);
+    if (!v) return NULL;
+    while (lex->tok == FP_TOKEN_MUL || lex->tok == FP_TOKEN_DIV) {
+        FpTokenType op = lex->tok;
+        lex_advance(lex);
+        lvNumber *rhs = fpexpr_primary(lex, prec);
+        if (!rhs) { lv_number_destroy(v); return NULL; }
+        if (op == FP_TOKEN_DIV && lv_number_is_zero(rhs)) {
+            lv_number_destroy(v); lv_number_destroy(rhs); return NULL;
+        }
+        lvNumber *r = (op == FP_TOKEN_MUL) ? fpexpr_bin2(v, rhs, 0, 1, 0)
+                                           : fpexpr_bin2(v, rhs, 0, 0, 1);
+        if (!r) return NULL;
+        v = r;
+    }
+    return v;
+}
+
+static lvNumber *fpexpr_expr(Lexer *lex, int prec) {
+    lvNumber *v = fpexpr_term(lex, prec);
+    if (!v) return NULL;
+    while (lex->tok == FP_TOKEN_PLUS || lex->tok == FP_TOKEN_MINUS) {
+        FpTokenType op = lex->tok;
+        lex_advance(lex);
+        lvNumber *rhs = fpexpr_term(lex, prec);
+        if (!rhs) { lv_number_destroy(v); return NULL; }
+        lvNumber *r = (op == FP_TOKEN_PLUS) ? fpexpr_bin2(v, rhs, 1, 0, 0)
+                                            : fpexpr_bin2(v, rhs, 0, 0, 0);
+        if (!r) return NULL;
+        v = r;
+    }
+    return v;
+}
+
+/**
+ * @brief 用 REAL(MPFR) 以任意精度重算简易算术表达式（C2）
+ *
+ * 文法与 double 版 eval_simple_expr 一致（数值/+ - * //括号/变量 x0..）。
+ * @param prec_bits 目标精度（≤0 用默认 REAL 精度）
+ * @return REAL 结果（[take] 调用者 lv_number_destroy），失败 NULL
+ */
+lv_PUBLIC_API lvNumber *fptaylor_eval_real_expr(const char *expr, const double *var_values, int var_count,
+                                                int prec_bits) {
+    if (!expr || !var_values || var_count <= 0)
+        return NULL;
+    Lexer lex;
+    lex.p = expr;
+    lex.var_vals = var_values;
+    lex.var_count = var_count;
+    lex_advance(&lex);
+    lvNumber *r = fpexpr_expr(&lex, prec_bits);
+    if (!r) return NULL;
+    if (lex.tok != FP_TOKEN_END) { lv_number_destroy(r); return NULL; }
+    return r;
 }
 
 /* ============================================================
