@@ -11520,3 +11520,29 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
   - S1 落地顺序 5 步（池段原语 → 置值 API → expr_canonical → nt_polynomial/mpz_poly 段 →
     nt_number_theory 语义对拍，重点风险标注）。
 - 纯文档批；实施待立项（用户授权或续轮低风险默认）。
+
+---
+
+## 批次 243（S1 步骤 1+2 落地：池连续段原语 + rational_set 置值 API + 契约测试）
+
+### 实施
+
+- `lv_number.h/.c` 新增（公共面 gmp-free）：
+  - `lvNumberSegment`：`lv_number_segment_alloc(count)`（0/越界拒绝；零初始化、连续内存；
+    节点不进 free-list，随段析构）、`lv_number_segment_get(seg,i)`（越界 NULL）、
+    `lv_number_segment_rational_set` 缺失——实际为 `lv_number_rational_set(n, lvRational)`
+    （NONE 零态/已 RATIONAL 可置值；其它 kind 拒绝且节点不变）、
+    `lv_number_segment_destroy(seg)`（整段清理含 mpq 内部；段内句柄禁止单独 destroy）；
+- 契约测试 `test_lv_number_segment_ext.c`（CTEST lv_number_segment_ext_test）：
+  分配/越界/NULL、置值+覆盖、int 节点拒绝、NULL 契约、200 轮 churn、段析构后池操作正常。
+
+### 验证
+
+- 全量重建 **310 targets** + ctest **299/299 全绿**（298 → 299，92s）；
+- 段节点与主池 free-list 隔离（独立块，无混用）。
+
+### 遗留登记
+
+- S1 步骤 3-5（expr_canonical → nt_polynomial/mpz_poly 系数段 → nt_number_theory 语义对拍）
+  待立项；
+- 段级批量归还（重建进 free-list）列为优化项，未实现（先逐元素/整段语义）。
