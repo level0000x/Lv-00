@@ -22,7 +22,8 @@
 | D-0903-2 | **GMP 家族四件套 = 默认底层依赖集**：GMP / MPFR / MPFI / MPC；非 WASM 构建全链查找，WASM 经 `lv_NO_GMP` / `lv_NO_MPFR` guard | ✅ |
 | D-0903-3 | 「装了 ≠ 用了」仅约束**代码层**：`#include` 按真实消费者逐个接入（MPFR 首批） | ✅ |
 | D-0903-4 | 参考实现级 / 可抄实现级三级分类与许可红线采纳（§3-§6） | ✅ |
-| D-0903-5 | 实施拆批 A → B1 → C → D，每批按惯例登记 + 测试全绿 | ⏳ 未启动 |
+| D-0903-5 | 实施拆批 A → B1 → C → D，每批按惯例登记 + 测试全绿 | A ✅（批次 233）/ B1-C-D ⏳ |
+| D-0903-6 | 实施口径（批次 233）：非 WASM 构建 **GMP/MPFR/MPC REQUIRED（Windows 静态优先）**、**MPFI 可选 + `lv_HAS_MPFI`**（msys2 mingw64 仓库缺包，首个消费者立项时转 REQUIRED）；pkg-config `Requires: gmp mpfr mpc` 与 CPACK 同步；WASM 经 `lv_NO_MPFR` guard | ✅ 2026-09-03 |
 
 ---
 
