@@ -11811,3 +11811,22 @@ P5 起步。
 ### 遗留登记
 - C3-C4（把 real 重算接到 fptaylor_evaluate_expr 误差验证/信任判定旁路，opt-in）后续推进；
 - 变量取值现从 double 常量转 REAL（op 舍入消除）；后续可扩展精确十进制叶值。
+
+---
+
+## 批次 257（C3：double 中心 vs REAL 真值复核判定）
+
+### 实施
+- `fptaylor_eval.c`：公开 `fptaylor_eval_expr_double`（镜像 eval_simple_expr，double）与
+  `fptaylor_verify_expr_real(expr, vars, n, prec, rel, abs)`——double 中心落在 REAL(MPFR)
+  真值的 abs/rel 容差内则通过（opt-in 旁路，不碰 float_error 信任内部）；
+- `float_error.h` 声明；
+- 契约测试：3² 复核通过；`(x0+1)-x0` @x0=1e16 —— double 中心 0 vs REAL 真值 1 → 拒绝
+  （**演示 double 舍入丢失被 MPFR 复核捕获**），放宽 abs 通过；NULL/除零拒绝。
+
+### 验证
+- 全量 **303/303 全绿**（含 C3；stream_extended 本次通过，非本批引入）。
+
+### 遗留登记
+- C4（把 verify 接到 fptaylor_evaluate_expr 的误差分析结果，作为建议降级的旁路信号）可选后续；
+- 双通道能力已齐：double 区间误差分析（既有）+ REAL 高精度复核判定（C1-C3）。
