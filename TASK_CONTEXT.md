@@ -11473,3 +11473,26 @@ build**，CI 全量重建即暴露。）
 ### 遗留登记
 
 - 0e（池 bulk/连续段原语，ND-5）为下一任务（用户定序 D → 0e）；域迁移其余域待 0e 后回归。
+
+---
+
+## 批次 240（0e 范围校准：ND-5 连续段定位到多项式域，文档批）
+
+### 结论
+
+ND-5「池内连续段」真正消费者 = **多项式系数数组**（`nt_polynomial`/`mpz_poly` 迁移到
+lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 coeff 句柄 + 独立指数
+数组）**非数组消费者**，套连续段属「为用而用」——不做。
+
+### 决策
+
+- 段原语与**多项式域迁移**同批设计落地（届时 expr_canon/多项式两域一起定 bulk API 形态）；
+- 0e 在 TASK_CONTEXT 的任务表述更新为：待多项式域迁移立项后同批实施；
+- 域迁移主线的下一个候选（quadratic）实测为纯 Rational API 使用（quadratic.c 25 处
+  `->a/->b` 全部经 rational_* API，无 direct .value）——但其依赖方（algebraic_number_
+  quadratic/coord 读取 a/b）构成跨文件链，迁移按「整簇」立项（quadratic+algebraic_
+  number_quadratic+coord 比较/序列化），不单文件切碎。
+
+### 验证
+
+- 文档批（design §4 0 期进展 + 本登记）；批次 239 CI/Python 均绿（gh 确认）。

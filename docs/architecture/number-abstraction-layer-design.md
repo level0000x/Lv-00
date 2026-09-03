@@ -151,6 +151,10 @@ typedef enum lvNumberKind {
 >   `lvRational`（经新工厂 `lv_number_from_lvRational` 转换，lv_number.h 文本级零 GMP）；
 >   新增 num_sgn/add/mul/neg in-place 辅助；既有 expr_canon 契约测试零改动通过 → 此形态
 >   即后续各域迁移的可复用模板（边界：公共签名保留 + 内部 lvNumber + 保真测试零改动）。
+> - **0e 范围校准（批次 240）**：ND-5「池内连续段」的真正消费者是**多项式系数数组**
+>   （`nt_polynomial`/`mpz_poly` 迁移到 lvNumber 表示时的整批数值）；`expr_canon` 的
+>   term 结构为「每项独立 coeff 句柄 + 独立指数数组」，**非数组消费者**——不套连续段
+>   （避免为用而用）；段原语与多项式域迁移同批设计落地。
 
 > 每期独立提交、独立登记；任何一期不绿不进入下一期。函数**符号名全程保留** → ctypes/Python
 > 绑定、测试、Lean 桥接无损；ABI 变更集中在公共头签名，版本策略见 §7（ND-6）。
