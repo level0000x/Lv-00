@@ -11124,3 +11124,51 @@ ame: value
   geometric_primitives.md（13 原语规范）、bootstrap_test_framework.md（差分测试方法论）、
   dsl-syntax-baseline.md（三格式图景）。
 - 下一讨论回合：基于待议问题逐项收敛 → 产出正式设计（若用户批准大规模重构方向）。
+
+---
+
+## 批次 231（外部依赖策略升级为代码标准 v1.0 + CONTRIBUTING/SECURITY 死链修复，文档批）
+
+### 背景
+
+用户提出底层依赖完善（复杂度外包），多轮讨论收敛为依赖策略文档并经用户批准
+正式化：**GMP 家族四件套（GMP/MPFR/MPFI/MPC）= 默认底层依赖**；中层一律自研
+但保持「外包就绪」窄接口；外部材料按三级分类管理。
+
+### 决策登记（详见 docs/architecture/dependency-policy.md 决策登记表）
+
+| ID | 决策 |
+|:---|:---|
+| D-0903-1 | 文档正式化为**代码标准 v1.0**；入口 = CONTRIBUTING「代码规范 · 外部依赖规范」 |
+| D-0903-2 | GMP 家族四件套 = 默认底层依赖集（非 WASM 全链查找；WASM 经 `lv_NO_GMP`/`lv_NO_MPFR` guard） |
+| D-0903-3 | 「装了 ≠ 用了」仅约束代码层；MPFR 为首批接入对象（批次 A/B1 待立项） |
+| D-0903-4 | 参考实现级 / 可抄实现级三级分类与许可红线采纳 |
+| D-0903-5 | 实施拆批 A → B1 → C → D，每批登记 + 测试全绿（⏳ 未启动） |
+
+### 死链修复（执行 DOCUMENT_GOVERNANCE_PLAN 既有清单项）
+
+- CONTRIBUTING.md：移除 `docs/CODING_STANDARD.md` / `docs/NAMING_CONVENTION.md`
+  死链引用 → 改指真实锚点 `.clang-format` / `.editorconfig` + `core/include/lv/lv_api_spec.h`；
+- CONTRIBUTING.md / SECURITY.md：`docs/ARCHITECTURE_v3.3.md` 死链 → `README.md#系统架构`（锚点已核实）；
+- 前置依赖 GMP 条目 → GMP 家族四件套（含策略链接）。
+
+### 变更文件
+
+| 文件 | 变更 |
+|:---|:---|
+| `docs/architecture/dependency-policy.md` | 新增（标准 v1.0，D-0903-1..5 + 三级分类 + 许可红线） |
+| `CONTRIBUTING.md` | 挂新标准小节 + 修 3 处死链 + 前置依赖更新 |
+| `SECURITY.md` | 修 1 处死链 |
+
+### 验证
+
+- grep：CONTRIBUTING/SECURITY 中 `CODING_STANDARD`/`NAMING_CONVENTION`/
+  `ARCHITECTURE_v3.3` 零残留；新链接目标 Test-Path 均存在；
+- 纯文档批，无代码/构建影响，未跑构建（无代码改动）。
+
+### 遗留登记
+
+- DOCUMENT_GOVERNANCE_PLAN.md 对应清单项文本未勾选（已执行，文本更新待后续）；
+- CONTRIBUTING「十层架构规范」仍列 5 层（与「十层」宣称的既有漂移，未动，另行处理）；
+- 实施批次 A（CMake/CI 依赖地基）→ B1（interval_arith MPFR 试点）→ C → D 未启动，
+  实施期决策点见 dependency-policy.md §7。
