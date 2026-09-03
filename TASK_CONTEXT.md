@@ -11066,3 +11066,48 @@ ame: value
 - sema：未登记类型走 check_expr_default（返回 UNKNOWN 不报错），列表作几何参数集合；
 - 测试：polygon([A,B,C]) 3 项列表 + 结构字段内空/混合列表；ctest 296/296。
 - 注：loader 变参展开（polygon 等）需 loader polygon 实现后接线；语法层已可用。
+
+---
+
+## 批次 229（13 几何原语 C 地基——调研 + 缺陷修复）
+
+### ① 背景（用户新方向：让 Lv-00 自己的语言用起来自身全部能力）
+用户提出大规模重构方向：13 个几何原语为 C 地基，所有 DSL 语法 desugar 到原语，
+双路径执行（自举路径用 lv 语言实现原语 + C 加速路径直调 C），行为等价；可调参数
+选择每部分走哪路径；Lean 证明锚定原语语义层不随语法变动。用户授权先全面调研
+（实现+文档+Lean）+ 审查实现质量。
+
+### ② 调研结论（子代理 + 亲自核对）
+- **13 原语 C 实现已 100% 存在**：geometric_primitives.h(221 行)/.c(440 行)，
+  CMakeLists:1133 编译；基于 doc/docs/geometric_primitives.md；但零测试、零 .lv 接线、
+  零 lv_PUBLIC_API、未入 lv.h 伞头。
+- **Lean 锚定三层**：Hilbert 几何公理（formal/lv，纯 Mathlib）/ 自建理论核心
+  （lv-formal Predicates 六本原谓词 + ConstraintGraph + Normalization）/ 论文级 DSL/IR
+  （lvLang/Compiler，compile_lv=[] 占位）。无 .lean 引用 geo_*/graph_*/.lv 解析器 →
+  改语法/原语 C 包装不破坏任何 .lean 编译（用户判断成立）。
+- **.lv 现状**：直连 lv_add_*/graph_add_constraint_with_id（散装），Normalize/Export/
+  Prove 语义空转或另走验证器；geo_normalize/rewrite/unify/pack/instantiate/export/
+  serialize/deserialize/query 均无 .lv 语句可触发。
+- **两套 13 名**：geo-*（真实现）vs bootstrap_test_primitive.c point_construct 占位
+  （c_api_func=NULL）——定位不同（DSL 汇编指令集 vs 测试框架注册表），登记不合并。
+
+### ③ 修复（3 提交，ctest 297/297，治理 0 违规）
+| 提交 | 内容 |
+| --- | --- |
+| d2ab55ee | GEO_NODE_CIRCLE 枚举空洞修复（handler 表补 circle→graph_add_circle）+ 首个 geo_* 契约测试（test_geometric_primitives：POINT/CIRCLE/越界/count/constraint 参数/solve） |
+| 7b186124 | geo_query 补 type/stats（对齐 spec 查询类型）+ 测试 |
+| 49e2fdfb | geo_export lean 接线尝试因 L4→L5 层约束回退（interop.h 属 L5）——lean 导出应由 L5/upper 层提供，登记 |
+
+### 决策登记
+- geo_export 仅 html/latex/coq（L4 proof_export_* 可达）；lean/dot/json 需 L5+ 层包装——
+  分层决策：geo_* 原语层保持 L4 依赖面（≤L4），跨层导出收口在上层；
+- 缺陷 4 geo_instantiate 实调 engine_instantiate_function（非文档 func_block_instantiate）——
+  语义为引擎级实例化（含结果打包），保留现状登记；
+- 缺陷 5 两套 13 名登记不合并（用途不同）。
+
+### 遗留登记
+- geo_* 未入 lv.h 伞头/无 lv_PUBLIC_API（K59 批次 226 登记"库内部件"）——是否升级
+  为正式导出 API 待用户决策（影响"DSL desugar 到原语"的接线面）；
+- .lv 语言接线 geo_*（desugar 终点改造）为大规模重构主体，待设计文档；
+- 双路径路由（per-原语/每层可调后端选择）设计待产出；
+- 用户确认：先修 5 缺陷 + 继续讨论架构；"从语言上层至原语层每层都可调"是路由粒度方向。
