@@ -358,6 +358,68 @@ static void test_pipe_expr(void) {
     }
 }
 
+/* S5 关键字参数：circle(center = A, through = B) —— name = value 形态 */
+static void test_keyword_args(void) {
+    printf("[S5 关键字参数]\n");
+
+    {
+        const char *src = "Circle K := circle(center = A, through = B);";
+        LvParseResult res = parse_source(src);
+        TEST("circle(center = A, through = B)");
+        if (res.ast && res.error_count == 0) {
+            LvAstNode *decl = res.ast->child;
+            if (decl && decl->type == LV_AST_DECLARATION && decl->data.decl.value) {
+                LvAstNode *v = decl->data.decl.value;
+                if (v->type == LV_AST_GEOMETRY_EXPR && v->data.call.args) {
+                    /* 参数应被包装为 NAMED_ARG（或混合位置参数） */
+                    LvAstNode *a0 = v->data.call.args;
+                    if (a0->type == LV_AST_NAMED_ARG && a0->data.field.name &&
+                        strcmp(a0->data.field.name, "center") == 0) {
+                        PASS();
+                    } else {
+                        printf("  arg0 type=%d name=%s\n", a0->type,
+                               a0->data.field.name ? a0->data.field.name : "(null)");
+                        FAIL("expected NAMED_ARG center");
+                    }
+                } else {
+                    FAIL("expected geometry expr with args");
+                }
+            } else {
+                FAIL("expected decl with value");
+            }
+        } else {
+            FAIL("parse failed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 既有 name: value 命名参数不回归 */
+        const char *src = "Point Spec := { kind: T };";
+        LvParseResult res = parse_source(src);
+        TEST("name: value 既有形态保持");
+        if (res.ast && res.error_count == 0) {
+            PASS();
+        } else {
+            FAIL("colon-form named arg regressed");
+        }
+        lv_ast_destroy(res.ast);
+    }
+
+    {
+        /* 标识符后 == 是相等比较，不应误判为命名参数 */
+        const char *src = "Point R := { b: (x == 1) };";
+        LvParseResult res = parse_source(src);
+        TEST("x == 1 不被误判为命名参数");
+        if (res.ast && res.error_count == 0) {
+            PASS();
+        } else {
+            FAIL("== misdetected as named arg");
+        }
+        lv_ast_destroy(res.ast);
+    }
+}
+
 static void test_constraint(void) {
     printf("[约束/关系语句]\n");
 
@@ -1610,6 +1672,8 @@ TEST_MAIN_BEGIN("lv parser test")
     TEST_MAIN_RUN(test_auto_named_stmt);
     printf("\n");
     TEST_MAIN_RUN(test_pipe_expr);
+    printf("\n");
+    TEST_MAIN_RUN(test_keyword_args);
     printf("\n");
     TEST_MAIN_RUN(test_constraint);
     printf("\n");

@@ -1418,15 +1418,21 @@ static LvAstNode *parse_arg_list(LvParser *p) {
 
     if (p->current.type != LV_TOKEN_RPAREN) {
         while (1) {
-            /* 命名参数: "name: value"（如 verify(output: Output, ...)）。
+            /* 命名参数: "name: value"（如 verify(output: Output, ...)）或
+             * S5 关键字参数 "name = value"（如 circle(center = A)）。
              * 保留参数名：包装为 LV_AST_NAMED_ARG(name, value)，value 为类型/值表达式。 */
             char arg_name[128] = {0};
             int has_name = 0;
-            if (p->current.type == LV_TOKEN_IDENTIFIER && check(p, 0, LV_TOKEN_COLON)) {
-                lv_strlcpy(arg_name, token_text(&p->current), sizeof(arg_name));
-                has_name = 1;
-                advance(p); /* name */
-                advance(p); /* ':' */
+            if (p->current.type == LV_TOKEN_IDENTIFIER) {
+                int colon_form = check(p, 0, LV_TOKEN_COLON);
+                /* 等号形态须排除 "=="（标识符后 == 是比较，非命名参数） */
+                int eq_form = check(p, 0, LV_TOKEN_EQUALS) && !check(p, 1, LV_TOKEN_EQUALS);
+                if (colon_form || eq_form) {
+                    lv_strlcpy(arg_name, token_text(&p->current), sizeof(arg_name));
+                    has_name = 1;
+                    advance(p); /* name */
+                    advance(p); /* ':' 或 '=' */
+                }
             }
             LvAstNode *arg = parse_logic_expr(p);
             if (!arg)
