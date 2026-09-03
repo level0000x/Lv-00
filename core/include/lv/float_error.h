@@ -302,6 +302,13 @@ TrustColor fptaylor_verify_safety(const ErrorBound *bound, double tolerance);
  * 返回 REAL 结果 [take]（调用者 lv_number_destroy）；解析失败/非 WASM 返回 NULL。 */
 lv_PUBLIC_API lvNumber *fptaylor_eval_real_expr(const char *expr, const double *var_values, int var_count,
                                                 int prec_bits);
+
+/* C3：double 求值（同文法，供 double 中心 vs REAL 真值复核）；失败返回 NAN */
+lv_PUBLIC_API double fptaylor_eval_expr_double(const char *expr, const double *var_values, int var_count);
+
+/* C3：double 中心是否落在 REAL 真值容差内（opt-in 复核旁路） */
+lv_PUBLIC_API bool fptaylor_verify_expr_real(const char *expr, const double *var_values, int var_count,
+                                             int prec_bits, double rel_tol, double abs_tol);
 /* ========================================================================
  * 便捷工厂函数
  * ======================================================================== */

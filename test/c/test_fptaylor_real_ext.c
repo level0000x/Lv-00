@@ -58,14 +58,37 @@ static void test_fpeval_error(void) {
     printf("  test_fpeval_error: PASSED\n");
 }
 
+static void test_fpeval_verify(void) {
+    double x3[1] = {3.0};
+    /* double 中心与 REAL 真值一致 → 通过 */
+    TEST_ASSERT_DOUBLE(fptaylor_eval_expr_double("x0*x0", x3, 1), 9.0, 1e-12);
+    TEST_ASSERT(fptaylor_verify_expr_real("x0*x0", x3, 1, 128, 1e-12, 1e-12), "3² 复核通过");
+
+    /* 大数 + 1 - 大数：double 舍入丢失 → 复核拒绝 */
+    double big[1] = {1e16};
+    double dc = fptaylor_eval_expr_double("(x0+1)-x0", big, 1);
+    TEST_ASSERT_DOUBLE(dc, 0.0, 0.0); /* double 舍掉 +1 */
+    TEST_ASSERT(!fptaylor_verify_expr_real("(x0+1)-x0", big, 1, 128, 1e-6, 1e-3),
+                "REAL 真值=1 拒绝 double 的 0");
+    /* 放宽 abs 容差则通过 */
+    TEST_ASSERT(fptaylor_verify_expr_real("(x0+1)-x0", big, 1, 128, 1e-6, 1.5), "abs 容差放宽通过");
+
+    /* NULL / 解析失败 */
+    TEST_ASSERT(!fptaylor_verify_expr_real(NULL, x3, 1, 128, 1e-6, 1e-6), "NULL 拒绝");
+    double v0[1] = {0.0};
+    TEST_ASSERT(!fptaylor_verify_expr_real("1/ x0", v0, 1, 128, 1e-6, 1e-6), "除零拒绝");
+    printf("  test_fpeval_verify: PASSED\n");
+}
+
 /* ============== 测试入口 ============== */
 
 TEST_MAIN_BEGIN("Lv-00 FPTaylor REAL Ext Test Suite")
-    printf("=== Lv-00 FPTaylor REAL Ext Test Suite (C2 REAL re-eval) ===\n\n");
+    printf("=== Lv-00 FPTaylor REAL Ext Test Suite (C2/C3 REAL re-eval + verify) ===\n\n");
     lv_init();
 
     TEST_MAIN_RUN(test_fpeval_basic);
     TEST_MAIN_RUN(test_fpeval_error);
+    TEST_MAIN_RUN(test_fpeval_verify);
 
     lv_cleanup();
 TEST_MAIN_END()

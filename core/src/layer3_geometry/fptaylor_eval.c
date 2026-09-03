@@ -349,6 +349,27 @@ lv_PUBLIC_API lvNumber *fptaylor_eval_real_expr(const char *expr, const double *
     return r;
 }
 
+/** C3：double 求值（供「double 中心 vs REAL 真值」复核）；失败返回 NAN */
+lv_PUBLIC_API double fptaylor_eval_expr_double(const char *expr, const double *var_values, int var_count) {
+    return eval_simple_expr(expr, var_values, var_count);
+}
+
+/** C3：复核 double 中心是否落在 REAL 高精度真值的 abs/rel 容差内（opt-in 旁路） */
+lv_PUBLIC_API bool fptaylor_verify_expr_real(const char *expr, const double *var_values, int var_count,
+                                             int prec_bits, double rel_tol, double abs_tol) {
+    double dc = eval_simple_expr(expr, var_values, var_count);
+    if (isnan(dc))
+        return false;
+    lvNumber *ref = fptaylor_eval_real_expr(expr, var_values, var_count, prec_bits);
+    if (!ref)
+        return false;
+    lvNumber *approx = lv_number_from_double(dc);
+    bool ok = approx != NULL && lv_number_real_verify(approx, ref, rel_tol, abs_tol);
+    lv_number_destroy(approx);
+    lv_number_destroy(ref);
+    return ok;
+}
+
 /* ============================================================
  * 内部误差计算辅助
  * ============================================================ */
