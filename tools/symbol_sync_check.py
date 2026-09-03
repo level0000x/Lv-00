@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""K5 示例同步机制：文档符号存在性检查。
+r"""K5 示例同步机制：文档符号存在性检查。
 
 扫描 doc/docs 的 Markdown 代码块中引用的 lv_* 符号，核对是否在
 core/include/lv 头文件中声明——阻断示例/文档引用幻影 API（K5 判定
