@@ -129,11 +129,14 @@ static void test_expr_canonicalize_merge(void) {
     TEST_ASSERT_MSG(canon_ok, "canonicalize should succeed");
     TEST_ASSERT_EQ(expr->term_count, 1);
 
-    /* 验证系数为 5/1 */
+    /* 验证系数为 5/1（系数现为 lvNumber，经 lv_number_from_lvRational 精确比较） */
     lvRational *expected = lv_rational_create_from_si(5, 1);
     TEST_ASSERT_NOT_NULL(expected);
-    int cmp = lv_rational_cmp(expr->terms[0].coeff, expected);
+    lvNumber *expectedN = lv_number_from_lvRational(expected);
+    TEST_ASSERT_NOT_NULL(expectedN);
+    int cmp = lv_number_compare(expr->terms[0].coeff, expectedN);
     TEST_ASSERT_EQ(cmp, 0);
+    lv_number_destroy(expectedN);
 
     /* 验证指数仍为 [1] */
     TEST_ASSERT_EQ(expr->terms[0].exponents[0], 1);
@@ -283,7 +286,7 @@ static void test_expr_clone(void) {
     TEST_ASSERT_EQ(copy->term_count, orig->term_count);
     TEST_ASSERT_EQ(copy->var_count, orig->var_count);
     for (int i = 0; i < copy->term_count; i++) {
-        int cmp = lv_rational_cmp(copy->terms[i].coeff, orig->terms[i].coeff);
+        int cmp = lv_number_compare(copy->terms[i].coeff, orig->terms[i].coeff);
         TEST_ASSERT_EQ_MSG(cmp, 0, "clone coefficient mismatch");
         for (int j = 0; j < copy->var_count; j++) {
             TEST_ASSERT_EQ(copy->terms[i].exponents[j], orig->terms[i].exponents[j]);
@@ -340,8 +343,11 @@ static void test_expr_add(void) {
 
     lvRational *expected = lv_rational_create_from_si(3, 1);
     TEST_ASSERT_NOT_NULL(expected);
-    int cmp = lv_rational_cmp(result->terms[0].coeff, expected);
+    lvNumber *expectedN = lv_number_from_lvRational(expected);
+    TEST_ASSERT_NOT_NULL(expectedN);
+    int cmp = lv_number_compare(result->terms[0].coeff, expectedN);
     TEST_ASSERT_EQ(cmp, 0);
+    lv_number_destroy(expectedN);
 
     lv_rational_destroy(&c1);
     lv_rational_destroy(&c2);
@@ -385,8 +391,11 @@ static void test_expr_sub(void) {
 
     lvRational *expected = lv_rational_create_from_si(1, 1);
     TEST_ASSERT_NOT_NULL(expected);
-    int cmp = lv_rational_cmp(result->terms[0].coeff, expected);
+    lvNumber *expectedN = lv_number_from_lvRational(expected);
+    TEST_ASSERT_NOT_NULL(expectedN);
+    int cmp = lv_number_compare(result->terms[0].coeff, expectedN);
     TEST_ASSERT_EQ(cmp, 0);
+    lv_number_destroy(expectedN);
 
     lv_rational_destroy(&c1);
     lv_rational_destroy(&expected);
