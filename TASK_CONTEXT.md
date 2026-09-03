@@ -11111,3 +11111,16 @@ ame: value
 - .lv 语言接线 geo_*（desugar 终点改造）为大规模重构主体，待设计文档；
 - 双路径路由（per-原语/每层可调后端选择）设计待产出；
 - 用户确认：先修 5 缺陷 + 继续讨论架构；"从语言上层至原语层每层都可调"是路由粒度方向。
+
+## 批次 230（待议文档化，ff12853f）
+
+- 按用户指示「先把这个文档化吧作为待议」产出
+  docs/architecture/primitives-dual-path-design.md（183 行，状态：待议未决）；
+- 内容：13 原语 C 地基现状（已实现/零接线）/ 批次 229 修复登记 / 现状执行模型 /
+  Lean 三层锚定 / 既有 dual-mode 摘要 / 用户新设想（后端双路径 C vs 自举 +
+  "语言上层至原语层每层可调"路由 + 大规模重构）/ 待议问题清单（A 地基接线 /
+  B 唯一原语注册表 / C 双路径架构 / D Lean 锚定 / E 两套 DSL 合一 / F 缺陷遗留）。
+- 关联既有文档：dual-mode-execution-design.md（解释 vs 编译机器码，与后端双路径互补）、
+  geometric_primitives.md（13 原语规范）、bootstrap_test_framework.md（差分测试方法论）、
+  dsl-syntax-baseline.md（三格式图景）。
+- 下一讨论回合：基于待议问题逐项收敛 → 产出正式设计（若用户批准大规模重构方向）。
