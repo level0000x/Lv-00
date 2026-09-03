@@ -11413,3 +11413,35 @@ ND-4 双轨合一的规模盘点：实际为「三轨」——`rational.h` `lvRa
 
 - 其余域（algebraic_number_*/quadratic/symbolic_coord/solver 等）按本模板逐个迁移（期 2-6）；
 - 0e 连续段（ND-5）在系数域开始用 lvNumber 后评估是否引入池段原语。
+
+---
+
+## 批次 238（CI 修复：expr_canon_test 直读成员消费点更新，coeff 类型变更补齐）
+
+### 背景
+
+批次 237 push 后 CI build-and-test(Ubuntu) 失败：`expr_canon_test` 3 处断言
+`0 != cmp (actual=-1)`。根因：**旧基础测试 test_expr_canon.c 直接读公开成员
+`terms[i].coeff` 并传给 `lv_rational_cmp`**——批次 237 将成员类型改为 `lvNumber*`
+后类型错配、内存被按 lvRational 布局误读。
+（本地假绿原因：迁移后本地只增量构建了 ext 目标，base `expr_canon_test` 为
+迁移前残留旧二进制；全量 ctest 未先全量重建。教训：**本地 ctest 前必须全量
+build**，CI 全量重建即暴露。）
+
+### 实施
+
+- `test/c/test_expr_canon.c` 4 处消费点更新为新语义（行为不变）：
+  - `lv_rational_cmp(term->coeff, expected)` → `lv_number_from_lvRational(expected)`
+    → `lv_number_compare`（精确比较，比较后 destroy 临时数）；
+  - clone 逐项比较 `copy/orig`（双方已为 lvNumber）→ `lv_number_compare`。
+
+### 验证
+
+- 本地**全量重建 303 targets** + ctest **298/298 全绿**（92s；base expr_canon_test
+  为新二进制真实通过）；
+- 已 push → CI（build-and-test Ubuntu）复跑验证中。
+
+### 遗留登记
+
+- 模板要点补充：公开结构成员变更须同步排查 test/ 直读消费点（此前 grep 仅限 core/）；
+- 237 CI 复跑、233 Python 瞬时失败（235/236 同配置绿）记录在案。
