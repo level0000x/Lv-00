@@ -11874,3 +11874,11 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 补记（复跑）
 批次 260 Windows Python job 首跑瞬时 mass-Error（横跨数十 TU，而 260 仅改注释）；
 `gh run rerun --failed` 复跑 **success**——确认 Windows runner 瞬时故障，非代码。
+
+---
+
+## 批次 261（数值抽象层 & MPFR 外包 文档索引，文档批）
+
+- 新增 `docs/architecture/index.md`：权威设计（dependency-policy / number-abstraction /
+  domain-migration-roadmap / p1-s3 / batch-c / dsl-remaining）+ 实施状态（批次 232-260）
+  + 待决候选；回应 K77 文档交叉引用卫生。
