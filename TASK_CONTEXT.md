@@ -11057,3 +11057,12 @@ ame: value
 - parser 层 + 测试（等号形态/冒号保持/== 不误判）；ctest 296/296。
 - 注：loader 按形参表绑参（center/through→circle 位置）待 loader 构造能力补全；
   当前 NAMED_ARG 由消费方按名解释（sema/loader 侧）。
+
+## 批次 228 补充 4（DSL S8 列表字面量，2b967305）
+
+- S8：列表字面量 [A, B, C]（新增 LV_AST_LIST_LITERAL AST 节点——枚举/vtable/
+  TYPE_X 名称表三处同步；元素为 child 链表 + child_count）；
+- parser：parse_list_literal（[ expr (, expr)* ]，空列表支持）；
+- sema：未登记类型走 check_expr_default（返回 UNKNOWN 不报错），列表作几何参数集合；
+- 测试：polygon([A,B,C]) 3 项列表 + 结构字段内空/混合列表；ctest 296/296。
+- 注：loader 变参展开（polygon 等）需 loader polygon 实现后接线；语法层已可用。
