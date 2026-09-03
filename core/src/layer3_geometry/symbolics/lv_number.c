@@ -531,6 +531,68 @@ lvNumber *lv_number_from_lvRational(const struct lvRational *r) {
     return n;
 }
 
+/* ============================================================
+ * 池连续段（ND-5，批次 243）
+ * ============================================================ */
+
+struct lvNumberSegment {
+    lvNumber *base;
+    size_t count;
+};
+
+lvNumberSegment *lv_number_segment_alloc(size_t count) {
+    if (count == 0 || count > (size_t) (SIZE_MAX / sizeof(lvNumber)))
+        return NULL;
+    lvNumberSegment *seg = (lvNumberSegment *) lv_malloc(sizeof(lvNumberSegment));
+    if (!seg)
+        return NULL;
+    lvNumber *base = (lvNumber *) lv_calloc(count, sizeof(lvNumber));
+    if (!base) {
+        lv_free((void **) &seg);
+        return NULL;
+    }
+    for (size_t i = 0; i < count; i++)
+        base[i].kind = lv_NUM_KIND_NONE;
+    seg->base = base;
+    seg->count = count;
+    return seg;
+}
+
+lvNumber *lv_number_segment_get(const lvNumberSegment *seg, size_t index) {
+    if (!seg || index >= seg->count)
+        return NULL;
+    return &seg->base[index];
+}
+
+bool lv_number_rational_set(lvNumber *n, const struct lvRational *r) {
+    if (!n || !r)
+        return false;
+    if (n->kind == lv_NUMBER_RATIONAL) {
+        mpq_set(n->u.q, r->value);
+        return true;
+    }
+    if (n->kind == lv_NUM_KIND_NONE) {
+        /* 段节点零初始化（calloc）：等价于 mpq_init 后的零态，直接 mpq_set */
+        mpq_set(n->u.q, r->value);
+        n->kind = lv_NUMBER_RATIONAL;
+        return true;
+    }
+    return false; /* 其它 kind 不可置为 RATIONAL */
+}
+
+void lv_number_segment_destroy(lvNumberSegment *seg) {
+    if (!seg)
+        return;
+    for (size_t i = 0; i < seg->count; i++) {
+        lvNumber *n = &seg->base[i];
+        if (n->kind == lv_NUMBER_RATIONAL)
+            mpq_clear(n->u.q);
+        n->kind = lv_NUM_KIND_NONE;
+    }
+    lv_free((void **) &seg->base);
+    lv_free((void **) &seg);
+}
+
 lvNumber *lv_number_from_string(const char *str) {
     if (!str) return NULL;
 

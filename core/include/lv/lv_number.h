@@ -64,6 +64,32 @@ struct lvRational; /* 前向声明：域迁移工厂参数（rational.h 中定�
 lv_PUBLIC_API lvNumber *lv_number_from_lvRational(const struct lvRational *r);
 
 /* ============================================================
+ * 池连续段（ND-5，批次 243）：多项式系数等「整批数值」形态
+ * ============================================================ */
+
+/** 段句柄：一段连续（且内存连续）的池外节点块，供整批系数/临时数值使用 */
+typedef struct lvNumberSegment lvNumberSegment;
+
+/**
+ * @brief 分配一段 count 个 lvNumber 节点（常驻，零初始化，连续内存）
+ * @param count 节点数（0 或失败返回 NULL）
+ */
+lv_PUBLIC_API lvNumberSegment *lv_number_segment_alloc(size_t count);
+
+/** @brief 取段内第 index 个节点句柄（越界返回 NULL；节点随段存活，禁止单独 destroy） */
+lv_PUBLIC_API lvNumber *lv_number_segment_get(const lvNumberSegment *seg, size_t index);
+
+/**
+ * @brief 把 lvRational 值写入节点（RATIONAL）
+ * @param n 段内零初始化节点（kind=NONE）或已 RATIONAL 节点
+ * @return false = 参数非法或节点非可置值状态
+ */
+lv_PUBLIC_API bool lv_number_rational_set(lvNumber *n, const struct lvRational *r);
+
+/** @brief 销毁整段（段内全部节点随段清理；调用方不得再持有/使用段内句柄） */
+lv_PUBLIC_API void lv_number_segment_destroy(lvNumberSegment *seg);
+
+/* ============================================================
  * 强制池化 —— 帧池 API（ND-2）
  * ============================================================ */
 
