@@ -11791,3 +11791,23 @@ P5 起步。
 
 ### 遗留登记
 - C2-C4（进入 float_error 信任域）待 C1 稳定后按 batch-c-reverify-plan 推进。
+
+---
+
+## 批次 256（C2：REAL 高精度表达式重算 fptaylor_eval_real_expr）
+
+### 实施
+- `fptaylor_eval.c` 增 REAL(MPFR) 后端：同一文法（数值/+ - * //括号/变量 x0..）以
+  lvNumber REAL 重算——`fpexpr_primary/term/expr` 镜像 + 所有权安全管理（除零→NULL、
+  解析失败回滚销毁）；公共 `fptaylor_eval_real_expr(expr, vars, n, prec_bits)`（[take] REAL）；
+- `float_error.h`：include lv_number.h + 声明；
+- 测试 `test_fptaylor_real_ext.c`：x0²+x1²=25、1+2*3=7、x0/2=0.5、(x0+x1)/x0=3、除零/语法/
+  NULL/非法 token → NULL。
+
+### 验证
+- 全量 303 目标中 302 通过；stream_extended_test 为已知并行 flaky（重跑即过，非本批引入）；
+  fptaylor_real_ext_test 通过。
+
+### 遗留登记
+- C3-C4（把 real 重算接到 fptaylor_evaluate_expr 误差验证/信任判定旁路，opt-in）后续推进；
+- 变量取值现从 double 常量转 REAL（op 舍入消除）；后续可扩展精确十进制叶值。
