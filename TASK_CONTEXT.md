@@ -10946,3 +10946,17 @@ G5c solver增量(0e5b1fba→48415288, blueprint_前缀防L4同名冲突)
 ### 遗留登记
 - CI 双 workflow 全绿待确认（11+1 job）；K62 INI 方言统一已豁免登记（插件域内自洽）；
 - 下一批候选：K10 [copy] 标注 + API_QUICKSTART 对齐（文档类暂缓）/ C1 收尾等。
+
+### ⑤ K62 B(ConfigManager) autosave 接线判断（自主评估，批次 226 补充）
+- 现状核实：B 配置在 lv.c 生产创建（s_lv_state.config）并 lv_init 设默认值，但
+  config_save 生产从不触发（auto_save 默认 false、无显式 save 调用）；持久化已由
+  A(JSON lv.config.json) 承担（批次 178 接线）。
+- 判断：B 的 auto_save 死路径**不接线**（A 已承担持久化，接线 B autosave 造成
+  双写且 B 仅为内存回退层）；登记豁免 + M6（config_save 原子写已做，防御性保留
+  auto_save 钩子供未来显式落盘使用）。此判断按用户授权「所有可接线默认允许接线，
+  自己觉得不行可不接」执行——若用户希望删除 B autosave 死路径可另行指示。
+
+### ⑥ CI 验证（批次 226 全部提交）
+- 主 workflow 12/12 job 全绿（新增 headers-sync job 首次运行 success）；
+- Python Bindings workflow success；本地 ctest 296/296（一次 stream_extended
+  偶发失败重跑即过，5 轮串行 0 失败，非回归）。
