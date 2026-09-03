@@ -11763,3 +11763,13 @@ P5 起步。
 ### 遗留登记
 - REAL kind 功能收敛完成（kind/工厂/查询/转换/算术/精度上下文/pow）；
 - 下一目标：批次 C（float_error 等用 REAL 做高精度复核/信任通道）——REAL 已具备承接能力。
+
+---
+
+## 批次 254（批次 C 接线子方案，文档批）
+
+- 新增 `docs/architecture/batch-c-reverify-plan.md`：把 MPFR(REAL) 高精度复核接入
+  float_error 的旁路验证通道，切片 C1-C4；
+- 定位：REAL 复核 = 新增旁路（opt-in），**不改 float_error/fptaylor/gappa 现有 double
+  区间/信任语义**；C1（独立复核 util+单测）可立即，C2-C4（进入信任域 API）待 C1 稳定；
+- CI：251 ✅；252/253 运行中（无失败）。
