@@ -1878,7 +1878,7 @@ target_include_directories(lv_static PUBLIC
     $<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:include/lv>
 )
-target_link_libraries(lv_static ${GMP_LIBRARIES} Threads::Threads)
+target_link_libraries(lv_static ${MPFR_LIBRARIES} ${GMP_LIBRARIES} Threads::Threads)
 if(WIN32)
     # interop_server.c 使用 winsock API，静态库需传递 ws2_32 依赖
     target_link_libraries(lv_static ws2_32)
@@ -1903,7 +1903,7 @@ if(BUILD_SHARED_LIBS)
         $<INSTALL_INTERFACE:include/lv>
     )
     # [P0 修复] 共享库也需要链接 Threads::Threads（与静态库保持一致）
-    target_link_libraries(lv_shared ${GMP_LIBRARIES} Threads::Threads)
+    target_link_libraries(lv_shared ${MPFR_LIBRARIES} ${GMP_LIBRARIES} Threads::Threads)
     if(WIN32)
         target_link_libraries(lv_shared ws2_32)
     else()
@@ -1955,7 +1955,7 @@ function(add_lv_program name)
     target_include_directories(${name} PRIVATE
         ${CMAKE_SOURCE_DIR}/test/c
     )
-    target_link_libraries(${name} lv ${GMP_LIBRARIES})
+    target_link_libraries(${name} lv ${MPFR_LIBRARIES} ${GMP_LIBRARIES})
     if(WIN32)
         # interop_server 等使用 winsock API，可执行文件需显式链接 ws2_32
         target_link_libraries(${name} ws2_32)
@@ -2395,6 +2395,10 @@ if(BUILD_TESTS)
     add_lv_test_auto(test_lv_number_pool_ext CTEST_NAME lv_number_pool_ext_test)
     # ND-5 / 批次 243：池连续段原语契约（roadmap §4.2）
     add_lv_test_auto(test_lv_number_segment_ext CTEST_NAME lv_number_segment_ext_test)
+    # P5 / 批次 251：REAL_MPFR 表示契约（仅非 WASM/mpfr 有效）
+    if(NOT BUILD_WASM)
+        add_lv_test_auto(test_lv_number_real_ext CTEST_NAME lv_number_real_ext_test)
+    endif()
     # B0 / 批次 245：MPFR 编译+静态链接冒烟（MPFR/MPC REQUIRED 依赖地基验证）
     if(MPFR_INCLUDE_DIR AND MPFR_LIBRARIES)
         add_lv_test_auto(test_mpfr_smoke CTEST_NAME mpfr_smoke_test)

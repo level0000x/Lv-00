@@ -64,6 +64,22 @@ struct lvRational; /* 前向声明：域迁移工厂参数（rational.h 中定�
 lv_PUBLIC_API lvNumber *lv_number_from_lvRational(const struct lvRational *r);
 
 /* ============================================================
+ * MPFR 表示（P5，kind=lv_NUMBER_REAL_MPFR）：任意精度浮点 real
+ * ============================================================ */
+
+/**
+ * @brief 从 double 构造 REAL_MPFR 节点（任意精度浮点；prec_bits ≤ 0 用默认精度）
+ * @note 非 WASM（mpfr 可用）有效；lv_NO_MPFR 构建下返回 NULL
+ */
+lv_PUBLIC_API lvNumber *lv_number_real_from_double(double v, int prec_bits);
+
+/**
+ * @brief 从十进制/科学计数法字符串构造 REAL_MPFR 节点（mpfr_set_str，base 10）
+ * @return 成功节点或 NULL（解析失败 / 非 WASM）
+ */
+lv_PUBLIC_API lvNumber *lv_number_real_from_string(const char *s, int prec_bits);
+
+/* ============================================================
  * 池连续段（ND-5，批次 243）：多项式系数等「整批数值」形态
  * ============================================================ */
 

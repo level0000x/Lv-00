@@ -28,6 +28,10 @@
 #include <string.h>
 #include <inttypes.h>
 
+#ifndef lv_NO_MPFR
+#include <mpfr.h> /* P5：任意精度浮点 real 表示 */
+#endif
+
 /* ============================================================
  * 池化：节点即句柄
  * ============================================================ */
@@ -43,6 +47,9 @@ struct lvNumber {
         int64_t i;                    /* INTEGER */
         double  f;                    /* FLOAT */
         mpq_t   q;                    /* RATIONAL */
+#ifndef lv_NO_MPFR
+        mpfr_t  m;                    /* REAL_MPFR（P5） */
+#endif
     } u;
 };
 
@@ -107,6 +114,11 @@ static void node_release(lvNumber *n) {
     if (n->kind == lv_NUMBER_RATIONAL) {
         mpq_clear(n->u.q);
     }
+#ifndef lv_NO_MPFR
+    if (n->kind == lv_NUMBER_REAL_MPFR) {
+        mpfr_clear(n->u.m);
+    }
+#endif
     n->kind = lv_NUM_KIND_NONE;
     n->framed = 0;
     n->next_free = g_free_head;
@@ -212,9 +224,21 @@ static double node_to_double(const lvNumber *n) {
         case lv_NUMBER_INTEGER:  return (double) n->u.i;
         case lv_NUMBER_FLOAT:    return n->u.f;
         case lv_NUMBER_RATIONAL: return mpq_get_d(n->u.q);
+#ifndef lv_NO_MPFR
+        case lv_NUMBER_REAL_MPFR: return mpfr_get_d(n->u.m, MPFR_RNDN);
+#endif
         default:                 return 0.0;
     }
 }
+
+#ifndef lv_NO_MPFR
+static bool is_real(const lvNumber *n) {
+    return n && n->kind == lv_NUMBER_REAL_MPFR;
+}
+static int real_prec(const lvNumber *n) {
+    return (int) mpfr_get_prec(n->u.m);
+}
+#endif
 
 static lvNumber *new_int(int64_t v) {
     lvNumber *n = node_new(lv_NUMBER_INTEGER);
@@ -394,6 +418,22 @@ int64_t lv_number_to_int(const lvNumber *n) {
 
 char *lv_number_to_string(const lvNumber *n) {
     if (!n) return NULL;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) {
+        char *sp = NULL;
+        if (mpfr_asprintf(&sp, "%.17Rg", n->u.m) < 0 || !sp)
+            return NULL;
+        size_t len = strlen(sp);
+        char *s = (char *) lv_malloc(len + 1);
+        if (!s) {
+            mpfr_free_str(sp);
+            return NULL;
+        }
+        memcpy(s, sp, len + 1);
+        mpfr_free_str(sp);
+        return s;
+    }
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER: {
             char buf[32];
@@ -422,6 +462,9 @@ char *lv_number_to_string(const lvNumber *n) {
 
 bool lv_number_is_zero(const lvNumber *n) {
     if (!n) return false;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) return mpfr_zero_p(n->u.m) != 0;
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  return n->u.i == 0;
         case lv_NUMBER_FLOAT:    return n->u.f == 0.0;
@@ -432,6 +475,9 @@ bool lv_number_is_zero(const lvNumber *n) {
 
 bool lv_number_is_one(const lvNumber *n) {
     if (!n) return false;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) return mpfr_cmp_ui(n->u.m, 1) == 0;
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  return n->u.i == 1;
         case lv_NUMBER_FLOAT:    return n->u.f == 1.0;
@@ -442,6 +488,9 @@ bool lv_number_is_one(const lvNumber *n) {
 
 bool lv_number_is_negative(const lvNumber *n) {
     if (!n) return false;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) return mpfr_sgn(n->u.m) < 0;
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  return n->u.i < 0;
         case lv_NUMBER_FLOAT:    return n->u.f < 0.0;
@@ -458,6 +507,9 @@ bool lv_number_is_positive(const lvNumber *n) {
 
 bool lv_number_is_integer(const lvNumber *n) {
     if (!n) return false;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) return mpfr_integer_p(n->u.m) != 0;
+#endif
     if (n->kind == lv_NUMBER_INTEGER) return true;
     if (n->kind == lv_NUMBER_RATIONAL) {
         return mpz_cmp_ui(mpq_denref(n->u.q), 1) == 0;
@@ -477,6 +529,12 @@ uint64_t lv_number_hash(const lvNumber *n) {
     /* 哈希统一取「double 表示位」：保证 eq → 同哈希 不变式跨 kind 成立
      * （如 int 2 与 rational 6/3、float 2.0 同值同哈希）；碰撞容忍。 */
     union { double d; uint64_t u; } cv;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) {
+        cv.d = mpfr_get_d(n->u.m, MPFR_RNDN);
+        return cv.u;
+    }
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  cv.d = (double) n->u.i;   return cv.u;
         case lv_NUMBER_RATIONAL: cv.d = mpq_get_d(n->u.q); return cv.u;
@@ -487,6 +545,15 @@ uint64_t lv_number_hash(const lvNumber *n) {
 
 lvNumber *lv_number_clone(const lvNumber *n) {
     if (!n) return NULL;
+#ifndef lv_NO_MPFR
+    if (is_real(n)) {
+        lvNumber *c = node_new(lv_NUMBER_REAL_MPFR);
+        if (!c) return NULL;
+        mpfr_init2(c->u.m, real_prec(n));
+        mpfr_set(c->u.m, n->u.m, MPFR_RNDN);
+        return c;
+    }
+#endif
     switch (n->kind) {
         case lv_NUMBER_INTEGER:  return new_int(n->u.i);
         case lv_NUMBER_FLOAT:    return new_float(n->u.f);
@@ -615,6 +682,45 @@ lvNumber *lv_number_from_string(const char *str) {
 
     return NULL;
 }
+
+#ifndef lv_NO_MPFR
+/** 内部：构造 REAL_MPFR 节点（prec≤0 用默认；s 非空走 mpfr_set_str base10） */
+static lvNumber *real_node_from(const char *s, double v, int prec) {
+    lvNumber *n = node_new(lv_NUMBER_REAL_MPFR);
+    if (!n)
+        return NULL;
+    mpfr_init2(n->u.m, prec > 0 ? (mpfr_prec_t) prec : mpfr_get_default_prec());
+    int rc = 0;
+    if (s)
+        rc = mpfr_set_str(n->u.m, s, 10, MPFR_RNDN);
+    else
+        mpfr_set_d(n->u.m, v, MPFR_RNDN);
+    if (rc != 0) {
+        node_release(n); /* node_release 对 REAL_MPFR 会 mpfr_clear */
+        return NULL;
+    }
+    return n;
+}
+
+lvNumber *lv_number_real_from_double(double v, int prec_bits) {
+    return real_node_from(NULL, v, prec_bits);
+}
+
+lvNumber *lv_number_real_from_string(const char *s, int prec_bits) {
+    if (!s)
+        return NULL;
+    return real_node_from(s, 0.0, prec_bits);
+}
+#else
+lvNumber *lv_number_real_from_double(double v, int prec_bits) {
+    (void) v; (void) prec_bits;
+    return NULL; /* WASM/lv_NO_MPFR：不支持 */
+}
+lvNumber *lv_number_real_from_string(const char *s, int prec_bits) {
+    (void) s; (void) prec_bits;
+    return NULL;
+}
+#endif
 
 /* ============================================================
  * 类型信息（名称契约钉住：勿改已有字符串）
