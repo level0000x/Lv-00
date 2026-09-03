@@ -11546,3 +11546,24 @@ lvNumber 表示时的整批数值）；`expr_canon` term 结构（每项独立 c
 - S1 步骤 3-5（expr_canonical → nt_polynomial/mpz_poly 系数段 → nt_number_theory 语义对拍）
   待立项；
 - 段级批量归还（重建进 free-list）列为优化项，未实现（先逐元素/整段语义）。
+
+---
+
+## 批次 244（S2 路线修正：GMP 匿名结构体前向技巧不成立，文档批）
+
+### 发现
+
+实测 gmp.h：`__mpz_struct`/`__mpq_struct` 为 `typedef struct {…} __mpz_struct;`——**匿名
+结构体 + typedef**（无 struct tag）。故「`struct __mpz_struct;` 前向声明 + 指针参数」的
+头文件去 GMP 技巧**不成立**（会声明出不同的 incomplete tag）。
+
+### 决策
+
+- S2「公共头去 GMP」不能靠签名微整形；须**真·句柄/工厂 API 化**（lvRational opaque +
+  值访问器等）→ 与 S3 域迁移耦合，并入 S3 立项一并做；
+- S2 独立启动价值下调（roadmap 路线修正登记），避免为 token 数做伪收敛；
+- 路线图 §3 更新：0e 连续段原语已落地（批次 243）；S2 并入 S3。
+
+### 验证
+
+- 文档批；批次 243 CI/Python 运行中（gh 确认中）。

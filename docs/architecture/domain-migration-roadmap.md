@@ -55,8 +55,14 @@
 ## 3. 遗留与依赖
 
 - **S1 前置**：lvNumber 尚无任意精度整数（INTEGER=int64）表示 → mpz 表示位（RATIONAL 的分子分母已可承载 mpz？lvRational mpq 已任意精度；S1 可把「整数系数」表示为 RATIONAL(k,1) 避免新增 mpz 表示——设计取舍待 S1 立项确认）；
-- 0e 连续段随 S1 同批；
+- 0e 连续段随 S1 同批（**池连续段原语已落地：批次 243**，含 rational_set/segment_get/destroy + 契约测试）；
 - 顺序建议 S2 → S1 → S3 → S4 → S5（工具面先清可减少后续簇的 mpq 互通样板）或按用户意愿插队。
+
+> **S2 路线修正（批次 244）**：GMP 头内 `__mpz_struct`/`__mpq_struct` 为**匿名结构体 + typedef**
+> （无 struct tag），「前向声明 `struct __mpz_struct;` + 指针参数」技巧**不成立**（会引入不同
+> 的 incomplete tag）。故 S2 公共头去 GMP 不能靠签名微整形，须**真·句柄/工厂 API 化**
+> （如 lvRational opaque 化 + 值访问器）——该子项与 S3 域迁移耦合，合并到 S3 立项时一并做；
+> 路线图 S2 独立启动的价值下调（避免为 token 数做伪收敛）。
 
 ---
 
