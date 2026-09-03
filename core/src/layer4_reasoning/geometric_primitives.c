@@ -378,7 +378,9 @@ GeoResult geo_export(ProofNavigator *nav, const char *format, const char *path) 
     if (!path)
         return geo_err(GEO_STATUS_NULL_ARG, "路径 NULL");
 
-    /* 按导出格式名查表分发（替代 strcmp 分支链） */
+    /* 按导出格式名查表分发（替代 strcmp 分支链）。
+     * lean 导出在 interop.h（L5）——L4 原语层不直接依赖 L5（依赖方向约束），
+     * 由 L5/lv_upper_api 层提供 lean 包装（见批次登记）。 */
     bool ok = false;
     size_t i;
     for (i = 0; i < lv_ARRAY_SIZE(kProofExportFns); i++) {
