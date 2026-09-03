@@ -47,7 +47,7 @@ static int match(LvParser *p, LvTokenType type) {
     return 0;
 }
 
-/** 期望当前 token 为指定类型，否则报错 */
+/** 期望当前 token 为指定类型，否则报错（R4：填 severity=ERROR + fix_hint） */
 static int expect(LvParser *p, LvTokenType type, const char *msg) {
     if (p->current.type == type) {
         advance(p);
@@ -56,8 +56,12 @@ static int expect(LvParser *p, LvTokenType type, const char *msg) {
     if (p->error_count < 64) {
         int idx = p->error_count++;
         p->errors[idx].loc = p->current.loc;
+        p->errors[idx].severity = LV_DIAG_ERROR;
         lv_snprintf(p->errors[idx].message, sizeof(p->errors[idx].message), "expected %s but got %s: %s",
                     lv_token_type_name(type), lv_token_type_name(p->current.type), msg);
+        /* 修复方向提示：期望分号/括号/标识符等给出可执行建议 */
+        lv_snprintf(p->errors[idx].fix_hint, sizeof(p->errors[idx].fix_hint), "在当前位置补 %s",
+                    lv_token_type_name(type));
     }
     return 0;
 }
@@ -79,12 +83,14 @@ static int check_ident(LvParser *p, int lookahead, const char *text) {
     return strncmp(t.start, text, len) == 0;
 }
 
-/** 记录解析错误 */
+/** 记录解析错误（R4：填 severity=ERROR，fix_hint 留空由调用方 msg 描述） */
 static void parser_error(LvParser *p, const LvToken *tok, const char *msg) {
     if (p->error_count < 64) {
         int idx = p->error_count++;
         p->errors[idx].loc = tok->loc;
+        p->errors[idx].severity = LV_DIAG_ERROR;
         lv_strlcpy(p->errors[idx].message, msg, sizeof(p->errors[idx].message));
+        p->errors[idx].fix_hint[0] = '\0';
     }
 }
 
