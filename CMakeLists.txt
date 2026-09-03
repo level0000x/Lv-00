@@ -1810,17 +1810,24 @@ endif()
 add_library(lv ALIAS lv_static)
 
 # ============================================================
-# 辅助函数：添加测试可执行文件
+# 辅助函数：添加可执行程序（测试/示例公共脚手架，C10 收敛）
 # ============================================================
-function(add_lv_test name)
+function(add_lv_program name)
     add_executable(${name} ${ARGN})
+    # 测试与示例均复用 test/c/test_helpers.h（含 add_point 等辅助函数）
     target_include_directories(${name} PRIVATE
         ${CMAKE_SOURCE_DIR}/test/c
     )
     target_link_libraries(${name} lv ${GMP_LIBRARIES})
     if(WIN32)
+        # interop_server 等使用 winsock API，可执行文件需显式链接 ws2_32
         target_link_libraries(${name} ws2_32)
     endif()
+endfunction()
+
+# 辅助函数：添加测试可执行文件（委托 add_lv_program 公共脚手架）
+function(add_lv_test name)
+    add_lv_program(${name} ${ARGN})
 endfunction()
 
 # 显式注册：源路径默认 test/c/<name>.c；CTEST_NAME 指定 ctest 注册名（缺省 = target 名）。
@@ -2276,12 +2283,8 @@ endif()
 # ============================================================
 if(BUILD_EXAMPLES)
     function(add_lv_example name source)
-        add_executable(${name} ${source})
-        # 示例程序直接复用 test/c/test_helpers.h（含 add_point 等辅助函数）
-        target_include_directories(${name} PRIVATE
-            ${CMAKE_SOURCE_DIR}/test/c
-        )
-        target_link_libraries(${name} lv ${GMP_LIBRARIES})
+        # 委托 add_lv_program 公共脚手架（含 ws2_32 链接，与测试一致——C10）
+        add_lv_program(${name} ${source})
     endfunction()
 
     add_lv_example(example_triangle    test/examples/triangle_construction.c)
