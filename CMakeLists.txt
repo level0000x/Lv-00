@@ -1504,7 +1504,9 @@ add_library(lv_core OBJECT ${lv_CORE_SOURCES} ${lv_HEADERS})
 lv_setup_layer(lv_core 0)
 
 # GCC/Clang 优化标志
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+# 仅非 Debug / 非 coverage 时启用 -O2：Debug（断点）与 coverage（行覆盖）
+# 需 -O0，无条件 -O2 会覆盖 CMAKE_BUILD_TYPE=Debug 的 -O0（K 登记 C8）。
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT (CMAKE_BUILD_TYPE STREQUAL "Debug" OR ENABLE_COVERAGE))
     target_compile_options(lv_core PRIVATE
         -O2
         -fstrict-aliasing
