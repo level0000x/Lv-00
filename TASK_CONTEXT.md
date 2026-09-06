@@ -11939,3 +11939,20 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 剩余：graph_memory / graph_serialize / geometry_transform_group / algebraic /
   symbolic_coord_transform / symbolic_coord_trust（含 `q->a->value`、`mpq_init` 写操作）
   逐片迁移。
+
+---
+
+## 批次 265（P1b 续：graph_memory / graph_serialize 只读迁移）
+
+### 实施
+- `graph_memory.c` `symbolic_coord_dual_extract`：`mpq_set(out_q, sc->data.rational->value)`
+  → `lv_rational_mpq(sc->data.rational)`
+- `graph_serialize.c`：`mpq_numref/denref(rat->value)` → `lv_rational_mpq(rat)`
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 写操作点（`geometry_transform_group.c`、`symbolic_coord_trust.c` 的 `mpq_init(rat->value)+set`）
+  需配套 setter/init 访问器或改为工厂构造（opaque 化时一并处理）；
+- 剩余读点：algebraic / symbolic_coord_transform / symbolic_coord_trust（`q->a->value`）等。

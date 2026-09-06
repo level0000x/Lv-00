@@ -78,7 +78,7 @@ static int cmp_constraint_hash(const void *a, const void *b, void *ctx) {
 static double symbolic_coord_dual_extract(const SymbolicCoord *sc, mpq_t out_q, bool *out_exact) {
     if (sc && sc->type == RATIONAL) {
         mpq_init(out_q);
-        mpq_set(out_q, sc->data.rational->value);
+        mpq_set(out_q, lv_rational_mpq(sc->data.rational));
         *out_exact = true;
     } else {
         *out_exact = false;

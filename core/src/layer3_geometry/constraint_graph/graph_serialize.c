@@ -592,8 +592,8 @@ static void node_field_coords(lvJsonParser *p, NodeDeserCtx *ctx) {
                     Rational *rat = rational_parse(tok);
                     if (rat) {
                         ctx->coords[i] = symbolic_coord_create_rational(
-                            (int64_t) mpz_get_si(mpq_numref(rat->value)),
-                            (uint64_t) mpz_get_ui(mpq_denref(rat->value)));
+                            (int64_t) mpz_get_si(mpq_numref(lv_rational_mpq(rat))),
+                            (uint64_t) mpz_get_ui(mpq_denref(lv_rational_mpq(rat))));
                         rational_destroy(rat);
                     }
                     lv_free((void **) &tok);
