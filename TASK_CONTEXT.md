@@ -11902,3 +11902,21 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 遗留登记
 - P1b 后续：按 P1a 读者面清单，把其余 `.value` 直读点逐文件迁移到访问器，最终 opaque 化
   lvRational（公共头去 GMP 布局）——大工程，多轮推进。
+
+---
+
+## 批次 263（P1b 续：外部只读 `.value` 迁移到访问器）
+
+### 实施
+- 迁移首批**外部只读** `.value` 直读点（非 lvRational 实现内部）：
+  - `quadratic.c` `is_rational_zero`：`mpq_cmp_ui(r->value,…)` → `lv_rational_mpq(r)`
+  - `symbolic_coord.c` `is_rational_zero`：`mpq_sgn(r->value)` → `lv_rational_mpq(r)`
+- 语义不变（只读访问器返回底层 mpq_srcptr）。
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 剩余外部 `.value` 直读点（graph_memory/graph_serialize/geometry_transform_group/
+  algebraic/symbolic_coord_ops/transform/trust/transcendental/lifecycle 等，含 `q->a->value`
+  与少量写操作如 `mpq_init`）逐片迁移；写操作需配套 setter/init 访问器（后续设计）。

@@ -337,7 +337,7 @@ void *circuit_get_frozen_point(void) {
 bool is_rational_zero(const Rational *r) {
     if (!r)
         return true;
-    return mpq_sgn(r->value) == 0;
+    return mpq_sgn(lv_rational_mpq(r)) == 0;
 }
 
 /**
