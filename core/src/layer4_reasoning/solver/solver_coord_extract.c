@@ -106,7 +106,7 @@ typedef bool (*CoordToDoubleFunc)(const SymbolicCoord *c, double *out);
 
 static bool coord_to_double_rational(const SymbolicCoord *c, double *out) {
     if (c->data.rational) {
-        *out = mpq_get_d(c->data.rational->value);
+        *out = mpq_get_d(lv_rational_mpq(c->data.rational));
         return true;
     }
     /* 数据不一致：RATIONAL 类型但 rational 指针为空 */
@@ -179,7 +179,7 @@ bool coord_to_mpz_scaled(const SymbolicCoord *c, mpz_t result, int64_t scale) {
         return false;
 
     if (c->type == RATIONAL && c->data.rational) {
-        mpq_srcptr val = c->data.rational->value;
+        mpq_srcptr val = lv_rational_mpq(c->data.rational);
 
         /* 计算分子 * scale（只计算一次，避免重复） */
         mpz_t scaled_num;
@@ -255,14 +255,14 @@ typedef bool (*CoordToMpzScaledFunc)(const SymbolicCoord *coord, mpz_t result, i
 static bool coord_to_mpz_scaled_exact_rational(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
     if (!coord->data.rational)
         return false;
-    rational_to_mpz_scaled(coord->data.rational->value, result, scale);
+    rational_to_mpz_scaled(lv_rational_mpq(coord->data.rational), result, scale);
     return true;
 }
 
 static bool coord_to_mpz_scaled_exact_quadratic(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
     Quadratic *q = coord->data.quadratic;
-    if (q && mpq_sgn(q->b->value) == 0) {
-        rational_to_mpz_scaled(q->a->value, result, scale);
+    if (q && mpq_sgn(lv_rational_mpq(q->b)) == 0) {
+        rational_to_mpz_scaled(lv_rational_mpq(q->a), result, scale);
         return true;
     }
     double val;
@@ -276,11 +276,11 @@ static bool coord_to_mpz_scaled_exact_quadratic(const SymbolicCoord *coord, mpz_
 static bool coord_to_mpz_scaled_exact_algebraic(const SymbolicCoord *coord, mpz_t result, int64_t scale) {
     Algebraic *a = coord->data.algebraic;
     if (a && a->cached_rational) {
-        rational_to_mpz_scaled(a->cached_rational->value, result, scale);
+        rational_to_mpz_scaled(lv_rational_mpq(a->cached_rational), result, scale);
         return true;
     }
     if (a && algebraic_try_rationalize(a) && a->cached_rational) {
-        rational_to_mpz_scaled(a->cached_rational->value, result, scale);
+        rational_to_mpz_scaled(lv_rational_mpq(a->cached_rational), result, scale);
         return true;
     }
     double val;

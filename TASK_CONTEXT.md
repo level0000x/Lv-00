@@ -12046,3 +12046,18 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 遗留登记
 - 剩余读点：`solver_coord_extract.c`（109/182/258/264-265/279/283）——下一批；
   rational.c 薄转发层（127/146/161-162）、algebraic.c 303 写目标、lv_rational.c 实现内部。
+
+---
+
+## 批次 271（P1b 续：solver_coord_extract 读点 + algebraic 303 写点）
+
+### 实施
+- `solver_coord_extract.c` 六处（coord_to_double_rational / coord_to_mpz_scaled 系列）→ `lv_rational_mpq`
+- `algebraic.c` 303 写目标：`mpq_set(cached_rational->value, approx->value)` →
+  `lv_rational_set_mpq(cached_rational, lv_rational_mpq(approx))`（setter 迁移写点）
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 剩余：rational.c 薄转发层（127/146/161-162）、lv_rational.c 实现内部（opaque 化时处理）。

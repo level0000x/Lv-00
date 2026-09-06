@@ -300,7 +300,7 @@ static Algebraic *try_priority_rationalization(Algebraic *a) {
     if (mpz_cmp_si(eval, 0) == 0) {
         mpz_clear(eval);
         Rational *cached_rational = rational_create(0, 1);
-        mpq_set(cached_rational->value, approx->value);
+        lv_rational_set_mpq(cached_rational, lv_rational_mpq(approx));
         a->cached_rational = cached_rational;
         rational_destroy(approx);
         return a;
