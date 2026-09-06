@@ -723,7 +723,7 @@ lvNumber *lv_number_from_lvRational(const struct lvRational *r) {
     lvNumber *n = node_new(lv_NUMBER_RATIONAL);
     if (!n)
         return NULL;
-    mpq_set(n->u.q, r->value);
+    mpq_set(n->u.q, lv_rational_mpq(r));
     return n;
 }
 

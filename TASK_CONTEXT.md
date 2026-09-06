@@ -12027,3 +12027,22 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 剩余外部 `.value` 直读点已基本清零（仅 lv_rational.c 实现内部 + 个别写点）；
   opaque 化 lvRational 的下一步：把 `struct lvRational{mpq_t value}` 布局移入实现、
   公共头去 GMP——需配合工厂/访问器全面落地后执行（后续批）。
+
+---
+
+## 批次 270（P1b 续：layer4 读点 + lv_number 遗留 726 迁移）
+
+### 实施
+- 迁移 layer4/其它只读 `.value`：
+  - `bdd_encoding_encode.c`：coord_value_rational / coord_value_quadratic（`q->a/b->value`）
+  - `solver_linear.c`：`symbolic_coord_to_mpq`
+  - `geometry_transform_group.c`：`mpq_set(mx/my, sx/sy->data.rational->value)`
+  - `lv_number.c:726`：`from_lvRational` 的 `r->value`（**批次 262 遗漏点**，补迁）
+- 全部 → `lv_rational_mpq(r)`。
+
+### 验证
+- 全量重建 + ctest：302 通过 + stream_extended 并行 flaky（单跑 0.02s 通过，非本批引入）。
+
+### 遗留登记
+- 剩余读点：`solver_coord_extract.c`（109/182/258/264-265/279/283）——下一批；
+  rational.c 薄转发层（127/146/161-162）、algebraic.c 303 写目标、lv_rational.c 实现内部。

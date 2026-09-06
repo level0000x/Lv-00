@@ -301,7 +301,7 @@ BDDNode *constraint_graph_to_bdd(const ConstraintGraph *graph, BDDManager *mgr) 
 typedef double (*CoordValueFn)(const SymbolicCoord *coord);
 static double coord_value_rational(const SymbolicCoord *coord) {
     if (coord->data.rational)
-        return mpq_get_d(coord->data.rational->value);
+        return mpq_get_d(lv_rational_mpq(coord->data.rational));
     return 0.0;
 }
 static double coord_value_algebraic(const SymbolicCoord *coord) {
@@ -313,8 +313,8 @@ static double coord_value_algebraic(const SymbolicCoord *coord) {
 static double coord_value_quadratic(const SymbolicCoord *coord) {
     if (coord->data.quadratic) {
         Quadratic *q = coord->data.quadratic;
-        double a_val = (q->a) ? mpq_get_d(q->a->value) : 0.0;
-        double b_val = (q->b) ? mpq_get_d(q->b->value) : 0.0;
+        double a_val = (q->a) ? mpq_get_d(lv_rational_mpq(q->a)) : 0.0;
+        double b_val = (q->b) ? mpq_get_d(lv_rational_mpq(q->b)) : 0.0;
         return a_val + b_val * sqrt((double) q->n);
     }
     return 0.0;

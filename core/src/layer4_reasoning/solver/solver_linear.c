@@ -84,6 +84,6 @@ static bool solve_quadratic(mpz_poly_t *poly, QuadraticRoots *out) {
 static bool symbolic_coord_to_mpq(const SymbolicCoord *c, mpq_t out) {
     if (!c || c->type != RATIONAL || !c->data.rational)
         return false;
-    mpq_set(out, c->data.rational->value);
+    mpq_set(out, lv_rational_mpq(c->data.rational));
     return true;
 }

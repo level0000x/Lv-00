@@ -348,8 +348,8 @@ static bool transform_preserves_graph(const ConstraintGraph *graph, const lvTran
                 mpq_t mx, my;
                 mpq_init(mx);
                 mpq_init(my);
-                mpq_set(mx, sx->data.rational->value);
-                mpq_set(my, sy->data.rational->value);
+                mpq_set(mx, lv_rational_mpq(sx->data.rational));
+                mpq_set(my, lv_rational_mpq(sy->data.rational));
                 if (lv_transform_apply_point(t, mx, my)) {
                     nsx = symbolic_coord_create_from_mpq(mx, sx->trust);
                     nsy = symbolic_coord_create_from_mpq(my, sy->trust);
