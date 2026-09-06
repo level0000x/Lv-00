@@ -12098,3 +12098,21 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 意义
 - `lvRational`/`Rational` 公共头不再暴露 GMP 布局 → 升级隔离增强（P1b 核心目标达成）；
 - 后续：rational.h 其余 GMP 类型参数（from/to_mpq、set_mpz 等）为显式互操作 API，另行评估。
+
+---
+
+## 批次 274（S3 目标达成复核 + P2 下一簇，文档批）
+
+### 复核
+opaque-化后公共头 GMP token：`rational.h` 8→7、`symbolic_coord.h` 剩 3（均为显式互操作
+函数参数）；**Quadratic 的 a/b 现为不透明 Rational*** → **S3（quadratic 整簇）的公共头去
+GMP 布局目标已基本达成**，无需再把 quadratic 迁移到 lvNumber（避免为用而用）。
+
+### 剩余大簇（按 token 密度）
+- **P2（S1 系数段）**：nt_number_theory.h(26) / mpz_poly.h(14) / nt_polynomial.h(5) /
+  expr_canonical.h(3) —— 系数数组 → lvNumber 段（ND-5 原语已就绪，批次 243）
+- **P3（S4）**：geometry_transform.h(60)
+- **P4（S5）**：inequality_reasoning.h(2) / groebner_engine.h(2) / 终端域
+
+### 决策
+- P1 视为完成（工具面 opaque + S3 公共头目标）；下一簇 = **P2**。
