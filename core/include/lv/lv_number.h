@@ -120,6 +120,15 @@ lv_PUBLIC_API bool lv_number_rational_set(lvNumber *n, const struct lvRational *
 /** @brief 销毁整段（段内全部节点随段清理；调用方不得再持有/使用段内句柄） */
 lv_PUBLIC_API void lv_number_segment_destroy(lvNumberSegment *seg);
 
+/**
+ * @brief 批量把 count 个 lvRational 值写入段前 count 个节点（P2 系数段迁移底层件）
+ * @param seg   段（容量 ≥ count）
+ * @param src    lvRational* 数组（count 个，均非 NULL）
+ * @return false = 参数非法 / count 超段容量 / 任一 src NULL
+ */
+lv_PUBLIC_API bool lv_number_segment_fill_rationals(lvNumberSegment *seg,
+                                                    const struct lvRational *const *src, size_t count);
+
 /* ============================================================
  * 强制池化 —— 帧池 API（ND-2）
  * ============================================================ */

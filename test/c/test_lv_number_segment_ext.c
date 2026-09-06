@@ -104,12 +104,48 @@ static void test_segment_rational_set(void) {
 
 /* ============== 测试入口 ============== */
 
+static void test_segment_fill_rationals(void) {
+    lvRational *src[4];
+    src[0] = lv_rational_create_from_si(3, 2);
+    src[1] = lv_rational_create_from_si(5, 1);
+    src[2] = lv_rational_create_from_si(-1, 4);
+    src[3] = lv_rational_create_from_si(7, 3);
+    for (int i = 0; i < 4; i++)
+        TEST_ASSERT_NOT_NULL(src[i]);
+
+    lvNumberSegment *seg = lv_number_segment_alloc(4);
+    TEST_ASSERT_NOT_NULL(seg);
+    TEST_ASSERT(lv_number_segment_fill_rationals(seg, (const struct lvRational *const *) src, 4),
+                "批量装载 4 个");
+
+    char *s = lv_number_to_string(lv_number_segment_get(seg, 0));
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT(strcmp(s, "3/2") == 0, "seg[0]=3/2");
+    lv_free((void **) &s);
+    s = lv_number_to_string(lv_number_segment_get(seg, 2));
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT(strcmp(s, "-1/4") == 0, "seg[2]=-1/4");
+    lv_free((void **) &s);
+
+    /* 失败契约：count 超容量 / NULL 数组 / 含 NULL 元素 */
+    TEST_ASSERT(!lv_number_segment_fill_rationals(seg, (const struct lvRational *const *) src, 5), "超容量拒绝");
+    TEST_ASSERT(!lv_number_segment_fill_rationals(seg, NULL, 4), "NULL 数组拒绝");
+    const struct lvRational *bad[4] = { src[0], NULL, src[2], src[3] };
+    TEST_ASSERT(!lv_number_segment_fill_rationals(seg, bad, 4), "含 NULL 元素拒绝");
+
+    lv_number_segment_destroy(seg);
+    for (int i = 0; i < 4; i++)
+        lv_rational_destroy(&src[i]);
+    printf("  test_segment_fill_rationals: PASSED\n");
+}
+
 TEST_MAIN_BEGIN("Lv-00 Number Segment Ext Test Suite")
     printf("=== Lv-00 Number Segment Ext Test Suite (ND-5 segment primitives) ===\n\n");
     lv_init();
 
     TEST_MAIN_RUN(test_segment_alloc_api);
     TEST_MAIN_RUN(test_segment_rational_set);
+    TEST_MAIN_RUN(test_segment_fill_rationals);
 
     lv_cleanup();
 TEST_MAIN_END()

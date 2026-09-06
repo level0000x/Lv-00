@@ -12116,3 +12116,20 @@ GMP 布局目标已基本达成**，无需再把 quadratic 迁移到 lvNumber（
 
 ### 决策
 - P1 视为完成（工具面 opaque + S3 公共头目标）；下一簇 = **P2**。
+
+---
+
+## 批次 275（P2 起点：段批量装载辅助 lv_number_segment_fill_rationals）
+
+### 实施
+- `lv_number.h/.c`：新增 `lv_number_segment_fill_rationals(seg, src[], count)` —— 批量把
+  count 个 lvRational 值写入段前 count 节点（P2 系数段迁移底层件；gmp-free 签名，
+  用既有 lv_number_rational_set）；
+- 契约测试：批量装载 4 值（3/2、5、-1/4、7/3）逐节点校验；count 超容量 / NULL 数组 /
+  含 NULL 元素拒绝。
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- P2 后续：nt_polynomial/mpz_poly 系数数组 → 段（用本辅助 + 既有段原语）；expr_canonical 值域。

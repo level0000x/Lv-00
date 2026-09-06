@@ -789,6 +789,18 @@ void lv_number_segment_destroy(lvNumberSegment *seg) {
     lv_free((void **) &seg);
 }
 
+bool lv_number_segment_fill_rationals(lvNumberSegment *seg, const struct lvRational *const *src, size_t count) {
+    if (!seg || !src || count == 0 || count > seg->count)
+        return false;
+    for (size_t i = 0; i < count; i++) {
+        if (!src[i])
+            return false;
+        if (!lv_number_rational_set(&seg->base[i], src[i]))
+            return false;
+    }
+    return true;
+}
+
 lvNumber *lv_number_from_string(const char *str) {
     if (!str) return NULL;
 
