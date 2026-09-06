@@ -11972,3 +11972,22 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 剩余读点：algebraic 其余（`q->a->value`/`q->b->value`/`cached_rational->value`）、
   symbolic_coord_transform 其余（`q->a->value` 等）、symbolic_coord_trust（写操作）；
   写操作点需 setter/init 访问器（opaque 化时一并处理）。
+
+---
+
+## 批次 267（P1b 续：algebraic `q->a/b`、cached_rational 只读迁移）
+
+### 实施
+- `algebraic.c`：
+  - `mpq_mul_2exp(two_a, q->a->value, 1)` → `lv_rational_mpq(q->a)`
+  - `mpq_mul(a_sq, q->a->value, q->a->value)` / `mpq_mul(b_sq, q->b->value, q->b->value)`
+    → `lv_rational_mpq(q->a)` / `lv_rational_mpq(q->b)`
+  - `mpq_sgn(b->cached_rational->value)` → `lv_rational_mpq(b->cached_rational)`
+- （跳过 303 行：`mpq_set(cached_rational->value, …)` 为写目标，留 opaque 化时处理）
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 剩余读点：algebraic 其余（579 行 minimal_poly 系数、303 写目标）、symbolic_coord_transform
+  其余（`q->a->value` 多处）、symbolic_coord_trust（写操作）。

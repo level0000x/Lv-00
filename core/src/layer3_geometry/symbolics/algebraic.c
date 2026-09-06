@@ -640,7 +640,7 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     /* -2a (通过 GMP mpq 处理有理数 a) */
     mpq_t two_a;
     mpq_init(two_a);
-    mpq_mul_2exp(two_a, q->a->value, 1); /* 2*a */
+    mpq_mul_2exp(two_a, lv_rational_mpq(q->a), 1); /* 2*a */
 
     /* a^2 - b^2*n */
     mpq_t a_sq, b_sq, b_sq_n;
@@ -648,8 +648,8 @@ Algebraic *algebraic_from_quadratic(const Quadratic *q) {
     mpq_init(b_sq);
     mpq_init(b_sq_n);
 
-    mpq_mul(a_sq, q->a->value, q->a->value);
-    mpq_mul(b_sq, q->b->value, q->b->value);
+    mpq_mul(a_sq, lv_rational_mpq(q->a), lv_rational_mpq(q->a));
+    mpq_mul(b_sq, lv_rational_mpq(q->b), lv_rational_mpq(q->b));
     mpq_set_ui(b_sq_n, q->n, 1);
     mpq_mul(b_sq_n, b_sq_n, b_sq);
 
@@ -1126,7 +1126,7 @@ Algebraic *algebraic_divide(const Algebraic *a, const Algebraic *b) {
     /* Special case: if b is effectively a rational */
     if (b->minimal_poly.degree == 0 && b->cached_rational) {
         double b_val = rational_to_double(b->cached_rational);
-        if (mpq_sgn(b->cached_rational->value) == 0)
+        if (mpq_sgn(lv_rational_mpq(b->cached_rational)) == 0)
             lv_RETURN_ERROR_NULL(lv_ERROR_COORD_INVALID, "algebraic_divide: divisor is zero (rational)");
 
         Algebraic *result = lv_calloc(1, sizeof(Algebraic));
