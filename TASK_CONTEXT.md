@@ -12061,3 +12061,19 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 
 ### 遗留登记
 - 剩余：rational.c 薄转发层（127/146/161-162）、lv_rational.c 实现内部（opaque 化时处理）。
+
+---
+
+## 批次 272（P1b 续：rational.c 薄转发层读点迁移）
+
+### 实施
+- `rational.c`：`rational_serialize` / `rational_to_double` / `check_rational_circuit` 的
+  `r->value` → `lv_rational_mpq(r)`
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 外部 `.value` 读点已清零（仅 lv_rational.c 实现内部保留）；
+  下一步评估 **lvRational opaque 化**（布局移入实现、公共头去 GMP）——先核查 by-value
+  Rational 栈分配 / sizeof(Rational) 使用面以定可行性。

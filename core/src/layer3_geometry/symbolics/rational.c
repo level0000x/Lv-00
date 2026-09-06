@@ -124,7 +124,7 @@ Rational *rational_negate(const Rational *a) {
 char *rational_serialize(const Rational *r) {
     if (!r)
         return NULL;
-    return lv_mpq_to_string(r->value, false);
+    return lv_mpq_to_string(lv_rational_mpq(r), false);
 }
 
 Rational *rational_parse(const char *str) {
@@ -143,7 +143,7 @@ Rational *rational_parse(const char *str) {
  * @return 有理数的双精度浮点数近似值
  */
 double rational_to_double(const Rational *r) {
-    return mpq_get_d(r->value);
+    return mpq_get_d(lv_rational_mpq(r));
 }
 
 /**
@@ -158,8 +158,8 @@ static CircuitStatus check_rational_circuit(const Rational *r) {
     if (!r)
         return CIRCUIT_STATUS_OK;
     /* K63/F89：位数计算收敛到权威 lv_mpz_bit_size（lv_numeric.h） */
-    size_t num_bits = lv_mpz_bit_size(mpq_numref(r->value));
-    size_t den_bits = lv_mpz_bit_size(mpq_denref(r->value));
+    size_t num_bits = lv_mpz_bit_size(mpq_numref(lv_rational_mpq(r)));
+    size_t den_bits = lv_mpz_bit_size(mpq_denref(lv_rational_mpq(r)));
     /* 溢出保护：防止 num_bits + den_bits 在 size_t 范围内溢出 */
     if (num_bits > SIZE_MAX - den_bits) {
         return CIRCUIT_STATUS_TRIPPED;
