@@ -56,7 +56,7 @@ static bool var_structurally_equal(const lvExpr *a, const lvExpr *b) {
 }
 
 static bool rational_structurally_equal(const lvExpr *a, const lvExpr *b) {
-    return (mpq_equal(a->data.rational.value, b->data.rational.value) != 0);
+    return lv_number_eq(a->data.rational.value, b->data.rational.value);
 }
 
 static bool power_structurally_equal(const lvExpr *a, const lvExpr *b) {
@@ -91,7 +91,8 @@ static lvSign var_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
 
 static lvSign rational_sign(const lvExpr *expr, const lvInequalitySystem *sys) {
     (void)sys;
-    int cmp = mpq_sgn(expr->data.rational.value);
+    lvNumber *v = expr->data.rational.value;
+    int cmp = lv_number_is_zero(v) ? 0 : (lv_number_is_negative(v) ? -1 : 1);
     if (cmp > 0) return SIGN_POSITIVE;
     if (cmp < 0) return SIGN_NEGATIVE;
     return SIGN_ZERO;

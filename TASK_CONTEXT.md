@@ -12133,3 +12133,23 @@ GMP 布局目标已基本达成**，无需再把 quadratic 迁移到 lvNumber（
 
 ### 遗留登记
 - P2 后续：nt_polynomial/mpz_poly 系数数组 → 段（用本辅助 + 既有段原语）；expr_canonical 值域。
+
+---
+
+## 批次 276（P2 步骤 3：expr_canonical 值域 mpq→lvNumber）
+
+### 实施
+- `expr_canonical.h`：`data.rational.value` 由 `mpq_t`（内嵌 by-value）→ `lvNumber *`；
+  include lv_number.h；`lv_expr_create_rational_mpq(mpq_t)` 保留为互操作 API；
+- `expr_canonical.c`：create_rational/create_rational_mpq/destroy/copy/get_integer 改经
+  lvNumber（工厂/clone/destroy/is_integer/to_int）；
+- `inequality_reasoning_core.c`（rational_structurally_equal、rational_sign）与
+  `inequality_reasoning_prove.c`（2 处 is_zero）改经 lvNumber（eq/is_zero/is_negative）。
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**（含 expr_canon/inequality/proof 测试）；
+- expr_canonical.h GMP token 3→1（仅 create_rational_mpq 互操作参数）。
+
+### 意义
+- P2 步骤 3 完成：lvExpr 有理数常量值域去 GMP 布局，改经 lvNumber 池句柄（升级隔离 + 池化）；
+- 剩余 P2：nt_polynomial/mpz_poly 系数数组 → 段。

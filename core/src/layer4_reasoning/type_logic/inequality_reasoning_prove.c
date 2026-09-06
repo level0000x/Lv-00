@@ -184,7 +184,9 @@ static lvInequalityStatus prove_schur_method(lvInequality *ineq, const lvInequal
         /* 检查右端是否为 0 */
         bool right_is_zero = false;
         if (ineq->right->type == EXPR_TYPE_RATIONAL) {
-            int is_zero = mpq_sgn(ineq->right->data.rational.value);
+            int is_zero = lv_number_is_zero(ineq->right->data.rational.value)
+                              ? 0
+                              : (lv_number_is_negative(ineq->right->data.rational.value) ? -1 : 1);
             right_is_zero = (is_zero == 0);
         }
         if (right_is_zero && ineq->left->type == EXPR_TYPE_SUM && ineq->left->data.composite.count == 3) {
@@ -253,7 +255,9 @@ static lvInequalityStatus prove_sos_method(lvInequality *ineq, const lvInequalit
         /* 检查右端是否为 0 */
         bool right_is_zero = false;
         if (ineq->right->type == EXPR_TYPE_RATIONAL) {
-            int is_zero = mpq_sgn(ineq->right->data.rational.value);
+            int is_zero = lv_number_is_zero(ineq->right->data.rational.value)
+                              ? 0
+                              : (lv_number_is_negative(ineq->right->data.rational.value) ? -1 : 1);
             right_is_zero = (is_zero == 0);
         }
         if (right_is_zero) {

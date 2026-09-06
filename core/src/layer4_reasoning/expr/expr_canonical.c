@@ -12,6 +12,7 @@
 
 #include "lv/lv_utils.h"
 #include "lv/lv_xmacro.h" /* LV_DISPATCH / LV_DISPATCH_VOID */
+#include "lv/rational.h" /* lv_rational_from_mpq（create_rational_mpq 互操作） */
 
 /* ============== 内部辅助 ============== */
 
@@ -44,9 +45,7 @@ lvExpr *lv_expr_create_rational(int64_t num, uint64_t den) {
     if (!e)
         return NULL;
     e->type = EXPR_TYPE_RATIONAL;
-    mpq_init(e->data.rational.value);
-    mpq_set_si(e->data.rational.value, (signed long int) num, (unsigned long int) den);
-    mpq_canonicalize(e->data.rational.value);
+    e->data.rational.value = lv_number_from_rational(num, den);
     return e;
 }
 
@@ -57,8 +56,17 @@ lvExpr *lv_expr_create_rational_mpq(const mpq_t value) {
     if (!e)
         return NULL;
     e->type = EXPR_TYPE_RATIONAL;
-    mpq_init(e->data.rational.value);
-    mpq_set(e->data.rational.value, value);
+    lvRational *r = lv_rational_from_mpq(value);
+    if (!r) {
+        lv_free((void **) &e);
+        return NULL;
+    }
+    e->data.rational.value = lv_number_from_lvRational(r);
+    lv_rational_destroy(&r);
+    if (!e->data.rational.value) {
+        lv_free((void **) &e);
+        return NULL;
+    }
     return e;
 }
 
@@ -156,7 +164,10 @@ lvExpr *lv_expr_function(const char *func_name, lvExpr *argument) {
 /* ── 各 type 的 destroy 实现 ── */
 
 static void destroy_variable(lvExpr *e) { lv_free((void **)&e->data.variable.name); }
-static void destroy_rational(lvExpr *e) { mpq_clear(e->data.rational.value); }
+static void destroy_rational(lvExpr *e) {
+    lv_number_destroy(e->data.rational.value);
+    e->data.rational.value = NULL;
+}
 static void destroy_power(lvExpr *e) {
     (void)e; /* exempt: 浅树生态——公共 lv_expr_destroy 非递归销毁，power 子表达式
                由调用者管理（与 lambda_term 递归 destroy 语义不同，跨模块语义差异） */
@@ -172,9 +183,8 @@ static int copy_variable(const lvExpr *src, lvExpr *dst) {
 }
 
 static int copy_rational(const lvExpr *src, lvExpr *dst) {
-    mpq_init(dst->data.rational.value);
-    mpq_set(dst->data.rational.value, src->data.rational.value);
-    return 0;
+    dst->data.rational.value = lv_number_clone(src->data.rational.value);
+    return dst->data.rational.value ? 0 : -1;
 }
 
 static int copy_power(const lvExpr *src, lvExpr *dst) {
@@ -299,8 +309,8 @@ bool lv_expr_is_constant(const lvExpr *expr) {
 bool lv_expr_get_integer(const lvExpr *expr, int64_t *out_val) {
     if (!expr || expr->type != EXPR_TYPE_RATIONAL || !out_val)
         return false;
-    if (mpz_cmp_ui(mpq_denref(expr->data.rational.value), 1) != 0)
+    if (!lv_number_is_integer(expr->data.rational.value))
         return false;
-    *out_val = mpz_get_si(mpq_numref(expr->data.rational.value));
+    *out_val = lv_number_to_int(expr->data.rational.value);
     return true;
 }

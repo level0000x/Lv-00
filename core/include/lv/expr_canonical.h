@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file expr_canonical.h
  * @brief 符号表达式规范表示 —— lvExpr 类型定义与构造/操作 API
  *
@@ -25,6 +25,7 @@ extern "C" {
 #include <gmp.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "lv/lv_number.h" /* lvNumber（P2：有理数常量值域） */
 
 /* ============== 表达式类型枚举 ============== */
 
@@ -56,9 +57,9 @@ typedef struct lvExpr {
         struct {
             char *name;
         } variable;
-        /* EXPR_TYPE_RATIONAL: 有理数值 */
+        /* EXPR_TYPE_RATIONAL: 有理数值（lvNumber 句柄，P2） */
         struct {
-            mpq_t value;
+            lvNumber *value;
         } rational;
         /* EXPR_TYPE_FUNCTION: 函数名和参数 */
         struct {
