@@ -108,6 +108,10 @@ lvRational *lv_rational_from_string(const char *s);
 lvRational *lv_rational_from_mpq(mpq_srcptr val);
 lv_PUBLIC_API void lv_rational_to_mpq(const lvRational *r, mpq_t out);
 
+/* P1b 访问器（为 opaque 化铺路：调用方不再直接读 .value 成员） */
+lv_PUBLIC_API mpq_srcptr lv_rational_mpq(const lvRational *r);   /* 只读底层 mpq */
+lv_PUBLIC_API void lv_rational_set_mpq(lvRational *r, mpq_srcptr val);
+
 /* ========================================================================
  * 兼容宏
  * ======================================================================== */

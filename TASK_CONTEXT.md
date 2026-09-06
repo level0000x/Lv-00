@@ -11882,3 +11882,23 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 新增 `docs/architecture/index.md`：权威设计（dependency-policy / number-abstraction /
   domain-migration-roadmap / p1-s3 / batch-c / dsl-remaining）+ 实施状态（批次 232-260）
   + 待决候选；回应 K77 文档交叉引用卫生。
+
+---
+
+## 批次 262（P1b 起点：lvRational 访问器 + 内部直读迁移，高风险项启动）
+
+### 背景
+用户批准高风险项按优先级逐步执行。P1（S3 整簇 + 工具面 opaque）启动；P1b 第一步为
+「迁移到访问器」样板（为 lvRational opaque 化铺路，不破坏现有 .value 成员）。
+
+### 实施
+- `rational.h/.c`：新增访问器 `lv_rational_mpq(r)`（只读底层 mpq_srcptr）与
+  `lv_rational_set_mpq(r, val)`；
+- `lv_number.c` 4 处 `mpq_set(n->u.q, r->value)` → `lv_rational_mpq(r)`（内部直读清零）。
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- P1b 后续：按 P1a 读者面清单，把其余 `.value` 直读点逐文件迁移到访问器，最终 opaque 化
+  lvRational（公共头去 GMP 布局）——大工程，多轮推进。

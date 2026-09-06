@@ -641,3 +641,16 @@ void lv_rational_to_mpq(const lvRational *r, mpq_t out) {
     mpq_set(out, r->value);
     mpq_canonicalize(out);
 }
+
+/* P1b 访问器（为 opaque 化铺路） */
+mpq_srcptr lv_rational_mpq(const lvRational *r) {
+    if (!r)
+        return NULL;
+    return r->value;
+}
+
+void lv_rational_set_mpq(lvRational *r, mpq_srcptr val) {
+    if (!r || !val)
+        return;
+    mpq_set(r->value, val);
+}

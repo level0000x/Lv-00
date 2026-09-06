@@ -764,12 +764,12 @@ bool lv_number_rational_set(lvNumber *n, const struct lvRational *r) {
     if (!n || !r)
         return false;
     if (n->kind == lv_NUMBER_RATIONAL) {
-        mpq_set(n->u.q, r->value);
+        mpq_set(n->u.q, lv_rational_mpq(r));
         return true;
     }
     if (n->kind == lv_NUM_KIND_NONE) {
         /* 段节点零初始化（calloc）：等价于 mpq_init 后的零态，直接 mpq_set */
-        mpq_set(n->u.q, r->value);
+        mpq_set(n->u.q, lv_rational_mpq(r));
         n->kind = lv_NUMBER_RATIONAL;
         return true;
     }
@@ -797,7 +797,7 @@ lvNumber *lv_number_from_string(const char *str) {
     if (r) {
         lvNumber *n = node_new(lv_NUMBER_RATIONAL);
         if (n) {
-            mpq_set(n->u.q, r->value);
+            mpq_set(n->u.q, lv_rational_mpq(r));
         }
         lv_rational_destroy(&r);
         return n;
