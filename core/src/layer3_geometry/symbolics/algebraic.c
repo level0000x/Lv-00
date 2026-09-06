@@ -576,7 +576,7 @@ Algebraic *algebraic_from_rational(const Rational *r) {
         lv_RETURN_ERROR_NULL(lv_ERROR_ALLOCATION_FAILED, "algebraic_from_rational: coeffs malloc failed");
     }
     mpz_init(a->minimal_poly.coeffs[0]);
-    mpz_set(a->minimal_poly.coeffs[0], mpq_numref(r->value));
+    mpz_set(a->minimal_poly.coeffs[0], mpq_numref(lv_rational_mpq(r)));
 
     /* Handle denominator by storing numerator only; actual value is num/den */
     /* For simplicity, we'll use the double approximation for bounds */

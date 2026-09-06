@@ -11991,3 +11991,20 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 遗留登记
 - 剩余读点：algebraic 其余（579 行 minimal_poly 系数、303 写目标）、symbolic_coord_transform
   其余（`q->a->value` 多处）、symbolic_coord_trust（写操作）。
+
+---
+
+## 批次 268（P1b 续：symbolic_coord_transform `q->a/b` 大读块 + algebraic 579）
+
+### 实施
+- `symbolic_coord_transform.c`：判别式 `a_sq/b_sq`、`c_sq/c_sq_neg`、极小多项式系数
+  （`mpq_numref/denref(q->a->value)` 等）→ `lv_rational_mpq(q->a)` / `lv_rational_mpq(q->b)`
+- `algebraic.c`：`mpz_set(coeffs[0], mpq_numref(r->value))` → `lv_rational_mpq(r)`
+- 跳过写点：`mpq_mul_2exp(two_c->value, two_c->value, 1)`（双向读写，留 opaque 化时处理）
+
+### 验证
+- 全量重建 + ctest：302 通过 + performance_test 并行 flaky（单跑 6.15s 通过，非本批引入）。
+
+### 遗留登记
+- 剩余读点：symbolic_coord_transform 817/834 写点、symbolic_coord_trust（写操作）、
+  geometry_transform_group（写操作）；写点需 setter/init 访问器（opaque 化时一并处理）。

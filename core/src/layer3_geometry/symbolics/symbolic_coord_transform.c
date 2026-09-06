@@ -766,8 +766,8 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
     mpq_init(b_sq_n);
     mpq_init(disc);
 
-    mpq_mul(a_sq, q->a->value, q->a->value);
-    mpq_mul(b_sq, q->b->value, q->b->value);
+    mpq_mul(a_sq, lv_rational_mpq(q->a), lv_rational_mpq(q->a));
+    mpq_mul(b_sq, lv_rational_mpq(q->b), lv_rational_mpq(q->b));
     mpq_set_ui(b_sq_n, q->n, 1);
     mpq_mul(b_sq_n, b_sq_n, b_sq);
     mpq_sub(disc, a_sq, b_sq_n);
@@ -797,10 +797,10 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
         mpq_t c_sq, c_sq_neg;
         mpq_init(c_sq);
         mpq_init(c_sq_neg);
-        mpq_add(c_sq, q->a->value, k);
+        mpq_add(c_sq, lv_rational_mpq(q->a), k);
         mpq_div_2exp(c_sq, c_sq, 1);
 
-        mpq_sub(c_sq_neg, q->a->value, k);
+        mpq_sub(c_sq_neg, lv_rational_mpq(q->a), k);
         mpq_div_2exp(c_sq_neg, c_sq_neg, 1);
 
         mpz_t csq_product;
@@ -907,17 +907,17 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
         }
 
         mpz_init(poly.coeffs[0]);
-        mpz_mul(poly.coeffs[0], mpq_numref(q->a->value), mpq_numref(q->a->value));
+        mpz_mul(poly.coeffs[0], mpq_numref(lv_rational_mpq(q->a)), mpq_numref(lv_rational_mpq(q->a)));
         mpz_t den_a_sq;
         mpz_init(den_a_sq);
-        mpz_mul(den_a_sq, mpq_denref(q->a->value), mpq_denref(q->a->value));
+        mpz_mul(den_a_sq, mpq_denref(lv_rational_mpq(q->a)), mpq_denref(lv_rational_mpq(q->a)));
 
         mpz_t b_sq_n_num, b_sq_n_den;
         mpz_init(b_sq_n_num);
         mpz_init(b_sq_n_den);
-        mpz_mul(b_sq_n_num, mpq_numref(q->b->value), mpq_numref(q->b->value));
+        mpz_mul(b_sq_n_num, mpq_numref(lv_rational_mpq(q->b)), mpq_numref(lv_rational_mpq(q->b)));
         mpz_mul_ui(b_sq_n_num, b_sq_n_num, q->n);
-        mpz_mul(b_sq_n_den, mpq_denref(q->b->value), mpq_denref(q->b->value));
+        mpz_mul(b_sq_n_den, mpq_denref(lv_rational_mpq(q->b)), mpq_denref(lv_rational_mpq(q->b)));
 
         mpz_t lcd;
         mpz_init(lcd);
@@ -935,7 +935,7 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
         mpz_init_set_ui(poly.coeffs[1], 0);
 
         mpz_init(poly.coeffs[2]);
-        mpz_mul_ui(poly.coeffs[2], mpq_numref(q->a->value), 2);
+        mpz_mul_ui(poly.coeffs[2], mpq_numref(lv_rational_mpq(q->a)), 2);
         mpz_neg(poly.coeffs[2], poly.coeffs[2]);
         mpz_mul(poly.coeffs[2], poly.coeffs[2], b_sq_n_den);
 
