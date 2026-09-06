@@ -11956,3 +11956,19 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 写操作点（`geometry_transform_group.c`、`symbolic_coord_trust.c` 的 `mpq_init(rat->value)+set`）
   需配套 setter/init 访问器或改为工厂构造（opaque 化时一并处理）；
 - 剩余读点：algebraic / symbolic_coord_transform / symbolic_coord_trust（`q->a->value`）等。
+
+---
+
+## 批次 266（P1b 续：algebraic / symbolic_coord_transform 只读迁移）
+
+### 实施
+- `algebraic.c`：`mpq_mul(val,val,r->value)`、`is_rational_zero` 的 `mpq_sgn(r->value)` → `lv_rational_mpq(r)`
+- `symbolic_coord_transform.c`：`mpq_numref/denref(r->value)` 两处（pow 与平方根判定）→ `lv_rational_mpq(r)`
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 剩余读点：algebraic 其余（`q->a->value`/`q->b->value`/`cached_rational->value`）、
+  symbolic_coord_transform 其余（`q->a->value` 等）、symbolic_coord_trust（写操作）；
+  写操作点需 setter/init 访问器（opaque 化时一并处理）。

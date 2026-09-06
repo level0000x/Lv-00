@@ -266,8 +266,8 @@ static SymbolicCoord *pow_rational(const SymbolicCoord *base, unsigned int expon
     mpz_init(num_pow);
     mpz_init(den_pow);
 
-    mpz_pow_ui(num_pow, mpq_numref(r->value), exponent);
-    mpz_pow_ui(den_pow, mpq_denref(r->value), exponent);
+    mpz_pow_ui(num_pow, mpq_numref(lv_rational_mpq(r)), exponent);
+    mpz_pow_ui(den_pow, mpq_denref(lv_rational_mpq(r)), exponent);
 
     Rational *result_r = rational_create_from_mpz(num_pow, den_pow);
     mpz_clear(num_pow);
@@ -644,8 +644,8 @@ static SymbolicCoord *sqrt_rational(const SymbolicCoord *coord, unsigned int unu
     (void)unused;
     const Rational *r = coord->data.rational;
     mpz_t num, den;
-    mpz_init_set(num, mpq_numref(r->value));
-    mpz_init_set(den, mpq_denref(r->value));
+    mpz_init_set(num, mpq_numref(lv_rational_mpq(r)));
+    mpz_init_set(den, mpq_denref(lv_rational_mpq(r)));
 
     /* 检查分子和分母是否都是完全平方数 */
     int num_sign = mpz_sgn(num);

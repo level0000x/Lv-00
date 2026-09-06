@@ -126,7 +126,7 @@ void sym_evaluate_algebraic_at_rational(mpz_t result, const mpz_poly_t *poly, co
         if (i == (int) poly->degree) {
             mpq_set_z(val, poly->coeffs[i]);
         } else {
-            mpq_mul(val, val, r->value);
+            mpq_mul(val, val, lv_rational_mpq(r));
             mpq_t coeff;
             mpq_init(coeff);
             mpq_set_z(coeff, poly->coeffs[i]);
@@ -1231,7 +1231,7 @@ char *algebraic_serialize(const Algebraic *a) {
 static bool is_rational_zero(const Rational *r) {
     if (!r)
         return true;
-    return mpq_sgn(r->value) == 0;
+    return mpq_sgn(lv_rational_mpq(r)) == 0;
 }
 
 /**
