@@ -28,6 +28,11 @@
 
 #include "lv/lv_numeric.h" /* lv_mpz_bit_size / lv_check_bit_limit（K63/F89 位数检查权威） */
 #include "lv/lv_utils.h"
+
+/* P1b opaque 化：lvRational 内部布局（仅本实现可见，公共头不暴露 GMP） */
+struct lvRational {
+    mpq_t value;
+};
 #include "lv/config.h" /* lv_BIT_CUTOFF_THRESHOLD（K63：安全比特阈值权威源） */
 
 /* lv_rational_den_is_safe 的分母安全比特阈值（独立语义：分母防循环无界增长，

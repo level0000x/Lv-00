@@ -317,28 +317,27 @@ static Algebraic *try_priority_rationalization(Algebraic *a) {
     mpq_init(cf_result);
 
     if (continued_fraction_approx(mid_value, epsilon, cf_result)) {
-        /* 验证：将候选有理数代入极小多项式 */
-        Rational candidate;
-        mpq_init(candidate.value);
-        mpq_set(candidate.value, cf_result);
+        /* 验证：将候选有理数代入极小多项式（opaque 化：指针 + 工厂） */
+        Rational *candidate = lv_rational_from_mpq(cf_result);
+        if (candidate) {
+            mpz_t cf_eval;
+            mpz_init(cf_eval);
+            sym_evaluate_algebraic_at_rational(cf_eval, &a->minimal_poly, candidate);
 
-        mpz_t cf_eval;
-        mpz_init(cf_eval);
-        sym_evaluate_algebraic_at_rational(cf_eval, &a->minimal_poly, &candidate);
-
-        if (mpz_cmp_si(cf_eval, 0) == 0) {
-            /* 候选值是极小多项式的精确根 */
-            mpz_clear(cf_eval);
-            mpq_clear(candidate.value);
-            Rational *cached_rational = rational_create_from_mpz(mpq_numref(cf_result), mpq_denref(cf_result));
-            if (cached_rational) {
-                a->cached_rational = cached_rational;
+            if (mpz_cmp_si(cf_eval, 0) == 0) {
+                /* 候选值是极小多项式的精确根 */
+                mpz_clear(cf_eval);
+                Rational *cached_rational = rational_create_from_mpz(mpq_numref(cf_result), mpq_denref(cf_result));
+                if (cached_rational) {
+                    a->cached_rational = cached_rational;
+                }
+                lv_rational_destroy(&candidate);
+                mpq_clear(cf_result);
+                return a;
             }
-            mpq_clear(cf_result);
-            return a;
+            mpz_clear(cf_eval);
+            lv_rational_destroy(&candidate);
         }
-        mpz_clear(cf_eval);
-        mpq_clear(candidate.value);
     }
 
     mpq_clear(cf_result);

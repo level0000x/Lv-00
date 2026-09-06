@@ -14,12 +14,10 @@ extern "C" {
 #include "lv/lv_utils.h"
 
 /* ========================================================================
- * lvRational 结构体定义
+ * lvRational 不透明句柄（P1b opaque 化：布局移入实现，公共头去 GMP 布局）
  * ======================================================================== */
 
-typedef struct lvRational {
-    mpq_t value; /* GMP 精确有理数（统一原语，与 symbolic_coord.h 的 Rational 同构） */
-} lvRational;
+typedef struct lvRational lvRational;
 
 /* ========================================================================
  * 生命周期管理

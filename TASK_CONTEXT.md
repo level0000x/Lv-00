@@ -12077,3 +12077,24 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 外部 `.value` 读点已清零（仅 lv_rational.c 实现内部保留）；
   下一步评估 **lvRational opaque 化**（布局移入实现、公共头去 GMP）——先核查 by-value
   Rational 栈分配 / sizeof(Rational) 使用面以定可行性。
+
+---
+
+## 批次 273（P1b 里程碑：lvRational opaque 化）
+
+### 实施
+- `rational.h`：`typedef struct lvRational { mpq_t value; } lvRational;` → **不透明**
+  `typedef struct lvRational lvRational;`（公共头去 GMP 布局）；
+- `lv_rational.c`：定义内部 `struct lvRational { mpq_t value; };`（仅实现可见）；
+- 前置清障（前几批已迁移全部外部 `.value` 读/写点 + 唯一 by-value 栈用点）：
+  `algebraic.c` 的 `Rational candidate;` 栈 by-value → 指针 + `lv_rational_from_mpq`；
+  `test_rational.c:364` 直读 `r->value` → `lv_rational_set_mpq` setter。
+
+### 验证
+- 全量重建（无 error）+ ctest **303/303 全绿**；
+- 可行性核查：test/python 无 by-value `Rational`（仅无关 `AlgRational`）；`sizeof(lvRational)`
+  仅实现内部。
+
+### 意义
+- `lvRational`/`Rational` 公共头不再暴露 GMP 布局 → 升级隔离增强（P1b 核心目标达成）；
+- 后续：rational.h 其余 GMP 类型参数（from/to_mpq、set_mpz 等）为显式互操作 API，另行评估。
