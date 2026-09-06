@@ -814,7 +814,7 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
         if (c_sqrt && mpq_sgn(c_sq) >= 0) {
             c_rat = rational_create_from_mpz(*c_sqrt, mpq_denref(c_sq));
             Rational *two_c = rational_create_from_mpz(*c_sqrt, mpq_denref(c_sq));
-            mpq_mul_2exp(two_c->value, two_c->value, 1);
+            lv_rational_mul_2exp(two_c, 1);
             d_rat = rational_divide(q->b, two_c);
             rational_destroy(two_c);
             mpz_clear(*c_sqrt);
@@ -831,7 +831,7 @@ static SymbolicCoord *sqrt_quadratic(const SymbolicCoord *coord, unsigned int un
             if (c_sqrt && mpq_sgn(c_sq_neg) >= 0) {
                 c_rat = rational_create_from_mpz(*c_sqrt, mpq_denref(c_sq_neg));
                 Rational *two_c = rational_create_from_mpz(*c_sqrt, mpq_denref(c_sq_neg));
-                mpq_mul_2exp(two_c->value, two_c->value, 1);
+                lv_rational_mul_2exp(two_c, 1);
                 d_rat = rational_divide(q->b, two_c);
                 rational_destroy(two_c);
                 mpz_clear(*c_sqrt);

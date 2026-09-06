@@ -281,13 +281,11 @@ static SymbolicCoord *symbolic_coord_create_from_mpq(const mpq_t value, TrustCol
     coord->cache_valid = false;
     coord->cached_value = 0.0;
 
-    Rational *rat = lv_calloc(1, sizeof(Rational));
+    Rational *rat = lv_rational_from_mpq(value);
     if (!rat) {
         lv_free((void **) &coord);
         return NULL;
     }
-    mpq_init(rat->value);
-    mpq_set(rat->value, value);
     coord->data.rational = rat;
 
     return coord;

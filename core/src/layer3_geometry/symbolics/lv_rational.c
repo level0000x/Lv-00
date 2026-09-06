@@ -654,3 +654,10 @@ void lv_rational_set_mpq(lvRational *r, mpq_srcptr val) {
         return;
     mpq_set(r->value, val);
 }
+
+void lv_rational_mul_2exp(lvRational *r, int exp) {
+    if (!r)
+        return;
+    mpq_mul_2exp(r->value, r->value, exp);
+    mpq_canonicalize(r->value);
+}

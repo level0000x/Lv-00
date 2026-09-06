@@ -12008,3 +12008,22 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 ### 遗留登记
 - 剩余读点：symbolic_coord_transform 817/834 写点、symbolic_coord_trust（写操作）、
   geometry_transform_group（写操作）；写点需 setter/init 访问器（opaque 化时一并处理）。
+
+---
+
+## 批次 269（P1b 续：写操作点迁移到工厂/写访问器）
+
+### 实施
+- 新增写访问器 `lv_rational_mul_2exp(lvRational*, int)`（r *= 2^exp）；
+- 迁移三处**写操作点**（不再直接 `mpq_init(r->value)+set`）：
+  - `geometry_transform_group.c`：`calloc+mpq_init+set` → `lv_rational_from_mpq(value)`（工厂）
+  - `symbolic_coord_trust.c`：`calloc+mpq_init+set` → `lv_rational_from_mpq(result)`（工厂）
+  - `symbolic_coord_transform.c` 两处 `mpq_mul_2exp(two_c->value,…)` → `lv_rational_mul_2exp(two_c,1)`
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**（含 performance_test）。
+
+### 遗留登记
+- 剩余外部 `.value` 直读点已基本清零（仅 lv_rational.c 实现内部 + 个别写点）；
+  opaque 化 lvRational 的下一步：把 `struct lvRational{mpq_t value}` 布局移入实现、
+  公共头去 GMP——需配合工厂/访问器全面落地后执行（后续批）。

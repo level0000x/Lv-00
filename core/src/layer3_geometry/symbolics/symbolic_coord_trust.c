@@ -257,11 +257,7 @@ static Rational *algebraic_continued_fraction_approx(const Algebraic *a, double 
 
     mpq_canonicalize(result);
 
-    Rational *r = lv_calloc(1, sizeof(Rational));
-    if (r) {
-        mpq_init(r->value);
-        mpq_set(r->value, result);
-    }
+    Rational *r = lv_rational_from_mpq(result);
 
     mpq_clear(approx);
     mpq_clear(result);
