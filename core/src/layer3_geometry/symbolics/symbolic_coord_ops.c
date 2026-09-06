@@ -427,8 +427,8 @@ static size_t rational_total_bits(const Rational *r) {
     if (!r)
         return 0;
     /* K63/F89：位数计算收敛到权威 lv_mpz_bit_size（lv_numeric.h） */
-    size_t num = lv_mpz_bit_size(mpq_numref(r->value));
-    size_t den = lv_mpz_bit_size(mpq_denref(r->value));
+    size_t num = lv_mpz_bit_size(mpq_numref(lv_rational_mpq(r)));
+    size_t den = lv_mpz_bit_size(mpq_denref(lv_rational_mpq(r)));
     if (num > SIZE_MAX - den)
         return SIZE_MAX;
     return num + den;

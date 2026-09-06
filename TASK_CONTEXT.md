@@ -11920,3 +11920,22 @@ CMake：MPFR/MPC/MPFI 的静态优先分支限定 `WIN32`；Linux/mac 回落 `fi
 - 剩余外部 `.value` 直读点（graph_memory/graph_serialize/geometry_transform_group/
   algebraic/symbolic_coord_ops/transform/trust/transcendental/lifecycle 等，含 `q->a->value`
   与少量写操作如 `mpq_init`）逐片迁移；写操作需配套 setter/init 访问器（后续设计）。
+
+---
+
+## 批次 264（P1b 续：更多外部只读 `.value` 迁移）
+
+### 实施
+- 迁移只读 `.value` 直读点：
+  - `transcendental.c`：`mpq_get_d(t->expr->rational_operand->value)` → `lv_rational_mpq(…)`
+  - `symbolic_coord_lifecycle.c`：`is_zero_rational` / `is_zero_algebraic` 两处 →
+    `lv_rational_mpq(coord->data.rational)` / `lv_rational_mpq(a->cached_rational)`
+  - `symbolic_coord_ops.c`：`rational_total_bits` 的 num/denref → `lv_rational_mpq(r)`
+
+### 验证
+- 全量重建 + ctest **303/303 全绿**。
+
+### 遗留登记
+- 剩余：graph_memory / graph_serialize / geometry_transform_group / algebraic /
+  symbolic_coord_transform / symbolic_coord_trust（含 `q->a->value`、`mpq_init` 写操作）
+  逐片迁移。

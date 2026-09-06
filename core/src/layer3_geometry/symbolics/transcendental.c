@@ -314,7 +314,7 @@ double transcendental_to_double(const Transcendental *t) {
         /* Rational 结构体内部是 mpq_t value */
         double k = 0.0;
         /* 从 t->name 推断基础常数 */
-        k = mpq_get_d(t->expr->rational_operand->value);
+        k = mpq_get_d(lv_rational_mpq(t->expr->rational_operand));
         mpq_clear(rat_val);
 
         /* 查表判断运算语义：乘法 k*base / 加法 base+k；未知类型返回基础常数（原 default 分支） */

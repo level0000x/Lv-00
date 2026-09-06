@@ -142,12 +142,12 @@ bool copy_check_transcendental(const SymbolicCoord *coord) {
 
 /* ── is_zero handlers ── */
 bool is_zero_rational(const SymbolicCoord *coord) {
-    return mpq_cmp_ui(coord->data.rational->value, 0, 1) == 0;
+    return mpq_cmp_ui(lv_rational_mpq(coord->data.rational), 0, 1) == 0;
 }
 bool is_zero_algebraic(const SymbolicCoord *coord) {
     Algebraic *a = coord->data.algebraic;
     if (a->cached_rational) {
-        return mpq_cmp_ui(a->cached_rational->value, 0, 1) == 0;
+        return mpq_cmp_ui(lv_rational_mpq(a->cached_rational), 0, 1) == 0;
     }
     return (a->left_bound <= 0 && a->right_bound >= 0);
 }
